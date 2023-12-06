@@ -1,13 +1,15 @@
-import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     fieldId as getFieldId,
     hashFieldReference,
     isField,
     isMetric,
 } from '@lightdash/common';
-import { FC } from 'react';
+import { Menu } from '@mantine/core';
+import { IconArrowBarToDown } from '@tabler/icons-react';
+import { FC, useCallback, useMemo } from 'react';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import MantineIcon from '../common/MantineIcon';
 import {
     DrillDownConfig,
     useMetricQueryDataContext,
@@ -31,6 +33,45 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         useMetricQueryDataContext();
     const { track } = useTracking();
 
+    const fieldId = useMemo(() => {
+        if (!item || !isField(item)) return undefined;
+
+        return pivotReference !== undefined
+            ? hashFieldReference(pivotReference)
+            : getFieldId(item);
+    }, [item, pivotReference]);
+
+    const value = fieldId ? fieldValues?.[fieldId]?.formatted : undefined;
+
+    const handleDrillInto = useCallback(() => {
+        if (!item || !openDrillDownModal || !fieldValues) {
+            return;
+        }
+
+        openDrillDownModal({
+            item,
+            fieldValues,
+            pivotReference,
+        });
+        track({
+            name: EventName.DRILL_BY_CLICKED,
+            properties: {
+                organizationId: trackingData.organizationId,
+                userId: trackingData.userId,
+                projectId: trackingData.projectId,
+            },
+        });
+    }, [
+        fieldValues,
+        item,
+        openDrillDownModal,
+        pivotReference,
+        track,
+        trackingData.organizationId,
+        trackingData.projectId,
+        trackingData.userId,
+    ]);
+
     if (
         item &&
         isField(item) &&
@@ -39,34 +80,16 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         fieldValues &&
         metricQuery
     ) {
-        const fieldId =
-            pivotReference !== undefined
-                ? hashFieldReference(pivotReference)
-                : getFieldId(item);
-        const value = fieldValues[fieldId]?.formatted;
-
         return (
-            <MenuItem2
-                text={`Drill into "${value}"`}
-                icon="path"
-                onClick={() => {
-                    openDrillDownModal({
-                        item,
-                        fieldValues,
-                        pivotReference,
-                    });
-                    track({
-                        name: EventName.DRILL_BY_CLICKED,
-                        properties: {
-                            organizationId: trackingData.organizationId,
-                            userId: trackingData.userId,
-                            projectId: trackingData.projectId,
-                        },
-                    });
-                }}
-            />
+            <Menu.Item
+                icon={<MantineIcon icon={IconArrowBarToDown} />}
+                onClick={handleDrillInto}
+            >
+                Drill into "{value}"
+            </Menu.Item>
         );
     }
+
     return null;
 };
 

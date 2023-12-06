@@ -1,5 +1,3 @@
-import { Icon } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     Field,
     FieldUrl,
@@ -13,11 +11,13 @@ import {
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
-import { Box, Tooltip } from '@mantine/core';
+import { Box, Menu, Tooltip } from '@mantine/core';
+import { IconExclamationCircle } from '@tabler/icons-react';
 import { Cell } from '@tanstack/react-table';
 import { FC, useMemo } from 'react';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
 
 const UrlMenuItem: FC<{
     urlConfig: FieldUrl;
@@ -76,15 +76,16 @@ const UrlMenuItem: FC<{
     const error: string | undefined = validationError || renderError;
 
     return (
-        <MenuItem2
+        <Menu.Item
             key={`url_entry_${urlConfig.label}`}
             icon="open-application"
-            text={urlConfig.label}
-            labelElement={
+            rightSection={
                 error && (
                     <Tooltip label={error} position="right">
                         <Box>
-                            <Icon icon="issue" />
+                            {/* Icon */}
+                            {/* <Icon icon="issue" /> */}
+                            <MantineIcon icon={IconExclamationCircle} />
                         </Box>
                     </Tooltip>
                 )
@@ -96,7 +97,9 @@ const UrlMenuItem: FC<{
                 });
                 window.open(url, '_blank');
             }}
-        />
+        >
+            {urlConfig.label}
+        </Menu.Item>
     );
 };
 
