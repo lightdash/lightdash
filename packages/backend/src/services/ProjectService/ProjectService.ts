@@ -47,7 +47,7 @@ import {
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
-    Item,
+    ItemsMap,
     Job,
     JobStatusType,
     JobStepType,
@@ -1516,7 +1516,7 @@ export class ProjectService {
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
-        fields: Record<string, Item | AdditionalMetric>;
+        fields: ItemsMap;
     }> {
         const tracer = opentelemetry.trace.getTracer('default');
         return tracer.startActiveSpan(

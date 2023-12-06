@@ -1,12 +1,10 @@
 import {
-    AdditionalMetric,
     assertUnreachable,
     BinType,
     CompiledDimension,
     CompiledMetricQuery,
     CustomDimension,
     DbtModelJoinType,
-    DimensionType,
     Explore,
     fieldId,
     FieldId,
@@ -25,7 +23,7 @@ import {
     getSqlForTruncatedDate,
     isAndFilterGroup,
     isFilterGroup,
-    Item,
+    ItemsMap,
     parseAllReferences,
     renderFilterRuleSql,
     renderTableCalculationFilterRuleSql,
@@ -479,7 +477,7 @@ export const getCustomDimensionSql = ({
 export type CompiledQuery = {
     query: string;
     hasExampleMetric: boolean;
-    fields: Record<string, Item | AdditionalMetric>;
+    fields: ItemsMap;
 };
 
 export const buildQuery = ({

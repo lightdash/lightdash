@@ -30,13 +30,9 @@ describe('getFieldsFromMetricQuery', () => {
     });
 
     test('should test with empty explore', async () => {
-        // With an empty explore, we can't get dimensions or metrics, but we still return table calculations, additional metrics, and custom dimensions
+        // With an empty explore, we can't get dimensions or metrics, but we still return table calculations and custom dimensions
         const result = getFieldsFromMetricQuery(metricQuery, emptyExplore);
-        expect(Object.keys(result)).toEqual([
-            'calc2',
-            'custom_dimension_1',
-            'table1_additional_metric_1',
-        ]);
+        expect(Object.keys(result)).toEqual(['calc2', 'custom_dimension_1']);
     });
 
     test('should test with empty metric query', async () => {
