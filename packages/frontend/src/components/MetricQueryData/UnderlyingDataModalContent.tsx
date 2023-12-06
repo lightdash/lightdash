@@ -202,15 +202,11 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 ? [metricQuery.filters.dimensions]
                 : [];
 
-        const dashboardFilters = underlyingDataConfig.dashboardFilters
-            ? underlyingDataConfig.dashboardFilters.dimensions
-            : [];
         const combinedFilters = [
             ...exploreFilters,
             ...dimensionFilters,
             ...pivotFilter,
             ...metricFilters,
-            ...dashboardFilters,
         ];
 
         const allFilters = {

@@ -19,8 +19,6 @@ import mapValues from 'lodash-es/mapValues';
 import { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
-
-import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -35,20 +33,14 @@ import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataPro
 const DashboardCellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell'> & {
         explore: Explore | undefined;
-        tileUuid: string;
     }
-> = ({ cell, explore, tileUuid }) => {
+> = ({ cell, explore }) => {
     const { showToastSuccess } = useToaster();
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
 
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
-    );
-
-    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
-        tileUuid,
-        explore,
     );
 
     const meta = cell.column.columnDef.meta;
@@ -144,8 +136,6 @@ const DashboardCellContextMenu: FC<
                                 value,
                                 fieldValues,
                                 pivotReference: meta?.pivotReference,
-                                dashboardFilters:
-                                    dashboardFiltersThatApplyToChart,
                             });
                         }}
                     />
@@ -162,7 +152,6 @@ const DashboardCellContextMenu: FC<
                 <DrillDownMenuItem
                     item={item}
                     fieldValues={fieldValues}
-                    dashboardFilters={dashboardFiltersThatApplyToChart}
                     pivotReference={meta?.pivotReference}
                     trackingData={{
                         organizationId: user?.data?.organizationUuid,

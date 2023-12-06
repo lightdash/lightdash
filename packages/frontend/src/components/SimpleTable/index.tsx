@@ -135,7 +135,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
                         return (
                             <DashboardCellContextMenu
                                 {...props}
-                                tileUuid={tileUuid}
                                 explore={explore}
                             />
                         );

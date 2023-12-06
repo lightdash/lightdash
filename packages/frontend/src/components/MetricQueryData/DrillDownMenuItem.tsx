@@ -24,7 +24,6 @@ type DrillDownMenuItemProps = Partial<DrillDownConfig> & {
 const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
     item,
     fieldValues,
-    dashboardFilters,
     pivotReference,
     trackingData,
 }) => {
@@ -54,7 +53,6 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
                     openDrillDownModal({
                         item,
                         fieldValues,
-                        dashboardFilters,
                         pivotReference,
                     });
                     track({

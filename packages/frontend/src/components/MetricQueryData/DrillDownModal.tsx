@@ -108,7 +108,6 @@ type DrillDownExploreUrlArgs = {
     metricQuery: MetricQuery;
     drillByMetric: FieldId;
     drillByDimension: FieldId;
-    dashboardFilters?: DashboardFilters;
     extraFilters?: Filters;
     pivotReference?: PivotReference;
 };
@@ -120,7 +119,6 @@ const drillDownExploreUrl = ({
     metricQuery,
     drillByMetric,
     drillByDimension,
-    dashboardFilters,
     extraFilters,
     pivotReference,
 }: DrillDownExploreUrlArgs) => {
@@ -133,7 +131,6 @@ const drillDownExploreUrl = ({
             filters: combineFilters({
                 metricQuery,
                 fieldValues,
-                dashboardFilters,
                 extraFilters,
                 pivotReference,
             }),
@@ -194,7 +191,6 @@ const DrillDownModal: FC = () => {
                 fieldValues: drillDownConfig.fieldValues,
                 drillByMetric: getItemId(drillDownConfig.item),
                 drillByDimension: getItemId(selectedDimension),
-                dashboardFilters: drillDownConfig.dashboardFilters,
                 pivotReference: drillDownConfig.pivotReference,
             });
         }

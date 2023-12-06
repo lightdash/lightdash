@@ -207,11 +207,7 @@ const ValidDashboardChartTile: FC<{
             dashboardFilters={dashboardFilters}
             invalidateCache={invalidateCache}
         >
-            <LightdashVisualization
-                isDashboard
-                tileUuid={tileUuid}
-                isTitleHidden={isTitleHidden}
-            />
+            <LightdashVisualization isDashboard isTitleHidden={isTitleHidden} />
         </VisualizationProvider>
     );
 };
@@ -259,11 +255,7 @@ const ValidDashboardChartTileMinimal: FC<{
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
         >
-            <LightdashVisualization
-                tileUuid={tileUuid}
-                isDashboard
-                isTitleHidden={isTitleHidden}
-            />
+            <LightdashVisualization isDashboard isTitleHidden={isTitleHidden} />
         </VisualizationProvider>
     );
 };
@@ -623,8 +615,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
                                                     openUnderlyingDataModal({
                                                         ...viewUnderlyingDataOptions,
-                                                        dashboardFilters:
-                                                            appliedDashboardFilters,
                                                     });
                                                     track({
                                                         name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
@@ -653,9 +643,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     >
                                         <DrillDownMenuItem
                                             {...viewUnderlyingDataOptions}
-                                            dashboardFilters={
-                                                appliedDashboardFilters
-                                            }
                                             trackingData={{
                                                 organizationId:
                                                     user.data?.organizationUuid,
