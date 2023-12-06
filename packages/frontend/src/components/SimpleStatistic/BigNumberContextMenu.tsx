@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { hasCustomDimension, ResultValue } from '@lightdash/common';
-import { Menu } from '@mantine/core';
+import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash-es/mapValues';
@@ -167,7 +167,10 @@ const BigNumberContextMenu: FC<{}> = ({ children }) => {
                             icon={<MantineIcon icon={IconArrowBarToDown} />}
                             onClick={handleOpenDrillIntoModal}
                         >
-                            Drill into "{value.formatted}"
+                            Drill into{' '}
+                            <Text span fw={500}>
+                                {value.formatted}
+                            </Text>
                         </Menu.Item>
                     </Can>
                 )}
