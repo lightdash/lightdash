@@ -1,8 +1,9 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import { MetricQuery, SEED_PROJECT } from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
-const runqueryBody = {
+const runqueryBody: MetricQuery = {
+    exploreName: 'customers',
     dimensions: ['customers_customer_id'],
     metrics: [],
     filters: {},

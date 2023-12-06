@@ -180,6 +180,7 @@ const testFilterStringEscaping = (projectUuid: string) => {
         headers: { 'Content-type': 'application/json' },
         method: 'POST',
         body: {
+            exploreName: 'customers',
             dimensions: ['customers_first_name'],
             metrics: [],
             filters: {
@@ -241,6 +242,7 @@ const testPercentile = (
         headers: { 'Content-type': 'application/json' },
         method: 'POST',
         body: {
+            exploreName: 'events',
             dimensions: ['events_timestamp_tz_day'],
             metrics: [
                 'events_median',
@@ -275,6 +277,7 @@ const testTimeIntervalsResults = (
         headers: { 'Content-type': 'application/json' },
         method: 'POST',
         body: {
+            exploreName: 'events',
             dimensions: [
                 'events_timestamp_tz_raw',
                 'events_timestamp_tz_millisecond',
@@ -331,6 +334,7 @@ const createCustomDimensionChart = (projectUuid) => {
             description: 'Payment range by amount',
             tableName: 'payments',
             metricQuery: {
+                exploreName: 'payments',
                 dimensions: ['payments_payment_method'],
                 metrics: ['orders_total_order_amount'],
                 filters: {},
