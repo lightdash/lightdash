@@ -139,6 +139,7 @@ projectRouter.post(
         try {
             const { body } = req;
             const metricQuery: MetricQuery = {
+                exploreName: body.exploreName,
                 dimensions: body.dimensions,
                 metrics: body.metrics,
                 filters: body.filters,
@@ -185,6 +186,7 @@ projectRouter.post(
             const { projectUuid, exploreId } = req.params;
 
             const metricQuery: MetricQuery = {
+                exploreName: body.exploreName,
                 dimensions: body.dimensions,
                 metrics: body.metrics,
                 filters: body.filters,

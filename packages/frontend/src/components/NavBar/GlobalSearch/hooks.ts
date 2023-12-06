@@ -120,6 +120,7 @@ export const useDebouncedSearch = (
                     {
                         tableName: item.explore,
                         metricQuery: {
+                            exploreName: item.explore,
                             dimensions:
                                 item.fieldType === FieldType.DIMENSION
                                     ? [fieldId(item)]

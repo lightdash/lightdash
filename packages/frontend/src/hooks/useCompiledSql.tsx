@@ -47,6 +47,7 @@ export const useCompiledSql = () => {
 
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
+        exploreName: tableId,
         dimensions: Array.from(dimensions),
         metrics: Array.from(metrics),
         sorts,

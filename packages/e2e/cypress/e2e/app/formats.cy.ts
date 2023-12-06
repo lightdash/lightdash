@@ -6,7 +6,75 @@ describe('Explore', () => {
     });
 
     it('Should query in explore with formats and rounds', () => {
-        const exploreUrlParams = `?create_saved_chart_version=%7B"tableName"%3A"events"%2C"metricQuery"%3A%7B"dimensions"%3A%5B%5D%2C"metrics"%3A%5B"events_in_eur"%2C"events_in_eur_with_round_0"%2C"events_in_eur_with_round_2"%2C"events_in_gbp"%2C"events_in_km"%2C"events_in_mi"%2C"events_in_percent"%5D%2C"filters"%3A%7B"dimensions"%3A%7B"id"%3A"694f188d-c8a6-4989-b685-be374e87ff4d"%2C"and"%3A%5B%7B"id"%3A"85c7177d-4b81-4914-8073-18309ac497c8"%2C"target"%3A%7B"fieldId"%3A"events_event_id"%7D%2C"operator"%3A"lessThan"%2C"values"%3A%5B2000%5D%7D%5D%7D%7D%2C"sorts"%3A%5B%7B"fieldId"%3A"events_in_eur"%2C"descending"%3Atrue%7D%5D%2C"limit"%3A1%2C"tableCalculations"%3A%5B%5D%2C"additionalMetrics"%3A%5B%5D%7D%2C"tableConfig"%3A%7B"columnOrder"%3A%5B"events_in_eur"%2C"events_in_eur_with_round_0"%2C"events_in_eur_with_round_2"%2C"events_in_gbp"%2C"events_in_km"%2C"events_in_mi"%2C"events_in_percent"%5D%7D%2C"chartConfig"%3A%7B"type"%3A"cartesian"%2C"config"%3A%7B"layout"%3A%7B"xField"%3A"events_in_eur"%2C"yField"%3A%5B"events_in_eur_with_round_0"%5D%7D%2C"eChartsConfig"%3A%7B"series"%3A%5B%7B"encode"%3A%7B"xRef"%3A%7B"field"%3A"events_in_eur"%7D%2C"yRef"%3A%7B"field"%3A"events_in_eur_with_round_0"%7D%7D%2C"type"%3A"bar"%7D%5D%7D%7D%7D%7D`;
+        const urlParam = {
+            tableName: 'events',
+            metricQuery: {
+                exploreName: 'events',
+                dimensions: [],
+                metrics: [
+                    'events_in_eur',
+                    'events_in_eur_with_round_0',
+                    'events_in_eur_with_round_2',
+                    'events_in_gbp',
+                    'events_in_km',
+                    'events_in_mi',
+                    'events_in_percent',
+                ],
+                filters: {
+                    dimensions: {
+                        id: '694f188d-c8a6-4989-b685-be374e87ff4d',
+                        and: [
+                            {
+                                id: '85c7177d-4b81-4914-8073-18309ac497c8',
+                                target: { fieldId: 'events_event_id' },
+                                operator: 'lessThan',
+                                values: [2000],
+                            },
+                        ],
+                    },
+                },
+                sorts: [{ fieldId: 'events_in_eur', descending: true }],
+                limit: 1,
+                tableCalculations: [],
+                additionalMetrics: [],
+            },
+            tableConfig: {
+                columnOrder: [
+                    'events_in_eur',
+                    'events_in_eur_with_round_0',
+                    'events_in_eur_with_round_2',
+                    'events_in_gbp',
+                    'events_in_km',
+                    'events_in_mi',
+                    'events_in_percent',
+                ],
+            },
+            chartConfig: {
+                type: 'cartesian',
+                config: {
+                    layout: {
+                        xField: 'events_in_eur',
+                        yField: ['events_in_eur_with_round_0'],
+                    },
+                    eChartsConfig: {
+                        series: [
+                            {
+                                encode: {
+                                    xRef: { field: 'events_in_eur' },
+                                    yRef: {
+                                        field: 'events_in_eur_with_round_0',
+                                    },
+                                },
+                                type: 'bar',
+                            },
+                        ],
+                    },
+                },
+            },
+        };
+        const exploreUrlParams = `?create_saved_chart_version=${encodeURI(
+            JSON.stringify(urlParam),
+        )}`;
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreUrlParams}`,
         );

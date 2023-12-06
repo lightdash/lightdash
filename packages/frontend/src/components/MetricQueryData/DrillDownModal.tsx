@@ -125,6 +125,7 @@ const drillDownExploreUrl = ({
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
         metricQuery: {
+            exploreName: tableName,
             tableCalculations: [],
             dimensions: [drillByDimension],
             metrics: [drillByMetric],

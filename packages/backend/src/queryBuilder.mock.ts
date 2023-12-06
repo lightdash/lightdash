@@ -488,6 +488,7 @@ export const EXPLORE_BIGQUERY: Explore = {
 };
 
 export const METRIC_QUERY_JOIN_CHAIN: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table5_dim1'],
     metrics: ['table5_metric1'],
     filters: {},
@@ -544,6 +545,7 @@ GROUP BY 1
 LIMIT 5`;
 
 export const METRIC_QUERY: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
     filters: {},
@@ -568,6 +570,7 @@ export const METRIC_QUERY: CompiledMetricQuery = {
 };
 
 export const METRIC_QUERY_WITH_CUSTOM_DIMENSION: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
     filters: {},
@@ -589,6 +592,7 @@ export const METRIC_QUERY_WITH_CUSTOM_DIMENSION: CompiledMetricQuery = {
 };
 
 export const METRIC_QUERY_TWO_TABLES: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: ['table2_metric2'],
     filters: {},
@@ -613,6 +617,7 @@ export const METRIC_QUERY_TWO_TABLES: CompiledMetricQuery = {
 };
 
 export const METRIC_QUERY_WITH_TABLE_REFERENCE: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_with_reference'],
     metrics: [],
     filters: {},
@@ -634,6 +639,7 @@ GROUP BY 1
 LIMIT 10`;
 
 export const METRIC_QUERY_WITH_FILTER: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: [],
     filters: {
@@ -659,6 +665,7 @@ export const METRIC_QUERY_WITH_FILTER: CompiledMetricQuery = {
 };
 
 export const METRIC_QUERY_WITH_METRIC_FILTER: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
     filters: {
@@ -685,6 +692,7 @@ export const METRIC_QUERY_WITH_METRIC_FILTER: CompiledMetricQuery = {
 
 export const METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM: CompiledMetricQuery =
     {
+        exploreName: 'table1',
         dimensions: [],
         metrics: ['table1_metric_that_references_dim_from_table2'],
         filters: {
@@ -712,6 +720,7 @@ export const METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TAB
     };
 
 export const METRIC_QUERY_WITH_NESTED_METRIC_FILTERS: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
     filters: {
@@ -758,6 +767,7 @@ export const METRIC_QUERY_WITH_NESTED_METRIC_FILTERS: CompiledMetricQuery = {
 };
 
 export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: [],
     filters: {
@@ -790,6 +800,7 @@ export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
 };
 
 export const METRIC_QUERY_WITH_DISABLED_FILTER: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
     filters: {
@@ -817,6 +828,7 @@ export const METRIC_QUERY_WITH_DISABLED_FILTER: CompiledMetricQuery = {
 
 export const METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER: CompiledMetricQuery =
     {
+        exploreName: 'table1',
         dimensions: ['table1_dim1'],
         metrics: [],
         filters: {
@@ -850,6 +862,7 @@ export const METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER: CompiledMetricQuery =
     };
 
 export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: [],
     filters: {
@@ -895,6 +908,7 @@ export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS: CompiledMetricQuery = {
 };
 
 export const METRIC_QUERY_WITH_EMPTY_FILTER: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: [],
     filters: {
@@ -911,6 +925,7 @@ export const METRIC_QUERY_WITH_EMPTY_FILTER: CompiledMetricQuery = {
 };
 
 export const METRIC_QUERY_WITH_EMPTY_METRIC_FILTER: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
     filters: {
@@ -927,6 +942,7 @@ export const METRIC_QUERY_WITH_EMPTY_METRIC_FILTER: CompiledMetricQuery = {
 };
 
 export const METRIC_QUERY_WITH_ADDITIONAL_METRIC: CompiledMetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1'],
     metrics: ['table2_additional_metric'],
     filters: {},

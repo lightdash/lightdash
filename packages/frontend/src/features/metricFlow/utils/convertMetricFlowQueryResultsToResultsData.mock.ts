@@ -93,6 +93,7 @@ export const MOCK_SNOWFLAKE_DATA: MetricFlowJsonResults = {
 export const EXPECTED_CONVERTED_SNOWFLAKE_DATA = {
     resultsData: {
         metricQuery: {
+            exploreName: 'metricflow',
             dimensions: ['metricflow_metric_time__day'],
             metrics: ['metricflow_spice_tons'],
             filters: {},

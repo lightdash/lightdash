@@ -1,5 +1,6 @@
 import {
     Explore,
+    MetricQuery,
     ProjectMemberProfile,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
@@ -8,7 +9,8 @@ import {
 
 const apiUrl = '/api/v1';
 
-const runqueryBody = {
+const runqueryBody: MetricQuery = {
+    exploreName: 'customers',
     dimensions: ['customers_customer_id'],
     metrics: [],
     filters: {},

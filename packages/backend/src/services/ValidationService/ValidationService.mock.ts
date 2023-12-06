@@ -64,6 +64,7 @@ export const chart: SavedChart = {
         lastName: 'Attenborough',
     },
     metricQuery: {
+        exploreName: 'table',
         dimensions: ['table_dimension'],
         metrics: ['table_metric'],
         filters: {
