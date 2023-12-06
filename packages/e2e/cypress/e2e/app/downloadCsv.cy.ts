@@ -156,7 +156,9 @@ describe('Download CSV on Explore', () => {
             cy.findByText('Loading results').should('not.exist');
 
             cy.findByTestId('export-csv-button').click();
-            cy.get('[icon="export"]').click();
+            cy.findByTestId('chart-export-csv-button').click();
+
+            cy.findByText('Export CSV').click();
 
             cy.wait('@apiDownloadCsv', { timeout: 3000 }).then(
                 (interception) => {
