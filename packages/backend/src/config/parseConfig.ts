@@ -124,6 +124,7 @@ export type LightdashConfig = {
         enabled: boolean;
         concurrency: number;
         jobTimeout: number;
+        screenshotTimeout?: number;
     };
     logging: LoggingConfig;
 };
@@ -429,6 +430,9 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             jobTimeout: process.env.SCHEDULER_JOB_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_JOB_TIMEOUT, 10)
                 : DEFAULT_JOB_TIMEOUT,
+            screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
+                ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
+                : undefined,
         },
         logging: {
             level: parseLoggingLevel(

@@ -459,6 +459,17 @@ export class UnfurlService {
                             pageMetrics.JSEventListeners,
                         timeout,
                     });
+
+                    if (this.lightdashConfig.scheduler.screenshotTimeout) {
+                        await new Promise((resolve) => {
+                            setTimeout(
+                                resolve,
+                                this.lightdashConfig.scheduler
+                                    .screenshotTimeout,
+                            );
+                        });
+                    }
+
                     const imageBuffer = (await element.screenshot({
                         path,
                     })) as Buffer;

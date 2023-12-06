@@ -152,6 +152,16 @@ if (
                     elements.forEach((el) => el.parentNode.removeChild(el));
                 }, '.bp4-navbar');
             }
+
+            if (lightdashConfig.scheduler.screenshotTimeout) {
+                await new Promise((resolve) => {
+                    setTimeout(
+                        resolve,
+                        lightdashConfig.scheduler.screenshotTimeout,
+                    );
+                });
+            }
+
             const imageBuffer = await element.screenshot({
                 path: '/tmp/test-screenshot.png',
             });
