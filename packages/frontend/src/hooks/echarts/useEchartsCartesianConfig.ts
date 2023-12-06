@@ -825,9 +825,23 @@ const getEchartAxis = ({
                     return formatItemValue(axisItem, value, true);
                 },
             };
+            axisConfig.axisPointer = {
+                label: {
+                    formatter: (value: any) => {
+                        return formatItemValue(axisItem, value.value, false);
+                    },
+                },
+            };
         } else if (axisLabelFormatter) {
             axisConfig.axisLabel = {
                 formatter: axisLabelFormatter,
+            };
+            axisConfig.axisPointer = {
+                label: {
+                    formatter: (value: any) => {
+                        return formatItemValue(axisItem, value.value, false);
+                    },
+                },
             };
         } else if (axisItem !== undefined && isTableCalculation(axisItem)) {
             axisConfig.axisLabel = {
