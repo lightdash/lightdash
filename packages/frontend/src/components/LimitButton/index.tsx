@@ -30,11 +30,11 @@ const LimitButton: FC<Props> = memo(
                 withinPortal
                 disabled={disabled}
                 opened={opened}
-                position="top"
+                position="bottom-end"
                 withArrow
                 shadow="md"
-                arrowSize={10}
                 offset={2}
+                arrowOffset={10}
             >
                 <Popover.Target>
                     <Button
@@ -43,7 +43,7 @@ const LimitButton: FC<Props> = memo(
                         disabled={disabled}
                         onClick={opened ? undefined : open}
                     >
-                        <MantineIcon icon={IconChevronDown} size="lg" />
+                        <MantineIcon icon={IconChevronDown} size="sm" />
                     </Button>
                 </Popover.Target>
 

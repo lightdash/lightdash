@@ -50,6 +50,7 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
                     />
 
                     <Button
+                        size={'xs'}
                         type="submit"
                         disabled={!form.isValid()}
                         sx={{ alignSelf: 'flex-end' }}
