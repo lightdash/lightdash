@@ -245,7 +245,13 @@ export class GoogleDriveClient {
             sortedFieldIds.map((fieldId) => {
                 // Google sheet doesn't like arrays as values, so we need to convert them to strings
                 const value = row[fieldId];
-                return Array.isArray(value) ? value.join(',') : value;
+                if (Array.isArray(value)) {
+                    return value.join(',');
+                }
+                if (value && typeof value === 'object') {
+                    return JSON.stringify(value);
+                }
+                return value;
             }),
         );
 

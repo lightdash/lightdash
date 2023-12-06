@@ -6,8 +6,6 @@ models:
       - name: plan_name
       - name: metadata
         meta:
-          dimension:
-            hidden: true
           additional_dimensions:
             created_by:
               type: string
