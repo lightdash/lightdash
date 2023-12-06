@@ -217,6 +217,8 @@ export class ValidationService {
                 chart.metricQuery.customDimensions?.map(getItemId) || [];
             const availableMetricIds =
                 exploreFields[tableName]?.metricIds || [];
+            const availableTableCalculations =
+                chart.metricQuery.tableCalculations?.map(getItemId) || [];
 
             const allItemIdsAvailableInChart = [
                 ...availableDimensionIds,
@@ -294,13 +296,19 @@ export class ValidationService {
                 [],
             );
 
+            const fieldsWithTableCalculationFilters = [
+                ...allItemIdsAvailableInChart,
+                ...availableTableCalculations.map(
+                    (tc) => `table_calculation_${tc}`,
+                ),
+            ];
             const filterErrors = getFilterRules(
                 chart.metricQuery.filters,
             ).reduce<CreateChartValidation[]>(
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: allItemIdsAvailableInChart,
+                        fieldIds: fieldsWithTableCalculationFilters,
                         fieldId: field.target.fieldId,
                         error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
                         errorType: ValidationErrorType.Filter,
