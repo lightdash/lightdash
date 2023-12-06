@@ -1,3 +1,17 @@
+# [0.895.0](https://github.com/lightdash/lightdash/compare/0.894.0...0.895.0) (2023-12-06)
+
+
+### Bug Fixes
+
+* json google sheets ([#8219](https://github.com/lightdash/lightdash/issues/8219)) ([0fe3f41](https://github.com/lightdash/lightdash/commit/0fe3f41b8880a112473136e3ee5d1db95f880499))
+* remove duplicate dashboard filters ([#8217](https://github.com/lightdash/lightdash/issues/8217)) ([afb6d38](https://github.com/lightdash/lightdash/commit/afb6d38b19e30a2ab4f9001491df5adbe5040b7b))
+* table calculation filter validation ([#8221](https://github.com/lightdash/lightdash/issues/8221)) ([d7ffce4](https://github.com/lightdash/lightdash/commit/d7ffce4d002a9b2b4152696e94e28fe6b68444a3))
+
+
+### Features
+
+* export csv form in mantine ([#8204](https://github.com/lightdash/lightdash/issues/8204)) ([ded408e](https://github.com/lightdash/lightdash/commit/ded408ea96d954047edf60fc575cb2fe0ffb51cb))
+
 # [0.894.0](https://github.com/lightdash/lightdash/compare/0.893.2...0.894.0) (2023-12-06)
 
 
