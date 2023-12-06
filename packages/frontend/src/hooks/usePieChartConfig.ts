@@ -176,14 +176,15 @@ const usePieChartConfig: PieChartConfigFn = (
         [dimensions],
     );
 
-    const allNumericMetrics = useMemo(
-        () => metrics.filter(isNumericItem),
-        [metrics],
-    );
-
     const allNumericMetricIds = useMemo(
-        () => allNumericMetrics.map((m) => fieldId(m)),
-        [allNumericMetrics],
+        () =>
+            metrics.reduce<string[]>((acc, metric) => {
+                if (isNumericItem(metric)) {
+                    acc.push(fieldId(metric));
+                }
+                return acc;
+            }, []),
+        [metrics],
     );
 
     const selectedMetric = useMemo(() => {
