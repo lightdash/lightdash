@@ -199,7 +199,6 @@ const useSqlQueryVisualization = ({
 
     return {
         initialPivotDimensions: initialState?.pivotConfig?.columns,
-        explore,
         fieldsMap: { ...fields.sqlQueryDimensions, ...fields.sqlQueryMetrics },
         resultsData,
         columnOrder: [...dimensionKeys, ...metricKeys],

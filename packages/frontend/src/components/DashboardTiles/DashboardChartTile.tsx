@@ -156,14 +156,7 @@ const ValidDashboardChartTile: FC<{
 }> = ({
     tileUuid,
     isTitleHidden = false,
-    chartAndResults: {
-        chart,
-        explore,
-        metricQuery,
-        rows,
-        cacheMetadata,
-        fields,
-    },
+    chartAndResults: { chart, metricQuery, rows, cacheMetadata, fields },
     onSeriesContextMenu,
 }) => {
     const addResultsCacheTime = useDashboardContext(
@@ -198,7 +191,6 @@ const ValidDashboardChartTile: FC<{
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
-            explore={explore}
             isLoading={false}
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={chart.tableConfig.columnOrder}
@@ -223,14 +215,7 @@ const ValidDashboardChartTileMinimal: FC<{
     chartAndResults: ApiChartAndResults;
 }> = ({
     tileUuid,
-    chartAndResults: {
-        chart,
-        metricQuery,
-        explore,
-        rows,
-        cacheMetadata,
-        fields,
-    },
+    chartAndResults: { chart, metricQuery, rows, cacheMetadata, fields },
     isTitleHidden = false,
 }) => {
     const { health } = useApp();
@@ -253,7 +238,6 @@ const ValidDashboardChartTileMinimal: FC<{
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
             isLoading={false}
-            explore={explore}
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={chart.uuid}

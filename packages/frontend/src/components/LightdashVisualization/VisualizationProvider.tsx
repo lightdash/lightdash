@@ -4,7 +4,6 @@ import {
     ChartConfig,
     ChartType,
     DashboardFilters,
-    Explore,
     getCustomDimensionId,
     ItemsMap,
 } from '@lightdash/common';
@@ -83,7 +82,6 @@ export function useVisualizationContext(): VisualizationContext {
 }
 
 export type VisualizationConfigCommon<T extends VisualizationConfig> = {
-    explore?: Explore;
     resultsData: ApiQueryResults | undefined;
     initialChartConfig: T['chartConfig']['validConfig'] | undefined;
     onChartConfigChange?: (chartConfig: {
@@ -107,7 +105,6 @@ type Props = {
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
-    explore: Explore | undefined;
     isSqlRunner?: boolean;
     pivotTableMaxColumnLimit: number;
     savedChartUuid?: string;
@@ -121,7 +118,6 @@ const VisualizationProvider: FC<Props> = ({
     resultsData,
     isLoading,
     columnOrder,
-    explore,
     isSqlRunner,
     pivotTableMaxColumnLimit,
     chartConfig,
@@ -221,7 +217,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.CARTESIAN:
             return (
                 <VisualizationCartesianConfig
-                    explore={isSqlRunner ? undefined : explore}
                     resultsData={lastValidResultsData}
                     validPivotDimensions={validPivotDimensions}
                     columnOrder={isSqlRunner ? [] : defaultColumnOrder}
@@ -243,7 +238,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.PIE:
             return (
                 <VisualizationPieConfig
-                    explore={explore}
                     itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
@@ -261,7 +255,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.BIG_NUMBER:
             return (
                 <VisualizationBigNumberConfig
-                    explore={explore}
                     itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
@@ -279,7 +272,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.TABLE:
             return (
                 <VisualizationTableConfig
-                    exploreName={explore?.name}
                     itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     columnOrder={defaultColumnOrder}
@@ -303,7 +295,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.CUSTOM:
             return (
                 <VisualizationCustomConfig
-                    explore={explore}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}

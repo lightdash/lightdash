@@ -80,7 +80,6 @@ const SqlRunnerPage = () => {
     const { isLoading, mutate } = sqlQueryMutation;
     const {
         initialPivotDimensions,
-        explore,
         resultsData,
         columnOrder,
         createSavedChart,
@@ -257,7 +256,6 @@ const SqlRunnerPage = () => {
                     onChartTypeChange={setChartType}
                     onPivotDimensionsChange={setPivotFields}
                     columnOrder={columnOrder}
-                    explore={explore}
                     isSqlRunner={true}
                     pivotTableMaxColumnLimit={
                         health.data.pivotTable.maxColumnLimit

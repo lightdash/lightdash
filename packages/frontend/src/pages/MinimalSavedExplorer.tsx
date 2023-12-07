@@ -4,7 +4,6 @@ import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
-import { useExplore } from '../hooks/useExplore';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
@@ -40,8 +39,6 @@ const MinimalExplorer: FC = () => {
         (context) => context.queryResults.isLoading,
     );
 
-    const { data: explore } = useExplore(savedChart?.tableName);
-
     if (!savedChart || health.isLoading || !health.data) {
         return null;
     }
@@ -51,7 +48,6 @@ const MinimalExplorer: FC = () => {
             minimal
             chartConfig={savedChart.chartConfig}
             initialPivotDimensions={savedChart.pivotConfig?.columns}
-            explore={explore}
             resultsData={queryResults}
             isLoading={isLoadingQueryResults}
             columnOrder={savedChart.tableConfig.columnOrder}
