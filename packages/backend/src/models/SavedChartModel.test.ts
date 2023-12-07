@@ -1,31 +1,9 @@
 import knex from 'knex';
-import {
-    FunctionQueryMatcher,
-    getTracker,
-    MockClient,
-    RawQuery,
-    Tracker,
-} from 'knex-mock-client';
+import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 
-import {
-    SavedChartsTableName,
-    SavedChartVersionsTableName,
-} from '../database/entities/savedCharts';
+import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedChartModel } from './SavedChartModel';
 import { chartSummary, lightdashConfigMock } from './SavedChartModel.mock';
-
-function queryMatcher(
-    tableName: string,
-    params: any[] = [],
-): FunctionQueryMatcher {
-    return ({ sql, bindings }: RawQuery) =>
-        sql.includes(tableName) &&
-        params.length === bindings.length &&
-        params.reduce(
-            (valid, arg, index) => valid && bindings[index] === arg,
-            true,
-        );
-}
 
 describe('getLatestVersionSummaries', () => {
     const model = new SavedChartModel({
@@ -48,10 +26,6 @@ describe('getLatestVersionSummaries', () => {
     });
 
     test('Should return all recent chart versions', async () => {
-        const now = new Date();
-        const dateDaysAgo = (days: number) =>
-            new Date(new Date().setDate(new Date().getDate() - days));
-
         tracker.on.select(SavedChartsTableName).responseOnce([
             {
                 ...chartSummary,
