@@ -3,8 +3,6 @@ import * as ts from 'typescript';
 
 const INITIAL_BLUEPRINT_IMPORTS_BEFORE_REFACTOR = 993;
 
-const isVerbose = process.argv.includes('--verbose');
-
 const countImportsInAFile = (
     file: string,
     targetLibrary: string,
