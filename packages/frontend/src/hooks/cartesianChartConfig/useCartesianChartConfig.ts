@@ -610,6 +610,8 @@ const useCartesianChartConfig = ({
                         ? prev?.series?.[0]?.areaStyle
                         : undefined;
                 const defaultSmooth = prev?.series?.[0]?.smooth;
+                const defaultLabel = prev?.series?.[0]?.label;
+
                 const defaultShowSymbol = prev?.series?.[0]?.showSymbol;
                 const expectedSeriesMap = getExpectedSeriesMap({
                     defaultSmooth,
@@ -622,6 +624,7 @@ const useCartesianChartConfig = ({
                     resultsData,
                     xField: dirtyLayout.xField,
                     yFields: dirtyLayout.yField,
+                    defaultLabel,
                 });
                 const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,

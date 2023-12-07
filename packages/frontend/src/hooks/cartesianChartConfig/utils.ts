@@ -21,6 +21,7 @@ export type GetExpectedSeriesMapArgs = {
     yFields: string[];
     xField: string;
     availableDimensions: string[];
+    defaultLabel?: Series['label'];
 };
 
 export const getExpectedSeriesMap = ({
@@ -34,6 +35,7 @@ export const getExpectedSeriesMap = ({
     yFields,
     xField,
     availableDimensions,
+    defaultLabel,
 }: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
 
@@ -43,6 +45,7 @@ export const getExpectedSeriesMap = ({
         type: defaultCartesianType,
         areaStyle: defaultAreaStyle,
         yAxisIndex: 0,
+        label: defaultLabel,
     };
     if (pivotKeys && pivotKeys.length > 0) {
         const { rowKeyMap } = getPivotedData(
