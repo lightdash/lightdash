@@ -66,6 +66,8 @@ const BodyCell: FC<CommonBodyCellProps> = ({
             opened={selected}
             onOpen={() => handleSelect()}
             onClose={() => handleDeselect()}
+            closeOnItemClick
+            closeOnEscape
             shadow="md"
             position="bottom-end"
             radius={0}
