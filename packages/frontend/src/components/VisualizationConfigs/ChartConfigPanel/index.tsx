@@ -10,7 +10,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 import ChartConfigTabs from './ChartConfigTabs';
 
 const ChartConfigPanel: React.FC = () => {
-    const { resultsData, explore, visualizationConfig } =
+    const { resultsData, itemsMap, visualizationConfig } =
         useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
@@ -20,7 +20,7 @@ const ChartConfigPanel: React.FC = () => {
     const disabled =
         !resultsData ||
         resultsData?.rows.length === 0 ||
-        !explore ||
+        !itemsMap ||
         !chartConfig.validConfig;
 
     return (

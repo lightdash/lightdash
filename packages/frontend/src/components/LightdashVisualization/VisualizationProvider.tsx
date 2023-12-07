@@ -1,18 +1,12 @@
 import {
-    AdditionalMetric,
     ApiQueryResults,
     assertUnreachable,
     ChartConfig,
     ChartType,
-    convertAdditionalMetric,
     DashboardFilters,
     Explore,
-    fieldId,
     getCustomDimensionId,
-    getMetrics,
     ItemsMap,
-    Metric,
-    TableCalculation,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import isEqual from 'lodash-es/isEqual';
@@ -58,15 +52,11 @@ type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact>;
     pivotDimensions: string[] | undefined;
-    explore: Explore | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
     isSqlRunner: boolean;
     itemsMap: ItemsMap | undefined;
-    metrics: Metric[];
-    customMetrics: AdditionalMetric[];
-    tableCalculations: TableCalculation[];
     visualizationConfig: VisualizationConfig;
     // cartesian config related
     setStacking: (value: boolean | undefined) => void;
@@ -168,43 +158,6 @@ const VisualizationProvider: FC<Props> = ({
     const [cartesianType, setCartesianType] = useState<CartesianTypeOptions>();
     // --
 
-    const metrics = useMemo(() => {
-        if (!explore) return [];
-        return getMetrics(explore).filter((field) =>
-            resultsData?.metricQuery.metrics.includes(fieldId(field)),
-        );
-    }, [explore, resultsData?.metricQuery.metrics]);
-
-    const customMetrics = useMemo(() => {
-        if (!explore) return [];
-
-        return (resultsData?.metricQuery.additionalMetrics || []).reduce<
-            Metric[]
-        >((acc, additionalMetric) => {
-            const table = explore.tables[additionalMetric.table];
-            if (!table) return acc;
-
-            const metric = convertAdditionalMetric({
-                additionalMetric,
-                table,
-            });
-
-            if (!resultsData?.metricQuery.metrics.includes(fieldId(metric))) {
-                return acc;
-            }
-
-            return [...acc, metric];
-        }, []);
-    }, [
-        explore,
-        resultsData?.metricQuery.additionalMetrics,
-        resultsData?.metricQuery.metrics,
-    ]);
-
-    const tableCalculations = useMemo(() => {
-        return resultsData?.metricQuery.tableCalculations ?? [];
-    }, [resultsData?.metricQuery.tableCalculations]);
-
     // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
     // so we initialize it with the fields from resultData
     const defaultColumnOrder = useMemo(() => {
@@ -254,13 +207,9 @@ const VisualizationProvider: FC<Props> = ({
         chartRef,
         resultsData: lastValidResultsData,
         isLoading,
-        explore,
         columnOrder,
         isSqlRunner: isSqlRunner ?? false,
         itemsMap,
-        metrics,
-        customMetrics,
-        tableCalculations,
         setStacking,
         setCartesianType,
         onSeriesContextMenu,
@@ -330,7 +279,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.TABLE:
             return (
                 <VisualizationTableConfig
-                    explore={explore}
                     exploreName={explore?.name}
                     itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
