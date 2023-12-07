@@ -14,6 +14,7 @@ import {
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
+    createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
@@ -22,13 +23,11 @@ import {
     DashboardBasicDetails,
     DashboardFilters,
     DateGranularity,
-    dateGranularityToTimeFrameMap,
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
     DimensionType,
     Explore,
-    ExploreCompiler,
     ExploreError,
     fieldId as getFieldId,
     FilterableField,
@@ -42,7 +41,6 @@ import {
     getDimensions,
     getFields,
     getItemId,
-    getItemMap,
     getMetrics,
     hasIntersection,
     isDateItem,
@@ -66,6 +64,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
+    replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -77,7 +76,6 @@ import {
     TableCalculationFormatType,
     TablesConfiguration,
     TableSelectionType,
-    timeFrameConfigs,
     UpdateProject,
     UpdateProjectMember,
     UserAttributeValueMap,
@@ -763,9 +761,6 @@ export class ProjectService {
                     (dimension) => !!timeDimensionsMap[dimension],
                 );
             if (firstTimeDimensionIdInMetricQuery) {
-                const newTimeInterval =
-                    dateGranularityToTimeFrameMap[granularity];
-                const exploreCompiler = new ExploreCompiler(warehouseClient);
                 const dimToOverride =
                     timeDimensionsMap[firstTimeDimensionIdInMetricQuery];
                 const { baseDimensionId } = getDateDimension(
@@ -775,45 +770,18 @@ export class ProjectService {
                     dimToOverride.timeInterval && baseDimensionId
                         ? timeDimensionsMap[baseDimensionId]
                         : dimToOverride;
-                const dimWithGranularityOverride: CompiledDimension =
-                    exploreCompiler.compileDimension(
-                        {
-                            ...baseTimeDimension,
-                            name: dimToOverride.name,
-                            timeInterval: newTimeInterval,
-                            label: `${
-                                baseTimeDimension.label
-                            } ${timeFrameConfigs[newTimeInterval]
-                                .getLabel()
-                                .toLowerCase()}`,
-                            sql: timeFrameConfigs[newTimeInterval].getSql(
-                                warehouseClient.getAdapterType(),
-                                newTimeInterval,
-                                baseTimeDimension.sql,
-                                timeFrameConfigs[
-                                    newTimeInterval
-                                ].getDimensionType(baseTimeDimension.type),
-                                warehouseClient.getStartOfWeek(),
-                            ),
-                        },
-                        explore.tables,
+                const dimWithGranularityOverride =
+                    createDimensionWithGranularity(
+                        dimToOverride.name,
+                        baseTimeDimension,
+                        explore,
+                        warehouseClient,
+                        granularity,
                     );
-                // replace dimension with new granularity
-                return {
-                    ...explore,
-                    tables: {
-                        ...explore.tables,
-                        [dimToOverride.table]: {
-                            ...explore.tables[dimToOverride.table],
-                            dimensions: {
-                                ...explore.tables[dimToOverride.table]
-                                    .dimensions,
-                                [dimToOverride.name]:
-                                    dimWithGranularityOverride,
-                            },
-                        },
-                    },
-                };
+                return replaceDimensionInExplore(
+                    explore,
+                    dimWithGranularityOverride,
+                );
             }
         }
         return explore;

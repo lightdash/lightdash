@@ -17,6 +17,11 @@ import {
 } from '../types/field';
 import { WarehouseClient } from '../types/warehouse';
 
+import {
+    DateGranularity,
+    dateGranularityToTimeFrameMap,
+} from '../types/timeFrames';
+import { timeFrameConfigs } from '../utils/timeFrames';
 import { renderFilterRuleSql } from './filtersCompiler';
 
 // exclude lightdash prefix from variable pattern
@@ -526,3 +531,36 @@ export class ExploreCompiler {
         };
     }
 }
+
+export const createDimensionWithGranularity = (
+    dimensionName: string,
+    baseTimeDimension: CompiledDimension,
+    explore: Explore,
+    warehouseClient: WarehouseClient,
+    granularity: DateGranularity,
+) => {
+    const newTimeInterval = dateGranularityToTimeFrameMap[granularity];
+    const exploreCompiler = new ExploreCompiler(warehouseClient);
+    return exploreCompiler.compileDimension(
+        {
+            ...baseTimeDimension,
+            name: dimensionName,
+            timeInterval: newTimeInterval,
+            label: `${baseTimeDimension.label} ${timeFrameConfigs[
+                newTimeInterval
+            ]
+                .getLabel()
+                .toLowerCase()}`,
+            sql: timeFrameConfigs[newTimeInterval].getSql(
+                warehouseClient.getAdapterType(),
+                newTimeInterval,
+                baseTimeDimension.sql,
+                timeFrameConfigs[newTimeInterval].getDimensionType(
+                    baseTimeDimension.type,
+                ),
+                warehouseClient.getStartOfWeek(),
+            ),
+        },
+        explore.tables,
+    );
+};
