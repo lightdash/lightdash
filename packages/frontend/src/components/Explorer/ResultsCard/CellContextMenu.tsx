@@ -38,7 +38,7 @@ const CellContextMenu: FC<
         useMetricQueryDataContext();
     const { track } = useTracking();
     const { showToastSuccess } = useToaster();
-    const clipboard = useClipboard();
+    const clipboard = useClipboard({ timeout: 2000 });
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
     const { user } = useApp();
