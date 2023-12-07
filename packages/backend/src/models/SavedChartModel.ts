@@ -360,19 +360,6 @@ export class SavedChartModel {
         };
     }
 
-    private getLastVersionUuidQuery(chartUuid: string) {
-        return this.database(SavedChartVersionsTableName)
-            .leftJoin(
-                SavedChartsTableName,
-                `${SavedChartVersionsTableName}.saved_query_id`,
-                `${SavedChartsTableName}.saved_query_id`,
-            )
-            .select('saved_queries_version_uuid')
-            .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
-            .limit(1)
-            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc');
-    }
-
     private getVersionSummaryQuery() {
         return this.database(SavedChartVersionsTableName)
             .leftJoin(
@@ -416,24 +403,31 @@ export class SavedChartModel {
     async getLatestVersionSummaries(
         chartUuid: string,
     ): Promise<ChartVersionSummary[]> {
-        const getLastVersionUuidSubQuery =
-            this.getLastVersionUuidQuery(chartUuid);
         const { daysLimit } = this.lightdashConfig.chart.versionHistory;
         const chartVersions = await this.getVersionSummaryQuery()
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
-            .andWhere(function whereRecentVersionsOrCurrentVersion() {
-                // get all versions from the last X days + the current version ( in case is older than X days )
-                this.whereRaw(
-                    `${SavedChartVersionsTableName}.created_at >= DATE(current_timestamp - interval '?? days')`,
-                    [daysLimit],
-                ).orWhere(
-                    `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
-                    getLastVersionUuidSubQuery,
-                );
-            })
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'asc');
 
-        return chartVersions.map(SavedChartModel.convertVersionSummary);
+        return chartVersions
+            .reduce<VersionSummaryRow[]>((acc, version) => {
+                // Get days since version.created_at
+                const daysSince = Math.floor(
+                    (new Date().getTime() -
+                        new Date(version.created_at).getTime()) /
+                        (1000 * 3600 * 24),
+                );
+
+                if (acc.length < 2) {
+                    // Return current version and the previous version regardless of daysLimit
+                    return [...acc, version];
+                }
+                if (daysSince < daysLimit) {
+                    return [...acc, version];
+                }
+
+                return acc;
+            }, [])
+            .map(SavedChartModel.convertVersionSummary);
     }
 
     async create(
