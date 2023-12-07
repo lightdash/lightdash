@@ -120,8 +120,10 @@ const BigNumberContextMenu: FC<{}> = ({ children }) => {
             withinPortal
             shadow="md"
             position="bottom"
-            radius="xs"
-            offset={-5}
+            closeOnItemClick
+            closeOnEscape
+            radius={0}
+            offset={-2}
         >
             <Menu.Target>{children}</Menu.Target>
 
