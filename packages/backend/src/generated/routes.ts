@@ -2316,7 +2316,6 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'FieldId' },
                     required: true,
                 },
-                exploreName: { dataType: 'string', required: true },
             },
             validators: {},
         },

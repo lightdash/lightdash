@@ -2652,9 +2652,6 @@
                             "$ref": "#/components/schemas/FieldId"
                         },
                         "type": "array"
-                    },
-                    "exploreName": {
-                        "type": "string"
                     }
                 },
                 "required": [
@@ -2663,8 +2660,7 @@
                     "sorts",
                     "filters",
                     "metrics",
-                    "dimensions",
-                    "exploreName"
+                    "dimensions"
                 ],
                 "type": "object"
             },
@@ -5471,7 +5467,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.894.0",
+        "version": "0.896.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
