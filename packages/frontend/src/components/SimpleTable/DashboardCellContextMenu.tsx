@@ -109,7 +109,6 @@ const DashboardCellContextMenu: FC<
 
     const handleCopyToClipboard = useCallback(() => {
         clipboard.copy(value.formatted);
-
         showToastSuccess({ title: 'Copied to clipboard!' });
     }, [value, clipboard, showToastSuccess]);
 
@@ -142,7 +141,7 @@ const DashboardCellContextMenu: FC<
     ]);
 
     return (
-        <Menu>
+        <>
             {item && value.raw && isField(item) && (
                 <UrlMenuItems urls={item.urls} cell={cell} />
             )}
@@ -197,13 +196,14 @@ const DashboardCellContextMenu: FC<
                     <Menu.Divider />
 
                     <Menu
-                        withinPortal
                         trigger="hover"
                         offset={0}
+                        withinPortal
+                        closeOnItemClick
+                        closeOnEscape
+                        shadow="md"
                         radius={0}
                         position="right-start"
-                        shadow="md"
-                        closeOnItemClick
                     >
                         <Menu.Target>
                             <Menu.Item
@@ -237,7 +237,7 @@ const DashboardCellContextMenu: FC<
                     </Menu>
                 </>
             )}
-        </Menu>
+        </>
     );
 };
 

@@ -1,4 +1,3 @@
-import { Menu } from '@blueprintjs/core';
 import { FieldUrl, isField, ResultValue } from '@lightdash/common';
 import { FC } from 'react';
 import { CellContextMenuProps } from '../common/Table/types';
@@ -15,11 +14,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     if (!urls) {
         return null;
     }
-    return (
-        <Menu>
-            <UrlMenuItems urls={urls} cell={cell} />
-        </Menu>
-    );
+    return <UrlMenuItems urls={urls} cell={cell} />;
 };
 
 export default CellContextMenu;

@@ -77,15 +77,12 @@ export const SeriesContextMenu: FC<{
         }
     }, [echartSeriesClickEvent, explore, metricQuery, series]);
 
-    const handleCopy = useCallback(() => {
+    const handleCopyToClipboard = useCallback(() => {
         if (underlyingData === undefined) return;
         const value = underlyingData.value.formatted;
 
         clipboard.copy(value);
-
-        showToastSuccess({
-            title: 'Copied to clipboard!',
-        });
+        showToastSuccess({ title: 'Copied to clipboard!' });
     }, [underlyingData, clipboard, showToastSuccess]);
 
     const handleViewUnderlyingData = useCallback(() => {
@@ -125,9 +122,12 @@ export const SeriesContextMenu: FC<{
         <Menu
             opened={contextMenuIsOpen}
             onClose={onClose}
-            position="right-start"
+            withinPortal
+            closeOnItemClick
+            closeOnEscape
             shadow="md"
             radius={0}
+            position="right-start"
             offset={{
                 mainAxis: 0,
                 crossAxis: 0,
@@ -149,7 +149,7 @@ export const SeriesContextMenu: FC<{
                 {underlyingData?.value && (
                     <Menu.Item
                         icon={<MantineIcon icon={IconCopy} />}
-                        onClick={handleCopy}
+                        onClick={handleCopyToClipboard}
                     >
                         Copy value
                     </Menu.Item>

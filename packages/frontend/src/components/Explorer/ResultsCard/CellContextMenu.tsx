@@ -56,7 +56,6 @@ const CellContextMenu: FC<
 
     const handleCopyToClipboard = useCallback(() => {
         clipboard.copy(value.formatted);
-
         showToastSuccess({ title: 'Copied to clipboard!' });
     }, [value, clipboard, showToastSuccess]);
 
@@ -109,7 +108,7 @@ const CellContextMenu: FC<
     }
 
     return (
-        <Menu>
+        <>
             {!!value.raw && isField(item) && (
                 <UrlMenuItems
                     urls={item.urls}
@@ -117,16 +116,13 @@ const CellContextMenu: FC<
                     itemsMap={itemsMap}
                 />
             )}
-
             {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
-
             <Menu.Item
                 icon={<MantineIcon icon={IconCopy} />}
                 onClick={handleCopyToClipboard}
             >
                 Copy value
             </Menu.Item>
-
             {parseResult !== null && (
                 <Menu.Item
                     icon={<MantineIcon icon={IconEye} />}
@@ -142,7 +138,6 @@ const CellContextMenu: FC<
                     Expand
                 </Menu.Item>
             )}
-
             {item &&
                 !isDimension(item) &&
                 !isCustomDimension(item) &&
@@ -162,7 +157,6 @@ const CellContextMenu: FC<
                         </Menu.Item>
                     </Can>
                 )}
-
             <Can
                 I="manage"
                 this={subject('Explore', {
@@ -192,7 +186,7 @@ const CellContextMenu: FC<
                     }}
                 />
             </Can>
-        </Menu>
+        </>
     );
 };
 

@@ -348,14 +348,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const handleCopyToClipboard = useCallback(() => {
         if (!viewUnderlyingDataOptions) return;
-
         const value = viewUnderlyingDataOptions.value.formatted;
 
-        showToastSuccess({
-            title: 'Copied to clipboard!',
-        });
-
         clipboard.copy(value);
+        showToastSuccess({ title: 'Copied to clipboard!' });
     }, [viewUnderlyingDataOptions, clipboard, showToastSuccess]);
 
     const handleAddFilter = useCallback(
@@ -639,9 +635,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     <Menu
                         opened={contextMenuIsOpen}
                         onClose={() => setContextMenuIsOpen(false)}
-                        position="bottom-start"
+                        withinPortal
+                        closeOnItemClick
+                        closeOnEscape
                         shadow="md"
                         radius={0}
+                        position="bottom-start"
                         offset={{
                             crossAxis: 0,
                             mainAxis: 0,
@@ -710,13 +709,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     <Menu.Divider />
 
                                     <Menu
-                                        withinPortal
                                         trigger="hover"
-                                        offset={0}
-                                        radius={0}
-                                        position="right-start"
-                                        shadow="md"
+                                        withinPortal
                                         closeOnItemClick
+                                        closeOnEscape
+                                        shadow="md"
+                                        radius={0}
+                                        offset={0}
+                                        position="right-start"
                                     >
                                         <Menu.Target>
                                             <Menu.Item

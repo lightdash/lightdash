@@ -52,13 +52,10 @@ const BigNumberContextMenu: FC<{}> = ({ children }) => {
         }
     }, [fieldValues, visualizationConfig, isBigNumber]);
 
-    const handleCopy = () => {
-        if (value) {
-            clipboard.copy(value.formatted);
-            showToastSuccess({
-                title: 'Copied to clipboard!',
-            });
-        }
+    const handleCopyToClipboard = () => {
+        if (!value) return;
+        clipboard.copy(value.formatted);
+        showToastSuccess({ title: 'Copied to clipboard!' });
     };
 
     const handleViewUnderlyingData = useCallback(() => {
@@ -132,7 +129,7 @@ const BigNumberContextMenu: FC<{}> = ({ children }) => {
                 {value && (
                     <Menu.Item
                         icon={<MantineIcon icon={IconCopy} />}
-                        onClick={handleCopy}
+                        onClick={handleCopyToClipboard}
                     >
                         Copy value
                     </Menu.Item>

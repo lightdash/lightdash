@@ -76,27 +76,36 @@ const UrlMenuItem: FC<{
     const error: string | undefined = validationError || renderError;
 
     return (
-        <Menu.Item
-            icon={<MantineIcon icon={IconLink} />}
-            rightSection={
-                error && (
-                    <Tooltip label={error} position="right">
-                        <Box>
-                            <MantineIcon icon={IconExclamationCircle} />
-                        </Box>
-                    </Tooltip>
-                )
-            }
-            disabled={!url}
-            onClick={() => {
-                track({
-                    name: EventName.GO_TO_LINK_CLICKED,
-                });
-                window.open(url, '_blank');
-            }}
+        <Tooltip
+            withinPortal
+            maw={300}
+            multiline
+            disabled={!error}
+            label={error}
+            position="bottom"
         >
-            {urlConfig.label}
-        </Menu.Item>
+            <Box>
+                <Menu.Item
+                    icon={<MantineIcon icon={IconLink} />}
+                    rightSection={
+                        error && (
+                            <Box ml="sm">
+                                <MantineIcon icon={IconExclamationCircle} />
+                            </Box>
+                        )
+                    }
+                    disabled={!url}
+                    onClick={() => {
+                        track({
+                            name: EventName.GO_TO_LINK_CLICKED,
+                        });
+                        window.open(url, '_blank');
+                    }}
+                >
+                    {urlConfig.label}
+                </Menu.Item>
+            </Box>
+        </Tooltip>
     );
 };
 

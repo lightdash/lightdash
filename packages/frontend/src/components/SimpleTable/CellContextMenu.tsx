@@ -44,7 +44,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const clipboard = useClipboard({ timeout: 200 });
 
-    const handleCopy = useCallback(() => {
+    const handleCopyToClipboard = useCallback(() => {
         clipboard.copy(value.formatted);
         showToastSuccess({ title: 'Copied to clipboard!' });
     }, [clipboard, showToastSuccess, value.formatted]);
@@ -84,7 +84,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
             <Menu.Item
                 icon={<MantineIcon icon={IconCopy} size="md" fillOpacity={0} />}
-                onClick={handleCopy}
+                onClick={handleCopyToClipboard}
             >
                 Copy value
             </Menu.Item>
