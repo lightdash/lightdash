@@ -1,3 +1,10 @@
+## [0.896.1](https://github.com/lightdash/lightdash/compare/0.896.0...0.896.1) (2023-12-07)
+
+
+### Bug Fixes
+
+* apply label on new chart series ([#8226](https://github.com/lightdash/lightdash/issues/8226)) ([3f95392](https://github.com/lightdash/lightdash/commit/3f953924ec62bc52d0350f6c62536e4e9a644380))
+
 # [0.896.0](https://github.com/lightdash/lightdash/compare/0.895.1...0.896.0) (2023-12-06)
 
 
