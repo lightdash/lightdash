@@ -291,6 +291,7 @@ const UserManagementPanel: FC = () => {
                             Add user
                         </Button>
                         <InvitesModal
+                            key={`invite-modal-${showInviteModal}`}
                             opened={showInviteModal}
                             onClose={() => setShowInviteModal(false)}
                         />
