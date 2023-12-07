@@ -642,7 +642,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             groupLabel: undefined,
             index: 0,
         },
-        user_created_RAW: {
+        user_created_raw: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -662,7 +662,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             groupLabel: undefined,
             index: 0,
         },
-        user_created_DAY: {
+        user_created_day: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -682,7 +682,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             groupLabel: undefined,
             index: 0,
         },
-        user_created_WEEK: {
+        user_created_week: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -703,7 +703,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             groupLabel: undefined,
             index: 0,
         },
-        user_created_MONTH: {
+        user_created_month: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -724,7 +724,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             groupLabel: undefined,
             index: 0,
         },
-        user_created_QUARTER: {
+        user_created_quarter: {
             description: undefined,
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
@@ -744,7 +744,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             type: DimensionType.DATE,
             index: 0,
         },
-        user_created_YEAR: {
+        user_created_year: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -794,7 +794,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             groupLabel: undefined,
             index: 0,
         },
-        user_created_RAW: {
+        user_created_raw: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -814,7 +814,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             groupLabel: undefined,
             index: 0,
         },
-        user_created_DAY: {
+        user_created_day: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -837,7 +837,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             groupLabel: undefined,
             index: 0,
         },
-        user_created_WEEK: {
+        user_created_week: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -857,7 +857,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             groupLabel: undefined,
             index: 0,
         },
-        user_created_MONTH: {
+        user_created_month: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -877,7 +877,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             groupLabel: undefined,
             index: 0,
         },
-        user_created_QUARTER: {
+        user_created_quarter: {
             description: undefined,
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
@@ -898,7 +898,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.DATE,
             index: 0,
         },
-        user_created_YEAR: {
+        user_created_year: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
@@ -996,7 +996,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             groupLabel: undefined,
             index: 0,
         },
-        user_created_YEAR: {
+        user_created_year: {
             fieldType: FieldType.DIMENSION,
             requiredAttributes: undefined,
             description: undefined,
