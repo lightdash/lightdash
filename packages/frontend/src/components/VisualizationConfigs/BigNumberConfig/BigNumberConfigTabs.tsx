@@ -29,7 +29,7 @@ const StyleOptions = [
 ];
 
 const BigNumberConfigTabs = memo(() => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     if (!isBigNumberVisualizationConfig(visualizationConfig)) return null;
 
@@ -40,7 +40,6 @@ const BigNumberConfigTabs = memo(() => {
         bigNumberStyle,
         setBigNumberStyle,
         showStyle,
-        availableFields,
         selectedField: selectedFieldId,
         setSelectedField,
         getField,
@@ -69,7 +68,7 @@ const BigNumberConfigTabs = memo(() => {
                     <FieldSelect
                         label="Field"
                         item={selectedField}
-                        items={availableFields}
+                        items={Object.values(itemsMap ?? {})}
                         onChange={(newValue) => {
                             setSelectedField(
                                 newValue ? getItemId(newValue) : undefined,

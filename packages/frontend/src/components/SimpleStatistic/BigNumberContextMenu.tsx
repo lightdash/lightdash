@@ -7,7 +7,6 @@ import mapValues from 'lodash-es/mapValues';
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useExplore } from '../../hooks/useExplore';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -20,14 +19,10 @@ import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataPro
 const BigNumberContextMenu: FC<{}> = ({ children }) => {
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
-    const { resultsData, visualizationConfig } = useVisualizationContext();
-    const {
-        openUnderlyingDataModal,
-        openDrillDownModal,
-        tableName,
-        metricQuery,
-    } = useMetricQueryDataContext();
-    const { data: explore } = useExplore(tableName);
+    const { resultsData, visualizationConfig, itemsMap } =
+        useVisualizationContext();
+    const { openUnderlyingDataModal, openDrillDownModal, metricQuery } =
+        useMetricQueryDataContext();
 
     const { track } = useTracking();
     const { user } = useApp();
@@ -71,11 +66,7 @@ const BigNumberContextMenu: FC<{}> = ({ children }) => {
 
         const { chartConfig } = visualizationConfig;
 
-        if (
-            explore === undefined ||
-            chartConfig.selectedField === undefined ||
-            !value
-        ) {
+        if (!itemsMap || chartConfig.selectedField === undefined || !value) {
             return;
         }
 
@@ -90,7 +81,7 @@ const BigNumberContextMenu: FC<{}> = ({ children }) => {
         });
     }, [
         projectUuid,
-        explore,
+        itemsMap,
         value,
         item,
         fieldValues,

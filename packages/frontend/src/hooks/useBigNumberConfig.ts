@@ -4,22 +4,15 @@ import {
     CompactOrAlias,
     ComparisonDiffTypes,
     ComparisonFormatTypes,
-    convertAdditionalMetric,
-    Explore,
-    fieldId,
     Format,
     formatTableCalculationValue,
     formatValue,
     friendlyName,
-    getDimensions,
     getItemLabel,
-    getItemMap,
-    getMetrics,
     isField,
     isNumericItem,
     isTableCalculation,
     ItemsMap,
-    Metric,
     valueIsNaN,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -92,66 +85,25 @@ const isNumber = (i: ItemsMap[string] | undefined, value: any) =>
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
     resultsData: ApiQueryResults | undefined,
-    explore: Explore | undefined,
+    itemsMap: ItemsMap | undefined,
 ) => {
-    const [availableFields, availableFieldsIds] = useMemo(() => {
-        const customMetrics = explore
-            ? (resultsData?.metricQuery.additionalMetrics || []).reduce<
-                  Metric[]
-              >((acc, additionalMetric) => {
-                  const table = explore.tables[additionalMetric.table];
-                  if (table) {
-                      const metric = convertAdditionalMetric({
-                          additionalMetric,
-                          table,
-                      });
-                      return [...acc, metric];
-                  }
-                  return acc;
-              }, [])
-            : [];
-        const tableCalculations = resultsData?.metricQuery.tableCalculations
-            ? resultsData?.metricQuery.tableCalculations
-            : [];
-        const dimensions = explore
-            ? getDimensions(explore).filter((field) =>
-                  resultsData?.metricQuery.dimensions.includes(fieldId(field)),
-              )
-            : [];
-        const metrics = explore
-            ? getMetrics(explore).filter((field) =>
-                  resultsData?.metricQuery.metrics.includes(fieldId(field)),
-              )
-            : [];
-
-        const fields = [
-            ...metrics,
-            ...customMetrics,
-            ...dimensions,
-            ...tableCalculations,
-        ];
-        const fieldIds = fields.map((field) =>
-            isField(field) ? fieldId(field) : field.name,
-        );
-        return [fields, fieldIds];
-    }, [resultsData, explore]);
+    const availableFieldsIds = useMemo(
+        () => Object.keys(itemsMap ?? {}),
+        [itemsMap],
+    );
 
     const [selectedField, setSelectedField] = useState<string | undefined>();
 
     const getField = useCallback(
         (fieldNameOrId: string | undefined) => {
-            if (fieldNameOrId === undefined) return;
-            return availableFields.find((f) => {
-                return isField(f)
-                    ? fieldId(f) === fieldNameOrId
-                    : f.name === fieldNameOrId;
-            });
+            if (!fieldNameOrId || !itemsMap) return;
+            return itemsMap[fieldNameOrId];
         },
-        [availableFields],
+        [itemsMap],
     );
 
     useEffect(() => {
-        if (explore && availableFieldsIds.length > 0 && bigNumberConfigData) {
+        if (itemsMap && availableFieldsIds.length > 0 && bigNumberConfigData) {
             const selectedFieldExists =
                 bigNumberConfigData?.selectedField &&
                 getField(bigNumberConfigData?.selectedField) !== undefined;
@@ -166,28 +118,18 @@ const useBigNumberConfig = (
             }
         }
     }, [
-        explore,
+        itemsMap,
         bigNumberConfigData,
         selectedField,
         availableFieldsIds,
         getField,
     ]);
 
-    const itemMap = useMemo(() => {
-        if (!explore) return;
-
-        return getItemMap(
-            explore,
-            resultsData?.metricQuery.additionalMetrics,
-            resultsData?.metricQuery.tableCalculations,
-        );
-    }, [explore, resultsData]);
-
     const item = useMemo(() => {
-        if (!itemMap || !selectedField) return;
+        if (!itemsMap || !selectedField) return;
 
-        return itemMap[selectedField];
-    }, [itemMap, selectedField]);
+        return itemsMap[selectedField];
+    }, [itemsMap, selectedField]);
 
     const label = useMemo(() => {
         return item
@@ -365,7 +307,6 @@ const useBigNumberConfig = (
         bigNumberStyle,
         setBigNumberStyle,
         showStyle,
-        availableFields,
         selectedField,
         setSelectedField,
         getField,

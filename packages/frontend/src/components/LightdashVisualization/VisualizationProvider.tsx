@@ -313,6 +313,7 @@ const VisualizationProvider: FC<Props> = ({
             return (
                 <VisualizationBigNumberConfig
                     explore={explore}
+                    itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
