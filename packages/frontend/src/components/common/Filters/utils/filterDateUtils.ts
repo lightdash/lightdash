@@ -18,7 +18,7 @@ const normalizeWeekDay = (weekDay: WeekDay): DayOfWeek => {
 };
 
 export const getFirstDayOfWeek = (startOfWeekDay?: WeekDay): DayOfWeek => {
-    if (!startOfWeekDay) {
+    if (startOfWeekDay === undefined) {
         return dayjs().localeData().firstDayOfWeek() as DayOfWeek;
     } else {
         return normalizeWeekDay(startOfWeekDay);
