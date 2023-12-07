@@ -1273,17 +1273,6 @@ export class ProjectService {
                     span.setAttribute('warehouse', warehouseConnection?.type);
                 }
 
-                const itemMap = await wrapOtelSpan(
-                    'ProjectService.runQueryAndFormatRows.getItemMap',
-                    {},
-                    async () =>
-                        getItemMap(
-                            explore,
-                            metricQuery.additionalMetrics,
-                            metricQuery.tableCalculations,
-                        ),
-                );
-
                 // If there are more than 500 rows, we need to format them in a background job
                 const formattedRows = await wrapOtelSpan(
                     'ProjectService.runQueryAndFormatRows.formatRows',
@@ -1311,12 +1300,12 @@ export class ProjectService {
                                               {
                                                   workerData: {
                                                       rows,
-                                                      itemMap,
+                                                      fields,
                                                   },
                                               },
                                           ),
                                       )
-                                    : formatRows(rows, itemMap);
+                                    : formatRows(rows, fields);
                             },
                         ),
                 );
