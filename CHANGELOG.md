@@ -1,3 +1,10 @@
+## [0.896.3](https://github.com/lightdash/lightdash/compare/0.896.2...0.896.3) (2023-12-07)
+
+
+### Bug Fixes
+
+* monday filter week picker ([#8234](https://github.com/lightdash/lightdash/issues/8234)) ([dd56881](https://github.com/lightdash/lightdash/commit/dd5688129b4c7b8c72d774bdf4aea566ec00bb63))
+
 ## [0.896.2](https://github.com/lightdash/lightdash/compare/0.896.1...0.896.2) (2023-12-07)
 
 
