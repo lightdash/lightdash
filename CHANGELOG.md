@@ -1,3 +1,10 @@
+## [0.896.2](https://github.com/lightdash/lightdash/compare/0.896.1...0.896.2) (2023-12-07)
+
+
+### Bug Fixes
+
+* clear previous invite from add user modal ([#8228](https://github.com/lightdash/lightdash/issues/8228)) ([f25d223](https://github.com/lightdash/lightdash/commit/f25d223938f6759ceecf808a87cfe92daaf7ca2d))
+
 ## [0.896.1](https://github.com/lightdash/lightdash/compare/0.896.0...0.896.1) (2023-12-07)
 
 
