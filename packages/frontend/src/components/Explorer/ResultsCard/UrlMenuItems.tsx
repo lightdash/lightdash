@@ -12,7 +12,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { Box, Menu, Tooltip } from '@mantine/core';
-import { IconExclamationCircle } from '@tabler/icons-react';
+import { IconExclamationCircle, IconLink } from '@tabler/icons-react';
 import { Cell } from '@tanstack/react-table';
 import { FC, useMemo } from 'react';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -77,14 +77,11 @@ const UrlMenuItem: FC<{
 
     return (
         <Menu.Item
-            key={`url_entry_${urlConfig.label}`}
-            icon="open-application"
+            icon={<MantineIcon icon={IconLink} />}
             rightSection={
                 error && (
                     <Tooltip label={error} position="right">
                         <Box>
-                            {/* Icon */}
-                            {/* <Icon icon="issue" /> */}
                             <MantineIcon icon={IconExclamationCircle} />
                         </Box>
                     </Tooltip>

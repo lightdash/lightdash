@@ -64,7 +64,6 @@ const BodyCell: FC<CommonBodyCellProps> = ({
         <Menu
             withinPortal
             opened={selected}
-            // backdropProps={{ onClick: handleDeselect }}
             onOpen={() => handleSelect()}
             onClose={() => handleDeselect()}
             shadow="md"
