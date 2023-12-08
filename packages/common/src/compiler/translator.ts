@@ -300,16 +300,17 @@ export const convertTable = (
                 extraDimensions = intervals.reduce(
                     (acc, interval) => ({
                         ...acc,
-                        [`${column.name}_${interval}`]: convertDimension(
-                            index,
-                            adapterType,
-                            model,
-                            tableLabel,
-                            column,
-                            undefined,
-                            interval,
-                            startOfWeek,
-                        ),
+                        [`${column.name}_${interval.toLowerCase()}`]:
+                            convertDimension(
+                                index,
+                                adapterType,
+                                model,
+                                tableLabel,
+                                column,
+                                undefined,
+                                interval,
+                                startOfWeek,
+                            ),
                     }),
                     {},
                 );

@@ -14,6 +14,7 @@ import {
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
+    createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
@@ -40,7 +41,6 @@ import {
     getDimensions,
     getFields,
     getItemId,
-    getItemMap,
     getMetrics,
     hasIntersection,
     isDateItem,
@@ -64,6 +64,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
+    replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -733,19 +734,79 @@ export class ProjectService {
         return { adapter, sshTunnel };
     }
 
+    static updateExploreWithGranularity(
+        explore: Explore,
+        metricQuery: MetricQuery,
+        warehouseClient: WarehouseClient,
+        granularity?: DateGranularity,
+    ): Explore {
+        if (granularity) {
+            const timeDimensionsMap: Record<string, CompiledDimension> =
+                Object.values(explore.tables).reduce<
+                    Record<string, CompiledDimension>
+                >((acc, t) => {
+                    Object.values(t.dimensions).forEach((dim) => {
+                        if (
+                            dim.type === DimensionType.TIMESTAMP ||
+                            dim.type === DimensionType.DATE
+                        ) {
+                            acc[getItemId(dim)] = dim;
+                        }
+                    });
+                    return acc;
+                }, {});
+
+            const firstTimeDimensionIdInMetricQuery =
+                metricQuery.dimensions.find(
+                    (dimension) => !!timeDimensionsMap[dimension],
+                );
+            if (firstTimeDimensionIdInMetricQuery) {
+                const dimToOverride =
+                    timeDimensionsMap[firstTimeDimensionIdInMetricQuery];
+                const { baseDimensionId } = getDateDimension(
+                    firstTimeDimensionIdInMetricQuery,
+                );
+                const baseTimeDimension =
+                    dimToOverride.timeInterval && baseDimensionId
+                        ? timeDimensionsMap[baseDimensionId]
+                        : dimToOverride;
+                const dimWithGranularityOverride =
+                    createDimensionWithGranularity(
+                        dimToOverride.name,
+                        baseTimeDimension,
+                        explore,
+                        warehouseClient,
+                        granularity,
+                    );
+                return replaceDimensionInExplore(
+                    explore,
+                    dimWithGranularityOverride,
+                );
+            }
+        }
+        return explore;
+    }
+
     private static async _compileQuery(
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
         userAttributes: UserAttributeValueMap,
+        granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
-        const compiledMetricQuery = compileMetricQuery({
+        const exploreWithOverride = ProjectService.updateExploreWithGranularity(
             explore,
+            metricQuery,
+            warehouseClient,
+            granularity,
+        );
+        const compiledMetricQuery = compileMetricQuery({
+            explore: exploreWithOverride,
             metricQuery,
             warehouseClient,
         });
         return buildQuery({
-            explore,
+            explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
             userAttributes,
@@ -858,82 +919,6 @@ export class ProjectService {
             context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
             queryTags,
         });
-    }
-
-    static updateMetricQueryGranularity(
-        metricQuery: MetricQuery,
-        exploreDimensions: CompiledDimension[],
-        granularity?: DateGranularity,
-    ): {
-        metricQuery: MetricQuery;
-        oldDimension?: string;
-        newDimension?: string;
-    } {
-        if (granularity) {
-            const timeDimension = metricQuery.dimensions.find((dimension) => {
-                const dim = exploreDimensions.find(
-                    (d) => getFieldId(d) === dimension,
-                )?.type;
-                return (
-                    dim === DimensionType.TIMESTAMP ||
-                    dim === DimensionType.DATE
-                );
-            });
-
-            if (timeDimension) {
-                const { baseDimensionId } = getDateDimension(timeDimension);
-                if (!baseDimensionId) return { metricQuery };
-
-                const newTimeDimension = `${baseDimensionId}_${granularity.toLowerCase()}`;
-
-                // TODO replace sorts / filters ?
-                return {
-                    metricQuery: {
-                        ...metricQuery,
-                        dimensions: metricQuery.dimensions.map((dimension) =>
-                            dimension === timeDimension
-                                ? newTimeDimension
-                                : dimension,
-                        ),
-                        sorts: metricQuery.sorts.map((sort) =>
-                            sort.fieldId === timeDimension
-                                ? { ...sort, fieldId: newTimeDimension }
-                                : sort,
-                        ),
-                        tableCalculations: metricQuery.tableCalculations.map(
-                            (tc) => {
-                                const dim = exploreDimensions.find(
-                                    (d) => getFieldId(d) === timeDimension,
-                                );
-
-                                if (!dim) return tc;
-
-                                const baseDim = getDateDimension(dim.name);
-                                if (!baseDim) return tc;
-
-                                const oldDimension = `${dim.table}.${dim.name}`;
-                                // Rebuild the newDimension instead of looking at dimensions,
-                                // so we can even filter missing time frames from explore
-                                const newDimension = `${dim.table}.${
-                                    baseDim.baseDimensionId
-                                }_${granularity.toLowerCase()}`;
-
-                                return {
-                                    ...tc,
-                                    sql: tc.sql.replaceAll(
-                                        oldDimension,
-                                        newDimension,
-                                    ),
-                                };
-                            },
-                        ),
-                    },
-                    oldDimension: timeDimension,
-                    newDimension: newTimeDimension,
-                };
-            }
-        }
-        return { metricQuery };
     }
 
     async runViewChartQuery({
@@ -1112,20 +1097,10 @@ export class ProjectService {
 
         const exploreDimensions = getDimensions(explore);
 
-        const {
-            metricQuery: metricWithOverrideGranularity,
-            oldDimension,
-            newDimension,
-        } = ProjectService.updateMetricQueryGranularity(
-            metricQueryWithDashboardOverrides,
-            exploreDimensions,
-            granularity,
-        );
-
         const { cacheMetadata, rows, fields } =
             await this.runQueryAndFormatRows({
                 user,
-                metricQuery: metricWithOverrideGranularity,
+                metricQuery: metricQueryWithDashboardOverrides,
                 projectUuid,
                 exploreName: savedChart.tableName,
                 csvLimit: undefined,
@@ -1136,16 +1111,6 @@ export class ProjectService {
                 granularity,
             });
 
-        // TODO quick hack to get the old results on the chart with new granularity
-        // We should investigate if we can make the changes in the frontend
-        // to get the right field instead.
-        const rowsWithGranularity =
-            oldDimension && newDimension
-                ? rows.map((row) => ({
-                      ...row,
-                      [oldDimension]: row[newDimension],
-                  }))
-                : rows;
         const metricQueryDimensions = [
             ...metricQueryWithDashboardOverrides.dimensions,
             ...(metricQueryWithDashboardOverrides.customDimensions ?? []),
@@ -1169,7 +1134,7 @@ export class ProjectService {
             explore,
             metricQuery: metricQueryWithDashboardOverrides,
             cacheMetadata,
-            rows: rowsWithGranularity,
+            rows,
             appliedDashboardFilters,
             fields,
         };
@@ -1210,21 +1175,10 @@ export class ProjectService {
             exploreName,
             organizationUuid,
         );
-        const exploreDimensions = getDimensions(explore);
 
-        const {
-            metricQuery: metricWithOverrideGranularity,
-            oldDimension,
-            newDimension,
-        } = ProjectService.updateMetricQueryGranularity(
-            metricQuery,
-            exploreDimensions,
-            dateZoomGranularity,
-        );
-
-        const results = await this.runQueryAndFormatRows({
+        return this.runQueryAndFormatRows({
             user,
-            metricQuery: metricWithOverrideGranularity,
+            metricQuery,
             projectUuid,
             exploreName,
             explore,
@@ -1233,22 +1187,6 @@ export class ProjectService {
             queryTags,
             granularity: dateZoomGranularity,
         });
-
-        // TODO quick hack to get the old results on the chart with new granularity
-        // We should investigate if we can make the changes in the frontend
-        // to get the right field instead.
-        const rowsWithGranularity =
-            oldDimension && newDimension
-                ? results.rows.map((row) => ({
-                      ...row,
-                      [oldDimension]: row[newDimension],
-                  }))
-                : results.rows;
-
-        return {
-            ...results,
-            rows: rowsWithGranularity,
-        };
     }
 
     private async runQueryAndFormatRows({
@@ -1303,17 +1241,6 @@ export class ProjectService {
                     span.setAttribute('warehouse', warehouseConnection?.type);
                 }
 
-                const itemMap = await wrapOtelSpan(
-                    'ProjectService.runQueryAndFormatRows.getItemMap',
-                    {},
-                    async () =>
-                        getItemMap(
-                            explore,
-                            metricQuery.additionalMetrics,
-                            metricQuery.tableCalculations,
-                        ),
-                );
-
                 // If there are more than 500 rows, we need to format them in a background job
                 const formattedRows = await wrapOtelSpan(
                     'ProjectService.runQueryAndFormatRows.formatRows',
@@ -1341,12 +1268,12 @@ export class ProjectService {
                                               {
                                                   workerData: {
                                                       rows,
-                                                      itemMap,
+                                                      fields,
                                                   },
                                               },
                                           ),
                                       )
-                                    : formatRows(rows, itemMap);
+                                    : formatRows(rows, fields);
                             },
                         ),
                 );
@@ -1572,6 +1499,7 @@ export class ProjectService {
                                 )),
                             warehouseClient,
                             userAttributes,
+                            granularity,
                         );
 
                     const onboardingRecord =

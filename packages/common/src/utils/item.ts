@@ -1,4 +1,6 @@
+import { Explore } from '../types/explore';
 import {
+    CompiledDimension,
     CustomDimension,
     DimensionType,
     Field,
@@ -108,3 +110,20 @@ export const isDateItem = (
     }
     return true;
 };
+
+export const replaceDimensionInExplore = (
+    explore: Explore,
+    dimension: CompiledDimension,
+) => ({
+    ...explore,
+    tables: {
+        ...explore.tables,
+        [dimension.table]: {
+            ...explore.tables[dimension.table],
+            dimensions: {
+                ...explore.tables[dimension.table].dimensions,
+                [dimension.name]: dimension,
+            },
+        },
+    },
+});

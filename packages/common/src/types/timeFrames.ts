@@ -30,3 +30,14 @@ export enum DateGranularity {
     QUARTER = 'Quarter',
     YEAR = 'Year',
 }
+
+export const dateGranularityToTimeFrameMap: Record<
+    DateGranularity,
+    TimeFrames
+> = {
+    [DateGranularity.DAY]: TimeFrames.DAY,
+    [DateGranularity.WEEK]: TimeFrames.WEEK,
+    [DateGranularity.MONTH]: TimeFrames.MONTH,
+    [DateGranularity.QUARTER]: TimeFrames.QUARTER,
+    [DateGranularity.YEAR]: TimeFrames.YEAR,
+};
