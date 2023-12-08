@@ -1,3 +1,10 @@
+# [0.899.0](https://github.com/lightdash/lightdash/compare/0.898.4...0.899.0) (2023-12-08)
+
+
+### Features
+
+* sql runner skeleton menus to mantine ([#8252](https://github.com/lightdash/lightdash/issues/8252)) ([b9b5289](https://github.com/lightdash/lightdash/commit/b9b5289f7fa2f252004a48f46d693fa835743151))
+
 ## [0.898.4](https://github.com/lightdash/lightdash/compare/0.898.3...0.898.4) (2023-12-08)
 
 
