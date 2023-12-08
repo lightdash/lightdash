@@ -1,14 +1,14 @@
-import { Menu, MenuItemProps } from '@mantine/core';
+import { Menu, MenuItemProps, UnstyledButton } from '@mantine/core';
 import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { EventData, useTracking } from '../../providers/TrackingProvider';
 
 export interface LinkMenuItemProps extends MenuItemProps {
-    href?: string;
     trackingEvent?: EventData;
     target?: React.HTMLAttributeAnchorTarget;
     forceRefresh?: boolean;
-    onClick?: (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void;
+    href?: string;
+    disabled?: boolean;
 }
 
 const LinkMenuItem: FC<LinkMenuItemProps> = ({
@@ -16,35 +16,40 @@ const LinkMenuItem: FC<LinkMenuItemProps> = ({
     target,
     trackingEvent,
     forceRefresh = false,
-    onClick,
+    disabled = false,
+    children,
     ...rest
 }) => {
     const history = useHistory();
     const { track } = useTracking();
 
     return (
-        <Menu.Item
-            component="a"
-            {...rest}
-            href={href}
+        <UnstyledButton
             target={target}
-            onClick={(e) => {
-                if (
-                    !forceRefresh &&
-                    !e.ctrlKey &&
-                    !e.metaKey &&
-                    target !== '_blank' &&
-                    href
-                ) {
-                    e.preventDefault();
-                    history.push(href);
-                }
+            component="a"
+            href={disabled ? undefined : href}
+        >
+            <Menu.Item
+                {...rest}
+                disabled={disabled}
+                onClick={(e) => {
+                    if (
+                        !forceRefresh &&
+                        !e.ctrlKey &&
+                        !e.metaKey &&
+                        target !== '_blank' &&
+                        href
+                    ) {
+                        e.preventDefault();
+                        history.push(href);
+                    }
 
-                onClick?.(e);
-
-                if (trackingEvent) track(trackingEvent);
-            }}
-        />
+                    if (trackingEvent) track(trackingEvent);
+                }}
+            >
+                {children}
+            </Menu.Item>
+        </UnstyledButton>
     );
 };
 

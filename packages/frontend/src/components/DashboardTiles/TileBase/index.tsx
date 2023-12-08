@@ -155,7 +155,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                 <>
                                                     {!belongsToDashboard && (
                                                         <Menu.Item
-                                                            // FIXME: pick icon for this one
                                                             icon={
                                                                 <MantineIcon
                                                                     icon={
