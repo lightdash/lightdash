@@ -433,6 +433,21 @@ export class SavedChartModel {
             })
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'asc');
 
+        if (chartVersions.length === 1) {
+            const oldVersions = await this.getVersionSummaryQuery()
+                .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
+                .andWhereNot(
+                    `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
+                    chartVersions[0].saved_queries_version_uuid,
+                )
+                .orderBy(`${SavedChartVersionsTableName}.created_at`, 'asc')
+                .limit(1);
+
+            return [...chartVersions, ...oldVersions].map(
+                SavedChartModel.convertVersionSummary,
+            );
+        }
+
         return chartVersions.map(SavedChartModel.convertVersionSummary);
     }
 
