@@ -1,3 +1,10 @@
+## [0.898.2](https://github.com/lightdash/lightdash/compare/0.898.1...0.898.2) (2023-12-08)
+
+
+### Bug Fixes
+
+* add dashboard filter from table viz ([#8246](https://github.com/lightdash/lightdash/issues/8246)) ([95d0307](https://github.com/lightdash/lightdash/commit/95d030795826ff4fc3c2473174089fb5e6e7b148))
+
 ## [0.898.1](https://github.com/lightdash/lightdash/compare/0.898.0...0.898.1) (2023-12-08)
 
 
