@@ -194,9 +194,24 @@ export class GoogleDriveClient {
         }
     }
 
-    static formatCell(value: any): string {
+    static formatCell(value: any) {
         if (Array.isArray(value)) {
             return value.join(',');
+        }
+        if (value instanceof RegExp) {
+            return value.source;
+        }
+        if (value instanceof Set) {
+            return [...value].join(',');
+        }
+        // Return the string representation of the Object Wrappers for Primitive Types
+        if (
+            typeof value === 'object' &&
+            (value instanceof Number ||
+                value instanceof Boolean ||
+                value instanceof String)
+        ) {
+            return value.valueOf();
         }
         if (value && typeof value === 'object' && !(value instanceof Date)) {
             return JSON.stringify(value);
