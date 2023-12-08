@@ -1,3 +1,10 @@
+## [0.897.1](https://github.com/lightdash/lightdash/compare/0.897.0...0.897.1) (2023-12-08)
+
+
+### Bug Fixes
+
+* chat history returns at least 1 old version ([#8233](https://github.com/lightdash/lightdash/issues/8233)) ([4342751](https://github.com/lightdash/lightdash/commit/43427516fc8c6f415a9519153b768ee84d7a0fb9))
+
 # [0.897.0](https://github.com/lightdash/lightdash/compare/0.896.4...0.897.0) (2023-12-08)
 
 
