@@ -182,27 +182,34 @@ export const useChartVersionRollbackMutation = (
 export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteSavedQuery, {
-        mutationKey: ['saved_query_create'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries('spaces');
-            await queryClient.invalidateQueries('space');
-            await queryClient.invalidateQueries('pinned_items');
-            await queryClient.invalidateQueries(
-                'most-popular-and-recently-updated',
-            );
+    return useMutation<undefined, ApiError, string>(
+        async (data) => {
+            await queryClient.removeQueries(['savedChartResults', data]);
 
-            showToastSuccess({
-                title: `Success! Chart was deleted.`,
-            });
+            return deleteSavedQuery(data);
         },
-        onError: (error) => {
-            showToastError({
-                title: `Failed to delete chart`,
-                subtitle: error.error.message,
-            });
+        {
+            mutationKey: ['saved_query_create'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries('spaces');
+                await queryClient.invalidateQueries('space');
+                await queryClient.invalidateQueries('pinned_items');
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
+                );
+
+                showToastSuccess({
+                    title: `Success! Chart was deleted.`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to delete chart`,
+                    subtitle: error.error.message,
+                });
+            },
         },
-    });
+    );
 };
 
 const updateMultipleSavedQuery = async (
