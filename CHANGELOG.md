@@ -1,3 +1,10 @@
+## [0.898.4](https://github.com/lightdash/lightdash/compare/0.898.3...0.898.4) (2023-12-08)
+
+
+### Bug Fixes
+
+* error when formatting more than 500 results ([#8251](https://github.com/lightdash/lightdash/issues/8251)) ([eeb81ea](https://github.com/lightdash/lightdash/commit/eeb81ea374989581730f58e950e93a4f0a0ce466))
+
 ## [0.898.3](https://github.com/lightdash/lightdash/compare/0.898.2...0.898.3) (2023-12-08)
 
 
