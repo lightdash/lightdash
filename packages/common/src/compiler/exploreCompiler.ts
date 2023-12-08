@@ -66,6 +66,7 @@ export type UncompiledExplore = {
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
     sqlWhere?: string;
+    warehouse?: string;
 };
 
 export class ExploreCompiler {
@@ -84,6 +85,7 @@ export class ExploreCompiler {
         tables,
         targetDatabase,
         groupLabel,
+        warehouse,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -214,6 +216,7 @@ export class ExploreCompiler {
             tables: compiledTables,
             targetDatabase,
             groupLabel,
+            warehouse,
         };
     }
 

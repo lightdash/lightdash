@@ -88,6 +88,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const models = Object.values(manifest.nodes).filter(
             (node: any) => node.resource_type === 'model',
         ) as DbtRawModelNode[];
+
         const manifestVersion = GetDbtManifestVersion(this.dbtVersion);
         Logger.debug(
             `Validate ${models.length} models in manifest with version ${manifestVersion}`,

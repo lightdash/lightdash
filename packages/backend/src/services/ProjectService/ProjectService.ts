@@ -1323,6 +1323,7 @@ export class ProjectService {
         metricQuery,
         queryTags,
         invalidateCache,
+        warehouse,
     }: {
         projectUuid: string;
         context: QueryExecutionContext;
@@ -1331,6 +1332,7 @@ export class ProjectService {
         metricQuery: MetricQuery;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
+        warehouse?: string;
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -1396,7 +1398,8 @@ export class ProjectService {
                         metricQuery: JSON.stringify(metricQuery),
                         type: warehouseClient.credentials.type,
                     },
-                    async () => warehouseClient.runQuery(query, queryTags),
+                    async () =>
+                        warehouseClient.runQuery(query, queryTags, warehouse),
                 );
 
                 if (lightdashConfig.resultsCache?.enabled) {
@@ -1427,7 +1430,7 @@ export class ProjectService {
         context,
         queryTags,
         invalidateCache,
-        explore,
+        explore: loadedExplore,
         granularity,
     }: {
         user: SessionUser;
@@ -1488,15 +1491,13 @@ export class ProjectService {
                             },
                         );
 
+                    const explore =
+                        loadedExplore ??
+                        (await this.getExplore(user, projectUuid, exploreName));
                     const { query, hasExampleMetric, fields } =
                         await ProjectService._compileQuery(
                             metricQueryWithLimit,
-                            explore ??
-                                (await this.getExplore(
-                                    user,
-                                    projectUuid,
-                                    exploreName,
-                                )),
+                            explore,
                             warehouseClient,
                             userAttributes,
                             granularity,
@@ -1587,6 +1588,7 @@ export class ProjectService {
                             query,
                             queryTags,
                             invalidateCache,
+                            warehouse: explore.warehouse,
                         });
                     await sshTunnel.disconnect();
                     return { rows, cacheMetadata, fields };
@@ -1747,7 +1749,11 @@ export class ProjectService {
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
         };
-        const { rows } = await warehouseClient.runQuery(query, queryTags);
+        const { rows } = await warehouseClient.runQuery(
+            query,
+            queryTags,
+            explore.warehouse,
+        );
         await sshTunnel.disconnect();
 
         analytics.track({
@@ -2906,7 +2912,11 @@ export class ProjectService {
             warehouseClient,
         );
 
-        const { rows } = await warehouseClient.runQuery(query, {});
+        const { rows } = await warehouseClient.runQuery(
+            query,
+            {},
+            explore.warehouse,
+        );
         await sshTunnel.disconnect();
         return { row: rows[0] };
     }
@@ -2939,6 +2949,7 @@ export class ProjectService {
                 query,
                 queryTags: {},
                 invalidateCache,
+                warehouse: explore.warehouse,
             });
         await sshTunnel.disconnect();
         return { row: rows[0], cacheMetadata };
