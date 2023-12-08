@@ -1,3 +1,10 @@
+## [0.898.3](https://github.com/lightdash/lightdash/compare/0.898.2...0.898.3) (2023-12-08)
+
+
+### Bug Fixes
+
+* default big number field to metric ([#8245](https://github.com/lightdash/lightdash/issues/8245)) ([aae9200](https://github.com/lightdash/lightdash/commit/aae9200819f34e73089db2d676ac6e7232f0569e))
+
 ## [0.898.2](https://github.com/lightdash/lightdash/compare/0.898.1...0.898.2) (2023-12-08)
 
 
