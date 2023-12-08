@@ -226,7 +226,7 @@ export class ProjectService {
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
 
-        const cacheKey = `${projectUuid}_${warehouse || ''}`;
+        const cacheKey = `${projectUuid}${warehouse || ''}`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | typeof this.warehouseClients[string]
