@@ -1,15 +1,18 @@
 import { DashboardChartTile } from '@lightdash/common';
+import { IconFilePencil } from '@tabler/icons-react';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
-import LinkMenuItem from '../common/LinkMenuItem';
+import LinkMenuItem, { LinkMenuItemProps } from '../common/LinkMenuItem';
+import MantineIcon from '../common/MantineIcon';
 
-function EditChartMenuItem(props: {
+type Props = LinkMenuItemProps & {
     tile: DashboardChartTile;
-    isEditMode: boolean;
-}) {
-    const { tile, isEditMode } = props;
+};
+
+const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
     const { user } = useApp();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
@@ -30,9 +33,7 @@ function EditChartMenuItem(props: {
 
     return (
         <LinkMenuItem
-            icon="document-open"
-            text="Edit chart"
-            disabled={isEditMode}
+            icon={<MantineIcon icon={IconFilePencil} />}
             onClick={() => {
                 if (tile.properties.belongsToDashboard) {
                     storeDashboard(
@@ -46,8 +47,11 @@ function EditChartMenuItem(props: {
                 }
             }}
             href={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
-        />
+            {...props}
+        >
+            Edit chart
+        </LinkMenuItem>
     );
-}
+};
 
 export default EditChartMenuItem;

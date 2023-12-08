@@ -1,13 +1,14 @@
-import { MenuItem2, MenuItem2Props } from '@blueprintjs/popover2';
+import { Menu, MenuItemProps } from '@mantine/core';
 import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { EventData, useTracking } from '../../providers/TrackingProvider';
 
-export interface LinkMenuItemProps extends MenuItem2Props {
+export interface LinkMenuItemProps extends MenuItemProps {
     href?: string;
     trackingEvent?: EventData;
     target?: React.HTMLAttributeAnchorTarget;
     forceRefresh?: boolean;
+    onClick?: (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void;
 }
 
 const LinkMenuItem: FC<LinkMenuItemProps> = ({
@@ -22,7 +23,8 @@ const LinkMenuItem: FC<LinkMenuItemProps> = ({
     const { track } = useTracking();
 
     return (
-        <MenuItem2
+        <Menu.Item
+            component="a"
             {...rest}
             href={href}
             target={target}

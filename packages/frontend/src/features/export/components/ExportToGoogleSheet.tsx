@@ -1,7 +1,6 @@
-import { Spinner } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
 import { ApiScheduledDownloadCsv } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, Loader, Menu } from '@mantine/core';
+import { IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -46,13 +45,19 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
 
         if (asMenuItem) {
             return (
-                <MenuItem2
-                    icon={isExporting ? <Spinner size={16} /> : 'export'}
-                    text="Export Google Sheets"
+                <Menu.Item
+                    icon={
+                        isExporting ? (
+                            <Loader />
+                        ) : (
+                            <MantineIcon icon={IconShare2} />
+                        )
+                    }
                     disabled={isExporting || disabled}
-                    shouldDismissPopover={false}
                     onClick={() => setIsGoogleAuthQueryEnabled(true)}
-                />
+                >
+                    Export Google Sheets
+                </Menu.Item>
             );
         }
         return (

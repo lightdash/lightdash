@@ -1,4 +1,4 @@
-import { Menu, Tag } from '@blueprintjs/core';
+import { Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -29,8 +29,14 @@ import {
     ResultValue,
     SavedChart,
 } from '@lightdash/common';
-import { Box, Portal, Text, Tooltip } from '@mantine/core';
-import { IconAlertCircle, IconFilter, IconFolders } from '@tabler/icons-react';
+import { ActionIcon, Box, Menu, Portal, Text, Tooltip } from '@mantine/core';
+import {
+    IconAlertCircle,
+    IconFilter,
+    IconFolders,
+    IconTableExport,
+    IconTelescope,
+} from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
@@ -468,6 +474,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 extraHeaderElement={
                     appliedFilterRules.length > 0 && (
                         <Tooltip
+                            arrowOffset={10}
                             label={
                                 <FilterWrapper>
                                     <FilterLabel>
@@ -484,7 +491,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             withArrow
                             withinPortal
                         >
-                            <MantineIcon icon={IconFilter} />
+                            <ActionIcon size="sm">
+                                <MantineIcon icon={IconFilter} />
+                            </ActionIcon>
                         </Tooltip>
                     )
                 }
@@ -514,28 +523,36 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 {userCanManageChart && (
                                     <EditChartMenuItem
                                         tile={props.tile}
-                                        isEditMode={isEditMode}
+                                        disabled={isEditMode}
                                     />
                                 )}
 
                                 {exploreFromHereUrl && (
                                     <LinkMenuItem
-                                        icon="series-search"
-                                        text="Explore from here"
+                                        icon={
+                                            <MantineIcon icon={IconTelescope} />
+                                        }
                                         disabled={isEditMode}
                                         href={exploreFromHereUrl}
-                                    />
+                                    >
+                                        Explore from here
+                                    </LinkMenuItem>
                                 )}
 
                                 {chart.chartConfig.type === ChartType.TABLE && (
-                                    <MenuItem2
-                                        icon="export"
-                                        text="Export CSV"
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconTableExport}
+                                            />
+                                        }
                                         disabled={isEditMode}
                                         onClick={() =>
                                             setIsCSVExportModalOpen(true)
                                         }
-                                    />
+                                    >
+                                        Export CSV
+                                    </Menu.Item>
                                 )}
                                 {chart.chartConfig.type === ChartType.TABLE && (
                                     <ExportGoogleSheet
@@ -545,12 +562,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 )}
 
                                 {chart.dashboardUuid && userCanManageChart && (
-                                    <MenuItem2
-                                        icon={<IconFolders size={16} />}
-                                        text="Move to space"
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon icon={IconFolders} />
+                                        }
                                         onClick={() => setIsMovingChart(true)}
                                         disabled={isEditMode}
-                                    />
+                                    >
+                                        Move to space
+                                    </Menu.Item>
                                 )}
                             </Box>
                         </Tooltip>
@@ -821,7 +841,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
     if (error !== null || !data)
         return (
             <TileBase
-                title={''}
+                title=""
                 isEditMode={isEditMode}
                 tile={tile}
                 extraMenuItems={
@@ -833,7 +853,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
                             <Box>
                                 <EditChartMenuItem
                                     tile={tile}
-                                    isEditMode={isEditMode}
+                                    disabled={isEditMode}
                                 />
                             </Box>
                         </Tooltip>
