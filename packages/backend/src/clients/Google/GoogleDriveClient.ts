@@ -194,6 +194,16 @@ export class GoogleDriveClient {
         }
     }
 
+    static formatCell(value: any): string {
+        if (Array.isArray(value)) {
+            return value.join(',');
+        }
+        if (value && typeof value === 'object' && !(value instanceof Date)) {
+            return JSON.stringify(value);
+        }
+        return value;
+    }
+
     async appendToSheet(
         refreshToken: string,
         fileId: string,
@@ -245,13 +255,7 @@ export class GoogleDriveClient {
             sortedFieldIds.map((fieldId) => {
                 // Google sheet doesn't like arrays as values, so we need to convert them to strings
                 const value = row[fieldId];
-                if (Array.isArray(value)) {
-                    return value.join(',');
-                }
-                if (value && typeof value === 'object') {
-                    return JSON.stringify(value);
-                }
-                return value;
+                return GoogleDriveClient.formatCell(value);
             }),
         );
 
