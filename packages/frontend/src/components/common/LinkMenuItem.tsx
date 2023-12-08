@@ -9,6 +9,7 @@ export interface LinkMenuItemProps extends MenuItemProps {
     forceRefresh?: boolean;
     href?: string;
     disabled?: boolean;
+    onClick?: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
 }
 
 const LinkMenuItem: FC<LinkMenuItemProps> = ({
@@ -17,6 +18,7 @@ const LinkMenuItem: FC<LinkMenuItemProps> = ({
     trackingEvent,
     forceRefresh = false,
     disabled = false,
+    onClick,
     children,
     ...rest
 }) => {
@@ -43,6 +45,8 @@ const LinkMenuItem: FC<LinkMenuItemProps> = ({
                         e.preventDefault();
                         history.push(href);
                     }
+
+                    onClick?.(e);
 
                     if (trackingEvent) track(trackingEvent);
                 }}
