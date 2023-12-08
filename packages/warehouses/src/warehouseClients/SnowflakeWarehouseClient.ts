@@ -144,11 +144,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } as ConnectionOptions; // force type because accessUrl property is not recognised
     }
 
-    async runQuery(
-        sqlText: string,
-        tags?: Record<string, string>,
-        warehouse?: string,
-    ) {
+    async runQuery(sqlText: string, tags?: Record<string, string>) {
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
@@ -157,13 +153,13 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
         try {
-            if (warehouse) {
-                console.info(
-                    `Running snowflake query on warehouse: ${warehouse}`,
+            if (this.connectionOptions.warehouse) {
+                console.debug(
+                    `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
                 );
                 await this.executeStatement(
                     connection,
-                    `USE WAREHOUSE ${warehouse};`,
+                    `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
                 );
             }
             if (isWeekDay(this.startOfWeek)) {
