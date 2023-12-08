@@ -1268,7 +1268,7 @@ export class ProjectService {
                                               {
                                                   workerData: {
                                                       rows,
-                                                      fields,
+                                                      itemMap: fields,
                                                   },
                                               },
                                           ),
