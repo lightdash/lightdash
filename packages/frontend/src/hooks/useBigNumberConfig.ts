@@ -57,6 +57,9 @@ const formatComparisonValue = (
                 round: 0,
             })}`;
         case ComparisonFormatTypes.RAW:
+            if (item !== undefined && isTableCalculation(item)) {
+                return `${prefix}${formatTableCalculationValue(item, value)}`;
+            }
             return `${prefix}${formatValue(value, {
                 format: isField(item) ? item.format : undefined,
                 round: bigNumberStyle
@@ -67,6 +70,9 @@ const formatComparisonValue = (
                 compact: bigNumberStyle,
             })}`;
         default:
+            if (item !== undefined && isTableCalculation(item)) {
+                return formatTableCalculationValue(item, value);
+            }
             return formatValue(value, {
                 format: isField(item) ? item.format : undefined,
                 round: bigNumberStyle
