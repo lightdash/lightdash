@@ -207,7 +207,11 @@ const ValidDashboardChartTile: FC<{
             dashboardFilters={dashboardFilters}
             invalidateCache={invalidateCache}
         >
-            <LightdashVisualization isDashboard isTitleHidden={isTitleHidden} />
+            <LightdashVisualization
+                isDashboard
+                tileUuid={tileUuid}
+                isTitleHidden={isTitleHidden}
+            />
         </VisualizationProvider>
     );
 };
@@ -255,7 +259,11 @@ const ValidDashboardChartTileMinimal: FC<{
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
         >
-            <LightdashVisualization isDashboard isTitleHidden={isTitleHidden} />
+            <LightdashVisualization
+                isDashboard
+                tileUuid={tileUuid}
+                isTitleHidden={isTitleHidden}
+            />
         </VisualizationProvider>
     );
 };

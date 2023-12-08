@@ -9,13 +9,20 @@ import { useVisualizationContext } from './VisualizationProvider';
 
 interface LightdashVisualizationProps {
     isDashboard?: boolean;
+    tileUuid?: string;
     isTitleHidden?: boolean;
     className?: string;
     'data-testid'?: string;
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
-    ({ isDashboard = false, isTitleHidden = false, className, ...props }) => {
+    ({
+        isDashboard = false,
+        tileUuid,
+        isTitleHidden = false,
+        className,
+        ...props
+    }) => {
         const { visualizationConfig, minimal } = useVisualizationContext();
 
         if (!visualizationConfig) {
@@ -37,6 +44,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
             case ChartType.TABLE:
                 return (
                     <SimpleTable
+                        tileUuid={tileUuid}
                         minimal={minimal}
                         isDashboard={!!isDashboard}
                         className={className}
