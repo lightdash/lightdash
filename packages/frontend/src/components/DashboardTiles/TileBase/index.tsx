@@ -210,7 +210,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
                                         <Menu.Target>
                                             <ActionIcon size="sm">
-                                                <MantineIcon icon={IconDots} />
+                                                <MantineIcon
+                                                    data-testid="tile-icon-more"
+                                                    icon={IconDots}
+                                                />
                                             </ActionIcon>
                                         </Menu.Target>
                                     </Menu>
