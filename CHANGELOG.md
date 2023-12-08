@@ -1,3 +1,11 @@
+## [0.898.1](https://github.com/lightdash/lightdash/compare/0.898.0...0.898.1) (2023-12-08)
+
+
+### Bug Fixes
+
+* comparison value on table calculation ([#8243](https://github.com/lightdash/lightdash/issues/8243)) ([e656fe9](https://github.com/lightdash/lightdash/commit/e656fe90321b16fad9824ba910525bd4dc673012))
+* remove deleted chart frontend cache on dashboards ([#8231](https://github.com/lightdash/lightdash/issues/8231)) ([fa309d4](https://github.com/lightdash/lightdash/commit/fa309d440d6c42546ee109d645ef361a45f21bdd))
+
 # [0.898.0](https://github.com/lightdash/lightdash/compare/0.897.1...0.898.0) (2023-12-08)
 
 
