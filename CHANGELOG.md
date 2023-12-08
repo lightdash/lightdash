@@ -1,3 +1,10 @@
+# [0.897.0](https://github.com/lightdash/lightdash/compare/0.896.4...0.897.0) (2023-12-08)
+
+
+### Features
+
+* apply date zoom without time intervals dimensions ([#8238](https://github.com/lightdash/lightdash/issues/8238)) ([7d8a3ea](https://github.com/lightdash/lightdash/commit/7d8a3ea2baa4ff1bb96b15bb250fac1b5393651c))
+
 ## [0.896.4](https://github.com/lightdash/lightdash/compare/0.896.3...0.896.4) (2023-12-08)
 
 
