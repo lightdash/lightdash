@@ -1,3 +1,10 @@
+# [0.898.0](https://github.com/lightdash/lightdash/compare/0.897.1...0.898.0) (2023-12-08)
+
+
+### Features
+
+* visualization context menus to mantine ([#8230](https://github.com/lightdash/lightdash/issues/8230)) ([94f3a98](https://github.com/lightdash/lightdash/commit/94f3a98520e5c57eb00bbf839040d47b8e53456c))
+
 ## [0.897.1](https://github.com/lightdash/lightdash/compare/0.897.0...0.897.1) (2023-12-08)
 
 
