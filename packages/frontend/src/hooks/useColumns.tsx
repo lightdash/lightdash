@@ -1,5 +1,3 @@
-import { Icon } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
     CustomDimension,
@@ -16,7 +14,10 @@ import {
     ItemsMap,
     TableCalculation,
 } from '@lightdash/common';
+import { Group, Tooltip } from '@mantine/core';
+import { IconExclamationCircle } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import MantineIcon from '../components/common/MantineIcon';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -188,23 +189,25 @@ export const useColumns = (): TableColumn[] => {
                     {
                         id: fieldId,
                         header: () => (
-                            <TableHeaderLabelContainer>
-                                <Tooltip2
-                                    content="This field was not found in the dbt project."
+                            <Group ff="Inter" spacing="two">
+                                <Tooltip
+                                    withinPortal
+                                    label="This field was not found in the dbt project."
                                     position="top"
                                 >
-                                    <Icon
-                                        icon="warning-sign"
-                                        intent="warning"
+                                    <MantineIcon
+                                        display="inline"
+                                        icon={IconExclamationCircle}
+                                        color="yellow"
                                     />
-                                </Tooltip2>
+                                </Tooltip>
 
                                 <TableHeaderBoldLabel
                                     style={{ marginLeft: 10 }}
                                 >
                                     {fieldId}
                                 </TableHeaderBoldLabel>
-                            </TableHeaderLabelContainer>
+                            </Group>
                         ),
                         cell: (info) => info.getValue()?.value.formatted || '-',
                         meta: {
