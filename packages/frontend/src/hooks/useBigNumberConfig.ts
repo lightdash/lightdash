@@ -8,8 +8,10 @@ import {
     formatTableCalculationValue,
     formatValue,
     friendlyName,
+    getItemId,
     getItemLabel,
     isField,
+    isMetric,
     isNumericItem,
     isTableCalculation,
     ItemsMap,
@@ -82,15 +84,27 @@ const formatComparisonValue = (
 const isNumber = (i: ItemsMap[string] | undefined, value: any) =>
     isNumericItem(i) && !(value instanceof Date) && !valueIsNaN(value);
 
+const getItemPriority = (item: ItemsMap[string]): number => {
+    if (isField(item) && isMetric(item)) {
+        return 1;
+    }
+    if (isTableCalculation(item)) {
+        return 2;
+    }
+    return 3;
+};
+
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
     resultsData: ApiQueryResults | undefined,
     itemsMap: ItemsMap | undefined,
 ) => {
-    const availableFieldsIds = useMemo(
-        () => Object.keys(itemsMap ?? {}),
-        [itemsMap],
-    );
+    const availableFieldsIds = useMemo(() => {
+        const itemsSortedByType = Object.values(itemsMap || {}).sort((a, b) => {
+            return getItemPriority(a) - getItemPriority(b);
+        });
+        return itemsSortedByType.map(getItemId);
+    }, [itemsMap]);
 
     const [selectedField, setSelectedField] = useState<string | undefined>();
 
