@@ -17,7 +17,6 @@ import CollapsableCard from '../components/common/CollapsableCard';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
-import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import CatalogTree from '../components/common/SqlRunner/CatalogTree';
 import DownloadSqlCsvButton from '../components/DownloadSqlCsvButton';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
@@ -27,6 +26,7 @@ import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import RefreshDbtButton from '../components/RefreshDbtButton';
 import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
+import SqlRunnerLoadingSkeleton from '../components/SqlRunner/SqlRunerLoadingSkeleton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
@@ -205,7 +205,7 @@ const SqlRunnerPage = () => {
                             sx={{ overflowY: 'hidden', flex: 1 }}
                         >
                             {isCatalogLoading ? (
-                                <SideBarLoadingState />
+                                <SqlRunnerLoadingSkeleton />
                             ) : (
                                 <Stack sx={{ overflowY: 'auto', flex: 1 }}>
                                     <Box>
