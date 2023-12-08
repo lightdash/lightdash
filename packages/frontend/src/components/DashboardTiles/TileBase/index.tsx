@@ -1,15 +1,10 @@
-import {
-    Button,
-    Classes,
-    Menu,
-    MenuDivider,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Classes } from '@blueprintjs/core';
 import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
-import { Box, Group, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
+import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { ReactNode, useState } from 'react';
+import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
@@ -141,71 +136,85 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 {extraHeaderElement}
                                 {(isEditMode ||
                                     (!isEditMode && extraMenuItems)) && (
-                                    <Popover2
-                                        lazy
-                                        onOpening={() => toggleMenu(true)}
-                                        onClosed={() => toggleMenu(false)}
-                                        position={PopoverPosition.BOTTOM_RIGHT}
-                                        content={
-                                            <Menu>
-                                                {extraMenuItems}
-                                                {isEditMode &&
-                                                    extraMenuItems && (
-                                                        <MenuDivider />
-                                                    )}
-                                                {isEditMode && (
-                                                    <>
-                                                        {!belongsToDashboard && (
-                                                            <MenuItem2
-                                                                icon="edit"
-                                                                text="Edit tile content"
-                                                                onClick={() =>
-                                                                    setIsEditingTileContent(
-                                                                        true,
-                                                                    )
-                                                                }
-                                                            />
-                                                        )}
-                                                        {belongsToDashboard ? (
-                                                            <MenuItem2
-                                                                icon="delete"
-                                                                intent="danger"
-                                                                text="Delete chart"
-                                                                onClick={() =>
-                                                                    setIsDeletingChartThatBelongsToDashboard(
-                                                                        true,
-                                                                    )
-                                                                }
-                                                            />
-                                                        ) : (
-                                                            <>
-                                                                <MenuDivider />
-                                                                <MenuItem2
-                                                                    icon="delete"
-                                                                    intent="danger"
-                                                                    text="Remove tile"
-                                                                    onClick={() =>
-                                                                        onDelete(
-                                                                            tile,
-                                                                        )
+                                    <Menu
+                                        opened={isMenuOpen}
+                                        onOpen={() => toggleMenu(true)}
+                                        onClose={() => toggleMenu(false)}
+                                        shadow="md"
+                                        withArrow
+                                        position="bottom-end"
+                                        offset={4}
+                                        arrowOffset={10}
+                                    >
+                                        <Menu.Dropdown>
+                                            {extraMenuItems}
+                                            {isEditMode && extraMenuItems && (
+                                                <Menu.Divider />
+                                            )}
+                                            {isEditMode && (
+                                                <>
+                                                    {!belongsToDashboard && (
+                                                        <Menu.Item
+                                                            // FIXME: pick icon for this one
+                                                            icon={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconEdit
                                                                     }
                                                                 />
-                                                            </>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </Menu>
-                                        }
-                                        renderTarget={({ ref, ...props }) => (
-                                            <Button
-                                                elementRef={ref}
-                                                minimal
-                                                small
-                                                icon="more"
-                                                {...props}
-                                            />
-                                        )}
-                                    />
+                                                            }
+                                                            onClick={() =>
+                                                                setIsEditingTileContent(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            Edit tile content
+                                                        </Menu.Item>
+                                                    )}
+                                                    {belongsToDashboard ? (
+                                                        <Menu.Item
+                                                            color="red"
+                                                            onClick={() =>
+                                                                setIsDeletingChartThatBelongsToDashboard(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            Delete chart
+                                                        </Menu.Item>
+                                                    ) : (
+                                                        <>
+                                                            <Menu.Divider />
+                                                            <Menu.Item
+                                                                color="red"
+                                                                icon={
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconTrash
+                                                                        }
+                                                                    />
+                                                                }
+                                                                onClick={() =>
+                                                                    onDelete(
+                                                                        tile,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Remove tile
+                                                            </Menu.Item>
+                                                        </>
+                                                    )}
+                                                </>
+                                            )}
+                                        </Menu.Dropdown>
+
+                                        <Menu.Target>
+                                            <ActionIcon size="sm">
+                                                <MantineIcon icon={IconDots} />
+                                            </ActionIcon>
+                                        </Menu.Target>
+                                    </Menu>
                                 )}
                             </ButtonsWrapper>
                         ) : null}
