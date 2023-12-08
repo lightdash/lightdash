@@ -217,6 +217,7 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.CARTESIAN:
             return (
                 <VisualizationCartesianConfig
+                    itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     validPivotDimensions={validPivotDimensions}
                     columnOrder={isSqlRunner ? [] : defaultColumnOrder}
