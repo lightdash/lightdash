@@ -1,3 +1,10 @@
+## [0.896.4](https://github.com/lightdash/lightdash/compare/0.896.3...0.896.4) (2023-12-08)
+
+
+### Bug Fixes
+
+* google sheet date export ([#8241](https://github.com/lightdash/lightdash/issues/8241)) ([4d76a53](https://github.com/lightdash/lightdash/commit/4d76a5396dc8775f5fd68ac9a24d55dbdae7543d))
+
 ## [0.896.3](https://github.com/lightdash/lightdash/compare/0.896.2...0.896.3) (2023-12-07)
 
 
