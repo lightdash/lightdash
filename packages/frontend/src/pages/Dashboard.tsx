@@ -1,4 +1,4 @@
-import { Alert, Intent, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Alert, Intent } from '@blueprintjs/core';
 import {
     assertUnreachable,
     Dashboard as IDashboard,
@@ -27,6 +27,7 @@ import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DashboardFilter from '../components/DashboardFilter';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
@@ -479,7 +480,7 @@ const Dashboard: FC = () => {
     if (dashboard === undefined) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading..." icon={<Spinner />} />
+                <SuboptimalState title="Loading..." loading />
             </div>
         );
     }

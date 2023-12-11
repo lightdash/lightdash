@@ -1,4 +1,4 @@
-import { Intent, NonIdealState } from '@blueprintjs/core';
+import { Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     LightdashMode,
@@ -27,6 +27,7 @@ import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal, {
     ActionType,
 } from '../components/common/SpaceActionModal';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import AddResourceToSpaceModal, {
     AddToSpaceResources,
 } from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
@@ -99,7 +100,7 @@ const Space: FC = () => {
     if (space === undefined) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <NonIdealState
+                <SuboptimalState
                     title="Space does not exist"
                     description={`We could not find space with uuid ${spaceUuid}`}
                 />

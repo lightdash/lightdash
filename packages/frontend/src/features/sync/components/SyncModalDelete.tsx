@@ -1,7 +1,7 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { useCallback, useEffect } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
 import { useSchedulersDeleteMutation } from '../../../features/scheduler/hooks/useSchedulersDeleteMutation';
 import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
@@ -28,7 +28,7 @@ export const SyncModalDelete = () => {
 
     if (scheduler.isLoading || scheduler.error) {
         return scheduler.isLoading ? (
-            <NonIdealState title="Loading sync" icon={<Spinner />} />
+            <SuboptimalState title="Loading sync" loading />
         ) : (
             <ErrorState error={scheduler.error.error} />
         );

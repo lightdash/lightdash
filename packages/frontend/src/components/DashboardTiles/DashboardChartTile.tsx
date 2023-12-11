@@ -1,4 +1,4 @@
-import { NonIdealState, Tag } from '@blueprintjs/core';
+import { Tag } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
@@ -28,6 +28,7 @@ import {
 import { Box, Menu, Portal, Text, Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
+    IconAlertCircle,
     IconChevronRight,
     IconCopy,
     IconFilter,
@@ -55,6 +56,7 @@ import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
@@ -908,10 +910,10 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
                 }
                 {...rest}
             >
-                <NonIdealState
-                    icon="error"
+                <SuboptimalState
+                    icon={IconAlertCircle}
                     title={error?.error?.message || 'No data available'}
-                ></NonIdealState>
+                ></SuboptimalState>
             </TileBase>
         );
 

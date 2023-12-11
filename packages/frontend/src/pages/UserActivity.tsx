@@ -1,4 +1,3 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import {
     ActivityViews,
     UserActivity as UserActivityResponse,
@@ -14,6 +13,7 @@ import posthog from 'posthog-js';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
 import { useProject } from '../hooks/useProject';
@@ -153,7 +153,7 @@ const UserActivity: FC = () => {
     if (isLoading || data === undefined) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading..." icon={<Spinner />} />
+                <SuboptimalState title="Loading..." loading />
             </div>
         );
     }

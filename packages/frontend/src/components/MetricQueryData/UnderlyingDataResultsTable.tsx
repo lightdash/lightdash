@@ -1,9 +1,9 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ApiQueryResults, Field } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
 import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';
 import {
     TableHeaderBoldLabel,
@@ -54,10 +54,7 @@ const UnderlyingDataResultsTable: FC<{
     if (isLoading) {
         return (
             <LoadingPanel>
-                <NonIdealState
-                    title="Loading underlying data"
-                    icon={<Spinner />}
-                />
+                <SuboptimalState title="Loading underlying data" loading />
             </LoadingPanel>
         );
     }

@@ -1,4 +1,4 @@
-import { Intent, NonIdealState } from '@blueprintjs/core';
+import { Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { Dashboard } from '@lightdash/common';
 import { FC } from 'react';
@@ -8,6 +8,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { Can } from '../../common/Authorization';
+import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import AddTileButton from '../AddTileButton';
 import {
     ButtonWrapper,
@@ -78,7 +79,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     return (
         <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
             <div style={{ padding: '50px 0' }}>
-                <NonIdealState
+                <SuboptimalState
                     description={
                         hasSavedCharts ? (
                             <SavedChartsAvailable

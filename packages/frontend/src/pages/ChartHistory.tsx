@@ -1,4 +1,3 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { formatTimestamp, TimeFrames } from '@lightdash/common';
 import {
@@ -30,6 +29,7 @@ import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import { useChartVersionResultsMutation } from '../hooks/useQueryResults';
 import {
@@ -83,7 +83,7 @@ const ChartHistory = () => {
     if (historyQuery.isLoading) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading..." icon={<Spinner />} />
+                <SuboptimalState title="Loading..." loading />
             </div>
         );
     }
