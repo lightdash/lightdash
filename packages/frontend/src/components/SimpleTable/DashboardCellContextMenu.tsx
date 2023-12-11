@@ -1,5 +1,3 @@
-import { Menu, MenuDivider } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     DashboardFilterRule,
@@ -14,10 +12,17 @@ import {
     isField,
     ResultValue,
 } from '@lightdash/common';
+import { Box, Menu } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import { uuid4 } from '@sentry/utils';
+import {
+    IconChevronRight,
+    IconCopy,
+    IconFilter,
+    IconStack,
+} from '@tabler/icons-react';
 import mapValues from 'lodash-es/mapValues';
-import { FC } from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
+import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
@@ -25,6 +30,7 @@ import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
+import MantineIcon from '../common/MantineIcon';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -36,6 +42,7 @@ const DashboardCellContextMenu: FC<
     }
 > = ({ cell, explore }) => {
     const { showToastSuccess } = useToaster();
+    const clipboard = useClipboard({ timeout: 200 });
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
 
@@ -46,8 +53,15 @@ const DashboardCellContextMenu: FC<
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
-    const value: ResultValue = cell.getValue()?.value || {};
-    const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
+    const value: ResultValue = useMemo(
+        () => cell.getValue()?.value || {},
+        [cell],
+    );
+
+    const fieldValues = useMemo(
+        () => mapValues(cell.row.original, (v) => v?.value) || {},
+        [cell.row.original],
+    );
 
     const filterField =
         isDimension(item) && !item.hidden
@@ -93,22 +107,53 @@ const DashboardCellContextMenu: FC<
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
+    const handleCopyToClipboard = useCallback(() => {
+        clipboard.copy(value.formatted);
+        showToastSuccess({ title: 'Copied to clipboard!' });
+    }, [value, clipboard, showToastSuccess]);
+
+    const handleViewUnderlyingData = useCallback(() => {
+        if (meta === undefined) return;
+
+        track({
+            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+            properties: {
+                organizationId: user?.data?.organizationUuid,
+                userId: user?.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
+
+        openUnderlyingDataModal({
+            item: meta.item,
+            value,
+            fieldValues,
+            pivotReference: meta?.pivotReference,
+        });
+    }, [
+        track,
+        user,
+        projectUuid,
+        openUnderlyingDataModal,
+        meta,
+        value,
+        fieldValues,
+    ]);
+
     return (
-        <Menu>
+        <>
             {item && value.raw && isField(item) && (
                 <UrlMenuItems urls={item.urls} cell={cell} />
             )}
 
-            {isField(item) && (item.urls || []).length > 0 && <MenuDivider />}
+            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
 
-            <CopyToClipboard
-                text={value.formatted}
-                onCopy={() => {
-                    showToastSuccess({ title: 'Copied to clipboard!' });
-                }}
+            <Menu.Item
+                icon={<MantineIcon icon={IconCopy} />}
+                onClick={handleCopyToClipboard}
             >
-                <MenuItem2 text="Copy value" icon="duplicate" />
-            </CopyToClipboard>
+                Copy value
+            </Menu.Item>
 
             {item && !isDimension(item) && !hasCustomDimension(metricQuery) && (
                 <Can
@@ -118,27 +163,12 @@ const DashboardCellContextMenu: FC<
                         projectUuid: projectUuid,
                     })}
                 >
-                    <MenuItem2
-                        text="View underlying data"
-                        icon="layers"
-                        onClick={() => {
-                            track({
-                                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                properties: {
-                                    organizationId:
-                                        user?.data?.organizationUuid,
-                                    userId: user?.data?.userUuid,
-                                    projectId: projectUuid,
-                                },
-                            });
-                            openUnderlyingDataModal({
-                                item: meta.item,
-                                value,
-                                fieldValues,
-                                pivotReference: meta?.pivotReference,
-                            });
-                        }}
-                    />
+                    <Menu.Item
+                        icon={<MantineIcon icon={IconStack} />}
+                        onClick={handleViewUnderlyingData}
+                    >
+                        View underlying data
+                    </Menu.Item>
                 </Can>
             )}
 
@@ -162,23 +192,52 @@ const DashboardCellContextMenu: FC<
             </Can>
 
             {filters.length > 0 && (
-                <MenuItem2 icon="filter" text="Filter dashboard to...">
-                    {filters.map((filter) => {
-                        return (
-                            <MenuItem2
-                                key={filter.id}
-                                text={`${friendlyName(
-                                    filter.target.fieldId,
-                                )} is ${filter.values && filter.values[0]}`}
-                                onClick={() => {
-                                    addDimensionDashboardFilter(filter, true);
-                                }}
-                            />
-                        );
-                    })}
-                </MenuItem2>
+                <>
+                    <Menu.Divider />
+
+                    <Menu
+                        trigger="hover"
+                        offset={0}
+                        withinPortal
+                        closeOnItemClick
+                        closeOnEscape
+                        shadow="md"
+                        radius={0}
+                        position="right-start"
+                    >
+                        <Menu.Target>
+                            <Menu.Item
+                                icon={<MantineIcon icon={IconFilter} />}
+                                rightSection={
+                                    <Box w={18} h={18} ml="lg">
+                                        <MantineIcon icon={IconChevronRight} />
+                                    </Box>
+                                }
+                            >
+                                Filter dashboard to...
+                            </Menu.Item>
+                        </Menu.Target>
+
+                        <Menu.Dropdown>
+                            {filters.map((filter) => (
+                                <Menu.Item
+                                    key={filter.id}
+                                    onClick={() =>
+                                        addDimensionDashboardFilter(
+                                            filter,
+                                            true,
+                                        )
+                                    }
+                                >
+                                    {friendlyName(filter.target.fieldId)} is{' '}
+                                    {filter.values && filter.values[0]}
+                                </Menu.Item>
+                            ))}
+                        </Menu.Dropdown>
+                    </Menu>
+                </>
             )}
-        </Menu>
+        </>
     );
 };
 
