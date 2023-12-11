@@ -1,3 +1,10 @@
+## [0.899.1](https://github.com/lightdash/lightdash/compare/0.899.0...0.899.1) (2023-12-11)
+
+
+### Bug Fixes
+
+* revert "feat: visualization context menus to mantine ([#8230](https://github.com/lightdash/lightdash/issues/8230))" ([#8259](https://github.com/lightdash/lightdash/issues/8259)) ([9423f1b](https://github.com/lightdash/lightdash/commit/9423f1bc78610b374a058a9ce55e3418f4bb6256))
+
 # [0.899.0](https://github.com/lightdash/lightdash/compare/0.898.4...0.899.0) (2023-12-08)
 
 
