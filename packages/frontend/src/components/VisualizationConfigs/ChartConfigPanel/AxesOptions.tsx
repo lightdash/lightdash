@@ -1,9 +1,12 @@
 import {
+    DimensionType,
     getAxisName,
     getDateGroupLabel,
     getItemLabelWithoutTableName,
+    isField,
     isNumericItem,
     ItemsMap,
+    MetricType,
 } from '@lightdash/common';
 import {
     Checkbox,
@@ -94,6 +97,8 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
         setYAxisName,
         setYMinValue,
         setYMaxValue,
+        setXMinValue,
+        setXMaxValue,
         setShowGridX,
         setShowGridY,
         setInverseX,
@@ -126,6 +131,14 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
         },
         [false, false],
     );
+    const isXFieldDateOrNumber = () => {
+        const isDate =
+            isField(xAxisField) &&
+            [DimensionType.DATE, DimensionType.TIMESTAMP, MetricType.DATE]
+                .map(toString)
+                .includes(xAxisField?.type);
+        return isNumericItem(xAxisField) || isDate;
+    };
 
     return (
         <Stack spacing="xs">
@@ -140,6 +153,19 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                 }
                 onBlur={(e) => setXAxisName(e.currentTarget.value)}
             />
+            {isXFieldDateOrNumber() && (
+                <AxisMinMax
+                    label={`Auto ${
+                        dirtyLayout?.flipAxes ? 'x' : 'y'
+                    }-axis range (${
+                        dirtyLayout?.flipAxes ? 'bottom' : 'left'
+                    })`}
+                    min={dirtyEchartsConfig?.xAxis?.[0]?.min}
+                    max={dirtyEchartsConfig?.xAxis?.[0]?.max}
+                    setMin={(newValue) => setXMinValue(0, newValue)}
+                    setMax={(newValue) => setXMaxValue(0, newValue)}
+                />
+            )}
             <Group noWrap spacing="xs">
                 <Text fw={600}> Sort </Text>
                 <SegmentedControl
