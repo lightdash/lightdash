@@ -3,15 +3,13 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     DashboardFilterRule,
-    Explore,
     fieldId,
     FilterOperator,
     friendlyName,
-    getFields,
-    getItemId,
     hasCustomDimension,
     isDimension,
     isField,
+    ItemsMap,
     ResultValue,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
@@ -32,9 +30,9 @@ import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataPro
 
 const DashboardCellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell'> & {
-        explore: Explore | undefined;
+        itemsMap: ItemsMap | undefined;
     }
-> = ({ cell, explore }) => {
+> = ({ cell, itemsMap }) => {
     const { showToastSuccess } = useToaster();
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
@@ -65,19 +63,15 @@ const DashboardCellContextMenu: FC<
               ]
             : [];
 
-    const fields = explore && getFields(explore);
-
     const possiblePivotFilters = (
         meta?.pivotReference?.pivotValues || []
     ).map<DashboardFilterRule>((pivot) => {
-        const pivotField = fields?.find(
-            (field) => getItemId(field) === pivot?.field,
-        );
+        const pivotField = itemsMap?.[pivot?.field];
         return {
             id: uuid4(),
             target: {
                 fieldId: pivot.field,
-                tableName: pivotField?.table || '',
+                tableName: isField(pivotField) ? pivotField?.table : '',
             },
             operator: FilterOperator.EQUALS,
             values: [pivot.value],

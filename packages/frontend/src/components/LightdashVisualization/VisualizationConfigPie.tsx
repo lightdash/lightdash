@@ -35,7 +35,6 @@ type VisualizationConfigPieProps =
     };
 
 const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
-    explore,
     resultsData,
     initialChartConfig,
     onChartConfigChange,
@@ -54,7 +53,6 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     );
 
     const pieChartConfig = usePieChartConfig(
-        explore,
         resultsData,
         initialChartConfig,
         itemsMap,

@@ -328,7 +328,6 @@ const MetricFlowPage = () => {
                     onChartTypeChange={setChartType}
                     onPivotDimensionsChange={setPivotFields}
                     columnOrder={columnOrder}
-                    explore={explore}
                     isSqlRunner={true}
                     pivotTableMaxColumnLimit={
                         health.data.pivotTable.maxColumnLimit

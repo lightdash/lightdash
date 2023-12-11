@@ -19,7 +19,6 @@ export const isTableVisualizationConfig = (
 
 type VisualizationTableConfigProps =
     VisualizationConfigCommon<VisualizationConfigTable> & {
-        exploreName: string | undefined;
         itemsMap: ItemsMap | undefined;
         columnOrder: string[];
         validPivotDimensions: string[] | undefined;
@@ -30,7 +29,6 @@ type VisualizationTableConfigProps =
     };
 
 const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
-    exploreName,
     itemsMap,
     resultsData,
     columnOrder,
@@ -46,7 +44,6 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     const tableConfig = useTableConfig(
         initialChartConfig,
         resultsData,
-        exploreName,
         itemsMap,
         columnOrder,
         validPivotDimensions,

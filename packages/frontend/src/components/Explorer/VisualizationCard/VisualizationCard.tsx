@@ -156,7 +156,6 @@ const VisualizationCard: FC<{
         <VisualizationProvider
             chartConfig={unsavedChartVersion.chartConfig}
             initialPivotDimensions={unsavedChartVersion.pivotConfig?.columns}
-            explore={explore}
             resultsData={queryResults}
             isLoading={isLoadingQueryResults}
             columnOrder={unsavedChartVersion.tableConfig.columnOrder}

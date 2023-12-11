@@ -145,13 +145,13 @@ export async function seed(knex: Knex): Promise<void> {
             tableName: 'orders',
             metricQuery: {
                 exploreName: 'orders',
-                dimensions: ['orders_order_date'],
+                dimensions: ['orders_order_date_day'],
                 metrics: ['orders_unique_order_count'],
                 filters: {},
                 limit: 500,
                 sorts: [
                     {
-                        fieldId: 'orders_order_date',
+                        fieldId: 'orders_order_date_day',
                         descending: false,
                     },
                 ],
@@ -159,7 +159,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         name: 'cumulative_order_count',
                         displayName: 'Cumulative order count',
-                        sql: 'SUM(${orders.unique_order_count})\nOVER(ORDER BY ${orders.order_date})',
+                        sql: 'SUM(${orders.unique_order_count})\nOVER(ORDER BY ${orders.order_date_day})',
                     },
                 ],
             },
@@ -167,7 +167,7 @@ export async function seed(knex: Knex): Promise<void> {
                 type: ChartType.CARTESIAN,
                 config: {
                     layout: {
-                        xField: 'orders_order_date',
+                        xField: 'orders_order_date_day',
                         yField: [
                             'orders_unique_order_count',
                             'cumulative_order_count',
@@ -177,7 +177,7 @@ export async function seed(knex: Knex): Promise<void> {
                         series: [
                             {
                                 encode: {
-                                    xRef: { field: 'orders_order_date' },
+                                    xRef: { field: 'orders_order_date_day' },
                                     yRef: {
                                         field: 'orders_unique_order_count',
                                     },
@@ -187,7 +187,7 @@ export async function seed(knex: Knex): Promise<void> {
                             },
                             {
                                 encode: {
-                                    xRef: { field: 'orders_order_date' },
+                                    xRef: { field: 'orders_order_date_day' },
                                     yRef: { field: 'cumulative_order_count' },
                                 },
                                 type: CartesianSeriesType.LINE,
@@ -199,7 +199,7 @@ export async function seed(knex: Knex): Promise<void> {
             },
             tableConfig: {
                 columnOrder: [
-                    'orders_order_date',
+                    'orders_order_date_day',
                     'orders_unique_order_count',
                     'cumulative_order_count',
                 ],

@@ -29,7 +29,6 @@ const createWorker = createWorkerFactory(
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
     resultsData: ApiQueryResults | undefined,
-    exploreName: string | undefined,
     itemsMap: ItemsMap | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
@@ -176,7 +175,7 @@ const useTableConfig = (
               }
             : {
                   metricQuery: resultsData?.metricQuery,
-                  explore: exploreName,
+                  explore: resultsData?.metricQuery.exploreName,
                   fieldIds: selectedItemIds,
                   itemsMap,
                   showColumnCalculation:
