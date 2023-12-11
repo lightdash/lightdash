@@ -12,7 +12,7 @@ import {
     isField,
     ResultValue,
 } from '@lightdash/common';
-import { Box, Menu } from '@mantine/core';
+import { Box, Button, Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { uuid4 } from '@sentry/utils';
 import {
@@ -146,14 +146,7 @@ const DashboardCellContextMenu: FC<
                 <UrlMenuItems urls={item.urls} cell={cell} />
             )}
 
-            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
-
-            <Menu.Item
-                icon={<MantineIcon icon={IconCopy} />}
-                onClick={handleCopyToClipboard}
-            >
-                Copy value
-            </Menu.Item>
+            <Button onClick={handleCopyToClipboard}>Copy value</Button>
 
             {item && !isDimension(item) && !hasCustomDimension(metricQuery) && (
                 <Can
@@ -163,12 +156,9 @@ const DashboardCellContextMenu: FC<
                         projectUuid: projectUuid,
                     })}
                 >
-                    <Menu.Item
-                        icon={<MantineIcon icon={IconStack} />}
-                        onClick={handleViewUnderlyingData}
-                    >
+                    <Button onClick={handleViewUnderlyingData}>
                         View underlying data
-                    </Menu.Item>
+                    </Button>
                 </Can>
             )}
 
@@ -190,53 +180,6 @@ const DashboardCellContextMenu: FC<
                     }}
                 />
             </Can>
-
-            {filters.length > 0 && (
-                <>
-                    <Menu.Divider />
-
-                    <Menu
-                        trigger="hover"
-                        offset={0}
-                        withinPortal
-                        closeOnItemClick
-                        closeOnEscape
-                        shadow="md"
-                        radius={0}
-                        position="right-start"
-                    >
-                        <Menu.Target>
-                            <Menu.Item
-                                icon={<MantineIcon icon={IconFilter} />}
-                                rightSection={
-                                    <Box w={18} h={18} ml="lg">
-                                        <MantineIcon icon={IconChevronRight} />
-                                    </Box>
-                                }
-                            >
-                                Filter dashboard to...
-                            </Menu.Item>
-                        </Menu.Target>
-
-                        <Menu.Dropdown>
-                            {filters.map((filter) => (
-                                <Menu.Item
-                                    key={filter.id}
-                                    onClick={() =>
-                                        addDimensionDashboardFilter(
-                                            filter,
-                                            true,
-                                        )
-                                    }
-                                >
-                                    {friendlyName(filter.target.fieldId)} is{' '}
-                                    {filter.values && filter.values[0]}
-                                </Menu.Item>
-                            ))}
-                        </Menu.Dropdown>
-                    </Menu>
-                </>
-            )}
         </>
     );
 };

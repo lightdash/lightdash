@@ -13977,6 +13977,11 @@ makeerror@1.0.12:
   dependencies:
     tmpl "1.0.5"
 
+mantine-contextmenu@6:
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/mantine-contextmenu/-/mantine-contextmenu-6.1.0.tgz#1d3d59c65a7154cdce039de37382de0267feaf70"
+  integrity sha512-qmh8luW61fBf8lc+2SYGET/7RWToAr4V7WcgVwICaMt6MB2eynaAZS0/17b84qT9UkNv1WcgffoX8La5kwWFLg==
+
 map-cache@^0.2.0, map-cache@^0.2.2:
   version "0.2.2"
   resolved "https://registry.npmjs.org/map-cache/-/map-cache-0.2.2.tgz"

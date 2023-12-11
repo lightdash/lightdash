@@ -1,6 +1,7 @@
 import { ResultRow } from '@lightdash/common';
-import { Menu, Tooltip } from '@mantine/core';
+import { Button, Flex, Menu, Tooltip } from '@mantine/core';
 import { Cell } from '@tanstack/react-table';
+import { useContextMenu } from 'mantine-contextmenu';
 import { FC, useCallback } from 'react';
 import { CSSProperties } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
@@ -47,6 +48,8 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     onDeselect,
     onKeyDown,
 }) => {
+    const showContextMenu = useContextMenu();
+
     const CellContextMenu = cellContextMenu;
 
     const hasContextMenu = hasData && !!CellContextMenu;
@@ -60,62 +63,75 @@ const BodyCell: FC<CommonBodyCellProps> = ({
         onDeselect();
     }, [onDeselect]);
 
+    console.log(cellContextMenu);
+
     return (
-        <Menu
-            withinPortal
-            opened={selected}
-            onOpen={() => handleSelect()}
-            onClose={() => handleDeselect()}
-            closeOnItemClick
-            closeOnEscape
-            shadow="md"
-            position="bottom-end"
-            radius={0}
-            offset={{
-                mainAxis: 0,
-                crossAxis: 0,
-            }}
-        >
-            {CellContextMenu && (
-                <Menu.Dropdown>
+        // <Menu
+        //     withinPortal
+        //     onContextMenu
+        //     portalProps={{ target: className }}
+        //     opened={selected}
+        //     onOpen={() => handleSelect()}
+        //     onClose={() => handleDeselect()}
+        //     closeOnItemClick
+        //     closeOnEscape
+        //     shadow="md"
+        //     position="bottom-end"
+        //     radius={0}
+        //     offset={{
+        //         mainAxis: 0,
+        //         crossAxis: 0,
+        //     }}
+        // >
+        // {CellContextMenu && (
+        //     <Menu.Dropdown>
+        // <CellContextMenu
+        //     cell={cell as Cell<ResultRow, ResultRow[0]>}
+        // />
+        //     </Menu.Dropdown>
+        // )}
+
+        // <Menu.Target>
+        //     <Tooltip
+        //         withinPortal
+        //         portalProps={{ target: className }}
+        //         position="top"
+        //         disabled={!tooltipContent || minimal}
+        //         label={tooltipContent}
+        //     >
+        <Td
+            className={className}
+            style={style}
+            $rowIndex={index}
+            $isSelected={selected}
+            $isLargeText={isLargeText}
+            $isMinimal={minimal}
+            $isInteractive={hasContextMenu}
+            $isCopying={copying}
+            $backgroundColor={backgroundColor}
+            $fontColor={fontColor}
+            $hasData={hasContextMenu}
+            $isNaN={!hasData || !isNumericItem}
+            onClick={selected ? handleDeselect : handleSelect}
+            onKeyDown={onKeyDown}
+            onContextMenu={showContextMenu((close) =>
+                CellContextMenu ? (
                     <CellContextMenu
                         cell={cell as Cell<ResultRow, ResultRow[0]>}
                     />
-                </Menu.Dropdown>
+                ) : (
+                    <></>
+                ),
             )}
-
-            <Menu.Target>
-                <Tooltip
-                    withinPortal
-                    position="top"
-                    disabled={!tooltipContent || minimal}
-                    label={tooltipContent}
-                >
-                    <Td
-                        className={className}
-                        style={style}
-                        $rowIndex={index}
-                        $isSelected={selected}
-                        $isLargeText={isLargeText}
-                        $isMinimal={minimal}
-                        $isInteractive={hasContextMenu}
-                        $isCopying={copying}
-                        $backgroundColor={backgroundColor}
-                        $fontColor={fontColor}
-                        $hasData={hasContextMenu}
-                        $isNaN={!hasData || !isNumericItem}
-                        onClick={selected ? handleDeselect : handleSelect}
-                        onKeyDown={onKeyDown}
-                    >
-                        <RichBodyCell
-                            cell={cell as Cell<ResultRow, ResultRow[0]>}
-                        >
-                            {children}
-                        </RichBodyCell>
-                    </Td>
-                </Tooltip>
-            </Menu.Target>
-        </Menu>
+            // onContextMenu={showContextMenu((close) => CellContextMenu)}
+        >
+            <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
+                {children}
+            </RichBodyCell>
+        </Td>
+        // </Tooltip>
+        //     </Menu.Target>
+        // </Menu>
     );
 };
 

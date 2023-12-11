@@ -4,7 +4,7 @@ import {
     isField,
     isMetric,
 } from '@lightdash/common';
-import { Menu, Text } from '@mantine/core';
+import { Button, Menu, Text } from '@mantine/core';
 import { IconArrowBarToDown } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -81,15 +81,12 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         metricQuery
     ) {
         return (
-            <Menu.Item
-                icon={<MantineIcon icon={IconArrowBarToDown} />}
-                onClick={handleDrillInto}
-            >
+            <Button onClick={handleDrillInto}>
                 Drill into{' '}
                 <Text span fw={500}>
                     {value}
                 </Text>
-            </Menu.Item>
+            </Button>
         );
     }
 

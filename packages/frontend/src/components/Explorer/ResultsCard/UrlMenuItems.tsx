@@ -11,7 +11,7 @@ import {
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
-import { Box, Menu, Tooltip } from '@mantine/core';
+import { Box, Button, Menu, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconLink } from '@tabler/icons-react';
 import { Cell } from '@tanstack/react-table';
 import { FC, useMemo } from 'react';
@@ -85,15 +85,7 @@ const UrlMenuItem: FC<{
             position="bottom"
         >
             <Box>
-                <Menu.Item
-                    icon={<MantineIcon icon={IconLink} />}
-                    rightSection={
-                        error && (
-                            <Box ml="sm">
-                                <MantineIcon icon={IconExclamationCircle} />
-                            </Box>
-                        )
-                    }
+                <Button
                     disabled={!url}
                     onClick={() => {
                         track({
@@ -103,7 +95,7 @@ const UrlMenuItem: FC<{
                     }}
                 >
                     {urlConfig.label}
-                </Menu.Item>
+                </Button>
             </Box>
         </Tooltip>
     );

@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { flexRender, Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { ContextMenuProvider } from 'mantine-contextmenu';
 import React, { FC } from 'react';
 import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/FilterInputs';
@@ -63,6 +64,7 @@ const TableRow: FC<TableRowProps> = ({
         <Tr $index={index}>
             {row.getVisibleCells().map((cell) => {
                 const meta = cell.column.columnDef.meta;
+
                 const field = meta?.item;
                 const cellValue = cell.getValue() as ResultRow[0] | undefined;
 
@@ -88,40 +90,41 @@ const TableRow: FC<TableRowProps> = ({
                 );
 
                 return (
-                    <BodyCell
-                        minimal={minimal}
-                        key={cell.id}
-                        style={meta?.style}
-                        backgroundColor={conditionalFormattingColor}
-                        fontColor={
-                            conditionalFormattingColor &&
-                            readableColor(conditionalFormattingColor) ===
-                                'white'
-                                ? 'white'
-                                : undefined
-                        }
-                        className={meta?.className}
-                        index={index}
-                        cell={cell}
-                        isNumericItem={isNumericItem(meta?.item)}
-                        hasData={!!meta?.item}
-                        cellContextMenu={cellContextMenu}
-                        copying={cell.id === copyingCellId}
-                        selected={cell.id === selectedCell?.id}
-                        isLargeText={
-                            (cellValue?.value.formatted || '').length >
-                            SMALL_TEXT_LENGTH
-                        }
-                        tooltipContent={tooltipContent}
-                        onSelect={() => onSelectCell?.(cell)}
-                        onDeselect={() => onSelectCell?.(undefined)}
-                        onKeyDown={(e) => onCopyCell?.(e)}
-                    >
-                        {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                        )}
-                    </BodyCell>
+                    <ContextMenuProvider key={cell.id}>
+                        <BodyCell
+                            minimal={minimal}
+                            style={meta?.style}
+                            backgroundColor={conditionalFormattingColor}
+                            fontColor={
+                                conditionalFormattingColor &&
+                                readableColor(conditionalFormattingColor) ===
+                                    'white'
+                                    ? 'white'
+                                    : undefined
+                            }
+                            className={meta?.className}
+                            index={index}
+                            cell={cell}
+                            isNumericItem={isNumericItem(meta?.item)}
+                            hasData={!!meta?.item}
+                            cellContextMenu={cellContextMenu}
+                            copying={cell.id === copyingCellId}
+                            selected={cell.id === selectedCell?.id}
+                            isLargeText={
+                                (cellValue?.value.formatted || '').length >
+                                SMALL_TEXT_LENGTH
+                            }
+                            tooltipContent={tooltipContent}
+                            onSelect={() => onSelectCell?.(cell)}
+                            onDeselect={() => onSelectCell?.(undefined)}
+                            onKeyDown={(e) => onCopyCell?.(e)}
+                        >
+                            {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                            )}
+                        </BodyCell>
+                    </ContextMenuProvider>
                 );
             })}
         </Tr>
