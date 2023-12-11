@@ -13,7 +13,11 @@ export const HeaderDndContext: FC<HeaderDndContextProps> = ({
     colOrderRef,
     children,
 }) => {
-    const { table, onColumnOrderChange } = useTableContext();
+    const table = useTableContext((context) => context.table);
+    const onColumnOrderChange = useTableContext(
+        (context) => context.onColumnOrderChange,
+    );
+
     return (
         <DragDropContext
             onDragStart={() => {

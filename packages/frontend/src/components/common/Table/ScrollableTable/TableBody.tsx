@@ -133,16 +133,19 @@ const TableRow: FC<TableRowProps> = ({
 const VirtualizedTableBody: FC<{
     tableContainerRef: React.RefObject<HTMLDivElement>;
 }> = ({ tableContainerRef }) => {
-    const {
-        table,
-        cellContextMenu,
-        selectedCell,
-        onSelectCell,
-        onDeselectCell,
-        copyingCellId,
-        onCopyCell,
-        conditionalFormattings,
-    } = useTableContext();
+    const table = useTableContext((context) => context.table);
+    const cellContextMenu = useTableContext(
+        (context) => context.cellContextMenu,
+    );
+    const selectedCell = useTableContext((context) => context.selectedCell);
+    const onSelectCell = useTableContext((context) => context.onSelectCell);
+    const onDeselectCell = useTableContext((context) => context.onDeselectCell);
+    const copyingCellId = useTableContext((context) => context.copyingCellId);
+    const onCopyCell = useTableContext((context) => context.onCopyCell);
+    const conditionalFormattings = useTableContext(
+        (context) => context.conditionalFormattings,
+    );
+
     const { rows } = table.getRowModel();
 
     const rowVirtualizer = useVirtualizer({
@@ -194,7 +197,10 @@ const VirtualizedTableBody: FC<{
 };
 
 const NormalTableBody: FC = () => {
-    const { table, conditionalFormattings } = useTableContext();
+    const table = useTableContext((context) => context.table);
+    const conditionalFormattings = useTableContext(
+        (context) => context.conditionalFormattings,
+    );
     const { rows } = table.getRowModel();
 
     return (

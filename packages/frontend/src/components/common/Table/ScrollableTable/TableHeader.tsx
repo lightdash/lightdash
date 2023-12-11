@@ -19,7 +19,12 @@ interface TableHeaderProps {
 }
 
 const TableHeader: FC<TableHeaderProps> = ({ minimal = false }) => {
-    const { table, headerContextMenu, columns } = useTableContext();
+    const table = useTableContext((context) => context.table);
+    const columns = useTableContext((context) => context.columns);
+    const headerContextMenu = useTableContext(
+        (context) => context.headerContextMenu,
+    );
+
     const HeaderContextMenu = headerContextMenu;
     const currentColOrder = React.useRef<Array<string>>([]);
     if (columns.length <= 0) {

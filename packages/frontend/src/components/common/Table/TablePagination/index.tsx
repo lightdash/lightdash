@@ -15,7 +15,10 @@ export const ResultCount: FC<ResultCountProps> = ({ count }) => (
 );
 
 const TablePagination = () => {
-    const { table, data, pagination } = useTableContext();
+    const table = useTableContext((context) => context.table);
+    const data = useTableContext((context) => context.data);
+    const pagination = useTableContext((context) => context.pagination);
+
     return (
         <TableFooter>
             <ButtonGroup>

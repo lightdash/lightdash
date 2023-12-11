@@ -10,15 +10,8 @@ import {
 } from '@tanstack/react-table';
 import copy from 'copy-to-clipboard';
 import debounce from 'lodash-es/debounce';
-import React, {
-    createContext,
-    FC,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, useContextSelector } from 'use-context-selector';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     CellContextMenuProps,
@@ -285,10 +278,15 @@ export const TableProvider: FC<Props> = ({
     );
 };
 
-export function useTableContext(): TableContext {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error('useTableContext must be used within a TableProvider');
-    }
-    return context;
+export function useTableContext<Selected>(
+    selector: (value: TableContext) => Selected,
+) {
+    return useContextSelector(Context, (context) => {
+        if (context === undefined) {
+            throw new Error(
+                'useTableContext must be used within a TableProvider',
+            );
+        }
+        return selector(context);
+    });
 }

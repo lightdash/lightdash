@@ -5,7 +5,10 @@ import { FooterCell } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 
 const TableFooter = () => {
-    const { table, data, footer } = useTableContext();
+    const table = useTableContext((context) => context.table);
+    const data = useTableContext((context) => context.data);
+    const footer = useTableContext((context) => context.footer);
+
     if (!footer?.show || data.length <= 0) {
         return null;
     }
