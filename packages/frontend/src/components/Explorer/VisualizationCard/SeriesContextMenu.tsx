@@ -1,21 +1,9 @@
-import { Menu } from '@blueprintjs/core';
-import {
-    MenuItem2,
-    Popover2,
-    Popover2TargetProps,
-} from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { getItemMap, hasCustomDimension } from '@lightdash/common';
-import { Portal } from '@mantine/core';
-import React, {
-    FC,
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
+import { Menu, Portal } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
+import { IconCopy, IconStack } from '@tabler/icons-react';
+import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -25,6 +13,7 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { Can } from '../../common/Authorization';
+import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import {
@@ -39,6 +28,9 @@ export const SeriesContextMenu: FC<{
     series: EChartSeries[] | undefined;
 }> = memo(({ echartSeriesClickEvent, dimensions, series }) => {
     const { showToastSuccess } = useToaster();
+    const clipboard = useClipboard({ timeout: 200 });
+    const { track } = useTracking();
+    const { user } = useApp();
 
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
@@ -55,8 +47,6 @@ export const SeriesContextMenu: FC<{
         top: number;
     }>();
 
-    const { track } = useTracking();
-    const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     useEffect(() => {
@@ -87,27 +77,41 @@ export const SeriesContextMenu: FC<{
         }
     }, [echartSeriesClickEvent, explore, metricQuery, series]);
 
-    const onViewUnderlyingData = useCallback(() => {
-        if (underlyingData !== undefined) {
-            openUnderlyingDataModal({
-                ...underlyingData,
-                dimensions,
-            });
-        }
-    }, [openUnderlyingDataModal, dimensions, underlyingData]);
-    const contextMenuRenderTarget = useCallback(
-        ({ ref }: Popover2TargetProps) => (
-            <Portal>
-                <div
-                    style={{ position: 'absolute', ...contextMenuTargetOffset }}
-                    ref={ref}
-                />
-            </Portal>
-        ),
-        [contextMenuTargetOffset],
-    );
+    const handleCopyToClipboard = useCallback(() => {
+        if (underlyingData === undefined) return;
+        const value = underlyingData.value.formatted;
 
-    const cancelContextMenu = useCallback(
+        clipboard.copy(value);
+        showToastSuccess({ title: 'Copied to clipboard!' });
+    }, [underlyingData, clipboard, showToastSuccess]);
+
+    const handleViewUnderlyingData = useCallback(() => {
+        if (underlyingData === undefined) return;
+
+        track({
+            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+            properties: {
+                organizationId: user?.data?.organizationUuid,
+                userId: user?.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
+
+        openUnderlyingDataModal({
+            ...underlyingData,
+            dimensions,
+        });
+    }, [
+        underlyingData,
+        dimensions,
+        openUnderlyingDataModal,
+        track,
+        user?.data?.organizationUuid,
+        user?.data?.userUuid,
+        projectUuid,
+    ]);
+
+    const handleCancelContextMenu = useCallback(
         (e: React.SyntheticEvent<HTMLDivElement>) => e.preventDefault(),
         [],
     );
@@ -115,79 +119,76 @@ export const SeriesContextMenu: FC<{
     const onClose = useCallback(() => setContextMenuIsOpen(false), []);
 
     return (
-        <Popover2
-            content={
-                <div onContextMenu={cancelContextMenu}>
-                    <Menu>
-                        <Can
-                            I="view"
-                            this={subject('UnderlyingData', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid: projectUuid,
-                            })}
-                        >
-                            {!hasCustomDimension(metricQuery) && (
-                                <MenuItem2
-                                    text={`View underlying data`}
-                                    icon={'layers'}
-                                    onClick={() => {
-                                        onViewUnderlyingData();
-                                        track({
-                                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                            properties: {
-                                                organizationId:
-                                                    user?.data
-                                                        ?.organizationUuid,
-                                                userId: user?.data?.userUuid,
-                                                projectId: projectUuid,
-                                            },
-                                        });
-                                    }}
-                                />
-                            )}
-                        </Can>
-                        {underlyingData?.value && (
-                            <CopyToClipboard
-                                text={underlyingData.value.formatted}
-                                onCopy={() => {
-                                    showToastSuccess({
-                                        title: 'Copied to clipboard!',
-                                    });
-                                }}
-                            >
-                                <MenuItem2 text="Copy value" icon="duplicate" />
-                            </CopyToClipboard>
-                        )}
-                        <Can
-                            I="view"
-                            this={subject('Explore', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid: projectUuid,
-                            })}
-                        >
-                            <DrillDownMenuItem
-                                {...underlyingData}
-                                trackingData={{
-                                    organizationId:
-                                        user?.data?.organizationUuid,
-                                    userId: user?.data?.userUuid,
-                                    projectId: projectUuid,
-                                }}
-                            />
-                        </Can>
-                    </Menu>
-                </div>
-            }
-            enforceFocus={false}
-            hasBackdrop={true}
-            isOpen={contextMenuIsOpen}
-            minimal={true}
+        <Menu
+            opened={contextMenuIsOpen}
             onClose={onClose}
-            placement="right-start"
-            positioningStrategy="fixed"
-            rootBoundary={'viewport'}
-            renderTarget={contextMenuRenderTarget}
-            transitionDuration={100}
-        />
+            withinPortal
+            closeOnItemClick
+            closeOnEscape
+            shadow="md"
+            radius={0}
+            position="right-start"
+            offset={{
+                mainAxis: 0,
+                crossAxis: 0,
+            }}
+        >
+            <Portal>
+                <Menu.Target>
+                    <div
+                        onContextMenu={handleCancelContextMenu}
+                        style={{
+                            position: 'absolute',
+                            ...contextMenuTargetOffset,
+                        }}
+                    />
+                </Menu.Target>
+            </Portal>
+
+            <Menu.Dropdown>
+                {underlyingData?.value && (
+                    <Menu.Item
+                        icon={<MantineIcon icon={IconCopy} />}
+                        onClick={handleCopyToClipboard}
+                    >
+                        Copy value
+                    </Menu.Item>
+                )}
+
+                <Can
+                    I="view"
+                    this={subject('UnderlyingData', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
+                >
+                    {!hasCustomDimension(metricQuery) && (
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconStack} />}
+                            onClick={handleViewUnderlyingData}
+                        >
+                            View underlying data
+                        </Menu.Item>
+                    )}
+                </Can>
+
+                <Can
+                    I="view"
+                    this={subject('Explore', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
+                >
+                    <DrillDownMenuItem
+                        {...underlyingData}
+                        trackingData={{
+                            organizationId: user?.data?.organizationUuid,
+                            userId: user?.data?.userUuid,
+                            projectId: projectUuid,
+                        }}
+                    />
+                </Can>
+            </Menu.Dropdown>
+        </Menu>
     );
 });

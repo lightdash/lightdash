@@ -1,5 +1,3 @@
-import { Icon } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     Field,
     FieldUrl,
@@ -13,11 +11,13 @@ import {
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
-import { Box, Tooltip } from '@mantine/core';
+import { Box, Menu, Tooltip } from '@mantine/core';
+import { IconExclamationCircle, IconLink } from '@tabler/icons-react';
 import { Cell } from '@tanstack/react-table';
 import { FC, useMemo } from 'react';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
 
 const UrlMenuItem: FC<{
     urlConfig: FieldUrl;
@@ -76,27 +76,36 @@ const UrlMenuItem: FC<{
     const error: string | undefined = validationError || renderError;
 
     return (
-        <MenuItem2
-            key={`url_entry_${urlConfig.label}`}
-            icon="open-application"
-            text={urlConfig.label}
-            labelElement={
-                error && (
-                    <Tooltip label={error} position="right">
-                        <Box>
-                            <Icon icon="issue" />
-                        </Box>
-                    </Tooltip>
-                )
-            }
-            disabled={!url}
-            onClick={() => {
-                track({
-                    name: EventName.GO_TO_LINK_CLICKED,
-                });
-                window.open(url, '_blank');
-            }}
-        />
+        <Tooltip
+            withinPortal
+            maw={300}
+            multiline
+            disabled={!error}
+            label={error}
+            position="bottom"
+        >
+            <Box>
+                <Menu.Item
+                    icon={<MantineIcon icon={IconLink} />}
+                    rightSection={
+                        error && (
+                            <Box ml="sm">
+                                <MantineIcon icon={IconExclamationCircle} />
+                            </Box>
+                        )
+                    }
+                    disabled={!url}
+                    onClick={() => {
+                        track({
+                            name: EventName.GO_TO_LINK_CLICKED,
+                        });
+                        window.open(url, '_blank');
+                    }}
+                >
+                    {urlConfig.label}
+                </Menu.Item>
+            </Box>
+        </Tooltip>
     );
 };
 
