@@ -8,7 +8,6 @@ import {
     MetricQuery,
     SortField,
 } from '@lightdash/common';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
@@ -223,7 +222,6 @@ export const useChartAndResults = (
     const setChartsWithDateZoomApplied = useDashboardContext(
         (c) => c.setChartsWithDateZoomApplied,
     );
-    const isDateZoomFeatureEnabled = useFeatureFlagEnabled('date-zoom');
     const queryClient = useQueryClient();
 
     const sortKey =
@@ -270,7 +268,7 @@ export const useChartAndResults = (
     );
 
     setChartsWithDateZoomApplied((prev) => {
-        if (isDateZoomFeatureEnabled && hasADateDimension) {
+        if (hasADateDimension) {
             if (granularity) {
                 return (prev ?? new Set()).add(chartUuid!);
             }
@@ -282,7 +280,7 @@ export const useChartAndResults = (
 
     return useQuery<ApiChartAndResults, ApiError>({
         queryKey:
-            isDateZoomFeatureEnabled && hasADateDimension && granularity
+            hasADateDimension && granularity
                 ? queryKey.concat([granularity])
                 : queryKey,
         queryFn: fetchChartAndResults,
