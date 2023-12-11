@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { hasCustomDimension, ItemsMap, ResultValue } from '@lightdash/common';
-import { Menu, MenuProps, Text } from '@mantine/core';
+import { Menu, MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
@@ -141,11 +141,9 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             onOpen={onOpen}
             onClose={onClose}
             withinPortal
-            closeOnItemClick
-            closeOnEscape
             shadow="md"
-            radius={0}
             position="bottom-end"
+            radius={0}
             offset={{
                 mainAxis: 0,
                 crossAxis: 0,
@@ -197,10 +195,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
                                 }
                                 onClick={handleOpenDrillIntoModal}
                             >
-                                Drill into{' '}
-                                <Text span fw={500}>
-                                    {value.formatted}
-                                </Text>
+                                Drill into "{value.formatted}"
                             </Menu.Item>
                         ) : null}
                     </>

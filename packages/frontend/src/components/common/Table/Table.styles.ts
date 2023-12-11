@@ -9,12 +9,12 @@ export const TABLE_HEADER_BG = '#f8f9fa';
 // Needed for virtualization. Matches value from Pivot table.
 export const ROW_HEIGHT_PX = 34;
 
-export const TableScrollableWrapper = styled.div<{ $enableScroll: boolean }>`
+export const TableScrollableWrapper = styled.div`
     display: flex;
     flex-direction: column;
 
     position: relative;
-    overflow: ${({ $enableScroll }) => ($enableScroll ? 'auto' : 'hidden')};
+    overflow: auto;
     min-width: 100%;
 `;
 
