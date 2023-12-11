@@ -1,5 +1,9 @@
-import { NonIdealState, Tag } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { Menu, NonIdealState, Tag } from '@blueprintjs/core';
+import {
+    MenuItem2,
+    Popover2,
+    Popover2TargetProps,
+} from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     ApiChartAndResults,
@@ -25,16 +29,10 @@ import {
     ResultValue,
     SavedChart,
 } from '@lightdash/common';
-import { Box, Menu, Portal, Text, Tooltip } from '@mantine/core';
-import { useClipboard } from '@mantine/hooks';
-import {
-    IconChevronRight,
-    IconCopy,
-    IconFilter,
-    IconFolders,
-    IconStack,
-} from '@tabler/icons-react';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { Box, Portal, Text, Tooltip } from '@mantine/core';
+import { IconFilter, IconFolders } from '@tabler/icons-react';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
@@ -281,7 +279,6 @@ interface DashboardChartTileMainProps
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { showToastSuccess } = useToaster();
-    const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
     const {
         tile: {
@@ -323,7 +320,24 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { user } = useApp();
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
-
+    const contextMenuRenderTarget = useCallback(
+        ({ ref }: Popover2TargetProps) => (
+            <Portal>
+                <div
+                    style={{ position: 'absolute', ...contextMenuTargetOffset }}
+                    ref={ref}
+                />
+            </Portal>
+        ),
+        [contextMenuTargetOffset],
+    );
+    const cancelContextMenu = React.useCallback(
+        (e: React.SyntheticEvent<HTMLDivElement>) => e.preventDefault(),
+        [],
+    );
+    const [dashboardTileFilterOptions, setDashboardFilterOptions] = useState<
+        DashboardFilterRule[]
+    >([]);
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
         item: ItemsMap[string] | undefined;
         value: ResultValue;
@@ -331,81 +345,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         dimensions: string[];
         pivotReference?: PivotReference;
     }>();
-
-    const handleViewUnderlyingData = useCallback(() => {
-        if (!viewUnderlyingDataOptions) return;
-
-        openUnderlyingDataModal({
-            ...viewUnderlyingDataOptions,
-        });
-        track({
-            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-            properties: {
-                organizationId: user?.data?.organizationUuid,
-                userId: user?.data?.userUuid,
-                projectId: projectUuid,
-            },
-        });
-    }, [
-        track,
-        user,
-        projectUuid,
-        openUnderlyingDataModal,
-        viewUnderlyingDataOptions,
-    ]);
-
-    const handleCopyToClipboard = useCallback(() => {
-        if (!viewUnderlyingDataOptions) return;
-        const value = viewUnderlyingDataOptions.value.formatted;
-
-        clipboard.copy(value);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [viewUnderlyingDataOptions, clipboard, showToastSuccess]);
-
-    const handleAddFilter = useCallback(
-        (filter: DashboardFilterRule) => {
-            track({
-                name: EventName.ADD_FILTER_CLICKED,
-                properties: {
-                    mode: isEditMode ? 'edit' : 'viewer',
-                },
-            });
-
-            const fields = explore ? getFields(explore) : [];
-            const field = fields.find(
-                (f) => fieldId(f) === filter.target.fieldId,
-            );
-
-            track({
-                name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
-                properties: {
-                    fieldType: field?.type,
-                    projectId: projectUuid,
-                    dashboardId: dashboardUuid,
-                },
-            });
-
-            addDimensionDashboardFilter(filter, !isEditMode);
-        },
-        [
-            track,
-            isEditMode,
-            addDimensionDashboardFilter,
-            explore,
-            projectUuid,
-            dashboardUuid,
-        ],
-    );
-
-    const handleCancelContextMenu = useCallback(
-        (e: React.SyntheticEvent<HTMLDivElement>) => e.preventDefault(),
-        [],
-    );
-
-    const [dashboardTileFilterOptions, setDashboardFilterOptions] = useState<
-        DashboardFilterRule[]
-    >([]);
-
     const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
 
     const onSeriesContextMenu = useCallback(
@@ -640,144 +579,159 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 {...props}
             >
                 <>
-                    <Menu
-                        opened={contextMenuIsOpen}
+                    <Popover2
+                        content={
+                            <div onContextMenu={cancelContextMenu}>
+                                <Menu>
+                                    {viewUnderlyingDataOptions?.value && (
+                                        <CopyToClipboard
+                                            text={
+                                                viewUnderlyingDataOptions.value
+                                                    .formatted
+                                            }
+                                            onCopy={() => {
+                                                showToastSuccess({
+                                                    title: 'Copied to clipboard!',
+                                                });
+                                            }}
+                                        >
+                                            <MenuItem2
+                                                text="Copy value"
+                                                icon="duplicate"
+                                            />
+                                        </CopyToClipboard>
+                                    )}
+                                    <Can
+                                        I="view"
+                                        this={subject('UnderlyingData', {
+                                            organizationUuid:
+                                                user.data?.organizationUuid,
+                                            projectUuid: projectUuid,
+                                        })}
+                                    >
+                                        {' '}
+                                        {!hasCustomDimension(metricQuery) && (
+                                            <MenuItem2
+                                                text="View underlying data"
+                                                icon="layers"
+                                                onClick={() => {
+                                                    if (
+                                                        !viewUnderlyingDataOptions
+                                                    ) {
+                                                        return;
+                                                    }
+
+                                                    openUnderlyingDataModal({
+                                                        ...viewUnderlyingDataOptions,
+                                                    });
+                                                    track({
+                                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                                        properties: {
+                                                            organizationId:
+                                                                user?.data
+                                                                    ?.organizationUuid,
+                                                            userId: user?.data
+                                                                ?.userUuid,
+                                                            projectId:
+                                                                projectUuid,
+                                                        },
+                                                    });
+                                                }}
+                                            />
+                                        )}
+                                    </Can>
+
+                                    <Can
+                                        I="manage"
+                                        this={subject('Explore', {
+                                            organizationUuid:
+                                                user.data?.organizationUuid,
+                                            projectUuid: projectUuid,
+                                        })}
+                                    >
+                                        <DrillDownMenuItem
+                                            {...viewUnderlyingDataOptions}
+                                            trackingData={{
+                                                organizationId:
+                                                    user.data?.organizationUuid,
+                                                userId: user.data?.userUuid,
+                                                projectId: projectUuid,
+                                            }}
+                                        />
+                                    </Can>
+                                    <MenuItem2
+                                        icon="filter"
+                                        text="Filter dashboard to..."
+                                    >
+                                        {dashboardTileFilterOptions.map(
+                                            (filter) => (
+                                                <MenuItem2
+                                                    key={filter.id}
+                                                    text={`${friendlyName(
+                                                        filter.target.fieldId,
+                                                    )} is ${
+                                                        filter.values &&
+                                                        filter.values[0]
+                                                    }`}
+                                                    onClick={() => {
+                                                        track({
+                                                            name: EventName.ADD_FILTER_CLICKED,
+                                                            properties: {
+                                                                mode: isEditMode
+                                                                    ? 'edit'
+                                                                    : 'viewer',
+                                                            },
+                                                        });
+
+                                                        const fields = explore
+                                                            ? getFields(explore)
+                                                            : [];
+                                                        const field =
+                                                            fields.find(
+                                                                (f) =>
+                                                                    fieldId(
+                                                                        f,
+                                                                    ) ===
+                                                                    filter
+                                                                        .target
+                                                                        .fieldId,
+                                                            );
+
+                                                        track({
+                                                            name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
+                                                            properties: {
+                                                                fieldType:
+                                                                    field?.type,
+                                                                projectId:
+                                                                    projectUuid,
+                                                                dashboardId:
+                                                                    dashboardUuid,
+                                                            },
+                                                        });
+
+                                                        addDimensionDashboardFilter(
+                                                            filter,
+                                                            !isEditMode,
+                                                        );
+                                                    }}
+                                                />
+                                            ),
+                                        )}
+                                    </MenuItem2>
+                                </Menu>
+                            </div>
+                        }
+                        enforceFocus={false}
+                        hasBackdrop={true}
+                        isOpen={contextMenuIsOpen}
+                        minimal={true}
                         onClose={() => setContextMenuIsOpen(false)}
-                        withinPortal
-                        closeOnItemClick
-                        closeOnEscape
-                        shadow="md"
-                        radius={0}
-                        position="bottom-start"
-                        offset={{
-                            crossAxis: 0,
-                            mainAxis: 0,
-                        }}
-                    >
-                        <Portal>
-                            <Menu.Target>
-                                <div
-                                    onContextMenu={handleCancelContextMenu}
-                                    style={{
-                                        position: 'absolute',
-                                        ...contextMenuTargetOffset,
-                                    }}
-                                />
-                            </Menu.Target>
-                        </Portal>
-
-                        <Menu.Dropdown>
-                            {viewUnderlyingDataOptions?.value && (
-                                <Menu.Item
-                                    icon={<MantineIcon icon={IconCopy} />}
-                                    onClick={handleCopyToClipboard}
-                                >
-                                    Copy value
-                                </Menu.Item>
-                            )}
-                            <Can
-                                I="view"
-                                this={subject('UnderlyingData', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid: projectUuid,
-                                })}
-                            >
-                                {!hasCustomDimension(metricQuery) && (
-                                    <Menu.Item
-                                        icon={<MantineIcon icon={IconStack} />}
-                                        onClick={handleViewUnderlyingData}
-                                    >
-                                        View underlying data
-                                    </Menu.Item>
-                                )}
-                            </Can>
-
-                            <Can
-                                I="manage"
-                                this={subject('Explore', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid: projectUuid,
-                                })}
-                            >
-                                <DrillDownMenuItem
-                                    {...viewUnderlyingDataOptions}
-                                    trackingData={{
-                                        organizationId:
-                                            user.data?.organizationUuid,
-                                        userId: user.data?.userUuid,
-                                        projectId: projectUuid,
-                                    }}
-                                />
-                            </Can>
-
-                            {dashboardTileFilterOptions.length > 0 && (
-                                <>
-                                    <Menu.Divider />
-
-                                    <Menu
-                                        trigger="hover"
-                                        withinPortal
-                                        closeOnItemClick
-                                        closeOnEscape
-                                        shadow="md"
-                                        radius={0}
-                                        offset={0}
-                                        position="right-start"
-                                    >
-                                        <Menu.Target>
-                                            <Menu.Item
-                                                icon={
-                                                    <MantineIcon
-                                                        icon={IconFilter}
-                                                    />
-                                                }
-                                                rightSection={
-                                                    <Box w={18} h={18} ml="lg">
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconChevronRight
-                                                            }
-                                                        />
-                                                    </Box>
-                                                }
-                                            >
-                                                Filter dashboard to...
-                                            </Menu.Item>
-                                        </Menu.Target>
-
-                                        <Menu.Dropdown>
-                                            {dashboardTileFilterOptions.map(
-                                                (filter) => (
-                                                    <Menu.Item
-                                                        key={filter.id}
-                                                        onClick={() =>
-                                                            handleAddFilter(
-                                                                filter,
-                                                            )
-                                                        }
-                                                    >
-                                                        {friendlyName(
-                                                            filter.target
-                                                                .fieldId,
-                                                        )}{' '}
-                                                        is{' '}
-                                                        <Text span fw={500}>
-                                                            {filter.values &&
-                                                                filter
-                                                                    .values[0]}
-                                                        </Text>
-                                                    </Menu.Item>
-                                                ),
-                                            )}
-                                        </Menu.Dropdown>
-                                    </Menu>
-                                </>
-                            )}
-                        </Menu.Dropdown>
-                    </Menu>
-
+                        placement="right-start"
+                        positioningStrategy="fixed"
+                        rootBoundary={'viewport'}
+                        renderTarget={contextMenuRenderTarget}
+                        transitionDuration={100}
+                    />
                     <ValidDashboardChartTile
                         tileUuid={tileUuid}
                         chartAndResults={chartAndResults}
@@ -787,7 +741,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     />
                 </>
             </TileBase>
-
             {chart.spaceUuid && (
                 <MoveChartThatBelongsToDashboardModal
                     className={'non-draggable'}

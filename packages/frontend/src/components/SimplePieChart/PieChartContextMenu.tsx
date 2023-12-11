@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { hasCustomDimension, ResultRow, ResultValue } from '@lightdash/common';
-import { Box, Menu, MenuProps, Portal, Text } from '@mantine/core';
+import { Box, Menu, MenuProps, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -132,15 +132,13 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             opened={opened}
             onOpen={onOpen}
             onClose={onClose}
+            withArrow
             withinPortal
             shadow="md"
-            closeOnItemClick
-            closeOnEscape
-            radius={0}
-            position="right-start"
+            position="bottom-end"
+            radius="xs"
             offset={{
-                mainAxis: 0,
-                crossAxis: 0,
+                mainAxis: 10,
             }}
         >
             <Portal>
@@ -156,7 +154,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                     icon={<MantineIcon icon={IconCopy} />}
                     onClick={handleCopy}
                 >
-                    Copy value
+                    Copy
                 </Menu.Item>
 
                 {canViewUnderlyingData && !hasCustomDimension(metricQuery) ? (
@@ -173,10 +171,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                         icon={<MantineIcon icon={IconArrowBarToDown} />}
                         onClick={handleOpenDrillIntoModal}
                     >
-                        Drill into{' '}
-                        <Text span fw={500}>
-                            {value.formatted}
-                        </Text>
+                        Drill into "{value.formatted}"
                     </Menu.Item>
                 ) : null}
             </Menu.Dropdown>

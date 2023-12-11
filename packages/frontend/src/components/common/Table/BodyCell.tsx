@@ -1,7 +1,8 @@
+import { mergeRefs, Position } from '@blueprintjs/core';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
-import { Menu, Tooltip } from '@mantine/core';
 import { Cell } from '@tanstack/react-table';
-import { FC, useCallback } from 'react';
+import { FC } from 'react';
 import { CSSProperties } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
 import { Td } from './Table.styles';
@@ -51,71 +52,68 @@ const BodyCell: FC<CommonBodyCellProps> = ({
 
     const hasContextMenu = hasData && !!CellContextMenu;
 
-    const handleSelect = useCallback(() => {
+    const handleSelect = () => {
         if (!hasContextMenu) return;
         onSelect();
-    }, [hasContextMenu, onSelect]);
+    };
 
-    const handleDeselect = useCallback(() => {
+    const handleDeselect = () => {
         onDeselect();
-    }, [onDeselect]);
+    };
 
     return (
-        <Menu
-            withinPortal
-            opened={selected}
-            onOpen={() => handleSelect()}
+        <Popover2
+            isOpen={selected}
+            lazy
+            minimal
+            position={Position.BOTTOM_RIGHT}
+            hasBackdrop
+            backdropProps={{ onClick: handleDeselect }}
+            onOpening={() => handleSelect()}
             onClose={() => handleDeselect()}
-            closeOnItemClick
-            closeOnEscape
-            shadow="md"
-            position="bottom-end"
-            radius={0}
-            offset={{
-                mainAxis: 0,
-                crossAxis: 0,
-            }}
-        >
-            {CellContextMenu && (
-                <Menu.Dropdown>
+            content={
+                CellContextMenu && (
                     <CellContextMenu
                         cell={cell as Cell<ResultRow, ResultRow[0]>}
                     />
-                </Menu.Dropdown>
-            )}
-
-            <Menu.Target>
-                <Tooltip
-                    withinPortal
-                    position="top"
+                )
+            }
+            renderTarget={({ ref: ref2, ...popoverProps }) => (
+                <Tooltip2
+                    lazy
+                    position={Position.TOP}
                     disabled={!tooltipContent || minimal}
-                    label={tooltipContent}
-                >
-                    <Td
-                        className={className}
-                        style={style}
-                        $rowIndex={index}
-                        $isSelected={selected}
-                        $isLargeText={isLargeText}
-                        $isMinimal={minimal}
-                        $isInteractive={hasContextMenu}
-                        $isCopying={copying}
-                        $backgroundColor={backgroundColor}
-                        $fontColor={fontColor}
-                        $hasData={hasContextMenu}
-                        $isNaN={!hasData || !isNumericItem}
-                        onClick={selected ? handleDeselect : handleSelect}
-                        onKeyDown={onKeyDown}
-                    >
-                        <RichBodyCell
-                            cell={cell as Cell<ResultRow, ResultRow[0]>}
+                    content={tooltipContent}
+                    renderTarget={({ ref: ref1, ...tooltipProps }) => (
+                        <Td
+                            ref={mergeRefs(ref1, ref2)}
+                            {...(tooltipProps as any)}
+                            {...popoverProps}
+                            className={className}
+                            style={style}
+                            $rowIndex={index}
+                            $isSelected={selected}
+                            $isLargeText={isLargeText}
+                            $isMinimal={minimal}
+                            $isInteractive={hasContextMenu}
+                            $isCopying={copying}
+                            $backgroundColor={backgroundColor}
+                            $fontColor={fontColor}
+                            $hasData={hasContextMenu}
+                            $isNaN={!hasData || !isNumericItem}
+                            onClick={selected ? handleDeselect : handleSelect}
+                            onKeyDown={onKeyDown}
                         >
-                            {children}
-                        </RichBodyCell>
-                    </Td>
-                </Tooltip>
-            </Menu.Target>
-        </Menu>
+                            <RichBodyCell
+                                cell={cell as Cell<ResultRow, ResultRow[0]>}
+                            >
+                                {children}
+                            </RichBodyCell>
+                        </Td>
+                    )}
+                />
+            )}
+        />
     );
 };
 

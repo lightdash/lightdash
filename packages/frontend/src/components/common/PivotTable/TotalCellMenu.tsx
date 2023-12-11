@@ -21,11 +21,9 @@ const TotalCellMenu: FC<TotalCellMenuProps> = ({
             onOpen={onOpen}
             onClose={onClose}
             withinPortal
-            closeOnItemClick
-            closeOnEscape
             shadow="md"
-            radius={0}
             position="bottom-end"
+            radius={0}
             offset={{
                 mainAxis: 0,
                 crossAxis: 0,
