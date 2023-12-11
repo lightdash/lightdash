@@ -733,7 +733,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 is{' '}
                                                 <Text span fw={500}>
                                                     {filter.values &&
-                                                        filter.values[0]}
+                                                        filter.values[0] &&
+                                                        String(
+                                                            filter.values[0],
+                                                        )}
                                                 </Text>
                                             </Menu.Item>
                                         ),
