@@ -28,7 +28,6 @@ import {
 import { Box, Menu, Portal, Text, Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
-    IconChevronRight,
     IconCopy,
     IconFilter,
     IconFolders,
@@ -715,64 +714,34 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             {dashboardTileFilterOptions.length > 0 && (
                                 <>
                                     <Menu.Divider />
+                                    <Menu.Label>
+                                        Filter dashboard to...
+                                    </Menu.Label>
 
-                                    <Menu
-                                        trigger="hover"
-                                        withinPortal
-                                        closeOnItemClick
-                                        closeOnEscape
-                                        shadow="md"
-                                        radius={0}
-                                        offset={0}
-                                        position="right-start"
-                                    >
-                                        <Menu.Target>
+                                    {dashboardTileFilterOptions.map(
+                                        (filter) => (
                                             <Menu.Item
+                                                key={filter.id}
                                                 icon={
                                                     <MantineIcon
                                                         icon={IconFilter}
                                                     />
                                                 }
-                                                rightSection={
-                                                    <Box w={18} h={18} ml="lg">
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconChevronRight
-                                                            }
-                                                        />
-                                                    </Box>
+                                                onClick={() =>
+                                                    handleAddFilter(filter)
                                                 }
                                             >
-                                                Filter dashboard to...
+                                                {friendlyName(
+                                                    filter.target.fieldId,
+                                                )}{' '}
+                                                is{' '}
+                                                <Text span fw={500}>
+                                                    {filter.values &&
+                                                        filter.values[0]}
+                                                </Text>
                                             </Menu.Item>
-                                        </Menu.Target>
-
-                                        <Menu.Dropdown>
-                                            {dashboardTileFilterOptions.map(
-                                                (filter) => (
-                                                    <Menu.Item
-                                                        key={filter.id}
-                                                        onClick={() =>
-                                                            handleAddFilter(
-                                                                filter,
-                                                            )
-                                                        }
-                                                    >
-                                                        {friendlyName(
-                                                            filter.target
-                                                                .fieldId,
-                                                        )}{' '}
-                                                        is{' '}
-                                                        <Text span fw={500}>
-                                                            {filter.values &&
-                                                                filter
-                                                                    .values[0]}
-                                                        </Text>
-                                                    </Menu.Item>
-                                                ),
-                                            )}
-                                        </Menu.Dropdown>
-                                    </Menu>
+                                        ),
+                                    )}
                                 </>
                             )}
                         </Menu.Dropdown>
