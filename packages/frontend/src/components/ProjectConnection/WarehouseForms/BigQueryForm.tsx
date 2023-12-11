@@ -97,7 +97,6 @@ const BigQueryForm: FC<{
                             .
                         </p>
                     }
-                    required
                     {...register('warehouse.location', {
                         validate: {
                             hasNoWhiteSpaces: hasNoWhiteSpaces('Location'),
