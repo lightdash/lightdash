@@ -39,6 +39,7 @@ interface TableRowProps {
     cellContextMenu?: TableContext['cellContextMenu'];
     selectedCell?: TableContext['selectedCell'];
     onSelectCell?: TableContext['onSelectCell'];
+    onDeselectCell?: TableContext['onDeselectCell'];
     copyingCellId?: TableContext['copyingCellId'];
     onCopyCell?: TableContext['onCopyCell'];
     conditionalFormattings: TableContext['conditionalFormattings'];
@@ -57,6 +58,7 @@ const TableRow: FC<TableRowProps> = ({
     conditionalFormattings,
     onCopyCell,
     onSelectCell,
+    onDeselectCell,
     minimal = false,
 }) => {
     return (
@@ -105,7 +107,7 @@ const TableRow: FC<TableRowProps> = ({
                         cell={cell}
                         isNumericItem={isNumericItem(meta?.item)}
                         hasData={!!meta?.item}
-                        cellContextMenu={cellContextMenu}
+                        hasContextMenu={!!cellContextMenu}
                         copying={cell.id === copyingCellId}
                         selected={cell.id === selectedCell?.id}
                         isLargeText={
@@ -113,8 +115,8 @@ const TableRow: FC<TableRowProps> = ({
                             SMALL_TEXT_LENGTH
                         }
                         tooltipContent={tooltipContent}
-                        onSelect={() => onSelectCell?.(cell)}
-                        onDeselect={() => onSelectCell?.(undefined)}
+                        onSelectCell={onSelectCell}
+                        onDeselectCell={onDeselectCell}
                         onKeyDown={(e) => onCopyCell?.(e)}
                     >
                         {flexRender(
@@ -136,6 +138,7 @@ const VirtualizedTableBody: FC<{
         cellContextMenu,
         selectedCell,
         onSelectCell,
+        onDeselectCell,
         copyingCellId,
         onCopyCell,
         conditionalFormattings,
@@ -173,6 +176,7 @@ const VirtualizedTableBody: FC<{
                         cellContextMenu={cellContextMenu}
                         selectedCell={selectedCell}
                         onSelectCell={onSelectCell}
+                        onDeselectCell={onDeselectCell}
                         copyingCellId={copyingCellId}
                         onCopyCell={onCopyCell}
                         conditionalFormattings={conditionalFormattings}

@@ -16,6 +16,7 @@ import React, {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useState,
 } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -51,8 +52,15 @@ type Props = {
 
 export type TableContext = Props & {
     table: Table<ResultRow>;
-    selectedCell: Cell<ResultRow, unknown> | undefined;
-    onSelectCell: (cell: Cell<ResultRow, unknown> | undefined) => void;
+    menuPosition:
+        | { left: number; top: number; width: number; height: number }
+        | undefined;
+    selectedCell: Cell<ResultRow, ResultRow[0]> | undefined;
+    onSelectCell: (
+        cell: Cell<ResultRow, ResultRow[0]>,
+        element: HTMLTableCellElement,
+    ) => void;
+    onDeselectCell: () => void;
     copyingCellId: string | undefined;
     onCopyCell: React.KeyboardEventHandler<HTMLElement>;
 };
@@ -108,43 +116,54 @@ export const TableProvider: FC<Props> = ({
     const rowColumnWidth = hideRowNumbers
         ? 0
         : Math.max(withTotals, `${data.length}`.length * 10 + 20);
-    const frozenColumns = columns.filter((col) => col.meta?.frozen);
+    const frozenColumns = useMemo(
+        () => columns.filter((col) => col.meta?.frozen),
+        [columns],
+    );
     const frozenColumnWidth = 100; // TODO this should be dynamic
-    const stickyColumns = frozenColumns.map((col, i) => ({
-        ...col,
-        meta: {
-            ...col.meta,
-            className: `sticky-column ${
-                i === frozenColumns.length - 1 ? 'last-sticky-column' : ''
-            } ${hideRowNumbers ? 'first-sticky-column' : ''}`,
-            style: {
-                maxWidth: frozenColumnWidth,
-                minWidth: frozenColumnWidth,
-                left: rowColumnWidth + 1 + i * frozenColumnWidth,
+    const stickyColumns = useMemo(() => {
+        return frozenColumns.map((col, i) => ({
+            ...col,
+            meta: {
+                ...col.meta,
+                className: `sticky-column ${
+                    i === frozenColumns.length - 1 ? 'last-sticky-column' : ''
+                } ${hideRowNumbers ? 'first-sticky-column' : ''}`,
+                style: {
+                    maxWidth: frozenColumnWidth,
+                    minWidth: frozenColumnWidth,
+                    left: rowColumnWidth + 1 + i * frozenColumnWidth,
+                },
             },
-        },
-    }));
+        }));
+    }, [frozenColumns, frozenColumnWidth, hideRowNumbers, rowColumnWidth]);
 
-    const otherColumns = columns.filter((col) => !col.meta?.frozen);
-    const stickyRowColumn =
-        stickyColumns.length > 0
-            ? {
-                  ...rowColumn,
-                  meta: {
-                      ...rowColumn.meta,
-                      className: 'sticky-column first-sticky-column',
-                      width: rowColumnWidth,
-                      style: {
-                          maxWidth: rowColumnWidth,
-                          minWidth: rowColumnWidth,
-                      },
-                  },
-              }
-            : rowColumn;
+    const otherColumns = useMemo(
+        () => columns.filter((col) => !col.meta?.frozen),
+        [columns],
+    );
+    const stickyRowColumn = useMemo(() => {
+        if (stickyColumns.length === 0) return rowColumn;
 
-    const visibleColumns = hideRowNumbers
-        ? [...stickyColumns, ...otherColumns]
-        : [stickyRowColumn, ...stickyColumns, ...otherColumns];
+        return {
+            ...rowColumn,
+            meta: {
+                ...rowColumn.meta,
+                className: 'sticky-column first-sticky-column',
+                width: rowColumnWidth,
+                style: {
+                    maxWidth: rowColumnWidth,
+                    minWidth: rowColumnWidth,
+                },
+            },
+        };
+    }, [stickyColumns, rowColumnWidth]);
+
+    const visibleColumns = useMemo(() => {
+        return hideRowNumbers
+            ? [...stickyColumns, ...otherColumns]
+            : [stickyRowColumn, ...stickyColumns, ...otherColumns];
+    }, [hideRowNumbers, stickyColumns, otherColumns, stickyRowColumn]);
 
     const table = useReactTable({
         data,
@@ -178,14 +197,37 @@ export const TableProvider: FC<Props> = ({
     }, [pagination, setPageSize]);
 
     const [selectedCell, setSelectedCell] =
-        useState<Cell<ResultRow, unknown>>();
+        useState<Cell<ResultRow, ResultRow[0]>>();
+
+    const [menuPosition, setMenuPosition] = useState<{
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+    }>();
 
     const handleSelectCell = useCallback(
-        (cell: Cell<ResultRow, unknown> | undefined) => {
+        (
+            cell: Cell<ResultRow, ResultRow[0]>,
+            element: HTMLTableCellElement,
+        ) => {
+            const elementRect = element.getBoundingClientRect();
+
             setSelectedCell(cell);
+            setMenuPosition({
+                left: elementRect.x,
+                top: elementRect.y,
+                width: elementRect.width,
+                height: elementRect.height,
+            });
         },
         [],
     );
+
+    const handleDeselectCell = useCallback(() => {
+        setSelectedCell(undefined);
+        setMenuPosition(undefined);
+    }, []);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedCellSelect = useCallback(
@@ -201,7 +243,7 @@ export const TableProvider: FC<Props> = ({
     const onCopyCell = useCallback(() => {
         if (!selectedCell) return;
 
-        const value = (selectedCell.getValue() as ResultRow[0]).value;
+        const value = selectedCell.getValue().value;
 
         copy(value.formatted);
 
@@ -230,7 +272,9 @@ export const TableProvider: FC<Props> = ({
             value={{
                 table,
                 selectedCell,
+                menuPosition,
                 onSelectCell: handleDebouncedCellSelect,
+                onDeselectCell: handleDeselectCell,
                 copyingCellId: copyingCellId,
                 onCopyCell,
                 ...rest,
