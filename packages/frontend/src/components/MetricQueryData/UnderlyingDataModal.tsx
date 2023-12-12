@@ -19,7 +19,7 @@ const UnderlyingDataModal: FC = () => {
                     height: '100%',
                 },
                 content: {
-                    minWidth: 'calc(100dvh)',
+                    minWidth: '100dvh',
                     minHeight: 'calc(100dvh - (4rem * 2))',
                     height: 'calc(100dvh - (10rem * 2))',
                     overflowY: 'hidden',
