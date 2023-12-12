@@ -135,7 +135,6 @@ const Dashboard: FC = () => {
     );
     const isLazyLoadEnabled =
         !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
-    const isDateZoomFeatureFlagEnabled = useFeatureFlagEnabled('date-zoom');
     const history = useHistory();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
@@ -577,9 +576,7 @@ const Dashboard: FC = () => {
                     {dashboardChartTiles && dashboardChartTiles.length > 0 && (
                         <DashboardFilter isEditMode={isEditMode} />
                     )}
-                    {hasDashboardTiles && isDateZoomFeatureFlagEnabled && (
-                        <DateZoom isEditMode={isEditMode} />
-                    )}
+                    {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>
 
                 <ResponsiveGridLayout

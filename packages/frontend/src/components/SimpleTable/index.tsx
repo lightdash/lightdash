@@ -32,7 +32,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         isLoading,
         columnOrder,
         isSqlRunner,
-        explore,
+        itemsMap,
         visualizationConfig,
     } = useVisualizationContext();
 
@@ -136,7 +136,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                         return (
                             <DashboardCellContextMenu
                                 {...props}
-                                explore={explore}
+                                itemsMap={itemsMap}
                             />
                         );
                     return <CellContextMenu {...props} />;

@@ -25,19 +25,24 @@ import {
     allExplores,
     defaultProject,
     expectedAllExploreSummary,
+    expectedApiQueryResultsWith1Row,
+    expectedApiQueryResultsWith501Rows,
     expectedCatalog,
     expectedExploreSummaryFilteredByName,
     expectedExploreSummaryFilteredByTags,
-    expectedSqlResults,
     job,
     lightdashConfigWithNoSMTP,
+    metricQueryMock,
     projectSummary,
     projectWithSensitiveFields,
+    resultsWith1Row,
+    resultsWith501Rows,
     spacesWithSavedCharts,
     tablesConfiguration,
     tablesConfigurationWithNames,
     tablesConfigurationWithTags,
     user,
+    validExplore,
 } from './ProjectService.mock';
 
 jest.mock('../../analytics/client', () => ({
@@ -58,16 +63,22 @@ jest.mock('../../models/models', () => ({
         getTablesConfiguration: jest.fn(async () => tablesConfiguration),
         updateTablesConfiguration: jest.fn(),
         getExploresFromCache: jest.fn(async () => allExplores),
+        getExploreFromCache: jest.fn(async () => validExplore),
         lockProcess: jest.fn((projectUuid, fun) => fun()),
         getWarehouseCredentialsForProject: jest.fn(
             async () => warehouseClientMock.credentials,
         ),
         getWarehouseClientFromCredentials: jest.fn(() => ({
             ...warehouseClientMock,
-            runQuery: jest.fn(async () => expectedSqlResults),
+            runQuery: jest.fn(async () => resultsWith1Row),
         })),
     },
-    onboardingModel: {},
+    onboardingModel: {
+        getByOrganizationUuid: jest.fn(async () => ({
+            ranQueryAt: new Date(),
+            shownSuccessAt: new Date(),
+        })),
+    },
     savedChartModel: {
         getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
     },
@@ -78,7 +89,9 @@ jest.mock('../../models/models', () => ({
         getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
     },
     sshKeyPairModel: {},
-    userAttributesModel: {},
+    userAttributesModel: {
+        getAttributeValuesForOrgMember: jest.fn(async () => ({})),
+    },
     analyticsModel: {},
 }));
 
@@ -104,7 +117,7 @@ describe('ProjectService', () => {
     test('should run sql query', async () => {
         const result = await service.runSqlQuery(user, projectUuid, 'fake sql');
 
-        expect(result).toEqual(expectedSqlResults);
+        expect(result).toEqual(resultsWith1Row);
         expect(analytics.track).toHaveBeenCalledTimes(1);
         expect(analytics.track).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -134,6 +147,37 @@ describe('ProjectService', () => {
                 event: 'project_tables_configuration.updated',
             }),
         );
+    });
+    describe('runExploreQuery', () => {
+        test('should get results with 1 row', async () => {
+            const result = await service.runExploreQuery(
+                user,
+                metricQueryMock,
+                projectUuid,
+                'table1',
+                null,
+            );
+            expect(result).toEqual(expectedApiQueryResultsWith1Row);
+        });
+        test('should get results with 501 rows', async () => {
+            // clear in memory cache so new mock is applied
+            service.warehouseClients = {};
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: jest.fn(async () => resultsWith501Rows),
+            }));
+
+            const result = await service.runExploreQuery(
+                user,
+                metricQueryMock,
+                projectUuid,
+                'table1',
+                null,
+            );
+            expect(result).toEqual(expectedApiQueryResultsWith501Rows);
+        });
     });
     describe('getAllExploresSummary', () => {
         test('should get all explores summary without filtering', async () => {

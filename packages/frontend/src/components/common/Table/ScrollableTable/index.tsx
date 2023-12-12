@@ -10,14 +10,11 @@ interface ScrollableTableProps {
 }
 
 const ScrollableTable: FC<ScrollableTableProps> = ({ minimal = true }) => {
-    const { footer, selectedCell } = useTableContext();
+    const { footer } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
     return (
-        <TableScrollableWrapper
-            ref={tableContainerRef}
-            $enableScroll={!selectedCell}
-        >
+        <TableScrollableWrapper ref={tableContainerRef}>
             <Table $showFooter={!!footer?.show}>
                 <TableHeader minimal={minimal} />
                 <TableBody

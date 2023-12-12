@@ -1,18 +1,11 @@
 import {
-    AdditionalMetric,
     ApiQueryResults,
     assertUnreachable,
     ChartConfig,
     ChartType,
-    convertAdditionalMetric,
     DashboardFilters,
-    Explore,
-    fieldId,
     getCustomDimensionId,
-    getMetrics,
     ItemsMap,
-    Metric,
-    TableCalculation,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import isEqual from 'lodash-es/isEqual';
@@ -58,15 +51,11 @@ type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact>;
     pivotDimensions: string[] | undefined;
-    explore: Explore | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
     isSqlRunner: boolean;
     itemsMap: ItemsMap | undefined;
-    metrics: Metric[];
-    customMetrics: AdditionalMetric[];
-    tableCalculations: TableCalculation[];
     visualizationConfig: VisualizationConfig;
     // cartesian config related
     setStacking: (value: boolean | undefined) => void;
@@ -93,7 +82,6 @@ export function useVisualizationContext(): VisualizationContext {
 }
 
 export type VisualizationConfigCommon<T extends VisualizationConfig> = {
-    explore?: Explore;
     resultsData: ApiQueryResults | undefined;
     initialChartConfig: T['chartConfig']['validConfig'] | undefined;
     onChartConfigChange?: (chartConfig: {
@@ -117,7 +105,6 @@ type Props = {
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
-    explore: Explore | undefined;
     isSqlRunner?: boolean;
     pivotTableMaxColumnLimit: number;
     savedChartUuid?: string;
@@ -131,7 +118,6 @@ const VisualizationProvider: FC<Props> = ({
     resultsData,
     isLoading,
     columnOrder,
-    explore,
     isSqlRunner,
     pivotTableMaxColumnLimit,
     chartConfig,
@@ -167,43 +153,6 @@ const VisualizationProvider: FC<Props> = ({
     const [stacking, setStacking] = useState<boolean>();
     const [cartesianType, setCartesianType] = useState<CartesianTypeOptions>();
     // --
-
-    const metrics = useMemo(() => {
-        if (!explore) return [];
-        return getMetrics(explore).filter((field) =>
-            resultsData?.metricQuery.metrics.includes(fieldId(field)),
-        );
-    }, [explore, resultsData?.metricQuery.metrics]);
-
-    const customMetrics = useMemo(() => {
-        if (!explore) return [];
-
-        return (resultsData?.metricQuery.additionalMetrics || []).reduce<
-            Metric[]
-        >((acc, additionalMetric) => {
-            const table = explore.tables[additionalMetric.table];
-            if (!table) return acc;
-
-            const metric = convertAdditionalMetric({
-                additionalMetric,
-                table,
-            });
-
-            if (!resultsData?.metricQuery.metrics.includes(fieldId(metric))) {
-                return acc;
-            }
-
-            return [...acc, metric];
-        }, []);
-    }, [
-        explore,
-        resultsData?.metricQuery.additionalMetrics,
-        resultsData?.metricQuery.metrics,
-    ]);
-
-    const tableCalculations = useMemo(() => {
-        return resultsData?.metricQuery.tableCalculations ?? [];
-    }, [resultsData?.metricQuery.tableCalculations]);
 
     // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
     // so we initialize it with the fields from resultData
@@ -254,13 +203,9 @@ const VisualizationProvider: FC<Props> = ({
         chartRef,
         resultsData: lastValidResultsData,
         isLoading,
-        explore,
         columnOrder,
         isSqlRunner: isSqlRunner ?? false,
         itemsMap,
-        metrics,
-        customMetrics,
-        tableCalculations,
         setStacking,
         setCartesianType,
         onSeriesContextMenu,
@@ -272,7 +217,7 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.CARTESIAN:
             return (
                 <VisualizationCartesianConfig
-                    explore={isSqlRunner ? undefined : explore}
+                    itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     validPivotDimensions={validPivotDimensions}
                     columnOrder={isSqlRunner ? [] : defaultColumnOrder}
@@ -294,7 +239,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.PIE:
             return (
                 <VisualizationPieConfig
-                    explore={explore}
                     itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
@@ -312,7 +256,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.BIG_NUMBER:
             return (
                 <VisualizationBigNumberConfig
-                    explore={explore}
                     itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
@@ -330,8 +273,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.TABLE:
             return (
                 <VisualizationTableConfig
-                    explore={explore}
-                    exploreName={explore?.name}
                     itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     columnOrder={defaultColumnOrder}
@@ -355,7 +296,6 @@ const VisualizationProvider: FC<Props> = ({
         case ChartType.CUSTOM:
             return (
                 <VisualizationCustomConfig
-                    explore={explore}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}

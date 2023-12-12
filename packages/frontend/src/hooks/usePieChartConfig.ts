@@ -3,7 +3,6 @@ import {
     CustomDimension,
     Dimension,
     ECHARTS_DEFAULT_COLORS,
-    Explore,
     formatItemValue,
     isField,
     isMetric,
@@ -85,7 +84,6 @@ type PieChartConfig = {
 };
 
 export type PieChartConfigFn = (
-    explore: Explore | undefined,
     resultsData: ApiQueryResults | undefined,
     pieChartConfig: PieChart | undefined,
     itemsMap: ItemsMap | undefined,
@@ -94,7 +92,6 @@ export type PieChartConfigFn = (
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
-    explore,
     resultsData,
     pieChartConfig,
     itemsMap,
@@ -178,7 +175,7 @@ const usePieChartConfig: PieChartConfigFn = (
         return undefined;
     }, [itemsMap, metricId]);
 
-    const isLoading = !explore || !resultsData;
+    const isLoading = !resultsData;
 
     useEffect(() => {
         if (isLoading) return;
