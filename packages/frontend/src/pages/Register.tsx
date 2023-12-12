@@ -4,7 +4,15 @@ import {
     LightdashUser,
     OpenIdIdentityIssuerType,
 } from '@lightdash/common';
-import { Anchor, Card, Image, Stack, Text, Title } from '@mantine/core';
+import {
+    Anchor,
+    Card,
+    Divider,
+    Image,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { FC } from 'react';
 import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
@@ -17,7 +25,6 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import { Divider, DividerWrapper } from './Invite.styles';
 
 const registerQuery = async (data: CreateUserArgs) =>
     lightdashApi<LightdashUser>({
@@ -87,11 +94,15 @@ const Register: FC = () => {
         <>
             {ssoLogins}
             {ssoLogins && passwordLogin && (
-                <DividerWrapper>
-                    <Divider />
-                    <b>OR</b>
-                    <Divider />
-                </DividerWrapper>
+                <Divider
+                    my="md"
+                    labelPosition="center"
+                    label={
+                        <Text color="gray.5" size="sm" fw={500}>
+                            OR
+                        </Text>
+                    }
+                />
             )}
             {passwordLogin}
         </>

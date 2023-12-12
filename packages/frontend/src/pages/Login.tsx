@@ -11,6 +11,7 @@ import {
     Anchor,
     Button,
     Card,
+    Divider,
     Image,
     PasswordInput,
     Stack,
@@ -31,7 +32,6 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import { Divider, DividerWrapper } from './Invite.styles';
 
 type LoginParams = { email: string; password: string };
 
@@ -173,11 +173,15 @@ const LoginContent: FC = () => {
         <>
             {ssoLogins}
             {ssoLogins && passwordLogin && (
-                <DividerWrapper>
-                    <Divider></Divider>
-                    <b>OR</b>
-                    <Divider></Divider>
-                </DividerWrapper>
+                <Divider
+                    my="md"
+                    labelPosition="center"
+                    label={
+                        <Text color="gray.5" size="sm" fw={500}>
+                            OR
+                        </Text>
+                    }
+                />
             )}
             {passwordLogin}
         </>
