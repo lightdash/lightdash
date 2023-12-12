@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-
 import {
     ChartType,
     convertFieldRefToFieldId,
@@ -16,6 +15,7 @@ import {
     Metric,
     MetricQuery,
 } from '@lightdash/common';
+import { Flex, Stack } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -30,7 +30,6 @@ import LinkButton from '../common/LinkButton';
 import { TableColumn } from '../common/Table/types';
 import DownloadCsvButton from '../DownloadCsvButton';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
-import { HeaderRightContent } from './UnderlyingDataModal.styles';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 
 interface Props {}
@@ -320,8 +319,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     };
 
     return (
-        <>
-            <HeaderRightContent>
+        <Stack h="95%">
+            <Flex justify="flex-end">
                 <Can
                     I="manage"
                     this={subject('ExportCsv', {
@@ -347,7 +346,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                         Explore from here
                     </LinkButton>
                 </Can>
-            </HeaderRightContent>
+            </Flex>
+
             <UnderlyingDataResultsTable
                 isLoading={isLoading}
                 resultsData={resultsData}
@@ -355,7 +355,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 hasJoins={joinedTables.length > 0}
                 sortByUnderlyingValues={sortByUnderlyingValues}
             />
-        </>
+        </Stack>
     );
 };
 
