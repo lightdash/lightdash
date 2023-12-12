@@ -545,6 +545,9 @@ export const createDimensionWithGranularity = (
         {
             ...baseTimeDimension,
             name: dimensionName,
+            type: timeFrameConfigs[newTimeInterval].getDimensionType(
+                baseTimeDimension.type,
+            ),
             timeInterval: newTimeInterval,
             label: `${baseTimeDimension.label} ${timeFrameConfigs[
                 newTimeInterval
