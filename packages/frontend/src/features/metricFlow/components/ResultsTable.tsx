@@ -1,8 +1,9 @@
-import { NonIdealState } from '@blueprintjs/core';
 import { ApiError, ApiQueryResults } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { IconAlertCircle } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useQuery } from 'react-query';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import Table from '../../../components/common/Table';
 import { TableColumn } from '../../../components/common/Table/types';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -11,7 +12,7 @@ import { SectionName } from '../../../types/Events';
 const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
-            <NonIdealState icon="error" description={error} />
+            <SuboptimalState icon={IconAlertCircle} description={error} />
         </div>
     </TrackSection>
 );

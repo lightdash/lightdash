@@ -1,4 +1,3 @@
-import { NonIdealState } from '@blueprintjs/core';
 import { getEmailDomain } from '@lightdash/common';
 import {
     Anchor,
@@ -14,7 +13,9 @@ import {
 import { FC, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 
+import { IconAlertCircle } from '@tabler/icons-react';
 import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import PageSpinner from '../components/PageSpinner';
 import { useOrganizationCreateMutation } from '../hooks/organization/useOrganizationCreateMutation';
 import useAllowedOrganizations from '../hooks/user/useAllowedOrganizations';
@@ -80,8 +81,8 @@ const JoinOrganizationPage: FC = () => {
         <Page title="Join a workspace" withCenteredContent withNavbar={false}>
             {createOrgError ? (
                 <Stack mt="4xl">
-                    <NonIdealState
-                        icon="error"
+                    <SuboptimalState
+                        icon={IconAlertCircle}
                         title="Error"
                         description={createOrgError.error.message}
                         action={

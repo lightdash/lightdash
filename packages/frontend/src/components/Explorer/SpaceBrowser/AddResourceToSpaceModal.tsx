@@ -1,12 +1,6 @@
-import {
-    Button,
-    Classes,
-    Dialog,
-    Icon,
-    Intent,
-    NonIdealState,
-} from '@blueprintjs/core';
+import { Button, Classes, Dialog, Icon, Intent } from '@blueprintjs/core';
 import { assertUnreachable } from '@lightdash/common';
+import { IconSearch } from '@tabler/icons-react';
 import { FC, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
@@ -17,6 +11,7 @@ import {
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
 import { useSpace, useSpaceSummaries } from '../../../hooks/useSpaces';
+import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import { SpaceLabel } from './AddResourceToSpaceModal.style';
@@ -135,7 +130,9 @@ const AddResourceToSpaceModal: FC<Props> = ({
         resourceType === AddToSpaceResources.CHART ? savedCharts : dashboards;
 
     if (allItems === undefined) {
-        return <NonIdealState title="No results available" icon="search" />;
+        return (
+            <SuboptimalState title="No results available" icon={IconSearch} />
+        );
     }
     const selectItems = allItems.map(
         ({ uuid: itemUuid, name, spaceUuid: itemSpaceUuid }) => {

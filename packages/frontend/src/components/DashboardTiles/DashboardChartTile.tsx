@@ -1,4 +1,4 @@
-import { Menu, NonIdealState, Tag } from '@blueprintjs/core';
+import { Menu, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -30,7 +30,7 @@ import {
     SavedChart,
 } from '@lightdash/common';
 import { Box, Portal, Text, Tooltip } from '@mantine/core';
-import { IconFilter, IconFolders } from '@tabler/icons-react';
+import { IconAlertCircle, IconFilter, IconFolders } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
@@ -53,6 +53,7 @@ import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
@@ -845,10 +846,10 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
                 }
                 {...rest}
             >
-                <NonIdealState
-                    icon="error"
+                <SuboptimalState
+                    icon={IconAlertCircle}
                     title={error?.error?.message || 'No data available'}
-                ></NonIdealState>
+                ></SuboptimalState>
             </TileBase>
         );
 

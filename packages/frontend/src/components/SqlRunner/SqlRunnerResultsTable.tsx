@@ -1,18 +1,19 @@
-import { NonIdealState } from '@blueprintjs/core';
 import { ApiQueryResults, Field } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { IconAlertCircle } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
 import useSqlRunnerColumns from '../../hooks/useSqlRunnerColumns';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';
 import RunSqlQueryButton from './RunSqlQueryButton';
 
 const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
-            <NonIdealState icon="error" description={error} />
+            <SuboptimalState icon={IconAlertCircle} description={error} />
         </div>
     </TrackSection>
 );
@@ -22,7 +23,7 @@ const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
 ) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
-            <NonIdealState
+            <SuboptimalState
                 description="Click run query to see your results"
                 action={<RunSqlQueryButton {...props} />}
             />

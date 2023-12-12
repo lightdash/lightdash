@@ -1,11 +1,12 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { PivotReference } from '@lightdash/common';
+import { IconChartBarOff } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import useEchartsCartesianConfig, {
     isLineSeriesOption,
 } from '../../hooks/echarts/useEchartsCartesianConfig';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 type EchartBaseClickEvent = {
@@ -54,19 +55,19 @@ type LegendClickEvent = {
 
 export const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <NonIdealState
+        <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
-            icon="chart"
+            icon={IconChartBarOff}
         />
     </div>
 );
 
 export const LoadingChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <NonIdealState
+        <SuboptimalState
             title="Loading chart"
-            icon={<Spinner />}
+            loading
             className="loading_chart"
         />
     </div>

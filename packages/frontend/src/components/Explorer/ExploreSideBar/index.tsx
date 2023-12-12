@@ -1,6 +1,10 @@
-import { NonIdealState } from '@blueprintjs/core';
 import { ActionIcon, Skeleton, Stack, TextInput } from '@mantine/core';
-import { IconSearch, IconX } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconAlertTriangle,
+    IconSearch,
+    IconX,
+} from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -12,6 +16,7 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
+import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import ExplorePanel from '../ExplorePanel';
 import ExploreGroup from './ExploreGroup';
 import ExploreNavLink from './ExploreNavLink';
@@ -78,7 +83,12 @@ const BasePanel = () => {
     }
 
     if (exploresResult.status === 'error') {
-        return <NonIdealState icon="error" title="Could not load explores" />;
+        return (
+            <SuboptimalState
+                icon={IconAlertCircle}
+                title="Could not load explores"
+            />
+        );
     }
 
     if (exploresResult.data) {
@@ -146,7 +156,10 @@ const BasePanel = () => {
     }
 
     return (
-        <NonIdealState icon="warning-sign" title="Could not load explores" />
+        <SuboptimalState
+            icon={IconAlertTriangle}
+            title="Could not load explores"
+        />
     );
 };
 

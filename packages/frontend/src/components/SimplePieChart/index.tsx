@@ -1,5 +1,5 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { useDisclosure } from '@mantine/hooks';
+import { IconChartPieOff } from '@tabler/icons-react';
 import { ECElementEvent } from 'echarts';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
@@ -7,6 +7,7 @@ import { FC, memo, useCallback, useEffect, useState } from 'react';
 import useEchartsPieConfig, {
     PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import PieChartContextMenu, {
     PieChartContextMenuProps,
@@ -14,19 +15,19 @@ import PieChartContextMenu, {
 
 const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <NonIdealState
+        <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
-            icon="chart"
+            icon={IconChartPieOff}
         />
     </div>
 );
 
 const LoadingChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <NonIdealState
+        <SuboptimalState
             title="Loading chart"
-            icon={<Spinner />}
+            loading
             className="loading_chart"
         />
     </div>

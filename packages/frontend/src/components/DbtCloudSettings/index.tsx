@@ -1,4 +1,3 @@
-import { NonIdealState } from '@blueprintjs/core';
 import { CreateDbtCloudIntegration } from '@lightdash/common/dist/types/dbtCloud';
 import {
     Anchor,
@@ -12,7 +11,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconHelp } from '@tabler/icons-react';
+import { IconAlertCircle, IconHelp } from '@tabler/icons-react';
 import { FC } from 'react';
 import { z } from 'zod';
 import {
@@ -22,6 +21,7 @@ import {
 } from '../../hooks/dbtCloud/useProjectDbtCloudSettings';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
 interface DbtCloudSettingsProps {
     projectUuid: string;
@@ -64,9 +64,9 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
     return (
         <form onSubmit={form.onSubmit(handleSubmit)}>
             {dbtCloudSettings.error ? (
-                <NonIdealState
+                <SuboptimalState
                     title={dbtCloudSettings.error.error.message}
-                    icon="error"
+                    icon={IconAlertCircle}
                 />
             ) : (
                 <SettingsGridCard>

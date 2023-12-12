@@ -1,4 +1,3 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import {
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerFormat,
@@ -18,6 +17,7 @@ import { FC, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import CronInput from '../../../components/ReactHookForm/CronInput';
 import { useChartSchedulerCreateMutation } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
@@ -111,7 +111,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
     if (isEditing && (isLoadingSchedulerData || isSchedulerError)) {
         return isLoadingSchedulerData ? (
-            <NonIdealState title="Loading Sync" icon={<Spinner />} />
+            <SuboptimalState title="Loading Sync" loading />
         ) : (
             <ErrorState error={schedulerError.error} />
         );

@@ -1,7 +1,8 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { IconLinkOff } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import styled from 'styled-components';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { useGetShare } from '../hooks/useShare';
 
 const SharePanel = styled.div`
@@ -22,16 +23,16 @@ const ShareRedirect: FC = () => {
     if (error) {
         return (
             <SharePanel>
-                <NonIdealState
+                <SuboptimalState
                     title={`Shared link does not exist`}
-                    icon="backlink"
+                    icon={IconLinkOff}
                 />
             </SharePanel>
         );
     }
     return (
         <SharePanel>
-            <NonIdealState title="Loading..." icon={<Spinner />} />
+            <SuboptimalState title="Loading..." loading />
         </SharePanel>
     );
 };

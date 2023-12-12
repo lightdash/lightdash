@@ -1,9 +1,9 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { useParams } from 'react-router-dom';
 
 import { useEffect } from 'react';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
@@ -42,7 +42,7 @@ const SavedExplorer = () => {
     if (isLoading) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading..." icon={<Spinner />} />
+                <SuboptimalState title="Loading..." loading />
             </div>
         );
     }
