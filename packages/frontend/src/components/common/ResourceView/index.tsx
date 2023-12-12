@@ -85,11 +85,6 @@ const ResourceView: React.FC<ResourceViewProps> = ({
 
     const handleAction = useCallback(
         (newAction: ResourceViewItemActionState) => {
-            // TODO: remove when #6626 is closed
-            console.log('--------------------');
-            console.log('handleAction in ResourceView');
-            console.log('newAction', newAction);
-            console.log('====================');
             setAction(newAction);
         },
         [],

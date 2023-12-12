@@ -111,17 +111,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     );
 
     const handleMoveToSpace = useCallback(() => {
-        // TODO: remove when #6626 is closed
-        console.log('--------------------');
-        console.log('handleMoveToSpace in ResourceActionHandlers');
-        console.log('action.type', action.type);
-
         if (action.type !== ResourceViewItemAction.MOVE_TO_SPACE) return;
-
-        // TODO: remove when #6626 is closed
-        console.log('action.item.data.uuid', action.item.data.uuid);
-        console.log('action.item.data.name', action.item.data.name);
-        console.log('====================');
 
         switch (action.item.type) {
             case ResourceViewItemType.CHART:

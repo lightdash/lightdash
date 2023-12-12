@@ -180,8 +180,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                         },
                                     }}
                                     onSearchChange={(query) => {
-                                        console.log('changed', query);
-
                                         if (!query) {
                                             setFieldValue(
                                                 'isCreatingNewSpace',
