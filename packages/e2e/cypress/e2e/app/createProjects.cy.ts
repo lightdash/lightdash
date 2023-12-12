@@ -158,10 +158,7 @@ const testCompile = (): Cypress.Chainable<string> => {
 
     cy.contains('selected 12 models');
     // Configure
-    cy.findByText('Save changes')
-        .parent('button')
-        .should('not.be.disabled')
-        .click();
+    cy.contains('button', 'Save changes').click();
     cy.url().should('include', '/home', { timeout: 30000 });
     cy.contains('Welcome, David');
     cy.findByText('Charts and Dashboards');
