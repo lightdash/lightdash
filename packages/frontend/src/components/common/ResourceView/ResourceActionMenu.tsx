@@ -294,24 +294,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                                     }
                                                     component="button"
                                                     onClick={() => {
-                                                        // TODO: remove when #6626 is closed
-                                                        console.log(
-                                                            '--------------------',
-                                                        );
-                                                        console.log(
-                                                            'onClick in ResourceActionMenu',
-                                                        );
-                                                        console.log(
-                                                            'item.data.spaceUuid',
-                                                            item.data.spaceUuid,
-                                                        );
-                                                        console.log(
-                                                            'space.uuid',
-                                                            space.uuid,
-                                                        );
-                                                        console.log(
-                                                            '====================',
-                                                        );
                                                         if (
                                                             item.data
                                                                 .spaceUuid !==
