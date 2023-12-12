@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Box, Stack, Title } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import {
     IconBuildingSkyscraper,
     IconCalendarStats,
@@ -33,7 +33,6 @@ import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel'
 import AppearancePanel from '../components/UserSettings/AppearancePanel';
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
-import { Description } from '../components/UserSettings/DeleteOrganizationPanel/DeleteOrganizationPanel.styles';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
@@ -401,11 +400,11 @@ const Settings: FC = () => {
                                     <Title order={4}>
                                         Allowed email domains
                                     </Title>
-                                    <Description>
+                                    <Text ta="left" c="gray.6" fz="xs">
                                         Anyone with email addresses at these
                                         domains can automatically join the
                                         organization.
-                                    </Description>
+                                    </Text>
                                 </div>
                                 <AllowedDomainsPanel />
                             </SettingsGridCard>
@@ -413,13 +412,13 @@ const Settings: FC = () => {
                             <SettingsGridCard>
                                 <div>
                                     <Title order={4}>Default Project</Title>
-                                    <Description>
+                                    <Text ta="left" c="gray.6" fz="xs">
                                         This is the project users will see when
                                         they log in for the first time or from a
                                         new device. If a user does not have
                                         access, they will see their next
                                         accessible project.
-                                    </Description>
+                                    </Text>
                                 </div>
                                 <DefaultProjectPanel />
                             </SettingsGridCard>
@@ -428,12 +427,12 @@ const Settings: FC = () => {
                                 <SettingsGridCard>
                                     <div>
                                         <Title order={4}>Danger zone </Title>
-                                        <Description>
+                                        <Text ta="left" c="gray.6" fz="xs">
                                             This action deletes the whole
                                             workspace and all its content,
                                             including users. This action is not
                                             reversible.
-                                        </Description>
+                                        </Text>
                                     </div>
                                     <DeleteOrganizationPanel />
                                 </SettingsGridCard>
