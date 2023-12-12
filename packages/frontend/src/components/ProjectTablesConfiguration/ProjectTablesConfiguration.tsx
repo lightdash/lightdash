@@ -1,16 +1,19 @@
-import { Radio } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { hasIntersection, TableSelectionType } from '@lightdash/common';
 import {
     Anchor,
+    Box,
     Button,
     Collapse,
+    MultiSelect,
+    Radio,
     ScrollArea,
+    Stack,
     Text,
     Title,
 } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { FC, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { useExplores } from '../../hooks/useExplores';
 import {
@@ -23,9 +26,6 @@ import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
-import Form from '../ReactHookForm/Form';
-import MultiSelect from '../ReactHookForm/MultiSelect';
-import RadioGroup from '../ReactHookForm/RadioGroup';
 
 type FormData = {
     type: TableSelectionType;
@@ -62,21 +62,21 @@ const ProjectTablesConfiguration: FC<{
         isSaving ||
         isLoadingExplores ||
         !canUpdateTableConfiguration;
-    const methods = useForm<FormData>({
-        defaultValues: {
+    const form = useForm<FormData>({
+        initialValues: {
             type: TableSelectionType.ALL,
             tags: [],
             names: [],
         },
     });
-    const typeValue = methods.watch('type', TableSelectionType.ALL);
-    const tagsValue = methods.watch('tags', []);
-    const namesValue = methods.watch('names', []);
 
     const modelsIncluded = useMemo<string[]>(() => {
         if (!explores) {
             return [];
         }
+        const typeValue = form.values.type || TableSelectionType.ALL;
+        const tagsValue = form.values.tags || [];
+        const namesValue = form.values.names || [];
         if (typeValue === TableSelectionType.ALL) {
             return explores.map(({ name }) => name);
         }
@@ -96,7 +96,7 @@ const ProjectTablesConfiguration: FC<{
             );
         }
         return [];
-    }, [tagsValue, namesValue, typeValue, explores]);
+    }, [form.values, explores]);
 
     const availableTags = useMemo<string[]>(
         () =>
@@ -108,18 +108,18 @@ const ProjectTablesConfiguration: FC<{
             ),
         [explores],
     );
-
+    const { setFieldValue } = form;
     useEffect(() => {
         if (data) {
-            methods.setValue('type', data.tableSelection.type);
-            methods.setValue(
+            setFieldValue('type', data.tableSelection.type);
+            setFieldValue(
                 'tags',
                 data.tableSelection.type === TableSelectionType.WITH_TAGS &&
                     data.tableSelection.value
                     ? data.tableSelection.value
                     : [],
             );
-            methods.setValue(
+            setFieldValue(
                 'names',
                 data.tableSelection.type === TableSelectionType.WITH_NAMES &&
                     data.tableSelection.value
@@ -127,7 +127,7 @@ const ProjectTablesConfiguration: FC<{
                     : [],
             );
         }
-    }, [methods, data]);
+    }, [setFieldValue, data]);
 
     useEffect(() => {
         if (isSuccess && onSuccess) {
@@ -135,7 +135,7 @@ const ProjectTablesConfiguration: FC<{
         }
     }, [isSuccess, onSuccess]);
 
-    const onSubmit = async (formData: FormData) => {
+    const handleSubmit = form.onSubmit(async (formData: FormData) => {
         track({
             name: EventName.UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED,
         });
@@ -158,15 +158,10 @@ const ProjectTablesConfiguration: FC<{
                 value,
             },
         });
-    };
+    });
 
     return (
-        <Form
-            name="project_table_configuration"
-            methods={methods}
-            onSubmit={onSubmit}
-            disableSubmitOnEnter
-        >
+        <form name="project_table_configuration" onSubmit={handleSubmit}>
             <SettingsGridCard>
                 <div>
                     <Title order={5}>Table selection</Title>
@@ -183,7 +178,7 @@ const ProjectTablesConfiguration: FC<{
                         )}
                     </Text>
                     <Collapse in={isListOpen}>
-                        <ScrollArea h={210}>
+                        <ScrollArea h={180}>
                             {modelsIncluded.map((name) => (
                                 <Text
                                     key={name}
@@ -199,73 +194,77 @@ const ProjectTablesConfiguration: FC<{
                 </div>
 
                 <div>
-                    <RadioGroup
+                    <Radio.Group
                         name="type"
                         label="Table selection"
-                        rules={{
-                            required: 'Required field',
-                        }}
-                        disabled={disabled}
-                        defaultValue={TableSelectionType.ALL}
+                        withAsterisk
+                        {...form.getInputProps('type')}
                     >
-                        <Radio
-                            label="Show entire project"
-                            value={TableSelectionType.ALL}
-                        />
-                        <Text color="gray.6">
-                            Show all of the models in your dbt project in
-                            Lightdash.
-                        </Text>
-                        <Radio
-                            labelElement={
-                                <>
-                                    Show models with any of these tags{' '}
-                                    <DocumentationHelpButton href="https://docs.getdbt.com/reference/resource-configs/tags#examples" />
-                                </>
-                            }
-                            value={TableSelectionType.WITH_TAGS}
-                        />
-                        <Text color="gray.6">
-                            Write a list of tags you want to include, separated
-                            by commas.
-                        </Text>
-                        {typeValue === TableSelectionType.WITH_TAGS && (
-                            <MultiSelect
-                                name="tags"
-                                label="Tags"
-                                rules={{
-                                    required: 'Required field',
-                                }}
-                                items={availableTags}
-                                disabled={disabled}
-                                placeholder="e.g lightdash, prod"
+                        <Stack mt={'md'} spacing={'md'}>
+                            <Radio
+                                value={TableSelectionType.ALL}
+                                label="Show entire project"
+                                description="Show all of the models in your dbt project in Lightdash."
                             />
-                        )}
-
-                        <Radio
-                            label="Show models in this list"
-                            value={TableSelectionType.WITH_NAMES}
-                        />
-                        <Text color="gray.6">
-                            Write a list of models you want to include,
-                            separated by commas.
-                        </Text>
-                        {typeValue === TableSelectionType.WITH_NAMES && (
-                            <MultiSelect
-                                name="names"
-                                label="Names"
-                                rules={{
-                                    required: 'Required field',
-                                }}
-                                items={(explores || []).map(({ name }) => name)}
-                                disabled={disabled}
-                                placeholder="e.g users, orders"
-                            />
-                        )}
-                    </RadioGroup>
+                            <Box>
+                                <Radio
+                                    value={TableSelectionType.WITH_TAGS}
+                                    label={
+                                        <>
+                                            Show models with any of these tags{' '}
+                                            <DocumentationHelpButton href="https://docs.getdbt.com/reference/resource-configs/tags#examples" />
+                                        </>
+                                    }
+                                    description="Write a list of tags you want to include, separated
+                                    by commas."
+                                />
+                                {form.values.type ===
+                                    TableSelectionType.WITH_TAGS && (
+                                    <MultiSelect
+                                        ml={'xxl'}
+                                        size={'xs'}
+                                        mt={'xs'}
+                                        name="tags"
+                                        label="Tags"
+                                        required
+                                        data={availableTags}
+                                        disabled={disabled}
+                                        placeholder="e.g lightdash, prod"
+                                        {...form.getInputProps('tags')}
+                                    />
+                                )}
+                            </Box>
+                            <Box>
+                                <Radio
+                                    value={TableSelectionType.WITH_NAMES}
+                                    label="Show models in this list"
+                                    description="Write a list of models you want to include,
+                                    separated by commas."
+                                />
+                                {form.values.type ===
+                                    TableSelectionType.WITH_NAMES && (
+                                    <MultiSelect
+                                        ml={'xxl'}
+                                        size={'xs'}
+                                        mt={'xs'}
+                                        name="names"
+                                        label="Names"
+                                        required
+                                        data={(explores || []).map(
+                                            ({ name }) => name,
+                                        )}
+                                        disabled={disabled}
+                                        placeholder="e.g users, orders"
+                                        {...form.getInputProps('names')}
+                                    />
+                                )}
+                            </Box>
+                        </Stack>
+                    </Radio.Group>
 
                     {canUpdateTableConfiguration && (
                         <Button
+                            mt={'xl'}
                             type="submit"
                             loading={isSaving}
                             disabled={disabled}
@@ -276,7 +275,7 @@ const ProjectTablesConfiguration: FC<{
                     )}
                 </div>
             </SettingsGridCard>
-        </Form>
+        </form>
     );
 };
 
