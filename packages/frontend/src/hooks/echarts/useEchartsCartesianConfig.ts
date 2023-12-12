@@ -994,7 +994,7 @@ const getEchartAxis = ({
                     xAxisConfiguration?.[1]?.min ||
                     maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange),
                 max:
-                    xAxisConfiguration?.[1]?.min ||
+                    xAxisConfiguration?.[1]?.max ||
                     maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange),
                 nameLocation: 'center',
                 nameGap: 30,
