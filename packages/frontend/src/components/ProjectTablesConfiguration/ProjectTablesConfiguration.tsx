@@ -228,9 +228,17 @@ const ProjectTablesConfiguration: FC<{
                                         label="Tags"
                                         required
                                         data={availableTags}
-                                        disabled={disabled}
+                                        disabled={
+                                            disabled ||
+                                            availableTags.length === 0
+                                        }
                                         placeholder="e.g lightdash, prod"
                                         {...form.getInputProps('tags')}
+                                        error={
+                                            availableTags.length === 0
+                                                ? 'Your dbt project has no tags available'
+                                                : undefined
+                                        }
                                     />
                                 )}
                             </Box>
