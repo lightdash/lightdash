@@ -6,7 +6,7 @@ import {
 import produce from 'immer';
 import isEqual from 'lodash-es/isEqual';
 
-export const isFilterConfigurationApplyButtonEnabled = (
+export const isFilterEnabled = (
     filterRule?: DashboardFilterRule,
     isEditMode?: boolean,
     isCreatingNew?: boolean,
@@ -64,7 +64,7 @@ export const getFilterRuleRevertableObject = (
     };
 };
 
-export const isFilterConfigRevertButtonEnabled = (
+export const hasSavedFilterValueChanged = (
     originalFilterRule: DashboardFilterRule,
     filterRule: DashboardFilterRule,
 ) => {

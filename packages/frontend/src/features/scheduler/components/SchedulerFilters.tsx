@@ -31,7 +31,10 @@ import {
     useFiltersContext,
 } from '../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../../../components/DashboardFilter/FilterConfiguration/utils';
+import {
+    hasSavedFilterValueChanged,
+    isFilterEnabled,
+} from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 
@@ -207,6 +210,8 @@ const updateFilters = (
     originalFilter: DashboardFilterRule,
     schedulerFilters: SchedulerFilterRule[] | undefined,
 ): SchedulerFilterRule[] | undefined => {
+    console.log('updateFilters');
+
     if (
         schedulerFilters &&
         // Check if filters are the same, regardless of disabled state (accepts any value)
@@ -215,6 +220,8 @@ const updateFilters = (
             { ...schedulerFilter, disabled: undefined },
         )
     ) {
+        console.log('reverted');
+
         return schedulerFilters.filter((f) => f.id !== schedulerFilter.id);
     }
 
@@ -228,11 +235,29 @@ const updateFilters = (
             : originalFilter;
 
     if (hasFilterChanged(filterToCompareAgainst, schedulerFilter)) {
+        console.log('changed');
+
         if (schedulerFilters && isExistingFilter) {
             return schedulerFilters.map((f) =>
-                f.id === schedulerFilter.id ? schedulerFilter : f,
+                f.id === schedulerFilter.id
+                    ? {
+                          ...schedulerFilter,
+                          disabled: !isFilterEnabled(schedulerFilter),
+                      }
+                    : f,
             );
         }
+
+        console.log({
+            changingDisabled: !(
+                filterToCompareAgainst.disabled &&
+                filterToCompareAgainst.disabled === true
+            ),
+            booleanInside:
+                filterToCompareAgainst.disabled &&
+                filterToCompareAgainst.disabled === true,
+            filterToCompareAgainst,
+        });
 
         return [
             ...(schedulerFilters ?? []),

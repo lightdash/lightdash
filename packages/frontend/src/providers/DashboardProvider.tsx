@@ -28,7 +28,7 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
-import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
+import { hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
