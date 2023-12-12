@@ -1,5 +1,6 @@
 import { ResultRow } from '@lightdash/common';
-import { Tooltip } from '@mantine/core';
+import { Portal, Tooltip, TooltipProps } from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { Cell } from '@tanstack/react-table';
 import { FC, useCallback } from 'react';
 import { CSSProperties } from 'styled-components';
@@ -29,6 +30,29 @@ interface CommonBodyCellProps {
     onKeyDown: React.KeyboardEventHandler<HTMLElement>;
 }
 
+type CellTooltipProps = Omit<TooltipProps, 'children'> & {
+    elementBounds: DOMRect;
+};
+
+const CellTooltip: FC<CellTooltipProps> = ({ elementBounds, ...rest }) => {
+    return (
+        <Portal>
+            <Tooltip {...rest} opened>
+                <div
+                    style={{
+                        zIndex: -1,
+                        position: 'absolute',
+                        left: elementBounds.x,
+                        top: elementBounds.y,
+                        width: elementBounds.width,
+                        height: elementBounds.height,
+                    }}
+                />
+            </Tooltip>
+        </Portal>
+    );
+};
+
 const BodyCell: FC<CommonBodyCellProps> = ({
     cell,
     children,
@@ -49,6 +73,8 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     onDeselectCell,
     onKeyDown,
 }) => {
+    const { ref, hovered } = useHover<HTMLTableCellElement>();
+
     const handleSelect = useCallback(
         (e: React.MouseEvent<HTMLTableCellElement>) => {
             if (!onSelectCell || !hasContextMenu || !hasData) return;
@@ -62,14 +88,20 @@ const BodyCell: FC<CommonBodyCellProps> = ({
         [onSelectCell, hasContextMenu, hasData, cell],
     );
 
+    const showTooltip = !!tooltipContent && hovered && !minimal && ref.current;
+
     return (
-        <Tooltip
-            withinPortal
-            position="top"
-            disabled={!tooltipContent || minimal}
-            label={tooltipContent}
-        >
+        <>
+            {showTooltip ? (
+                <CellTooltip
+                    position="top"
+                    label={tooltipContent}
+                    elementBounds={ref.current?.getBoundingClientRect()}
+                />
+            ) : null}
+
             <Td
+                ref={ref}
                 className={className}
                 style={style}
                 $rowIndex={index}
@@ -89,7 +121,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                     {children}
                 </RichBodyCell>
             </Td>
-        </Tooltip>
+        </>
     );
 };
 
