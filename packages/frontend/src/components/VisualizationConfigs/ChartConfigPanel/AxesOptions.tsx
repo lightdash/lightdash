@@ -156,9 +156,9 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
             {isXFieldDateOrNumber() && (
                 <AxisMinMax
                     label={`Auto ${
-                        dirtyLayout?.flipAxes ? 'x' : 'y'
+                        dirtyLayout?.flipAxes ? 'y' : 'x'
                     }-axis range (${
-                        dirtyLayout?.flipAxes ? 'bottom' : 'left'
+                        dirtyLayout?.flipAxes ? 'left' : 'bottom'
                     })`}
                     min={dirtyEchartsConfig?.xAxis?.[0]?.min}
                     max={dirtyEchartsConfig?.xAxis?.[0]?.max}
