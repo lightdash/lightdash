@@ -290,10 +290,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         (c) => c.addDimensionDashboardFilter,
     );
 
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
-
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
@@ -458,10 +454,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
             chartWithDashboardFilters.projectUuid,
             chartWithDashboardFilters,
-            dateZoomGranularity,
         );
         return `${pathname}?${search}`;
-    }, [chartWithDashboardFilters, dateZoomGranularity]);
+    }, [chartWithDashboardFilters]);
 
     const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
 
