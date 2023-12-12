@@ -1,3 +1,10 @@
+## [0.899.2](https://github.com/lightdash/lightdash/compare/0.899.1...0.899.2) (2023-12-12)
+
+
+### Bug Fixes
+
+* get base dimension type when date zooming ([#8270](https://github.com/lightdash/lightdash/issues/8270)) ([6d9d125](https://github.com/lightdash/lightdash/commit/6d9d125139c690b39b984a49c7860c05967db99b))
+
 ## [0.899.1](https://github.com/lightdash/lightdash/compare/0.899.0...0.899.1) (2023-12-11)
 
 
