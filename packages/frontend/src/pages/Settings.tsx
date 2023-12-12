@@ -400,7 +400,7 @@ const Settings: FC = () => {
                                     <Title order={4}>
                                         Allowed email domains
                                     </Title>
-                                    <Text ta="left" c="gray.6" fz="xs">
+                                    <Text c="gray.6" fz="xs">
                                         Anyone with email addresses at these
                                         domains can automatically join the
                                         organization.
@@ -412,7 +412,7 @@ const Settings: FC = () => {
                             <SettingsGridCard>
                                 <div>
                                     <Title order={4}>Default Project</Title>
-                                    <Text ta="left" c="gray.6" fz="xs">
+                                    <Text c="gray.6" fz="xs">
                                         This is the project users will see when
                                         they log in for the first time or from a
                                         new device. If a user does not have
@@ -427,7 +427,7 @@ const Settings: FC = () => {
                                 <SettingsGridCard>
                                     <div>
                                         <Title order={4}>Danger zone </Title>
-                                        <Text ta="left" c="gray.6" fz="xs">
+                                        <Text c="gray.6" fz="xs">
                                             This action deletes the whole
                                             workspace and all its content,
                                             including users. This action is not
