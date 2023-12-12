@@ -1,6 +1,14 @@
-import { Classes, Collapse, H5, Intent, Radio, Text } from '@blueprintjs/core';
+import { Radio } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { hasIntersection, TableSelectionType } from '@lightdash/common';
+import {
+    Anchor,
+    Button,
+    Collapse,
+    ScrollArea,
+    Text,
+    Title,
+} from '@mantine/core';
 import { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
@@ -18,12 +26,6 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import MultiSelect from '../ReactHookForm/MultiSelect';
 import RadioGroup from '../ReactHookForm/RadioGroup';
-import {
-    ListTrigger,
-    ListWrapper,
-    SaveButton,
-    TextP,
-} from './ProjectTablesConfiguration.styles';
 
 type FormData = {
     type: TableSelectionType;
@@ -167,27 +169,32 @@ const ProjectTablesConfiguration: FC<{
         >
             <SettingsGridCard>
                 <div>
-                    <H5>Table selection</H5>
-                    <TextP>
+                    <Title order={5}>Table selection</Title>
+                    <Text color="gray.6" my={'xs'}>
                         You have selected <b>{modelsIncluded.length}</b> models{' '}
                         {modelsIncluded.length > 0 && (
-                            <ListTrigger
-                                role="button"
-                                tabIndex={0}
+                            <Anchor
+                                size="sm"
+                                component="button"
                                 onClick={toggleList}
                             >
                                 ({isListOpen ? 'hide' : 'show'} list)
-                            </ListTrigger>
+                            </Anchor>
                         )}
-                    </TextP>
-                    <Collapse isOpen={isListOpen}>
-                        <ListWrapper className={Classes.ELEVATION_0}>
+                    </Text>
+                    <Collapse in={isListOpen}>
+                        <ScrollArea h={210}>
                             {modelsIncluded.map((name) => (
-                                <Text key={name} title={name} ellipsize>
+                                <Text
+                                    key={name}
+                                    title={name}
+                                    truncate
+                                    color="gray.6"
+                                >
                                     {name}
                                 </Text>
                             ))}
-                        </ListWrapper>
+                        </ScrollArea>
                     </Collapse>
                 </div>
 
@@ -205,10 +212,10 @@ const ProjectTablesConfiguration: FC<{
                             label="Show entire project"
                             value={TableSelectionType.ALL}
                         />
-                        <TextP>
+                        <Text color="gray.6">
                             Show all of the models in your dbt project in
                             Lightdash.
-                        </TextP>
+                        </Text>
                         <Radio
                             labelElement={
                                 <>
@@ -218,10 +225,10 @@ const ProjectTablesConfiguration: FC<{
                             }
                             value={TableSelectionType.WITH_TAGS}
                         />
-                        <TextP>
+                        <Text color="gray.6">
                             Write a list of tags you want to include, separated
                             by commas.
-                        </TextP>
+                        </Text>
                         {typeValue === TableSelectionType.WITH_TAGS && (
                             <MultiSelect
                                 name="tags"
@@ -239,10 +246,10 @@ const ProjectTablesConfiguration: FC<{
                             label="Show models in this list"
                             value={TableSelectionType.WITH_NAMES}
                         />
-                        <TextP>
+                        <Text color="gray.6">
                             Write a list of models you want to include,
                             separated by commas.
-                        </TextP>
+                        </Text>
                         {typeValue === TableSelectionType.WITH_NAMES && (
                             <MultiSelect
                                 name="names"
@@ -258,13 +265,14 @@ const ProjectTablesConfiguration: FC<{
                     </RadioGroup>
 
                     {canUpdateTableConfiguration && (
-                        <SaveButton
+                        <Button
                             type="submit"
-                            intent={Intent.PRIMARY}
-                            text="Save changes"
                             loading={isSaving}
                             disabled={disabled}
-                        />
+                            sx={{ float: 'right' }}
+                        >
+                            Save changes
+                        </Button>
                     )}
                 </div>
             </SettingsGridCard>
