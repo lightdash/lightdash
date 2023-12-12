@@ -1,3 +1,10 @@
+## [0.899.4](https://github.com/lightdash/lightdash/compare/0.899.3...0.899.4) (2023-12-12)
+
+
+### Bug Fixes
+
+* remove granularity from explore from here ([#8278](https://github.com/lightdash/lightdash/issues/8278)) ([c0bd7ac](https://github.com/lightdash/lightdash/commit/c0bd7acc641073f9ca4e7589e1a7d620fa074b54))
+
 ## [0.899.3](https://github.com/lightdash/lightdash/compare/0.899.2...0.899.3) (2023-12-12)
 
 
