@@ -184,6 +184,7 @@ export const Td = styled.td<{
             ? `
                 position: relative;
                 z-index: ${getDefaultZIndex('popover') + 1} !important;
+                pointer-events: none;
             `
             : ''}
 

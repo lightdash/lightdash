@@ -6,7 +6,7 @@ const preventScroll = (e: MouseEvent | TouchEvent) => {
     return false;
 };
 
-export const usePreventScroll = (prevent: boolean) => {
+export const usePreventScroll = (prevent: boolean = true) => {
     useEffect(() => {
         if (prevent) {
             window.addEventListener('wheel', preventScroll, { passive: false });
@@ -17,5 +17,10 @@ export const usePreventScroll = (prevent: boolean) => {
             window.removeEventListener('wheel', preventScroll);
             window.removeEventListener('touchmove', preventScroll);
         }
+
+        return () => {
+            window.removeEventListener('wheel', preventScroll);
+            window.removeEventListener('touchmove', preventScroll);
+        };
     }, [prevent]);
 };

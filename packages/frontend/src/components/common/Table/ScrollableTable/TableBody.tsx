@@ -10,9 +10,9 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { FC } from 'react';
 import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/FilterInputs';
-import BodyCell from '../BodyCell';
 import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
 import { TableContext, useTableContext } from '../TableProvider';
+import BodyCell from './BodyCell';
 
 const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     cellCount,
@@ -37,11 +37,6 @@ interface TableRowProps {
     row: Row<ResultRow>;
 
     cellContextMenu?: TableContext['cellContextMenu'];
-    selectedCell?: TableContext['selectedCell'];
-    onSelectCell?: TableContext['onSelectCell'];
-    onDeselectCell?: TableContext['onDeselectCell'];
-    copyingCellId?: TableContext['copyingCellId'];
-    onCopyCell?: TableContext['onCopyCell'];
     conditionalFormattings: TableContext['conditionalFormattings'];
     minimal?: boolean;
 }
@@ -52,13 +47,8 @@ const SMALL_TEXT_LENGTH = 35;
 const TableRow: FC<TableRowProps> = ({
     row,
     index,
-    copyingCellId,
-    selectedCell,
     cellContextMenu,
     conditionalFormattings,
-    onCopyCell,
-    onSelectCell,
-    onDeselectCell,
     minimal = false,
 }) => {
     return (
@@ -108,16 +98,12 @@ const TableRow: FC<TableRowProps> = ({
                         isNumericItem={isNumericItem(meta?.item)}
                         hasData={!!meta?.item}
                         hasContextMenu={!!cellContextMenu}
-                        copying={cell.id === copyingCellId}
-                        selected={cell.id === selectedCell?.id}
+                        cellContextMenu={cellContextMenu}
                         isLargeText={
                             (cellValue?.value.formatted || '').length >
                             SMALL_TEXT_LENGTH
                         }
                         tooltipContent={tooltipContent}
-                        onSelectCell={onSelectCell}
-                        onDeselectCell={onDeselectCell}
-                        onKeyDown={(e) => onCopyCell?.(e)}
                     >
                         {flexRender(
                             cell.column.columnDef.cell,
@@ -133,16 +119,8 @@ const TableRow: FC<TableRowProps> = ({
 const VirtualizedTableBody: FC<{
     tableContainerRef: React.RefObject<HTMLDivElement>;
 }> = ({ tableContainerRef }) => {
-    const {
-        table,
-        cellContextMenu,
-        selectedCell,
-        onSelectCell,
-        onDeselectCell,
-        copyingCellId,
-        onCopyCell,
-        conditionalFormattings,
-    } = useTableContext();
+    const { table, cellContextMenu, conditionalFormattings } =
+        useTableContext();
     const { rows } = table.getRowModel();
 
     const rowVirtualizer = useVirtualizer({
@@ -174,11 +152,6 @@ const VirtualizedTableBody: FC<{
                         index={index}
                         row={rows[index]}
                         cellContextMenu={cellContextMenu}
-                        selectedCell={selectedCell}
-                        onSelectCell={onSelectCell}
-                        onDeselectCell={onDeselectCell}
-                        copyingCellId={copyingCellId}
-                        onCopyCell={onCopyCell}
                         conditionalFormattings={conditionalFormattings}
                     />
                 );
