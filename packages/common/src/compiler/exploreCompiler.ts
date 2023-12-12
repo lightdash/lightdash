@@ -11,7 +11,6 @@ import {
     CompiledDimension,
     CompiledMetric,
     Dimension,
-    DimensionType,
     friendlyName,
     isNonAggregateMetric,
     Metric,
@@ -535,7 +534,6 @@ export class ExploreCompiler {
 
 export const createDimensionWithGranularity = (
     dimensionName: string,
-    dimensionType: DimensionType,
     baseTimeDimension: CompiledDimension,
     explore: Explore,
     warehouseClient: WarehouseClient,
@@ -547,10 +545,9 @@ export const createDimensionWithGranularity = (
         {
             ...baseTimeDimension,
             name: dimensionName,
-            type:
-                dimensionType === DimensionType.DATE
-                    ? DimensionType.DATE
-                    : DimensionType.TIMESTAMP,
+            type: timeFrameConfigs[newTimeInterval].getDimensionType(
+                baseTimeDimension.type,
+            ),
             timeInterval: newTimeInterval,
             label: `${baseTimeDimension.label} ${timeFrameConfigs[
                 newTimeInterval

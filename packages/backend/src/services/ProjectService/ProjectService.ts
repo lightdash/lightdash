@@ -773,7 +773,6 @@ export class ProjectService {
                 const dimWithGranularityOverride =
                     createDimensionWithGranularity(
                         dimToOverride.name,
-                        dimToOverride.type,
                         baseTimeDimension,
                         explore,
                         warehouseClient,
