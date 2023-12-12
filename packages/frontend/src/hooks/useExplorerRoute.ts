@@ -16,14 +16,13 @@ import useToaster from './toaster/useToaster';
 export const getExplorerUrlFromCreateSavedChartVersion = (
     projectUuid: string,
     createSavedChart: CreateSavedChartVersion,
-    dateZoomGranularity?: DateGranularity,
 ): { pathname: string; search: string } => {
     const newParams = new URLSearchParams();
     newParams.set(
         'create_saved_chart_version',
         JSON.stringify(createSavedChart),
     );
-    if (dateZoomGranularity) newParams.set('dateZoom', dateZoomGranularity);
+
     return {
         pathname: `/projects/${projectUuid}/tables/${createSavedChart.tableName}`,
         search: newParams.toString(),
@@ -103,7 +102,6 @@ export const useExplorerRoute = () => {
                         ...unsavedChartVersion,
                         metricQuery: queryResultsData.metricQuery,
                     },
-                    dateZoom,
                 ),
             );
         }
