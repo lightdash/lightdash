@@ -132,11 +132,14 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
         [false, false],
     );
     const isXFieldDateOrNumber = () => {
+        const dateEnums: string[] = [
+            DimensionType.DATE,
+            DimensionType.TIMESTAMP,
+            MetricType.DATE,
+            MetricType.TIMESTAMP,
+        ];
         const isDate =
-            isField(xAxisField) &&
-            [DimensionType.DATE, DimensionType.TIMESTAMP, MetricType.DATE]
-                .map(toString)
-                .includes(xAxisField?.type);
+            isField(xAxisField) && dateEnums.includes(xAxisField?.type);
         return isNumericItem(xAxisField) || isDate;
     };
 
