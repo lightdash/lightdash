@@ -16,7 +16,6 @@ interface CommonBodyCellProps {
     index: number;
     isNumericItem: boolean;
     hasData: boolean;
-    hasContextMenu: boolean;
     cellContextMenu?: FC<CellContextMenuProps>;
     className?: string;
     style?: CSSProperties;
@@ -34,7 +33,6 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     backgroundColor,
     fontColor,
     hasData,
-    hasContextMenu,
     cellContextMenu,
     isNumericItem,
     index,
@@ -51,20 +49,15 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     const [isTooltipOpen, { open: openTooltip, close: closeTooltip }] =
         useDisclosure(false);
 
-    const shouldRenderMenu =
-        isMenuOpen &&
-        hasContextMenu &&
-        cellContextMenu &&
-        hasData &&
-        !minimal &&
-        elementRef.current;
+    const canHaveMenu = !!cellContextMenu && hasData && !minimal;
+    const canHaveTooltip = !!tooltipContent && !minimal;
 
+    const shouldRenderMenu = canHaveMenu && isMenuOpen && elementRef.current;
     const shouldRenderTooltip =
-        !shouldRenderMenu &&
+        canHaveTooltip &&
         isTooltipOpen &&
-        !!tooltipContent &&
-        !minimal &&
-        elementRef.current;
+        elementRef.current &&
+        !shouldRenderMenu;
 
     const handleCopy = useCallback(() => {
         if (!isMenuOpen) return;
@@ -105,15 +98,15 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                 $isSelected={isMenuOpen}
                 $isLargeText={isLargeText}
                 $isMinimal={minimal}
-                $isInteractive={hasContextMenu}
+                $isInteractive={canHaveMenu || canHaveTooltip}
                 $isCopying={isCopying}
                 $backgroundColor={backgroundColor}
                 $fontColor={fontColor}
-                $hasData={hasContextMenu}
+                $hasData={hasData}
                 $isNaN={!hasData || !isNumericItem}
-                onClick={toggleMenu}
-                onMouseEnter={openTooltip}
-                onMouseLeave={closeTooltip}
+                onClick={canHaveMenu ? toggleMenu : undefined}
+                onMouseEnter={canHaveTooltip ? openTooltip : undefined}
+                onMouseLeave={canHaveTooltip ? closeTooltip : undefined}
             >
                 <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
                     {children}

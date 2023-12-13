@@ -97,7 +97,6 @@ const TableRow: FC<TableRowProps> = ({
                         cell={cell}
                         isNumericItem={isNumericItem(meta?.item)}
                         hasData={!!meta?.item}
-                        hasContextMenu={!!cellContextMenu}
                         cellContextMenu={cellContextMenu}
                         isLargeText={
                             (cellValue?.value.formatted || '').length >
