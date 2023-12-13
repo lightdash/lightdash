@@ -1,3 +1,10 @@
+# [0.903.0](https://github.com/lightdash/lightdash/compare/0.902.0...0.903.0) (2023-12-13)
+
+
+### Features
+
+* mantine viz menus with performance improvements and bugfixes ([#8271](https://github.com/lightdash/lightdash/issues/8271)) ([8cf46e2](https://github.com/lightdash/lightdash/commit/8cf46e2136ae5d6601bfb971280430ddc8009c8e))
+
 # [0.902.0](https://github.com/lightdash/lightdash/compare/0.901.0...0.902.0) (2023-12-13)
 
 
