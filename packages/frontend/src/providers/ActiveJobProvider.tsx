@@ -40,7 +40,7 @@ export const ActiveJobProvider: FC = ({ children }) => {
     const toastJobStatus = useCallback(
         (job: Job | undefined) => {
             if (job && !isJobsDrawerOpen) {
-                const toastTitle = `${jobStatusLabel(job?.jobStatus).label}`;
+                const toastTitle = jobStatusLabel(job?.jobStatus);
                 switch (job.jobStatus) {
                     case 'DONE':
                         if (job.jobType === JobType.CREATE_PROJECT) {
@@ -63,7 +63,14 @@ export const ActiveJobProvider: FC = ({ children }) => {
                                 ? runningStepsInfo(job?.steps)
                                       .runningStepMessage
                                 : '',
-                            icon: <Loader size="sm" mt="xs" ml="xs" />,
+                            icon: (
+                                <Loader
+                                    color="dark"
+                                    size="xs"
+                                    mt="sm"
+                                    ml="sm"
+                                />
+                            ),
                             timeout: 0,
                             action: {
                                 text: 'View log',
