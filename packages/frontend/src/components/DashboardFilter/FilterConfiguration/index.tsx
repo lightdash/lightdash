@@ -34,8 +34,8 @@ import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import {
     getFilterRuleRevertableObject,
-    isFilterConfigRevertButtonEnabled,
-    isFilterConfigurationApplyButtonEnabled,
+    hasSavedFilterValueChanged,
+    isFilterEnabled,
 } from './utils';
 
 export enum FilterTabs {
@@ -101,10 +101,7 @@ const FilterConfiguration: FC<Props> = ({
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
 
-        return isFilterConfigRevertButtonEnabled(
-            originalFilterRule,
-            draftFilterRule,
-        );
+        return hasSavedFilterValueChanged(originalFilterRule, draftFilterRule);
     }, [originalFilterRule, draftFilterRule]);
 
     const handleChangeField = (newField: FilterableField) => {
@@ -236,7 +233,7 @@ const FilterConfiguration: FC<Props> = ({
         ],
     );
 
-    const isApplyDisabled = !isFilterConfigurationApplyButtonEnabled(
+    const isApplyDisabled = !isFilterEnabled(
         draftFilterRule,
         isEditMode,
         isCreatingNew,

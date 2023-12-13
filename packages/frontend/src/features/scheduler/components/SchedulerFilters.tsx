@@ -31,7 +31,10 @@ import {
     useFiltersContext,
 } from '../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../../../components/DashboardFilter/FilterConfiguration/utils';
+import {
+    hasSavedFilterValueChanged,
+    isFilterEnabled,
+} from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 
@@ -230,7 +233,12 @@ const updateFilters = (
     if (hasFilterChanged(filterToCompareAgainst, schedulerFilter)) {
         if (schedulerFilters && isExistingFilter) {
             return schedulerFilters.map((f) =>
-                f.id === schedulerFilter.id ? schedulerFilter : f,
+                f.id === schedulerFilter.id
+                    ? {
+                          ...schedulerFilter,
+                          disabled: !isFilterEnabled(schedulerFilter),
+                      }
+                    : f,
             );
         }
 
