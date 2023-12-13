@@ -670,7 +670,7 @@ const SavedChartsHeader: FC = () => {
             {isDeleteDialogOpen && savedChart?.uuid && (
                 <ChartDeleteModal
                     uuid={savedChart.uuid}
-                    isOpen={isDeleteDialogOpen}
+                    opened={isDeleteDialogOpen}
                     onClose={() => setIsDeleteDialogOpen(false)}
                     onConfirm={() => {
                         history.listen((location, action) => {
