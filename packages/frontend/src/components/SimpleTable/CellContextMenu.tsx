@@ -1,5 +1,3 @@
-import { Menu, MenuDivider } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     hasCustomDimension,
@@ -8,15 +6,18 @@ import {
     isField,
     ResultValue,
 } from '@lightdash/common';
+import { Menu } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
+import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash-es/mapValues';
-import React, { FC } from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
+import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
+import MantineIcon from '../common/MantineIcon';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -29,29 +30,64 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
-    const value: ResultValue = cell.getValue()?.value || {};
-    const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
+    const value: ResultValue = useMemo(
+        () => cell.getValue()?.value || {},
+        [cell],
+    );
+    const fieldValues = useMemo(
+        () => mapValues(cell.row.original, (v) => v?.value) || {},
+        [cell],
+    );
 
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const clipboard = useClipboard({ timeout: 200 });
+
+    const handleCopyToClipboard = useCallback(() => {
+        clipboard.copy(value.formatted);
+        showToastSuccess({ title: 'Copied to clipboard!' });
+    }, [clipboard, showToastSuccess, value.formatted]);
+
+    const handleViewUnderlyingData = useCallback(() => {
+        openUnderlyingDataModal({
+            item,
+            value,
+            fieldValues,
+        });
+        track({
+            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+            properties: {
+                organizationId: user?.data?.organizationUuid,
+                userId: user?.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
+    }, [
+        fieldValues,
+        item,
+        openUnderlyingDataModal,
+        projectUuid,
+        track,
+        user?.data?.organizationUuid,
+        user?.data?.userUuid,
+        value,
+    ]);
 
     return (
-        <Menu>
+        <>
             {item && value.raw && isField(item) && (
                 <UrlMenuItems urls={item.urls} cell={cell} />
             )}
 
-            {isField(item) && (item.urls || []).length > 0 && <MenuDivider />}
+            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
 
-            <CopyToClipboard
-                text={value.formatted}
-                onCopy={() => {
-                    showToastSuccess({ title: 'Copied to clipboard!' });
-                }}
+            <Menu.Item
+                icon={<MantineIcon icon={IconCopy} size="md" fillOpacity={0} />}
+                onClick={handleCopyToClipboard}
             >
-                <MenuItem2 text="Copy value" icon="duplicate" />
-            </CopyToClipboard>
+                Copy value
+            </Menu.Item>
 
             {item &&
                 !isDimension(item) &&
@@ -64,28 +100,15 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                             projectUuid: projectUuid,
                         })}
                     >
-                        <MenuItem2
-                            text="View underlying data"
-                            icon="layers"
-                            onClick={() => {
-                                openUnderlyingDataModal({
-                                    item: meta.item,
-                                    value,
-                                    fieldValues,
-                                });
-                                track({
-                                    name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                    properties: {
-                                        organizationId:
-                                            user?.data?.organizationUuid,
-                                        userId: user?.data?.userUuid,
-                                        projectId: projectUuid,
-                                    },
-                                });
-                            }}
-                        />
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconStack} size="md" />}
+                            onClick={handleViewUnderlyingData}
+                        >
+                            View underlying data
+                        </Menu.Item>
                     </Can>
                 )}
+
             <Can
                 I="manage"
                 this={subject('Explore', {
@@ -104,7 +127,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                     }}
                 />
             </Can>
-        </Menu>
+        </>
     );
 };
 

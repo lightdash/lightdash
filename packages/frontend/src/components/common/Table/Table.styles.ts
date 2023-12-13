@@ -1,5 +1,4 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
-import { getDefaultZIndex } from '@mantine/core';
 import { transparentize } from 'polished';
 import styled, { css } from 'styled-components';
 
@@ -180,12 +179,8 @@ export const Td = styled.td<{
             : ''}
 
     ${({ $isSelected }) =>
-        $isSelected
-            ? `
-                position: relative;
-                z-index: ${getDefaultZIndex('popover') + 1} !important;
-            `
-            : ''}
+        // this is important because click-outside will not work and it will re-open the menu
+        $isSelected ? `pointer-events: none;` : ''}
 
     ${({ $backgroundColor }) =>
         $backgroundColor

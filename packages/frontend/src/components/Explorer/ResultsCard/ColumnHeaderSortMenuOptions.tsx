@@ -5,7 +5,7 @@ import {
     SortField,
     TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine/core';
+import { Menu, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -15,7 +15,6 @@ import {
     SortDirection,
 } from '../../../utils/sortUtils';
 import MantineIcon from '../../common/MantineIcon';
-import { BolderLabel } from './ColumnHeaderContextMenu.styles';
 
 type Props = {
     item: Field | TableCalculation | CustomDimension;
@@ -63,9 +62,9 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
                         }
                     >
                         Sort{' '}
-                        <BolderLabel>
+                        <Text span fw={500}>
                             {getSortLabel(item, sortDirection)}
-                        </BolderLabel>
+                        </Text>
                     </Menu.Item>
                 ))}
         </>

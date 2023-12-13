@@ -1,24 +1,44 @@
-import { Menu } from '@blueprintjs/core';
 import { FieldUrl, isField, ResultValue } from '@lightdash/common';
-import { FC } from 'react';
+import { Menu } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
+import { IconCopy } from '@tabler/icons-react';
+import { FC, useCallback, useMemo } from 'react';
+import useToaster from '../../hooks/toaster/useToaster';
+import MantineIcon from '../common/MantineIcon';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
-    const meta = cell.column.columnDef.meta;
-    const item = meta?.item;
-    const value: ResultValue = cell.getValue()?.value || {};
+    const clipboard = useClipboard({ timeout: 2000 });
+    const { showToastSuccess } = useToaster();
 
-    const urls: FieldUrl[] | undefined =
-        value.raw && isField(item) ? item.urls : undefined;
+    const item = useMemo(() => cell.column.columnDef.meta?.item, [cell]);
+    const value: ResultValue = useMemo(
+        () => cell.getValue()?.value || {},
+        [cell],
+    );
 
-    if (!urls) {
-        return null;
-    }
+    const handleCopyToClipboard = useCallback(() => {
+        clipboard.copy(value.formatted);
+        showToastSuccess({ title: 'Copied to clipboard!' });
+    }, [value, clipboard, showToastSuccess]);
+
+    const urls: FieldUrl[] | undefined = useMemo(
+        () => (value.raw && isField(item) ? item.urls : undefined),
+        [value, item],
+    );
+
     return (
-        <Menu>
+        <>
             <UrlMenuItems urls={urls} cell={cell} />
-        </Menu>
+            {urls && urls.length > 0 && <Menu.Divider />}
+            <Menu.Item
+                icon={<MantineIcon icon={IconCopy} />}
+                onClick={handleCopyToClipboard}
+            >
+                Copy value
+            </Menu.Item>
+        </>
     );
 };
 
