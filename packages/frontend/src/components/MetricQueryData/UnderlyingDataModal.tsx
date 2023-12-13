@@ -7,7 +7,7 @@ const UnderlyingDataModal: FC = () => {
     const { isUnderlyingDataModalOpen, closeUnderlyingDataModal } =
         useMetricQueryDataContext();
 
-    return (
+    return isUnderlyingDataModalOpen ? (
         <Modal.Root
             centered
             opened={isUnderlyingDataModalOpen}
@@ -17,7 +17,7 @@ const UnderlyingDataModal: FC = () => {
             <Modal.Overlay />
             <UnderlyingDataModalContent />
         </Modal.Root>
-    );
+    ) : null;
 };
 
 export default UnderlyingDataModal;
