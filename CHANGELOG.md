@@ -1,3 +1,10 @@
+# [0.902.0](https://github.com/lightdash/lightdash/compare/0.901.0...0.902.0) (2023-12-13)
+
+
+### Features
+
+* tile menus (mantine migrations part 2) ([#8256](https://github.com/lightdash/lightdash/issues/8256)) ([6a0d39e](https://github.com/lightdash/lightdash/commit/6a0d39ecb07e0748f707ac7dc5a49c147b7074a0))
+
 # [0.901.0](https://github.com/lightdash/lightdash/compare/0.900.2...0.901.0) (2023-12-13)
 
 
