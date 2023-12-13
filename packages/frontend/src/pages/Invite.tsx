@@ -5,7 +5,16 @@ import {
     LightdashUser,
     OpenIdIdentityIssuerType,
 } from '@lightdash/common';
-import { Anchor, Button, Card, Image, Stack, Text, Title } from '@mantine/core';
+import {
+    Anchor,
+    Button,
+    Card,
+    Divider,
+    Image,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation, useParams } from 'react-router-dom';
@@ -21,7 +30,6 @@ import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import { Divider, DividerWrapper } from './Invite.styles';
 
 interface WelcomeCardProps {
     email: string | undefined;
@@ -172,11 +180,15 @@ const Invite: FC = () => {
         <>
             {ssoLogins}
             {ssoLogins && passwordLogin && (
-                <DividerWrapper>
-                    <Divider />
-                    <b>OR</b>
-                    <Divider />
-                </DividerWrapper>
+                <Divider
+                    my="md"
+                    labelPosition="center"
+                    label={
+                        <Text color="gray.5" size="sm" fw={500}>
+                            OR
+                        </Text>
+                    }
+                />
             )}
             {passwordLogin}
         </>
