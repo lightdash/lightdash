@@ -1,3 +1,10 @@
+# [0.901.0](https://github.com/lightdash/lightdash/compare/0.900.2...0.901.0) (2023-12-13)
+
+
+### Features
+
+* snowflake warehouse connection ([#8255](https://github.com/lightdash/lightdash/issues/8255)) ([12c03bd](https://github.com/lightdash/lightdash/commit/12c03bd47ba7b3aadd90c3250fa692579f650afd))
+
 ## [0.900.2](https://github.com/lightdash/lightdash/compare/0.900.1...0.900.2) (2023-12-13)
 
 
