@@ -1,3 +1,10 @@
+## [0.900.1](https://github.com/lightdash/lightdash/compare/0.900.0...0.900.1) (2023-12-13)
+
+
+### Bug Fixes
+
+* recheck if scheduler filter should be disabled ([#8281](https://github.com/lightdash/lightdash/issues/8281)) ([de29c12](https://github.com/lightdash/lightdash/commit/de29c129f11ee92ad0637ae58e41bdc8285ee220))
+
 # [0.900.0](https://github.com/lightdash/lightdash/compare/0.899.4...0.900.0) (2023-12-13)
 
 
