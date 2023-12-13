@@ -302,7 +302,7 @@ const SavedChartsHeader: FC = () => {
                                         </ActionIcon>
                                     )}
                                 <ChartUpdateModal
-                                    isOpen={isRenamingChart}
+                                    opened={isRenamingChart}
                                     uuid={savedChart.uuid}
                                     onClose={() => setIsRenamingChart(false)}
                                     onConfirm={() => setIsRenamingChart(false)}
