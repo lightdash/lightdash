@@ -199,7 +199,7 @@ const DashboardHeader = ({
                     {isUpdating && (
                         <DashboardUpdateModal
                             uuid={dashboardUuid}
-                            isOpen={isUpdating}
+                            opened={isUpdating}
                             onClose={() => setIsUpdating(false)}
                             onConfirm={() => setIsUpdating(false)}
                         />
