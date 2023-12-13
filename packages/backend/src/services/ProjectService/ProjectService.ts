@@ -212,7 +212,7 @@ export class ProjectService {
 
     private async _getWarehouseClient(
         projectUuid: string,
-        warehouse?: string,
+        snowflakeVirtualWarehouse?: string,
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -226,7 +226,7 @@ export class ProjectService {
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
 
-        const cacheKey = `${projectUuid}${warehouse || ''}`;
+        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | typeof this.warehouseClients[string]
@@ -243,7 +243,8 @@ export class ProjectService {
             credentials.type === WarehouseTypes.SNOWFLAKE
                 ? {
                       ...warehouseSshCredentials,
-                      warehouse: warehouse || credentials.warehouse,
+                      warehouse:
+                          snowflakeVirtualWarehouse || credentials.warehouse,
                   }
                 : credentials;
         const client = this.projectModel.getWarehouseClientFromCredentials(
