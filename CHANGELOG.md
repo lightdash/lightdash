@@ -1,3 +1,10 @@
+# [0.900.0](https://github.com/lightdash/lightdash/compare/0.899.4...0.900.0) (2023-12-13)
+
+
+### Features
+
+* limit x-axis range ([#8261](https://github.com/lightdash/lightdash/issues/8261)) ([df22077](https://github.com/lightdash/lightdash/commit/df2207749623a42621ef7fb8260b9708db6a7113))
+
 ## [0.899.4](https://github.com/lightdash/lightdash/compare/0.899.3...0.899.4) (2023-12-12)
 
 
