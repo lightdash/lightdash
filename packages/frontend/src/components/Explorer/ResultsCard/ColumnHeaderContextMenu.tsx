@@ -7,7 +7,7 @@ import {
     isFilterableField,
     TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Menu } from '@mantine/core';
+import { ActionIcon, Menu, Text } from '@mantine/core';
 import {
     IconChevronDown,
     IconFilter,
@@ -25,7 +25,6 @@ import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from '../../TableCalculationModals';
-import { BolderLabel } from './ColumnHeaderContextMenu.styles';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
 
 interface ContextMenuProps extends HeaderProps {
@@ -89,7 +88,10 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         addFilter(item, undefined, false);
                     }}
                 >
-                    Filter by <BolderLabel>{item.label}</BolderLabel>
+                    Filter by{' '}
+                    <Text span fw={500}>
+                        {item.label}
+                    </Text>
                 </Menu.Item>
 
                 <Menu.Divider />
@@ -220,7 +222,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Menu withinPortal withArrow>
+                <Menu withinPortal withArrow shadow="md">
                     <Menu.Target>
                         <ActionIcon size="xs" variant="light" bg="transparent">
                             <MantineIcon icon={IconChevronDown} />

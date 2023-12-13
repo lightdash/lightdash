@@ -4,12 +4,9 @@ import {
     getItemId,
     TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Flex, Menu } from '@mantine/core';
+import { ActionIcon, Flex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
-import MantineIcon from '../common/MantineIcon';
-import { HeaderProps, TableColumn } from '../common/Table/types';
-
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
     getSortDirectionOrder,
@@ -17,7 +14,8 @@ import {
     getSortLabel,
     SortDirection,
 } from '../../utils/sortUtils';
-import { BolderLabel } from '../Explorer/ResultsCard/ColumnHeaderContextMenu.styles';
+import MantineIcon from '../common/MantineIcon';
+import { HeaderProps, TableColumn } from '../common/Table/types';
 
 type Props = {
     item: Field | TableCalculation | CustomDimension;
@@ -63,9 +61,9 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                         }}
                     >
                         Sort{' '}
-                        <BolderLabel>
+                        <Text span fw={500}>
                             {getSortLabel(item, sortDirection)}
-                        </BolderLabel>
+                        </Text>
                     </Menu.Item>
                 ))}
             {chartSort[tileUuid]?.some(
@@ -124,7 +122,7 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
                     // Show the sort icon next to the title, and the dropdown menu on the right
                     iconSort ? <MantineIcon icon={iconSort} /> : <div></div>
                 }
-                <Menu withinPortal withArrow>
+                <Menu withinPortal withArrow shadow="md">
                     <Menu.Target>
                         <ActionIcon size="xs" variant="light" bg="transparent">
                             <MantineIcon icon={IconChevronDown} />
