@@ -1,3 +1,10 @@
+## [0.900.2](https://github.com/lightdash/lightdash/compare/0.900.1...0.900.2) (2023-12-13)
+
+
+### Reverts
+
+* "feat: limit x-axis range ([#8261](https://github.com/lightdash/lightdash/issues/8261))" ([#8291](https://github.com/lightdash/lightdash/issues/8291)) ([14e6e90](https://github.com/lightdash/lightdash/commit/14e6e90fd803f1b56edffe1978ee468bffb11269))
+
 ## [0.900.1](https://github.com/lightdash/lightdash/compare/0.900.0...0.900.1) (2023-12-13)
 
 
