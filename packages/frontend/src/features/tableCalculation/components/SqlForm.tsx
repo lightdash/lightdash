@@ -2,14 +2,13 @@ import { Alert, Anchor, Text, useMantineTheme } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { FC } from 'react';
 import AceEditor, { IAceEditorProps } from 'react-ace';
+import styled, { css } from 'styled-components';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplorerAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { TableCalculationForm } from '../types';
 
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
-import styled, { css } from 'styled-components';
-// import '../../../styles/react-ace.css';
 
 const SQL_PLACEHOLDER = '${table_name.field_name} + ${table_name.metric_name}';
 
