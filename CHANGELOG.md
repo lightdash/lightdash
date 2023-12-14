@@ -1,3 +1,10 @@
+## [0.903.2](https://github.com/lightdash/lightdash/compare/0.903.1...0.903.2) (2023-12-14)
+
+
+### Bug Fixes
+
+* empty location in BigQuery causes an error ([#8311](https://github.com/lightdash/lightdash/issues/8311)) ([1b4485a](https://github.com/lightdash/lightdash/commit/1b4485a14a6556e9679cc22004d354499125c770))
+
 ## [0.903.1](https://github.com/lightdash/lightdash/compare/0.903.0...0.903.1) (2023-12-14)
 
 
