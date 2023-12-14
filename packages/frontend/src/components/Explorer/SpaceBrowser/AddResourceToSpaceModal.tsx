@@ -1,8 +1,17 @@
-import { Button, Classes, Dialog, Icon, Intent } from '@blueprintjs/core';
 import { assertUnreachable } from '@lightdash/common';
-import { IconSearch } from '@tabler/icons-react';
-import { FC, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import {
+    Button,
+    Group,
+    Modal,
+    ModalProps,
+    MultiSelect,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconFolder } from '@tabler/icons-react';
+import { FC, forwardRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     useDashboards,
@@ -11,10 +20,7 @@ import {
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
 import { useSpace, useSpaceSummaries } from '../../../hooks/useSpaces';
-import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
-import Form from '../../ReactHookForm/Form';
-import MultiSelect from '../../ReactHookForm/MultiSelect';
-import { SpaceLabel } from './AddResourceToSpaceModal.style';
+import MantineIcon from '../../common/MantineIcon';
 
 export enum AddToSpaceResources {
     DASHBOARD = 'dashboard',
@@ -35,21 +41,47 @@ const getResourceTypeLabel = (resourceType: AddToSpaceResources) => {
     }
 };
 
-type AddItemForm = {
-    items: { value: string; label: string }[];
+type SelectItemData = {
+    value: string;
+    label: string;
+    disabled: boolean;
+    title: string;
+    spaceName: string | undefined;
 };
 
-interface Props {
-    isOpen: boolean;
-    resourceType: AddToSpaceResources;
-    onClose?: () => void;
-}
+const SelectItem = forwardRef<HTMLDivElement, SelectItemData>(
+    (
+        {
+            label,
+            value,
+            spaceName,
+            ...others
+        }: React.ComponentPropsWithoutRef<'div'> & SelectItemData,
+        ref,
+    ) => (
+        <Stack ref={ref} {...others} spacing="two">
+            <Text fz="sm" fw={500}>
+                {label}
+            </Text>
+            <Group spacing="xs">
+                <MantineIcon size="sm" icon={IconFolder} />
+                <Text fz="xs" opacity={0.65}>
+                    {spaceName}
+                </Text>
+            </Group>
+        </Stack>
+    ),
+);
 
-const AddResourceToSpaceModal: FC<Props> = ({
-    isOpen,
-    resourceType,
-    onClose,
-}) => {
+type AddItemForm = {
+    items: string[];
+};
+
+type Props = Pick<ModalProps, 'onClose'> & {
+    resourceType: AddToSpaceResources;
+};
+
+const AddResourceToSpaceModal: FC<Props> = ({ resourceType, onClose }) => {
     const { projectUuid, spaceUuid } = useParams<{
         projectUuid: string;
         spaceUuid: string;
@@ -58,149 +90,128 @@ const AddResourceToSpaceModal: FC<Props> = ({
     const { data: space } = useSpace(projectUuid, spaceUuid);
     const { data: spaces } = useSpaceSummaries(projectUuid);
 
+    const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
+    const { data: dashboards } = useDashboards(projectUuid);
+
     const { mutate: chartMutation } = useUpdateMultipleMutation(projectUuid);
     const { mutate: dashboardMutation } =
         useUpdateMultipleDashboard(projectUuid);
 
-    const methods = useForm<AddItemForm>({
-        mode: 'onSubmit',
-    });
-
-    const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
-    const { data: dashboards } = useDashboards(projectUuid);
+    const form = useForm<AddItemForm>();
+    const { reset } = form;
 
     const closeModal = useCallback(() => {
-        methods.reset();
+        reset();
         if (onClose) onClose();
-    }, [methods, onClose]);
-
-    const handleSubmit = useCallback(
-        (formData: AddItemForm) => {
-            switch (resourceType) {
-                case AddToSpaceResources.CHART:
-                    if (savedCharts && formData.items) {
-                        const selectedCharts = formData.items.map((item) => {
-                            const chart = savedCharts.find(
-                                (savedChart) => savedChart.uuid === item.value,
-                            );
-                            return {
-                                uuid: item.value,
-                                name: chart?.name || '',
-                                spaceUuid,
-                            };
-                        });
-
-                        chartMutation(selectedCharts);
-                    }
-                    break;
-                case AddToSpaceResources.DASHBOARD:
-                    if (dashboards && formData.items) {
-                        const selectedDashboards = formData.items.map(
-                            (item) => {
-                                const dashboard = dashboards.find(
-                                    (dash) => dash.uuid === item.value,
-                                );
-                                return {
-                                    uuid: item.value,
-                                    name: dashboard?.name || '',
-                                    spaceUuid,
-                                };
-                            },
-                        );
-
-                        dashboardMutation(selectedDashboards);
-                    }
-                    break;
-            }
-
-            closeModal();
-        },
-        [
-            chartMutation,
-            savedCharts,
-            resourceType,
-            spaceUuid,
-            dashboardMutation,
-            dashboards,
-            closeModal,
-        ],
-    );
+    }, [reset, onClose]);
 
     const allItems =
         resourceType === AddToSpaceResources.CHART ? savedCharts : dashboards;
 
-    if (allItems === undefined) {
-        return (
-            <SuboptimalState title="No results available" icon={IconSearch} />
-        );
+    if (!allItems) {
+        return null;
     }
-    const selectItems = allItems.map(
+
+    const selectItems: SelectItemData[] = allItems.map(
         ({ uuid: itemUuid, name, spaceUuid: itemSpaceUuid }) => {
             const disabled = spaceUuid === itemSpaceUuid;
             const spaceName = spaces?.find(
                 (sp) => sp.uuid === itemSpaceUuid,
             )?.name;
-            const subLabel = (
-                <SpaceLabel disabled={disabled}>
-                    <Icon size={12} icon="folder-close" />
-                    {spaceName}
-                </SpaceLabel>
-            );
+
             return {
                 value: itemUuid,
                 label: name,
-                disabled: disabled,
+                disabled,
                 title: disabled
                     ? `${getResourceTypeLabel(
                           resourceType,
                       )} already added on this space ${spaceName}`
                     : '',
-                subLabel: subLabel,
+                spaceName,
             };
         },
     );
 
-    return (
-        <Dialog
-            isOpen={isOpen}
-            onClose={closeModal}
-            lazy
-            title={`Add ${resourceType} to '${space?.name}' space`}
-        >
-            <Form
-                name="add_items_to_space"
-                methods={methods}
-                onSubmit={handleSubmit}
-            >
-                <div className={Classes.DIALOG_BODY}>
-                    <p>
-                        Select the {resourceType}s that you would like to move
-                        into '{space?.name}'
-                    </p>
-                    <MultiSelect
-                        name="items"
-                        rules={{
-                            required: 'Required field',
-                        }}
-                        items={selectItems}
-                        disabled={isLoading}
-                        defaultValue={[]}
-                    />
-                </div>
+    const handleSubmit = form.onSubmit(({ items }) => {
+        switch (resourceType) {
+            case AddToSpaceResources.CHART:
+                if (savedCharts && items) {
+                    const selectedCharts = items.map((item) => {
+                        const chart = savedCharts.find(
+                            (savedChart) => savedChart.uuid === item,
+                        );
+                        return {
+                            uuid: item,
+                            name: chart?.name || '',
+                            spaceUuid,
+                        };
+                    });
 
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button onClick={closeModal}>Cancel</Button>
-                        <Button
-                            intent={Intent.SUCCESS}
-                            text={`Move ${resourceType}s`}
-                            disabled={isLoading}
-                            type="submit"
-                        />
-                    </div>
-                </div>
-            </Form>
-        </Dialog>
+                    chartMutation(selectedCharts);
+                }
+                break;
+            case AddToSpaceResources.DASHBOARD:
+                if (dashboards && items) {
+                    const selectedDashboards = items.map((item) => {
+                        const dashboard = dashboards.find(
+                            ({ uuid }) => uuid === item,
+                        );
+                        return {
+                            uuid: item,
+                            name: dashboard?.name || '',
+                            spaceUuid,
+                        };
+                    });
+
+                    dashboardMutation(selectedDashboards);
+                }
+                break;
+        }
+
+        closeModal();
+    });
+
+    return (
+        <Modal
+            opened
+            onClose={closeModal}
+            title={<Title order={4}>{`Add ${resourceType} to space`}</Title>}
+        >
+            <form name="add_items_to_space" onSubmit={handleSubmit}>
+                <Stack spacing="xs" pt="sm">
+                    <Text>
+                        Select the {resourceType}s that you would like to move
+                        into{' '}
+                        <Text span fw={500}>
+                            {space?.name}
+                        </Text>
+                        :
+                    </Text>
+
+                    <MultiSelect
+                        withinPortal
+                        searchable
+                        required
+                        data={selectItems}
+                        itemComponent={SelectItem}
+                        disabled={isLoading}
+                        placeholder={`Search for a ${resourceType}`}
+                        {...form.getInputProps('items')}
+                    />
+                </Stack>
+
+                <Group position="right" mt="sm">
+                    <Button variant="outline" onClick={closeModal}>
+                        Cancel
+                    </Button>
+                    <Button
+                        disabled={isLoading}
+                        type="submit"
+                    >{`Move ${resourceType}s`}</Button>
+                </Group>
+            </form>
+        </Modal>
     );
 };
 

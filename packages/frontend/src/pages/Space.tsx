@@ -354,7 +354,6 @@ const Space: FC = () => {
 
                 {addToSpace && (
                     <AddResourceToSpaceModal
-                        isOpen
                         resourceType={addToSpace}
                         onClose={() => setAddToSpace(undefined)}
                     />
