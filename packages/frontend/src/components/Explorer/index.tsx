@@ -1,8 +1,7 @@
+import { ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { FC, memo } from 'react';
 import { useParams } from 'react-router-dom';
-
-import { ProjectType } from '@lightdash/common';
 import { useProjects } from '../../hooks/useProjects';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { CustomVisualizationProvider } from '../CustomVisualization';

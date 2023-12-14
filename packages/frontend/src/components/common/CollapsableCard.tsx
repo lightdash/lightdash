@@ -2,18 +2,15 @@ import {
     Box,
     Button,
     ButtonProps,
+    Card,
     Flex,
     Group,
     PopoverProps,
+    Title,
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { FC, useCallback } from 'react';
-import {
-    StyledCard,
-    StyledCardTitle,
-    StyledCollapse,
-} from './CollapsableCard.style';
 import MantineIcon from './MantineIcon';
 
 export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
@@ -61,8 +58,17 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
         [onToggle],
     );
 
+    const shouldExpand = isOpen && isVisualizationCard;
+
     return (
-        <StyledCard elevation={1} $shouldExpand={isOpen && isVisualizationCard}>
+        <Card
+            component={Flex}
+            display="flex"
+            direction="column"
+            padding="xxs"
+            style={shouldExpand ? { flex: 1 } : undefined}
+            shadow="xs"
+        >
             <Flex gap="xxs" align="center" mr="xs" h="xxl">
                 <Tooltip
                     position="top-start"
@@ -101,7 +107,9 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
                 </Tooltip>
 
                 <Group>
-                    <StyledCardTitle>{title}</StyledCardTitle>
+                    <Title order={5} fw={500} fz="sm">
+                        {title}
+                    </Title>
                     <Group spacing="xs">{headerElement}</Group>
                 </Group>
 
@@ -116,9 +124,9 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
             </Flex>
 
             {isOpen && (
-                <StyledCollapse
-                    $shouldExpand={isOpen && isVisualizationCard}
-                    $minHeight={minHeight}
+                <Flex
+                    direction="column"
+                    style={shouldExpand ? { minHeight, flex: 1 } : undefined}
                 >
                     {isVisualizationCard ? (
                         <div
@@ -147,9 +155,9 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
                     ) : (
                         children
                     )}
-                </StyledCollapse>
+                </Flex>
             )}
-        </StyledCard>
+        </Card>
     );
 };
 
