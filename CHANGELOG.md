@@ -1,3 +1,10 @@
+# [0.904.0](https://github.com/lightdash/lightdash/compare/0.903.2...0.904.0) (2023-12-14)
+
+
+### Features
+
+* mantine tooltips in table headers ([#8309](https://github.com/lightdash/lightdash/issues/8309)) ([b09b97b](https://github.com/lightdash/lightdash/commit/b09b97bfae6862a90af7e437c35fb29617272fb1))
+
 ## [0.903.2](https://github.com/lightdash/lightdash/compare/0.903.1...0.903.2) (2023-12-14)
 
 
