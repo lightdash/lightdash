@@ -1,4 +1,3 @@
-import { Select2 } from '@blueprintjs/select';
 import {
     LightdashUser,
     OrganizationMemberProfile,
@@ -7,19 +6,12 @@ import {
     Space,
     SpaceShare,
 } from '@lightdash/common';
+import { Avatar, Group, Select, Stack, Text } from '@mantine/core';
 import upperFirst from 'lodash-es/upperFirst';
-import { FC, useMemo } from 'react';
+import { FC, forwardRef, useMemo } from 'react';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
-import {
-    ChangeAccessButton,
-    FlexWrapper,
-    PrimaryText,
-    UserCircle,
-    UserRole,
-    YouLabel,
-} from './ShareSpaceModal.style';
-import { AccessOption, renderAccess } from './ShareSpaceSelect';
+import { AccessOption } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 export interface ShareSpaceUserListProps {
@@ -46,6 +38,24 @@ const UserAccessOptions: AccessOption[] = [
         value: UserAccessAction.DELETE,
     },
 ];
+
+const UserAccessSelectItem = forwardRef<HTMLDivElement, AccessOption>(
+    (
+        {
+            title,
+            selectDescription,
+            ...others
+        }: React.ComponentPropsWithoutRef<'div'> & AccessOption,
+        ref,
+    ) => (
+        <Stack ref={ref} {...others} spacing={1}>
+            <Text fz="sm">{title}</Text>
+            <Text fz="xs" opacity={0.65}>
+                {selectDescription}
+            </Text>
+        </Stack>
+    ),
+);
 
 export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     space,
@@ -105,7 +115,6 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     if (!userIsYou(a) && userIsYou(b)) return 1;
                     return 0;
                 })
-
                 .map((sharedUser) => {
                     const isYou = userIsYou(sharedUser);
                     const role = upperFirst(sharedUser.role?.toString() || '');
@@ -122,52 +131,63 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     );
 
                     return (
-                        <FlexWrapper key={sharedUser.userUuid}>
-                            <UserCircle>
-                                {getInitials(
-                                    sharedUser.userUuid,
-                                    organizationUsers,
-                                )}
-                            </UserCircle>
+                        <Group
+                            key={sharedUser.userUuid}
+                            spacing="sm"
+                            position="apart"
+                            noWrap
+                        >
+                            <Group>
+                                <Avatar radius="xl">
+                                    {getInitials(
+                                        sharedUser.userUuid,
+                                        organizationUsers,
+                                    )}
+                                </Avatar>
 
-                            <PrimaryText>
-                                {getUserNameOrEmail(
-                                    sharedUser.userUuid,
-                                    organizationUsers,
-                                )}
-                                {isYou ? <YouLabel> (you)</YouLabel> : ''}
-                            </PrimaryText>
+                                <Text fw={600} fz="sm">
+                                    {getUserNameOrEmail(
+                                        sharedUser.userUuid,
+                                        organizationUsers,
+                                    )}
+                                    {isYou ? (
+                                        <Text fw={400} span c="gray.6">
+                                            {' '}
+                                            (you)
+                                        </Text>
+                                    ) : null}
+                                </Text>
+                            </Group>
                             {isYou ||
                             role === upperFirst(ProjectMemberRole.ADMIN) ? (
-                                <UserRole>{role}</UserRole>
+                                <Text fw={600} fz="xs">
+                                    {role}
+                                </Text>
                             ) : (
-                                <Select2<AccessOption>
-                                    filterable={false}
-                                    items={userAccessTypes}
-                                    itemRenderer={renderAccess}
-                                    onItemSelect={(item) => {
-                                        if (
-                                            item.value ===
-                                            UserAccessAction.DELETE
-                                        ) {
+                                <Select
+                                    styles={{
+                                        input: {
+                                            fontWeight: 500,
+                                        },
+                                    }}
+                                    size="xs"
+                                    withinPortal
+                                    data={userAccessTypes.map((u) => ({
+                                        label: u.title,
+                                        ...u,
+                                    }))}
+                                    value={role}
+                                    itemComponent={UserAccessSelectItem}
+                                    onChange={(item) => {
+                                        if (item === UserAccessAction.DELETE) {
                                             unshareSpaceMutation(
                                                 sharedUser.userUuid,
                                             );
                                         }
                                     }}
-                                    popoverProps={{
-                                        placement: 'bottom-end',
-                                    }}
-                                >
-                                    <ChangeAccessButton
-                                        minimal
-                                        rightIcon="caret-down"
-                                    >
-                                        <UserRole>{role}</UserRole>
-                                    </ChangeAccessButton>
-                                </Select2>
+                                />
                             )}
-                        </FlexWrapper>
+                        </Group>
                     );
                 })}
         </>

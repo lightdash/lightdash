@@ -1,22 +1,12 @@
-import { Icon } from '@blueprintjs/core';
-import { Select2 } from '@blueprintjs/select';
 import { Space } from '@lightdash/common';
-import { FC } from 'react';
+import { Avatar, Flex, Select, Stack, Text } from '@mantine/core';
+import { IconLock, IconUsers } from '@tabler/icons-react';
+import { FC, forwardRef } from 'react';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
-import {
-    AccessRole,
-    ChangeAccessButton,
-    FlexWrapper,
-    PrimaryAndSecondaryTextWrapper,
-    PrimaryText,
-    SecondaryText,
-    ShareCircle,
-    UserRole,
-} from './ShareSpaceModal.style';
+import MantineIcon from '../MantineIcon';
 import {
     AccessOption,
-    renderAccess,
     SpaceAccessOptions,
     SpaceAccessType,
 } from './ShareSpaceSelect';
@@ -27,6 +17,24 @@ interface ShareSpaceAccessTypeProps {
     selectedAccess: AccessOption;
     setSelectedAccess: (access: AccessOption) => void;
 }
+
+const SelectItem = forwardRef<HTMLDivElement, AccessOption>(
+    (
+        {
+            title,
+            description,
+            ...others
+        }: React.ComponentPropsWithoutRef<'div'> & AccessOption,
+        ref,
+    ) => (
+        <Stack ref={ref} {...others} spacing={1}>
+            <Text fz="sm">{title}</Text>
+            <Text fz="xs" opacity={0.65}>
+                {description}
+            </Text>
+        </Stack>
+    ),
+);
 
 export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
     space,
@@ -40,53 +48,63 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
         projectUuid,
         space.uuid,
     );
+
     return (
-        <FlexWrapper>
-            <ShareCircle>
-                <Icon
+        <Flex gap="sm">
+            <Avatar radius="xl">
+                <MantineIcon
                     icon={
                         selectedAccess.value === SpaceAccessType.PRIVATE
-                            ? 'lock'
-                            : 'people'
+                            ? IconLock
+                            : IconUsers
                     }
                 />
-            </ShareCircle>
+            </Avatar>
 
-            <PrimaryAndSecondaryTextWrapper>
-                <PrimaryText>Members of {project?.name}</PrimaryText>
-                <SecondaryText>{selectedAccess.description}</SecondaryText>
-            </PrimaryAndSecondaryTextWrapper>
-
-            <AccessRole>
-                <Select2<AccessOption>
-                    filterable={false}
-                    items={SpaceAccessOptions}
-                    itemRenderer={renderAccess}
-                    activeItem={SpaceAccessOptions.find(
-                        (option) => option.value === selectedAccess.value,
-                    )}
-                    onItemSelect={(item) => {
+            <Stack spacing={2}>
+                <Text fw={600} fz="sm">
+                    Members of {project?.name}
+                </Text>
+                <Text c="gray.6" fz="xs">
+                    {selectedAccess.description}
+                </Text>
+            </Stack>
+            {selectedAccess && (
+                <Select
+                    styles={{
+                        input: {
+                            fontWeight: 500,
+                        },
+                    }}
+                    size="xs"
+                    withinPortal
+                    value={selectedAccess.value}
+                    data={SpaceAccessOptions.map((s) => ({
+                        label: s.title,
+                        ...s,
+                    }))}
+                    itemComponent={SelectItem}
+                    onChange={(item) => {
+                        const spaceAccessOption = SpaceAccessOptions.find(
+                            (s) => s.value === item,
+                        );
                         const isPrivate =
-                            item.value === SpaceAccessType.PRIVATE;
+                            spaceAccessOption?.value ===
+                            SpaceAccessType.PRIVATE;
 
-                        if (isPrivate !== space.isPrivate) {
-                            setSelectedAccess(item);
+                        if (
+                            spaceAccessOption &&
+                            isPrivate !== space.isPrivate
+                        ) {
+                            setSelectedAccess(spaceAccessOption);
                             spaceMutation({
                                 name: space.name,
                                 isPrivate: isPrivate,
                             });
                         }
                     }}
-                    popoverProps={{
-                        minimal: true,
-                        position: 'bottom-right',
-                    }}
-                >
-                    <ChangeAccessButton minimal rightIcon="caret-down">
-                        <UserRole>{selectedAccess.title}</UserRole>
-                    </ChangeAccessButton>
-                </Select2>
-            </AccessRole>
-        </FlexWrapper>
+                />
+            )}
+        </Flex>
     );
 };
