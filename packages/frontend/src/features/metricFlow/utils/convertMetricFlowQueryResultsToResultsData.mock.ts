@@ -91,64 +91,61 @@ export const MOCK_SNOWFLAKE_DATA: MetricFlowJsonResults = {
 };
 
 export const EXPECTED_CONVERTED_SNOWFLAKE_DATA = {
-    resultsData: {
-        metricQuery: {
-            exploreName: 'metricflow',
-            dimensions: ['metricflow_metric_time__day'],
-            metrics: ['metricflow_spice_tons'],
-            filters: {},
-            sorts: [],
-            limit: 0,
-            tableCalculations: [],
-        },
-        cacheMetadata: {
-            cacheHit: false,
-        },
-        rows: [
-            {
-                metricflow_index: {
-                    value: {
-                        formatted: '0',
-                        raw: 0,
-                    },
-                },
-                metricflow_metric_time__day: {
-                    value: {
-                        formatted: '2016-09-01T00:00:00.000Z',
-                        raw: '2016-09-01T00:00:00.000Z',
-                    },
-                },
-                metricflow_spice_tons: {
-                    value: {
-                        formatted: '466',
-                        raw: 466,
-                    },
-                },
-            },
-            {
-                metricflow_index: {
-                    value: {
-                        formatted: '1',
-                        raw: 1,
-                    },
-                },
-                metricflow_metric_time__day: {
-                    value: {
-                        formatted: '2022-09-01T00:00:00.000Z',
-                        raw: '2022-09-01T00:00:00.000Z',
-                    },
-                },
-                metricflow_spice_tons: {
-                    value: {
-                        formatted: '1000',
-                        raw: 1000,
-                    },
-                },
-            },
-        ],
-        fields: {},
+    metricQuery: {
+        exploreName: 'metricflow',
+        dimensions: ['metricflow_metric_time__day'],
+        metrics: ['metricflow_spice_tons'],
+        filters: {},
+        sorts: [],
+        limit: 0,
+        tableCalculations: [],
     },
-    fieldsMap: {
+    cacheMetadata: {
+        cacheHit: false,
+    },
+    rows: [
+        {
+            metricflow_index: {
+                value: {
+                    formatted: '0',
+                    raw: 0,
+                },
+            },
+            metricflow_metric_time__day: {
+                value: {
+                    formatted: '2016-09-01T00:00:00.000Z',
+                    raw: '2016-09-01T00:00:00.000Z',
+                },
+            },
+            metricflow_spice_tons: {
+                value: {
+                    formatted: '466',
+                    raw: 466,
+                },
+            },
+        },
+        {
+            metricflow_index: {
+                value: {
+                    formatted: '1',
+                    raw: 1,
+                },
+            },
+            metricflow_metric_time__day: {
+                value: {
+                    formatted: '2022-09-01T00:00:00.000Z',
+                    raw: '2022-09-01T00:00:00.000Z',
+                },
+            },
+            metricflow_spice_tons: {
+                value: {
+                    formatted: '1000',
+                    raw: 1000,
+                },
+            },
+        },
+    ],
+    fields: {
         metricflow_metric_time__day:
             MOCK_EXPLORE.tables.metricflow.dimensions
                 .metricflow_metric_time__day,
