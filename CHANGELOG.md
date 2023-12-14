@@ -1,3 +1,10 @@
+## [0.903.1](https://github.com/lightdash/lightdash/compare/0.903.0...0.903.1) (2023-12-14)
+
+
+### Bug Fixes
+
+* remove unused big button ([#8315](https://github.com/lightdash/lightdash/issues/8315)) ([2b12827](https://github.com/lightdash/lightdash/commit/2b128278310205f85e052951bf0a955d3a7df0bf))
+
 # [0.903.0](https://github.com/lightdash/lightdash/compare/0.902.0...0.903.0) (2023-12-13)
 
 
