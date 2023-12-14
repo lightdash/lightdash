@@ -39,7 +39,7 @@ export const convertBigquerySchema = async (
         priority: target.priority,
         keyfileContents: await getBigqueryCredentials(target),
         retries: target.retries,
-        location: target.location,
         maximumBytesBilled: target.maximum_bytes_billed,
+        location: target.location || undefined,
     };
 };
