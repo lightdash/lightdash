@@ -404,7 +404,6 @@ export interface CompiledModelNode {
             node_color?: string | null;
         };
         [k: string]: unknown;
-        snowflake_warehouse?: string;
     };
     tags?: string[];
     refs?: string[][];

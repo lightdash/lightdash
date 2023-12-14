@@ -145,6 +145,7 @@ ${errors.join('')}`),
     GlobalState.debug(
         `> Converting explores with adapter: ${manifest.metadata.adapter_type}`,
     );
+
     const validExplores = await convertExplores(
         validModelsWithTypes,
         false,

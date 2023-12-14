@@ -543,7 +543,6 @@ export const convertExplores = async (
     const validModels = models.filter(
         (model) => tableLookup[model.name] !== undefined,
     );
-
     const exploreCompiler = new ExploreCompiler(warehouseClient);
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
@@ -565,7 +564,6 @@ export const convertExplores = async (
                 })),
                 tables: tableLookup,
                 targetDatabase: adapterType,
-                warehouse: model.config?.snowflake_warehouse,
             });
         } catch (e) {
             return {

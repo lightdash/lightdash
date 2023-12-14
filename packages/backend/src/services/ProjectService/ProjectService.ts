@@ -210,10 +210,7 @@ export class ProjectService {
         return args;
     }
 
-    private async _getWarehouseClient(
-        projectUuid: string,
-        snowflakeVirtualWarehouse?: string,
-    ): Promise<{
+    private async _getWarehouseClient(projectUuid: string): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
     }> {
@@ -226,9 +223,8 @@ export class ProjectService {
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
 
-        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}`;
         // Check cache for existing client (always false if ssh tunnel was connected)
-        const existingClient = this.warehouseClients[cacheKey] as
+        const existingClient = this.warehouseClients[projectUuid] as
             | typeof this.warehouseClients[string]
             | undefined;
         if (
@@ -239,18 +235,10 @@ export class ProjectService {
             return { warehouseClient: existingClient, sshTunnel };
         }
         // otherwise create a new client and cache for future use
-        const credentialsWithWarehouse =
-            credentials.type === WarehouseTypes.SNOWFLAKE
-                ? {
-                      ...warehouseSshCredentials,
-                      warehouse:
-                          snowflakeVirtualWarehouse || credentials.warehouse,
-                  }
-                : credentials;
         const client = this.projectModel.getWarehouseClientFromCredentials(
-            credentialsWithWarehouse,
+            warehouseSshCredentials,
         );
-        this.warehouseClients[cacheKey] = client;
+        this.warehouseClients[projectUuid] = client;
         return { warehouseClient: client, sshTunnel };
     }
 
@@ -842,12 +830,10 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
-        const explore = await this.getExplore(user, projectUuid, exploreName);
-
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            explore.warehouse,
         );
+        const explore = await this.getExplore(user, projectUuid, exploreName);
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
@@ -1441,7 +1427,7 @@ export class ProjectService {
         context,
         queryTags,
         invalidateCache,
-        explore: loadedExplore,
+        explore,
         granularity,
     }: {
         user: SessionUser;
@@ -1491,15 +1477,8 @@ export class ProjectService {
                             csvLimit,
                         );
 
-                    const explore =
-                        loadedExplore ??
-                        (await this.getExplore(user, projectUuid, exploreName));
-
                     const { warehouseClient, sshTunnel } =
-                        await this._getWarehouseClient(
-                            projectUuid,
-                            explore.warehouse,
-                        );
+                        await this._getWarehouseClient(projectUuid);
 
                     const userAttributes =
                         await this.userAttributesModel.getAttributeValuesForOrgMember(
@@ -1512,7 +1491,12 @@ export class ProjectService {
                     const { query, hasExampleMetric, fields } =
                         await ProjectService._compileQuery(
                             metricQueryWithLimit,
-                            explore,
+                            explore ??
+                                (await this.getExplore(
+                                    user,
+                                    projectUuid,
+                                    exploreName,
+                                )),
                             warehouseClient,
                             userAttributes,
                             granularity,
@@ -1744,7 +1728,6 @@ export class ProjectService {
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            explore.warehouse,
         );
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
@@ -2938,7 +2921,6 @@ export class ProjectService {
     ) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            explore.warehouse,
         );
 
         const { query, totalQuery } = await this._getCalculateTotalQuery(
