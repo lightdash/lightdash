@@ -1,3 +1,10 @@
+## [0.904.1](https://github.com/lightdash/lightdash/compare/0.904.0...0.904.1) (2023-12-14)
+
+
+### Reverts
+
+* "feat: snowflake warehouse connection ([#8255](https://github.com/lightdash/lightdash/issues/8255))" ([#8312](https://github.com/lightdash/lightdash/issues/8312)) ([8a72176](https://github.com/lightdash/lightdash/commit/8a721762b1bc99239ad328b7192a7475072f255b))
+
 # [0.904.0](https://github.com/lightdash/lightdash/compare/0.903.2...0.904.0) (2023-12-14)
 
 
