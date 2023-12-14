@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import {
     Anchor,
     Box,
@@ -9,14 +8,15 @@ import {
     Stack,
     Text,
     Title,
+    useMantineTheme,
 } from '@mantine/core';
+import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
-
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
-import { StyledSuccessIcon } from '../components/RegisterForms/ProjectConnectFlow.styles';
+import { SuccessIconBounce } from '../components/RegisterForms/ProjectConnectFlow.styles';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useApp } from '../providers/AppProvider';
@@ -27,14 +27,23 @@ const VerificationSuccess: FC<{
     onClose: () => void;
     onContinue: () => void;
 }> = ({ isOpen, onClose, onContinue }) => {
+    const theme = useMantineTheme();
     return (
-        <Modal opened={isOpen} onClose={onClose} withCloseButton={false}>
+        <Modal
+            size="sm"
+            opened={isOpen}
+            onClose={onClose}
+            withCloseButton={false}
+        >
             <Stack align="center" my="md">
                 <Title order={3}>Great, you're verified! 🎉</Title>
-                <StyledSuccessIcon
-                    icon="tick-circle"
-                    color={Colors.GREEN4}
+
+                <SuccessIconBounce
+                    icon={IconCircleCheckFilled}
                     size={64}
+                    style={{
+                        color: theme.colors.green[6],
+                    }}
                 />
                 <Button onClick={onContinue}>Continue</Button>
             </Stack>

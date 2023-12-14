@@ -1,5 +1,5 @@
-import { Icon } from '@blueprintjs/core';
 import styled, { keyframes } from 'styled-components';
+import MantineIcon from '../common/MantineIcon';
 
 const bounceIn = keyframes`
     0% {
@@ -18,12 +18,7 @@ const bounceIn = keyframes`
     }
 `;
 
-export const StyledSuccessIcon = styled(Icon)`
-    margin: 40px 0;
+export const SuccessIconBounce = styled(MantineIcon)`
     animation-name: ${bounceIn};
     animation-duration: 0.7s;
-
-    svg {
-        display: inline-block;
-    }
 `;
