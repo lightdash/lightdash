@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-
 import {
     ChartType,
     convertFieldRefToFieldId,
@@ -16,6 +15,8 @@ import {
     Metric,
     MetricQuery,
 } from '@lightdash/common';
+import { Box, Group, Modal, Title } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -30,7 +31,6 @@ import LinkButton from '../common/LinkButton';
 import { TableColumn } from '../common/Table/types';
 import DownloadCsvButton from '../DownloadCsvButton';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
-import { HeaderRightContent } from './UnderlyingDataModal.styles';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 
 interface Props {}
@@ -47,6 +47,9 @@ const defaultMetricQuery: MetricQuery = {
 };
 
 const UnderlyingDataModalContent: FC<Props> = () => {
+    const modalContentElementSize = useElementSize();
+
+    const modalHeaderElementSize = useElementSize();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { tableName, metricQuery, underlyingDataConfig } =
         useMetricQueryDataContext();
@@ -320,42 +323,72 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     };
 
     return (
-        <>
-            <HeaderRightContent>
-                <Can
-                    I="manage"
-                    this={subject('ExportCsv', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid: projectUuid,
-                    })}
-                >
-                    <DownloadCsvButton
-                        getCsvLink={getCsvLink}
-                        disabled={
-                            !resultsData?.rows || resultsData?.rows.length <= 0
-                        }
-                    />
-                </Can>
-                <Can
-                    I="manage"
-                    this={subject('Explore', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid: projectUuid,
-                    })}
-                >
-                    <LinkButton href={exploreFromHereUrl} forceRefresh>
-                        Explore from here
-                    </LinkButton>
-                </Can>
-            </HeaderRightContent>
-            <UnderlyingDataResultsTable
-                isLoading={isLoading}
-                resultsData={resultsData}
-                fieldsMap={fieldsMap}
-                hasJoins={joinedTables.length > 0}
-                sortByUnderlyingValues={sortByUnderlyingValues}
-            />
-        </>
+        <Modal.Content
+            ref={modalContentElementSize.ref}
+            sx={{
+                height: 'calc(100dvh - (1rem * 2))',
+                width: 'calc(100dvw - (1rem * 2))',
+                overflowY: 'hidden',
+            }}
+        >
+            <Modal.Header ref={modalHeaderElementSize.ref}>
+                <Modal.Title w="100%">
+                    <Group position="apart">
+                        <Title order={5}>View underlying data</Title>
+                        <Box mr="md">
+                            <Can
+                                I="manage"
+                                this={subject('ExportCsv', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid: projectUuid,
+                                })}
+                            >
+                                <DownloadCsvButton
+                                    getCsvLink={getCsvLink}
+                                    disabled={
+                                        !resultsData?.rows ||
+                                        resultsData?.rows.length <= 0
+                                    }
+                                />
+                            </Can>
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid: projectUuid,
+                                })}
+                            >
+                                <LinkButton
+                                    href={exploreFromHereUrl}
+                                    forceRefresh
+                                >
+                                    Explore from here
+                                </LinkButton>
+                            </Can>
+                        </Box>
+                    </Group>
+                </Modal.Title>
+
+                <Modal.CloseButton />
+            </Modal.Header>
+            <Modal.Body
+                h={
+                    modalContentElementSize.height -
+                    modalHeaderElementSize.height -
+                    40
+                }
+            >
+                <UnderlyingDataResultsTable
+                    isLoading={isLoading}
+                    resultsData={resultsData}
+                    fieldsMap={fieldsMap}
+                    hasJoins={joinedTables.length > 0}
+                    sortByUnderlyingValues={sortByUnderlyingValues}
+                />
+            </Modal.Body>
+        </Modal.Content>
     );
 };
 
