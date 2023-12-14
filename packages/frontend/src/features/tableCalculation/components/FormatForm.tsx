@@ -119,6 +119,7 @@ export const FormatForm: FC<Props> = ({ form }) => {
                         placeholder="Number of decimal places"
                         {...{
                             ...form.getInputProps('format.round'),
+                            // Explicitly set value to undefined so the API doesn't received invalid values
                             onChange: (value) => {
                                 form.setFieldValue(
                                     'format.round',
@@ -153,7 +154,18 @@ export const FormatForm: FC<Props> = ({ form }) => {
                                 label: CompactConfigMap[c].label,
                             })),
                         ]}
-                        {...form.getInputProps('format.compact')}
+                        {...{
+                            ...form.getInputProps('format.compact'),
+                            onChange: (value) => {
+                                // Explicitly set value to undefined so the API doesn't received invalid values
+                                form.setFieldValue(
+                                    'format.compact',
+                                    !value || !(value in CompactConfigMap)
+                                        ? undefined
+                                        : value,
+                                );
+                            },
+                        }}
                     />
 
                     {formatType === TableCalculationFormatType.NUMBER && (
