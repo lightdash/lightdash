@@ -108,7 +108,7 @@ const GridTile: FC<
         }, index * 1000);
         return (
             <Box ref={ref} h="100%">
-                <TileBase isLoading={true} {...props} title={''} />
+                <TileBase isLoading {...props} title={''} />
             </Box>
         );
     }
@@ -478,9 +478,9 @@ const Dashboard: FC = () => {
     }
     if (dashboard === undefined) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="md">
                 <SuboptimalState title="Loading..." loading />
-            </div>
+            </Box>
         );
     }
     const dashboardChartTiles = dashboardTiles?.filter(

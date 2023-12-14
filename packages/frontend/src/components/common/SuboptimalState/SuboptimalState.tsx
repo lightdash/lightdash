@@ -31,7 +31,7 @@ const SuboptimalState: FC<Props> = ({
             }}
             {...rest}
         >
-            {loading && <Loader />}
+            {loading && <Loader color="gray.6" />}
             {icon && !loading && (
                 <MantineIcon color="gray.5" size="xxl" icon={icon} />
             )}
