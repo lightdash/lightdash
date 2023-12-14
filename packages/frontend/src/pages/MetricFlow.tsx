@@ -110,8 +110,8 @@ const MetricFlowPage = () => {
             metricFlowQueryResultsQuery.data.query.jsonResult,
         );
         return {
-            resultsData: results.resultsData,
-            columns: convertFieldMapToTableColumns(results.fieldsMap),
+            resultsData: results,
+            columns: convertFieldMapToTableColumns(results.fields),
         };
     }, [explore, metricFlowQueryResultsQuery.data]);
 

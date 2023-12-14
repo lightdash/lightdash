@@ -1,28 +1,24 @@
-import { Field, fieldId as getFieldId } from '@lightdash/common';
+import { getItemId, getItemLabel, ItemsMap } from '@lightdash/common';
 import {
     columnHelper,
     TableColumn,
 } from '../../../components/common/Table/types';
 
-export default function convertFieldMapToTableColumns(
-    fieldsMap: Record<string, Field>,
-) {
-    return Object.values(fieldsMap).map<TableColumn>((field) => {
-        const fieldId = getFieldId(field);
+export default function convertFieldMapToTableColumns(itemsMap: ItemsMap) {
+    return Object.values(itemsMap).map<TableColumn>((item) => {
+        const fieldId = getItemId(item);
         return columnHelper.accessor((row) => row[fieldId], {
             id: fieldId,
-            header: () => field.label,
+            header: () => getItemLabel(item),
             cell: (info) => {
-                const {
-                    value: { raw },
-                } = info.getValue();
+                const raw = info.getValue()?.value.raw;
                 if (raw === null) return '∅';
                 if (raw === undefined) return '-';
                 if (raw instanceof Date) return raw.toISOString();
                 return `${raw}`;
             },
             meta: {
-                item: field,
+                item,
             },
         });
     });
