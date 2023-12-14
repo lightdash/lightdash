@@ -26,9 +26,10 @@ const getDashboards = async (
 const getDashboardsContainingChart = async (
     projectUuid: string,
     chartId: string,
+    includePrivate: boolean,
 ) =>
     lightdashApi<DashboardBasicDetails[]>({
-        url: `/projects/${projectUuid}/dashboards?chartUuid=${chartId}`,
+        url: `/projects/${projectUuid}/dashboards?chartUuid=${chartId}&includePrivate=${includePrivate}`,
         method: 'GET',
         body: undefined,
     });
@@ -57,11 +58,18 @@ export const useDashboards = (
 export const useDashboardsContainingChart = (
     projectUuid: string,
     chartId: string,
+    includePrivate = true,
 ) => {
     const setErrorResponse = useQueryError();
     return useQuery<DashboardBasicDetails[], ApiError>({
-        queryKey: ['dashboards-containing-chart', projectUuid, chartId],
-        queryFn: () => getDashboardsContainingChart(projectUuid, chartId),
+        queryKey: [
+            'dashboards-containing-chart',
+            projectUuid,
+            chartId,
+            includePrivate,
+        ],
+        queryFn: () =>
+            getDashboardsContainingChart(projectUuid, chartId, includePrivate),
         onError: (result) => setErrorResponse(result),
     });
 };
