@@ -1,14 +1,14 @@
 import { Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
+import { CreateTableCalculationModal } from '../features/tableCalculation';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from './common/CollapsableCard';
 import MantineIcon from './common/MantineIcon';
-import { CreateTableCalculationModal } from './TableCalculationModals';
 
 const AddColumnButton: FC = memo(() => {
-    const [isOpen, setIsOpen] = useState<boolean>(false);
+    const [opened, setOpened] = useState<boolean>(false);
     const { track } = useTracking();
     return (
         <>
@@ -18,7 +18,7 @@ const AddColumnButton: FC = memo(() => {
                 component="button"
                 onClick={(e) => {
                     e.stopPropagation();
-                    setIsOpen(true);
+                    setOpened(true);
                     track({
                         name: EventName.ADD_COLUMN_BUTTON_CLICKED,
                     });
@@ -27,10 +27,10 @@ const AddColumnButton: FC = memo(() => {
                 Table calculation
             </Button>
 
-            {isOpen && (
+            {opened && (
                 <CreateTableCalculationModal
-                    isOpen={isOpen}
-                    onClose={() => setIsOpen(false)}
+                    opened={opened}
+                    onClose={() => setOpened(false)}
                 />
             )}
         </>

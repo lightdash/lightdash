@@ -1,18 +1,17 @@
 import { TableCalculation } from '@lightdash/common';
-import React, { FC } from 'react';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
-import { useTracking } from '../../providers/TrackingProvider';
-import { EventName } from '../../types/Events';
+import { ModalProps } from '@mantine/core';
+import { FC } from 'react';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import TableCalculationModal from './TableCalculationModal';
 
-interface UpdateTableCalculationModalProps {
-    isOpen: boolean;
+type Props = ModalProps & {
     tableCalculation: TableCalculation;
-    onClose: () => void;
-}
+};
 
-const UpdateTableCalculationModal: FC<UpdateTableCalculationModalProps> = ({
-    isOpen,
+export const UpdateTableCalculationModal: FC<Props> = ({
+    opened,
     tableCalculation,
     onClose,
 }) => {
@@ -30,13 +29,10 @@ const UpdateTableCalculationModal: FC<UpdateTableCalculationModalProps> = ({
 
     return (
         <TableCalculationModal
-            isOpen={isOpen}
-            isDisabled={false}
+            opened={opened}
             tableCalculation={tableCalculation}
             onSave={onUpdate}
             onClose={onClose}
         />
     );
 };
-
-export default UpdateTableCalculationModal;

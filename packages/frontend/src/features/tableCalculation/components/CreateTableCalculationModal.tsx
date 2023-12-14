@@ -1,19 +1,17 @@
 import { TableCalculation } from '@lightdash/common';
-import React, { FC } from 'react';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
-import { useTracking } from '../../providers/TrackingProvider';
-import { EventName } from '../../types/Events';
+import { ModalProps } from '@mantine/core';
+import { FC } from 'react';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import TableCalculationModal from './TableCalculationModal';
 
-interface CreateTableCalculationModalProps {
-    isOpen: boolean;
+type Props = ModalProps & {
+    opened: boolean;
     onClose: () => void;
-}
+};
 
-const CreateTableCalculationModal: FC<CreateTableCalculationModalProps> = ({
-    isOpen,
-    onClose,
-}) => {
+export const CreateTableCalculationModal: FC<Props> = ({ opened, onClose }) => {
     const addTableCalculation = useExplorerContext(
         (context) => context.actions.addTableCalculation,
     );
@@ -28,12 +26,9 @@ const CreateTableCalculationModal: FC<CreateTableCalculationModalProps> = ({
 
     return (
         <TableCalculationModal
-            isOpen={isOpen}
-            isDisabled={false}
+            opened={opened}
             onSave={onCreate}
             onClose={onClose}
         />
     );
 };
-
-export default CreateTableCalculationModal;

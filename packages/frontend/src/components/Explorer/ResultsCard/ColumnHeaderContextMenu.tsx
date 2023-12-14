@@ -15,16 +15,16 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
+import {
+    DeleteTableCalculationModal,
+    UpdateTableCalculationModal,
+} from '../../../features/tableCalculation';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
-import {
-    DeleteTableCalculationModal,
-    UpdateTableCalculationModal,
-} from '../../TableCalculationModals';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
 
 interface ContextMenuProps extends HeaderProps {
@@ -240,7 +240,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
 
                 {showUpdate && (
                     <UpdateTableCalculationModal
-                        isOpen
+                        opened
                         tableCalculation={item as TableCalculation}
                         onClose={() => setShowUpdate(false)}
                     />
@@ -248,7 +248,6 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
 
                 {showDelete && (
                     <DeleteTableCalculationModal
-                        isOpen
                         tableCalculation={item as TableCalculation}
                         onClose={() => setShowDelete(false)}
                     />
