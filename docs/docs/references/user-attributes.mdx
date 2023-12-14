@@ -75,7 +75,41 @@ models:
       sql_filter: ${TABLE}.sales_region = ${lightdash.attributes.sales_region}
 ```
 
-### 2. Filtering joins with `sql_on`
+### 2. Column filtering with `required_attributes`
+
+You can use `user attributes` to limit some dimensions to some users. 
+
+In the example below, only users with `is_admin` attribute `true` can use the `salary` dimension on `user` table. Users without access to this dimension will not see it on the `explore page`. 
+
+```
+columns: 
+  - name: 
+    description: User name
+  - salary: 
+    description: User salary 
+    meta: 
+      dimension: 
+        required_attributes: 
+          is_admin: "true" 
+```
+
+If a user without access to this dimension runs a query that contains this dimension, they will get a `Forbidden` error. 
+
+#### Current limitations 
+
+Lightdash dimensions and custom metrics are protected by this feature, however, 
+it is possible to write custom SQL to bypass this filter, for example: 
+
+- Developers and admins running SQL queries on SQL runner. 
+- Custom SQL or subqueries on `table calculations`
+
+:::info
+
+Scheduler deliveries will run against the user who created the scheduled delivery, be careful when sharing required attributes with other users. 
+
+:::
+
+### 3. Filtering joins with `sql_on`
 
 If you're joining a table, you can also customise the rows that are returned 
 
