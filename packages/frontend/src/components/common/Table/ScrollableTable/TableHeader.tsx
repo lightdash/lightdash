@@ -1,9 +1,8 @@
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { isField } from '@lightdash/common';
+import { Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import React, { FC } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
-
 import {
     TABLE_HEADER_BG,
     Th,
@@ -75,10 +74,11 @@ const TableHeader: FC<TableHeaderProps> = ({ minimal = false }) => {
                                                         }),
                                                     }}
                                                 >
-                                                    <Tooltip2
-                                                        lazy
-                                                        fill
-                                                        content={
+                                                    <Tooltip
+                                                        withinPortal
+                                                        maw={400}
+                                                        multiline
+                                                        label={
                                                             meta?.item &&
                                                             isField(meta?.item)
                                                                 ? meta.item
@@ -92,15 +92,18 @@ const TableHeader: FC<TableHeaderProps> = ({ minimal = false }) => {
                                                             snapshot.isDragging
                                                         }
                                                     >
-                                                        {header.isPlaceholder
-                                                            ? null
-                                                            : flexRender(
-                                                                  header.column
-                                                                      .columnDef
-                                                                      .header,
-                                                                  header.getContext(),
-                                                              )}
-                                                    </Tooltip2>
+                                                        <span>
+                                                            {header.isPlaceholder
+                                                                ? null
+                                                                : flexRender(
+                                                                      header
+                                                                          .column
+                                                                          .columnDef
+                                                                          .header,
+                                                                      header.getContext(),
+                                                                  )}
+                                                        </span>
+                                                    </Tooltip>
                                                 </ThLabelContainer>
 
                                                 {HeaderContextMenu && (
