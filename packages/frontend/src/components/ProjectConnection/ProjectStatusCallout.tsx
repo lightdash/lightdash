@@ -1,34 +1,44 @@
-import { Callout, Classes, Spinner } from '@blueprintjs/core';
+import { Alert, AlertProps, Loader } from '@mantine/core';
+import {
+    IconAlertTriangleFilled,
+    IconCircleCheckFilled,
+} from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import React, { ComponentProps, FC } from 'react';
+import { FC } from 'react';
 import { useCreateMutation, useUpdateMutation } from '../../hooks/useProject';
+import MantineIcon from '../common/MantineIcon';
 
-type CalloutProps = ComponentProps<typeof Callout>;
+type ProjectStatusCalloutProps = Omit<AlertProps, 'children'> & {
+    mutation: ReturnType<typeof useUpdateMutation | typeof useCreateMutation>;
+};
 
-const ProjectStatusCallout: FC<
-    CalloutProps & {
-        mutation: ReturnType<
-            typeof useUpdateMutation | typeof useCreateMutation
-        >;
-    }
-> = ({ mutation: { isSuccess, error, isLoading, isError }, ...props }) => {
-    let stateProps: CalloutProps;
+const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
+    mutation: { isSuccess, error, isLoading, isError },
+    ...props
+}) => {
+    let stateProps: AlertProps;
 
     if (isLoading) {
         stateProps = {
-            intent: 'primary',
+            color: 'blue',
             title: 'Updating project settings...',
-            icon: <Spinner size={20} className={Classes.ICON} />,
+            icon: <Loader size="lg" />,
+            children: undefined,
+            styles: { title: { marginBottom: 0 } },
         };
     } else if (isSuccess) {
         stateProps = {
-            intent: 'success',
+            color: 'green',
             title: 'Project settings updated!',
+            icon: <MantineIcon icon={IconCircleCheckFilled} size="lg" />,
+            children: undefined,
+            styles: { title: { marginBottom: 0 } },
         };
     } else if (isError) {
         stateProps = {
-            intent: 'danger',
+            color: 'red',
             title: 'There was an error updating the project...',
+            icon: <MantineIcon icon={IconAlertTriangleFilled} size="lg" />,
             children: error ? (
                 <MDEditor.Markdown
                     source={error.error.message.replaceAll('\n', '\n\n')}
@@ -39,16 +49,19 @@ const ProjectStatusCallout: FC<
                     }}
                 />
             ) : null,
+            styles: error ? { title: { marginBottom: 0 } } : undefined,
         };
     } else {
         stateProps = {
-            intent: 'primary',
+            color: 'blue',
             title: 'Updating project settings...',
-            icon: <Spinner size={20} className={Classes.ICON} />,
+            icon: <Loader size="lg" />,
+            children: undefined,
+            styles: { title: { marginBottom: 0 } },
         };
     }
 
-    return <Callout {...props} {...stateProps} />;
+    return <Alert {...props} {...stateProps} />;
 };
 
 export default ProjectStatusCallout;
