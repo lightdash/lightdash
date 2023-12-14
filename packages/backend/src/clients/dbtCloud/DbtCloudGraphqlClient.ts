@@ -1,11 +1,23 @@
 import { GraphQLClient } from 'graphql-request';
+import { URL } from 'url';
+
+type RunQueryArgs = {
+    domain: string;
+    bearerToken: string;
+    environmentId: string;
+    query: string;
+};
 
 export default class DbtCloudGraphqlClient {
-    private graphqlEndpoint =
-        'https://semantic-layer.cloud.getdbt.com/api/graphql';
-
-    async runQuery(bearerToken: string, environmentId: string, query: string) {
-        const client = new GraphQLClient(this.graphqlEndpoint, {
+    // eslint-disable-next-line class-methods-use-this
+    async runQuery({
+        domain,
+        query,
+        environmentId,
+        bearerToken,
+    }: RunQueryArgs) {
+        const endpoint = new URL('/api/graphql', domain);
+        const client = new GraphQLClient(endpoint.href, {
             headers: {
                 Authorization: `Bearer ${bearerToken}`,
                 'X-dbt-partner-source': 'lightdash',
