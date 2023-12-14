@@ -248,7 +248,6 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
 
                 {showDelete && (
                     <DeleteTableCalculationModal
-                        isOpen
                         tableCalculation={item as TableCalculation}
                         onClose={() => setShowDelete(false)}
                     />

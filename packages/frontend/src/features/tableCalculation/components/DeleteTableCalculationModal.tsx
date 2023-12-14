@@ -1,18 +1,23 @@
-import { Button, Classes, Dialog } from '@blueprintjs/core';
 import { TableCalculation } from '@lightdash/common';
+import {
+    Button,
+    Group,
+    Modal,
+    ModalProps,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { FC } from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 
-type Props = {
-    isOpen: boolean;
+type Props = Pick<ModalProps, 'onClose'> & {
     tableCalculation: TableCalculation;
-    onClose: () => void;
 };
 
 export const DeleteTableCalculationModal: FC<Props> = ({
-    isOpen,
     tableCalculation,
     onClose,
 }) => {
@@ -29,24 +34,25 @@ export const DeleteTableCalculationModal: FC<Props> = ({
         onClose();
     };
     return (
-        <Dialog
-            isOpen={isOpen}
-            icon="cog"
+        <Modal
+            opened
+            title={<Title order={4}>Delete Table Calculation</Title>}
             onClose={onClose}
-            title="Settings"
-            lazy
         >
-            <div className={Classes.DIALOG_BODY}>
-                <p>Are you sure you want to delete this table calculation ?</p>
-            </div>
-            <div className={Classes.DIALOG_FOOTER}>
-                <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                    <Button onClick={onClose}>Cancel</Button>
-                    <Button intent="danger" onClick={onConfirm}>
+            <Stack spacing="lg" pt="sm">
+                <Text>
+                    Are you sure you want to delete this table calculation?
+                </Text>
+
+                <Group position="right" mt="sm">
+                    <Button variant="outline" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button color="red" onClick={onConfirm}>
                         Delete
                     </Button>
-                </div>
-            </div>
-        </Dialog>
+                </Group>
+            </Stack>
+        </Modal>
     );
 };
