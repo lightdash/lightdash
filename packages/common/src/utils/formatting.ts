@@ -321,7 +321,7 @@ export function formatTableCalculationNumber(
                 : {};
 
         if (
-            format.round === undefined &&
+            !format.round &&
             format.type === TableCalculationFormatType.CURRENCY &&
             format.currency !== undefined
         ) {
@@ -378,7 +378,7 @@ export function formatTableCalculationValue(
         compactValue: number;
         compactSuffix: string;
     } => {
-        if (field.format?.compact === undefined)
+        if (!field.format?.compact)
             return { compactValue: Number(value), compactSuffix: '' };
         const compactValue = CompactConfigMap[field.format.compact].convertFn(
             Number(value),

@@ -1,17 +1,17 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
 import { TableCalculation } from '@lightdash/common';
-import React, { FC } from 'react';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
-import { useTracking } from '../../providers/TrackingProvider';
-import { EventName } from '../../types/Events';
+import { FC } from 'react';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 
-interface DeleteTableCalculationModalProps {
+type Props = {
     isOpen: boolean;
     tableCalculation: TableCalculation;
     onClose: () => void;
-}
+};
 
-const DeleteTableCalculationModal: FC<DeleteTableCalculationModalProps> = ({
+export const DeleteTableCalculationModal: FC<Props> = ({
     isOpen,
     tableCalculation,
     onClose,
@@ -50,5 +50,3 @@ const DeleteTableCalculationModal: FC<DeleteTableCalculationModalProps> = ({
         </Dialog>
     );
 };
-
-export default DeleteTableCalculationModal;
