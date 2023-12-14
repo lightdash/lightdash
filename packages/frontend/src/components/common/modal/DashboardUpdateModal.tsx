@@ -1,26 +1,26 @@
+import { Dashboard } from '@lightdash/common';
 import {
     Button,
-    Dialog,
-    DialogBody,
-    DialogFooter,
-    DialogProps,
-} from '@blueprintjs/core';
-import { SavedChart } from '@lightdash/common';
-import { FC } from 'react';
-import { useForm } from 'react-hook-form';
+    Group,
+    Modal,
+    ModalProps,
+    Stack,
+    TextInput,
+    Title,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { FC, useEffect } from 'react';
 import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../../../hooks/dashboard/useDashboard';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
 
-interface DashboardUpdateModalProps extends DialogProps {
+interface DashboardUpdateModalProps extends ModalProps {
     uuid: string;
     onConfirm?: () => void;
 }
 
-type FormState = Pick<SavedChart, 'name' | 'description'>;
+type FormState = Pick<Dashboard, 'name' | 'description'>;
 
 const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     uuid,
@@ -31,69 +31,73 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     const { mutateAsync, isLoading: isUpdating } = useUpdateDashboard(uuid);
 
     const form = useForm<FormState>({
-        mode: 'onChange',
-        defaultValues: {
-            name: dashboard?.name,
-            description: dashboard?.description,
+        initialValues: {
+            name: '',
+            description: '',
         },
     });
+
+    const { setValues } = form;
+
+    useEffect(() => {
+        if (!dashboard) return;
+
+        setValues({
+            name: dashboard.name,
+            description: dashboard.description ?? '',
+        });
+    }, [dashboard, setValues]);
 
     if (isLoading || !dashboard) {
         return null;
     }
 
-    const handleConfirm = async (data: FormState) => {
+    const handleConfirm = form.onSubmit(async (data) => {
         await mutateAsync({
             name: data.name,
             description: data.description,
         });
         onConfirm?.();
-    };
+    });
 
     return (
-        <Dialog lazy title="Update Dashboard" icon="control" {...modalProps}>
-            <Form
-                title="Update Dashboard"
-                methods={form}
-                onSubmit={handleConfirm}
-            >
-                <DialogBody>
-                    <Input
+        <Modal
+            title={<Title order={4}>Update Dashboard</Title>}
+            {...modalProps}
+        >
+            <form title="Update Dashboard" onSubmit={handleConfirm}>
+                <Stack spacing="lg" pt="sm">
+                    <TextInput
                         label="Enter a memorable name for your dashboard"
-                        name="name"
+                        required
                         placeholder="eg. KPI Dashboards"
                         disabled={isUpdating}
-                        rules={{ required: 'Name field is required' }}
-                        defaultValue={dashboard?.name || ''}
+                        {...form.getInputProps('name')}
                     />
 
-                    <Input
+                    <TextInput
                         label="Description"
-                        name="description"
                         placeholder="A few words to give your team some context"
                         disabled={isUpdating}
-                        defaultValue={dashboard?.description || ''}
+                        {...form.getInputProps('description')}
                     />
-                </DialogBody>
 
-                <DialogFooter
-                    actions={
-                        <>
-                            <Button onClick={modalProps.onClose}>Cancel</Button>
+                    <Group position="right" mt="sm">
+                        <Button variant="outline" onClick={modalProps.onClose}>
+                            Cancel
+                        </Button>
 
-                            <Button
-                                disabled={!form.formState.isValid}
-                                loading={isUpdating}
-                                intent="primary"
-                                type="submit"
-                            >
-                                Save
-                            </Button>
-                        </>
-                    }
-                />
-            </Form>
-        </Dialog>
+                        <Button
+                            disabled={!form.isValid()}
+                            loading={isUpdating}
+                            type="submit"
+                        >
+                            Save
+                        </Button>
+                    </Group>
+                </Stack>
+            </form>
+        </Modal>
     );
 };
 

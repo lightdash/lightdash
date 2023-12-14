@@ -101,6 +101,8 @@ const BigQueryForm: FC<{
                         validate: {
                             hasNoWhiteSpaces: hasNoWhiteSpaces('Location'),
                         },
+                        setValueAs: (value) =>
+                            value === '' ? undefined : value,
                     })}
                     disabled={disabled}
                 />

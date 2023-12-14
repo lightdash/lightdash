@@ -302,7 +302,7 @@ const SavedChartsHeader: FC = () => {
                                         </ActionIcon>
                                     )}
                                 <ChartUpdateModal
-                                    isOpen={isRenamingChart}
+                                    opened={isRenamingChart}
                                     uuid={savedChart.uuid}
                                     onClose={() => setIsRenamingChart(false)}
                                     onConfirm={() => setIsRenamingChart(false)}
@@ -670,7 +670,7 @@ const SavedChartsHeader: FC = () => {
             {isDeleteDialogOpen && savedChart?.uuid && (
                 <ChartDeleteModal
                     uuid={savedChart.uuid}
-                    isOpen={isDeleteDialogOpen}
+                    opened={isDeleteDialogOpen}
                     onClose={() => setIsDeleteDialogOpen(false)}
                     onConfirm={() => {
                         history.listen((location, action) => {

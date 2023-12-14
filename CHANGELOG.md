@@ -1,3 +1,24 @@
+# [0.904.0](https://github.com/lightdash/lightdash/compare/0.903.2...0.904.0) (2023-12-14)
+
+
+### Features
+
+* mantine tooltips in table headers ([#8309](https://github.com/lightdash/lightdash/issues/8309)) ([b09b97b](https://github.com/lightdash/lightdash/commit/b09b97bfae6862a90af7e437c35fb29617272fb1))
+
+## [0.903.2](https://github.com/lightdash/lightdash/compare/0.903.1...0.903.2) (2023-12-14)
+
+
+### Bug Fixes
+
+* empty location in BigQuery causes an error ([#8311](https://github.com/lightdash/lightdash/issues/8311)) ([1b4485a](https://github.com/lightdash/lightdash/commit/1b4485a14a6556e9679cc22004d354499125c770))
+
+## [0.903.1](https://github.com/lightdash/lightdash/compare/0.903.0...0.903.1) (2023-12-14)
+
+
+### Bug Fixes
+
+* remove unused big button ([#8315](https://github.com/lightdash/lightdash/issues/8315)) ([2b12827](https://github.com/lightdash/lightdash/commit/2b128278310205f85e052951bf0a955d3a7df0bf))
+
 # [0.903.0](https://github.com/lightdash/lightdash/compare/0.902.0...0.903.0) (2023-12-13)
 
 
