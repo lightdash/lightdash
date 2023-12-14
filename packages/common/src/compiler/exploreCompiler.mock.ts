@@ -67,7 +67,6 @@ export const exploreBase: Explore = {
     joinedTables: [],
     tables: {},
     groupLabel: undefined,
-    warehouse: undefined,
 };
 
 export const exploreOneEmptyTable: UncompiledExplore = {
@@ -91,7 +90,6 @@ export const exploreOneEmptyTable: UncompiledExplore = {
 
 export const exploreOneEmptyTableCompiled: Explore = {
     ...exploreBase,
-
     tables: {
         a: {
             name: 'a',

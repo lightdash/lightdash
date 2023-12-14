@@ -28,7 +28,6 @@ export enum SupportedDbtAdapter {
 
 export type DbtNodeConfig = {
     materialized: string;
-    snowflake_warehouse: string;
 };
 export type DbtNode = {
     unique_id: string;
