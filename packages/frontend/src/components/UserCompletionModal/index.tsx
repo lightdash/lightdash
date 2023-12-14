@@ -5,6 +5,7 @@ import {
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     Checkbox,
     Modal,
@@ -15,7 +16,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { shuffle } from 'lodash-es';
+import shuffle from 'lodash-es/shuffle';
 import { FC, useEffect } from 'react';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useApp } from '../../providers/AppProvider';
@@ -74,26 +75,25 @@ const UserCompletionModal: FC = () => {
         <>
             <Modal
                 opened={!isSuccess}
-                size="auto"
+                size="md"
                 onClose={() => {}}
                 withCloseButton={false}
                 centered
-                title={<Title order={4}>Nearly there...</Title>}
+                title={
+                    <Box ta="center">
+                        <Title order={4}>Nearly there...</Title>
+                        <Text ta="center" c="gray.6">
+                            Tell us a bit more about yourself
+                        </Text>
+                    </Box>
+                }
                 styles={{
                     title: {
                         width: '100%',
-                        textAlign: 'center',
-                    },
-                    header: {
-                        padding: '1rem',
-                        paddingBottom: '0.75rem',
                     },
                 }}
             >
                 <Stack>
-                    <Text ta="center" c="gray.6">
-                        Tell us a bit more about yourself
-                    </Text>
                     <form name="complete_user" onSubmit={handleSubmit}>
                         <Stack>
                             {form.values.organizationName === '' && (
