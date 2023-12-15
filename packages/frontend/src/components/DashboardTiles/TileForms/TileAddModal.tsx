@@ -6,15 +6,7 @@ import {
     DashboardTileTypes,
     defaultTileSize,
 } from '@lightdash/common';
-import {
-    Button,
-    Flex,
-    Group,
-    Modal,
-    ModalProps,
-    Stack,
-    Title,
-} from '@mantine/core';
+import { Button, Group, Modal, ModalProps, Stack, Title } from '@mantine/core';
 import { useForm, UseFormReturnType } from '@mantine/form';
 import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import { FC, useState } from 'react';
@@ -87,7 +79,7 @@ export const TileAddModal: FC<AddProps> = ({
     return (
         <Modal
             title={
-                <Flex gap="xs" align="center">
+                <Group spacing="xs">
                     <MantineIcon
                         size="lg"
                         color="blue.8"
@@ -98,7 +90,7 @@ export const TileAddModal: FC<AddProps> = ({
                         }
                     />
                     <Title order={4}>Add {type} tile</Title>
-                </Flex>
+                </Group>
             }
             {...modalProps}
             size="xl"

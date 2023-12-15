@@ -5,15 +5,7 @@ import {
     DashboardMarkdownTileProperties,
     DashboardTileTypes,
 } from '@lightdash/common';
-import {
-    Button,
-    Flex,
-    Group,
-    Modal,
-    ModalProps,
-    Stack,
-    Title,
-} from '@mantine/core';
+import { Button, Group, Modal, ModalProps, Stack, Title } from '@mantine/core';
 import { useForm, UseFormReturnType } from '@mantine/form';
 import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import produce from 'immer';
@@ -69,7 +61,7 @@ const TileUpdateModal = <T extends Tile>({
         <Modal
             size="xl"
             title={
-                <Flex gap="xs" align="center">
+                <Group spacing="xs">
                     <MantineIcon
                         size="lg"
                         color="blue.8"
@@ -80,7 +72,7 @@ const TileUpdateModal = <T extends Tile>({
                         }
                     />
                     <Title order={4}>Edit {tile.type} tile</Title>
-                </Flex>
+                </Group>
             }
             {...modalProps}
             onClose={() => onClose?.()}
