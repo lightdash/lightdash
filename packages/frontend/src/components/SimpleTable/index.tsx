@@ -121,7 +121,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     show: showColumnCalculation,
                 }}
                 headerContextMenu={(props) => {
-                    if (isDashboard && tileUuid)
+                    if (!minimal && isDashboard && tileUuid)
                         return (
                             <DashboardHeaderContextMenu
                                 {...props}
