@@ -1,10 +1,3 @@
-import {
-    Button as BlueprintButton,
-    Divider,
-    FormGroup,
-    HTMLSelect,
-    Intent,
-} from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     ApiScheduledDownloadCsv,
@@ -12,12 +5,11 @@ import {
     ChartType,
     getCustomLabelsFromColumnProperties,
 } from '@lightdash/common';
+import { Button, Popover, Select, Stack, Text } from '@mantine/core';
+import { IconDownload, IconShare2 } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
-
-import { Button, Popover } from '@mantine/core';
-import { IconShare2 } from '@tabler/icons-react';
 import useEchartsCartesianConfig from '../hooks/echarts/useEchartsCartesianConfig';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
@@ -174,45 +166,32 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     }, [chartRef, type]);
 
     return (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                justifyContent: 'flex-start',
-            }}
-        >
-            <span>
-                <b>Options</b>
-            </span>
-            <Divider />
+        <Stack>
+            <Text fw={500}>Options</Text>
 
-            <FormGroup label="File format" labelFor="download-type" inline>
-                <HTMLSelect
-                    id="download-type"
-                    value={type}
-                    onChange={(e) =>
-                        setType(e.currentTarget.value as DownloadType)
-                    }
-                    options={Object.values(DownloadType).map(
-                        (downloadType) => ({
-                            value: downloadType,
-                            label: downloadType,
-                        }),
-                    )}
-                />
-            </FormGroup>
-            <Divider />
+            <Select
+                size="xs"
+                id="download-type"
+                value={type}
+                onChange={(value) => setType(value as DownloadType)}
+                data={Object.values(DownloadType).map((downloadType) => ({
+                    value: downloadType,
+                    label: downloadType,
+                }))}
+            />
+
             {!isTable && (
-                <BlueprintButton
-                    style={{ alignSelf: 'flex-end' }}
-                    intent={Intent.PRIMARY}
-                    icon="cloud-download"
-                    text="Download"
+                <Button
+                    size="xs"
+                    ml="auto"
+                    leftIcon={<MantineIcon icon={IconDownload} />}
                     onClick={onDownload}
-                />
+                >
+                    {' '}
+                    Download
+                </Button>
             )}
-        </div>
+        </Stack>
     );
 };
 
