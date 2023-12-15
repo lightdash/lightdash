@@ -1,4 +1,3 @@
-import { Callout, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     CreateWarehouseCredentials,
@@ -10,6 +9,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import {
+    Alert,
     Anchor,
     Avatar,
     Button,
@@ -19,6 +19,7 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
+import { IconExclamationCircle } from '@tabler/icons-react';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm, useFormContext } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -34,6 +35,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
+import MantineIcon from '../common/MantineIcon';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -241,11 +243,11 @@ export const UpdateProjectConnection: FC<{
 
     if (data?.type === ProjectType.PREVIEW) {
         return (
-            <Callout intent="warning">
-                <p>
-                    Developer previews are temporary Lightdash projects where
-                    settings cannot be changed.
-                </p>
+            <Alert
+                color="orange"
+                icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
+                title="Developer previews are temporary Lightdash projects where settings cannot be changed."
+            >
                 Read docs{' '}
                 <Anchor
                     href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
@@ -255,7 +257,7 @@ export const UpdateProjectConnection: FC<{
                     here
                 </Anchor>{' '}
                 to know more.
-            </Callout>
+            </Alert>
         );
     }
 
@@ -275,12 +277,7 @@ export const UpdateProjectConnection: FC<{
                 />
             </ProjectFormProvider>
 
-            {!isIdle && (
-                <ProjectStatusCallout
-                    style={{ marginBottom: '20px' }}
-                    mutation={updateMutation}
-                />
-            )}
+            {!isIdle && <ProjectStatusCallout mutation={updateMutation} />}
 
             <Card
                 component={Flex}
@@ -391,7 +388,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 <CompileProjectButton
                     large
                     type="submit"
-                    intent={Intent.PRIMARY}
+                    intent="primary"
                     text="Test & compile project"
                     loading={isSavingProject}
                 />

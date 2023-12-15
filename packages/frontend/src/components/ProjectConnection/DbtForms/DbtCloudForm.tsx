@@ -1,8 +1,9 @@
-import { Callout } from '@blueprintjs/core';
 import { DbtProjectType } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import { Alert, Anchor, Stack, Text } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import MantineIcon from '../../common/MantineIcon';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -11,19 +12,26 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE;
+
     return (
-        <>
-            <Callout intent="primary" style={{ marginBottom: 20 }}>
-                You will need to spin up the IDE for your project. Read the{' '}
-                <Anchor
-                    href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#spin-up-the-ide"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    docs
-                </Anchor>{' '}
-                to know more.
-            </Callout>
+        <Stack>
+            <Alert
+                color="blue"
+                icon={<MantineIcon icon={IconInfoCircle} size="lg" />}
+            >
+                <Text color="blue">
+                    You will need to spin up the IDE for your project. Read the{' '}
+                    <Anchor
+                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#spin-up-the-ide"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        docs
+                    </Anchor>{' '}
+                    to know more.
+                </Text>
+            </Alert>
+
             <PasswordInput
                 name="dbt.api_key"
                 label="API key"
@@ -75,7 +83,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 }}
                 disabled={disabled}
             />
-        </>
+        </Stack>
     );
 };
 
