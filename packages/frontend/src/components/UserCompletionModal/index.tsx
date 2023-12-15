@@ -54,7 +54,14 @@ const UserCompletionModal: FC = () => {
 
     const { isLoading, mutate, isSuccess } = useUserCompleteMutation();
 
-    const handleSubmit = form.onSubmit((data) => mutate(data));
+    const handleSubmit = form.onSubmit((data) => {
+        if (user.data?.organizationName) {
+            const { organizationName, ...rest } = data;
+            mutate(rest);
+        } else {
+            mutate(data);
+        }
+    });
 
     const { setFieldValue } = form;
 
