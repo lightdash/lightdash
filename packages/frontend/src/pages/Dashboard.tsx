@@ -505,21 +505,27 @@ const Dashboard: FC = () => {
                 onClose={() => setIsSaveWarningModalOpen(false)}
                 title={null}
                 withCloseButton={false}
+                closeOnClickOutside={false}
             >
                 <Stack>
-                    <Group position="center">
+                    <Group noWrap spacing="xs">
                         <MantineIcon
                             icon={IconAlertCircle}
                             color="red"
                             size={50}
                         />
-                        <Text fw={500} ta="center">
+                        <Text fw={500}>
                             You have unsaved changes to your dashboard! Are you
                             sure you want to leave without saving?
                         </Text>
                     </Group>
+
                     <Group position="right">
-                        <Button>Stay</Button>
+                        <Button
+                            onClick={() => setIsSaveWarningModalOpen(false)}
+                        >
+                            Stay
+                        </Button>
                         <Button
                             color="red"
                             onClick={() => {
