@@ -1,3 +1,10 @@
+## [0.907.4](https://github.com/lightdash/lightdash/compare/0.907.3...0.907.4) (2023-12-15)
+
+
+### Bug Fixes
+
+* added missing query param to 'getDashboardsContainingChart' endpoint ([#8325](https://github.com/lightdash/lightdash/issues/8325)) ([100a5a1](https://github.com/lightdash/lightdash/commit/100a5a1072cb8066958e2cbc6ea1d007feae38e1))
+
 ## [0.907.3](https://github.com/lightdash/lightdash/compare/0.907.2...0.907.3) (2023-12-15)
 
 
