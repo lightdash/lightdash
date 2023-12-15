@@ -1,3 +1,10 @@
+# [0.907.0](https://github.com/lightdash/lightdash/compare/0.906.0...0.907.0) (2023-12-15)
+
+
+### Features
+
+* callouts in mantine ([#8324](https://github.com/lightdash/lightdash/issues/8324)) ([924c067](https://github.com/lightdash/lightdash/commit/924c06798f7bda2dde327b778e7ad06fd79f49bd))
+
 # [0.906.0](https://github.com/lightdash/lightdash/compare/0.905.1...0.906.0) (2023-12-15)
 
 
