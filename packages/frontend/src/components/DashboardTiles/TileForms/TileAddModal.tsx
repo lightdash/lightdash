@@ -1,11 +1,4 @@
 import {
-    Button,
-    Dialog,
-    DialogBody,
-    DialogFooter,
-    DialogProps,
-} from '@blueprintjs/core';
-import {
     assertUnreachable,
     Dashboard,
     DashboardLoomTileProperties,
@@ -13,21 +6,22 @@ import {
     DashboardTileTypes,
     defaultTileSize,
 } from '@lightdash/common';
+import { Button, Group, Modal, ModalProps, Stack, Title } from '@mantine/core';
 import { useForm, UseFormReturnType } from '@mantine/form';
+import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
-import ChartTileForm from './ChartTileForm';
+import MantineIcon from '../../common/MantineIcon';
 import LoomTileForm, { getLoomId } from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 
 type Tile = Dashboard['tiles'][number];
 type TileProperties = Tile['properties'];
 
-interface AddProps extends DialogProps {
-    type?: DashboardTileTypes;
-    onClose?: () => void;
+type AddProps = ModalProps & {
+    type: DashboardTileTypes.LOOM | DashboardTileTypes.MARKDOWN;
     onConfirm: (tile: Tile) => void;
-}
+};
 
 export const TileAddModal: FC<AddProps> = ({
     type,
@@ -83,17 +77,28 @@ export const TileAddModal: FC<AddProps> = ({
     };
 
     return (
-        <Dialog
-            lazy
-            title="Add tile to dashboard"
+        <Modal
+            title={
+                <Group spacing="xs">
+                    <MantineIcon
+                        size="lg"
+                        color="blue.8"
+                        icon={
+                            type === DashboardTileTypes.MARKDOWN
+                                ? IconMarkdown
+                                : IconVideo
+                        }
+                    />
+                    <Title order={4}>Add {type} tile</Title>
+                </Group>
+            }
             {...modalProps}
+            size="xl"
             onClose={handleClose}
         >
             <form onSubmit={handleConfirm}>
-                <DialogBody>
-                    {type === DashboardTileTypes.SAVED_CHART ? (
-                        <ChartTileForm />
-                    ) : type === DashboardTileTypes.MARKDOWN ? (
+                <Stack spacing="lg" pt="sm">
+                    {type === DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm
                             form={
                                 form as UseFormReturnType<
@@ -113,26 +118,20 @@ export const TileAddModal: FC<AddProps> = ({
                     ) : (
                         assertUnreachable(type, 'Tile type not supported')
                     )}
-                </DialogBody>
 
-                <DialogFooter
-                    actions={
-                        <>
-                            {errorMessage}
+                    {errorMessage}
 
-                            <Button onClick={handleClose}>Cancel</Button>
+                    <Group position="right" mt="sm">
+                        <Button variant="outline" onClick={handleClose}>
+                            Cancel
+                        </Button>
 
-                            <Button
-                                intent="primary"
-                                type="submit"
-                                disabled={!form.isValid()}
-                            >
-                                Add
-                            </Button>
-                        </>
-                    }
-                />
+                        <Button type="submit" disabled={!form.isValid()}>
+                            Add
+                        </Button>
+                    </Group>
+                </Stack>
             </form>
-        </Dialog>
+        </Modal>
     );
 };

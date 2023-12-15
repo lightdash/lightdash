@@ -1,5 +1,5 @@
 import { DashboardMarkdownTileProperties } from '@lightdash/common';
-import { Input, Stack, TextInput } from '@mantine/core';
+import { Stack, TextInput } from '@mantine/core';
 import { UseFormReturnType } from '@mantine/form';
 import MDEditor from '@uiw/react-md-editor';
 
@@ -14,16 +14,15 @@ const MarkdownTileForm = ({ form }: MarkdownTileFormProps) => (
             placeholder="Tile title"
             {...form.getInputProps('title')}
         />
-        <Input.Wrapper label="Content">
-            <MDEditor
-                preview="edit"
-                height={400}
-                overflow={false}
-                style={{ marginTop: '6px' }}
-                value={form.values.content}
-                onChange={(v) => form.setFieldValue('content', v || '')}
-            />
-        </Input.Wrapper>
+
+        <MDEditor
+            preview="edit"
+            maxHeight={300}
+            minHeight={100}
+            visibleDragbar
+            overflow={false}
+            {...form.getInputProps('content')}
+        />
     </Stack>
 );
 

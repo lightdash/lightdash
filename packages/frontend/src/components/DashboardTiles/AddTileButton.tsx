@@ -120,15 +120,18 @@ const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
                 />
             )}
 
-            <TileAddModal
-                isOpen={!!addTileType}
-                type={addTileType}
-                onClose={() => setAddTileType(undefined)}
-                onConfirm={(tile) => {
-                    onAddTile(tile);
-                    setAddTileType(undefined);
-                }}
-            />
+            {addTileType === DashboardTileTypes.MARKDOWN ||
+            addTileType === DashboardTileTypes.LOOM ? (
+                <TileAddModal
+                    opened={!!addTileType}
+                    type={addTileType}
+                    onClose={() => setAddTileType(undefined)}
+                    onConfirm={(tile) => {
+                        onAddTile(tile);
+                        setAddTileType(undefined);
+                    }}
+                />
+            ) : null}
         </>
     );
 };

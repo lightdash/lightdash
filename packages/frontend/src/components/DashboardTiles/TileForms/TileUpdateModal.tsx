@@ -1,19 +1,15 @@
 import {
-    Button,
-    Dialog,
-    DialogBody,
-    DialogFooter,
-    DialogProps,
-} from '@blueprintjs/core';
-import {
     assertUnreachable,
     Dashboard,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
     DashboardTileTypes,
 } from '@lightdash/common';
+import { Button, Group, Modal, ModalProps, Stack, Title } from '@mantine/core';
 import { useForm, UseFormReturnType } from '@mantine/form';
+import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import produce from 'immer';
+import MantineIcon from '../../common/MantineIcon';
 import ChartTileForm from './ChartTileForm';
 import LoomTileForm, { getLoomId } from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
@@ -21,9 +17,8 @@ import MarkdownTileForm from './MarkdownTileForm';
 type Tile = Dashboard['tiles'][number];
 type TileProperties = Tile['properties'];
 
-interface TileUpdateModalProps<T> extends DialogProps {
+interface TileUpdateModalProps<T> extends ModalProps {
     tile: T;
-    onClose?: () => void;
     onConfirm?: (tile: T) => void;
 }
 
@@ -63,15 +58,27 @@ const TileUpdateModal = <T extends Tile>({
     });
 
     return (
-        <Dialog
-            lazy
-            title="Edit tile content"
+        <Modal
+            size="xl"
+            title={
+                <Group spacing="xs">
+                    <MantineIcon
+                        size="lg"
+                        color="blue.8"
+                        icon={
+                            tile.type === DashboardTileTypes.MARKDOWN
+                                ? IconMarkdown
+                                : IconVideo
+                        }
+                    />
+                    <Title order={4}>Edit {tile.type} tile</Title>
+                </Group>
+            }
             {...modalProps}
             onClose={() => onClose?.()}
-            backdropClassName="non-draggable"
         >
             <form onSubmit={handleConfirm}>
-                <DialogBody>
+                <Stack spacing="lg" pt="sm">
                     {tile.type === DashboardTileTypes.SAVED_CHART ? (
                         <ChartTileForm />
                     ) : tile.type === DashboardTileTypes.MARKDOWN ? (
@@ -94,25 +101,19 @@ const TileUpdateModal = <T extends Tile>({
                     ) : (
                         assertUnreachable(tile, 'Tile type not supported')
                     )}
-                </DialogBody>
 
-                <DialogFooter
-                    actions={
-                        <>
-                            <Button onClick={() => onClose?.()}>Cancel</Button>
+                    <Group position="right" mt="sm">
+                        <Button variant="outline" onClick={() => onClose?.()}>
+                            Cancel
+                        </Button>
 
-                            <Button
-                                intent="primary"
-                                type="submit"
-                                disabled={!form.isValid()}
-                            >
-                                Save
-                            </Button>
-                        </>
-                    }
-                />
+                        <Button type="submit" disabled={!form.isValid()}>
+                            Save
+                        </Button>
+                    </Group>
+                </Stack>
             </form>
-        </Dialog>
+        </Modal>
     );
 };
 
