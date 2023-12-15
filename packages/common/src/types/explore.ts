@@ -41,6 +41,7 @@ export type Explore = {
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore
     targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/databricks
+    warehouse?: string;
 };
 
 export enum InlineErrorType {

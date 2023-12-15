@@ -153,6 +153,15 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
         try {
+            if (this.connectionOptions.warehouse) {
+                console.debug(
+                    `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
+                );
+                await this.executeStatement(
+                    connection,
+                    `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
+                );
+            }
             if (isWeekDay(this.startOfWeek)) {
                 const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
                 await this.executeStatement(
