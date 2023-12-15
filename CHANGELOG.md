@@ -1,3 +1,15 @@
+# [0.905.0](https://github.com/lightdash/lightdash/compare/0.904.1...0.905.0) (2023-12-15)
+
+
+### Bug Fixes
+
+* **dbt-semantic-layer:** visualization fields ([#8320](https://github.com/lightdash/lightdash/issues/8320)) ([ec958bc](https://github.com/lightdash/lightdash/commit/ec958bce83599da0306374703b8a16df4ec2a48b))
+
+
+### Features
+
+* **dbt-semantinc-layer:** support all dbt regions ([#8319](https://github.com/lightdash/lightdash/issues/8319)) ([13fe664](https://github.com/lightdash/lightdash/commit/13fe664a4599d22732bd76735dcc5f9d82bd0c17))
+
 ## [0.904.1](https://github.com/lightdash/lightdash/compare/0.904.0...0.904.1) (2023-12-14)
 
 
