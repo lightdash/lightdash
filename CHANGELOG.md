@@ -1,3 +1,10 @@
+## [0.905.1](https://github.com/lightdash/lightdash/compare/0.905.0...0.905.1) (2023-12-15)
+
+
+### Bug Fixes
+
+* Reapply snowflake warehouse (revert + fix credentials) ([#8326](https://github.com/lightdash/lightdash/issues/8326)) ([b947a71](https://github.com/lightdash/lightdash/commit/b947a71508fe9694493ae1012c8cba2db460e9d8)), closes [#8255](https://github.com/lightdash/lightdash/issues/8255) [#8312](https://github.com/lightdash/lightdash/issues/8312)
+
 # [0.905.0](https://github.com/lightdash/lightdash/compare/0.904.1...0.905.0) (2023-12-15)
 
 
