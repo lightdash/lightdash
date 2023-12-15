@@ -57,7 +57,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             </Button>
 
             <Modal
-                size="md"
+                size="lg"
                 title={<Title order={4}>{`Share "${space.name}"`}</Title>}
                 opened={isOpen}
                 onClose={() => setIsOpen(false)}

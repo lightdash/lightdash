@@ -1,5 +1,5 @@
 import { Space } from '@lightdash/common';
-import { Avatar, Flex, Select, Stack, Text } from '@mantine/core';
+import { Avatar, Flex, Group, Select, Stack, Text } from '@mantine/core';
 import { IconLock, IconUsers } from '@tabler/icons-react';
 import { FC, forwardRef } from 'react';
 import { useProject } from '../../../hooks/useProject';
@@ -50,25 +50,27 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
     );
 
     return (
-        <Flex gap="sm">
-            <Avatar radius="xl">
-                <MantineIcon
-                    icon={
-                        selectedAccess.value === SpaceAccessType.PRIVATE
-                            ? IconLock
-                            : IconUsers
-                    }
-                />
-            </Avatar>
+        <Group position="apart">
+            <Flex align="center" gap="sm">
+                <Avatar radius="xl">
+                    <MantineIcon
+                        icon={
+                            selectedAccess.value === SpaceAccessType.PRIVATE
+                                ? IconLock
+                                : IconUsers
+                        }
+                    />
+                </Avatar>
 
-            <Stack spacing={2}>
-                <Text fw={600} fz="sm">
-                    Members of {project?.name}
-                </Text>
-                <Text c="gray.6" fz="xs">
-                    {selectedAccess.description}
-                </Text>
-            </Stack>
+                <Stack spacing={2}>
+                    <Text fw={600} fz="sm">
+                        Members of {project?.name}
+                    </Text>
+                    <Text c="gray.6" fz="xs">
+                        {selectedAccess.description}
+                    </Text>
+                </Stack>
+            </Flex>
             {selectedAccess && (
                 <Select
                     styles={{
@@ -105,6 +107,6 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                     }}
                 />
             )}
-        </Flex>
+        </Group>
     );
 };
