@@ -2,6 +2,7 @@ import { ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { FC, memo } from 'react';
 import { useParams } from 'react-router-dom';
+import { useExplore } from '../../hooks/useExplore';
 import { useProjects } from '../../hooks/useProjects';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { CustomVisualizationProvider } from '../CustomVisualization';
@@ -32,11 +33,13 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 project.projectUuid === projectUuid &&
                 project.type === ProjectType.PREVIEW,
         );
+        const { data: explore } = useExplore(unsavedChartVersionTableName);
 
         return (
             <MetricQueryDataProvider
                 metricQuery={unsavedChartVersionMetricQuery}
                 tableName={unsavedChartVersionTableName}
+                explore={explore}
             >
                 <Stack sx={{ flexGrow: 1 }}>
                     {!hideHeader && <ExplorerHeader />}
