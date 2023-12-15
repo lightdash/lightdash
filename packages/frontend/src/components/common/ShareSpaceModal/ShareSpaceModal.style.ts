@@ -28,12 +28,6 @@ const commonTagStyle = css`
     align-items: center;
 `;
 
-export const ShareCircle = styled.div`
-    ${commonTagStyle}
-    background-color: ${Colors.LIGHT_GRAY4};
-    color: ${Colors.GRAY1};
-`;
-
 export const UserCircle = styled.div`
     ${commonTagStyle}
     background-color: ${Colors.GRAY3};
@@ -89,26 +83,6 @@ export const SecondaryTextWithMaxWidth = styled.div`
 export const AccessRole = styled.div`
     flex-grow: 0;
     flex-shrink: 0;
-`;
-
-export const DialogBody = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    padding: 20px;
-`;
-
-export const DialogFooter = styled.div`
-    background-color: ${Colors.LIGHT_GRAY5};
-    border-top: 1px solid ${Colors.LIGHT_GRAY1};
-    border-radius: 0 0 2px 2px;
-
-    color: ${Colors.GRAY1};
-    font-size: 12px;
-    font-weight: 400;
-
-    padding: 10px 20px 12px 20px;
-    // 12px is intentional to fix optical alignment
 `;
 
 export const UserRole = styled.div`
