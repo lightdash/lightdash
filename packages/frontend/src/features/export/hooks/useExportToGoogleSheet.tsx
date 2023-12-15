@@ -1,10 +1,10 @@
-import { Spinner } from '@blueprintjs/core';
 import {
     ApiDownloadCsv,
     ApiError,
     ApiScheduledDownloadCsv,
     SchedulerJobStatus,
 } from '@lightdash/common';
+import { Loader } from '@mantine/core';
 import { useMutation, useQuery } from 'react-query';
 import { getCsvFileUrl } from '../../../api/csv';
 import { AppToaster } from '../../../components/AppToaster';
@@ -25,12 +25,7 @@ const useExportToGoogleSheetStart = ({
                 showToast({
                     title: 'Exporting Google Sheets',
                     subtitle: 'This may take a few minutes...',
-                    icon: (
-                        <Spinner
-                            className="bp4-icon bp4-icon-error"
-                            size={16}
-                        />
-                    ),
+                    icon: <Loader color="dark" size="xs" />,
                     key: 'exporting-gsheets',
                     timeout: 0,
                 });
