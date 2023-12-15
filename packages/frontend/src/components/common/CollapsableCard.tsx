@@ -66,7 +66,10 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
             display="flex"
             direction="column"
             padding="xxs"
-            style={shouldExpand ? { flex: 1 } : undefined}
+            style={{
+                overflow: 'visible',
+                ...(shouldExpand ? { flex: 1 } : undefined),
+            }}
             shadow="xs"
         >
             <Flex gap="xxs" align="center" mr="xs" h="xxl">
