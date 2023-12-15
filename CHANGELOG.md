@@ -1,3 +1,10 @@
+## [0.907.1](https://github.com/lightdash/lightdash/compare/0.907.0...0.907.1) (2023-12-15)
+
+
+### Bug Fixes
+
+* card overflow in explore ([#8333](https://github.com/lightdash/lightdash/issues/8333)) ([437f0c5](https://github.com/lightdash/lightdash/commit/437f0c5d2535e677a17fcfee29fb61f2398d0476))
+
 # [0.907.0](https://github.com/lightdash/lightdash/compare/0.906.0...0.907.0) (2023-12-15)
 
 
