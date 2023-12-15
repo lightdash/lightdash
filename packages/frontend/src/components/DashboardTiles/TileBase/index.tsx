@@ -251,7 +251,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         ) : (
                             <TileUpdateModal
                                 className="non-draggable"
-                                isOpen={isEditingTileContent}
+                                opened={isEditingTileContent}
                                 tile={tile}
                                 onClose={() => setIsEditingTileContent(false)}
                                 onConfirm={(newTile) => {
