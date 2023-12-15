@@ -887,6 +887,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
         <MetricQueryDataProvider
             metricQuery={data?.metricQuery}
             tableName={data?.chart.tableName || ''}
+            explore={data?.explore}
         >
             {minimal ? (
                 <DashboardChartTileMinimal

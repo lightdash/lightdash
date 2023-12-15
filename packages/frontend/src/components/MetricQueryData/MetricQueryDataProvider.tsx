@@ -11,7 +11,6 @@ import {
 } from '@lightdash/common';
 import { createContext, FC, useCallback, useContext, useState } from 'react';
 import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
-import { useExplore } from '../../hooks/useExplore';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
 export type UnderlyingDataConfig = {
@@ -96,11 +95,13 @@ const Context = createContext<MetricQueryDataContext | undefined>(undefined);
 
 type Props = {
     tableName: string;
+    explore: Explore | undefined;
     metricQuery: MetricQuery | undefined;
 };
 
 const MetricQueryDataProvider: FC<Props> = ({
     tableName,
+    explore,
     metricQuery,
     children,
 }) => {
@@ -111,7 +112,6 @@ const MetricQueryDataProvider: FC<Props> = ({
         useState<boolean>(false);
     const [isDrillDownModalOpen, setIsDrillDownModalOpen] =
         useState<boolean>(false);
-    const { data: explore } = useExplore(tableName);
 
     const openDrillDownModal = useCallback(
         (config: DrillDownConfig) => {
