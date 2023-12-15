@@ -130,6 +130,7 @@ export const chart: SavedChart = {
     pinnedListOrder: null,
     dashboardUuid: dashboard.uuid,
     dashboardName: dashboard.name,
+    colorPalette: [],
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [

@@ -155,6 +155,7 @@ export const chart: SavedChart = {
     spaceName: 'space name',
     pinnedListUuid: null,
     pinnedListOrder: null,
+    colorPalette: [],
 };
 
 export const chartWithJoinedField: SavedChart = {
