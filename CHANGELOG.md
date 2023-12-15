@@ -1,3 +1,10 @@
+## [0.907.3](https://github.com/lightdash/lightdash/compare/0.907.2...0.907.3) (2023-12-15)
+
+
+### Bug Fixes
+
+* **dashboard:** hide table sorting in minimal dashboard ([#8338](https://github.com/lightdash/lightdash/issues/8338)) ([ca557c9](https://github.com/lightdash/lightdash/commit/ca557c91c14d2f417266a5ab0ca21f61692c4431))
+
 ## [0.907.2](https://github.com/lightdash/lightdash/compare/0.907.1...0.907.2) (2023-12-15)
 
 
