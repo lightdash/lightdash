@@ -202,6 +202,7 @@ const ValidDashboardChartTile: FC<{
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
             invalidateCache={invalidateCache}
+            colorPalette={chart.colorPalette}
         >
             <LightdashVisualization
                 isDashboard
@@ -246,6 +247,7 @@ const ValidDashboardChartTileMinimal: FC<{
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
+            colorPalette={chart.colorPalette}
         >
             <LightdashVisualization
                 isDashboard

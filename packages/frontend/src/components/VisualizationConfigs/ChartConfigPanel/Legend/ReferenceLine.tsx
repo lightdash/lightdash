@@ -1,7 +1,6 @@
 import {
     CompiledDimension,
     CustomDimension,
-    ECHARTS_DEFAULT_COLORS,
     Field,
     fieldId as getFieldId,
     formatDate,
@@ -29,7 +28,6 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
-import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import FieldSelect from '../../../common/FieldSelect';
 import FilterDatePicker from '../../../common/Filters/FilterInputs/FilterDatePicker';
 import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
@@ -172,13 +170,7 @@ export const ReferenceLine: FC<Props> = ({
     updateReferenceLine,
     removeReferenceLine,
 }) => {
-    const { visualizationConfig } = useVisualizationContext();
-    const { data: org } = useOrganization();
-
-    const defaultColors = useMemo(
-        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
-        [org],
-    );
+    const { visualizationConfig, colorPalette } = useVisualizationContext();
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -347,8 +339,8 @@ export const ReferenceLine: FC<Props> = ({
                         withinPortal={false}
                         withEyeDropper={false}
                         format="hex"
-                        swatches={defaultColors}
-                        swatchesPerRow={defaultColors.length}
+                        swatches={colorPalette}
+                        swatchesPerRow={colorPalette.length}
                         onChange={(color) => {
                             setLineColor(color);
                             if (

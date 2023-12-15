@@ -3,7 +3,6 @@ import {
     CartesianChart,
     CartesianSeriesType,
     DimensionType,
-    ECHARTS_DEFAULT_COLORS,
     formatItemValue,
     formatTableCalculationValue,
     formatValue,
@@ -43,7 +42,6 @@ import { isCartesianVisualizationConfig } from '../../components/LightdashVisual
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
-import { useOrganization } from '../organization/useOrganization';
 import getPlottedData from '../plottedData/getPlottedData';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -1218,15 +1216,18 @@ const useEchartsCartesianConfig = (
     validCartesianConfigLegend?: LegendValues,
     isInDashboard?: boolean,
 ) => {
-    const { visualizationConfig, pivotDimensions, resultsData, itemsMap } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        pivotDimensions,
+        resultsData,
+        itemsMap,
+        colorPalette,
+    } = useVisualizationContext();
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
-
-    const { data: organizationData } = useOrganization();
 
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
         if (
@@ -1313,8 +1314,6 @@ const useEchartsCartesianConfig = (
     ]);
 
     const colors = useMemo<string[]>(() => {
-        const allColors =
-            organizationData?.chartColors || ECHARTS_DEFAULT_COLORS;
         //Do not use colors from hidden series
         return validCartesianConfig?.eChartsConfig.series
             ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
@@ -1322,14 +1321,15 @@ const useEchartsCartesianConfig = (
                       if (!serie.hidden)
                           return [
                               ...acc,
-                              allColors[index] || getDefaultSeriesColor(index),
+                              colorPalette[index] ||
+                                  getDefaultSeriesColor(index),
                           ];
                       else return acc;
                   },
                   [],
               )
-            : allColors;
-    }, [organizationData?.chartColors, validCartesianConfig]);
+            : colorPalette;
+    }, [colorPalette, validCartesianConfig]);
 
     const sortedResults = useMemo(() => {
         const results =

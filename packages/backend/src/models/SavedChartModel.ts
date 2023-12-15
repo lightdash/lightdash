@@ -6,8 +6,8 @@ import {
     ChartVersionSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
-    CustomDimension,
     DBFieldTypes,
+    ECHARTS_DEFAULT_COLORS,
     getChartKind,
     getChartType,
     getCustomDimensionId,
@@ -38,7 +38,6 @@ import {
     CreateDbSavedChartVersionSort,
     DBFilteredAdditionalMetrics,
     DbSavedChartAdditionalMetricInsert,
-    DbSavedChartCustomDimension,
     DbSavedChartCustomDimensionInsert,
     DbSavedChartTableCalculationInsert,
     InsertChart,
@@ -603,6 +602,7 @@ export class SavedChartModel {
                         space_uuid: string;
                         spaceName: string;
                         dashboardName: string | null;
+                        chart_colors: string[] | null;
                     })[]
                 >([
                     `${ProjectTableName}.project_uuid`,
@@ -621,6 +621,7 @@ export class SavedChartModel {
                     'saved_queries_versions.chart_config',
                     'saved_queries_versions.pivot_dimensions',
                     `${OrganizationTableName}.organization_uuid`,
+                    `${OrganizationTableName}.chart_colors`,
                     `${UserTableName}.user_uuid`,
                     `${UserTableName}.first_name`,
                     `${UserTableName}.last_name`,
@@ -825,6 +826,7 @@ export class SavedChartModel {
                 pinnedListOrder: null,
                 dashboardUuid: savedQuery.dashboard_uuid,
                 dashboardName: savedQuery.dashboardName,
+                colorPalette: savedQuery.chart_colors ?? ECHARTS_DEFAULT_COLORS,
             };
         } finally {
             span?.finish();

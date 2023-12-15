@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CustomDimension,
     Dimension,
-    ECHARTS_DEFAULT_COLORS,
     formatItemValue,
     isField,
     isMetric,
@@ -24,7 +23,6 @@ import pick from 'lodash-es/pick';
 import pickBy from 'lodash-es/pickBy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isHexCodeColor } from '../utils/colorUtils';
-import { useOrganization } from './organization/useOrganization';
 
 type PieChartConfig = {
     validConfig: PieChart;
@@ -51,8 +49,6 @@ type PieChartConfig = {
     isValueLabelOverriden: boolean;
     isShowValueOverriden: boolean;
     isShowPercentageOverriden: boolean;
-
-    defaultColors: string[];
 
     sortedGroupLabels: string[];
     groupLabelOverrides: Record<string, string>;
@@ -89,6 +85,7 @@ export type PieChartConfigFn = (
     itemsMap: ItemsMap | undefined,
     dimensions: Record<string, CustomDimension | Dimension>,
     numericMetrics: Record<string, Metric>,
+    colorPalette: string[],
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
@@ -97,9 +94,8 @@ const usePieChartConfig: PieChartConfigFn = (
     itemsMap,
     dimensions,
     numericMetrics,
+    colorPalette,
 ) => {
-    const { data: org } = useOrganization();
-
     const [groupFieldIds, setGroupFieldIds] = useState(
         pieChartConfig?.groupFieldIds ?? [],
     );
@@ -152,11 +148,6 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [legendPosition, setLegendPosition] = useState(
         pieChartConfig?.legendPosition ?? PieChartLegendPositionDefault,
-    );
-
-    const defaultColors = useMemo(
-        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
-        [org],
     );
 
     const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
@@ -294,10 +285,10 @@ const usePieChartConfig: PieChartConfigFn = (
         return Object.fromEntries(
             groupLabels.map((name, index) => [
                 name,
-                defaultColors[index % defaultColors.length],
+                colorPalette[index % colorPalette.length],
             ]),
         );
-    }, [groupLabels, defaultColors]);
+    }, [groupLabels, colorPalette]);
 
     const handleGroupChange = useCallback(
         (prevDimensionId: string, newDimensionId: string) => {
@@ -474,8 +465,6 @@ const usePieChartConfig: PieChartConfigFn = (
         isValueLabelOverriden,
         isShowValueOverriden,
         isShowPercentageOverriden,
-
-        defaultColors,
 
         sortedGroupLabels,
         groupLabelOverrides,

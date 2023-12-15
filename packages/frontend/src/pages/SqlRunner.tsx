@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartType,
+    ECHARTS_DEFAULT_COLORS,
     getCustomLabelsFromTableConfig,
     NotFoundError,
 } from '@lightdash/common';
@@ -29,6 +30,7 @@ import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerLoadingSkeleton from '../components/SqlRunner/SqlRunerLoadingSkeleton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import {
     ProjectCatalogTreeNode,
@@ -56,6 +58,7 @@ enum SqlRunnerCards {
 
 const SqlRunnerPage = () => {
     const { user, health } = useApp();
+    const { data: org } = useOrganization();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const initialState = useSqlRunnerUrlState();
     const sqlQueryMutation = useSqlQueryMutation();
@@ -260,6 +263,7 @@ const SqlRunnerPage = () => {
                     pivotTableMaxColumnLimit={
                         health.data.pivotTable.maxColumnLimit
                     }
+                    colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
                 >
                     <CollapsableCard
                         title="Charts"

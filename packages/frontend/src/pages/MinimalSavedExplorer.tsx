@@ -53,6 +53,7 @@ const MinimalExplorer: FC = () => {
             columnOrder={savedChart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={savedChart.uuid}
+            colorPalette={savedChart.colorPalette}
         >
             <MantineProvider inherit theme={themeOverride}>
                 <StyledLightdashVisualization

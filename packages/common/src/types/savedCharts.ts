@@ -305,6 +305,7 @@ export type SavedChart = {
     pinnedListOrder: number | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    colorPalette: string[];
 };
 
 type CreateChartBase = Pick<
@@ -345,6 +346,7 @@ export type CreateSavedChartVersion = Omit<
     | 'firstViewedAt'
     | 'dashboardUuid'
     | 'dashboardName'
+    | 'colorPalette'
 >;
 
 export type UpdateSavedChart = Partial<

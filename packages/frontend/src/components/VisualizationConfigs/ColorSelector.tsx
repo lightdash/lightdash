@@ -1,4 +1,3 @@
-import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import {
     ColorPicker as MantineColorPicker,
     ColorSwatch,
@@ -8,14 +7,13 @@ import {
 } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { FC } from 'react';
-import { useOrganization } from '../../hooks/organization/useOrganization';
 import { isHexCodeColor } from '../../utils/colorUtils';
 import MantineIcon from '../common/MantineIcon';
 
 interface Props {
     color?: string;
     defaultColor?: string;
-    swatches?: string[];
+    swatches: string[];
     onColorChange: (newColor: string) => void;
 }
 
@@ -25,9 +23,6 @@ const ColorSelector: FC<Props> = ({
     swatches,
     onColorChange,
 }) => {
-    const { data } = useOrganization();
-
-    swatches = data?.chartColors || ECHARTS_DEFAULT_COLORS;
     const isValidHexColor = color && isHexCodeColor(color);
 
     return (

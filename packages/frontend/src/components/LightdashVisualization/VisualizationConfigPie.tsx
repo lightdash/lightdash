@@ -32,6 +32,7 @@ type VisualizationConfigPieProps =
     VisualizationConfigCommon<VisualizationConfigPie> & {
         // TODO: shared prop once all visualizations are converted
         itemsMap: ItemsMap | undefined;
+        colorPalette: string[];
     };
 
 const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
@@ -39,6 +40,7 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     initialChartConfig,
     onChartConfigChange,
     itemsMap,
+    colorPalette,
     children,
 }) => {
     const { dimensions, numericMetrics } = useMemo(
@@ -58,6 +60,7 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
         itemsMap,
         dimensions,
         numericMetrics,
+        colorPalette,
     );
 
     useEffect(() => {

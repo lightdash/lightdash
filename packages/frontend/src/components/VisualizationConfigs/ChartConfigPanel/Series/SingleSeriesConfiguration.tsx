@@ -23,6 +23,7 @@ import {
 import React, { FC } from 'react';
 import { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
 import MantineIcon from '../../../common/MantineIcon';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
 
 type Props = {
@@ -52,6 +53,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     toggleIsOpen,
     dragHandleProps,
 }) => {
+    const { colorPalette } = useVisualizationContext();
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
@@ -88,6 +90,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 )}
                 <ColorSelector
                     color={series.color || fallbackColor}
+                    swatches={colorPalette}
                     onColorChange={(color) => {
                         updateSingleSeries({
                             ...series,
