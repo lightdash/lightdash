@@ -1,3 +1,11 @@
+# [0.906.0](https://github.com/lightdash/lightdash/compare/0.905.1...0.906.0) (2023-12-15)
+
+
+### Features
+
+* create project settings in mantine ([#8323](https://github.com/lightdash/lightdash/issues/8323)) ([9c51d30](https://github.com/lightdash/lightdash/commit/9c51d30f3b7d101367ba08f87a59f11478ab813b))
+* explore collapsibles ([#8322](https://github.com/lightdash/lightdash/issues/8322)) ([9921124](https://github.com/lightdash/lightdash/commit/99211241f8b655fa8b521c41b65b3fb78bd46621))
+
 ## [0.905.1](https://github.com/lightdash/lightdash/compare/0.905.0...0.905.1) (2023-12-15)
 
 
