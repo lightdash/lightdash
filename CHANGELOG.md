@@ -1,3 +1,10 @@
+## [0.907.2](https://github.com/lightdash/lightdash/compare/0.907.1...0.907.2) (2023-12-15)
+
+
+### Bug Fixes
+
+* only send org name if it didn't exist ([#8335](https://github.com/lightdash/lightdash/issues/8335)) ([2975600](https://github.com/lightdash/lightdash/commit/29756004677e4f94cb6be0374f1a6cbac87b3768))
+
 ## [0.907.1](https://github.com/lightdash/lightdash/compare/0.907.0...0.907.1) (2023-12-15)
 
 
