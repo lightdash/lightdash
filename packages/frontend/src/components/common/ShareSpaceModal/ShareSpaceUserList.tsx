@@ -120,15 +120,18 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     const role = upperFirst(sharedUser.role?.toString() || '');
 
                     const userAccessTypes = UserAccessOptions.map(
-                        (accessType) => {
-                            return accessType.value === UserAccessAction.KEEP
+                        (accessType) =>
+                            accessType.value === UserAccessAction.KEEP
                                 ? {
                                       ...accessType,
                                       title: role,
                                   }
-                                : accessType;
-                        },
+                                : accessType,
                     );
+
+                    const roleType = userAccessTypes.find(
+                        (uat) => uat.title === role,
+                    )?.value;
 
                     return (
                         <Group
@@ -138,7 +141,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                             noWrap
                         >
                             <Group>
-                                <Avatar radius="xl">
+                                <Avatar radius="xl" tt="uppercase">
                                     {getInitials(
                                         sharedUser.userUuid,
                                         organizationUsers,
@@ -176,7 +179,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                         label: u.title,
                                         ...u,
                                     }))}
-                                    value={role}
+                                    value={roleType}
                                     itemComponent={UserAccessSelectItem}
                                     onChange={(item) => {
                                         if (item === UserAccessAction.DELETE) {
