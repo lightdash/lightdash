@@ -4,10 +4,9 @@ import {
     ApiScheduledDownloadCsv,
     SchedulerJobStatus,
 } from '@lightdash/common';
-import { Loader } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery } from 'react-query';
 import { getCsvFileUrl } from '../../../api/csv';
-import { AppToaster } from '../../../components/AppToaster';
 import useToaster from '../../../hooks/toaster/useToaster';
 
 const useExportToGoogleSheetStart = ({
@@ -15,23 +14,23 @@ const useExportToGoogleSheetStart = ({
 }: {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
 }) => {
-    const { showToastError, showToast } = useToaster();
+    const { showToastError, showToastInfo } = useToaster();
 
     return useMutation<ApiScheduledDownloadCsv | undefined, ApiError>(
         ['google-sheets-start'],
         getGsheetLink,
         {
             onMutate: () => {
-                showToast({
+                showToastInfo({
                     title: 'Exporting Google Sheets',
                     subtitle: 'This may take a few minutes...',
-                    icon: <Loader color="dark" size="xs" />,
+                    loading: true,
                     key: 'exporting-gsheets',
-                    timeout: 0,
+                    autoClose: false,
                 });
             },
             onError: (error) => {
-                AppToaster.dismiss('exporting-gsheets');
+                notifications.hide('exporting-gsheets');
                 showToastError({
                     title: `Unable to upload to Google Sheets`,
                     subtitle: error?.error?.message,
@@ -86,11 +85,11 @@ export const useExportToGoogleSheet = ({
         onSuccess: (data) => {
             if (data?.url && data.status === SchedulerJobStatus.COMPLETED) {
                 window.open(data.url, '_blank');
-                AppToaster.dismiss('exporting-gsheets');
+                notifications.hide('exporting-gsheets');
             }
         },
         onError: () => {
-            AppToaster.dismiss('exporting-gsheets');
+            notifications.hide('exporting-gsheets');
         },
         refetchOnWindowFocus: false,
         refetchOnMount: false,

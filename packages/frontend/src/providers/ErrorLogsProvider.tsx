@@ -79,7 +79,7 @@ export const ErrorLogsProvider: FC = ({ children }) => {
                     title: errorLog.title,
                     subtitle: errorLog.body,
                     key: errorLog.timestamp.toString(),
-                    onDismiss: () => deleteError(errorLogs.indexOf(errorLog)),
+                    onClose: () => deleteError(errorLogs.indexOf(errorLog)),
                 });
             });
         }

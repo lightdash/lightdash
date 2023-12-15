@@ -1,6 +1,7 @@
 import { ApiError, Job, JobStatusType, JobType } from '@lightdash/common';
-import { Loader } from '@mantine/core';
-import React, {
+import { notifications } from '@mantine/notifications';
+import { IconArrowRight } from '@tabler/icons-react';
+import {
     createContext,
     Dispatch,
     FC,
@@ -11,7 +12,6 @@ import React, {
     useState,
 } from 'react';
 import { useQueryClient } from 'react-query';
-import { AppToaster } from '../components/AppToaster';
 import useToaster from '../hooks/toaster/useToaster';
 import {
     jobStatusLabel,
@@ -62,32 +62,26 @@ export const ActiveJobProvider: FC = ({ children }) => {
                             subtitle: job?.steps
                                 ? runningStepsInfo(job?.steps)
                                       .runningStepMessage
-                                : '',
-                            icon: (
-                                <Loader
-                                    color="dark"
-                                    size="xs"
-                                    mt="sm"
-                                    ml="sm"
-                                />
-                            ),
-                            timeout: 0,
+                                : undefined,
+                            loading: true,
+                            autoClose: false,
                             action: {
-                                text: 'View log',
-                                icon: 'arrow-right',
+                                children: 'View log',
+                                icon: IconArrowRight,
                                 onClick: () => setIsJobsDrawerOpen(true),
                             },
-                            className: 'toast-with-no-close-button',
+                            withCloseButton: false,
                         });
                         break;
                     case 'ERROR':
-                        AppToaster.dismiss(TOAST_KEY_FOR_REFRESH_JOB);
+                        notifications.hide(TOAST_KEY_FOR_REFRESH_JOB);
                         setIsJobsDrawerOpen(true);
                 }
             }
         },
         [showToastInfo, showToastSuccess, queryClient, isJobsDrawerOpen],
     );
+
     const toastJobError = (error: ApiError) => {
         showToastError({
             key: TOAST_KEY_FOR_REFRESH_JOB,
@@ -105,7 +99,7 @@ export const ActiveJobProvider: FC = ({ children }) => {
     useEffect(() => {
         if (activeJobId && activeJob && activeJob.jobStatus === 'RUNNING') {
             if (isJobsDrawerOpen) {
-                AppToaster.dismiss(TOAST_KEY_FOR_REFRESH_JOB);
+                notifications.hide(TOAST_KEY_FOR_REFRESH_JOB);
             } else {
                 toastJobStatus(activeJob);
             }
