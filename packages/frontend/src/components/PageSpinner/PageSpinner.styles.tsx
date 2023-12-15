@@ -10,6 +10,10 @@ const centerItem = css`
 
 export const SpinnerWrapper = styled.div`
     ${centerItem}
+
+    & > svg > g  > g {
+        stroke-width: 2;
+    }
 `;
 
 export const LogoContainer = styled(Logo)`

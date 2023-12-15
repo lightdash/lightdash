@@ -4,7 +4,7 @@ import { LogoContainer, SpinnerWrapper } from './PageSpinner.styles';
 
 const PageSpinner: FC = () => (
     <SpinnerWrapper data-testid="page-spinner">
-        <Loader color="gray.5" size={100} />
+        <Loader color="gray.6" size={100} />
         <LogoContainer />
     </SpinnerWrapper>
 );
