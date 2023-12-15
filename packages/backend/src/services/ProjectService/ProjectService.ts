@@ -246,7 +246,7 @@ export class ProjectService {
                       warehouse:
                           snowflakeVirtualWarehouse || credentials.warehouse,
                   }
-                : credentials;
+                : warehouseSshCredentials;
         const client = this.projectModel.getWarehouseClientFromCredentials(
             credentialsWithWarehouse,
         );
