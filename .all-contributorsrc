@@ -1266,6 +1266,16 @@
         "bug",
         "code"
       ]
+    },
+    {
+      "login": "dansreis",
+      "name": "Daniel Reis",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9052608?v=4",
+      "profile": "https://github.com/dansreis",
+      "contributions": [
+        "code",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
