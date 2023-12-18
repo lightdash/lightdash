@@ -297,12 +297,12 @@ docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env
 
 #### Setup Development Environment without Docker
 
-To setup Development Environment without Docker you need following pre-requisits before running Lightdash:
+To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
--   node 14.x <= version <= 16.x
+-   node >= v18.x (20 is preferred)
 -   yarn
 -   postgres
--   dbt
+-   dbt 1.4.x or 1.5.x
 
 eg. on MacOS you can follow this instructions:
 
@@ -324,8 +324,8 @@ brew install postgresql@14
 brew services start postgresql@14
 
 #5 install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
-brew tap dbt-labs/dbt
-brew install dbt-postgres
+brew tap dbt-labs/dbt@1.4.9
+brew install dbt-postgres@1.4.9
 
 #6 clone the repo and open it in your IDE
 git clone https://github.com/lightdash/lightdash.git
