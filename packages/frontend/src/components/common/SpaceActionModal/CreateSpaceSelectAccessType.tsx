@@ -1,12 +1,12 @@
-import { Icon } from '@blueprintjs/core';
 import { Select2 } from '@blueprintjs/select';
+import { Avatar, Group } from '@mantine/core';
+import { IconLock, IconUsers } from '@tabler/icons-react';
 import { FC } from 'react';
-
 import { useProject } from '../../../hooks/useProject';
+import MantineIcon from '../MantineIcon';
 import {
     AccessRole,
     ChangeAccessButton,
-    FlexWrapper,
     PrimaryAndSecondaryTextWrapper,
     PrimaryText,
     SecondaryText,
@@ -18,7 +18,6 @@ import {
     SpaceAccessOptions,
     SpaceAccessType,
 } from '../ShareSpaceModal/ShareSpaceSelect';
-import { ShareCircle } from './SpaceActionModal.style';
 
 interface ShareSpaceAccessTypeProps {
     selectedAccess: AccessOption;
@@ -34,16 +33,16 @@ export const CreateSpaceSelectAccessType: FC<ShareSpaceAccessTypeProps> = ({
     const { data: project } = useProject(projectUuid);
 
     return (
-        <FlexWrapper>
-            <ShareCircle>
-                <Icon
+        <Group>
+            <Avatar radius="xl">
+                <MantineIcon
                     icon={
                         selectedAccess.value === SpaceAccessType.PRIVATE
-                            ? 'lock'
-                            : 'people'
+                            ? IconLock
+                            : IconUsers
                     }
                 />
-            </ShareCircle>
+            </Avatar>
 
             <PrimaryAndSecondaryTextWrapper>
                 <PrimaryText>Members of {project?.name}</PrimaryText>
@@ -71,6 +70,6 @@ export const CreateSpaceSelectAccessType: FC<ShareSpaceAccessTypeProps> = ({
                     </ChangeAccessButton>
                 </Select2>
             </AccessRole>
-        </FlexWrapper>
+        </Group>
     );
 };

@@ -7,16 +7,21 @@ import {
     ProjectMemberRole,
     Space,
 } from '@lightdash/common';
-import { FC, useCallback, useMemo, useState } from 'react';
-
+import {
+    Avatar,
+    Button,
+    Group,
+    MultiSelect,
+    SelectItem,
+    Text,
+} from '@mantine/core';
+import { FC, forwardRef, useCallback, useMemo, useState } from 'react';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
-    FlexWrapper,
     PrimaryAndSecondaryTextWrapper,
     PrimaryText,
     SecondaryText,
-    ShareButton,
     UserCircle,
 } from './ShareSpaceModal.style';
 import { getInitials, getUserNameOrEmail } from './Utils';
@@ -36,7 +41,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const [searchQuery, setSearchQuery] = useState<string>('');
     const { data: projectAccess } = useProjectAccess(projectUuid);
 
-    const { mutate: shareSpaceMutation } = useAddSpaceShareMutation(
+    const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
@@ -116,7 +121,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     }
                     disabled={isDisabled}
                     text={
-                        <FlexWrapper key={user.userUuid}>
+                        <Group key={user.userUuid}>
                             <UserCircle>
                                 {getInitials(user.userUuid, organizationUsers)}
                             </UserCircle>
@@ -140,7 +145,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                                     </PrimaryText>
                                 )}
                             </PrimaryAndSecondaryTextWrapper>
-                        </FlexWrapper>
+                        </Group>
                     }
                     onClick={(e) => {
                         // Toggle user selected if selected
@@ -161,46 +166,123 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         [usersSelected, space, organizationUsers, projectAccess],
     );
 
-    return (
-        <FlexWrapper>
-            <MultiSelect2
-                fill
-                itemPredicate={filterUser}
-                itemRenderer={renderUserShare}
-                items={userUuids || []}
-                noResults={<MenuItem2 disabled text="No suggestions." />}
-                onItemSelect={(select) => {
-                    setUsersSelected([...usersSelected, select]);
-                    setSearchQuery('');
-                }}
-                query={searchQuery}
-                onQueryChange={setSearchQuery}
-                tagRenderer={(userUuid) =>
-                    getUserNameOrEmail(userUuid, organizationUsers)
-                }
-                resetOnQuery={true}
-                popoverProps={{
-                    minimal: true,
-                    matchTargetWidth: true,
-                    onClosing: () => setSearchQuery(''),
-                }}
-                tagInputProps={{
-                    placeholder: 'Start typing to search for users...',
-                    addOnBlur: false,
-                    tagProps: {
-                        minimal: true,
-                    },
-                    onRemove: (e) => {
-                        setSearchQuery('');
-                        handleRemove(e);
-                    },
-                }}
-                selectedItems={usersSelected}
-            />
+    const UserItemComponent = useMemo(() => {
+        return forwardRef<HTMLDivElement, SelectItem>((props, ref) => {
+            const user = organizationUsers?.find(
+                (userAccess) => userAccess.userUuid === props.value,
+            );
 
-            <ShareButton
-                text="Share"
-                intent="primary"
+            if (!user) return null;
+
+            return (
+                <Group ref={ref} {...props}>
+                    <Avatar radius="xl">
+                        {getInitials(user.userUuid, organizationUsers)}
+                    </Avatar>
+
+                    <PrimaryAndSecondaryTextWrapper>
+                        {user.firstName || user.lastName ? (
+                            <>
+                                <Text fw={500}>
+                                    {user.firstName} {user.lastName}
+                                </Text>
+
+                                <Text color="dimmed">{user.email}</Text>
+                            </>
+                        ) : (
+                            <Text>{user.email}</Text>
+                        )}
+                    </PrimaryAndSecondaryTextWrapper>
+                </Group>
+            );
+        });
+    }, [organizationUsers]);
+
+    return (
+        <Group>
+            <div style={{ width: '100%' }}>
+                <MultiSelect2
+                    fill
+                    itemPredicate={filterUser}
+                    itemRenderer={renderUserShare}
+                    items={userUuids || []}
+                    noResults={<MenuItem2 disabled text="No suggestions." />}
+                    onItemSelect={(select) => {
+                        setUsersSelected([...usersSelected, select]);
+                        setSearchQuery('');
+                    }}
+                    query={searchQuery}
+                    onQueryChange={setSearchQuery}
+                    tagRenderer={(userUuid) =>
+                        getUserNameOrEmail(userUuid, organizationUsers)
+                    }
+                    resetOnQuery={true}
+                    popoverProps={{
+                        minimal: true,
+                        matchTargetWidth: true,
+                        onClosing: () => setSearchQuery(''),
+                    }}
+                    tagInputProps={{
+                        placeholder: 'Start typing to search for users...',
+                        addOnBlur: false,
+                        tagProps: {
+                            minimal: true,
+                        },
+                        onRemove: (e) => {
+                            setSearchQuery('');
+                            handleRemove(e);
+                        },
+                    }}
+                    selectedItems={usersSelected}
+                />
+
+                <MultiSelect
+                    searchable
+                    clearable
+                    searchValue={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    clearSearchOnChange
+                    clearSearchOnBlur
+                    placeholder="Start typing to search for users..."
+                    nothingFound="No users found"
+                    value={usersSelected}
+                    onChange={setUsersSelected}
+                    data={userUuids
+                        .map((userUuid): SelectItem | null => {
+                            const projectUser = projectAccess?.find(
+                                (pUser) => pUser.userUuid === userUuid,
+                            );
+
+                            const user = organizationUsers?.find(
+                                (userAccess) =>
+                                    userAccess.userUuid === userUuid,
+                            );
+
+                            if (!user) return null;
+
+                            const isAdmin =
+                                user.role === OrganizationMemberRole.ADMIN ||
+                                projectUser?.role === ProjectMemberRole.ADMIN;
+
+                            return {
+                                value: userUuid,
+                                label: getUserNameOrEmail(
+                                    userUuid,
+                                    organizationUsers,
+                                ),
+                                disabled:
+                                    isAdmin ||
+                                    space.access
+                                        ?.map((access) => access.userUuid)
+                                        .includes(userUuid),
+                            };
+                        })
+                        .filter((item): item is SelectItem => item !== null)}
+                    itemComponent={UserItemComponent}
+                />
+            </div>
+
+            <Button
                 disabled={usersSelected.length === 0}
                 onClick={async () => {
                     for (const userUuid of usersSelected) {
@@ -208,7 +290,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     }
                     setUsersSelected([]);
                 }}
-            />
-        </FlexWrapper>
+            >
+                Share
+            </Button>
+        </Group>
     );
 };

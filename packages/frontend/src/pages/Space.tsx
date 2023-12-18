@@ -1,4 +1,3 @@
-import { Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     LightdashMode,
@@ -8,6 +7,8 @@ import {
 import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
 import {
     IconDots,
+    IconFolderCog,
+    IconFolderX,
     IconLayoutDashboard,
     IconPlus,
     IconSquarePlus,
@@ -280,7 +281,7 @@ const Space: FC = () => {
                                     actionType={ActionType.UPDATE}
                                     title="Update space"
                                     confirmButtonLabel="Update"
-                                    icon="folder-close"
+                                    icon={IconFolderCog}
                                     onClose={() => setUpdateSpace(false)}
                                 />
                             )}
@@ -291,8 +292,8 @@ const Space: FC = () => {
                                     actionType={ActionType.DELETE}
                                     title="Delete space"
                                     confirmButtonLabel="Delete"
-                                    confirmButtonIntent={Intent.DANGER}
-                                    icon="folder-close"
+                                    confirmButtonColor="red"
+                                    icon={IconFolderX}
                                     onSubmitForm={() => {
                                         if (
                                             location.pathname.includes(

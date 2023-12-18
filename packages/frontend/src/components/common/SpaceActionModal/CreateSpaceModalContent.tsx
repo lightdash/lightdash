@@ -1,23 +1,14 @@
-import { Radio } from '@blueprintjs/core';
 import {
     OrganizationMemberRole,
     ProjectMemberRole,
     SpaceShare,
 } from '@lightdash/common';
+import { Avatar, Group, Radio, Stack, Text, TextInput } from '@mantine/core';
 import upperFirst from 'lodash-es/upperFirst';
 import { FC, useMemo, useState } from 'react';
 import { CreateSpaceModalBody } from '.';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
-import Input from '../../ReactHookForm/Input';
-import RadioGroup from '../../ReactHookForm/RadioGroup';
-import {
-    FlexWrapper,
-    PrimaryText,
-    UserCircle,
-    UserRole,
-    YouLabel,
-} from '../ShareSpaceModal/ShareSpaceModal.style';
 import {
     AccessOption,
     SpaceAccessOptions,
@@ -25,7 +16,6 @@ import {
 } from '../ShareSpaceModal/ShareSpaceSelect';
 import { CreateSpaceAddUser } from './CreateSpaceAddUser';
 import { CreateSpaceSelectAccessType } from './CreateSpaceSelectAccessType';
-import { RadioDescription, ShareSpaceWrapper } from './SpaceActionModal.style';
 
 export enum CreateModalStep {
     SET_NAME = 'first',
@@ -38,21 +28,29 @@ const renderUser = (user: {
     firstName: string;
     lastName: string;
     role: string;
-}) => {
-    return (
-        <FlexWrapper key={user.userUuid}>
-            <UserCircle>
-                {user.firstName.substr(0, 1) + user.lastName.substr(0, 1)}
-            </UserCircle>
+}) => (
+    <Group>
+        <Avatar radius="xl">
+            {user.firstName.charAt(0) + user.lastName.charAt(0)}
+        </Avatar>
 
-            <PrimaryText>
-                {user.firstName + ' ' + user.lastName}
-                {user.isYou && <YouLabel> (you)</YouLabel>}
-            </PrimaryText>
-            <UserRole>{upperFirst(user.role)}</UserRole>
-        </FlexWrapper>
-    );
-};
+        <Text fw={500}>
+            {user.firstName + ' ' + user.lastName}
+
+            {user.isYou && (
+                <Text span fw={300}>
+                    {' '}
+                    (you)
+                </Text>
+            )}
+        </Text>
+
+        <Text ta="right" fw={300}>
+            {upperFirst(user.role)}
+        </Text>
+    </Group>
+);
+
 const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     modalStep,
     projectUuid,
@@ -105,41 +103,39 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     switch (modalStep) {
         case CreateModalStep.SET_NAME:
             return (
-                <>
-                    <Input
+                <Stack>
+                    <TextInput
+                        {...form.getInputProps('name')}
                         label="Enter a memorable name for your space"
-                        name="name"
                         placeholder="eg. KPIs"
-                        defaultValue=""
-                        rules={{ required: 'Name field is required' }}
                     />
-                    <RadioGroup
-                        name="private"
+
+                    <Radio.Group
+                        {...form.getInputProps('isPrivate')}
                         defaultValue={SpaceAccessType.PRIVATE}
                     >
-                        <Radio
-                            label="Private"
-                            value={SpaceAccessType.PRIVATE}
-                            onClick={() => setIsShared(false)}
-                        />
-                        <RadioDescription>
-                            Only you and admins can access this space.
-                        </RadioDescription>
-                        <Radio
-                            label="Shared"
-                            value={SpaceAccessType.PUBLIC}
-                            onClick={() => setIsShared(true)}
-                        />
-                        <RadioDescription>
-                            Choose who can access this space.
-                        </RadioDescription>
-                    </RadioGroup>
-                </>
+                        <Stack spacing="xs">
+                            <Radio
+                                label="Private"
+                                description="Only you and admins can access this space."
+                                value={SpaceAccessType.PRIVATE}
+                                onClick={() => setIsShared(false)}
+                            />
+
+                            <Radio
+                                label="Shared"
+                                description="Choose who can access this space."
+                                value={SpaceAccessType.PUBLIC}
+                                onClick={() => setIsShared(true)}
+                            />
+                        </Stack>
+                    </Radio.Group>
+                </Stack>
             );
 
         default:
             return (
-                <ShareSpaceWrapper>
+                <Stack spacing="xl">
                     {selectedAccess?.value === SpaceAccessType.PRIVATE && (
                         <CreateSpaceAddUser
                             projectUuid={projectUuid}
@@ -151,10 +147,10 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                         projectUuid={projectUuid}
                         selectedAccess={selectedAccess}
                         setSelectedAccess={(access) => {
-                            form?.setValue(
-                                'isPrivate',
-                                access.value === SpaceAccessType.PRIVATE,
-                            );
+                            form?.setValues({
+                                isPrivate:
+                                    access.value === SpaceAccessType.PRIVATE,
+                            });
                             setSelectedAccess(access);
                         }}
                     />
@@ -170,7 +166,7 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                             role: sessionUser.role!,
                             isYou: true,
                         })}
-                </ShareSpaceWrapper>
+                </Stack>
             );
     }
 };

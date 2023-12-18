@@ -1,17 +1,5 @@
-import { AnchorButton, Button, Classes, Colors } from '@blueprintjs/core';
+import { AnchorButton, Classes, Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
-
-export const FlexWrapper = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 12px;
-`;
-
-export const ShareButton = styled(Button)`
-    width: 100px;
-    text-align: center;
-    border-radius: 3px;
-`;
 
 export const ChangeAccessButton = styled(AnchorButton)`
     height: 24px;

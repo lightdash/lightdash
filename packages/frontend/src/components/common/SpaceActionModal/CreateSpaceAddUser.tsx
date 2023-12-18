@@ -6,13 +6,13 @@ import {
     ProjectMemberRole,
     Space,
 } from '@lightdash/common';
+import { Group } from '@mantine/core';
+import { UseFormReturnType } from '@mantine/form';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { UseFormReturn } from 'react-hook-form';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
 import {
-    FlexWrapper,
     PrimaryAndSecondaryTextWrapper,
     PrimaryText,
     SecondaryText,
@@ -22,7 +22,7 @@ import { getInitials, getUserNameOrEmail } from '../ShareSpaceModal/Utils';
 
 interface CreateSpaceAddUserProps {
     projectUuid: string;
-    form?: UseFormReturn<Space, object>;
+    form?: UseFormReturnType<Space>;
 }
 
 export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
@@ -80,15 +80,14 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
     );
 
     useEffect(() => {
-        form?.setValue(
-            'access',
-            usersSelected.map((userUuid) => ({
+        form?.setValues({
+            access: usersSelected.map((userUuid) => ({
                 userUuid: userUuid,
                 firstName: '',
                 lastName: '',
                 role: ProjectMemberRole.VIEWER,
             })),
-        );
+        });
     }, [form, usersSelected]);
     const renderUserShare: ItemRenderer<string> = useCallback(
         (userUuid, { modifiers, handleClick }) => {
@@ -116,7 +115,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
                     key={user.userUuid}
                     disabled={isDisabled}
                     text={
-                        <FlexWrapper key={user.userUuid}>
+                        <Group key={user.userUuid}>
                             <UserCircle>
                                 {getInitials(user.userUuid, organizationUsers)}
                             </UserCircle>
@@ -140,7 +139,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
                                     </PrimaryText>
                                 )}
                             </PrimaryAndSecondaryTextWrapper>
-                        </FlexWrapper>
+                        </Group>
                     }
                     onClick={(e) => {
                         // Toggle user selected if selected
@@ -167,7 +166,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
     );
 
     return (
-        <FlexWrapper>
+        <Group>
             <MultiSelect2
                 fill
                 itemPredicate={filterUser}
@@ -202,6 +201,6 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
                 }}
                 selectedItems={usersSelected}
             />
-        </FlexWrapper>
+        </Group>
     );
 };
