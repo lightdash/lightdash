@@ -39,44 +39,44 @@ export const ActiveJobProvider: FC = ({ children }) => {
 
     const toastJobStatus = useCallback(
         (job: Job | undefined) => {
-            if (job && !isJobsDrawerOpen) {
-                const toastTitle = jobStatusLabel(job?.jobStatus);
-                switch (job.jobStatus) {
-                    case 'DONE':
-                        if (job.jobType === JobType.CREATE_PROJECT) {
-                            queryClient.invalidateQueries(['projects']);
-                            queryClient.invalidateQueries([
-                                'projects',
-                                'defaultProject',
-                            ]);
-                        }
-                        showToastSuccess({
-                            key: TOAST_KEY_FOR_REFRESH_JOB,
-                            title: toastTitle,
-                        });
-                        break;
-                    case 'RUNNING':
-                        showToastInfo({
-                            key: TOAST_KEY_FOR_REFRESH_JOB,
-                            title: toastTitle,
-                            subtitle: job?.steps
-                                ? runningStepsInfo(job?.steps)
-                                      .runningStepMessage
+            if (!job || isJobsDrawerOpen) return;
+
+            const toastTitle = jobStatusLabel(job?.jobStatus);
+            switch (job.jobStatus) {
+                case 'DONE':
+                    if (job.jobType === JobType.CREATE_PROJECT) {
+                        queryClient.invalidateQueries(['projects']);
+                        queryClient.invalidateQueries([
+                            'projects',
+                            'defaultProject',
+                        ]);
+                    }
+                    showToastSuccess({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: toastTitle,
+                    });
+                    break;
+                case 'RUNNING':
+                    showToastInfo({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: toastTitle,
+                        subtitle:
+                            job.steps.length > 0
+                                ? runningStepsInfo(job.steps).runningStepMessage
                                 : undefined,
-                            loading: true,
-                            autoClose: false,
-                            action: {
-                                children: 'View log',
-                                icon: IconArrowRight,
-                                onClick: () => setIsJobsDrawerOpen(true),
-                            },
-                            withCloseButton: false,
-                        });
-                        break;
-                    case 'ERROR':
-                        notifications.hide(TOAST_KEY_FOR_REFRESH_JOB);
-                        setIsJobsDrawerOpen(true);
-                }
+                        loading: true,
+                        autoClose: false,
+                        withCloseButton: false,
+                        action: {
+                            children: 'View log',
+                            icon: IconArrowRight,
+                            onClick: () => setIsJobsDrawerOpen(true),
+                        },
+                    });
+                    break;
+                case 'ERROR':
+                    notifications.hide(TOAST_KEY_FOR_REFRESH_JOB);
+                    setIsJobsDrawerOpen(true);
             }
         },
         [showToastInfo, showToastSuccess, queryClient, isJobsDrawerOpen],

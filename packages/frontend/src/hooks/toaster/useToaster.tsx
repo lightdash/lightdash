@@ -1,6 +1,5 @@
 import { Button, ButtonProps, Stack } from '@mantine/core';
-import { useId } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
+import { NotificationProps, notifications } from '@mantine/notifications';
 import { PolymorphicComponentProps } from '@mantine/utils';
 import {
     Icon,
@@ -9,7 +8,8 @@ import {
     IconInfoCircleFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
+import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 
 type NotificationData = Omit<
@@ -24,21 +24,36 @@ type NotificationData = Omit<
 };
 
 const useToaster = () => {
-    const uuid = useId();
+    const openedKeys = useRef(new Set<string>());
 
     const showToast = useCallback(
         ({
-            key: id = uuid,
+            key = uuid(),
             subtitle,
             action,
             color: toastColor,
             autoClose = 5000,
             ...rest
         }: NotificationData) => {
-            notifications.show({
-                id,
+            const commonProps = {
                 autoClose,
                 color: toastColor,
+                styles: toastColor
+                    ? {
+                          title: {
+                              color: 'white',
+                              fontWeight: 700,
+                              marginBottom:
+                                  !subtitle && !action ? 0 : undefined,
+                          },
+                          closeButton: {
+                              ':hover': {
+                                  background: 'rgba(255, 255, 255, 0.2)',
+                              },
+                              color: 'white',
+                          },
+                      }
+                    : undefined,
                 message:
                     subtitle || action ? (
                         <Stack spacing="xs" align="flex-start">
@@ -68,33 +83,32 @@ const useToaster = () => {
                                         ) : undefined
                                     }
                                     onClick={(e) => {
-                                        notifications.hide(id);
+                                        notifications.hide(key);
                                         action.onClick?.(e);
                                     }}
                                 />
                             )}
                         </Stack>
                     ) : undefined,
-                styles: toastColor
-                    ? {
-                          title: {
-                              color: 'white',
-                              fontWeight: 700,
-                              marginBottom:
-                                  !subtitle && !action ? 0 : undefined,
-                          },
-                          closeButton: {
-                              ':hover': {
-                                  background: 'rgba(255, 255, 255, 0.2)',
-                              },
-                              color: 'white',
-                          },
-                      }
-                    : undefined,
+                onOpen: (props: NotificationProps) => {
+                    rest.onOpen?.(props);
+                    if (props.id) openedKeys.current.add(props.id);
+                },
+                onClose: (props: NotificationProps) => {
+                    rest.onClose?.(props);
+                    if (props.id) openedKeys.current.delete(props.id);
+                },
+            };
+
+            const method = openedKeys.current.has(key) ? 'update' : 'show';
+
+            notifications[method]({
+                id: key,
+                ...commonProps,
                 ...rest,
             });
         },
-        [uuid],
+        [],
     );
 
     const showToastSuccess = useCallback(
