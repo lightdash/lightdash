@@ -6,7 +6,7 @@ import { useExplore } from '../../hooks/useExplore';
 import { useProjects } from '../../hooks/useProjects';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { CustomVisualizationProvider } from '../CustomVisualization';
-import DrillDownModal from '../MetricQueryData/DrillDownModal';
+import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { CustomDimensionModal } from './CustomDimensionModal';

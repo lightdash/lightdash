@@ -61,7 +61,7 @@ import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
-import DrillDownModal from '../MetricQueryData/DrillDownModal';
+import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider, {
     getDataFromChartClick,
     useMetricQueryDataContext,

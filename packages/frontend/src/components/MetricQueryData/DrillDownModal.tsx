@@ -1,12 +1,4 @@
 import {
-    AnchorButton,
-    Button,
-    Classes,
-    Dialog,
-    FormGroup,
-    Intent,
-} from '@blueprintjs/core';
-import {
     ChartType,
     CompiledDimension,
     CreateSavedChartVersion,
@@ -25,11 +17,14 @@ import {
     PivotReference,
     ResultValue,
 } from '@lightdash/common';
+import { Button, Group, Modal, Stack, Title } from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
 import { FC, useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import FieldSelect from '../common/FieldSelect';
+import MantineIcon from '../common/MantineIcon';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
 type CombineFiltersArgs = {
@@ -39,6 +34,7 @@ type CombineFiltersArgs = {
     dashboardFilters?: DashboardFilters;
     extraFilters?: Filters;
 };
+
 const combineFilters = ({
     fieldValues,
     metricQuery,
@@ -154,8 +150,10 @@ const drillDownExploreUrl = ({
     );
     return `${pathname}?${search}`;
 };
-const DrillDownModal: FC = () => {
+
+export const DrillDownModal: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+
     const [selectedDimension, setSelectedDimension] =
         useState<CompiledDimension>();
 
@@ -203,43 +201,36 @@ const DrillDownModal: FC = () => {
     }, [closeDrillDownModal]);
 
     return (
-        <Dialog
-            isOpen={isDrillDownModalOpen}
-            onClose={closeDrillDownModal}
-            lazy
-            title={`Drill into "${value}"`}
+        <Modal
+            opened={isDrillDownModalOpen}
+            onClose={onClose}
+            title={<Title order={4}>Drill into "{value}"</Title>}
         >
-            <form>
-                <div className={Classes.DIALOG_BODY}>
-                    <FormGroup
-                        label="Pick a dimension to segment your metric by"
-                        labelFor="chart-name"
+            <Stack>
+                <FieldSelect
+                    withinPortal
+                    disabled={dimensionsAvailable.length === 0}
+                    item={selectedDimension}
+                    items={dimensionsAvailable}
+                    onChange={setSelectedDimension}
+                />
+                <Group position="right">
+                    <Button variant="outline" onClick={onClose}>
+                        Cancel
+                    </Button>
+
+                    <Button
+                        component="a"
+                        target="_blank"
+                        href={url}
+                        leftIcon={<MantineIcon icon={IconExternalLink} />}
+                        disabled={!selectedDimension}
+                        onClick={() => setTimeout(onClose, 500)}
                     >
-                        <FieldSelect
-                            disabled={dimensionsAvailable.length === 0}
-                            item={selectedDimension}
-                            items={dimensionsAvailable}
-                            onChange={setSelectedDimension}
-                        />
-                    </FormGroup>
-                </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button onClick={onClose}>Cancel</Button>
-                        <AnchorButton
-                            text="Open in new tab"
-                            href={url}
-                            target={'_blank'}
-                            disabled={!selectedDimension}
-                            onClick={onClose}
-                            intent={Intent.PRIMARY}
-                            type="submit"
-                        />
-                    </div>
-                </div>
-            </form>
-        </Dialog>
+                        Open in new tab
+                    </Button>
+                </Group>
+            </Stack>
+        </Modal>
     );
 };
-
-export default DrillDownModal;
