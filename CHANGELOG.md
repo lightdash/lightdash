@@ -1,3 +1,10 @@
+## [0.907.5](https://github.com/lightdash/lightdash/compare/0.907.4...0.907.5) (2023-12-18)
+
+
+### Bug Fixes
+
+* dashboard tile menu zindex ([#8345](https://github.com/lightdash/lightdash/issues/8345)) ([2cc954b](https://github.com/lightdash/lightdash/commit/2cc954bab498d92f698c7eb2fa39edd5d5620710))
+
 ## [0.907.4](https://github.com/lightdash/lightdash/compare/0.907.3...0.907.4) (2023-12-15)
 
 
