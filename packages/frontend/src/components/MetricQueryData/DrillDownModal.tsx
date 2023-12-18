@@ -203,8 +203,8 @@ export const DrillDownModal: FC = () => {
     return (
         <Modal
             opened={isDrillDownModalOpen}
-            onClose={closeDrillDownModal}
-            title={<Title order={4}>{`Drill into "${value}"`}</Title>}
+            onClose={onClose}
+            title={<Title order={4}>Drill into "{value}"</Title>}
         >
             <Stack>
                 <FieldSelect
@@ -218,18 +218,14 @@ export const DrillDownModal: FC = () => {
                     <Button variant="outline" onClick={onClose}>
                         Cancel
                     </Button>
+
                     <Button
                         component="a"
                         target="_blank"
                         href={url}
                         leftIcon={<MantineIcon icon={IconExternalLink} />}
                         disabled={!selectedDimension}
-                        // TODO: fix this timeout
-                        onMouseUpCapture={() =>
-                            setTimeout(() => {
-                                onClose();
-                            }, 500)
-                        }
+                        onClick={() => setTimeout(onClose, 500)}
                     >
                         Open in new tab
                     </Button>
