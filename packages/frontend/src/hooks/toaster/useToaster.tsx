@@ -1,4 +1,5 @@
 import { Button, ButtonProps, Stack } from '@mantine/core';
+import { useId } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { PolymorphicComponentProps } from '@mantine/utils';
 import {
@@ -23,9 +24,11 @@ type NotificationData = Omit<
 };
 
 const useToaster = () => {
+    const uuid = useId();
+
     const showToast = useCallback(
         ({
-            key: id,
+            key: id = uuid,
             subtitle,
             action,
             color: toastColor,
@@ -55,15 +58,19 @@ const useToaster = () => {
 
                             {action && (
                                 <Button
+                                    {...action}
                                     size="xs"
                                     variant="light"
+                                    color={toastColor}
                                     leftIcon={
                                         action.icon ? (
                                             <MantineIcon icon={action.icon} />
                                         ) : undefined
                                     }
-                                    color={toastColor}
-                                    {...action}
+                                    onClick={(e) => {
+                                        notifications.hide(id);
+                                        action.onClick?.(e);
+                                    }}
                                 />
                             )}
                         </Stack>
@@ -87,7 +94,7 @@ const useToaster = () => {
                 ...rest,
             });
         },
-        [],
+        [uuid],
     );
 
     const showToastSuccess = useCallback(
