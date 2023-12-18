@@ -17,7 +17,7 @@ type Props = {
 
 export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const theme = useMantineTheme();
-    const [isOpen, setIsOpen] = useState(false);
+    const [showOpenIcon, setShowOpenIcon] = useState(false);
 
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
@@ -37,10 +37,11 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
             withArrow
             closeOnItemClick
             closeOnClickOutside
-            opened={isOpen}
             offset={-1}
             position="bottom-end"
             disabled={isEditMode}
+            onOpen={() => setShowOpenIcon(true)}
+            onClose={() => setShowOpenIcon(false)}
         >
             <Menu.Target>
                 <Button
@@ -48,9 +49,6 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                     variant="default"
                     loaderPosition="center"
                     disabled={isEditMode}
-                    onClick={() => {
-                        setIsOpen((prev) => !prev);
-                    }}
                     sx={{
                         borderColor: dateZoomGranularity
                             ? theme.colors.blue['6']
@@ -59,7 +57,9 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                     leftIcon={<MantineIcon icon={IconCalendarSearch} />}
                     rightIcon={
                         <MantineIcon
-                            icon={isOpen ? IconChevronUp : IconChevronDown}
+                            icon={
+                                showOpenIcon ? IconChevronUp : IconChevronDown
+                            }
                         />
                     }
                 >
@@ -87,7 +87,6 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                         });
 
                         setDateZoomGranularity(undefined);
-                        setIsOpen(false);
                     }}
                     bg={
                         dateZoomGranularity === undefined
@@ -118,7 +117,6 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                 },
                             });
                             setDateZoomGranularity(granularity);
-                            setIsOpen(false);
                         }}
                         disabled={dateZoomGranularity === granularity}
                         bg={
