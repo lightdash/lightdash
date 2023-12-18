@@ -247,7 +247,7 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
 );
 
 const PieChartSeriesConfig: FC = () => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, colorPalette } = useVisualizationContext();
 
     const isPieChartConfig = isPieVisualizationConfig(visualizationConfig);
 
@@ -269,7 +269,6 @@ const PieChartSeriesConfig: FC = () => {
     if (!isPieChartConfig) return null;
 
     const {
-        defaultColors,
         valueLabel,
         valueLabelChange,
         showValue,
@@ -359,7 +358,7 @@ const PieChartSeriesConfig: FC = () => {
                                                           }
                                                         : {}
                                                 }
-                                                swatches={defaultColors}
+                                                swatches={colorPalette}
                                                 defaultColor={
                                                     groupColorDefaults[
                                                         groupLabel

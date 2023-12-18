@@ -3686,6 +3686,12 @@
             },
             "SavedChart": {
                 "properties": {
+                    "colorPalette": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
@@ -3766,6 +3772,7 @@
                     }
                 },
                 "required": [
+                    "colorPalette",
                     "dashboardName",
                     "dashboardUuid",
                     "pinnedListOrder",
@@ -5471,7 +5478,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.897.0",
+        "version": "0.907.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

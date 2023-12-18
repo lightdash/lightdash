@@ -8,7 +8,6 @@ import {
     createConditionalFormatingRule,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,
-    ECHARTS_DEFAULT_COLORS,
     FilterableItem,
     getConditionalFormattingConfigType,
     getItemId,
@@ -38,7 +37,6 @@ import {
 } from '@tabler/icons-react';
 import produce from 'immer';
 import React, { FC, useCallback, useMemo, useState } from 'react';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
 import FieldSelect from '../../common/FieldSelect';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
@@ -46,6 +44,7 @@ import ConditionalFormattingRule from './ConditionalFormattingRule';
 
 interface ConditionalFormattingProps {
     isDefaultOpen?: boolean;
+    colorPalette: string[];
     index: number;
     fields: FilterableItem[];
     value: ConditionalFormattingConfig;
@@ -60,22 +59,16 @@ const ConditionalFormattingRuleLabels = {
 
 const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     isDefaultOpen = true,
+    colorPalette,
     index: configIndex,
     fields,
     value,
     onChange,
     onRemove,
 }) => {
-    const { data: org } = useOrganization();
-
     const [isAddingRule, setIsAddingRule] = useState(false);
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
-
-    const defaultColors = useMemo(
-        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
-        [org],
-    );
 
     const field = useMemo(
         () => fields.find((f) => getItemId(f) === config?.target?.fieldId),
@@ -113,14 +106,14 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                 case ConditionalFormattingConfigType.Single:
                     return handleChange(
                         createConditionalFormattingConfigWithSingleColor(
-                            defaultColors[0],
+                            colorPalette[0],
                             config.target,
                         ),
                     );
                 case ConditionalFormattingConfigType.Range:
                     return handleChange(
                         createConditionalFormattingConfigWithColorRange(
-                            defaultColors[0],
+                            colorPalette[0],
                             config.target,
                         ),
                     );
@@ -131,7 +124,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                     );
             }
         },
-        [handleChange, config, defaultColors],
+        [handleChange, config, colorPalette],
     );
 
     const handleAddRule = useCallback(() => {
@@ -318,8 +311,8 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     withinPortal={false}
                                     withEyeDropper={false}
                                     format="hex"
-                                    swatches={defaultColors}
-                                    swatchesPerRow={defaultColors.length}
+                                    swatches={colorPalette}
+                                    swatchesPerRow={colorPalette.length}
                                     label="Select color"
                                     value={config.color}
                                     onChange={handleChangeSingleColor}
@@ -372,8 +365,8 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     withinPortal={false}
                                     withEyeDropper={false}
                                     format="hex"
-                                    swatches={defaultColors}
-                                    swatchesPerRow={defaultColors.length}
+                                    swatches={colorPalette}
+                                    swatchesPerRow={colorPalette.length}
                                     label="Start color"
                                     value={config.color.start}
                                     onChange={(newStartColor) =>
@@ -387,8 +380,8 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     withinPortal={false}
                                     withEyeDropper={false}
                                     format="hex"
-                                    swatches={defaultColors}
-                                    swatchesPerRow={defaultColors.length}
+                                    swatches={colorPalette}
+                                    swatchesPerRow={colorPalette.length}
                                     label="End color"
                                     value={config.color.end}
                                     onChange={(newEndColor) =>

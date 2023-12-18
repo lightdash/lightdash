@@ -1,6 +1,5 @@
 import {
     createConditionalFormattingConfigWithSingleColor,
-    ECHARTS_DEFAULT_COLORS,
     FilterableItem,
     getItemId,
     isFilterableItem,
@@ -10,28 +9,20 @@ import { Button, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
 
 const ConditionalFormattingList = ({}) => {
-    const { data: org } = useOrganization();
-
     const [isAddingNew, setIsAddingNew] = useState(false);
-    const { itemsMap, resultsData, visualizationConfig } =
+    const { itemsMap, resultsData, visualizationConfig, colorPalette } =
         useVisualizationContext();
 
     const chartConfig = useMemo(() => {
         if (!isTableVisualizationConfig(visualizationConfig)) return undefined;
         return visualizationConfig.chartConfig;
     }, [visualizationConfig]);
-
-    const defaultColors = useMemo(
-        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
-        [org],
-    );
 
     const activeFields = useMemo(() => {
         if (!resultsData) return new Set<string>();
@@ -76,12 +67,12 @@ const ConditionalFormattingList = ({}) => {
             produce(activeConfigs, (draft) => {
                 draft.push(
                     createConditionalFormattingConfigWithSingleColor(
-                        defaultColors[0],
+                        colorPalette[0],
                     ),
                 );
             }),
         );
-    }, [chartConfig, activeConfigs, defaultColors]);
+    }, [chartConfig, activeConfigs, colorPalette]);
 
     const handleRemove = useCallback(
         (index) => {
@@ -118,6 +109,7 @@ const ConditionalFormattingList = ({}) => {
             {activeConfigs.map((conditionalFormatting, index) => (
                 <ConditionalFormatting
                     key={index}
+                    colorPalette={colorPalette}
                     isDefaultOpen={activeConfigs.length === 1 || isAddingNew}
                     index={index}
                     fields={visibleActiveNumericFields}

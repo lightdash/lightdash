@@ -19,7 +19,6 @@ import {
 } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
-import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
@@ -43,8 +42,7 @@ type Props = {
 };
 
 const SeriesTab: FC<Props> = ({ items }) => {
-    const { visualizationConfig } = useVisualizationContext();
-    const { data: orgData } = useOrganization({ refetchOnMount: false });
+    const { visualizationConfig, colorPalette } = useVisualizationContext();
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -65,12 +63,11 @@ const SeriesTab: FC<Props> = ({ items }) => {
                 (sum, series, index) => ({
                     ...sum,
                     [getSeriesId(series)]:
-                        (orgData?.chartColors && orgData?.chartColors[index]) ||
-                        getDefaultSeriesColor(index),
+                        colorPalette[index] || getDefaultSeriesColor(index),
                 }),
                 {},
             );
-    }, [chartConfig, orgData]);
+    }, [chartConfig, colorPalette]);
 
     const getSeriesColor = useCallback(
         (seriesId: string) => {

@@ -67,6 +67,7 @@ type VisualizationContext = {
     ) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
+    colorPalette: string[];
 };
 
 const Context = createContext<VisualizationContext | undefined>(undefined);
@@ -110,6 +111,7 @@ type Props = {
     savedChartUuid?: string;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
+    colorPalette: string[];
 };
 
 const VisualizationProvider: FC<Props> = ({
@@ -129,6 +131,7 @@ const VisualizationProvider: FC<Props> = ({
     savedChartUuid,
     dashboardFilters,
     invalidateCache,
+    colorPalette,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -211,6 +214,7 @@ const VisualizationProvider: FC<Props> = ({
         onSeriesContextMenu,
         setChartType,
         setPivotDimensions,
+        colorPalette,
     };
 
     switch (chartConfig.type) {
@@ -243,6 +247,7 @@ const VisualizationProvider: FC<Props> = ({
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
+                    colorPalette={colorPalette}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
