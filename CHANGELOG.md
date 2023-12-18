@@ -1,3 +1,10 @@
+# [0.908.0](https://github.com/lightdash/lightdash/compare/0.907.6...0.908.0) (2023-12-18)
+
+
+### Features
+
+* mantine notifications ([#8340](https://github.com/lightdash/lightdash/issues/8340)) ([9c0135b](https://github.com/lightdash/lightdash/commit/9c0135b4d98a991dfef88fc2a51aa695fcda389b))
+
 ## [0.907.6](https://github.com/lightdash/lightdash/compare/0.907.5...0.907.6) (2023-12-18)
 
 
