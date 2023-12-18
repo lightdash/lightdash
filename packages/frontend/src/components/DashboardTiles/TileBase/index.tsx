@@ -137,6 +137,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 {(isEditMode ||
                                     (!isEditMode && extraMenuItems)) && (
                                     <Menu
+                                        withinPortal
                                         opened={isMenuOpen}
                                         onOpen={() => toggleMenu(true)}
                                         onClose={() => toggleMenu(false)}
