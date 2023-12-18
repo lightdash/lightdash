@@ -49,7 +49,6 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                     variant="default"
                     loaderPosition="center"
                     disabled={isEditMode}
-                    onClick={() => {}}
                     sx={{
                         borderColor: dateZoomGranularity
                             ? theme.colors.blue['6']
