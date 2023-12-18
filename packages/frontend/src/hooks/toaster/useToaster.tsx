@@ -38,7 +38,7 @@ const useToaster = () => {
                 color: toastColor,
                 message:
                     subtitle || action ? (
-                        <Stack spacing="xxs">
+                        <Stack spacing="xs" align="flex-start">
                             {typeof subtitle == 'string' ? (
                                 <MDEditor.Markdown
                                     source={subtitle}
