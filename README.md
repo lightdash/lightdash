@@ -353,6 +353,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://bilal.cc"><img src="https://avatars.githubusercontent.com/u/55330484?v=4?s=100" width="100px;" alt="Bilal Ahmad Bhat"/><br /><sub><b>Bilal Ahmad Bhat</b></sub></a><br /><a href="#ideas-crediblebilal" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/lightdash/lightdash/commits?author=crediblebilal" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Shifan-Gu"><img src="https://avatars.githubusercontent.com/u/101873365?v=4?s=100" width="100px;" alt="Shifan Gu"/><br /><sub><b>Shifan Gu</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AShifan-Gu" title="Bug reports">🐛</a> <a href="https://github.com/lightdash/lightdash/commits?author=Shifan-Gu" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/dansreis"><img src="https://avatars.githubusercontent.com/u/9052608?v=4?s=100" width="100px;" alt="Daniel Reis"/><br /><sub><b>Daniel Reis</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=dansreis" title="Code">💻</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Adansreis" title="Bug reports">🐛</a></td>
+    </tr>
   </tbody>
 </table>
 
