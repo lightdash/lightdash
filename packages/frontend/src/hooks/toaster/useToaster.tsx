@@ -1,52 +1,122 @@
-import { Intent, ToastProps } from '@blueprintjs/core';
+import { Button, ButtonProps, Stack } from '@mantine/core';
+import { NotificationProps, notifications } from '@mantine/notifications';
+import { PolymorphicComponentProps } from '@mantine/utils';
+import {
+    Icon,
+    IconAlertTriangleFilled,
+    IconCircleCheckFilled,
+    IconInfoCircleFilled,
+} from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import { useCallback } from 'react';
-import { AppToaster } from '../../components/AppToaster';
+import { useCallback, useRef } from 'react';
+import { v4 as uuid } from 'uuid';
+import MantineIcon from '../../components/common/MantineIcon';
 
-interface Message extends Omit<ToastProps, 'message'> {
-    title: string;
-    subtitle?: string;
+type NotificationData = Omit<
+    Parameters<typeof notifications.show>[0],
+    'message' | 'key'
+> & {
     key?: string;
-}
+    subtitle?: string | JSX.Element;
+    action?: PolymorphicComponentProps<'button', ButtonProps> & {
+        icon?: Icon;
+    };
+};
 
 const useToaster = () => {
+    const openedKeys = useRef(new Set<string>());
+
     const showToast = useCallback(
-        ({ title, subtitle, key, timeout = 5000, ...rest }: Message) => {
-            AppToaster.show(
-                {
-                    intent: Intent.NONE,
-                    message: (
-                        <div>
-                            <p style={{ fontWeight: 'bold', marginBottom: 0 }}>
-                                {title}
-                            </p>
-                            {subtitle && (
+        ({
+            key = uuid(),
+            subtitle,
+            action,
+            color: toastColor,
+            autoClose = 5000,
+            ...rest
+        }: NotificationData) => {
+            const commonProps = {
+                autoClose,
+                color: toastColor,
+                styles: toastColor
+                    ? {
+                          title: {
+                              color: 'white',
+                              fontWeight: 700,
+                              marginBottom:
+                                  !subtitle && !action ? 0 : undefined,
+                          },
+                          closeButton: {
+                              ':hover': {
+                                  background: 'rgba(255, 255, 255, 0.2)',
+                              },
+                              color: 'white',
+                          },
+                      }
+                    : undefined,
+                message:
+                    subtitle || action ? (
+                        <Stack spacing="xs" align="flex-start">
+                            {typeof subtitle == 'string' ? (
                                 <MDEditor.Markdown
                                     source={subtitle}
                                     linkTarget="_blank"
                                     style={{
                                         backgroundColor: 'transparent',
-                                        color: 'white',
+                                        color: toastColor ? 'white' : undefined,
                                         fontSize: '12px',
                                     }}
                                 />
+                            ) : (
+                                subtitle
                             )}
-                        </div>
-                    ),
-                    timeout,
-                    ...rest,
+
+                            {action && (
+                                <Button
+                                    {...action}
+                                    size="xs"
+                                    variant="light"
+                                    color={toastColor}
+                                    leftIcon={
+                                        action.icon ? (
+                                            <MantineIcon icon={action.icon} />
+                                        ) : undefined
+                                    }
+                                    onClick={(e) => {
+                                        notifications.hide(key);
+                                        action.onClick?.(e);
+                                    }}
+                                />
+                            )}
+                        </Stack>
+                    ) : undefined,
+                onOpen: (props: NotificationProps) => {
+                    rest.onOpen?.(props);
+                    if (props.id) openedKeys.current.add(props.id);
                 },
-                key || title,
-            );
+                onClose: (props: NotificationProps) => {
+                    rest.onClose?.(props);
+                    if (props.id) openedKeys.current.delete(props.id);
+                },
+            };
+
+            const method = openedKeys.current.has(key) ? 'update' : 'show';
+
+            notifications[method]({
+                id: key,
+                ...commonProps,
+                ...rest,
+            });
         },
         [],
     );
 
     const showToastSuccess = useCallback(
-        (props: Message) => {
+        (props: NotificationData) => {
             showToast({
-                intent: Intent.SUCCESS,
-                icon: 'tick-circle',
+                color: 'green',
+                bg: 'green',
+                icon: <MantineIcon icon={IconCircleCheckFilled} size="xl" />,
                 ...props,
             });
         },
@@ -54,11 +124,12 @@ const useToaster = () => {
     );
 
     const showToastError = useCallback(
-        (props: Message) => {
+        (props: NotificationData) => {
             showToast({
-                intent: Intent.DANGER,
-                icon: 'error',
-                timeout: 60000,
+                color: 'red',
+                bg: 'red',
+                icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
+                autoClose: 60000,
                 ...props,
             });
         },
@@ -66,10 +137,9 @@ const useToaster = () => {
     );
 
     const showToastInfo = useCallback(
-        (props: Message) => {
+        (props: NotificationData) => {
             showToast({
-                intent: Intent.NONE,
-                icon: 'info-sign',
+                icon: <MantineIcon icon={IconInfoCircleFilled} size="xl" />,
                 ...props,
             });
         },
@@ -77,10 +147,11 @@ const useToaster = () => {
     );
 
     const showToastPrimary = useCallback(
-        (props: Message) => {
+        (props: NotificationData) => {
             showToast({
-                intent: Intent.PRIMARY,
-                icon: 'info-sign',
+                color: 'blue',
+                bg: 'blue',
+                icon: <MantineIcon icon={IconInfoCircleFilled} size="xl" />,
                 ...props,
             });
         },
@@ -88,10 +159,11 @@ const useToaster = () => {
     );
 
     const showToastWarning = useCallback(
-        (props: Message) => {
+        (props: NotificationData) => {
             showToast({
-                intent: Intent.NONE,
-                icon: 'warning-sign',
+                color: 'yellow',
+                bg: 'yellow',
+                icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
                 ...props,
             });
         },
@@ -99,7 +171,6 @@ const useToaster = () => {
     );
 
     return {
-        showToast,
         showToastSuccess,
         showToastError,
         showToastInfo,

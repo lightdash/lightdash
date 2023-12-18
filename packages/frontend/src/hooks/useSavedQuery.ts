@@ -8,6 +8,7 @@ import {
     UpdateMultipleSavedChart,
     UpdateSavedChart,
 } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
     UseMutationOptions,
@@ -296,8 +297,8 @@ export const useUpdateMutation = (
                     title: `Success! Chart was saved.`,
                     action: dashboardUuid
                         ? {
-                              text: 'Open dashboard',
-                              icon: 'arrow-right',
+                              children: 'Open dashboard',
+                              icon: IconArrowRight,
                               onClick: () =>
                                   history.push(
                                       `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
@@ -346,8 +347,8 @@ export const useMoveChartMutation = (
             showToastSuccess({
                 title: `Chart has been moved to ${data.spaceName}`,
                 action: {
-                    text: 'Go to space',
-                    icon: 'arrow-right',
+                    children: 'Go to space',
+                    icon: IconArrowRight,
                     onClick: () =>
                         history.push(
                             `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
@@ -425,8 +426,8 @@ export const useDuplicateChartMutation = (
                     title: `Chart successfully duplicated!`,
                     action: options?.showRedirectButton
                         ? {
-                              text: 'Open chart',
-                              icon: 'arrow-right',
+                              children: 'Open chart',
+                              icon: IconArrowRight,
                               onClick: () =>
                                   history.push(
                                       `/projects/${projectUuid}/saved/${data.uuid}`,
@@ -470,8 +471,8 @@ export const useAddVersionMutation = () => {
                 showToastSuccess({
                     title: `Success! Chart was updated.`,
                     action: {
-                        text: 'Open dashboard',
-                        icon: 'arrow-right',
+                        children: 'Open dashboard',
+                        icon: IconArrowRight,
                         onClick: () =>
                             history.push(
                                 `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,

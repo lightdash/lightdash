@@ -1,4 +1,3 @@
-import { Intent } from '@blueprintjs/core';
 import {
     ApiError,
     CreateDashboard,
@@ -8,6 +7,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     UpdateDashboard,
 } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { UseQueryOptions } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
@@ -94,7 +94,7 @@ export const useDashboardQuery = (
 };
 
 export const useExportDashboard = () => {
-    const { showToastSuccess, showToastError, showToast } = useToaster();
+    const { showToastSuccess, showToastError, showToastPrimary } = useToaster();
     return useMutation<
         string,
         ApiError,
@@ -102,11 +102,10 @@ export const useExportDashboard = () => {
     >((data) => exportDashboard(data.dashboard.uuid, data.queryFilters), {
         mutationKey: ['export_dashboard'],
         onMutate: (data) => {
-            showToast({
+            showToastPrimary({
                 key: 'dashboard_export_toast',
-                intent: Intent.PRIMARY,
                 title: `${data.dashboard.name} is being exported. This might take a few seconds.`,
-                timeout: 0,
+                autoClose: false,
             });
         },
         onSuccess: async (url, data) => {
@@ -167,8 +166,8 @@ export const useUpdateDashboard = (
                     }was updated.`,
                     action: showRedirectButton
                         ? {
-                              text: 'Open dashboard',
-                              icon: 'arrow-right',
+                              children: 'Open dashboard',
+                              icon: IconArrowRight,
                               onClick: () =>
                                   history.push(
                                       `/projects/${projectUuid}/dashboards/${id}`,
@@ -214,8 +213,8 @@ export const useMoveDashboardMutation = () => {
                 showToastSuccess({
                     title: `Dashboard has been moved to ${data.spaceName}`,
                     action: {
-                        text: 'Go to space',
-                        icon: 'arrow-right',
+                        children: 'Go to space',
+                        icon: IconArrowRight,
                         onClick: () =>
                             history.push(
                                 `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
@@ -258,8 +257,8 @@ export const useCreateMutation = (
                     title: `Success! Dashboard was created.`,
                     action: showRedirectButton
                         ? {
-                              text: 'Open dashboard',
-                              icon: 'arrow-right',
+                              children: 'Open dashboard',
+                              icon: IconArrowRight,
                               onClick: () =>
                                   history.push(
                                       `/projects/${projectUuid}/dashboards/${result.uuid}`,
@@ -308,8 +307,8 @@ export const useDuplicateDashboardMutation = (
                     title: `Dashboard successfully duplicated!`,
                     action: options?.showRedirectButton
                         ? {
-                              text: 'Open dashboard',
-                              icon: 'arrow-right',
+                              children: 'Open dashboard',
+                              icon: IconArrowRight,
                               onClick: () =>
                                   history.push(
                                       `/projects/${projectUuid}/dashboards/${data.uuid}`,

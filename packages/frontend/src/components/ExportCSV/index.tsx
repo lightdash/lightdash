@@ -1,20 +1,12 @@
 import { ApiScheduledDownloadCsv, ResultRow } from '@lightdash/common';
-import {
-    Alert,
-    Box,
-    Button,
-    Loader,
-    NumberInput,
-    Radio,
-    Stack,
-} from '@mantine/core';
+import { Alert, Box, Button, NumberInput, Radio, Stack } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { IconTableExport } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
 import { useMutation } from 'react-query';
 import { pollCsvFileUrl } from '../../api/csv';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
-import { AppToaster } from '../AppToaster';
 import MantineIcon from '../common/MantineIcon';
 
 enum Limit {
@@ -45,7 +37,8 @@ export type ExportCSVProps = {
 
 const ExportCSV: FC<ExportCSVProps> = memo(
     ({ rows, getCsvLink, isDialogBody, renderDialogActions }) => {
-        const { showToastError, showToast, showToastWarning } = useToaster();
+        const { showToastError, showToastInfo, showToastWarning } =
+            useToaster();
 
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
@@ -66,12 +59,12 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                     ),
                 {
                     onMutate: () => {
-                        showToast({
+                        showToastInfo({
                             title: 'Exporting CSV',
                             subtitle: 'This may take a few minutes...',
-                            icon: <Loader mt="sm" ml="sm" size={16} />,
+                            loading: true,
                             key: 'exporting-csv',
-                            timeout: 0,
+                            autoClose: false,
                         });
                     },
                     onSuccess: (scheduledCsvResponse) => {
@@ -79,7 +72,7 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                             .then((csvFile) => {
                                 if (csvFile.url)
                                     window.location.href = csvFile.url;
-                                AppToaster.dismiss('exporting-csv');
+                                notifications.hide('exporting-csv');
 
                                 if (csvFile.truncated) {
                                     showToastWarning({
@@ -89,7 +82,7 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                                 }
                             })
                             .catch((error) => {
-                                AppToaster.dismiss('exporting-csv');
+                                notifications.hide('exporting-csv');
 
                                 showToastError({
                                     title: `Unable to download CSV`,
@@ -98,7 +91,7 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                             });
                     },
                     onError: (error: { error: Error }) => {
-                        AppToaster.dismiss('exporting-csv');
+                        notifications.hide('exporting-csv');
 
                         showToastError({
                             title: `Unable to download CSV`,

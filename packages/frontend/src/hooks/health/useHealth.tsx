@@ -1,8 +1,8 @@
 import { ApiError, ApiHealthResults, HealthState } from '@lightdash/common';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
-import { AppToaster } from '../../components/AppToaster';
+import useToaster from '../toaster/useToaster';
 
 const getHealthState = async () =>
     lightdashApi<ApiHealthResults>({
@@ -17,25 +17,23 @@ const useHealth = () => {
         queryFn: getHealthState,
     });
 
+    const { showToastError } = useToaster();
+
     useEffect(() => {
         if (health.error) {
             const [first, ...rest] = health.error.error.message.split('\n');
-            AppToaster.show(
-                {
-                    intent: 'danger',
-                    message: (
-                        <div>
-                            <b>{first}</b>
-                            <p>{rest.join('\n')}</p>
-                        </div>
-                    ),
-                    timeout: 0,
-                    icon: 'error',
-                },
-                first,
-            );
+            showToastError({
+                key: first,
+                subtitle: (
+                    <div>
+                        <b>{first}</b>
+                        <p>{rest.join('\n')}</p>
+                    </div>
+                ),
+                autoClose: false,
+            });
         }
-    }, [health]);
+    }, [health, showToastError]);
 
     return health;
 };

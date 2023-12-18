@@ -10,7 +10,7 @@ import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
-    const { showToastWarning } = useToaster();
+    const { showToastError } = useToaster();
 
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
@@ -42,11 +42,10 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
             unsavedChartVersion?.chartConfig.type;
 
         if (chartType === ChartType.CUSTOM) {
-            showToastWarning({
+            showToastError({
                 title: 'Saving custom charts is not supported yet!',
                 subtitle: 'We are looking forward to hear your feedback',
-                intent: 'danger',
-                timeout: 5000,
+                autoClose: 5000,
             });
             return;
         }

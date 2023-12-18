@@ -1,5 +1,6 @@
 import { ProjectType } from '@lightdash/common';
 import { Select } from '@mantine/core';
+import { IconArrowRight } from '@tabler/icons-react';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -79,8 +80,8 @@ const ProjectSwitcher = () => {
             action:
                 !isHomePage && shouldSwapProjectRoute
                     ? {
-                          text: 'Go to project home',
-                          icon: 'arrow-right',
+                          children: 'Go to project home',
+                          icon: IconArrowRight,
                           onClick: () => {
                               history.push(
                                   `/projects/${project.projectUuid}/home`,
