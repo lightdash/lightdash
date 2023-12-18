@@ -137,6 +137,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 {(isEditMode ||
                                     (!isEditMode && extraMenuItems)) && (
                                     <Menu
+                                        withinPortal
                                         opened={isMenuOpen}
                                         onOpen={() => toggleMenu(true)}
                                         onClose={() => toggleMenu(false)}
@@ -209,7 +210,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         </Menu.Dropdown>
 
                                         <Menu.Target>
-                                            <ActionIcon size="sm">
+                                            <ActionIcon
+                                                size="sm"
+                                                style={{
+                                                    position: 'relative',
+                                                    zIndex: 1,
+                                                }}
+                                            >
                                                 <MantineIcon
                                                     data-testid="tile-icon-more"
                                                     icon={IconDots}
