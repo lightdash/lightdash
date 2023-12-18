@@ -1,4 +1,3 @@
-import { Alert, Intent } from '@blueprintjs/core';
 import {
     assertUnreachable,
     Dashboard as IDashboard,
@@ -6,8 +5,10 @@ import {
     DashboardTileTypes,
     isDashboardChartTileType,
 } from '@lightdash/common';
+import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { captureException, useProfiler } from '@sentry/react';
-
+import { IconAlertCircle } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, {
     FC,
     memo,
@@ -19,12 +20,10 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-
-import { Box, Group } from '@mantine/core';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useIntersection } from 'react-use';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
+import MantineIcon from '../components/common/MantineIcon';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -501,24 +500,45 @@ const Dashboard: FC = () => {
 
     return (
         <>
-            <Alert
-                isOpen={isSaveWarningModalOpen}
-                cancelButtonText="Stay"
-                confirmButtonText="Leave"
-                intent={Intent.DANGER}
-                icon="warning-sign"
-                onCancel={() => setIsSaveWarningModalOpen(false)}
-                onConfirm={() => {
-                    history.block(() => {});
-                    if (blockedNavigationLocation)
-                        history.push(blockedNavigationLocation);
-                }}
+            <Modal
+                opened={isSaveWarningModalOpen}
+                onClose={() => setIsSaveWarningModalOpen(false)}
+                title={null}
+                withCloseButton={false}
+                closeOnClickOutside={false}
             >
-                <p>
-                    You have unsaved changes to your dashboard! Are you sure you
-                    want to leave without saving?{' '}
-                </p>
-            </Alert>
+                <Stack>
+                    <Group noWrap spacing="xs">
+                        <MantineIcon
+                            icon={IconAlertCircle}
+                            color="red"
+                            size={50}
+                        />
+                        <Text fw={500}>
+                            You have unsaved changes to your dashboard! Are you
+                            sure you want to leave without saving?
+                        </Text>
+                    </Group>
+
+                    <Group position="right">
+                        <Button
+                            onClick={() => setIsSaveWarningModalOpen(false)}
+                        >
+                            Stay
+                        </Button>
+                        <Button
+                            color="red"
+                            onClick={() => {
+                                history.block(() => {});
+                                if (blockedNavigationLocation)
+                                    history.push(blockedNavigationLocation);
+                            }}
+                        >
+                            Leave
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
 
             <Page
                 withPaddedContent
