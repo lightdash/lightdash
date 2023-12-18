@@ -209,7 +209,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         </Menu.Dropdown>
 
                                         <Menu.Target>
-                                            <ActionIcon size="sm">
+                                            <ActionIcon
+                                                size="sm"
+                                                style={{
+                                                    position: 'relative',
+                                                    zIndex: 1,
+                                                }}
+                                            >
                                                 <MantineIcon
                                                     data-testid="tile-icon-more"
                                                     icon={IconDots}
