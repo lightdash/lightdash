@@ -1,3 +1,10 @@
+## [0.907.6](https://github.com/lightdash/lightdash/compare/0.907.5...0.907.6) (2023-12-18)
+
+
+### Bug Fixes
+
+* close datezoom dropdown on click outside ([#8347](https://github.com/lightdash/lightdash/issues/8347)) ([56bc072](https://github.com/lightdash/lightdash/commit/56bc0721695fd1a9d23172a045541822ea377711))
+
 ## [0.907.5](https://github.com/lightdash/lightdash/compare/0.907.4...0.907.5) (2023-12-18)
 
 
