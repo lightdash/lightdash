@@ -57,7 +57,6 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     modalStep,
     projectUuid,
     form,
-    setIsShared,
     organizationUsers,
 }) => {
     const {
@@ -114,21 +113,28 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
 
                     <Radio.Group
                         {...form.getInputProps('isPrivate')}
-                        defaultValue={SpaceAccessType.PRIVATE}
+                        value={
+                            form.values.isPrivate
+                                ? SpaceAccessType.PRIVATE
+                                : SpaceAccessType.PUBLIC
+                        }
+                        onChange={(value) => {
+                            form.setValues({
+                                isPrivate: value === SpaceAccessType.PRIVATE,
+                            });
+                        }}
                     >
                         <Stack spacing="xs">
                             <Radio
                                 label="Private"
                                 description="Only you and admins can access this space."
                                 value={SpaceAccessType.PRIVATE}
-                                onClick={() => setIsShared(false)}
                             />
 
                             <Radio
                                 label="Shared"
                                 description="Choose who can access this space."
                                 value={SpaceAccessType.PUBLIC}
-                                onClick={() => setIsShared(true)}
                             />
                         </Stack>
                     </Radio.Group>

@@ -7,7 +7,6 @@ const UpdateSpaceModalContent: FC<SpaceModalBody> = ({ form }) => (
         {...form.getInputProps('name')}
         label="Enter a memorable name for your space"
         placeholder="eg. KPIs"
-        required
     />
 );
 

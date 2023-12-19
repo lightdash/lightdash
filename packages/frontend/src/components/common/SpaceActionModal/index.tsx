@@ -62,7 +62,6 @@ export interface CreateSpaceModalBody {
     modalStep: CreateModalStep;
     projectUuid: string;
     form: UseFormReturnType<Space>;
-    setIsShared: (isShared: boolean) => void;
     organizationUsers: OrganizationMemberProfile[] | undefined;
 }
 
@@ -100,10 +99,7 @@ const SpaceModal: FC<ActionModalProps> = ({
         }
     };
 
-    const [modalStep, setModalStep] = useState<CreateModalStep>(
-        CreateModalStep.SET_NAME,
-    );
-    const [isShared, setIsShared] = useState<boolean>(false);
+    const [modalStep, setModalStep] = useState(CreateModalStep.SET_NAME);
     const { data: organizationUsers } = useOrganizationUsers();
 
     return (
@@ -126,7 +122,6 @@ const SpaceModal: FC<ActionModalProps> = ({
                             data={data}
                             modalStep={modalStep}
                             form={form}
-                            setIsShared={setIsShared}
                             organizationUsers={organizationUsers}
                         />
                     ) : actionType === ActionType.UPDATE ? (
@@ -172,7 +167,7 @@ const SpaceModal: FC<ActionModalProps> = ({
 
                         {actionType === ActionType.CREATE &&
                             modalStep === CreateModalStep.SET_NAME &&
-                            isShared && (
+                            !form.values.isPrivate && (
                                 <Button
                                     disabled={isDisabled || !form.isValid}
                                     onClick={(e) => {
@@ -189,7 +184,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                         {(actionType !== ActionType.CREATE ||
                             (actionType === ActionType.CREATE &&
                                 modalStep === CreateModalStep.SET_NAME &&
-                                !isShared)) && (
+                                form.values.isPrivate)) && (
                             <Button
                                 type="submit"
                                 disabled={isDisabled || !form.isValid}
