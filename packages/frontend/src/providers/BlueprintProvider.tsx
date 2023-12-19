@@ -1,9 +1,11 @@
 // FIXME: remove after blueprint migration is complete
 import './../styles/blueprint-core.css';
 
-import { Colors } from '@blueprintjs/core';
+import { Colors, FocusStyleManager } from '@blueprintjs/core';
 import { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
+
+FocusStyleManager.onlyShowFocusOnTabs();
 
 const GlobalBlueprintStyles = createGlobalStyle`
     .bp4-input {
