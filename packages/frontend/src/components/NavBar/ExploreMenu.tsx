@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { Button, Menu } from '@mantine/core';
 import {
     IconFolder,
+    IconFolderPlus,
     IconLayersIntersect,
     IconLayoutDashboard,
     IconSquareRoundedPlus,
@@ -134,7 +135,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     actionType={ActionType.CREATE}
                     title="Create new space"
                     confirmButtonLabel="Create"
-                    icon="folder-close"
+                    icon={IconFolderPlus}
                     onClose={() => setIsCreateSpaceOpen(false)}
                     onSubmitForm={(space) => {
                         if (space)

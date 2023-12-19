@@ -6,6 +6,11 @@ import {
     ResourceViewItemType,
     Space,
 } from '@lightdash/common';
+import {
+    IconFolderCog,
+    IconFolderPlus,
+    IconFolderX,
+} from '@tabler/icons-react';
 import { FC, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
@@ -217,7 +222,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             actionType={ActionType.UPDATE}
                             title="Update space"
                             confirmButtonLabel="Update"
-                            icon="folder-close"
+                            icon={IconFolderCog}
                             onClose={handleReset}
                             onSubmitForm={handleReset}
                         />
@@ -256,8 +261,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             actionType={ActionType.DELETE}
                             title="Delete space"
                             confirmButtonLabel="Delete"
-                            confirmButtonIntent="danger"
-                            icon="folder-close"
+                            confirmButtonColor="red"
+                            icon={IconFolderX}
                             onClose={handleReset}
                             onSubmitForm={handleReset}
                         />
@@ -286,7 +291,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     actionType={ActionType.CREATE}
                     title="Create new space"
                     confirmButtonLabel="Create"
-                    icon="folder-close"
+                    icon={IconFolderPlus}
                     onClose={handleReset}
                     onSubmitForm={handleCreateSpace}
                 />

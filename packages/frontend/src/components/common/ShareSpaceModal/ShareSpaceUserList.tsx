@@ -141,7 +141,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                             noWrap
                         >
                             <Group>
-                                <Avatar radius="xl" tt="uppercase">
+                                <Avatar radius="xl" tt="uppercase" color="blue">
                                     {getInitials(
                                         sharedUser.userUuid,
                                         organizationUsers,
@@ -161,6 +161,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                     ) : null}
                                 </Text>
                             </Group>
+
                             {isYou ||
                             role === upperFirst(ProjectMemberRole.ADMIN) ? (
                                 <Text fw={600} fz="xs">

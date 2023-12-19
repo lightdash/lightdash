@@ -6,7 +6,7 @@ import {
     wrapResourceView,
 } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
-import { IconFolders, IconPlus } from '@tabler/icons-react';
+import { IconFolderPlus, IconFolders, IconPlus } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
@@ -156,7 +156,7 @@ const Spaces: FC = () => {
                     actionType={ActionType.CREATE}
                     title="Create new space"
                     confirmButtonLabel="Create"
-                    icon="folder-close"
+                    icon={IconFolderPlus}
                     onClose={() => setIsCreateModalOpen(false)}
                 />
             )}

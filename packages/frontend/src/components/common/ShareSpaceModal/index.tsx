@@ -3,17 +3,19 @@ import {
     Anchor,
     Box,
     Button,
+    Group,
     Modal,
     Stack,
     Text,
     Title,
     useMantineTheme,
 } from '@mantine/core';
-import { IconLock, IconUsers } from '@tabler/icons-react';
+import { IconFolderShare, IconLock, IconUsers } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
+import MantineIcon from '../MantineIcon';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
 import {
@@ -58,7 +60,12 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
             <Modal
                 size="lg"
-                title={<Title order={4}>{`Share "${space.name}"`}</Title>}
+                title={
+                    <Group spacing="xs">
+                        <MantineIcon size="lg" icon={IconFolderShare} />
+                        <Title order={4}>Share "{space.name}" space</Title>
+                    </Group>
+                }
                 opened={isOpen}
                 onClose={() => setIsOpen(false)}
                 styles={{
@@ -67,8 +74,8 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     },
                 }}
             >
-                <Stack>
-                    <Stack p="md">
+                <>
+                    <Stack p="md" pt={0}>
                         {selectedAccess.value === SpaceAccessType.PRIVATE ? (
                             <ShareSpaceAddUser
                                 space={space}
@@ -95,14 +102,14 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     </Stack>
 
                     <Box
-                        p="sm"
-                        bg={theme.colors.gray[0]}
+                        bg="gray.0"
+                        p="md"
                         sx={{
                             borderTop: `1px solid ${theme.colors.gray[2]}`,
                             padding: 'md',
                         }}
                     >
-                        <Text c="gray.7" fz="xs">
+                        <Text color="gray.7" fz="xs">
                             {selectedAccess.value === SpaceAccessType.PRIVATE &&
                             sessionUser.data?.ability?.can(
                                 'create',
@@ -134,7 +141,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             )}
                         </Text>
                     </Box>
-                </Stack>
+                </>
             </Modal>
         </>
     );

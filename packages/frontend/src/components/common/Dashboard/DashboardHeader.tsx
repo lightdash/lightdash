@@ -18,6 +18,7 @@ import {
     IconCopy,
     IconDots,
     IconFolder,
+    IconFolderPlus,
     IconFolders,
     IconInfoCircle,
     IconPencil,
@@ -441,7 +442,7 @@ const DashboardHeader = ({
                             actionType={ActionType.CREATE}
                             title="Create new space"
                             confirmButtonLabel="Create"
-                            icon="folder-close"
+                            icon={IconFolderPlus}
                             onClose={() => setIsCreatingNewSpace(false)}
                             onSubmitForm={(space) => {
                                 if (space) onMoveToSpace(space.uuid);
