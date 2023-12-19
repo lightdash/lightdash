@@ -1,7 +1,17 @@
-import { Alert, Classes, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { ActionIcon, Box, Button, Flex, Menu, Tooltip } from '@mantine/core';
 import {
+    ActionIcon,
+    Alert,
+    Box,
+    Button,
+    Flex,
+    Group,
+    Menu,
+    Modal,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconAlertTriangle,
     IconArrowBack,
     IconCheck,
     IconChevronRight,
@@ -249,41 +259,52 @@ const SavedChartsHeader: FC = () => {
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
-            <Alert
-                isOpen={isSaveWarningModalOpen}
-                cancelButtonText="Stay"
-                confirmButtonText="Leave page"
-                intent={Intent.DANGER}
-                icon="warning-sign"
-                onCancel={() => setIsSaveWarningModalOpen(false)}
-                onConfirm={() => {
-                    history.block(() => {});
-                    if (blockedNavigationLocation)
-                        history.push(blockedNavigationLocation);
-                }}
+            <Modal
+                opened={isSaveWarningModalOpen}
+                withCloseButton={false}
+                closeOnClickOutside={false}
+                onClose={() => setIsSaveWarningModalOpen(false)}
             >
-                <p>
+                <Alert
+                    icon={<MantineIcon size="xl" icon={IconAlertTriangle} />}
+                    color="red"
+                >
                     You have unsaved changes to your chart! Are you sure you
-                    want to leave without saving?{' '}
-                </p>
-            </Alert>
+                    want to leave without saving?
+                </Alert>
+                <Group position="right" mt="sm">
+                    <Button
+                        color="dark"
+                        variant="outline"
+                        onClick={() => setIsSaveWarningModalOpen(false)}
+                    >
+                        Stay
+                    </Button>
+                    <Button
+                        color="red"
+                        onClick={() => {
+                            history.block(() => {});
+                            if (blockedNavigationLocation)
+                                history.push(blockedNavigationLocation);
+                        }}
+                    >
+                        Leave page
+                    </Button>
+                </Group>
+            </Modal>
 
             <PageHeader>
                 <PageTitleAndDetailsContainer>
                     {savedChart && (
                         <>
-                            <PageTitleContainer
-                                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-                            >
+                            <PageTitleContainer>
                                 <PageTitle>{savedChart.name}</PageTitle>
-
                                 <ResourceInfoPopup
                                     resourceUuid={savedChart.uuid}
                                     projectUuid={projectUuid}
                                     description={savedChart.description}
                                     withChartData={true}
                                 />
-
                                 {isEditMode &&
                                     user.data?.ability?.can(
                                         'manage',
