@@ -82,6 +82,9 @@ const SpaceModal: FC<ActionModalProps> = ({
     onSubmitForm,
 }) => {
     const { showToastError } = useToaster();
+    const { data: organizationUsers } = useOrganizationUsers();
+
+    const [modalStep, setModalStep] = useState(CreateModalStep.SET_NAME);
 
     const form = useForm<Space>({
         initialValues: data,
@@ -89,6 +92,15 @@ const SpaceModal: FC<ActionModalProps> = ({
     });
 
     const handleSubmit = (values: Space) => {
+        if (
+            actionType === ActionType.CREATE &&
+            modalStep === CreateModalStep.SET_NAME &&
+            !form.values.isPrivate
+        ) {
+            setModalStep(CreateModalStep.SET_ACCESS);
+            return;
+        }
+
         try {
             onSubmitForm?.(values);
         } catch (e: any) {
@@ -98,9 +110,6 @@ const SpaceModal: FC<ActionModalProps> = ({
             });
         }
     };
-
-    const [modalStep, setModalStep] = useState(CreateModalStep.SET_NAME);
-    const { data: organizationUsers } = useOrganizationUsers();
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'light' }}>
@@ -169,13 +178,8 @@ const SpaceModal: FC<ActionModalProps> = ({
                             modalStep === CreateModalStep.SET_NAME &&
                             !form.values.isPrivate && (
                                 <Button
+                                    type="submit"
                                     disabled={isDisabled || !form.isValid}
-                                    onClick={(e) => {
-                                        setModalStep(
-                                            CreateModalStep.SET_ACCESS,
-                                        );
-                                        e.preventDefault();
-                                    }}
                                 >
                                     Continue
                                 </Button>
