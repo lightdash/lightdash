@@ -54,7 +54,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
 
             return (
                 <Group ref={ref} {...props}>
-                    <Avatar radius="xl">
+                    <Avatar radius="xl" color="blue">
                         {getInitials(user.userUuid, organizationUsers)}
                     </Avatar>
 

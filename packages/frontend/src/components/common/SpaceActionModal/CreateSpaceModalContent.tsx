@@ -31,7 +31,7 @@ const renderUser = (user: {
 }) => (
     <Group spacing="sm" position="apart" noWrap>
         <Group>
-            <Avatar radius="xl" tt="uppercase">
+            <Avatar radius="xl" tt="uppercase" color="blue">
                 {user.firstName.charAt(0) + user.lastName.charAt(0)}
             </Avatar>
 

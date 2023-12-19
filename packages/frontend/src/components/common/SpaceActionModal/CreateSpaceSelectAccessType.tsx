@@ -43,7 +43,14 @@ export const CreateSpaceSelectAccessType: FC<ShareSpaceAccessTypeProps> = ({
     return (
         <Group position="apart">
             <Flex align="center" gap="sm">
-                <Avatar radius="xl">
+                <Avatar
+                    radius="xl"
+                    color={
+                        selectedAccess.value === SpaceAccessType.PRIVATE
+                            ? 'orange'
+                            : 'green'
+                    }
+                >
                     <MantineIcon
                         icon={
                             selectedAccess.value === SpaceAccessType.PRIVATE
