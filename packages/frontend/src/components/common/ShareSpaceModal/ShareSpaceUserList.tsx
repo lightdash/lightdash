@@ -161,6 +161,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                     ) : null}
                                 </Text>
                             </Group>
+
                             {isYou ||
                             role === upperFirst(ProjectMemberRole.ADMIN) ? (
                                 <Text fw={600} fz="xs">

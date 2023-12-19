@@ -71,6 +71,7 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                     </Text>
                 </Stack>
             </Flex>
+
             {selectedAccess && (
                 <Select
                     styles={{

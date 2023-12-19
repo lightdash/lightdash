@@ -29,23 +29,25 @@ const renderUser = (user: {
     lastName: string;
     role: string;
 }) => (
-    <Group>
-        <Avatar radius="xl">
-            {user.firstName.charAt(0) + user.lastName.charAt(0)}
-        </Avatar>
+    <Group spacing="sm" position="apart" noWrap>
+        <Group>
+            <Avatar radius="xl" tt="uppercase">
+                {user.firstName.charAt(0) + user.lastName.charAt(0)}
+            </Avatar>
 
-        <Text fw={500}>
-            {user.firstName + ' ' + user.lastName}
+            <Text fw={600} fz="sm">
+                {user.firstName + ' ' + user.lastName}
 
-            {user.isYou && (
-                <Text span fw={300}>
-                    {' '}
-                    (you)
-                </Text>
-            )}
-        </Text>
+                {user.isYou && (
+                    <Text fw={400} span c="gray.6">
+                        {' '}
+                        (you)
+                    </Text>
+                )}
+            </Text>
+        </Group>
 
-        <Text ta="right" fw={300}>
+        <Text fw={600} fz="xs">
             {upperFirst(user.role)}
         </Text>
     </Group>
@@ -135,7 +137,7 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
 
         default:
             return (
-                <Stack spacing="xl">
+                <Stack>
                     {selectedAccess?.value === SpaceAccessType.PRIVATE && (
                         <CreateSpaceAddUser
                             projectUuid={projectUuid}
