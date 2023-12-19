@@ -1,4 +1,4 @@
-import { Collapse } from '@blueprintjs/core';
+import { Collapse } from '@mantine/core';
 import React, { FC } from 'react';
 
 interface FormSectionProps {
@@ -7,9 +7,7 @@ interface FormSectionProps {
 }
 
 const FormSection: FC<FormSectionProps> = ({ isOpen = true, children }) => (
-    <Collapse isOpen={isOpen} keepChildrenMounted>
-        {children}
-    </Collapse>
+    <Collapse in={isOpen}>{children}</Collapse>
 );
 
 export default FormSection;
