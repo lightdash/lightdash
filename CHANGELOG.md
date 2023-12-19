@@ -1,3 +1,10 @@
+# [0.909.0](https://github.com/lightdash/lightdash/compare/0.908.0...0.909.0) (2023-12-19)
+
+
+### Features
+
+* space modals in mantine ([#8351](https://github.com/lightdash/lightdash/issues/8351)) ([f58492f](https://github.com/lightdash/lightdash/commit/f58492fd55661039d6545dffafd0faa74d25d136))
+
 # [0.908.0](https://github.com/lightdash/lightdash/compare/0.907.6...0.908.0) (2023-12-18)
 
 
