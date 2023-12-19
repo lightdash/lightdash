@@ -75,7 +75,6 @@ const ProjectSwitcher = () => {
         setLastProjectMutation(project.projectUuid);
 
         showToastSuccess({
-            icon: 'tick',
             title: `You are now viewing ${project.name}`,
             action:
                 !isHomePage && shouldSwapProjectRoute
