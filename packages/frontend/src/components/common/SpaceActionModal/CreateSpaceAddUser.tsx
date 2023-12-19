@@ -80,12 +80,13 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
         return userUuids
             .map((userUuid): SelectItem | null => {
                 const projectUser = projectAccess?.find(
-                    (pUser) => pUser.userUuid === userUuid,
+                    (a) => a.userUuid === userUuid,
                 );
 
                 const user = organizationUsers?.find(
-                    (userAccess) => userAccess.userUuid === userUuid,
+                    (a) => a.userUuid === userUuid,
                 );
+
                 if (!user) return null;
 
                 const isAdmin =
@@ -106,14 +107,16 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
 
     return (
         <MultiSelect
+            style={{ flex: 1 }}
+            withinPortal
+            searchable
             clearable
             clearSearchOnChange
             clearSearchOnBlur
-            searchable
             placeholder="Select users to share this space with"
             nothingFound="No users found"
-            data={data}
             itemComponent={UserItemComponent}
+            data={data}
             value={form?.values.access?.map((v) => v.userUuid) ?? []}
             onChange={(newUserIds) => {
                 form?.setValues({

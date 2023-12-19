@@ -87,11 +87,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         return userUuids
             .map((userUuid): SelectItem | null => {
                 const projectUser = projectAccess?.find(
-                    (pUser) => pUser.userUuid === userUuid,
+                    (a) => a.userUuid === userUuid,
                 );
 
                 const user = organizationUsers?.find(
-                    (userAccess) => userAccess.userUuid === userUuid,
+                    (a) => a.userUuid === userUuid,
                 );
 
                 if (!user) return null;
@@ -117,16 +117,16 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     return (
         <Group>
             <MultiSelect
-                withinPortal
                 style={{ flex: 1 }}
+                withinPortal
                 searchable
                 clearable
-                searchValue={searchQuery}
-                onSearchChange={setSearchQuery}
                 clearSearchOnChange
                 clearSearchOnBlur
                 placeholder="Select users to share this space with"
                 nothingFound="No users found"
+                searchValue={searchQuery}
+                onSearchChange={setSearchQuery}
                 value={usersSelected}
                 onChange={setUsersSelected}
                 data={data}

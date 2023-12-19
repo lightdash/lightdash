@@ -5,6 +5,11 @@ export interface AccessOption {
     value: string;
 }
 
+export const enum SpacePrivateAccessType {
+    PRIVATE = 'private',
+    SHARED = 'shared',
+}
+
 export const enum SpaceAccessType {
     PRIVATE = 'private',
     PUBLIC = 'public',

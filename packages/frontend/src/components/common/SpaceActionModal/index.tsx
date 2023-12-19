@@ -25,6 +25,7 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
+import { SpacePrivateAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
 import CreateSpaceModalContent, {
     CreateModalStep,
 } from './CreateSpaceModalContent';
@@ -62,6 +63,8 @@ export interface CreateSpaceModalBody {
     modalStep: CreateModalStep;
     projectUuid: string;
     form: UseFormReturnType<Space>;
+    privateAccessType: SpacePrivateAccessType;
+    onPrivateAccessTypeChange: (type: SpacePrivateAccessType) => void;
     organizationUsers: OrganizationMemberProfile[] | undefined;
 }
 
@@ -83,6 +86,9 @@ const SpaceModal: FC<ActionModalProps> = ({
 }) => {
     const { showToastError } = useToaster();
     const { data: organizationUsers } = useOrganizationUsers();
+    const [privateAccessType, setPrivateAccessType] = useState(
+        SpacePrivateAccessType.PRIVATE,
+    );
 
     const [modalStep, setModalStep] = useState(CreateModalStep.SET_NAME);
 
@@ -95,7 +101,7 @@ const SpaceModal: FC<ActionModalProps> = ({
         if (
             actionType === ActionType.CREATE &&
             modalStep === CreateModalStep.SET_NAME &&
-            !form.values.isPrivate
+            privateAccessType === SpacePrivateAccessType.SHARED
         ) {
             setModalStep(CreateModalStep.SET_ACCESS);
             return;
@@ -131,6 +137,8 @@ const SpaceModal: FC<ActionModalProps> = ({
                             data={data}
                             modalStep={modalStep}
                             form={form}
+                            privateAccessType={privateAccessType}
+                            onPrivateAccessTypeChange={setPrivateAccessType}
                             organizationUsers={organizationUsers}
                         />
                     ) : actionType === ActionType.UPDATE ? (
@@ -176,7 +184,10 @@ const SpaceModal: FC<ActionModalProps> = ({
 
                         {actionType === ActionType.CREATE &&
                             modalStep === CreateModalStep.SET_NAME &&
-                            !form.values.isPrivate && (
+                            !(
+                                privateAccessType ===
+                                SpacePrivateAccessType.PRIVATE
+                            ) && (
                                 <Button
                                     type="submit"
                                     disabled={isDisabled || !form.isValid}
@@ -188,7 +199,8 @@ const SpaceModal: FC<ActionModalProps> = ({
                         {(actionType !== ActionType.CREATE ||
                             (actionType === ActionType.CREATE &&
                                 modalStep === CreateModalStep.SET_NAME &&
-                                form.values.isPrivate)) && (
+                                privateAccessType ===
+                                    SpacePrivateAccessType.PRIVATE)) && (
                             <Button
                                 type="submit"
                                 disabled={isDisabled || !form.isValid}

@@ -13,6 +13,7 @@ import {
     AccessOption,
     SpaceAccessOptions,
     SpaceAccessType,
+    SpacePrivateAccessType,
 } from '../ShareSpaceModal/ShareSpaceSelect';
 import { CreateSpaceAddUser } from './CreateSpaceAddUser';
 import { CreateSpaceSelectAccessType } from './CreateSpaceSelectAccessType';
@@ -22,23 +23,22 @@ export enum CreateModalStep {
     SET_ACCESS = 'second',
 }
 
-const renderUser = (user: {
+const UserListItem: FC<{
     isYou?: boolean;
-    userUuid: string;
     firstName: string;
     lastName: string;
-    role: string;
-}) => (
+    role: ProjectMemberRole | OrganizationMemberRole;
+}> = ({ firstName, lastName, isYou, role }) => (
     <Group spacing="sm" position="apart" noWrap>
         <Group>
             <Avatar radius="xl" tt="uppercase" color="blue">
-                {user.firstName.charAt(0) + user.lastName.charAt(0)}
+                {firstName.charAt(0) + lastName.charAt(0)}
             </Avatar>
 
             <Text fw={600} fz="sm">
-                {user.firstName + ' ' + user.lastName}
+                {firstName + ' ' + lastName}
 
-                {user.isYou && (
+                {isYou && (
                     <Text fw={400} span c="gray.6">
                         {' '}
                         (you)
@@ -48,7 +48,7 @@ const renderUser = (user: {
         </Group>
 
         <Text fw={600} fz="xs">
-            {upperFirst(user.role)}
+            {upperFirst(role)}
         </Text>
     </Group>
 );
@@ -58,6 +58,8 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     projectUuid,
     form,
     organizationUsers,
+    privateAccessType,
+    onPrivateAccessTypeChange,
 }) => {
     const {
         user: { data: sessionUser },
@@ -112,29 +114,22 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                     />
 
                     <Radio.Group
-                        {...form.getInputProps('isPrivate')}
-                        value={
-                            form.values.isPrivate
-                                ? SpaceAccessType.PRIVATE
-                                : SpaceAccessType.PUBLIC
-                        }
-                        onChange={(value) => {
-                            form.setValues({
-                                isPrivate: value === SpaceAccessType.PRIVATE,
-                            });
+                        value={privateAccessType}
+                        onChange={(value: SpacePrivateAccessType) => {
+                            onPrivateAccessTypeChange(value);
                         }}
                     >
                         <Stack spacing="xs">
                             <Radio
                                 label="Private"
                                 description="Only you and admins can access this space."
-                                value={SpaceAccessType.PRIVATE}
+                                value={SpacePrivateAccessType.PRIVATE}
                             />
 
                             <Radio
                                 label="Shared"
                                 description="Choose who can access this space."
-                                value={SpaceAccessType.PUBLIC}
+                                value={SpacePrivateAccessType.SHARED}
                             />
                         </Stack>
                     </Radio.Group>
@@ -163,17 +158,22 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                         }}
                     />
 
-                    {adminUsers?.map((user) =>
-                        renderUser({ ...user, role: ProjectMemberRole.ADMIN }),
-                    )}
+                    {adminUsers?.map((user) => (
+                        <UserListItem
+                            key={user.userUuid}
+                            {...user}
+                            role={ProjectMemberRole.ADMIN}
+                        />
+                    ))}
 
                     {sessionUser &&
-                        selectedAccess?.value === SpaceAccessType.PRIVATE &&
-                        renderUser({
-                            ...sessionUser,
-                            role: sessionUser.role!,
-                            isYou: true,
-                        })}
+                        selectedAccess?.value === SpaceAccessType.PRIVATE && (
+                            <UserListItem
+                                {...sessionUser}
+                                role={sessionUser.role!}
+                                isYou
+                            />
+                        )}
                 </Stack>
             );
     }
