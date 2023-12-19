@@ -1,4 +1,3 @@
-import { Card, Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 export const UserAnalyticsPageHeader = styled.div`
@@ -20,7 +19,11 @@ export const Container = styled.div`
         'table-dashboard-views table-dashboard-views table-chart-views table-chart-views';
 `;
 
-export const ActivityCard = styled(Card)<{ grid: string }>`
+export const ActivityCard = styled.div<{ grid: string }>`
+    background-color: #fff;
+    border-radius: 2px;
+    padding: 20px;
+    border: 1px solid #dee2e6;
     vertical-align: middle;
     text-align: center;
     ${({ grid }) => css`
@@ -44,12 +47,12 @@ export const BigNumber = styled.div`
     font-size: 4em;
     line-height: 1.196em;
     font-weight: 500;
-    color: ${Colors.DARK_GRAY4};
+    color: #383e47;
 `;
 
 export const BigNumberLabel = styled.h2`
     text-align: center;
-    color: ${Colors.GRAY3};
+    color: #8f99a8;
     font-weight: 500;
     line-height: 1.389em;
     font-size: 1.286em;
