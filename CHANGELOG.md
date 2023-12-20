@@ -1,3 +1,10 @@
+# [0.911.0](https://github.com/lightdash/lightdash/compare/0.910.0...0.911.0) (2023-12-20)
+
+
+### Features
+
+* table without blueprint ([#8372](https://github.com/lightdash/lightdash/issues/8372)) ([1e3490f](https://github.com/lightdash/lightdash/commit/1e3490ff11eb0e34d1d346dcef17fb10cd4ea8b9))
+
 # [0.910.0](https://github.com/lightdash/lightdash/compare/0.909.0...0.910.0) (2023-12-20)
 
 
