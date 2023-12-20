@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import { ColorScheme, MantineThemeOverride, rem } from '@mantine/core';
 
 export const getMantineThemeOverride = (overrides?: {
@@ -9,8 +8,9 @@ export const getMantineThemeOverride = (overrides?: {
 
     focusRing: 'auto',
 
-    black: Colors.DARK_GRAY1,
-    white: Colors.WHITE,
+    //Black value from Blueprint. We could change this.
+    // Without it things look a little darker than before.
+    black: '#111418',
 
     spacing: {
         one: rem(1),

@@ -16,6 +16,7 @@ import {
     IconArrowBack,
     IconCheck,
     IconChevronRight,
+    IconCircleFilled,
     IconCirclePlus,
     IconCirclesRelation,
     IconCopy,
@@ -60,7 +61,6 @@ import {
     PageActionsContainer,
     PageDetailsContainer,
     PageTitleAndDetailsContainer,
-    SeparatorDot,
 } from '../../common/PageHeader';
 import SpaceAndDashboardInfo from '../../common/PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
@@ -339,8 +339,11 @@ const SavedChartsHeader: FC = () => {
                                     user={savedChart.updatedByUser}
                                 />
 
-                                <SeparatorDot icon="dot" size={6} />
-
+                                <MantineIcon
+                                    icon={IconCircleFilled}
+                                    size={3}
+                                    style={{ margin: '0 11px' }}
+                                />
                                 <ViewInfo
                                     views={chartViewStats.data?.views}
                                     firstViewedAt={
@@ -348,8 +351,11 @@ const SavedChartsHeader: FC = () => {
                                     }
                                 />
 
-                                <SeparatorDot icon="dot" size={6} />
-
+                                <MantineIcon
+                                    icon={IconCircleFilled}
+                                    size={3}
+                                    style={{ margin: '0 11px' }}
+                                />
                                 <SpaceAndDashboardInfo
                                     space={{
                                         link: `/projects/${projectUuid}/spaces/${savedChart.spaceUuid}`,

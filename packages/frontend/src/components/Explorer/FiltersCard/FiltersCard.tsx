@@ -21,7 +21,6 @@ import CollapsableCard from '../../common/CollapsableCard';
 import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabel } from '../../common/Filters/FilterInputs';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
-import { DisabledFilterHeader, FilterValues } from './FiltersCard.styles';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
 const FiltersCard: FC = memo(() => {
@@ -91,9 +90,9 @@ const FiltersCard: FC = memo(() => {
                         {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
                         {filterRule.operator !== ConditionalOperator.NULL &&
                         filterRule.operator !== ConditionalOperator.NOT_NULL ? (
-                            <FilterValues>
+                            <Text span fw={700}>
                                 {filterRuleLabels.value}
-                            </FilterValues>
+                            </Text>
                         ) : (
                             ''
                         )}
@@ -149,10 +148,10 @@ const FiltersCard: FC = memo(() => {
                         </Tooltip>
                     ) : null}
                     {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
-                        <DisabledFilterHeader>
+                        <Text color="gray">
                             You must be in 'edit' or 'explore' mode to change
                             the filters
-                        </DisabledFilterHeader>
+                        </Text>
                     ) : null}
                 </>
             }
