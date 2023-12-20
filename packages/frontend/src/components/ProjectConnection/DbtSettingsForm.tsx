@@ -19,11 +19,8 @@ import DbtLocalForm from './DbtForms/DbtLocalForm';
 import DbtNoneForm from './DbtForms/DbtNoneForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
+import FormCollapseButton from './FormCollapseButton';
 import { SelectedWarehouse } from './ProjectConnectFlow/SelectWarehouse';
-import {
-    AdvancedButton,
-    AdvancedButtonWrapper,
-} from './ProjectConnection.styles';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
@@ -227,17 +224,12 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                 />
                             </Stack>
                         </FormSection>
-                        <AdvancedButtonWrapper>
-                            <AdvancedButton
-                                icon={
-                                    isAdvancedSettingsOpen
-                                        ? 'chevron-up'
-                                        : 'chevron-down'
-                                }
-                                text={`Advanced configuration options`}
-                                onClick={toggleAdvancedSettingsOpen}
-                            />
-                        </AdvancedButtonWrapper>
+                        <FormCollapseButton
+                            isSectionOpen={isAdvancedSettingsOpen}
+                            onClick={toggleAdvancedSettingsOpen}
+                        >
+                            Advanced configuration options
+                        </FormCollapseButton>
                     </>
                 )}
             </Stack>

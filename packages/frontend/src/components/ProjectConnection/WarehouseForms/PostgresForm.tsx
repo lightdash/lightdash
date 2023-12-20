@@ -19,10 +19,7 @@ import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
-import {
-    AdvancedButton,
-    AdvancedButtonWrapper,
-} from '../ProjectConnection.styles';
+import FormCollapseButton from '../FormCollapseButton';
 import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 import { useCreateSshKeyPair } from './sshHooks';
@@ -327,13 +324,9 @@ const PostgresForm: FC<{
                         </FormSection>
                     </Stack>
                 </FormSection>
-                <AdvancedButtonWrapper>
-                    <AdvancedButton
-                        icon={isOpen ? 'chevron-up' : 'chevron-down'}
-                        text={`Advanced configuration options`}
-                        onClick={toggleOpen}
-                    />
-                </AdvancedButtonWrapper>
+                <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
+                    Advanced configuration options
+                </FormCollapseButton>
             </Stack>
         </>
     );
