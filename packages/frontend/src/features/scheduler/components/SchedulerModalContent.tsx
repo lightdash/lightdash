@@ -5,24 +5,23 @@ import {
     SchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
-import { Box, Loader, Stack, Text } from '@mantine/core';
+import { Box, Loader, LoadingOverlay, Stack, Text } from '@mantine/core';
 import { FC, useCallback, useEffect, useState } from 'react';
 import {
     UseMutationResult,
     UseQueryResult,
 } from 'react-query/types/react/types';
 import { useHistory, useLocation } from 'react-router-dom';
-import { getSchedulerUuidFromUrlParams } from '../utils';
-import SchedulersList from './SchedulersList';
-
 import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
+import { getSchedulerUuidFromUrlParams } from '../utils';
 import SchedulerForm from './SchedulerForm';
 import SchedulersModalFooter from './SchedulerModalFooter';
+import SchedulersList from './SchedulersList';
 
 enum States {
     LIST,
@@ -79,7 +78,8 @@ const CreateStateContent: FC<{
     };
     const { data: user } = useUser(true);
     const { track } = useTracking();
-    const { mutate: sendNow } = useSendNowScheduler();
+    const { mutate: sendNow, isFetching: isFetchingSendNow } =
+        useSendNowScheduler();
 
     const handleSendNow = useCallback(
         (schedulerData: CreateSchedulerAndTargetsWithoutIds) => {
@@ -102,32 +102,34 @@ const CreateStateContent: FC<{
                 name: EventName.SCHEDULER_SEND_NOW_BUTTON,
             });
 
-            // TODO: here
             sendNow(unsavedScheduler);
         },
         [isChart, resourceUuid, track, sendNow, user],
     );
 
     return (
-        <SchedulerForm
-            disabled={createMutation.isLoading}
-            resource={
-                isChart
-                    ? {
-                          uuid: resourceUuid,
-                          type: 'chart',
-                      }
-                    : {
-                          uuid: resourceUuid,
-                          type: 'dashboard',
-                      }
-            }
-            onSubmit={handleSubmit}
-            confirmText="Create schedule"
-            onBack={onBack}
-            onSendNow={handleSendNow}
-            loading={createMutation.isLoading}
-        />
+        <>
+            <LoadingOverlay visible={isFetchingSendNow} overlayBlur={1} />
+            <SchedulerForm
+                disabled={createMutation.isLoading}
+                resource={
+                    isChart
+                        ? {
+                              uuid: resourceUuid,
+                              type: 'chart',
+                          }
+                        : {
+                              uuid: resourceUuid,
+                              type: 'dashboard',
+                          }
+                }
+                onSubmit={handleSubmit}
+                confirmText="Create schedule"
+                onBack={onBack}
+                onSendNow={handleSendNow}
+                loading={createMutation.isLoading}
+            />
+        </>
     );
 };
 
@@ -151,7 +153,9 @@ const UpdateStateContent: FC<{
 
     const { data: user } = useUser(true);
     const { track } = useTracking();
-    const { mutate: sendNow } = useSendNowScheduler();
+
+    const { mutate: sendNow, isFetching: isFetchingSendNow } =
+        useSendNowScheduler();
 
     const handleSendNow = useCallback(
         (schedulerData: CreateSchedulerAndTargetsWithoutIds) => {
@@ -190,28 +194,32 @@ const UpdateStateContent: FC<{
         );
     }
     return (
-        <SchedulerForm
-            resource={
-                scheduler.data &&
-                (scheduler.data.dashboardUuid || scheduler.data.savedChartUuid)
-                    ? {
-                          type: scheduler.data.dashboardUuid
-                              ? 'dashboard'
-                              : 'chart',
-                          uuid:
-                              scheduler.data.dashboardUuid ??
-                              scheduler.data.savedChartUuid,
-                      }
-                    : undefined
-            }
-            disabled={mutation.isLoading}
-            savedSchedulerData={scheduler.data}
-            onSubmit={handleSubmit}
-            confirmText="Save"
-            onBack={onBack}
-            onSendNow={handleSendNow}
-            loading={mutation.isLoading || scheduler.isLoading}
-        />
+        <>
+            <LoadingOverlay visible={isFetchingSendNow} overlayBlur={1} />
+            <SchedulerForm
+                resource={
+                    scheduler.data &&
+                    (scheduler.data.dashboardUuid ||
+                        scheduler.data.savedChartUuid)
+                        ? {
+                              type: scheduler.data.dashboardUuid
+                                  ? 'dashboard'
+                                  : 'chart',
+                              uuid:
+                                  scheduler.data.dashboardUuid ??
+                                  scheduler.data.savedChartUuid,
+                          }
+                        : undefined
+                }
+                disabled={mutation.isLoading}
+                savedSchedulerData={scheduler.data}
+                onSubmit={handleSubmit}
+                confirmText="Save"
+                onBack={onBack}
+                onSendNow={handleSendNow}
+                loading={mutation.isLoading || scheduler.isLoading}
+            />
+        </>
     );
 };
 
