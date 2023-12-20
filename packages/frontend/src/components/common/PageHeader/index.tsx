@@ -1,17 +1,8 @@
-import { Colors, H4, Icon } from '@blueprintjs/core';
+import { Colors, Icon } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const PageTitleAndDetailsContainer = styled.div`
     flex: 1;
-`;
-
-export const PageTitle = styled(H4)`
-    margin: 4px 5px 4px 0;
-`;
-
-export const PageTitleContainer = styled.div`
-    display: flex;
-    align-items: center;
 `;
 
 export const PageDetailsContainer = styled.div`
