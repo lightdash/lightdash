@@ -718,6 +718,10 @@ const SchedulerForm: FC<Props> = ({
             <SchedulersModalFooter
                 confirmText={confirmText}
                 onBack={onBack}
+                canSendNow={Boolean(
+                    form.values.slackTargets.length ||
+                        form.values.emailTargets.length,
+                )}
                 onSendNow={handleSendNow}
                 loading={loading}
             />
