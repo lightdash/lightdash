@@ -1,3 +1,10 @@
+## [0.911.1](https://github.com/lightdash/lightdash/compare/0.911.0...0.911.1) (2023-12-20)
+
+
+### Bug Fixes
+
+* call subpopover handlers on close of autocomplete ([#8375](https://github.com/lightdash/lightdash/issues/8375)) ([1939798](https://github.com/lightdash/lightdash/commit/1939798fbe638a5dae80de3fdaf6c3d36ea21e36))
+
 # [0.911.0](https://github.com/lightdash/lightdash/compare/0.910.0...0.911.0) (2023-12-20)
 
 
