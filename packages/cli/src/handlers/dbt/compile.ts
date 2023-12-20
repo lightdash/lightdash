@@ -53,13 +53,27 @@ const optionsToArgs = (options: DbtCompileOptions): string[] =>
         }
         return acc;
     }, []);
-export const dbtCompile = async (options: DbtCompileOptions) => {
+export const dbtCompile = async (
+    options: DbtCompileOptions,
+): Promise<string[]> => {
     try {
-        const args = optionsToArgs(options);
-        GlobalState.debug(`> Running: dbt compile ${args.join(' ')}`);
-        const { stdout, stderr } = await execa('dbt', ['compile', ...args]);
-        console.error(stdout);
+        const args = [
+            ...optionsToArgs(options),
+            '--quiet',
+            '--output',
+            'json',
+            '--output-keys',
+            'unique_id',
+        ];
+        GlobalState.debug(`> Running: dbt ls ${args.join(' ')}`);
+        const { stdout, stderr } = await execa('dbt', ['ls', ...args]);
+        const models = stdout
+            .split('\n')
+            .slice(1)
+            .map((line) => JSON.parse(line).unique_id);
+        console.error(models);
         console.error(stderr);
+        return models;
     } catch (e: any) {
         throw new ParseError(`Failed to run dbt compile:\n  ${e.message}`);
     }

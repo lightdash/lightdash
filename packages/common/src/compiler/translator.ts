@@ -253,9 +253,9 @@ export const convertTable = (
     dbtMetrics: DbtMetric[],
     startOfWeek?: WeekDay | null,
 ): Omit<Table, 'lineageGraph'> => {
-    if (!model.compiled) {
-        throw new NonCompiledModelError(`Model has not been compiled by dbt`);
-    }
+    // if (!model.compiled) {
+    //     throw new NonCompiledModelError(`Model has not been compiled by dbt`);
+    // }
     const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
     const tableLabel = meta.label || friendlyName(model.name);
     const [dimensions, metrics]: [

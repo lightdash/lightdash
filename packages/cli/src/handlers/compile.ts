@@ -68,8 +68,9 @@ export const compile = async (options: CompileHandlerOptions) => {
     }
 
     // Skipping assumes manifest.json already exists.
+    let modelIds: string[] = [];
     if (!options.skipDbtCompile) {
-        await dbtCompile(options);
+        modelIds = await dbtCompile(options);
     }
 
     const absoluteProjectPath = path.resolve(options.projectDir);
@@ -97,7 +98,9 @@ export const compile = async (options: CompileHandlerOptions) => {
             : undefined,
     });
     const manifest = await loadManifest({ targetDir: context.targetDir });
-    const models = getModelsFromManifest(manifest);
+    const models = getModelsFromManifest(manifest).filter((model) =>
+        modelIds.includes(model.unique_id),
+    );
 
     const adapterType = manifest.metadata.adapter_type;
 
@@ -119,9 +122,10 @@ ${errors.join('')}`),
     }
 
     // Ideally we'd skip this potentially expensive step
-    const catalog = await warehouseClient.getCatalog(
-        getSchemaStructureFromDbtModels(validModels),
-    );
+    // const catalog = await warehouseClient.getCatalog(
+    //     getSchemaStructureFromDbtModels(validModels),
+    // );
+    const catalog = {};
 
     const validModelsWithTypes = attachTypesToModels(
         validModels,

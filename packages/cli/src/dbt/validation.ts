@@ -31,9 +31,9 @@ export const validateDbtModel = async (
     const validator = new ManifestValidator(manifestVersion);
     const results = models.reduce<DbtModelsGroupedByState>(
         (acc, model) => {
-            if (model.compiled === undefined) {
-                return { ...acc, skipped: [...acc.skipped, model] };
-            }
+            // if (model.compiled === undefined) {
+            //     return { ...acc, skipped: [...acc.skipped, model] };
+            // }
 
             let error: InlineError | undefined;
             // Match against json schema
