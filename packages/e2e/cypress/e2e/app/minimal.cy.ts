@@ -46,9 +46,10 @@ describe('Minimal pages', () => {
                 `/minimal/projects/${SEED_PROJECT.project_uuid}/saved/${savedChart.uuid}`,
             );
 
-            cy.get('.bp4-html-table').should('exist');
-            cy.contains('Days between created and first order');
-            cy.contains('Total revenue');
+            cy.get('table').within(() => {
+                cy.contains('Days between created and first order');
+                cy.contains('Total revenue');
+            });
         });
     });
 
