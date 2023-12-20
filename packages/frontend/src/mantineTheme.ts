@@ -188,5 +188,9 @@ export const getMantineThemeOverride = (overrides?: {
             outlineOffset: '2px',
             '-moz-outline-radius': '6px',
         },
+
+        '.react-draggable.react-draggable-dragging .tile-base': {
+            border: `1px solid ${theme.colors.blue[5]}`,
+        },
     }),
 });

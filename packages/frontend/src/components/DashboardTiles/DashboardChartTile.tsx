@@ -79,7 +79,6 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import EditChartMenuItem from './EditChartMenuItem';
 import TileBase from './TileBase/index';
-import { GlobalTileStyles } from './TileBase/TileBase.styles';
 
 interface ExportResultAsCSVModalProps {
     projectUuid: string;
@@ -497,8 +496,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     return (
         <>
-            <GlobalTileStyles />
-
             <TileBase
                 extraHeaderElement={
                     appliedFilterRules.length > 0 && (
@@ -814,6 +811,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     }}
                 />
             )}
+
             {isCSVExportModalOpen ? (
                 <ExportResultAsCSVModal
                     projectUuid={projectUuid}

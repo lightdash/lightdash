@@ -1,6 +1,15 @@
-import { Classes } from '@blueprintjs/core';
 import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Card,
+    Flex,
+    Group,
+    LoadingOverlay,
+    Menu,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { ReactNode, useState } from 'react';
@@ -12,7 +21,6 @@ import {
     ButtonsWrapper,
     ChartContainer,
     HeaderContainer,
-    TileBaseWrapper,
     TileTitleLink,
     TitleWrapper,
 } from './TileBase.styles';
@@ -54,7 +62,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         isDeletingChartThatBelongsToDashboard,
         setIsDeletingChartThatBelongsToDashboard,
     ] = useState(false);
-    const [isHovering, setIsHovering] = useState(false);
     const { hovered: containerHovered, ref: containerRef } = useHover();
     const { hovered: titleHovered, ref: titleRef } =
         useHover<HTMLAnchorElement>();
@@ -71,18 +78,30 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
     return (
-        <TileBaseWrapper
-            className={isLoading ? Classes.SKELETON : undefined}
+        <Card
+            component={Flex}
+            className="tile-base"
             ref={containerRef}
-            $isEditMode={isEditMode}
-            $isHovering={isHovering}
+            h="100%"
+            direction="column"
+            p="md"
+            bg="white"
+            radius="sm"
+            shadow={isEditMode ? 'xs' : undefined}
+            sx={(theme) => ({
+                overflow: 'unset',
+
+                border: isEditMode
+                    ? `1px dashed ${theme.colors.blue[5]}`
+                    : `1px solid ${theme.colors.gray[1]}`,
+            })}
         >
+            <LoadingOverlay visible={isLoading ?? false} />
+
             {!isLoading && (
                 <>
                     <HeaderContainer
                         $isEditMode={isEditMode}
-                        onMouseEnter={() => setIsHovering(true)}
-                        onMouseLeave={() => setIsHovering(false)}
                         $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                     >
                         <Tooltip
@@ -284,7 +303,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     />
                 </>
             )}
-        </TileBaseWrapper>
+        </Card>
     );
 };
 
