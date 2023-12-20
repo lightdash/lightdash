@@ -1,4 +1,3 @@
-import { Tag } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     ApiChartAndResults,
@@ -24,7 +23,17 @@ import {
     ResultValue,
     SavedChart,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Portal, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Badge,
+    Box,
+    HoverCard,
+    Menu,
+    Portal,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconAlertCircle,
@@ -70,11 +79,7 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import EditChartMenuItem from './EditChartMenuItem';
 import TileBase from './TileBase/index';
-import {
-    FilterLabel,
-    FilterWrapper,
-    GlobalTileStyles,
-} from './TileBase/TileBase.styles';
+import { GlobalTileStyles } from './TileBase/TileBase.styles';
 
 interface ExportResultAsCSVModalProps {
     projectUuid: string;
@@ -473,40 +478,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
           ]
         : [];
 
-    const renderFilterRule = useCallback(
-        (filterRule: DashboardFilterRule) => {
-            const fields: Field[] = explore ? getVisibleFields(explore) : [];
-            const field = fields.find(
-                (f) => fieldId(f) === filterRule.target.fieldId,
-            );
-            if (field && isFilterableField(field)) {
-                const filterRuleLabels = getConditionalRuleLabel(
-                    filterRule,
-                    field,
-                );
-                return (
-                    <div key={field.name}>
-                        <Tag minimal style={{ color: 'white' }}>
-                            {filterRuleLabels.field}:{' '}
-                            {filterRule.disabled ? (
-                                <>is any value</>
-                            ) : (
-                                <>
-                                    {filterRuleLabels.operator}{' '}
-                                    <Text fw={700} span>
-                                        {filterRuleLabels.value}
-                                    </Text>
-                                </>
-                            )}
-                        </Tag>
-                    </div>
-                );
-            }
-            return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
-        },
-        [explore],
-    );
-
     const chartWithDashboardFilters = useMemo(
         () => ({
             ...chart,
@@ -531,28 +502,86 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             <TileBase
                 extraHeaderElement={
                     appliedFilterRules.length > 0 && (
-                        <Tooltip
+                        <HoverCard
+                            withArrow
+                            withinPortal
+                            shadow="md"
+                            position="bottom-end"
+                            offset={4}
                             arrowOffset={10}
-                            label={
-                                <FilterWrapper>
-                                    <FilterLabel>
+                        >
+                            <HoverCard.Dropdown>
+                                <Stack spacing="xs" align="flex-start">
+                                    <Text color="gray.7" fw={500}>
                                         Dashboard filter
                                         {appliedFilterRules.length > 1
                                             ? 's'
                                             : ''}{' '}
                                         applied:
-                                    </FilterLabel>
-                                    {appliedFilterRules.map(renderFilterRule)}
-                                </FilterWrapper>
-                            }
-                            position="bottom-end"
-                            withArrow
-                            withinPortal
-                        >
-                            <ActionIcon size="sm">
-                                <MantineIcon icon={IconFilter} />
-                            </ActionIcon>
-                        </Tooltip>
+                                    </Text>
+
+                                    {appliedFilterRules.map((filterRule) => {
+                                        const fields: Field[] = explore
+                                            ? getVisibleFields(explore)
+                                            : [];
+
+                                        const field = fields.find((f) => {
+                                            return (
+                                                fieldId(f) ===
+                                                filterRule.target.fieldId
+                                            );
+                                        });
+                                        if (!field || !isFilterableField(field))
+                                            return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+
+                                        const filterRuleLabels =
+                                            getConditionalRuleLabel(
+                                                filterRule,
+                                                field,
+                                            );
+                                        return (
+                                            <Badge
+                                                key={filterRule.id}
+                                                variant="outline"
+                                                color="gray.4"
+                                                radius="sm"
+                                                size="lg"
+                                                fz="xs"
+                                                fw="normal"
+                                                style={{
+                                                    textTransform: 'none',
+                                                    color: 'black',
+                                                }}
+                                            >
+                                                <Text fw={600} span>
+                                                    {filterRuleLabels.field}:
+                                                </Text>{' '}
+                                                {filterRule.disabled ? (
+                                                    <>is any value</>
+                                                ) : (
+                                                    <>
+                                                        {
+                                                            filterRuleLabels.operator
+                                                        }{' '}
+                                                        <Text fw={600} span>
+                                                            {
+                                                                filterRuleLabels.value
+                                                            }
+                                                        </Text>
+                                                    </>
+                                                )}
+                                            </Badge>
+                                        );
+                                    })}
+                                </Stack>
+                            </HoverCard.Dropdown>
+
+                            <HoverCard.Target>
+                                <ActionIcon size="sm">
+                                    <MantineIcon icon={IconFilter} />
+                                </ActionIcon>
+                            </HoverCard.Target>
+                        </HoverCard>
                     )
                 }
                 titleLeftIcon={

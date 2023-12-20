@@ -136,16 +136,3 @@ export const ChartContainer = styled.div`
     overflow: hidden;
     display: flex;
 `;
-
-export const FilterWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-`;
-
-export const FilterLabel = styled.p`
-    margin-bottom: 5px;
-    color: ${Colors.GRAY5};
-    font-size: 12px;
-    font-weight: 500;
-`;

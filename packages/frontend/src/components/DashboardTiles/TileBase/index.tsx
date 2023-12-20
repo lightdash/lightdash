@@ -137,15 +137,15 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 {(isEditMode ||
                                     (!isEditMode && extraMenuItems)) && (
                                     <Menu
-                                        withinPortal
-                                        opened={isMenuOpen}
-                                        onOpen={() => toggleMenu(true)}
-                                        onClose={() => toggleMenu(false)}
-                                        shadow="md"
                                         withArrow
+                                        withinPortal
+                                        shadow="md"
                                         position="bottom-end"
                                         offset={4}
                                         arrowOffset={10}
+                                        opened={isMenuOpen}
+                                        onOpen={() => toggleMenu(true)}
+                                        onClose={() => toggleMenu(false)}
                                     >
                                         <Menu.Dropdown>
                                             {extraMenuItems}
