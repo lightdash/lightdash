@@ -101,6 +101,8 @@ const CreateStateContent: FC<{
             track({
                 name: EventName.SCHEDULER_SEND_NOW_BUTTON,
             });
+
+            // TODO: here
             sendNow(unsavedScheduler);
         },
         [isChart, resourceUuid, track, sendNow, user],

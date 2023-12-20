@@ -1,6 +1,7 @@
 import {
     ApiError,
     ApiJobStatusResponse,
+    ApiTestSchedulerResponse,
     CreateSchedulerAndTargets,
     SchedulerAndTargets,
     SchedulerJobStatus,
@@ -25,31 +26,31 @@ const getSchedulerLogs = async (projectUuid: string) =>
     });
 
 const sendNowScheduler = async (scheduler: CreateSchedulerAndTargets) =>
-    lightdashApi<undefined>({
+    lightdashApi<ApiTestSchedulerResponse>({
         url: `/schedulers/send`,
         method: 'POST',
         body: JSON.stringify(scheduler),
     });
 
-export const useSendNowScheduler = () => {
-    const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, CreateSchedulerAndTargets>(
-        (data) => sendNowScheduler(data),
-        {
-            onSuccess: async () => {
-                showToastSuccess({
-                    title: 'Scheduled delivery sent successfully',
-                });
-            },
-            onError: (error) => {
-                showToastError({
-                    title: `Failed to send scheduled delivery`,
-                    subtitle: error.error.message,
-                });
-            },
-        },
-    );
-};
+// export const useSendNowScheduler = () => {
+//     const { showToastSuccess, showToastError } = useToaster();
+//     return useMutation<undefined, ApiError, CreateSchedulerAndTargets>(
+//         (data) => sendNowScheduler(data),
+//         {
+//             onSuccess: async () => {
+//                 showToastSuccess({
+//                     title: 'Scheduled delivery sent successfully',
+//                 });
+//             },
+//             onError: (error) => {
+//                 showToastError({
+//                     title: `Failed to send scheduled delivery`,
+//                     subtitle: error.error.message,
+//                 });
+//             },
+//         },
+//     );
+// };
 
 export const useScheduler = (
     uuid: string,
@@ -99,5 +100,51 @@ export const pollJobStatus = async (jobId: string) => {
             () => resolve(),
             (error) => reject(error),
         );
+    });
+};
+
+export const useSendNowScheduler = () => {
+    const { showToastSuccess, showToastError, showToastInfo } = useToaster();
+
+    return useMutation<
+        ApiTestSchedulerResponse,
+        ApiError,
+        CreateSchedulerAndTargets
+    >((data) => sendNowScheduler(data), {
+        mutationKey: 'sendNowScheduler',
+        onSuccess: async (response) => {
+            console.log('response', response);
+
+            // Show loading spinner
+            const toastId = showToastInfo({
+                title: 'Processing...',
+                // description: 'Waiting for the job to complete.',
+            });
+
+            try {
+                // Poll job status
+                await pollJobStatus(response.jobId);
+
+                // Update toast to success message
+                showToastSuccess({
+                    title: 'Scheduled delivery sent successfully',
+                });
+            } catch (error) {
+                showToastError({
+                    title: 'Failed to send scheduled delivery',
+                    subtitle: error.message,
+                });
+            } finally {
+                // Remove loading spinner
+                // Assuming there's a method to remove the toast
+                // removeToast(toastId);
+            }
+        },
+        onError: (error) => {
+            showToastError({
+                title: 'Failed to send scheduled delivery',
+                subtitle: error.error.message,
+            });
+        },
     });
 };

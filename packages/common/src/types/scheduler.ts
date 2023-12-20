@@ -245,6 +245,9 @@ export type ApiSchedulerLogsResponse = {
 };
 export type ApiTestSchedulerResponse = {
     status: 'ok';
+    results: {
+        jobId: string;
+    };
 };
 
 // Scheduler task types
