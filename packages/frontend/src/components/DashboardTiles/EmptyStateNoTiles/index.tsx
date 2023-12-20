@@ -41,7 +41,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     return (
         <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
             <div style={{ padding: '50px 0' }}>
-                {!hasSavedCharts ? (
+                {hasSavedCharts ? (
                     <SuboptimalState
                         icon={IconLayoutDashboard}
                         title={

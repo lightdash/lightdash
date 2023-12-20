@@ -54,6 +54,14 @@ export const getMantineThemeOverride = (overrides?: {
     cursorType: 'pointer',
 
     components: {
+        InputWrapper: {
+            styles: (theme, _params) => ({
+                label: {
+                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
+                    marginBottom: theme.spacing.xs,
+                },
+            }),
+        },
         TextInput: {
             styles: (theme, _params) => ({
                 label: {

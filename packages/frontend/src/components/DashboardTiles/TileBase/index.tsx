@@ -228,9 +228,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             </ButtonsWrapper>
                         ) : null}
                     </HeaderContainer>
+
                     <ChartContainer className="non-draggable sentry-block ph-no-capture">
                         {children}
                     </ChartContainer>
+
                     {isEditingTileContent &&
                         (tile.type === DashboardTileTypes.SAVED_CHART ? (
                             <ChartUpdateModal
@@ -267,6 +269,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 }}
                             />
                         ))}
+
                     <DeleteChartTileThatBelongsToDashboardModal
                         className={'non-draggable'}
                         name={chartName ?? ''}
