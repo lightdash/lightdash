@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 interface HeaderContainerProps {
@@ -43,6 +42,8 @@ interface TileTitleProps {
     $hovered?: boolean;
 }
 
+// FIXME: colors in this file are hardcoded to mantine values.
+// #FFF is white, #212529 is gray.9
 export const TitleWrapper = styled.div<TileTitleProps>`
     flex-grow: 1;
     overflow: hidden;
@@ -59,8 +60,8 @@ export const TitleWrapper = styled.div<TileTitleProps>`
                       z-index: 10;
 
                       a {
-                          outline: 8px solid ${Colors.WHITE};
-                          background-color: ${Colors.WHITE};
+                          outline: 8px solid #fff;
+                          background-color: #fff;
                       }
                   `
                 : ''}
@@ -71,11 +72,11 @@ export const TitleWrapper = styled.div<TileTitleProps>`
 export const TileTitleLink = styled.a<TileTitleProps>`
     font-weight: 600;
     font-size: 16px;
-    color: ${Colors.DARK_GRAY1};
+    color: #212529;
     text-decoration: none;
 
     :hover {
-        color: ${Colors.DARK_GRAY1} !important;
+        color: #212529 !important;
         text-decoration: underline;
     }
 

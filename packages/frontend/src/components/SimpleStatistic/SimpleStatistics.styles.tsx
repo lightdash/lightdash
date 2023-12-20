@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 interface BigNumberContainerProps {
@@ -27,8 +26,10 @@ interface BigNumberProps extends React.HTMLAttributes<HTMLDivElement> {
     $fontSize?: number;
 }
 
+// FIXME: colors in this file are hardcoded to mantine values.
+// #373a40 is dark.4, #868E96 is gray.6
 export const BigNumber = styled.span<BigNumberProps>`
-    color: ${Colors.DARK_GRAY4};
+    color: #373a40;
     text-align: center;
     font-weight: 500;
     transition: font-size 0.1s ease-in-out;
@@ -41,7 +42,7 @@ interface BigNumberLabelProps {
 }
 
 export const BigNumberLabel = styled.span<BigNumberLabelProps>`
-    color: ${Colors.GRAY3};
+    color: #868e96;
     text-align: center;
     font-weight: 500;
     transition: font-size 0.1s ease-in-out;
