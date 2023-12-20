@@ -16,6 +16,7 @@ import {
     Card,
     Flex,
     Stack,
+    Text,
     TextInput,
     Title,
 } from '@mantine/core';
@@ -41,11 +42,7 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
-import {
-    CompileProjectButton,
-    FormContainer,
-    LeftPanelMessage,
-} from './ProjectConnection.styles';
+import { FormContainer } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
@@ -110,10 +107,10 @@ const ProjectForm: FC<Props> = ({
                     </Flex>
 
                     {health.data?.staticIp && (
-                        <LeftPanelMessage>
+                        <Text color="gray">
                             If you need to add our IP address to your database's
                             allow-list, use <b>{health.data?.staticIp}</b>
-                        </LeftPanelMessage>
+                        </Text>
                     )}
                 </div>
 
@@ -385,13 +382,13 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     selectedWarehouse={selectedWarehouse}
                 />
 
-                <CompileProjectButton
-                    large
+                <Button
+                    sx={{ alignSelf: 'end' }}
                     type="submit"
-                    intent="primary"
-                    text="Test & compile project"
                     loading={isSavingProject}
-                />
+                >
+                    Test & compile project
+                </Button>
             </ProjectFormProvider>
         </FormContainer>
     );
