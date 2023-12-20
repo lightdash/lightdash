@@ -201,16 +201,10 @@ const FilterStringAutoComplete: FC<Props> = ({
             }
             data={data}
             value={values}
-            onDropdownOpen={() => {
-                if (onDropdownOpen) {
-                    onDropdownOpen();
-                }
-            }}
+            onDropdownOpen={onDropdownOpen}
             onDropdownClose={() => {
                 handleResetSearch();
-                if (onDropdownClose) {
-                    onDropdownClose();
-                }
+                onDropdownClose?.();
             }}
             onChange={handleChange}
             onCreate={handleAdd}
