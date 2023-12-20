@@ -78,7 +78,7 @@ const CreateStateContent: FC<{
     };
     const { data: user } = useUser(true);
     const { track } = useTracking();
-    const { mutate: sendNow, isFetching: isFetchingSendNow } =
+    const { mutate: sendNow, isLoading: isLoadingSendNow } =
         useSendNowScheduler();
 
     const handleSendNow = useCallback(
@@ -109,7 +109,7 @@ const CreateStateContent: FC<{
 
     return (
         <>
-            <LoadingOverlay visible={isFetchingSendNow} overlayBlur={1} />
+            <LoadingOverlay visible={isLoadingSendNow} overlayBlur={1} />
             <SchedulerForm
                 disabled={createMutation.isLoading}
                 resource={
@@ -154,7 +154,7 @@ const UpdateStateContent: FC<{
     const { data: user } = useUser(true);
     const { track } = useTracking();
 
-    const { mutate: sendNow, isFetching: isFetchingSendNow } =
+    const { mutate: sendNow, isLoading: isLoadingSendNow } =
         useSendNowScheduler();
 
     const handleSendNow = useCallback(
@@ -195,7 +195,7 @@ const UpdateStateContent: FC<{
     }
     return (
         <>
-            <LoadingOverlay visible={isFetchingSendNow} overlayBlur={1} />
+            <LoadingOverlay visible={isLoadingSendNow} overlayBlur={1} />
             <SchedulerForm
                 resource={
                     scheduler.data &&

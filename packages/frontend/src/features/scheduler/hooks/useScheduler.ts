@@ -197,7 +197,7 @@ export const useSendNowScheduler = () => {
         },
     );
 
-    const isFetching = useMemo(
+    const isLoading = useMemo(
         () =>
             sendNowMutation.isLoading ||
             scheduledDeliveryJobStatus?.status === SchedulerJobStatus.STARTED,
@@ -206,6 +206,6 @@ export const useSendNowScheduler = () => {
 
     return {
         ...sendNowMutation,
-        isFetching,
+        isLoading,
     };
 };
