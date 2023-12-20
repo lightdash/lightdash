@@ -8,6 +8,7 @@ import {
     Group,
     Menu,
     Modal,
+    Title,
     Tooltip,
 } from '@mantine/core';
 import {
@@ -58,9 +59,7 @@ import PageHeader from '../../common/Page/PageHeader';
 import {
     PageActionsContainer,
     PageDetailsContainer,
-    PageTitle,
     PageTitleAndDetailsContainer,
-    PageTitleContainer,
     SeparatorDot,
 } from '../../common/PageHeader';
 import SpaceAndDashboardInfo from '../../common/PageHeader/SpaceAndDashboardInfo';
@@ -297,14 +296,18 @@ const SavedChartsHeader: FC = () => {
                 <PageTitleAndDetailsContainer>
                     {savedChart && (
                         <>
-                            <PageTitleContainer>
-                                <PageTitle>{savedChart.name}</PageTitle>
+                            <Group spacing="xs">
+                                <Title order={4} fw={600}>
+                                    {savedChart.name}
+                                </Title>
+
                                 <ResourceInfoPopup
                                     resourceUuid={savedChart.uuid}
                                     projectUuid={projectUuid}
                                     description={savedChart.description}
                                     withChartData={true}
                                 />
+
                                 {isEditMode &&
                                     user.data?.ability?.can(
                                         'manage',
@@ -328,7 +331,7 @@ const SavedChartsHeader: FC = () => {
                                     onClose={() => setIsRenamingChart(false)}
                                     onConfirm={() => setIsRenamingChart(false)}
                                 />
-                            </PageTitleContainer>
+                            </Group>
 
                             <PageDetailsContainer>
                                 <UpdatedInfo

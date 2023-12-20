@@ -54,6 +54,14 @@ export const getMantineThemeOverride = (overrides?: {
     cursorType: 'pointer',
 
     components: {
+        InputWrapper: {
+            styles: (theme, _params) => ({
+                label: {
+                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
+                    marginBottom: theme.spacing.xs,
+                },
+            }),
+        },
         TextInput: {
             styles: (theme, _params) => ({
                 label: {
@@ -179,6 +187,10 @@ export const getMantineThemeOverride = (overrides?: {
             outline: 'rgba(45, 114, 210, 0.6) solid 2px',
             outlineOffset: '2px',
             '-moz-outline-radius': '6px',
+        },
+
+        '.react-draggable.react-draggable-dragging .tile-base': {
+            border: `1px solid ${theme.colors.blue[5]}`,
         },
     }),
 });

@@ -225,18 +225,6 @@ export const FooterCell = styled.th<{ $isNaN: boolean }>`
   `}
 `;
 
-export const PaginationWrapper = styled.div`
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-end;
-    align-items: center;
-`;
-
-export const PageCount = styled.span`
-    color: ${Colors.GRAY1};
-    font-size: 12px;
-`;
-
 export const Th = styled.th``;
 
 export const ThContainer = styled.div`

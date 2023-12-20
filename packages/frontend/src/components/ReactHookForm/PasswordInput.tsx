@@ -1,4 +1,4 @@
-import { Button, InputGroup, Intent } from '@blueprintjs/core';
+import { Button, InputGroup } from '@blueprintjs/core';
 import { Tooltip } from '@mantine/core';
 import { FC, useState } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
@@ -25,7 +25,7 @@ const PasswordInput: FC<Omit<InputWrapperProps, 'render'>> = (props) => {
                                 minimal
                                 disabled={inputProps.disabled}
                                 icon={showPassword ? 'eye-off' : 'eye-open'}
-                                intent={Intent.WARNING}
+                                intent="warning"
                                 onClick={() =>
                                     setShowPassword((prevState) => !prevState)
                                 }

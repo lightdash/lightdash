@@ -215,7 +215,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                             </Stack>
                         </FormSection>
                         <FormSection
-                            name={'Advanced'}
+                            name="Advanced"
                             isOpen={isAdvancedSettingsOpen}
                         >
                             <Stack style={{ marginTop: '8px' }}>
@@ -225,7 +225,6 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                     documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
                                     disabled={disabled}
                                 />
-                                <></>
                             </Stack>
                         </FormSection>
                         <AdvancedButtonWrapper>

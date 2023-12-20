@@ -10,7 +10,6 @@ import { useForm, UseFormReturnType } from '@mantine/form';
 import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import produce from 'immer';
 import MantineIcon from '../../common/MantineIcon';
-import ChartTileForm from './ChartTileForm';
 import LoomTileForm, { getLoomId } from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 
@@ -79,9 +78,9 @@ const TileUpdateModal = <T extends Tile>({
         >
             <form onSubmit={handleConfirm}>
                 <Stack spacing="lg" pt="sm">
-                    {tile.type === DashboardTileTypes.SAVED_CHART ? (
-                        <ChartTileForm />
-                    ) : tile.type === DashboardTileTypes.MARKDOWN ? (
+                    {tile.type ===
+                    DashboardTileTypes.SAVED_CHART ? null : tile.type ===
+                      DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm
                             form={
                                 form as UseFormReturnType<
@@ -104,7 +103,7 @@ const TileUpdateModal = <T extends Tile>({
 
                     <Group position="right" mt="sm">
                         <Button variant="outline" onClick={() => onClose?.()}>
-                            Cancel
+                            Cancels
                         </Button>
 
                         <Button type="submit" disabled={!form.isValid()}>

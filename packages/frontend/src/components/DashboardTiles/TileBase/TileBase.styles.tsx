@@ -1,27 +1,11 @@
 import { Colors } from '@blueprintjs/core';
-import styled, { createGlobalStyle, css } from 'styled-components';
+import styled, { css } from 'styled-components';
 
 interface HeaderContainerProps {
     $isEditMode: boolean;
     $isHovering?: boolean;
     $isEmpty?: boolean;
 }
-
-export const TileBaseWrapper = styled.div<HeaderContainerProps>`
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
-    background: ${Colors.WHITE};
-    border-radius: 2px;
-    box-sizing: border-box;
-    border: 1px solid transparent;
-
-    ${(props) =>
-        props.$isEditMode
-            ? `border: 1px dashed #7ea5ff;`
-            : `box-shadow: 0 0 0 1px #bec1c426;`}
-`;
 
 export const TILE_HEADER_HEIGHT = 24;
 const TILE_HEADER_MARGIN_BOTTOM = 12;
@@ -53,12 +37,6 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
                   right: 16px;
               `
             : ''}
-`;
-
-export const GlobalTileStyles = createGlobalStyle`
-  .react-draggable.react-draggable-dragging ${TileBaseWrapper} {
-    box-shadow: 0 0 0 1px ${Colors.BLUE4};
-  }
 `;
 
 interface TileTitleProps {
@@ -135,17 +113,4 @@ export const ChartContainer = styled.div`
     flex: 1;
     overflow: hidden;
     display: flex;
-`;
-
-export const FilterWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-`;
-
-export const FilterLabel = styled.p`
-    margin-bottom: 5px;
-    color: ${Colors.GRAY5};
-    font-size: 12px;
-    font-weight: 500;
 `;

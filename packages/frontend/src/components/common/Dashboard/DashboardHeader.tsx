@@ -1,4 +1,3 @@
-import { Classes } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
 import {
@@ -6,10 +5,12 @@ import {
     Box,
     Button,
     Flex,
+    Group,
     Menu,
     Popover,
     Stack,
     Text,
+    Title,
     Tooltip,
 } from '@mantine/core';
 import {
@@ -43,9 +44,7 @@ import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
 import {
     PageActionsContainer,
-    PageTitle,
     PageTitleAndDetailsContainer,
-    PageTitleContainer,
 } from '../PageHeader';
 import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
@@ -140,8 +139,10 @@ const DashboardHeader = ({
     return (
         <PageHeader h="auto">
             <PageTitleAndDetailsContainer>
-                <PageTitleContainer className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
-                    <PageTitle>{dashboardName}</PageTitle>
+                <Group spacing="xs">
+                    <Title order={4} fw={600}>
+                        {dashboardName}
+                    </Title>
 
                     <Popover
                         withinPortal
@@ -205,8 +206,9 @@ const DashboardHeader = ({
                             onConfirm={() => setIsUpdating(false)}
                         />
                     )}
-                </PageTitleContainer>
+                </Group>
             </PageTitleAndDetailsContainer>
+
             {oldestCacheTime && (
                 <Text
                     color="gray"
@@ -219,6 +221,7 @@ const DashboardHeader = ({
                     </Text>
                 </Text>
             )}
+
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton
