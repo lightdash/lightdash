@@ -34,6 +34,8 @@ const FilterStringAutoComplete: FC<Props> = ({
     disabled,
     onChange,
     placeholder,
+    onDropdownOpen,
+    onDropdownClose,
     ...rest
 }) => {
     const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
@@ -199,7 +201,17 @@ const FilterStringAutoComplete: FC<Props> = ({
             }
             data={data}
             value={values}
-            onDropdownClose={handleResetSearch}
+            onDropdownOpen={() => {
+                if (onDropdownOpen) {
+                    onDropdownOpen();
+                }
+            }}
+            onDropdownClose={() => {
+                handleResetSearch();
+                if (onDropdownClose) {
+                    onDropdownClose();
+                }
+            }}
             onChange={handleChange}
             onCreate={handleAdd}
             onKeyDown={handleKeyDown}
