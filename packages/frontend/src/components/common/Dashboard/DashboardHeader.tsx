@@ -1,4 +1,4 @@
-import { Classes, Divider } from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
 import {
@@ -372,7 +372,7 @@ const DashboardHeader = ({
                                                     );
                                                 })}
 
-                                                <Divider />
+                                                <Menu.Divider />
 
                                                 <Menu.Item
                                                     icon={
@@ -418,7 +418,7 @@ const DashboardHeader = ({
 
                             {userCanManageDashboard && (
                                 <>
-                                    <Divider />
+                                    <Menu.Divider />
                                     <Menu.Item
                                         icon={
                                             <MantineIcon

@@ -1,6 +1,6 @@
 import { Button, InputGroup, Intent } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
-import React, { FC, useState } from 'react';
+import { Tooltip } from '@mantine/core';
+import { FC, useState } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 const PasswordInput: FC<Omit<InputWrapperProps, 'render'>> = (props) => {
@@ -17,10 +17,8 @@ const PasswordInput: FC<Omit<InputWrapperProps, 'render'>> = (props) => {
                     }
                     type={showPassword ? 'text' : 'password'}
                     rightElement={
-                        <Tooltip2
-                            content={`${
-                                showPassword ? 'Hide' : 'Show'
-                            } Password`}
+                        <Tooltip
+                            label={`${showPassword ? 'Hide' : 'Show'} Password`}
                             disabled={inputProps.disabled}
                         >
                             <Button
@@ -32,7 +30,7 @@ const PasswordInput: FC<Omit<InputWrapperProps, 'render'>> = (props) => {
                                     setShowPassword((prevState) => !prevState)
                                 }
                             />
-                        </Tooltip2>
+                        </Tooltip>
                     }
                     {...field}
                 />

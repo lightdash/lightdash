@@ -7,6 +7,8 @@ export const getMantineThemeOverride = (overrides?: {
 }): MantineThemeOverride => ({
     ...overrides,
 
+    focusRing: 'auto',
+
     black: Colors.DARK_GRAY1,
     white: Colors.WHITE,
 
