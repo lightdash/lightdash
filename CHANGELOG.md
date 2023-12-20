@@ -1,3 +1,10 @@
+# [0.910.0](https://github.com/lightdash/lightdash/compare/0.909.0...0.910.0) (2023-12-20)
+
+
+### Features
+
+* random mantine migrations ([#8362](https://github.com/lightdash/lightdash/issues/8362)) ([04bf21e](https://github.com/lightdash/lightdash/commit/04bf21ee7e0f425cf19ce7d3470bdd5af3087c95))
+
 # [0.909.0](https://github.com/lightdash/lightdash/compare/0.908.0...0.909.0) (2023-12-19)
 
 
