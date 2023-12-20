@@ -55,6 +55,7 @@ import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
 import { Email } from './types/api/email';
+import { ApiSuccessEmpty } from './types/api/success';
 import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
 import { DashboardFilters } from './types/filter';
@@ -553,7 +554,8 @@ type ApiResults =
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results']
     | MostPopularAndRecentlyUpdated
-    | ApiCalculateTotalResponse['results'];
+    | ApiCalculateTotalResponse['results']
+    | ApiSuccessEmpty;
 
 export type ApiResponse = {
     status: 'ok';
