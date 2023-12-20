@@ -4375,7 +4375,7 @@
                     "results": {
                         "properties": {
                             "status": {
-                                "type": "string"
+                                "$ref": "#/components/schemas/SchedulerJobStatus"
                             }
                         },
                         "required": ["status"],
@@ -4392,13 +4392,22 @@
             },
             "ApiTestSchedulerResponse": {
                 "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["jobId"],
+                        "type": "object"
+                    },
                     "status": {
                         "type": "string",
                         "enum": ["ok"],
                         "nullable": false
                     }
                 },
-                "required": ["status"],
+                "required": ["results", "status"],
                 "type": "object"
             },
             "ShareUrl": {
@@ -5478,7 +5487,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.907.2",
+        "version": "0.909.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
