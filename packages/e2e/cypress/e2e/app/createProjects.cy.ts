@@ -64,7 +64,7 @@ const configurePostgresWarehouse = (
     });
     cy.get('input[name="warehouse.dbname"]').type(config.database);
 
-    cy.contains('a', 'Advanced configuration options').click();
+    cy.contains('button', 'Advanced configuration options').click();
 
     cy.get('input[name="warehouse.port"]').clear().type(config.port);
     cy.selectMantine('warehouse.sslmode', 'disable');
