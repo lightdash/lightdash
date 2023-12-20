@@ -367,6 +367,6 @@ export type ApiJobScheduledResponse = {
 export type ApiJobStatusResponse = {
     status: 'ok';
     results: {
-        status: string;
+        status: SchedulerJobStatus;
     };
 };

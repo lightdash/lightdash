@@ -5,6 +5,7 @@ import {
     ApiSchedulerAndTargetsResponse,
     ApiSchedulerLogsResponse,
     ApiTestSchedulerResponse,
+    SchedulerJobStatus,
 } from '@lightdash/common';
 import {
     Body,
@@ -178,7 +179,11 @@ export class SchedulerController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: { status: await schedulerService.getJobStatus(jobId) },
+            results: {
+                status: (await schedulerService.getJobStatus(
+                    jobId,
+                )) as SchedulerJobStatus,
+            },
         };
     }
 
