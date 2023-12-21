@@ -77,7 +77,7 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
                         label="Chart description"
                         placeholder="A few words to give your team some context"
                         disabled={isUpdating}
-                        {...form.getInputProps('descrition')}
+                        {...form.getInputProps('description')}
                     />
 
                     <Group position="right" mt="sm">
