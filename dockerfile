@@ -18,6 +18,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && apt-get clean
 
+# Install security updates
+RUN echo "deb http://deb.debian.org/debian bullseye-backports main" >> /etc/apt/sources.list.d/backports.list
+RUN apt-get update && apt-get -t bullseye-backports install -y \
+    libcurl3-gnutls=7.88.1-10+deb12u3~bpo11+1
+
+RUN echo "deb http://deb.debian.org/debian bookworm main" >> /etc/apt/sources.list.d/backports.list
+RUN apt-get update && apt-get install -y  \
+    zlib1g=1:1.2.13.dfsg-1
+
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
 RUN python3 -m venv /usr/local/dbt1.4
