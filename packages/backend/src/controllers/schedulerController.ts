@@ -177,12 +177,12 @@ export class SchedulerController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiJobStatusResponse> {
         this.setStatus(200);
+        const { status, details } = await schedulerService.getJobStatus(jobId);
         return {
             status: 'ok',
             results: {
-                status: (await schedulerService.getJobStatus(
-                    jobId,
-                )) as SchedulerJobStatus,
+                status: status as SchedulerJobStatus,
+                details,
             },
         };
     }

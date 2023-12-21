@@ -368,5 +368,6 @@ export type ApiJobStatusResponse = {
     status: 'ok';
     results: {
         status: SchedulerJobStatus;
+        details: Record<string, any> | null;
     };
 };

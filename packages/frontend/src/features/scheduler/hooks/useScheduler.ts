@@ -138,7 +138,11 @@ export const useSendNowScheduler = () => {
         },
         {
             refetchInterval: (data) => {
-                if (data?.status === SchedulerJobStatus.COMPLETED) return false;
+                if (
+                    data?.status === SchedulerJobStatus.COMPLETED ||
+                    data?.status === SchedulerJobStatus.ERROR
+                )
+                    return false;
 
                 return 2000;
             },
@@ -167,6 +171,9 @@ export const useSendNowScheduler = () => {
                 if (data?.status === SchedulerJobStatus.ERROR) {
                     showToastError({
                         title: 'Failed to send scheduled delivery',
+                        ...(data?.details?.error && {
+                            subtitle: data.details.error,
+                        }),
                     });
                     return setTimeout(
                         () =>

@@ -3842,6 +3842,14 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        details: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'Record_string.any_' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         status: { ref: 'SchedulerJobStatus', required: true },
                     },
                     required: true,
