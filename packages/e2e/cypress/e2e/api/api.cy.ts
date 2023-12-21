@@ -1,4 +1,4 @@
-import { MetricQuery, SEED_PROJECT } from '@lightdash/common';
+import { MetricFilterRule, MetricQuery, SEED_PROJECT } from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
@@ -242,6 +242,42 @@ describe('Lightdash API', () => {
                 });
             },
         );
+    });
+
+    it.only('Should get metric filters from events', () => {
+        cy.request({
+            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/explores/events`,
+            headers: { 'Content-type': 'application/json' },
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+            const removeIds = (filters: MetricFilterRule[]) =>
+                filters.map((filter) => ({ ...filter, id: undefined }));
+            const metricFilters = removeIds(
+                resp.body.results.tables.events.metrics.with_filters
+                    .filters as MetricFilterRule[],
+            );
+            expect(metricFilters).to.have.length(3);
+            expect(metricFilters[0]).to.deep.equal({
+                id: undefined,
+                operator: 'notNull',
+                values: [1],
+                target: { fieldRef: 'event_id' },
+            });
+            expect(metricFilters[1]).to.deep.equal({
+                id: undefined,
+                operator: 'greaterThan',
+                values: [5],
+                target: { fieldRef: 'event_id' },
+            });
+            expect(metricFilters[2]).to.deep.equal({
+                id: undefined,
+                operator: 'equals',
+                values: ['song_played'],
+                target: { fieldRef: 'event' },
+            });
+        });
     });
 });
 

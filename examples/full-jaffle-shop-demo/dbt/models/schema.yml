@@ -37,6 +37,9 @@ models:
           metrics:
             date_of_first_created_customer:
               type: min
+              filters: 
+              - customer_id: "!null"
+
             date_of_most_recent_created_customer:
               type: max
       - name: first_order

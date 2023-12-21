@@ -179,6 +179,7 @@ export const parseOperator = (
     isTrue: boolean,
 ): FilterOperator => {
     switch (operator) {
+        case 'other': // When no operator is found, it is a exact match
         case FilterOperator.EQUALS:
             return isTrue ? FilterOperator.EQUALS : FilterOperator.NOT_EQUALS;
         case FilterOperator.INCLUDE:
@@ -231,7 +232,6 @@ export const parseFilters = (
         }
         if (typeof value === 'string') {
             const parsedFilter: ParsedFilter = parser.parse(value);
-
             return [
                 ...acc,
                 {
