@@ -43,7 +43,6 @@ export const getMantineThemeOverride = (overrides?: {
         'Droid Sans',
         'Open Sans',
         'Helvetica Neue',
-        'blueprint-icons-16',
         'Apple Color Emoji',
         'Segoe UI Emoji',
         'sans-serif',
@@ -191,6 +190,10 @@ export const getMantineThemeOverride = (overrides?: {
 
         '.react-draggable.react-draggable-dragging .tile-base': {
             border: `1px solid ${theme.colors.blue[5]}`,
+        },
+
+        '.ace_editor.ace_autocomplete': {
+            width: '500px',
         },
     }),
 });

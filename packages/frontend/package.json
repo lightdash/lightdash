@@ -3,7 +3,6 @@
     "version": "0.912.3",
     "private": true,
     "dependencies": {
-        "@blueprintjs/core": "^4.16.3",
         "@casl/ability": "^5.4.4",
         "@casl/react": "^3.0.0",
         "@emotion/react": "^11.10.6",

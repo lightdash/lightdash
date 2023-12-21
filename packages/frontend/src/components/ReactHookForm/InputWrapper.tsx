@@ -6,7 +6,6 @@ import React, { FC, ReactElement, useState } from 'react';
 import { Controller, get, useFormContext } from 'react-hook-form';
 import MantineIcon from '../common/MantineIcon';
 import DocumentationHelpButton from '../DocumentationHelpButton';
-import './InputWrapper.css';
 
 interface InputProps {
     id: string;

@@ -48,8 +48,6 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: mapManualChunks({
-                    '@blueprintjs/icons': 'blueprint-icons-vendor',
-                    '@blueprintjs/': 'blueprint-vendor',
                     '@mantine': 'mantine-vendor',
                     'highlight.js': 'highlight-vendor',
                     echarts: 'echarts-vendor',
