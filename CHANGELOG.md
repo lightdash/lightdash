@@ -1,3 +1,10 @@
+## [0.912.4](https://github.com/lightdash/lightdash/compare/0.912.3...0.912.4) (2023-12-21)
+
+
+### Bug Fixes
+
+* disabled style on explores link button ([#8382](https://github.com/lightdash/lightdash/issues/8382)) ([73af7b2](https://github.com/lightdash/lightdash/commit/73af7b263e826225d2062638bec645339f722b3a))
+
 ## [0.912.3](https://github.com/lightdash/lightdash/compare/0.912.2...0.912.3) (2023-12-21)
 
 
