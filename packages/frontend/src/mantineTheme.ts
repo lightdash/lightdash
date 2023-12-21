@@ -53,76 +53,6 @@ export const getMantineThemeOverride = (overrides?: {
     cursorType: 'pointer',
 
     components: {
-        InputWrapper: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xs,
-                },
-            }),
-        },
-        TextInput: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-        Textarea: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        NumberInput: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        PasswordInput: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        ColorInput: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        Select: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        MultiSelect: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
         Kbd: {
             styles: (theme, _params) => ({
                 root: {
@@ -144,6 +74,7 @@ export const getMantineThemeOverride = (overrides?: {
                 yOffset: 140,
             },
         },
+
         Alert: {
             styles: (_theme, _params) => ({
                 title: {
