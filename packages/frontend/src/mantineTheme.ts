@@ -48,7 +48,7 @@ export const getMantineThemeOverride = (overrides?: {
         'sans-serif',
     ].join(', '),
 
-    lineHeight: 1.2858142857,
+    lineHeight: 1.4,
 
     cursorType: 'pointer',
 
@@ -92,7 +92,6 @@ export const getMantineThemeOverride = (overrides?: {
         },
 
         body: {
-            textTransform: 'none',
             fontSize: '14px',
         },
 
@@ -101,22 +100,12 @@ export const getMantineThemeOverride = (overrides?: {
             marginTop: 0,
         },
 
-        small: {
-            fontSize: '12px',
-        },
-
         b: {
             fontWeight: 'bold',
         },
 
         strong: {
             fontWeight: 600,
-        },
-
-        ':focus': {
-            outline: 'rgba(45, 114, 210, 0.6) solid 2px',
-            outlineOffset: '2px',
-            '-moz-outline-radius': '6px',
         },
 
         '.react-draggable.react-draggable-dragging .tile-base': {
