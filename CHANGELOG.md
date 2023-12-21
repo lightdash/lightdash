@@ -1,3 +1,10 @@
+## [0.912.2](https://github.com/lightdash/lightdash/compare/0.912.1...0.912.2) (2023-12-21)
+
+
+### Bug Fixes
+
+* add correct string for chart update modal ([#8386](https://github.com/lightdash/lightdash/issues/8386)) ([e592ca5](https://github.com/lightdash/lightdash/commit/e592ca5b8d92365aba0eece0f7e60b8180eceaf4))
+
 ## [0.912.1](https://github.com/lightdash/lightdash/compare/0.912.0...0.912.1) (2023-12-21)
 
 
