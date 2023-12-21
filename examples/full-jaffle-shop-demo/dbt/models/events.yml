@@ -124,4 +124,4 @@ models:
               filters:
               - event_id: "!null"
               - event_id: ">5"
-              - event: "songplayed"
+              - event: "song_played"

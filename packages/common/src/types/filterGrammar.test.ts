@@ -25,16 +25,16 @@ describe('Parse grammar', () => {
             values: ['pedram'],
         });
 
-        expect(parser.parse('song_played')).toEqual({
+        expect(parser.parse('with space')).toEqual({
             is: true,
             type: 'equals',
-            values: ['song_played'],
+            values: ['with space'],
         });
 
-        expect(parser.parse('song played')).toEqual({
+        expect(parser.parse('with_multiple_underscores')).toEqual({
             is: true,
             type: 'equals',
-            values: ['song played'],
+            values: ['with_multiple_underscores'],
         });
     });
 
@@ -57,6 +57,12 @@ describe('Parse grammar', () => {
             type: 'equals',
             values: ['song_played'],
         });
+
+        expect(parser.parse('!with_underscores')).toEqual({
+            is: false,
+            type: 'equals',
+            values: ['with_underscores'],
+        });
     });
 
     it('Starts with grammar', async () => {
@@ -64,6 +70,12 @@ describe('Parse grammar', () => {
             is: true,
             type: 'startsWith',
             values: ['katie'],
+        });
+
+        expect(parser.parse('with_underscores%')).toEqual({
+            is: true,
+            type: 'startsWith',
+            values: ['with_underscores'],
         });
     });
 
@@ -73,6 +85,12 @@ describe('Parse grammar', () => {
             type: 'endsWith',
             values: ['katie'],
         });
+
+        expect(parser.parse('%with_underscores')).toEqual({
+            is: true,
+            type: 'endsWith',
+            values: ['with_underscores'],
+        });
     });
 
     it('Contains grammar', async () => {
@@ -80,6 +98,12 @@ describe('Parse grammar', () => {
             is: true,
             type: 'include',
             values: ['katie'],
+        });
+
+        expect(parser.parse('%with_underscores%')).toEqual({
+            is: true,
+            type: 'include',
+            values: ['with_underscores'],
         });
     });
 
