@@ -3842,7 +3842,15 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        status: { dataType: 'string', required: true },
+                        details: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'Record_string.any_' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        status: { ref: 'SchedulerJobStatus', required: true },
                     },
                     required: true,
                 },
@@ -3857,6 +3865,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        jobId: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},

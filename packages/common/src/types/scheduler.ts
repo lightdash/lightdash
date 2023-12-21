@@ -245,6 +245,9 @@ export type ApiSchedulerLogsResponse = {
 };
 export type ApiTestSchedulerResponse = {
     status: 'ok';
+    results: {
+        jobId: string;
+    };
 };
 
 // Scheduler task types
@@ -364,6 +367,7 @@ export type ApiJobScheduledResponse = {
 export type ApiJobStatusResponse = {
     status: 'ok';
     results: {
-        status: string;
+        status: SchedulerJobStatus;
+        details: Record<string, any> | null;
     };
 };

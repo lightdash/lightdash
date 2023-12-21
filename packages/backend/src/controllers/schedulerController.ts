@@ -5,6 +5,7 @@ import {
     ApiSchedulerAndTargetsResponse,
     ApiSchedulerLogsResponse,
     ApiTestSchedulerResponse,
+    SchedulerJobStatus,
 } from '@lightdash/common';
 import {
     Body,
@@ -176,9 +177,13 @@ export class SchedulerController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiJobStatusResponse> {
         this.setStatus(200);
+        const { status, details } = await schedulerService.getJobStatus(jobId);
         return {
             status: 'ok',
-            results: { status: await schedulerService.getJobStatus(jobId) },
+            results: {
+                status: status as SchedulerJobStatus,
+                details,
+            },
         };
     }
 
@@ -200,9 +205,13 @@ export class SchedulerController extends Controller {
         @Body() body: any, // TODO: It should be CreateSchedulerAndTargets but tsoa returns an error
     ): Promise<ApiTestSchedulerResponse> {
         this.setStatus(200);
-        await schedulerService.sendScheduler(req.user!, body);
+
         return {
             status: 'ok',
+            results: {
+                jobId: (await schedulerService.sendScheduler(req.user!, body))
+                    .jobId,
+            },
         };
     }
 }

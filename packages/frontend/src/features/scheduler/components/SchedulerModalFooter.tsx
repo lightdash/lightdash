@@ -7,6 +7,7 @@ interface FooterProps {
     confirmText?: string;
     onBack?: () => void;
     onSendNow?: () => void;
+    canSendNow?: boolean;
     onCancel?: () => void;
     onConfirm?: () => void;
     loading?: boolean;
@@ -17,6 +18,7 @@ const SchedulersModalFooter = ({
     onBack,
     onCancel,
     onSendNow,
+    canSendNow,
     onConfirm,
     loading,
 }: FooterProps) => {
@@ -54,7 +56,7 @@ const SchedulersModalFooter = ({
                         variant="light"
                         leftIcon={<MantineIcon icon={IconSend} />}
                         onClick={onSendNow}
-                        disabled={loading}
+                        disabled={loading || !canSendNow}
                     >
                         Send now
                     </Button>

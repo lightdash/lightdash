@@ -25,7 +25,10 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
-import { getSchedulerTargetType } from '../../database/entities/scheduler';
+import {
+    getSchedulerTargetType,
+    SchedulerLogDb,
+} from '../../database/entities/scheduler';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
@@ -298,9 +301,12 @@ export class SchedulerService {
         return schedulerLogs;
     }
 
-    async getJobStatus(jobId: string): Promise<string> {
+    async getJobStatus(
+        jobId: string,
+    ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
         const job = await this.schedulerModel.getJobStatus(jobId);
-        return job.status;
+
+        return { status: job.status, details: job.details };
     }
 
     async sendScheduler(
@@ -328,12 +334,10 @@ export class SchedulerService {
             .map((target) => target.channel);
         await slackClient.joinChannels(user.organizationUuid, slackChannels);
 
-        schedulerClient.addScheduledDeliveryJob(
+        return schedulerClient.addScheduledDeliveryJob(
             new Date(),
             scheduler,
             undefined,
         );
-
-        return 'ok';
     }
 }
