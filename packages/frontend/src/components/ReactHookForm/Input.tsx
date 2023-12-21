@@ -1,10 +1,9 @@
-import { InputGroup } from '@blueprintjs/core';
+import { TextInput } from '@mantine/core';
 import React, { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 type FieldProps = {
-    rightElement?: React.ComponentProps<typeof InputGroup>['rightElement'];
-    readOnly?: React.ComponentProps<typeof InputGroup>['readOnly'];
+    rightElement?: React.ReactNode;
 };
 const Input: FC<Omit<InputWrapperProps, 'render'> & FieldProps> = ({
     rightElement,
@@ -13,7 +12,7 @@ const Input: FC<Omit<InputWrapperProps, 'render'> & FieldProps> = ({
     <InputWrapper
         {...rest}
         render={(props, { field }) => (
-            <InputGroup {...props} {...field} rightElement={rightElement} />
+            <TextInput {...props} {...field} rightSection={rightElement} />
         )}
     />
 );

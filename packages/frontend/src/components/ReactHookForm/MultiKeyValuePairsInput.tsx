@@ -11,7 +11,6 @@ import { useState } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import MantineIcon from '../common/MantineIcon';
 import DocumentationHelpButton from '../DocumentationHelpButton';
-import { LabelInfoToggleButton } from './FromGroup.styles';
 
 type Props = {
     name: string;
@@ -51,15 +50,14 @@ export const MultiKeyValuePairsInput = ({
                     )}
 
                     {labelHelp && (
-                        <LabelInfoToggleButton
+                        <ActionIcon
                             onClick={(e) => {
                                 e.preventDefault();
-
                                 setIsLabelInfoOpen(!isLabelInfoOpen);
                             }}
                         >
-                            <MantineIcon icon={IconHelpCircle} size="sm" />
-                        </LabelInfoToggleButton>
+                            <MantineIcon icon={IconHelpCircle} />
+                        </ActionIcon>
                     )}
                 </>
             }

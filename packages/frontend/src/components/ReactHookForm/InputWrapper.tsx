@@ -1,10 +1,11 @@
-import { FormGroup, Icon } from '@blueprintjs/core';
 import { ErrorMessage } from '@hookform/error-message';
 import { ArgumentsOf } from '@lightdash/common';
+import { ActionIcon, Group, Stack, Text } from '@mantine/core';
+import { IconHelpCircle } from '@tabler/icons-react';
 import React, { FC, ReactElement, useState } from 'react';
 import { Controller, get, useFormContext } from 'react-hook-form';
+import MantineIcon from '../common/MantineIcon';
 import DocumentationHelpButton from '../DocumentationHelpButton';
-import { LabelInfoToggleButton } from './FromGroup.styles';
 import './InputWrapper.css';
 
 interface InputProps {
@@ -15,7 +16,6 @@ interface InputProps {
 
 export interface InputWrapperProps {
     name: string;
-    inline?: boolean;
     label?: string;
     disabled?: boolean;
     placeholder?: string;
@@ -35,7 +35,6 @@ export interface InputWrapperProps {
 }
 
 const InputWrapper: FC<InputWrapperProps> = ({
-    inline,
     name,
     defaultValue,
     documentationUrl,
@@ -57,39 +56,28 @@ const InputWrapper: FC<InputWrapperProps> = ({
     const [isLabelInfoOpen, setIsLabelInfoOpen] = useState<boolean>(false);
     const error = get(errors, name);
     return (
-        <FormGroup
-            inline={inline}
-            className={`input-wrapper ${className}`}
-            label={label}
-            labelFor={id}
-            subLabel={isLabelInfoOpen && labelHelp}
-            labelInfo={
-                <>
-                    <span style={{ flex: 1 }}>{requiredLabel}</span>
-                    {documentationUrl && !labelHelp && (
-                        <DocumentationHelpButton href={documentationUrl} />
-                    )}
-                    {labelHelp && (
-                        <LabelInfoToggleButton
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setIsLabelInfoOpen(!isLabelInfoOpen);
-                            }}
-                        >
-                            <Icon icon="help" intent="none" iconSize={15} />
-                        </LabelInfoToggleButton>
-                    )}
-                </>
-            }
-            intent={get(errors, name) ? 'danger' : 'none'}
-            helperText={
-                error ? (
-                    <ErrorMessage errors={errors} name={name} as="p" />
-                ) : (
-                    helperText
-                )
-            }
-        >
+        <Stack className={`input-wrapper ${className}`} spacing="two">
+            <Group spacing="xs" position="apart">
+                <Text fw={450}>
+                    {label} <span style={{ flex: 1 }}>{requiredLabel}</span>
+                </Text>
+
+                {documentationUrl && !labelHelp && (
+                    <DocumentationHelpButton href={documentationUrl} />
+                )}
+                {labelHelp && (
+                    <ActionIcon
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setIsLabelInfoOpen(!isLabelInfoOpen);
+                        }}
+                    >
+                        <MantineIcon icon={IconHelpCircle} />
+                    </ActionIcon>
+                )}
+            </Group>
+            {isLabelInfoOpen && <Text>{labelHelp}</Text>}
+
             <Controller
                 control={control}
                 name={name}
@@ -99,7 +87,8 @@ const InputWrapper: FC<InputWrapperProps> = ({
                     render({ id, ...rest }, controllerProps)
                 }
             />
-        </FormGroup>
+            {error && <ErrorMessage errors={errors} name={name} as="p" />}
+        </Stack>
     );
 };
 
