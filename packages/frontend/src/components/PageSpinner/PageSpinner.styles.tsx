@@ -11,7 +11,10 @@ const centerItem = css`
 export const SpinnerWrapper = styled.div`
     ${centerItem}
 
-    & > svg > g  > g {
+    width: 100px;
+    height: 100px;
+
+    & > svg > g > g {
         stroke-width: 2;
     }
 `;
