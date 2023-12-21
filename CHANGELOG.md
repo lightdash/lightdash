@@ -1,3 +1,10 @@
+## [0.912.3](https://github.com/lightdash/lightdash/compare/0.912.2...0.912.3) (2023-12-21)
+
+
+### Bug Fixes
+
+* equal metric filter + e2e test ([#8380](https://github.com/lightdash/lightdash/issues/8380)) ([5380438](https://github.com/lightdash/lightdash/commit/5380438c120b5260f1fb5d25a44d94ea8272bb4b))
+
 ## [0.912.2](https://github.com/lightdash/lightdash/compare/0.912.1...0.912.2) (2023-12-21)
 
 
