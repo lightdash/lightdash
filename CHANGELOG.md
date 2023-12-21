@@ -1,3 +1,10 @@
+# [0.912.0](https://github.com/lightdash/lightdash/compare/0.911.1...0.912.0) (2023-12-21)
+
+
+### Features
+
+* strict same site cookies ([#8374](https://github.com/lightdash/lightdash/issues/8374)) ([cfc0634](https://github.com/lightdash/lightdash/commit/cfc0634b58c86c465172a58522c376b0ae6aaab1))
+
 ## [0.911.1](https://github.com/lightdash/lightdash/compare/0.911.0...0.911.1) (2023-12-20)
 
 
