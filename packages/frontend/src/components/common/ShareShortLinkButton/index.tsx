@@ -32,10 +32,11 @@ const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
             variant="default"
             onClick={handleCopyClick}
             disabled={isDisabled}
+            color="gray"
         >
             <MantineIcon
                 icon={clipboard.copied ? IconCheck : IconLink}
-                color={clipboard.copied ? 'green' : 'black'}
+                color={clipboard.copied ? 'green' : undefined}
             />
         </ActionIcon>
     );
