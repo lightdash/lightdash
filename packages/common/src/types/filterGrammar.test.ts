@@ -52,6 +52,11 @@ describe('Parse grammar', () => {
             type: 'equals',
             values: ['pedram'],
         });
+        expect(parser.parse('!song_played')).toEqual({
+            is: false,
+            type: 'equals',
+            values: ['song_played'],
+        });
     });
 
     it('Starts with grammar', async () => {
