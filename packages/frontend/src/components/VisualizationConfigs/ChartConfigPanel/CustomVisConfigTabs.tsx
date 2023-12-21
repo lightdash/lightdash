@@ -1,6 +1,6 @@
 import { Loader, Tabs } from '@mantine/core';
 import Editor, { EditorProps, Monaco } from '@monaco-editor/react';
-import merge from 'lodash-es/merge';
+import merge from 'lodash/merge';
 import React, { memo, useEffect, useRef, useState } from 'react';
 import { useCustomVisualizationContext } from '../../CustomVisualization';
 

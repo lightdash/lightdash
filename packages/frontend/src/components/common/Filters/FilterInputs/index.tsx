@@ -22,8 +22,8 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { PopoverProps } from '@mantine/core';
-import isEmpty from 'lodash-es/isEmpty';
-import uniq from 'lodash-es/uniq';
+import isEmpty from 'lodash/isEmpty';
+import uniq from 'lodash/uniq';
 import BooleanFilterInputs from './BooleanFilterInputs';
 import DateFilterInputs from './DateFilterInputs';
 import DefaultFilterInputs from './DefaultFilterInputs';

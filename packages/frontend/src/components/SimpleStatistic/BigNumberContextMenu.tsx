@@ -3,7 +3,7 @@ import { hasCustomDimension, ResultValue } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
-import mapValues from 'lodash-es/mapValues';
+import mapValues from 'lodash/mapValues';
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';

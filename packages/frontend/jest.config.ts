@@ -39,7 +39,6 @@ const config: Config = {
         ...pathsToModuleNameMapper(tsConfig.compilerOptions.paths, {
             prefix: '<rootDir>/',
         }),
-        'lodash-es': 'lodash',
     },
 
     setupFilesAfterEnv: ['./setupJest.ts'],

@@ -12,7 +12,7 @@ import {
     Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconTrash } from '@tabler/icons-react';
-import intersection from 'lodash-es/intersection';
+import intersection from 'lodash/intersection';
 import { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
 import slackSvg from '../../../svgs/slack.svg';

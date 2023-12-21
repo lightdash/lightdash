@@ -1,7 +1,7 @@
 import { FilterableItem } from '@lightdash/common';
 import { Group, MultiSelect, MultiSelectProps, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import uniq from 'lodash-es/uniq';
+import uniq from 'lodash/uniq';
 import { FC, useCallback, useMemo, useState } from 'react';
 import MantineIcon from '../../MantineIcon';
 import { useFiltersContext } from '../FiltersProvider';

@@ -6,7 +6,7 @@ import {
     isFilterRule,
     isTableCalculationField,
 } from '@lightdash/common';
-import isString from 'lodash-es/isString';
+import isString from 'lodash/isString';
 import { FilterInputsProps } from '.';
 import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';

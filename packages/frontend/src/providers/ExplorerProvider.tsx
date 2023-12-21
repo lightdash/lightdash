@@ -24,7 +24,7 @@ import {
     toggleArrayValue,
 } from '@lightdash/common';
 import produce from 'immer';
-import cloneDeep from 'lodash-es/cloneDeep';
+import cloneDeep from 'lodash/cloneDeep';
 import { FC, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import { createContext, useContextSelector } from 'use-context-selector';

@@ -12,7 +12,7 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import startCase from 'lodash-es/startCase';
+import startCase from 'lodash/startCase';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import UnitInput from '../../../common/UnitInput';
