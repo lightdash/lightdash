@@ -42,7 +42,7 @@ import {
     ExplorerProvider,
     ExplorerSection,
 } from '../providers/ExplorerProvider';
-import { ReactComponent as NoTableIcon } from '../svgs/emptystate-no-table.svg';
+import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
 const ChartHistory = () => {
     const history = useHistory();

@@ -18,7 +18,7 @@ import { Link, useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
-import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
+import Logo from '../../svgs/logo-icon.svg?react';
 import MantineIcon from '../common/MantineIcon';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';

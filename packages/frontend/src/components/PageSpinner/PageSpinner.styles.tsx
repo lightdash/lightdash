@@ -1,5 +1,5 @@
 import styled, { css } from 'styled-components';
-import { ReactComponent as Logo } from '../../svgs/grey-icon-logo.svg';
+import Logo from '../../svgs/grey-icon-logo.svg?react';
 
 const centerItem = css`
     position: absolute;

@@ -1,6 +1,6 @@
 import styled from 'styled-components';
-import { ReactComponent as GsheetsFilledSvg } from '../../../svgs/google-sheets-filled.svg';
-import { ReactComponent as GsheetsSvg } from '../../../svgs/google-sheets.svg';
+import GsheetsFilledSvg from '../../../svgs/google-sheets-filled.svg?react';
+import GsheetsSvg from '../../../svgs/google-sheets.svg?react';
 
 export const GSheetsIcon = styled(GsheetsSvg)`
     width: 16px;

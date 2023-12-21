@@ -19,7 +19,7 @@ import { FC, useState } from 'react';
 
 import { useApp } from '../providers/AppProvider';
 import { TrackPage, TrackSection } from '../providers/TrackingProvider';
-import { ReactComponent as Logo } from '../svgs/grey-icon-logo.svg';
+import Logo from '../svgs/grey-icon-logo.svg?react';
 import { PageName, PageType, SectionName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
 import MantineLinkButton from './common/MantineLinkButton';

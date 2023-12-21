@@ -11,7 +11,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
-import { capitalize } from 'lodash-es';
+import capitalize from 'lodash-es/capitalize';
 import groupBy from 'lodash-es/groupBy';
 import { FC, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
