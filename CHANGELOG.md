@@ -1,3 +1,11 @@
+## [0.912.1](https://github.com/lightdash/lightdash/compare/0.912.0...0.912.1) (2023-12-21)
+
+
+### Bug Fixes
+
+* add polling to send now messaging ([#8366](https://github.com/lightdash/lightdash/issues/8366)) ([07d123e](https://github.com/lightdash/lightdash/commit/07d123ee8f1766e5cf04abf1ff2577df38fe5baa))
+* vertical alignment of logo in loading spinner ([#8378](https://github.com/lightdash/lightdash/issues/8378)) ([821ef80](https://github.com/lightdash/lightdash/commit/821ef80e96ba6ff734f9c8377f917bc3eb2efde9))
+
 # [0.912.0](https://github.com/lightdash/lightdash/compare/0.911.1...0.912.0) (2023-12-21)
 
 
