@@ -119,3 +119,9 @@ models:
               percentile: 75
             median: 
               type: median
+            with_filters:
+              type: sum
+              filters:
+              - event_id: "!null"
+              - event_id: ">5"
+              - event: "song_played"

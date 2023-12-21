@@ -70,45 +70,39 @@ KEYWORDS = ("EMPTY" / "empty") {
     }
 }
 MATCH
-= quotation_mark sequence:(char / PCT_SYMBOL / COMMA / UNDERSCORE / CARET)+ quotation_mark {
+= quotation_mark sequence:(char  / COMMA / UNDERSCORE / CARET)+ quotation_mark {
        return {
            type:'${FilterOperator.EQUALS}',
            values: [sequence.join('')]
        }
    }
-   / sequence:raw_string {
+   / sequence:(char  / COMMA / UNDERSCORE / CARET)+ {
     return {
         type:'${FilterOperator.EQUALS}',
-        values: [sequence]
+        values: [sequence.join('')]
     }
 }
 PCT
-=  CONTAINS / STARTS_WITH / ENDS_WITH / OTHER
+=  CONTAINS / STARTS_WITH / ENDS_WITH 
 CONTAINS
-= PCT_SYMBOL value:string PCT_SYMBOL !(string / PCT_SYMBOL / UNDERSCORE)  {
+= PCT_SYMBOL value:(char / UNDERSCORE)+ PCT_SYMBOL !(string / PCT_SYMBOL / UNDERSCORE)  {
   return {
       type: '${FilterOperator.INCLUDE}',
-      values: [value]
+      values: [value.join('')]
     }
 }
 STARTS_WITH
-= value:string PCT_SYMBOL !(string / PCT_SYMBOL / UNDERSCORE) {
+= value:(char / UNDERSCORE)+ PCT_SYMBOL !(string / PCT_SYMBOL / UNDERSCORE) {
       return {
       type: '${FilterOperator.STARTS_WITH}',
-      values: [value]
+      values: [value.join('')]
   }
 }
 ENDS_WITH
-=  PCT_SYMBOL value:string !(PCT_SYMBOL / UNDERSCORE) {
+=  PCT_SYMBOL value:(char / UNDERSCORE)+ !(PCT_SYMBOL ) {
 return {
      type: '${FilterOperator.ENDS_WITH}',
-     values: [value]
- }
-}
-OTHER = value: $(string* (PCT_SYMBOL / UNDERSCORE) string*)+ {
- return {
-     type: 'other',
-     values: [value]
+     values: [value.join('')]
  }
 }
 NOT = '!'
