@@ -24,6 +24,18 @@ describe('Parse grammar', () => {
             type: 'equals',
             values: ['pedram'],
         });
+
+        expect(parser.parse('song_played')).toEqual({
+            is: true,
+            type: 'equals',
+            values: ['song_played'],
+        });
+
+        expect(parser.parse('song played')).toEqual({
+            is: true,
+            type: 'equals',
+            values: ['song played'],
+        });
     });
 
     it('should compile grammar with escaped underscore', async () => {

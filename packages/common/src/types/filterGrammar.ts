@@ -107,7 +107,7 @@ return {
 }
 OTHER = value: $(string* (PCT_SYMBOL / UNDERSCORE) string*)+ {
  return {
-     type: 'other',
+     type: 'equals',
      values: [value]
  }
 }
@@ -179,7 +179,6 @@ export const parseOperator = (
     isTrue: boolean,
 ): FilterOperator => {
     switch (operator) {
-        case 'other': // When no operator is found, it is a exact match
         case FilterOperator.EQUALS:
             return isTrue ? FilterOperator.EQUALS : FilterOperator.NOT_EQUALS;
         case FilterOperator.INCLUDE:
