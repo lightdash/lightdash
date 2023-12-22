@@ -164,12 +164,12 @@ export class SlackService {
                     const authUserUuid =
                         await this.slackAuthenticationModel.getUserUuid(teamId);
 
-                    const { imageUrl } = await unfurlService.unfurlImage(
-                        details.minimalUrl,
-                        details.pageType,
+                    const { imageUrl } = await unfurlService.unfurlImage({
+                        url: details.minimalUrl,
+                        lightdashPage: details.pageType,
                         imageId,
                         authUserUuid,
-                    );
+                    });
 
                     if (imageUrl) {
                         await SlackService.sendUnfurl(
