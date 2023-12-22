@@ -6497,9 +6497,9 @@
     csstype "^3.0.2"
 
 "@types/react@^17":
-  version "17.0.74"
-  resolved "https://registry.yarnpkg.com/@types/react/-/react-17.0.74.tgz#ea93059a55e5cfc7a76e7712fe8db5317dd29ee3"
-  integrity sha512-nBtFGaeTMzpiL/p73xbmCi00SiCQZDTJUk9ZuHOLtil3nI+y7l269LHkHIAYpav99ZwGnPJzuJsJpfLXjiQ52g==
+  version "17.0.73"
+  resolved "https://registry.yarnpkg.com/@types/react/-/react-17.0.73.tgz#23a663c803b18d8b7f4f2bb9b467f2f3fd70787a"
+  integrity sha512-6AcjgPIVsXTIsFDgsGW0iQhvg0xb2vt2qAWgXyncnVNRaW9ZXTTwAh7RQoh7PzK1AhjPoGDvUBkdAREih9n5oQ==
   dependencies:
     "@types/prop-types" "*"
     "@types/scheduler" "*"
