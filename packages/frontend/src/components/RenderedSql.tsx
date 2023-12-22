@@ -33,7 +33,7 @@ export const RenderedSql = () => {
     }
 
     return (
-        <Prism m="sm" language="sql">
+        <Prism m="sm" language="sql" withLineNumbers>
             {data || ''}
         </Prism>
     );
