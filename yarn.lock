@@ -4485,10 +4485,10 @@
   resolved "https://registry.npmjs.org/@protobufjs/utf8/-/utf8-1.1.0.tgz"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
 
-"@puppeteer/browsers@1.7.1":
-  version "1.7.1"
-  resolved "https://registry.yarnpkg.com/@puppeteer/browsers/-/browsers-1.7.1.tgz#04f1e3aec4b87f50a7acc8f64be2149bda014f0a"
-  integrity sha512-nIb8SOBgDEMFY2iS2MdnUZOg2ikcYchRrBoF+wtdjieRFKR2uGRipHY/oFLo+2N6anDualyClPzGywTHRGrLfw==
+"@puppeteer/browsers@1.9.0":
+  version "1.9.0"
+  resolved "https://registry.yarnpkg.com/@puppeteer/browsers/-/browsers-1.9.0.tgz#dfd0aad0bdc039572f1b57648f189525d627b7ff"
+  integrity sha512-QwguOLy44YBGC8vuPP2nmpX4MUN2FzWbsnvZJtiCzecU3lHmVZkaC1tq6rToi9a200m8RzlVtDyxCS0UIDrxUg==
   dependencies:
     debug "4.3.4"
     extract-zip "2.0.1"
@@ -4496,7 +4496,7 @@
     proxy-agent "6.3.1"
     tar-fs "3.0.4"
     unbzip2-stream "1.4.3"
-    yargs "17.7.1"
+    yargs "17.7.2"
 
 "@radix-ui/number@1.0.0":
   version "1.0.0"
@@ -8161,10 +8161,10 @@ chownr@^2.0.0:
   resolved "https://registry.npmjs.org/chownr/-/chownr-2.0.0.tgz"
   integrity sha512-bIomtDF5KGpdogkLd9VspvFzk9KfpyyGlS8YFVZl7TGPBHL5snIOnxeshwVgPteQ9b4Eydl+pVbIyE1DcvCWgQ==
 
-chromium-bidi@0.4.27:
-  version "0.4.27"
-  resolved "https://registry.yarnpkg.com/chromium-bidi/-/chromium-bidi-0.4.27.tgz#6b12b9cb4d43f66803258cb3b2c4a857e5911cc7"
-  integrity sha512-8Irq0FbKYN8Xmj8M62kta6wk5MyDKeYIFtNavxQ2M3xf2v5MCC4ntf+FxitQu1iHaQvGU6t5O+Nrep0RNNS0EQ==
+chromium-bidi@0.5.1:
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/chromium-bidi/-/chromium-bidi-0.5.1.tgz#390c1af350c4887824a33d82190de1cc5c5680fc"
+  integrity sha512-dcCqOgq9fHKExc2R4JZs/oKbOghWpUNFAJODS8WKRtLhp3avtIH5UDCBrutdqZdh3pARogH8y1ObXm87emwb3g==
   dependencies:
     mitt "3.0.1"
     urlpattern-polyfill "9.0.0"
@@ -9374,10 +9374,10 @@ detective-typescript@^9.1.1:
     node-source-walk "^5.0.1"
     typescript "^4.9.5"
 
-devtools-protocol@0.0.1179426:
-  version "0.0.1179426"
-  resolved "https://registry.yarnpkg.com/devtools-protocol/-/devtools-protocol-0.0.1179426.tgz#c4c3ee671efae868395569123002facbbbffa267"
-  integrity sha512-KKC7IGwdOr7u9kTGgjUvGTov/z1s2H7oHi3zKCdR9eSDyCPia5CBi4aRhtp7d8uR7l0GS5UTDw3TjKGu5CqINg==
+devtools-protocol@0.0.1203626:
+  version "0.0.1203626"
+  resolved "https://registry.yarnpkg.com/devtools-protocol/-/devtools-protocol-0.0.1203626.tgz#4366a4c81a7e0d4fd6924e9182c67f1e5941e820"
+  integrity sha512-nEzHZteIUZfGCZtTiS1fRpC8UZmsfD1SiyPvaUNvS13dvKf666OAm8YTi0+Ca3n1nLEyu49Cy4+dPWpaHFJk9g==
 
 diff-match-patch@^1.0.5:
   version "1.0.5"
@@ -16476,26 +16476,26 @@ punycode@^2.1.0, punycode@^2.1.1:
   resolved "https://registry.npmjs.org/punycode/-/punycode-2.1.1.tgz"
   integrity sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==
 
-puppeteer-core@21.3.1:
-  version "21.3.1"
-  resolved "https://registry.yarnpkg.com/puppeteer-core/-/puppeteer-core-21.3.1.tgz#806c317c36f543b2f2c7362a5c1c3c64e5c57fc5"
-  integrity sha512-3VrCDEAHk0hPvE8qtfKgsT8CzRuaQrDQGXdCOuMFJM7Ap+ghpQzhPa9H3DE3gZgwDvC5Jt7SxUkAWLCeNbD0xw==
+puppeteer-core@21.6.1:
+  version "21.6.1"
+  resolved "https://registry.yarnpkg.com/puppeteer-core/-/puppeteer-core-21.6.1.tgz#10eccb4dc3167c8c26bc21122fabb45a9fda9ca7"
+  integrity sha512-0chaaK/RL9S1U3bsyR4fUeUfoj51vNnjWvXgG6DcsyMjwYNpLcAThv187i1rZCo7QhJP0wZN8plQkjNyrq2h+A==
   dependencies:
-    "@puppeteer/browsers" "1.7.1"
-    chromium-bidi "0.4.27"
+    "@puppeteer/browsers" "1.9.0"
+    chromium-bidi "0.5.1"
     cross-fetch "4.0.0"
     debug "4.3.4"
-    devtools-protocol "0.0.1179426"
-    ws "8.14.1"
+    devtools-protocol "0.0.1203626"
+    ws "8.15.1"
 
-puppeteer@^21.3.1:
-  version "21.3.1"
-  resolved "https://registry.yarnpkg.com/puppeteer/-/puppeteer-21.3.1.tgz#0196d6f9fcdd6c2f97948d64f2dd7ee8187174b1"
-  integrity sha512-MhDvA+BYmzx+9vHJ/ZtknhlPbSPjTlHQnW1QYfkGpBcGW2Yy6eMahjkNuhAzN29H9tb47IcT0QsVcUy3Txx+SA==
+puppeteer@^21.6.1:
+  version "21.6.1"
+  resolved "https://registry.yarnpkg.com/puppeteer/-/puppeteer-21.6.1.tgz#2ec0878906ff90b3a424f19e5eb006592abe25b6"
+  integrity sha512-O+pbc61oj8ln6m8EJKncrsQFmytgRyFYERtk190PeLbJn5JKpmmynn2p1PiFrlhCitAQXLJ0MOy7F0TeyCRqBg==
   dependencies:
-    "@puppeteer/browsers" "1.7.1"
+    "@puppeteer/browsers" "1.9.0"
     cosmiconfig "8.3.6"
-    puppeteer-core "21.3.1"
+    puppeteer-core "21.6.1"
 
 pure-color@^1.2.0:
   version "1.3.0"
@@ -20363,10 +20363,10 @@ write-file-atomic@^4.0.2:
     imurmurhash "^0.1.4"
     signal-exit "^3.0.7"
 
-ws@8.14.1:
-  version "8.14.1"
-  resolved "https://registry.yarnpkg.com/ws/-/ws-8.14.1.tgz#4b9586b4f70f9e6534c7bb1d3dc0baa8b8cf01e0"
-  integrity sha512-4OOseMUq8AzRBI/7SLMUwO+FEDnguetSk7KMb1sHwvF2w2Wv5Hoj0nlifx8vtGsftE/jWHojPy8sMMzYLJ2G/A==
+ws@8.15.1:
+  version "8.15.1"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-8.15.1.tgz#271ba33a45ca0cc477940f7f200cd7fba7ee1997"
+  integrity sha512-W5OZiCjXEmk0yZ66ZN82beM5Sz7l7coYxpRkzS+p9PP+ToQry8szKh+61eNktr7EA9DOwvFGhfC605jDHbP6QQ==
 
 ws@^5.2.3:
   version "5.2.3"
@@ -20459,10 +20459,10 @@ yargs-parser@^21.1.1:
   resolved "https://registry.npmjs.org/yargs-parser/-/yargs-parser-21.1.1.tgz"
   integrity sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==
 
-yargs@17.7.1:
-  version "17.7.1"
-  resolved "https://registry.yarnpkg.com/yargs/-/yargs-17.7.1.tgz#34a77645201d1a8fc5213ace787c220eabbd0967"
-  integrity sha512-cwiTb08Xuv5fqF4AovYacTFNxk62th7LKJ6BL9IGUpTJrWoU7/7WdQGTP2SjKf1dUNBGzDd28p/Yfs/GI6JrLw==
+yargs@17.7.2, yargs@^17.7.2, yargs@~17.7.2:
+  version "17.7.2"
+  resolved "https://registry.npmjs.org/yargs/-/yargs-17.7.2.tgz"
+  integrity sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w==
   dependencies:
     cliui "^8.0.1"
     escalade "^3.1.1"
@@ -20514,19 +20514,6 @@ yargs@^17.1.1, yargs@^17.3.1:
     string-width "^4.2.3"
     y18n "^5.0.5"
     yargs-parser "^21.0.0"
-
-yargs@^17.7.2, yargs@~17.7.2:
-  version "17.7.2"
-  resolved "https://registry.npmjs.org/yargs/-/yargs-17.7.2.tgz"
-  integrity sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w==
-  dependencies:
-    cliui "^8.0.1"
-    escalade "^3.1.1"
-    get-caller-file "^2.0.5"
-    require-directory "^2.1.1"
-    string-width "^4.2.3"
-    y18n "^5.0.5"
-    yargs-parser "^21.1.1"
 
 yauzl@^2.10.0:
   version "2.10.0"
