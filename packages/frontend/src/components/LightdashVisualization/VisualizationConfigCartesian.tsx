@@ -32,7 +32,11 @@ type VisualizationCartesianConfigProps =
     };
 
 const VisualizationCartesianConfig: FC<
-    React.PropsWithChildren<VisualizationCartesianConfigProps>
+    VisualizationCartesianConfigProps & {
+        children: (props: {
+            visualizationConfig: VisualizationConfigCartesian;
+        }) => JSX.Element;
+    }
 > = ({
     itemsMap,
     resultsData,

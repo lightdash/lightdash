@@ -29,7 +29,11 @@ type VisualizationTableConfigProps =
     };
 
 const VisualizationTableConfig: FC<
-    React.PropsWithChildren<VisualizationTableConfigProps>
+    VisualizationTableConfigProps & {
+        children: (props: {
+            visualizationConfig: VisualizationConfigTable;
+        }) => JSX.Element;
+    }
 > = ({
     itemsMap,
     resultsData,

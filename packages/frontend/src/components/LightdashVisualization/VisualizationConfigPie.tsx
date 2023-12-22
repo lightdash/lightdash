@@ -36,7 +36,11 @@ type VisualizationConfigPieProps =
     };
 
 const VisualizationPieConfig: FC<
-    React.PropsWithChildren<VisualizationConfigPieProps>
+    VisualizationConfigPieProps & {
+        children: (props: {
+            visualizationConfig: VisualizationConfigPie;
+        }) => JSX.Element;
+    }
 > = ({
     resultsData,
     initialChartConfig,

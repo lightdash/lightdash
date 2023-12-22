@@ -23,7 +23,11 @@ type VisualizationBigNumberConfigProps =
     };
 
 const VisualizationBigNumberConfig: FC<
-    React.PropsWithChildren<VisualizationBigNumberConfigProps>
+    VisualizationBigNumberConfigProps & {
+        children: (props: {
+            visualizationConfig: VisualizationConfigBigNumber;
+        }) => JSX.Element;
+    }
 > = ({
     itemsMap,
     resultsData,

@@ -21,7 +21,11 @@ type VisualizationCustomConfigProps =
     VisualizationConfigCommon<VisualizationConfigCustom>;
 
 const VisualizationCustomConfig: FC<
-    React.PropsWithChildren<VisualizationCustomConfigProps>
+    VisualizationCustomConfigProps & {
+        children: (props: {
+            visualizationConfig: VisualizationConfigCustom;
+        }) => JSX.Element;
+    }
 > = ({
     children,
     // TODO: placeholder
