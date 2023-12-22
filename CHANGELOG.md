@@ -1,3 +1,10 @@
+# [0.915.0](https://github.com/lightdash/lightdash/compare/0.914.1...0.915.0) (2023-12-22)
+
+
+### Features
+
+* change copy on sign-in-with-microsoft button ([#8381](https://github.com/lightdash/lightdash/issues/8381)) ([92ff23d](https://github.com/lightdash/lightdash/commit/92ff23d181d2e8cd9b89ca048d46f5df0464fe80))
+
 ## [0.914.1](https://github.com/lightdash/lightdash/compare/0.914.0...0.914.1) (2023-12-22)
 
 
