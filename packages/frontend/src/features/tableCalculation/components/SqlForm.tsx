@@ -1,4 +1,10 @@
-import { Alert, Anchor, Text, useMantineTheme } from '@mantine/core';
+import {
+    Alert,
+    Anchor,
+    ScrollArea,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { FC } from 'react';
 import AceEditor, { IAceEditorProps } from 'react-ace';
@@ -28,12 +34,10 @@ const SqlEditor = styled(AceEditor)<
     ${({ isFullScreen }) =>
         isFullScreen
             ? css`
-                  height: calc(100vh - 300px) !important;
                   min-height: 100px;
               `
             : css`
-                  height: 100px !important;
-                  min-height: 100%;
+                  min-height: 250px;
               `}
 `;
 
@@ -42,22 +46,26 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
     const { setAceEditor } = useExplorerAceEditorCompleter();
     return (
         <>
-            <SqlEditor
-                mode="sql"
-                theme="github"
-                width="100%"
-                placeholder={SQL_PLACEHOLDER}
-                maxLines={isFullScreen ? 40 : 20}
-                minLines={isFullScreen ? 40 : 8}
-                editorProps={{ $blockScrolling: true }}
-                onLoad={setAceEditor}
-                enableLiveAutocompletion
-                enableBasicAutocompletion
-                wrapEnabled
-                isFullScreen={isFullScreen}
-                gutterBackgroundColor={theme.colors.gray['1']}
-                {...form.getInputProps('sql')}
-            />
+            <ScrollArea h={isFullScreen ? '95%' : '150px'}>
+                <SqlEditor
+                    mode="sql"
+                    theme="github"
+                    width="100%"
+                    placeholder={SQL_PLACEHOLDER}
+                    maxLines={Infinity}
+                    minLines={isFullScreen ? 40 : 8}
+                    setOptions={{
+                        autoScrollEditorIntoView: true,
+                    }}
+                    onLoad={setAceEditor}
+                    enableLiveAutocompletion
+                    enableBasicAutocompletion
+                    showPrintMargin={false}
+                    isFullScreen={isFullScreen}
+                    gutterBackgroundColor={theme.colors.gray['1']}
+                    {...form.getInputProps('sql')}
+                />
+            </ScrollArea>
 
             <Alert
                 p="xs"
