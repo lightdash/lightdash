@@ -113,6 +113,7 @@
         "eslint-plugin-jsx-a11y": "^6.6.1",
         "eslint-plugin-react": "^7.31.8",
         "eslint-plugin-react-hooks": "^4.6.0",
+        "jest-fetch-mock": "^3.0.3",
         "lightningcss": "^1.22.0",
         "postcss-normalize": "10.0.1",
         "react-test-renderer": "^17.0.2",

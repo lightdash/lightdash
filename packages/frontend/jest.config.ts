@@ -43,7 +43,7 @@ const config: Config = {
 
     setupFilesAfterEnv: ['./setupJest.ts'],
 
-    resetMocks: true,
+    resetMocks: false,
 };
 
 export default config;

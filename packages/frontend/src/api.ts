@@ -7,7 +7,7 @@ import {
 
 const apiPrefix = '/api/v1';
 
-const headers = {
+const defaultHeaders = {
     'Content-Type': 'application/json',
     [LightdashRequestMethodHeader]: RequestMethod.WEB_APP,
 };
@@ -29,13 +29,19 @@ type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
     url: string;
     body: BodyInit | null | undefined;
+    headers?: Record<string, string> | undefined;
 };
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
+    headers,
 }: LightdashApiProps): Promise<T> =>
-    fetch(`${apiPrefix}${url}`, { method, headers, body })
+    fetch(`${apiPrefix}${url}`, {
+        method,
+        headers: { ...defaultHeaders, ...headers },
+        body,
+    })
         .then((r) => {
             if (!r.ok)
                 return r.json().then((d) => {
