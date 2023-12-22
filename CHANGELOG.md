@@ -1,3 +1,10 @@
+## [0.914.1](https://github.com/lightdash/lightdash/compare/0.914.0...0.914.1) (2023-12-22)
+
+
+### Bug Fixes
+
+* table calculation filter number ([#8388](https://github.com/lightdash/lightdash/issues/8388)) ([6b77e56](https://github.com/lightdash/lightdash/commit/6b77e56360840bac974d3cf4a0f2f0d7c7174992))
+
 # [0.914.0](https://github.com/lightdash/lightdash/compare/0.913.0...0.914.0) (2023-12-22)
 
 
