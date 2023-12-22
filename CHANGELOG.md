@@ -1,3 +1,11 @@
+## [0.915.2](https://github.com/lightdash/lightdash/compare/0.915.1...0.915.2) (2023-12-22)
+
+
+### Bug Fixes
+
+* upgrade @easyops-cn/docusaurus-search-local from 0.35.0 to 0.38.1 ([#8396](https://github.com/lightdash/lightdash/issues/8396)) ([ce14232](https://github.com/lightdash/lightdash/commit/ce14232a8cf6e7ec37324b6707e2f4387076a0ed))
+* upgrade redocusaurus from 1.6.3 to 1.6.4 ([#8397](https://github.com/lightdash/lightdash/issues/8397)) ([b17ff53](https://github.com/lightdash/lightdash/commit/b17ff53d537fce4cb7947f2a2c64712aa9adf4c7))
+
 ## [0.915.1](https://github.com/lightdash/lightdash/compare/0.915.0...0.915.1) (2023-12-22)
 
 
