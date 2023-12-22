@@ -1,3 +1,10 @@
+# [0.914.0](https://github.com/lightdash/lightdash/compare/0.913.0...0.914.0) (2023-12-22)
+
+
+### Features
+
+* add line numbers to sql panel ([#8387](https://github.com/lightdash/lightdash/issues/8387)) ([9b7f37f](https://github.com/lightdash/lightdash/commit/9b7f37f47f9221e504a6918820c842392b8eb960))
+
 # [0.913.0](https://github.com/lightdash/lightdash/compare/0.912.4...0.913.0) (2023-12-22)
 
 
