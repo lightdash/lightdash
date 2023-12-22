@@ -324,7 +324,7 @@ export const renderTableCalculationFilterRuleSql = (
         case TableCalculationFormatType.PERCENT:
         case TableCalculationFormatType.CURRENCY:
         case TableCalculationFormatType.NUMBER: {
-            return renderNumberFilterSql(field.name, filterRule);
+            return renderNumberFilterSql(fieldSql, filterRule);
         }
         default: {
             throw Error(
