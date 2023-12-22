@@ -1,4 +1,4 @@
-import { Dashboard } from '@lightdash/common';
+import { ApiError, Dashboard } from '@lightdash/common';
 import {
     Button,
     Center,
@@ -8,8 +8,8 @@ import {
     Image,
     LoadingOverlay,
     Modal,
+    ModalProps,
     Select,
-    Skeleton,
     Stack,
     Text,
     Title,
@@ -20,7 +20,8 @@ import {
     IconEyeCog,
     IconFileExport,
 } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
+import { UseMutationResult } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
 import CollapsableCard from '../CollapsableCard';
@@ -46,12 +47,40 @@ const CUSTOM_WIDTH_OPTIONS = [
     },
 ];
 
-const PreviewAndCustomize: FC<Props> = ({ gridWidth, dashboard }) => {
+const PreviewAndCustomize: FC<
+    Props & {
+        exportDashboardMutation: UseMutationResult<
+            string,
+            ApiError,
+            {
+                dashboard: Dashboard;
+                gridWidth: number | undefined;
+                queryFilters: string;
+                isPreview?: boolean | undefined;
+            }
+        >;
+    }
+> = ({ gridWidth, dashboard, exportDashboardMutation }) => {
     const [isOpenImage, setIsOpenImage] = useState(false);
+    const [previews, setPreviews] = useState<{ [key: string]: string }>({});
+
     const location = useLocation();
-    const { mutate: exportDashboard, isLoading, data } = useExportDashboard();
+
     const [previewChoice, setPreviewChoice] = useState('current');
     const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+
+    const handlePreviewClick = useCallback(async () => {
+        const url = await exportDashboardMutation.mutateAsync({
+            dashboard,
+            gridWidth: parseInt(previewChoice),
+            queryFilters: location.search,
+            isPreview: true,
+        });
+        setPreviews((prev) => ({
+            ...prev,
+            [previewChoice]: url,
+        }));
+    }, [dashboard, exportDashboardMutation, location.search, previewChoice]);
 
     return (
         <>
@@ -75,12 +104,13 @@ const PreviewAndCustomize: FC<Props> = ({ gridWidth, dashboard }) => {
                             data={CUSTOM_WIDTH_OPTIONS.concat([
                                 {
                                     label: `Current view: ${gridWidth}px`,
-                                    value: 'current',
+                                    value: gridWidth.toString(),
                                 },
                             ])}
                             defaultValue="current"
                             onChange={(value) => {
                                 if (!value) return;
+
                                 setPreviewChoice(value);
                             }}
                         />
@@ -88,53 +118,46 @@ const PreviewAndCustomize: FC<Props> = ({ gridWidth, dashboard }) => {
                         <Button
                             variant="default"
                             leftIcon={<MantineIcon icon={IconEye} />}
-                            onClick={() => {
-                                exportDashboard({
-                                    dashboard,
-                                    gridWidth:
-                                        previewChoice === 'current'
-                                            ? gridWidth
-                                            : parseInt(previewChoice),
-                                    queryFilters: location.search,
-                                    isPreview: true,
-                                });
-                            }}
+                            onClick={handlePreviewClick}
                         >
-                            Generate preview
+                            {previews[previewChoice]
+                                ? 'Re-generate preview'
+                                : 'Generate preview'}
                         </Button>
                     </Group>
 
                     <Center h={400}>
-                        <LoadingOverlay visible={isLoading} />
+                        <LoadingOverlay
+                            visible={exportDashboardMutation.isLoading}
+                        />
                         <Image
-                            src={data}
+                            src={previews[previewChoice]}
                             onClick={() => {
-                                if (data) setIsOpenImage(true);
+                                if (previews[previewChoice])
+                                    setIsOpenImage(true);
                             }}
                             width={400}
                             height={400}
                             style={{
                                 objectPosition: 'top',
-                                cursor: data ? 'pointer' : 'default',
+                                cursor: previews[previewChoice]
+                                    ? 'pointer'
+                                    : 'default',
                             }}
                             withPlaceholder
                             placeholder={
-                                isLoading ? (
-                                    <Skeleton w={400} h={400} />
-                                ) : (
-                                    <Flex
-                                        gap="md"
-                                        align="center"
-                                        direction="column"
-                                    >
-                                        <MantineIcon
-                                            icon={IconEyeClosed}
-                                            size={30}
-                                        />
+                                <Flex
+                                    gap="md"
+                                    align="center"
+                                    direction="column"
+                                >
+                                    <MantineIcon
+                                        icon={IconEyeClosed}
+                                        size={30}
+                                    />
 
-                                        <Text>No preview yet</Text>
-                                    </Flex>
-                                )
+                                    <Text>No preview yet</Text>
+                                </Flex>
                             }
                         />
                     </Center>
@@ -142,7 +165,12 @@ const PreviewAndCustomize: FC<Props> = ({ gridWidth, dashboard }) => {
                         m="auto"
                         leftIcon={<MantineIcon icon={IconEyeCog} />}
                         onClick={() => {
-                            exportDashboard({
+                            if (exportDashboardMutation.data)
+                                return window.open(
+                                    exportDashboardMutation.data,
+                                    '_blank',
+                                );
+                            exportDashboardMutation.mutate({
                                 dashboard,
                                 gridWidth:
                                     previewChoice === 'current'
@@ -163,7 +191,7 @@ const PreviewAndCustomize: FC<Props> = ({ gridWidth, dashboard }) => {
                 opened={isOpenImage}
             >
                 <Image
-                    src={data}
+                    src={exportDashboardMutation.data}
                     onClick={() => {
                         setIsOpenImage(false);
                     }}
@@ -178,20 +206,22 @@ const PreviewAndCustomize: FC<Props> = ({ gridWidth, dashboard }) => {
     );
 };
 
-export const DashboardExportModal: FC<Props> = ({ gridWidth, dashboard }) => {
+export const DashboardExportModal: FC<Props & ModalProps> = ({
+    opened,
+    onClose,
+    gridWidth,
+    dashboard,
+}) => {
     const location = useLocation();
-    const [isOpen, setIsOpen] = useState(true);
-    const { mutate: exportDashboard, isLoading } = useExportDashboard();
+    const exportDashboardMutation = useExportDashboard();
 
     return (
         <>
             <Modal
                 size="xl"
                 yOffset="3vh"
-                opened={isOpen}
-                onClose={() => {
-                    setIsOpen(false);
-                }}
+                opened={opened}
+                onClose={onClose}
                 title={<Title order={5}>Export dashboard</Title>}
                 styles={{
                     body: {
@@ -201,10 +231,10 @@ export const DashboardExportModal: FC<Props> = ({ gridWidth, dashboard }) => {
             >
                 <Stack>
                     <Button
-                        loading={isLoading}
+                        loading={exportDashboardMutation.isLoading}
                         m="auto"
                         onClick={() => {
-                            exportDashboard({
+                            exportDashboardMutation.mutate({
                                 dashboard,
                                 gridWidth: undefined,
                                 queryFilters: location.search,
@@ -220,13 +250,11 @@ export const DashboardExportModal: FC<Props> = ({ gridWidth, dashboard }) => {
                     <PreviewAndCustomize
                         gridWidth={gridWidth}
                         dashboard={dashboard}
+                        exportDashboardMutation={exportDashboardMutation}
                     />
 
                     <Group position="left" pb="md" px="md">
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsOpen(false)}
-                        >
+                        <Button variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
                     </Group>

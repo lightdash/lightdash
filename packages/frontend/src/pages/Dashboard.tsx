@@ -651,6 +651,8 @@ const Dashboard: FC = () => {
                 )}
                 {isExportDashboardModalOpen && (
                     <DashboardExportModal
+                        opened={isExportDashboardModalOpen}
+                        onClose={() => setIsExportDashboardModalOpen(false)}
                         dashboard={dashboard}
                         gridWidth={gridWidth}
                     />
