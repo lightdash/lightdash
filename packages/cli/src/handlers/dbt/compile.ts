@@ -78,7 +78,7 @@ export const dbtCompile = async (
         const models = stdout
             .split('\n')
             .map((line) => JSON.parse(line).unique_id);
-        console.error(models);
+        GlobalState.debug(`> Models: ${models.join(' ')}`);
         console.error(stderr);
         return models;
     } catch (e: any) {
