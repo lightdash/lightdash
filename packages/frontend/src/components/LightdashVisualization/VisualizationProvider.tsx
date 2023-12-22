@@ -8,7 +8,7 @@ import {
     ItemsMap,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
-import isEqual from 'lodash-es/isEqual';
+import isEqual from 'lodash/isEqual';
 import {
     createContext,
     FC,

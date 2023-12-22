@@ -13,7 +13,7 @@ import {
 } from '@lightdash/common';
 import { BoxProps } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import last from 'lodash-es/last';
+import last from 'lodash/last';
 import { readableColor } from 'polished';
 import React, { FC, useCallback, useMemo, useRef } from 'react';
 import { isSummable } from '../../../hooks/useColumnTotals';

@@ -4,7 +4,7 @@ import {
     FilterOperator,
 } from '@lightdash/common';
 import produce from 'immer';
-import isEqual from 'lodash-es/isEqual';
+import isEqual from 'lodash/isEqual';
 
 export const isFilterEnabled = (
     filterRule?: DashboardFilterRule,

@@ -15,7 +15,7 @@ import {
     SchedulerFilterRule,
     SortField,
 } from '@lightdash/common';
-import { min } from 'lodash-es';
+import min from 'lodash/min';
 import React, {
     Dispatch,
     SetStateAction,

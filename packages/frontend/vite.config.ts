@@ -1,33 +1,15 @@
 import reactPlugin from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { compression } from 'vite-plugin-compression2';
-import eslintPlugin from 'vite-plugin-eslint';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
-import tsconfigPathsPlugin from 'vite-tsconfig-paths';
-
-const mapManualChunks = (mapping: Record<string, string>) => (id: string) => {
-    for (const [match, chunk] of Object.entries(mapping)) {
-        if (id.includes(match)) {
-            return chunk;
-        }
-    }
-};
+import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
     plugins: [
-        reactPlugin(),
+        tsconfigPaths(),
         svgrPlugin(),
-        tsconfigPathsPlugin(),
-        {
-            // do not fail on serve (i.e. local development)
-            ...eslintPlugin({
-                failOnWarning: false,
-                failOnError: false,
-            }),
-            apply: 'serve',
-            enforce: 'post',
-        },
+        reactPlugin(),
         compression({
             include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
             filename: '[path][base].gzip',
@@ -47,17 +29,55 @@ export default defineConfig({
         sourcemap: true,
         rollupOptions: {
             output: {
-                manualChunks: mapManualChunks({
-                    '@blueprintjs/icons': 'blueprint-icons-vendor',
-                    '@blueprintjs/': 'blueprint-vendor',
-                    '@mantine': 'mantine-vendor',
-                    'highlight.js': 'highlight-vendor',
-                    echarts: 'echarts-vendor',
-                    '@mapbox/': 'mapbox-vendor',
-                    rudder: 'rudder-vendor',
-                    sentry: 'sentry-vendor',
-                    'react-vega': 'react-vega-vendor',
-                }),
+                manualChunks: {
+                    react: [
+                        'react',
+                        'react-dom',
+                        'react-router-dom',
+                        'react-hook-form',
+                        'react-use',
+                        'react-query',
+                        'react-beautiful-dnd',
+                        'react-draggable',
+                        '@tanstack/react-virtual',
+                        '@tanstack/react-table',
+                    ],
+                    echarts: ['echarts'],
+                    vega: ['vega', 'vega-lite'],
+                    ace: ['ace-builds', 'react-ace/lib'],
+                    modules: [
+                        'moment/moment.js',
+                        'moment/dist/moment.js',
+                        'pegjs',
+                        'jspdf',
+                        'ajv',
+                        'ajv-formats',
+                        'lodash',
+                        'colorjs.io',
+                        'liquidjs',
+                        'zod',
+                    ],
+                    thirdparty: [
+                        '@sentry/react',
+                        '@sentry/tracing',
+                        'rudder-sdk-js',
+                        'posthog-js',
+                    ],
+                    uiw: [
+                        '@uiw/copy-to-clipboard',
+                        '@uiw/react-markdown-preview',
+                        '@uiw/react-md-editor',
+                    ],
+                    mantine: [
+                        '@mantine/core',
+                        '@mantine/dates',
+                        '@mantine/form',
+                        '@mantine/hooks',
+                        '@mantine/notifications',
+                        '@mantine/prism',
+                        '@mantine/spotlight',
+                    ],
+                },
             },
         },
     },

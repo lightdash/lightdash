@@ -4,7 +4,7 @@ import {
     SpaceShare,
 } from '@lightdash/common';
 import { Avatar, Group, Radio, Stack, Text, TextInput } from '@mantine/core';
-import upperFirst from 'lodash-es/upperFirst';
+import upperFirst from 'lodash/upperFirst';
 import { FC, useMemo, useState } from 'react';
 import { CreateSpaceModalBody } from '.';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';

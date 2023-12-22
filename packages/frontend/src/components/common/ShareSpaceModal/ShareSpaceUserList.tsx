@@ -7,7 +7,7 @@ import {
     SpaceShare,
 } from '@lightdash/common';
 import { Avatar, Group, Select, Stack, Text } from '@mantine/core';
-import upperFirst from 'lodash-es/upperFirst';
+import upperFirst from 'lodash/upperFirst';
 import { FC, forwardRef, useMemo } from 'react';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';

@@ -1,7 +1,7 @@
 import { hasIntersection } from '@lightdash/common';
 import { Badge, Group, Highlight, NavLink, Text } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
-import intersectionBy from 'lodash-es/intersectionBy';
+import intersectionBy from 'lodash/intersectionBy';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../../common/MantineIcon';

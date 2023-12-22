@@ -1,7 +1,7 @@
 import { createStyles, keyframes, Loader, Text } from '@mantine/core';
 import { FC } from 'react';
 import { TrackSection } from '../../../providers/TrackingProvider';
-import { ReactComponent as NoTableIcon } from '../../../svgs/emptystate-no-table.svg';
+import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
 import { SectionName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
 import DocumentationHelpButton from '../../DocumentationHelpButton';

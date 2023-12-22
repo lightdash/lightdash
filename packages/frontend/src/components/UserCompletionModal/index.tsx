@@ -16,7 +16,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import shuffle from 'lodash-es/shuffle';
+import shuffle from 'lodash/shuffle';
 import { FC, useEffect } from 'react';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useApp } from '../../providers/AppProvider';

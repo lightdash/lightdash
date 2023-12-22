@@ -8,7 +8,6 @@ import { AbilityContext } from './components/common/Authorization';
 import MobileRoutes from './MobileRoutes';
 import { ActiveJobProvider } from './providers/ActiveJobProvider';
 import { AppProvider } from './providers/AppProvider';
-import { BlueprintProvider } from './providers/BlueprintProvider';
 import { ErrorLogsProvider } from './providers/ErrorLogsProvider';
 import MantineProvider from './providers/MantineProvider';
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
@@ -50,33 +49,29 @@ const App = () => (
 
         <QueryClientProvider client={queryClient}>
             <MantineProvider>
-                <BlueprintProvider>
-                    <AppProvider>
-                        <Router>
-                            <ThirdPartyProvider
+                <AppProvider>
+                    <Router>
+                        <ThirdPartyProvider
+                            enabled={isMobile || !isMinimalPage}
+                        >
+                            <TrackingProvider
                                 enabled={isMobile || !isMinimalPage}
                             >
-                                <TrackingProvider
-                                    enabled={isMobile || !isMinimalPage}
-                                >
-                                    <AbilityContext.Provider
-                                        value={defaultAbility}
-                                    >
-                                        <ActiveJobProvider>
-                                            <ErrorLogsProvider>
-                                                {isMobile ? (
-                                                    <MobileRoutes />
-                                                ) : (
-                                                    <Routes />
-                                                )}
-                                            </ErrorLogsProvider>
-                                        </ActiveJobProvider>
-                                    </AbilityContext.Provider>
-                                </TrackingProvider>
-                            </ThirdPartyProvider>
-                        </Router>
-                    </AppProvider>
-                </BlueprintProvider>
+                                <AbilityContext.Provider value={defaultAbility}>
+                                    <ActiveJobProvider>
+                                        <ErrorLogsProvider>
+                                            {isMobile ? (
+                                                <MobileRoutes />
+                                            ) : (
+                                                <Routes />
+                                            )}
+                                        </ErrorLogsProvider>
+                                    </ActiveJobProvider>
+                                </AbilityContext.Provider>
+                            </TrackingProvider>
+                        </ThirdPartyProvider>
+                    </Router>
+                </AppProvider>
             </MantineProvider>
 
             <ReactQueryDevtools initialIsOpen={false} />

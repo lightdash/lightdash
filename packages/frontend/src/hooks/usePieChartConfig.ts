@@ -15,12 +15,12 @@ import {
     ResultValue,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
-import isEmpty from 'lodash-es/isEmpty';
-import isEqual from 'lodash-es/isEqual';
-import mapValues from 'lodash-es/mapValues';
-import omitBy from 'lodash-es/omitBy';
-import pick from 'lodash-es/pick';
-import pickBy from 'lodash-es/pickBy';
+import isEmpty from 'lodash/isEmpty';
+import isEqual from 'lodash/isEqual';
+import mapValues from 'lodash/mapValues';
+import omitBy from 'lodash/omitBy';
+import pick from 'lodash/pick';
+import pickBy from 'lodash/pickBy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isHexCodeColor } from '../utils/colorUtils';
 

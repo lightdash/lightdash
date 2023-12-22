@@ -43,87 +43,16 @@ export const getMantineThemeOverride = (overrides?: {
         'Droid Sans',
         'Open Sans',
         'Helvetica Neue',
-        'blueprint-icons-16',
         'Apple Color Emoji',
         'Segoe UI Emoji',
         'sans-serif',
     ].join(', '),
 
-    lineHeight: 1.2858142857,
+    lineHeight: 1.4,
 
     cursorType: 'pointer',
 
     components: {
-        InputWrapper: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xs,
-                },
-            }),
-        },
-        TextInput: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-        Textarea: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        NumberInput: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        PasswordInput: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        ColorInput: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        Select: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
-        MultiSelect: {
-            styles: (theme, _params) => ({
-                label: {
-                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    marginBottom: theme.spacing.xxs,
-                },
-            }),
-        },
-
         Kbd: {
             styles: (theme, _params) => ({
                 root: {
@@ -145,6 +74,7 @@ export const getMantineThemeOverride = (overrides?: {
                 yOffset: 140,
             },
         },
+
         Alert: {
             styles: (_theme, _params) => ({
                 title: {
@@ -162,17 +92,12 @@ export const getMantineThemeOverride = (overrides?: {
         },
 
         body: {
-            textTransform: 'none',
             fontSize: '14px',
         },
 
         p: {
             marginBottom: '10px',
             marginTop: 0,
-        },
-
-        small: {
-            fontSize: '12px',
         },
 
         b: {
@@ -183,14 +108,12 @@ export const getMantineThemeOverride = (overrides?: {
             fontWeight: 600,
         },
 
-        ':focus': {
-            outline: 'rgba(45, 114, 210, 0.6) solid 2px',
-            outlineOffset: '2px',
-            '-moz-outline-radius': '6px',
-        },
-
         '.react-draggable.react-draggable-dragging .tile-base': {
             border: `1px solid ${theme.colors.blue[5]}`,
+        },
+
+        '.ace_editor.ace_autocomplete': {
+            width: '500px',
         },
     }),
 });

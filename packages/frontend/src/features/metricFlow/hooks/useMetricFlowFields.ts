@@ -1,5 +1,5 @@
 import { ApiError } from '@lightdash/common';
-import { uniqWith } from 'lodash-es';
+import uniqWith from 'lodash/uniqWith';
 import { useQuery } from 'react-query';
 import { UseQueryOptions } from 'react-query/types/react/types';
 import {

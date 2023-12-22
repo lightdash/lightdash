@@ -7,7 +7,7 @@ import {
     ResultRow,
     ResultValue,
 } from '@lightdash/common';
-import { isNumber } from 'lodash-es';
+import isNumber from 'lodash/isNumber';
 import { Entries } from 'type-fest';
 
 type PivotQueryResultsArgs = {
