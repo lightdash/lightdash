@@ -484,3 +484,24 @@ export const exploreWithMetricFilters: Explore = {
     ],
     targetDatabase: SupportedDbtAdapter.POSTGRES,
 };
+
+export const exploresWithSameName: Explore[] = [
+    {
+        name: 'payments',
+        tags: [],
+        label: 'Payments V1',
+        tables: {},
+        baseTable: 'payments_v1',
+        joinedTables: [],
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
+    },
+    {
+        name: 'payments',
+        tags: [],
+        label: 'Payments V2',
+        tables: {},
+        baseTable: 'payments_v2',
+        joinedTables: [],
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
+    },
+];
