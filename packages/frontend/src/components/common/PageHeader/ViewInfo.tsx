@@ -9,7 +9,10 @@ interface ViewInfoProps {
     firstViewedAt?: Date | string | null;
 }
 
-const ViewInfo: FC<ViewInfoProps> = ({ views, firstViewedAt }) => {
+const ViewInfo: FC<React.PropsWithChildren<ViewInfoProps>> = ({
+    views,
+    firstViewedAt,
+}) => {
     const label = firstViewedAt
         ? `${views} views since ${moment(firstViewedAt).format(
               'MMM D, YYYY h:mm A',

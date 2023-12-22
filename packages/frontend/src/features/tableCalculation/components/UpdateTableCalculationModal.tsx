@@ -10,11 +10,9 @@ type Props = ModalProps & {
     tableCalculation: TableCalculation;
 };
 
-export const UpdateTableCalculationModal: FC<Props> = ({
-    opened,
-    tableCalculation,
-    onClose,
-}) => {
+export const UpdateTableCalculationModal: FC<
+    React.PropsWithChildren<Props>
+> = ({ opened, tableCalculation, onClose }) => {
     const updateTableCalculation = useExplorerContext(
         (context) => context.actions.updateTableCalculation,
     );

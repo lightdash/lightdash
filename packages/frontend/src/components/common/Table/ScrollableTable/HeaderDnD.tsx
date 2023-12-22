@@ -9,10 +9,9 @@ type HeaderDndContextProps = {
     colOrderRef: MutableRefObject<string[]>;
 };
 
-export const HeaderDndContext: FC<HeaderDndContextProps> = ({
-    colOrderRef,
-    children,
-}) => {
+export const HeaderDndContext: FC<
+    React.PropsWithChildren<HeaderDndContextProps>
+> = ({ colOrderRef, children }) => {
     const { table, onColumnOrderChange } = useTableContext();
     return (
         <DragDropContext
@@ -51,10 +50,9 @@ type HeaderDroppableProps = {
     headerGroup: HeaderGroup<ResultRow>;
 };
 
-export const HeaderDroppable: FC<HeaderDroppableProps> = ({
-    headerGroup,
-    children,
-}) => {
+export const HeaderDroppable: FC<
+    React.PropsWithChildren<HeaderDroppableProps>
+> = ({ headerGroup, children }) => {
     return (
         <Droppable
             droppableId="droppable"

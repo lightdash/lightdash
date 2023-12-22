@@ -12,7 +12,7 @@ export interface LinkMenuItemProps extends MenuItemProps {
     onClick?: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
 }
 
-const LinkMenuItem: FC<LinkMenuItemProps> = ({
+const LinkMenuItem: FC<React.PropsWithChildren<LinkMenuItemProps>> = ({
     href,
     target,
     trackingEvent,

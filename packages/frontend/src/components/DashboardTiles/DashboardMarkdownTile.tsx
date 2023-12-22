@@ -9,7 +9,7 @@ type Props = Pick<
     'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > & { tile: DashboardMarkdownTile };
 
-const MarkdownTile: FC<Props> = (props) => {
+const MarkdownTile: FC<React.PropsWithChildren<Props>> = (props) => {
     const {
         tile: {
             properties: { title, content },

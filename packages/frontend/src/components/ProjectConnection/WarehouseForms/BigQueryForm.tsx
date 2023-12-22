@@ -17,9 +17,11 @@ import FormCollapseButton from '../FormCollapseButton';
 import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
-export const BigQuerySchemaInput: FC<{
-    disabled: boolean;
-}> = ({ disabled }) => {
+export const BigQuerySchemaInput: FC<
+    React.PropsWithChildren<{
+        disabled: boolean;
+    }>
+> = ({ disabled }) => {
     return (
         <Input
             name="warehouse.dataset"
@@ -52,9 +54,11 @@ export const BigQuerySchemaInput: FC<{
         />
     );
 };
-const BigQueryForm: FC<{
-    disabled: boolean;
-}> = ({ disabled }) => {
+const BigQueryForm: FC<
+    React.PropsWithChildren<{
+        disabled: boolean;
+    }>
+> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { register } = useFormContext();
     const [temporaryFile, setTemporaryFile] = useState<File>();

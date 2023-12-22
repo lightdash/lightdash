@@ -17,7 +17,7 @@ interface Props {
     onColorChange: (newColor: string) => void;
 }
 
-const ColorSelector: FC<Props> = ({
+const ColorSelector: FC<React.PropsWithChildren<Props>> = ({
     color,
     defaultColor = 'rgba(0,0,0,.1)',
     swatches,

@@ -24,7 +24,9 @@ type BasicSeriesConfigurationProps = {
     dragHandleProps?: DraggableProvidedDragHandleProps;
 };
 
-const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
+const BasicSeriesConfiguration: FC<
+    React.PropsWithChildren<BasicSeriesConfigurationProps>
+> = ({
     isSingle,
     layout,
     series,

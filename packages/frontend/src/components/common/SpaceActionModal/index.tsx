@@ -72,7 +72,7 @@ const validate = z.object({
     name: z.string().min(1, { message: 'Name is required' }),
 });
 
-const SpaceModal: FC<ActionModalProps> = ({
+const SpaceModal: FC<React.PropsWithChildren<ActionModalProps>> = ({
     data,
     icon,
     title,
@@ -217,7 +217,9 @@ const SpaceModal: FC<ActionModalProps> = ({
     );
 };
 
-const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
+const SpaceActionModal: FC<
+    React.PropsWithChildren<Omit<ActionModalProps, 'data' | 'isDisabled'>>
+> = ({
     actionType,
     projectUuid,
     spaceUuid,

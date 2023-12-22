@@ -31,7 +31,9 @@ type VisualizationCartesianConfigProps =
         >;
     };
 
-const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
+const VisualizationCartesianConfig: FC<
+    React.PropsWithChildren<VisualizationCartesianConfigProps>
+> = ({
     itemsMap,
     resultsData,
     validPivotDimensions,

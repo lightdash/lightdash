@@ -77,10 +77,9 @@ type DraggablePortalHandlerProps = {
     snapshot: DraggableStateSnapshot;
 };
 
-const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
-    children,
-    snapshot,
-}) => {
+const DraggablePortalHandler: FC<
+    React.PropsWithChildren<DraggablePortalHandlerProps>
+> = ({ children, snapshot }) => {
     if (snapshot.isDragging) return createPortal(children, document.body);
     return <>{children}</>;
 };
@@ -98,7 +97,9 @@ type GroupedSeriesConfigurationProps = {
     series: Series[];
 };
 
-const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
+const GroupedSeriesConfiguration: FC<
+    React.PropsWithChildren<GroupedSeriesConfigurationProps>
+> = ({
     layout,
     seriesGroup,
     item,

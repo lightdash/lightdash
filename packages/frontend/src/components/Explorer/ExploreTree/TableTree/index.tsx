@@ -20,7 +20,7 @@ type TableTreeWrapperProps = {
     table: CompiledTable;
 };
 
-const TableTreeWrapper: FC<TableTreeWrapperProps> = ({
+const TableTreeWrapper: FC<React.PropsWithChildren<TableTreeWrapperProps>> = ({
     isOpen,
     toggle,
     table,
@@ -72,7 +72,9 @@ type Props = {
     customDimensions?: CustomDimension[];
 };
 
-const EmptyWrapper: FC = ({ children }) => <>{children}</>;
+const EmptyWrapper: FC<React.PropsWithChildren> = ({ children }) => (
+    <>{children}</>
+);
 
 const themeOverride = getMantineThemeOverride({
     components: {
@@ -91,7 +93,7 @@ const themeOverride = getMantineThemeOverride({
     },
 });
 
-const TableTree: FC<Props> = ({
+const TableTree: FC<React.PropsWithChildren<Props>> = ({
     isOpenByDefault,
     showTableLabel,
     table,

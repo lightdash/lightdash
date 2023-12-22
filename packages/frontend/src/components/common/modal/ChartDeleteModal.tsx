@@ -25,7 +25,7 @@ interface ChartDeleteModalProps extends ModalProps {
     onConfirm?: () => void;
 }
 
-const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
+const ChartDeleteModal: FC<React.PropsWithChildren<ChartDeleteModalProps>> = ({
     uuid,
     onConfirm,
     ...modalProps

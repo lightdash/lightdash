@@ -2,11 +2,13 @@ import { Group, Input, NumberInput } from '@mantine/core';
 import React, { FC } from 'react';
 import { getHourlyCronExpression, parseCronExpression } from './cronInputUtils';
 
-const HourlyInputs: FC<{
-    disabled?: boolean;
-    cronExpression: string;
-    onChange: (value: string) => void;
-}> = ({ disabled, cronExpression, onChange }) => {
+const HourlyInputs: FC<
+    React.PropsWithChildren<{
+        disabled?: boolean;
+        cronExpression: string;
+        onChange: (value: string) => void;
+    }>
+> = ({ disabled, cronExpression, onChange }) => {
     const minutes = parseCronExpression(cronExpression).minutes;
 
     const onMinuteChange = (valueAsNumber: number) => {

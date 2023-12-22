@@ -23,7 +23,7 @@ import {
 import { useApp } from '../providers/AppProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
-const Home: FC = () => {
+const Home: FC<React.PropsWithChildren> = () => {
     const params = useParams<{ projectUuid: string }>();
     const selectedProjectUuid = params.projectUuid;
     const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);

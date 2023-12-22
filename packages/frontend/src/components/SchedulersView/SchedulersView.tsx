@@ -37,7 +37,7 @@ type Column = {
     };
 };
 
-const Schedulers: FC<SchedulersProps> = ({
+const Schedulers: FC<React.PropsWithChildren<SchedulersProps>> = ({
     projectUuid,
     schedulers,
     logs,

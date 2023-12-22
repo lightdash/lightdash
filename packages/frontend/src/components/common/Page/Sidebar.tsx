@@ -26,7 +26,7 @@ type Props = {
     cardProps?: CardProps;
 };
 
-const Sidebar: FC<Props> = ({
+const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     isOpen = true,
     containerProps,
     cardProps,

@@ -22,7 +22,9 @@ type SearchIconProps = {
     searchItem: SearchItem;
 };
 
-export const SearchIcon: FC<SearchIconProps> = ({ searchItem }) => {
+export const SearchIcon: FC<React.PropsWithChildren<SearchIconProps>> = ({
+    searchItem,
+}) => {
     switch (searchItem.type) {
         case 'field':
             return (
@@ -54,11 +56,13 @@ export const SearchIcon: FC<SearchIconProps> = ({ searchItem }) => {
     }
 };
 
-export const SearchIconWithIndicator: FC<{
-    searchResult: SearchItem;
-    projectUuid: string;
-    canUserManageValidation: boolean;
-}> = ({ searchResult, projectUuid, canUserManageValidation }) =>
+export const SearchIconWithIndicator: FC<
+    React.PropsWithChildren<{
+        searchResult: SearchItem;
+        projectUuid: string;
+        canUserManageValidation: boolean;
+    }>
+> = ({ searchResult, projectUuid, canUserManageValidation }) =>
     searchResult.item && 'validationErrors' in searchResult.item ? (
         <ResourceIndicator
             iconProps={{

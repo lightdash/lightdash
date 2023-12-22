@@ -14,10 +14,9 @@ type DraggablePortalHandlerProps = {
     snapshot: DraggableStateSnapshot;
 };
 
-const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
-    children,
-    snapshot,
-}) => {
+const DraggablePortalHandler: FC<
+    React.PropsWithChildren<DraggablePortalHandlerProps>
+> = ({ children, snapshot }) => {
     if (snapshot.isDragging) return createPortal(children, document.body);
     return <>{children}</>;
 };
@@ -30,13 +29,9 @@ type DroppableItemsListProps = {
     placeholder?: string;
 };
 
-const DroppableItemsList: FC<DroppableItemsListProps> = ({
-    droppableId,
-    itemIds,
-    isDragging,
-    disableReorder,
-    placeholder,
-}) => {
+const DroppableItemsList: FC<
+    React.PropsWithChildren<DroppableItemsListProps>
+> = ({ droppableId, itemIds, isDragging, disableReorder, placeholder }) => {
     return (
         <Droppable droppableId={droppableId}>
             {(dropProps, droppableSnapshot) => (

@@ -12,7 +12,9 @@ interface UnsupportedWarehouseProps {
     onBack: () => void;
 }
 
-const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
+const UnsupportedWarehouse: FC<
+    React.PropsWithChildren<UnsupportedWarehouseProps>
+> = ({ onBack }) => {
     const { track } = useTracking();
 
     return (

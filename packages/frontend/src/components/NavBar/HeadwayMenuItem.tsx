@@ -11,7 +11,9 @@ type Props = {
     projectUuid?: string;
 };
 
-const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
+const HeadwayMenuItem: FC<React.PropsWithChildren<Props>> = ({
+    projectUuid,
+}) => {
     const theme = useMantineTheme();
     const { track } = useTracking();
     const { user } = useApp();

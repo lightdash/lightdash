@@ -32,7 +32,7 @@ import { isTableVisualizationConfig } from '../../LightdashVisualization/Visuali
 import { isCustomVisualizationConfig } from '../../LightdashVisualization/VisualizationCustomConfigProps';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
-const VisualizationCardOptions: FC = memo(() => {
+const VisualizationCardOptions: FC<React.PropsWithChildren> = memo(() => {
     const { health } = useApp();
     // FEATURE FLAG: custom-visualizations-enabled
     const customVizEnabled = useFeatureFlagEnabled(

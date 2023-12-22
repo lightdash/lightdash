@@ -16,7 +16,7 @@ import { SortDirection } from '../components/common/ResourceView/ResourceViewLis
 import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
-const MobileCharts: FC = () => {
+const MobileCharts: FC<React.PropsWithChildren> = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data: savedQueries = [] } = useSavedCharts(projectUuid);
     const { user } = useApp();

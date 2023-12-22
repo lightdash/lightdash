@@ -15,7 +15,9 @@ interface LightdashVisualizationProps {
     'data-testid'?: string;
 }
 
-const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
+const LightdashVisualization: FC<
+    React.PropsWithChildren<LightdashVisualizationProps>
+> = memo(
     ({
         isDashboard = false,
         tileUuid,

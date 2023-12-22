@@ -36,7 +36,7 @@ const units = Object.values(Units);
 type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
 };
-const LegendPanel: FC<Props> = ({ items }) => {
+const LegendPanel: FC<React.PropsWithChildren<Props>> = ({ items }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { visualizationConfig } = useVisualizationContext();

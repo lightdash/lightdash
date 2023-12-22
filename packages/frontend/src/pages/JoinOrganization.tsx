@@ -24,7 +24,7 @@ import { useDeleteUserMutation } from '../hooks/user/useUserDeleteMutation';
 import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
-const JoinOrganizationPage: FC = () => {
+const JoinOrganizationPage: FC<React.PropsWithChildren> = () => {
     const { health, user } = useApp();
     const history = useHistory();
     const { isLoading: isLoadingAllowedOrgs, data: allowedOrgs } =

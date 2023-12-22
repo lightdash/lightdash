@@ -23,11 +23,9 @@ interface ResourceViewGridDashboardItemProps
     dragIcon: ReactNode;
 }
 
-const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
-    item,
-    onAction,
-    dragIcon,
-}) => {
+const ResourceViewGridDashboardItem: FC<
+    React.PropsWithChildren<ResourceViewGridDashboardItemProps>
+> = ({ item, onAction, dragIcon }) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
     const theme = useMantineTheme();

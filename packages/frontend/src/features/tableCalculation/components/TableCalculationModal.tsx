@@ -38,7 +38,7 @@ type TableCalculationFormInputs = {
     format: TableCalculationFormat;
 };
 
-const TableCalculationModal: FC<Props> = ({
+const TableCalculationModal: FC<React.PropsWithChildren<Props>> = ({
     opened,
     tableCalculation,
     onSave,

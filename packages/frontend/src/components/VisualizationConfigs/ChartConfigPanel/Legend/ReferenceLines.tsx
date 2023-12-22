@@ -24,7 +24,10 @@ type Props = {
     projectUuid: string;
 };
 
-export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
+export const ReferenceLines: FC<React.PropsWithChildren<Props>> = ({
+    items,
+    projectUuid,
+}) => {
     const { visualizationConfig } = useVisualizationContext();
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);

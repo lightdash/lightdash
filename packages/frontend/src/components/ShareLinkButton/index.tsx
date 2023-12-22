@@ -5,7 +5,9 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 
-const ShareLinkButton: FC<{ url: string }> = ({ url }) => {
+const ShareLinkButton: FC<React.PropsWithChildren<{ url: string }>> = ({
+    url,
+}) => {
     const { showToastSuccess } = useToaster();
     return (
         <CopyToClipboard

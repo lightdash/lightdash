@@ -16,7 +16,11 @@ import { SyncModalView } from './SyncModalView';
 
 type Props = { chartUuid: string } & Pick<ModalProps, 'opened' | 'onClose'>;
 
-const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
+const SyncModalBaseAndManager: FC<React.PropsWithChildren<Props>> = ({
+    chartUuid,
+    opened,
+    onClose,
+}) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
     const { action, setAction, setCurrentSchedulerUuid } = useSyncModal();
@@ -69,7 +73,11 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
     );
 };
 
-export const SyncModal: FC<Props> = ({ chartUuid, opened, onClose }) => (
+export const SyncModal: FC<React.PropsWithChildren<Props>> = ({
+    chartUuid,
+    opened,
+    onClose,
+}) => (
     <SyncModalProvider>
         <SyncModalBaseAndManager
             chartUuid={chartUuid}

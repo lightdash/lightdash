@@ -81,7 +81,10 @@ type Props = Pick<ModalProps, 'onClose'> & {
     resourceType: AddToSpaceResources;
 };
 
-const AddResourceToSpaceModal: FC<Props> = ({ resourceType, onClose }) => {
+const AddResourceToSpaceModal: FC<React.PropsWithChildren<Props>> = ({
+    resourceType,
+    onClose,
+}) => {
     const { projectUuid, spaceUuid } = useParams<{
         projectUuid: string;
         spaceUuid: string;

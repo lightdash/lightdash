@@ -24,11 +24,9 @@ interface ShareSpaceAddUserProps {
     organizationUsers: OrganizationMemberProfile[] | undefined;
 }
 
-export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
-    space,
-    projectUuid,
-    organizationUsers,
-}) => {
+export const ShareSpaceAddUser: FC<
+    React.PropsWithChildren<ShareSpaceAddUserProps>
+> = ({ space, projectUuid, organizationUsers }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const { data: projectAccess } = useProjectAccess(projectUuid);

@@ -100,10 +100,12 @@ type DashboardContext = {
 
 const Context = createContext<DashboardContext | undefined>(undefined);
 
-export const DashboardProvider: React.FC<{
-    schedulerFilters?: SchedulerFilterRule[] | undefined;
-    dateZoom?: DateGranularity | undefined;
-}> = ({ schedulerFilters, dateZoom, children }) => {
+export const DashboardProvider: React.FC<
+    React.PropsWithChildren<{
+        schedulerFilters?: SchedulerFilterRule[] | undefined;
+        dateZoom?: DateGranularity | undefined;
+    }>
+> = ({ schedulerFilters, dateZoom, children }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
 

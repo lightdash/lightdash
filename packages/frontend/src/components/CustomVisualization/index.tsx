@@ -45,7 +45,9 @@ const convertRowsToSeries = (rows: ResultRow[]) => {
     });
 };
 
-export const CustomVisualizationProvider: FC = ({ children }) => {
+export const CustomVisualizationProvider: FC<React.PropsWithChildren> = ({
+    children,
+}) => {
     const rows = useExplorerContext(
         (context) => context.queryResults.data?.rows,
     );
@@ -79,7 +81,9 @@ type CustomVisualizationProps = {
     'data-testid'?: string;
 };
 
-const CustomVisualization: FC<CustomVisualizationProps> = (props) => {
+const CustomVisualization: FC<
+    React.PropsWithChildren<CustomVisualizationProps>
+> = (props) => {
     const { chartConfig, rows } = useCustomVisualizationContext();
 
     const [config, error] = useMemo(() => {

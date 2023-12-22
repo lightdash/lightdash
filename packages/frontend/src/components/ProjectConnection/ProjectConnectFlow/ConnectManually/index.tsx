@@ -9,7 +9,7 @@ interface ConnectManuallyProps {
     onBack: () => void;
 }
 
-const ConnectManually: FC<ConnectManuallyProps> = ({
+const ConnectManually: FC<React.PropsWithChildren<ConnectManuallyProps>> = ({
     isCreatingFirstProject,
     selectedWarehouse,
     onBack,

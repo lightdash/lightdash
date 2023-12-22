@@ -25,7 +25,7 @@ export interface PageBreadcrumbsProps
     items: BreadCrumbItem[];
 }
 
-const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
+const PageBreadcrumbs: FC<React.PropsWithChildren<PageBreadcrumbsProps>> = ({
     items,
     size = 'lg',
     ...rest

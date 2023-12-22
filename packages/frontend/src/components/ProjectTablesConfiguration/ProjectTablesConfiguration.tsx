@@ -33,10 +33,12 @@ type FormData = {
     names: string[];
 };
 
-const ProjectTablesConfiguration: FC<{
-    projectUuid: string;
-    onSuccess?: () => void;
-}> = ({ projectUuid, onSuccess }) => {
+const ProjectTablesConfiguration: FC<
+    React.PropsWithChildren<{
+        projectUuid: string;
+        onSuccess?: () => void;
+    }>
+> = ({ projectUuid, onSuccess }) => {
     const { track } = useTracking();
     const { user } = useApp();
     const ability = useAbilityContext();

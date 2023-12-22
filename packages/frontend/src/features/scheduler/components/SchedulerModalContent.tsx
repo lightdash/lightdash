@@ -29,12 +29,14 @@ enum States {
     EDIT,
 }
 
-const ListStateContent: FC<{
-    schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
-    onClose: () => void;
-    onConfirm: () => void;
-    onEdit: (schedulerUuid: string) => void;
-}> = ({ schedulersQuery, onClose, onConfirm, onEdit }) => {
+const ListStateContent: FC<
+    React.PropsWithChildren<{
+        schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
+        onClose: () => void;
+        onConfirm: () => void;
+        onEdit: (schedulerUuid: string) => void;
+    }>
+> = ({ schedulersQuery, onClose, onConfirm, onEdit }) => {
     return (
         <>
             <Box
@@ -57,16 +59,18 @@ const ListStateContent: FC<{
     );
 };
 
-const CreateStateContent: FC<{
-    resourceUuid: string;
-    createMutation: UseMutationResult<
-        SchedulerAndTargets,
-        ApiError,
-        { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
-    >;
-    isChart: boolean;
-    onBack: () => void;
-}> = ({ resourceUuid, createMutation, isChart, onBack }) => {
+const CreateStateContent: FC<
+    React.PropsWithChildren<{
+        resourceUuid: string;
+        createMutation: UseMutationResult<
+            SchedulerAndTargets,
+            ApiError,
+            { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
+        >;
+        isChart: boolean;
+        onBack: () => void;
+    }>
+> = ({ resourceUuid, createMutation, isChart, onBack }) => {
     useEffect(() => {
         if (createMutation.isSuccess) {
             createMutation.reset();
@@ -133,10 +137,12 @@ const CreateStateContent: FC<{
     );
 };
 
-const UpdateStateContent: FC<{
-    schedulerUuid: string;
-    onBack: () => void;
-}> = ({ schedulerUuid, onBack }) => {
+const UpdateStateContent: FC<
+    React.PropsWithChildren<{
+        schedulerUuid: string;
+        onBack: () => void;
+    }>
+> = ({ schedulerUuid, onBack }) => {
     const scheduler = useScheduler(schedulerUuid);
 
     const mutation = useSchedulersUpdateMutation(schedulerUuid);
@@ -235,7 +241,9 @@ interface Props {
     isChart: boolean;
 }
 
-const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
+const SchedulerModalContent: FC<
+    React.PropsWithChildren<Omit<Props, 'name'>>
+> = ({
     resourceUuid,
     schedulersQuery,
     createMutation,

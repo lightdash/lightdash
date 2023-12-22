@@ -15,7 +15,9 @@ type Props = {
     isEditMode: boolean;
 };
 
-export const DateZoom: FC<Props> = ({ isEditMode }) => {
+export const DateZoom: FC<React.PropsWithChildren<Props>> = ({
+    isEditMode,
+}) => {
     const theme = useMantineTheme();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 

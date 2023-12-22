@@ -24,10 +24,9 @@ interface SchedulersViewActionMenuProps {
     projectUuid: string;
 }
 
-const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
-    item,
-    projectUuid,
-}) => {
+const SchedulersViewActionMenu: FC<
+    React.PropsWithChildren<SchedulersViewActionMenuProps>
+> = ({ item, projectUuid }) => {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const queryClient = useQueryClient();
     const handleDelete = async () => {

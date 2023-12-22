@@ -23,7 +23,7 @@ import { getConditionalRuleLabel } from '../../common/Filters/FilterInputs';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
-const FiltersCard: FC = memo(() => {
+const FiltersCard: FC<React.PropsWithChildren> = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const project = useProject(projectUuid);
     const expandedSections = useExplorerContext(

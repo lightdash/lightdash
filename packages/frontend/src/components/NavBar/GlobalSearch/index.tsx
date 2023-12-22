@@ -55,7 +55,7 @@ const useStyles = createStyles<string, null>((theme) => ({
     },
 }));
 
-const SpotlightItem: FC<SpotlightActionProps> = ({
+const SpotlightItem: FC<React.PropsWithChildren<SpotlightActionProps>> = ({
     action,
     styles,
     classNames,
@@ -133,7 +133,9 @@ interface GlobalSearchProps {
     projectUuid: string;
 }
 
-const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
+const GlobalSearch: FC<React.PropsWithChildren<GlobalSearchProps>> = ({
+    projectUuid,
+}) => {
     const history = useHistory();
     const location = useLocation();
     const { track } = useTracking();

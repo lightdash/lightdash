@@ -7,7 +7,10 @@ type Props = {
     projectUuid: string;
 };
 
-export const DashboardList: FC<Props> = ({ resourceItemId, projectUuid }) => {
+export const DashboardList: FC<React.PropsWithChildren<Props>> = ({
+    resourceItemId,
+    projectUuid,
+}) => {
     const { data: relatedDashboards } = useDashboardsContainingChart(
         projectUuid,
         resourceItemId,

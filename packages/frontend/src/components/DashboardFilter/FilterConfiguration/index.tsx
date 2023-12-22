@@ -75,7 +75,7 @@ const getDefaultField = (
     );
 };
 
-const FilterConfiguration: FC<Props> = ({
+const FilterConfiguration: FC<React.PropsWithChildren<Props>> = ({
     isEditMode,
     isCreatingNew = false,
     isTemporary = false,

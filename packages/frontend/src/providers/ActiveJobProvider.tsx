@@ -31,7 +31,9 @@ interface ContextType {
 
 const Context = createContext<ContextType>(undefined as any);
 
-export const ActiveJobProvider: FC = ({ children }) => {
+export const ActiveJobProvider: FC<React.PropsWithChildren> = ({
+    children,
+}) => {
     const [isJobsDrawerOpen, setIsJobsDrawerOpen] = useState(false);
     const [activeJobId, setActiveJobId] = useState();
     const queryClient = useQueryClient();

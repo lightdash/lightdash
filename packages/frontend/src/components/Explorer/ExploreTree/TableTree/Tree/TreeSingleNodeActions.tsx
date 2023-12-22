@@ -67,7 +67,7 @@ type Props = {
     onMenuChange: MenuProps['onChange'];
 };
 
-const TreeSingleNodeActions: FC<Props> = ({
+const TreeSingleNodeActions: FC<React.PropsWithChildren<Props>> = ({
     item,
     isHovered,
     isSelected,

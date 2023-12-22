@@ -23,11 +23,9 @@ interface ConnectManuallyStep1Props {
     onForward: () => void;
 }
 
-const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
-    isCreatingFirstProject,
-    onBack,
-    onForward,
-}) => {
+const ConnectManuallyStep1: FC<
+    React.PropsWithChildren<ConnectManuallyStep1Props>
+> = ({ isCreatingFirstProject, onBack, onForward }) => {
     const { track } = useTracking();
 
     return (

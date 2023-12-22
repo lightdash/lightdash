@@ -12,7 +12,7 @@ export type Props = {
     onLimitChange: (value: number) => void;
 };
 
-const LimitButton: FC<Props> = memo(
+const LimitButton: FC<React.PropsWithChildren<Props>> = memo(
     ({ size, disabled, limit, onLimitChange }) => {
         const [opened, { open, close }] = useDisclosure(false);
         const ref = useClickOutside(

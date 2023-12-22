@@ -7,10 +7,9 @@ type ProjectFormContext = {
 
 const Context = createContext<ProjectFormContext | undefined>(undefined);
 
-export const ProjectFormProvider: FC<ProjectFormContext> = ({
-    savedProject,
-    children,
-}) => {
+export const ProjectFormProvider: FC<
+    React.PropsWithChildren<ProjectFormContext>
+> = ({ savedProject, children }) => {
     return (
         <Context.Provider value={{ savedProject }}>{children}</Context.Provider>
     );

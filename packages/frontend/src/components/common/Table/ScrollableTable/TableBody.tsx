@@ -14,10 +14,9 @@ import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
 import { TableContext, useTableContext } from '../TableProvider';
 import BodyCell from './BodyCell';
 
-const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
-    cellCount,
-    padding,
-}) => {
+const VirtualizedArea: FC<
+    React.PropsWithChildren<{ cellCount: number; padding: number }>
+> = ({ cellCount, padding }) => {
     return (
         <tr>
             {[...Array(cellCount)].map((_, index) => (
@@ -44,7 +43,7 @@ interface TableRowProps {
 // arbitrary number that is usually smaller than the 300px max width of the cell
 const SMALL_TEXT_LENGTH = 35;
 
-const TableRow: FC<TableRowProps> = ({
+const TableRow: FC<React.PropsWithChildren<TableRowProps>> = ({
     row,
     index,
     cellContextMenu,
@@ -115,9 +114,11 @@ const TableRow: FC<TableRowProps> = ({
     );
 };
 
-const VirtualizedTableBody: FC<{
-    tableContainerRef: React.RefObject<HTMLDivElement>;
-}> = ({ tableContainerRef }) => {
+const VirtualizedTableBody: FC<
+    React.PropsWithChildren<{
+        tableContainerRef: React.RefObject<HTMLDivElement>;
+    }>
+> = ({ tableContainerRef }) => {
     const { table, cellContextMenu, conditionalFormattings } =
         useTableContext();
     const { rows } = table.getRowModel();
@@ -165,7 +166,7 @@ const VirtualizedTableBody: FC<{
     );
 };
 
-const NormalTableBody: FC = () => {
+const NormalTableBody: FC<React.PropsWithChildren> = () => {
     const { table, conditionalFormattings } = useTableContext();
     const { rows } = table.getRowModel();
 
@@ -189,7 +190,10 @@ interface TableBodyProps {
     tableContainerRef: React.RefObject<HTMLDivElement>;
 }
 
-const TableBody: FC<TableBodyProps> = ({ minimal, tableContainerRef }) => {
+const TableBody: FC<React.PropsWithChildren<TableBodyProps>> = ({
+    minimal,
+    tableContainerRef,
+}) => {
     if (minimal) {
         return <NormalTableBody />;
     } else {

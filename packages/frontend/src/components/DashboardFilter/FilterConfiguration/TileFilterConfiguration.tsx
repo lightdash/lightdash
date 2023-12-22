@@ -34,7 +34,7 @@ type Props = {
     onToggleAll: (checked: boolean) => void;
 };
 
-const TileFilterConfiguration: FC<Props> = ({
+const TileFilterConfiguration: FC<React.PropsWithChildren<Props>> = ({
     tiles,
     field,
     filterRule,

@@ -11,7 +11,9 @@ import MantineIcon from '../../common/MantineIcon';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
-const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
+const ColumnConfiguration: React.FC<
+    React.PropsWithChildren<{ fieldId: string }>
+> = ({ fieldId }) => {
     const { pivotDimensions, visualizationConfig } = useVisualizationContext();
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);

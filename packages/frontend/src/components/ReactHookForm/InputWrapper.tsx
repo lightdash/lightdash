@@ -33,7 +33,7 @@ export interface InputWrapperProps {
     style?: React.CSSProperties;
 }
 
-const InputWrapper: FC<InputWrapperProps> = ({
+const InputWrapper: FC<React.PropsWithChildren<InputWrapperProps>> = ({
     name,
     defaultValue,
     documentationUrl,

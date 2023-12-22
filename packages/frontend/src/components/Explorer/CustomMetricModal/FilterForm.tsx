@@ -19,13 +19,15 @@ export interface MetricFilterRuleWithFieldId
         FieldTarget & { fieldRef: string }
     > {}
 
-export const FilterForm: FC<{
-    defaultFilterRuleFieldId: string | undefined;
-    customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
-    setCustomMetricFiltersWithIds: Dispatch<
-        SetStateAction<MetricFilterRuleWithFieldId[]>
-    >;
-}> = ({
+export const FilterForm: FC<
+    React.PropsWithChildren<{
+        defaultFilterRuleFieldId: string | undefined;
+        customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
+        setCustomMetricFiltersWithIds: Dispatch<
+            SetStateAction<MetricFilterRuleWithFieldId[]>
+        >;
+    }>
+> = ({
     defaultFilterRuleFieldId,
     customMetricFiltersWithIds,
     setCustomMetricFiltersWithIds,

@@ -19,13 +19,15 @@ import { IconKey, IconTrash } from '@tabler/icons-react';
 import React, { FC, useState } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
-const ProjectAccessRow: FC<{
-    user: OrganizationMemberProfile | ProjectMemberProfile;
-    relevantOrgRole?: OrganizationMemberProfile['role'];
-    roleTooltip?: string;
-    onDelete?: () => void;
-    onUpdate?: (newRole: ProjectMemberRole) => void;
-}> = ({
+const ProjectAccessRow: FC<
+    React.PropsWithChildren<{
+        user: OrganizationMemberProfile | ProjectMemberProfile;
+        relevantOrgRole?: OrganizationMemberProfile['role'];
+        roleTooltip?: string;
+        onDelete?: () => void;
+        onUpdate?: (newRole: ProjectMemberRole) => void;
+    }>
+> = ({
     user: { firstName, lastName, email, role },
     relevantOrgRole,
     roleTooltip,

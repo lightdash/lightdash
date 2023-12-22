@@ -23,12 +23,14 @@ export enum CreateModalStep {
     SET_ACCESS = 'second',
 }
 
-const UserListItem: FC<{
-    isYou?: boolean;
-    firstName: string;
-    lastName: string;
-    role: ProjectMemberRole | OrganizationMemberRole;
-}> = ({ firstName, lastName, isYou, role }) => (
+const UserListItem: FC<
+    React.PropsWithChildren<{
+        isYou?: boolean;
+        firstName: string;
+        lastName: string;
+        role: ProjectMemberRole | OrganizationMemberRole;
+    }>
+> = ({ firstName, lastName, isYou, role }) => (
     <Group spacing="sm" position="apart" noWrap>
         <Group>
             <Avatar radius="xl" tt="uppercase" color="blue">
@@ -53,7 +55,9 @@ const UserListItem: FC<{
     </Group>
 );
 
-const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
+const CreateSpaceModalContent: FC<
+    React.PropsWithChildren<CreateSpaceModalBody>
+> = ({
     modalStep,
     projectUuid,
     form,

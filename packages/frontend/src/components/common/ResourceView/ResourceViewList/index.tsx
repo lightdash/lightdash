@@ -70,7 +70,7 @@ const getNextSortDirection = (current: SortingState): SortingState => {
     return sortOrder.concat(sortOrder[0])[currentIndex + 1];
 };
 
-const ResourceViewList: FC<ResourceViewListProps> = ({
+const ResourceViewList: FC<React.PropsWithChildren<ResourceViewListProps>> = ({
     items,
     enableSorting: enableSortingProp = true,
     enableMultiSort = false,

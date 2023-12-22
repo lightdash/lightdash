@@ -39,7 +39,7 @@ const jobTitles = [
     'Other',
 ];
 
-const UserCompletionModal: FC = () => {
+const UserCompletionModal: FC<React.PropsWithChildren> = () => {
     const { health, user } = useApp();
 
     const form = useForm<CompleteUserArgs>({

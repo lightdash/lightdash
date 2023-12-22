@@ -9,7 +9,9 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
-const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
+const SaveChartButton: FC<
+    React.PropsWithChildren<{ isExplorer?: boolean }>
+> = ({ isExplorer }) => {
     const { showToastError } = useToaster();
 
     const unsavedChartVersion = useExplorerContext(

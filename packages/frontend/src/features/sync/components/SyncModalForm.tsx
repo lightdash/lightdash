@@ -26,7 +26,9 @@ import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';
 
-export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
+export const SyncModalForm: FC<
+    React.PropsWithChildren<{ chartUuid: string }>
+> = ({ chartUuid }) => {
     const { action, setAction, currentSchedulerUuid } = useSyncModal();
 
     const isEditing = action === SyncModalAction.EDIT;

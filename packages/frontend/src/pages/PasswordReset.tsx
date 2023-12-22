@@ -25,7 +25,7 @@ import LightdashLogo from '../svgs/lightdash-black.svg';
 
 type ResetPasswordForm = { password: string };
 
-const PasswordReset: FC = () => {
+const PasswordReset: FC<React.PropsWithChildren> = () => {
     const history = useHistory();
     const { code } = useParams<{ code: string }>();
     const { health } = useApp();

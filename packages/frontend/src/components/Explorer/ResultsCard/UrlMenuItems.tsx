@@ -19,13 +19,15 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 
-const UrlMenuItem: FC<{
-    urlConfig: FieldUrl;
-    itemsMap?: Record<string, Field | TableCalculation>;
-    itemIdsInRow: string[];
-    value: ResultValue;
-    row: Record<string, Record<string, ResultValue>>;
-}> = ({ urlConfig, itemsMap, itemIdsInRow, value, row }) => {
+const UrlMenuItem: FC<
+    React.PropsWithChildren<{
+        urlConfig: FieldUrl;
+        itemsMap?: Record<string, Field | TableCalculation>;
+        itemIdsInRow: string[];
+        value: ResultValue;
+        row: Record<string, Record<string, ResultValue>>;
+    }>
+> = ({ urlConfig, itemsMap, itemIdsInRow, value, row }) => {
     const { track } = useTracking();
     const [url, renderError] = useMemo(() => {
         let parsedUrl: string | undefined = undefined;
@@ -109,11 +111,13 @@ const UrlMenuItem: FC<{
     );
 };
 
-const UrlMenuItems: FC<{
-    urls: FieldUrl[] | undefined;
-    cell: Cell<ResultRow, ResultRow[0]>;
-    itemsMap?: Record<string, Field | TableCalculation>;
-}> = ({ urls, cell, itemsMap }) => {
+const UrlMenuItems: FC<
+    React.PropsWithChildren<{
+        urls: FieldUrl[] | undefined;
+        cell: Cell<ResultRow, ResultRow[0]>;
+        itemsMap?: Record<string, Field | TableCalculation>;
+    }>
+> = ({ urls, cell, itemsMap }) => {
     const value: ResultValue = cell.getValue()?.value || {};
     const [itemIdsInRow, rowData] = useMemo(() => {
         const itemIds: string[] = [];

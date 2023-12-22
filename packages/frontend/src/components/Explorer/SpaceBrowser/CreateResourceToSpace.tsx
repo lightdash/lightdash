@@ -14,7 +14,9 @@ interface Props {
     resourceType: AddToSpaceResources;
 }
 
-const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
+const CreateResourceToSpace: FC<React.PropsWithChildren<Props>> = ({
+    resourceType,
+}) => {
     const history = useHistory();
     const { projectUuid, spaceUuid } = useParams<RouteProps>();
 

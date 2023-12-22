@@ -8,12 +8,9 @@ export interface ResourceEmptyStateProps {
     action?: JSX.Element;
 }
 
-const ResourceEmptyState: FC<ResourceEmptyStateProps> = ({
-    icon,
-    title = 'No items',
-    description,
-    action,
-}) => {
+const ResourceEmptyState: FC<
+    React.PropsWithChildren<ResourceEmptyStateProps>
+> = ({ icon, title = 'No items', description, action }) => {
     return (
         <Center component={Flex} direction="column" gap="md" py={40}>
             {icon && (

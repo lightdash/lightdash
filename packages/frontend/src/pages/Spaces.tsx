@@ -24,7 +24,7 @@ import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
-const Spaces: FC = () => {
+const Spaces: FC<React.PropsWithChildren> = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const { data: spaces = [], isLoading: spaceIsLoading } = useSpaceSummaries(

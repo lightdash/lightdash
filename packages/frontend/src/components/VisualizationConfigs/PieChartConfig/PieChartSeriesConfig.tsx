@@ -48,7 +48,7 @@ type ValueOptionsProps = {
     onToggleShowPercentage: (newValue: boolean) => void;
 };
 
-const ValueOptions: FC<ValueOptionsProps> = ({
+const ValueOptions: FC<React.PropsWithChildren<ValueOptionsProps>> = ({
     isValueLabelOverriden = false,
     isShowValueOverriden = false,
     isShowPercentageOverriden = false,
@@ -246,7 +246,7 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
     },
 );
 
-const PieChartSeriesConfig: FC = () => {
+const PieChartSeriesConfig: FC<React.PropsWithChildren> = () => {
     const { visualizationConfig, colorPalette } = useVisualizationContext();
 
     const isPieChartConfig = isPieVisualizationConfig(visualizationConfig);

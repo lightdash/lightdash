@@ -17,7 +17,7 @@ import ResultsCard from './ResultsCard/ResultsCard';
 import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 
-const Explorer: FC<{ hideHeader?: boolean }> = memo(
+const Explorer: FC<React.PropsWithChildren<{ hideHeader?: boolean }>> = memo(
     ({ hideHeader = false }) => {
         const unsavedChartVersionTableName = useExplorerContext(
             (context) => context.state.unsavedChartVersion.tableName,

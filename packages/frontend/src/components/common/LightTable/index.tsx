@@ -58,12 +58,12 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
 };
 
 interface TableCompoundComponents {
-    Head: FC<TableSectionProps>;
-    Body: FC<TableSectionProps>;
-    Footer: FC<TableSectionProps>;
-    Row: FC<TableRowProps>;
-    Cell: FC<TableCellProps>;
-    CellHead: FC<TableCellProps>;
+    Head: FC<React.PropsWithChildren<TableSectionProps>>;
+    Body: FC<React.PropsWithChildren<TableSectionProps>>;
+    Footer: FC<React.PropsWithChildren<TableSectionProps>>;
+    Row: FC<React.PropsWithChildren<TableRowProps>>;
+    Cell: FC<React.PropsWithChildren<TableCellProps>>;
+    CellHead: FC<React.PropsWithChildren<TableCellProps>>;
 }
 
 export enum SectionType {
@@ -99,10 +99,9 @@ const useTableContext = () => {
     return context;
 };
 
-const TableProvider: FC<Pick<TableContextType, 'scrollPositions'>> = ({
-    children,
-    scrollPositions,
-}) => {
+const TableProvider: FC<
+    React.PropsWithChildren<Pick<TableContextType, 'scrollPositions'>>
+> = ({ children, scrollPositions }) => {
     const [selectedCell, setSelectedCell] = useState<string | null>(null);
 
     const handleToggleCell = useCallback(
@@ -195,7 +194,7 @@ type SectionContextType = {
 
 const SectionContext = createContext<SectionContextType | null>(null);
 
-const SectionProvider: FC<SectionContextType> = ({
+const SectionProvider: FC<React.PropsWithChildren<SectionContextType>> = ({
     children,
     sectionType,
     withSticky = false,
@@ -221,7 +220,10 @@ type RowContextType = { index: number };
 
 const RowContext = createContext<RowContextType | null>(null);
 
-const RowProvider: FC<RowContextType> = ({ children, index }) => {
+const RowProvider: FC<React.PropsWithChildren<RowContextType>> = ({
+    children,
+    index,
+}) => {
     return (
         <RowContext.Provider value={{ index }}>{children}</RowContext.Provider>
     );

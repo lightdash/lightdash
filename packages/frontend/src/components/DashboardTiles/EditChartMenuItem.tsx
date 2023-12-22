@@ -12,7 +12,10 @@ type Props = LinkMenuItemProps & {
     tile: DashboardChartTile;
 };
 
-const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
+const EditChartMenuItem: FC<React.PropsWithChildren<Props>> = ({
+    tile,
+    ...props
+}) => {
     const { user } = useApp();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);

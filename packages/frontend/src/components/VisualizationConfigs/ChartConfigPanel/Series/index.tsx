@@ -29,10 +29,9 @@ type DraggablePortalHandlerProps = {
     snapshot: DraggableStateSnapshot;
 };
 
-const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
-    children,
-    snapshot,
-}) => {
+const DraggablePortalHandler: FC<
+    React.PropsWithChildren<DraggablePortalHandlerProps>
+> = ({ children, snapshot }) => {
     if (snapshot.isDragging) return createPortal(children, document.body);
     return <>{children}</>;
 };
@@ -41,7 +40,7 @@ type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
 };
 
-const SeriesTab: FC<Props> = ({ items }) => {
+const SeriesTab: FC<React.PropsWithChildren<Props>> = ({ items }) => {
     const { visualizationConfig, colorPalette } = useVisualizationContext();
 
     const isCartesianChart =

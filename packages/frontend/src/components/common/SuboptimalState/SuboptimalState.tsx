@@ -10,7 +10,7 @@ interface Props extends React.ComponentPropsWithoutRef<'div'> {
     loading?: boolean;
 }
 
-const SuboptimalState: FC<Props> = ({
+const SuboptimalState: FC<React.PropsWithChildren<Props>> = ({
     icon,
     title,
     description,

@@ -29,7 +29,13 @@ interface MinMaxProps {
     setMax: (value: string | undefined) => void;
 }
 
-const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
+const AxisMinMax: FC<React.PropsWithChildren<MinMaxProps>> = ({
+    label,
+    min,
+    max,
+    setMin,
+    setMax,
+}) => {
     const [isAuto, toggleAuto] = useToggle(!(min || max));
     const { track } = useTracking();
 
@@ -82,7 +88,7 @@ type Props = {
     itemsMap: ItemsMap | undefined;
 };
 
-const AxesOptions: FC<Props> = ({ itemsMap }) => {
+const AxesOptions: FC<React.PropsWithChildren<Props>> = ({ itemsMap }) => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;

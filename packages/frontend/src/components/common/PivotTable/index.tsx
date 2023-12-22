@@ -24,10 +24,12 @@ import { CELL_HEIGHT } from '../LightTable/styles';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 
-const VirtualizedArea: FC<{
-    cellCount: number;
-    height: number;
-}> = ({ cellCount, height }) => {
+const VirtualizedArea: FC<
+    React.PropsWithChildren<{
+        cellCount: number;
+        height: number;
+    }>
+> = ({ cellCount, height }) => {
     return (
         <Table.Row index={-1}>
             {[...Array(cellCount)].map((_, index) => (
@@ -46,7 +48,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         getField: (fieldId: string) => ItemsMap[string] | undefined;
     };
 
-const PivotTable: FC<PivotTableProps> = ({
+const PivotTable: FC<React.PropsWithChildren<PivotTableProps>> = ({
     data,
     conditionalFormattings,
     hideRowNumbers = false,

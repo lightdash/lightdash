@@ -29,7 +29,7 @@ type Props = {
     onRemove?: () => void;
 };
 
-const Filter: FC<Props> = ({
+const Filter: FC<React.PropsWithChildren<Props>> = ({
     isEditMode,
     isCreatingNew,
     isTemporary,

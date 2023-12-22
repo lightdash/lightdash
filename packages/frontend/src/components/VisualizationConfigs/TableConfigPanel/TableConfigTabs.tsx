@@ -2,7 +2,7 @@ import { Tabs } from '@mantine/core';
 import React, { memo } from 'react';
 import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
-const TableConfigTabs: React.FC = memo(() => {
+const TableConfigTabs: React.FC<React.PropsWithChildren> = memo(() => {
     return (
         <Tabs defaultValue="general" keepMounted={false}>
             <Tabs.List mb="sm">

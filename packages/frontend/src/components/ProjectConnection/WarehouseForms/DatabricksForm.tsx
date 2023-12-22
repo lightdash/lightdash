@@ -9,9 +9,11 @@ import FormCollapseButton from '../FormCollapseButton';
 import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
-export const DatabricksSchemaInput: FC<{
-    disabled: boolean;
-}> = ({ disabled }) => {
+export const DatabricksSchemaInput: FC<
+    React.PropsWithChildren<{
+        disabled: boolean;
+    }>
+> = ({ disabled }) => {
     const { register } = useFormContext();
 
     return (
@@ -43,9 +45,11 @@ export const DatabricksSchemaInput: FC<{
     );
 };
 
-const DatabricksForm: FC<{
-    disabled: boolean;
-}> = ({ disabled }) => {
+const DatabricksForm: FC<
+    React.PropsWithChildren<{
+        disabled: boolean;
+    }>
+> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =

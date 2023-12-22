@@ -11,7 +11,10 @@ export type Props = {
     isEditMode: boolean;
 };
 
-const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
+const SortButton: FC<React.PropsWithChildren<Props>> = ({
+    sorts,
+    isEditMode,
+}) => {
     const [opened, { open, close, toggle }] = useDisclosure();
     const ref = useClickOutside(
         () => setTimeout(() => close(), 0),

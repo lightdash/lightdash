@@ -38,7 +38,11 @@ type Props = {
     isEditMode: boolean;
 };
 
-const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
+const FiltersForm: FC<React.PropsWithChildren<Props>> = ({
+    filters,
+    setFilters,
+    isEditMode,
+}) => {
     const { fieldsMap } = useFiltersContext();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const [fields, dimensions, metrics, tableCalculations] = useMemo<

@@ -64,7 +64,7 @@ interface ResourceViewProps extends ResourceViewCommonProps {
     defaultActiveTab?: string;
 }
 
-const ResourceView: React.FC<ResourceViewProps> = ({
+const ResourceView: React.FC<React.PropsWithChildren<ResourceViewProps>> = ({
     view = ResourceViewType.LIST,
     items: allItems,
     maxItems,

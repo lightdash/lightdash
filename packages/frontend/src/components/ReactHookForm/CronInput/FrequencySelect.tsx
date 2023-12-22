@@ -30,11 +30,13 @@ const FrequencyItems: Array<FrequencyItem> = [
     },
 ];
 
-const FrequencySelect: FC<{
-    disabled?: boolean;
-    value: Frequency;
-    onChange: (value: Frequency) => void;
-}> = ({ disabled, value, onChange }) => {
+const FrequencySelect: FC<
+    React.PropsWithChildren<{
+        disabled?: boolean;
+        value: Frequency;
+        onChange: (value: Frequency) => void;
+    }>
+> = ({ disabled, value, onChange }) => {
     return (
         <Select
             data={FrequencyItems}

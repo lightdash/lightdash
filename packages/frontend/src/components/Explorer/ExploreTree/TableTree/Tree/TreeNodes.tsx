@@ -45,7 +45,9 @@ const sortNodes =
         }
     };
 
-const TreeNodes: FC<{ nodeMap: NodeMap }> = ({ nodeMap }) => {
+const TreeNodes: FC<React.PropsWithChildren<{ nodeMap: NodeMap }>> = ({
+    nodeMap,
+}) => {
     const { itemsMap, orderFieldsBy } = useTableTreeContext();
     const sortedItems = useMemo(() => {
         return Object.values(nodeMap).sort(

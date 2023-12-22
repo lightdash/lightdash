@@ -15,13 +15,15 @@ type ThirdPartySignInButtonProps = {
 } & ButtonProps;
 
 const ThirdPartySignInButtonBase: FC<
-    {
-        loginPath: string;
-        logo: string;
-        providerName: string;
-        redirect?: string;
-    } & Pick<ThirdPartySignInButtonProps, 'inviteCode' | 'intent'> &
-        ButtonProps
+    React.PropsWithChildren<
+        {
+            loginPath: string;
+            logo: string;
+            providerName: string;
+            redirect?: string;
+        } & Pick<ThirdPartySignInButtonProps, 'inviteCode' | 'intent'> &
+            ButtonProps
+    >
 > = ({
     loginPath,
     inviteCode,
@@ -56,13 +58,9 @@ const ThirdPartySignInButtonBase: FC<
     );
 };
 
-export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
-    inviteCode,
-    intent = 'signin',
-    providerName,
-    redirect,
-    ...props
-}) => {
+export const ThirdPartySignInButton: FC<
+    React.PropsWithChildren<ThirdPartySignInButtonProps>
+> = ({ inviteCode, intent = 'signin', providerName, redirect, ...props }) => {
     const { health } = useApp();
 
     switch (providerName) {

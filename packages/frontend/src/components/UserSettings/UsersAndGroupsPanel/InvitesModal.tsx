@@ -22,10 +22,12 @@ import InviteSuccess from './InviteSuccess';
 
 type SendInviteFormProps = Omit<CreateInviteLink, 'expiresAt'>;
 
-const InvitesModal: FC<{
-    opened: boolean;
-    onClose: () => void;
-}> = ({ opened, onClose }) => {
+const InvitesModal: FC<
+    React.PropsWithChildren<{
+        opened: boolean;
+        onClose: () => void;
+    }>
+> = ({ opened, onClose }) => {
     const form = useForm<SendInviteFormProps>({
         initialValues: {
             email: '',

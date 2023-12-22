@@ -1,7 +1,9 @@
 import { FC } from 'react';
 import { SpaceModalBody } from '.';
 
-const DeleteSpaceModalContent: FC<SpaceModalBody> = ({ data }) => (
+const DeleteSpaceModalContent: FC<React.PropsWithChildren<SpaceModalBody>> = ({
+    data,
+}) => (
     <>
         <p>
             Are you sure you want to delete space <b>"{data?.name}"</b>?

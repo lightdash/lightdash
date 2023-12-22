@@ -7,7 +7,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
 
-export const SelectGoogleSheetButton: FC = () => {
+export const SelectGoogleSheetButton: FC<React.PropsWithChildren> = () => {
     const methods = useFormContext();
     const health = useHealth();
     const [openPicker] = useDrivePicker();

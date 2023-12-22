@@ -34,7 +34,7 @@ interface DbtSettingsFormProps {
     selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
-const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
+const DbtSettingsForm: FC<React.PropsWithChildren<DbtSettingsFormProps>> = ({
     disabled,
     defaultType,
     selectedWarehouse,

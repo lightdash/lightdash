@@ -15,7 +15,7 @@ enum DroppableIds {
     ROWS = 'ROWS',
 }
 
-const GeneralSettings: FC = () => {
+const GeneralSettings: FC<React.PropsWithChildren> = () => {
     const {
         resultsData,
         pivotDimensions,

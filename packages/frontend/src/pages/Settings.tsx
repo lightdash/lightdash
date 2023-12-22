@@ -50,7 +50,7 @@ import { TrackPage, useTracking } from '../providers/TrackingProvider';
 import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 
-const Settings: FC = () => {
+const Settings: React.PropsWithChildren<FC> = () => {
     // TODO: this is a feature flag while we are building groups.
     // Remove this when groups are ready to be released.
     const groupManagementEnabled = useFeatureFlagEnabled('group-management');

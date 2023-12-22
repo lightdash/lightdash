@@ -7,7 +7,11 @@ type Props = Omit<YearPickerInputProps, 'value' | 'onChange'> & {
     value: Date | null;
     onChange: (value: Date) => void;
 };
-const FilterYearPicker: FC<Props> = ({ value, onChange, ...props }) => {
+const FilterYearPicker: FC<React.PropsWithChildren<Props>> = ({
+    value,
+    onChange,
+    ...props
+}) => {
     const [isPopoverOpen, { open, close, toggle }] = useDisclosure();
 
     const yearValue = value ? moment(value).toDate() : null;

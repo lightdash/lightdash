@@ -107,7 +107,7 @@ interface SelectWarehouseProps {
     onSelect: (warehouse: SelectedWarehouse) => void;
 }
 
-const SelectWarehouse: FC<SelectWarehouseProps> = ({
+const SelectWarehouse: FC<React.PropsWithChildren<SelectWarehouseProps>> = ({
     isCreatingFirstProject,
     onSelect,
 }) => {

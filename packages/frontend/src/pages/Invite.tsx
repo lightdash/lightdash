@@ -37,7 +37,10 @@ interface WelcomeCardProps {
     setReadyToJoin: (isReady: boolean) => void;
 }
 
-const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
+const WelcomeCard: FC<React.PropsWithChildren<WelcomeCardProps>> = ({
+    email,
+    setReadyToJoin,
+}) => {
     const { data: org } = useOrganization();
 
     return (
@@ -78,7 +81,9 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
     );
 };
 
-const ErrorCard: FC<{ title: string }> = ({ title }) => {
+const ErrorCard: FC<React.PropsWithChildren<{ title: string }>> = ({
+    title,
+}) => {
     return (
         <Card p="xl" radius="xs" withBorder shadow="xs" data-cy="welcome-user">
             <Stack spacing="md" align="center">
@@ -99,7 +104,7 @@ const createUserQuery = async (data: ActivateUserWithInviteCode) =>
         body: JSON.stringify(data),
     });
 
-const Invite: FC = () => {
+const Invite: FC<React.PropsWithChildren> = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
     const { health } = useApp();
     const { showToastError } = useToaster();

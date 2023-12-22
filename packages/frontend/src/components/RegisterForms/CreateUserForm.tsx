@@ -28,7 +28,11 @@ const validationSchema = z.object({
     password: getPasswordSchema(),
 });
 
-const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
+const CreateUserForm: FC<React.PropsWithChildren<Props>> = ({
+    isLoading,
+    readOnlyEmail,
+    onSubmit,
+}) => {
     const form = useForm<CreateUserArgs>({
         initialValues: {
             firstName: '',

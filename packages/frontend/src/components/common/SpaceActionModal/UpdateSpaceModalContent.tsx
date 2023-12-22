@@ -2,7 +2,9 @@ import { TextInput } from '@mantine/core';
 import { FC } from 'react';
 import { SpaceModalBody } from '.';
 
-const UpdateSpaceModalContent: FC<SpaceModalBody> = ({ form }) => (
+const UpdateSpaceModalContent: FC<React.PropsWithChildren<SpaceModalBody>> = ({
+    form,
+}) => (
     <TextInput
         {...form.getInputProps('name')}
         label="Enter a memorable name for your space"

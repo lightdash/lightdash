@@ -6,7 +6,7 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { useProjects } from '../../../hooks/useProjects';
 
-const DefaultProjectPanel: FC = () => {
+const DefaultProjectPanel: FC<React.PropsWithChildren> = () => {
     const { isLoading: isOrganizationLoading, data } = useOrganization();
     const { isLoading: isLoadingProjects, data: projects = [] } = useProjects();
     const {

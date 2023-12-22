@@ -30,9 +30,11 @@ import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 const DashboardCellContextMenu: FC<
-    Pick<CellContextMenuProps, 'cell'> & {
-        itemsMap: ItemsMap | undefined;
-    }
+    React.PropsWithChildren<
+        Pick<CellContextMenuProps, 'cell'> & {
+            itemsMap: ItemsMap | undefined;
+        }
+    >
 > = ({ cell, itemsMap }) => {
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });

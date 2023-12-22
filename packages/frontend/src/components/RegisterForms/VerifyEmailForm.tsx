@@ -20,7 +20,9 @@ import { useApp } from '../../providers/AppProvider';
 import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
 
-const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
+const VerifyEmailForm: FC<React.PropsWithChildren<{ isLoading?: boolean }>> = ({
+    isLoading,
+}) => {
     const { health, user } = useApp();
     const { mutate: verifyCode, isLoading: verificationLoading } =
         useVerifyEmail();

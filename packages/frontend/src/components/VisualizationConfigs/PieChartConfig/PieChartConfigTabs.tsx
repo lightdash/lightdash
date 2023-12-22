@@ -4,7 +4,7 @@ import PieChartDisplayConfig from './PieChartDisplayConfig';
 import PieChartLayoutConfig from './PieChartLayoutConfig';
 import PieChartSeriesConfig from './PieChartSeriesConfig';
 
-const PieChartConfigTabs: React.FC = memo(() => {
+const PieChartConfigTabs: React.FC<React.PropsWithChildren> = memo(() => {
     return (
         <Tabs defaultValue="layout" keepMounted={false}>
             <Tabs.List mb="sm">

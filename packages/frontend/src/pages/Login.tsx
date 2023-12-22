@@ -44,7 +44,7 @@ const loginQuery = async (data: LoginParams) =>
         body: JSON.stringify(data),
     });
 
-const LoginContent: FC = () => {
+const LoginContent: FC<React.PropsWithChildren> = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const { showToastError } = useToaster();
@@ -220,7 +220,9 @@ const LoginContent: FC = () => {
     );
 };
 
-const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
+const Login: FC<React.PropsWithChildren<{ minimal?: boolean }>> = ({
+    minimal = false,
+}) => {
     return minimal ? (
         <Stack m="xl">
             <LoginContent />

@@ -14,7 +14,7 @@ type OnboardingButtonProps = UnstyledButtonProps &
         description?: React.ReactNode;
     };
 
-const OnboardingButton: FC<OnboardingButtonProps> = ({
+const OnboardingButton: FC<React.PropsWithChildren<OnboardingButtonProps>> = ({
     children,
     description,
     leftIcon,

@@ -7,12 +7,14 @@ import React, { FC } from 'react';
 import AceEditor from 'react-ace';
 import { useProjectCatalogAceEditorCompleter } from '../../hooks/useProjectCatalogAceEditorCompleter';
 
-const SqlRunnerInput: FC<{
-    sql: string;
-    isDisabled: boolean;
-    onChange: (value: string) => void;
-    projectCatalog: ProjectCatalog | undefined;
-}> = ({ sql, onChange, isDisabled, projectCatalog }) => {
+const SqlRunnerInput: FC<
+    React.PropsWithChildren<{
+        sql: string;
+        isDisabled: boolean;
+        onChange: (value: string) => void;
+        projectCatalog: ProjectCatalog | undefined;
+    }>
+> = ({ sql, onChange, isDisabled, projectCatalog }) => {
     const { setAceEditor } =
         useProjectCatalogAceEditorCompleter(projectCatalog);
 

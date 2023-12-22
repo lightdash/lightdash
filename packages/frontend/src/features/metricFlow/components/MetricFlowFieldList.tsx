@@ -23,7 +23,7 @@ type Props = {
     ) => void;
 };
 
-const MetricFlowFieldList: FC<Props> = ({
+const MetricFlowFieldList: FC<React.PropsWithChildren<Props>> = ({
     fields,
     selectedFields,
     onClick,

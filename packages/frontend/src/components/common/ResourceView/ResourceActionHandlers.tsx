@@ -79,10 +79,9 @@ interface ResourceActionHandlersProps {
     onAction: (action: ResourceViewItemActionState) => void;
 }
 
-const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
-    action,
-    onAction,
-}) => {
+const ResourceActionHandlers: FC<
+    React.PropsWithChildren<ResourceActionHandlersProps>
+> = ({ action, onAction }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { mutate: moveChart } = useMoveChartMutation();

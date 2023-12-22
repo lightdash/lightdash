@@ -7,7 +7,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { CreateTokenModal } from './CreateTokenModal';
 import { TokensTable } from './TokensTable';
 
-const AccessTokensPanel: FC = () => {
+const AccessTokensPanel: FC<React.PropsWithChildren> = () => {
     const { data } = useAccessToken();
     const [isCreatingToken, setIsCreatingToken] = useState(false);
     const hasAvailableTokens = data && data.length > 0;

@@ -39,7 +39,7 @@ type Props = {
     popoverProps?: Omit<PopoverProps, 'children'>;
 };
 
-export const FiltersProvider: FC<Props> = ({
+export const FiltersProvider: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
     fieldsMap = {},
     startOfWeek,

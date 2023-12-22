@@ -9,9 +9,9 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import { ValidationErrorNotification } from './ValidationErrorNotification';
 
-export const NotificationsMenu: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const NotificationsMenu: FC<
+    React.PropsWithChildren<{ projectUuid: string }>
+> = ({ projectUuid }) => {
     const { data: validationData } = useValidation(projectUuid, false);
     const canUserManageValidations = useValidationUserAbility(projectUuid);
     const [hasReadValidationNotification, setHasReadValidationNotification] =

@@ -66,7 +66,7 @@ interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
     onChange: (value: { unitOfTime: UnitOfTime; completed: boolean }) => void;
 }
 
-const FilterUnitOfTimeAutoComplete: FC<Props> = ({
+const FilterUnitOfTimeAutoComplete: FC<React.PropsWithChildren<Props>> = ({
     isTimestamp,
     unitOfTime,
     showOptionsInPlural = true,

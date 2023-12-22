@@ -17,7 +17,9 @@ interface TableHeaderProps {
     minimal?: boolean;
 }
 
-const TableHeader: FC<TableHeaderProps> = ({ minimal = false }) => {
+const TableHeader: FC<React.PropsWithChildren<TableHeaderProps>> = ({
+    minimal = false,
+}) => {
     const { table, headerContextMenu, columns } = useTableContext();
     const HeaderContextMenu = headerContextMenu;
     const currentColOrder = React.useRef<Array<string>>([]);

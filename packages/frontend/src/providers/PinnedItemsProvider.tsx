@@ -23,12 +23,9 @@ type PinnedItemsProviderProps = {
     organizationUuid: string;
 };
 
-export const PinnedItemsProvider: React.FC<PinnedItemsProviderProps> = ({
-    organizationUuid,
-    projectUuid,
-    pinnedListUuid,
-    children,
-}) => {
+export const PinnedItemsProvider: React.FC<
+    React.PropsWithChildren<PinnedItemsProviderProps>
+> = ({ organizationUuid, projectUuid, pinnedListUuid, children }) => {
     const { user } = useApp();
     const userCanManage =
         user.data?.ability.can(

@@ -5,7 +5,10 @@ export interface LoadingStateProps extends LoaderProps {
     title: string;
 }
 
-const LoadingState: FC<LoadingStateProps> = ({ title, ...rest }) => {
+const LoadingState: FC<React.PropsWithChildren<LoadingStateProps>> = ({
+    title,
+    ...rest
+}) => {
     return (
         <Stack my="xl" align="center">
             <Loader size="xl" color="gray" mt="xl" {...rest} />

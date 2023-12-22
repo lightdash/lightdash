@@ -36,7 +36,7 @@ type Props = {
     onDelete: () => void;
 };
 
-const FilterGroupForm: FC<Props> = ({
+const FilterGroupForm: FC<React.PropsWithChildren<Props>> = ({
     hideButtons,
     hideLine,
     allowConvertToGroup,

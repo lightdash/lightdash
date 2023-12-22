@@ -26,7 +26,7 @@ interface ConnectUsingCliProps {
     onBack: () => void;
 }
 
-const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
+const ConnectUsingCLI: FC<React.PropsWithChildren<ConnectUsingCliProps>> = ({
     siteUrl,
     version,
     onBack,

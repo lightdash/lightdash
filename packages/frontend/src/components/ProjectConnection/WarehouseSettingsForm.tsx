@@ -34,7 +34,9 @@ interface WarehouseSettingsFormProps {
     isProjectUpdate?: boolean | undefined;
 }
 
-const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
+const WarehouseSettingsForm: FC<
+    React.PropsWithChildren<WarehouseSettingsFormProps>
+> = ({
     disabled,
     selectedWarehouse,
     setSelectedWarehouse,

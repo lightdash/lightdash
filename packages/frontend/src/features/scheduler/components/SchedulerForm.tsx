@@ -134,7 +134,9 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
     };
 };
 
-const SlackErrorContent: FC<{ slackState: SlackStates }> = ({ slackState }) => {
+const SlackErrorContent: FC<
+    React.PropsWithChildren<{ slackState: SlackStates }>
+> = ({ slackState }) => {
     if (slackState === SlackStates.NO_SLACK) {
         return (
             <>
@@ -184,7 +186,7 @@ type Props = {
     confirmText?: string;
 };
 
-const SchedulerForm: FC<Props> = ({
+const SchedulerForm: FC<React.PropsWithChildren<Props>> = ({
     disabled,
     resource,
     savedSchedulerData,

@@ -29,7 +29,10 @@ const onboardingSteps = [
     },
 ];
 
-const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
+const OnboardingPanel: FC<React.PropsWithChildren<Props>> = ({
+    projectUuid,
+    userName,
+}) => {
     return (
         <Stack justify="flex-start" spacing="xs" mt="4xl">
             <Title order={3}>

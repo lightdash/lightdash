@@ -32,7 +32,7 @@ interface ContextMenuProps extends HeaderProps {
     onToggleCalculationDeleteModal: (value: boolean) => void;
 }
 
-const ContextMenu: FC<ContextMenuProps> = ({
+const ContextMenu: FC<React.PropsWithChildren<ContextMenuProps>> = ({
     header,
     onToggleCalculationEditModal,
     onToggleCalculationDeleteModal,
@@ -208,7 +208,9 @@ const ContextMenu: FC<ContextMenuProps> = ({
     }
 };
 
-const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
+const ColumnHeaderContextMenu: FC<React.PropsWithChildren<HeaderProps>> = ({
+    header,
+}) => {
     const [showUpdate, setShowUpdate] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
 

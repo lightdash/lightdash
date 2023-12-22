@@ -20,12 +20,9 @@ interface DashboardDeleteModalProps extends ModalProps {
     onConfirm: () => void;
 }
 
-export const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
-    schedulerUuid,
-    onConfirm,
-    onClose,
-    opened,
-}) => {
+export const SchedulerDeleteModal: FC<
+    React.PropsWithChildren<DashboardDeleteModalProps>
+> = ({ schedulerUuid, onConfirm, onClose, opened }) => {
     const scheduler = useScheduler(schedulerUuid);
     const mutation = useSchedulersDeleteMutation();
     useEffect(() => {

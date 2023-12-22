@@ -41,7 +41,7 @@ import { useChartSummaries } from '../hooks/useChartSummaries';
 import { useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
-const Space: FC = () => {
+const Space: FC<React.PropsWithChildren> = () => {
     const { projectUuid, spaceUuid } = useParams<{
         projectUuid: string;
         spaceUuid: string;

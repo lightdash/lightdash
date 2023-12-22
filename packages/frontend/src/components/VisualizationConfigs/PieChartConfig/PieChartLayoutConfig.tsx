@@ -15,7 +15,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
-const PieChartLayoutConfig: React.FC = () => {
+const PieChartLayoutConfig: React.FC<React.PropsWithChildren> = () => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     if (!isPieVisualizationConfig(visualizationConfig)) return null;

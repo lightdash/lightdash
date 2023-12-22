@@ -17,7 +17,7 @@ interface FormProps<T extends object = any> {
     onError?: SubmitErrorHandler<T>;
 }
 
-const Form: FC<FormProps & StyledProps<any>> = ({
+const Form: FC<React.PropsWithChildren<FormProps & StyledProps<any>>> = ({
     name,
     disableSubmitOnEnter,
     methods,

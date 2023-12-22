@@ -9,7 +9,7 @@ const SharePanel = styled.div`
     margin-top: 50px;
 `;
 
-const ShareRedirect: FC = () => {
+const ShareRedirect: FC<React.PropsWithChildren> = () => {
     const { shareNanoid } = useParams<{ shareNanoid: string }>();
     const { data, error } = useGetShare(shareNanoid);
     const history = useHistory();

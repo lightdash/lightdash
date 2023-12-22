@@ -11,7 +11,9 @@ type Props = ModalProps & {
     onClose: () => void;
 };
 
-export const CreateTableCalculationModal: FC<Props> = ({ opened, onClose }) => {
+export const CreateTableCalculationModal: FC<
+    React.PropsWithChildren<Props>
+> = ({ opened, onClose }) => {
     const addTableCalculation = useExplorerContext(
         (context) => context.actions.addTableCalculation,
     );

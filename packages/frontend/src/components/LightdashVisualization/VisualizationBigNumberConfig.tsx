@@ -22,7 +22,9 @@ type VisualizationBigNumberConfigProps =
         itemsMap: ItemsMap | undefined;
     };
 
-const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
+const VisualizationBigNumberConfig: FC<
+    React.PropsWithChildren<VisualizationBigNumberConfigProps>
+> = ({
     itemsMap,
     resultsData,
     initialChartConfig,

@@ -16,7 +16,7 @@ interface Props {
     };
 }
 
-const SpaceAndDashboardInfo: FC<Props> = ({
+const SpaceAndDashboardInfo: FC<React.PropsWithChildren<Props>> = ({
     space: { link, name },
     dashboard,
 }) => {

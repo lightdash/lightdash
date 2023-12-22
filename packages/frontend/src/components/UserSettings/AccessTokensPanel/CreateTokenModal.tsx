@@ -18,9 +18,11 @@ import useHealth from '../../../hooks/health/useHealth';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import MantineIcon from '../../common/MantineIcon';
 
-export const CreateTokenModal: FC<{
-    onBackClick: () => void;
-}> = ({ onBackClick }) => {
+export const CreateTokenModal: FC<
+    React.PropsWithChildren<{
+        onBackClick: () => void;
+    }>
+> = ({ onBackClick }) => {
     const health = useHealth();
 
     const {

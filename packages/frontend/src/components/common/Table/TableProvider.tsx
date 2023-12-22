@@ -27,8 +27,8 @@ import {
 type Props = {
     data: ResultRow[];
     columns: Array<TableColumn | TableHeader>;
-    headerContextMenu?: FC<HeaderProps>;
-    cellContextMenu?: FC<CellContextMenuProps>;
+    headerContextMenu?: FC<React.PropsWithChildren<HeaderProps>>;
+    cellContextMenu?: FC<React.PropsWithChildren<CellContextMenuProps>>;
     pagination?: {
         show?: boolean;
         defaultScroll?: boolean;
@@ -72,7 +72,7 @@ const calculateColumnVisibility = (columns: Props['columns']) =>
         {},
     );
 
-export const TableProvider: FC<Props> = ({
+export const TableProvider: FC<React.PropsWithChildren<Props>> = ({
     hideRowNumbers,
     showColumnCalculation,
     children,

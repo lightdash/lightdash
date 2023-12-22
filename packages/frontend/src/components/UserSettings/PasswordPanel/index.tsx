@@ -24,7 +24,7 @@ const validationSchema = (hasCurrentPassword: boolean) => {
           });
 };
 
-const PasswordPanel: FC = () => {
+const PasswordPanel: FC<React.PropsWithChildren> = () => {
     const { data: hasPassword } = useUserHasPassword();
     const { showToastSuccess, showToastError } = useToaster();
 

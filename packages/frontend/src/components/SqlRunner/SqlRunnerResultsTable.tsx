@@ -10,7 +10,9 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';
 import RunSqlQueryButton from './RunSqlQueryButton';
 
-const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
+const ResultsErrorState: FC<React.PropsWithChildren<{ error: string }>> = ({
+    error,
+}) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
             <SuboptimalState icon={IconAlertCircle} description={error} />
@@ -18,9 +20,9 @@ const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
     </TrackSection>
 );
 
-const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
-    props,
-) => (
+const ResultsIdleState: FC<
+    React.PropsWithChildren<React.ComponentProps<typeof RunSqlQueryButton>>
+> = (props) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
             <SuboptimalState
@@ -31,12 +33,14 @@ const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
     </TrackSection>
 );
 
-const SqlRunnerResultsTable: FC<{
-    onSubmit: () => void;
-    fieldsMap: Record<string, Field>;
-    resultsData: ApiQueryResults | undefined;
-    sqlQueryMutation: ReturnType<typeof useSqlQueryMutation>;
-}> = ({
+const SqlRunnerResultsTable: FC<
+    React.PropsWithChildren<{
+        onSubmit: () => void;
+        fieldsMap: Record<string, Field>;
+        resultsData: ApiQueryResults | undefined;
+        sqlQueryMutation: ReturnType<typeof useSqlQueryMutation>;
+    }>
+> = ({
     onSubmit,
     fieldsMap,
     resultsData,

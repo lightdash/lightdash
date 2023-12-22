@@ -57,12 +57,9 @@ const UserAccessSelectItem = forwardRef<HTMLDivElement, AccessOption>(
     ),
 );
 
-export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
-    space,
-    projectUuid,
-    sessionUser,
-    organizationUsers,
-}) => {
+export const ShareSpaceUserList: FC<
+    React.PropsWithChildren<ShareSpaceUserListProps>
+> = ({ space, projectUuid, sessionUser, organizationUsers }) => {
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
         projectUuid,
         space.uuid,

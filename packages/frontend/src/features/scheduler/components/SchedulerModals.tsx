@@ -16,11 +16,9 @@ interface DashboardSchedulersProps {
     onClose: () => void;
 }
 
-export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
-    dashboardUuid,
-    name,
-    ...modalProps
-}) => {
+export const DashboardSchedulersModal: FC<
+    React.PropsWithChildren<DashboardSchedulersProps>
+> = ({ dashboardUuid, name, ...modalProps }) => {
     const schedulersQuery = useDashboardSchedulers(dashboardUuid);
     const createMutation = useDashboardSchedulerCreateMutation();
 
@@ -43,11 +41,9 @@ interface ChartSchedulersProps {
     onClose: () => void;
 }
 
-export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
-    chartUuid,
-    name,
-    ...modalProps
-}) => {
+export const ChartSchedulersModal: FC<
+    React.PropsWithChildren<ChartSchedulersProps>
+> = ({ chartUuid, name, ...modalProps }) => {
     const chartSchedulersQuery = useChartSchedulers(chartUuid);
     const createMutation = useChartSchedulerCreateMutation();
 

@@ -6,12 +6,12 @@ import { usePreventScroll } from '../../../../hooks/useBlockScroll';
 import { CellContextMenuProps } from '../types';
 
 type CellMenuProps = MenuProps & {
-    menuItems: FC<CellContextMenuProps>;
+    menuItems: FC<React.PropsWithChildren<CellContextMenuProps>>;
     cell: Cell<ResultRow, ResultRow[0]>;
     elementBounds: DOMRect;
 };
 
-const CellMenu: FC<CellMenuProps> = ({
+const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
     cell,
     elementBounds,
     menuItems: MenuItems,

@@ -5,10 +5,9 @@ import { useApp } from '../providers/AppProvider';
 import { useAbilityContext } from './common/Authorization';
 import PageSpinner from './PageSpinner';
 
-const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
-    children,
-    ...rest
-}) => {
+const PrivateRoute: FC<
+    React.PropsWithChildren<ComponentProps<typeof Route>>
+> = ({ children, ...rest }) => {
     const {
         health,
         user: { data, isLoading },

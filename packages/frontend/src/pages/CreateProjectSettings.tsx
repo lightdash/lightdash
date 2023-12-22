@@ -8,7 +8,7 @@ import PageSpinner from '../components/PageSpinner';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useApp } from '../providers/AppProvider';
 
-const CreateProjectSettings: FC = () => {
+const CreateProjectSettings: FC<React.PropsWithChildren> = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const history = useHistory();

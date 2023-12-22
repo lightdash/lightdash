@@ -30,7 +30,10 @@ export interface ShareSpaceProps {
     projectUuid: string;
 }
 
-const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
+const ShareSpaceModal: FC<React.PropsWithChildren<ShareSpaceProps>> = ({
+    space,
+    projectUuid,
+}) => {
     const theme = useMantineTheme();
     const { data: organizationUsers } = useOrganizationUsers();
     const [selectedAccess, setSelectedAccess] = useState<AccessOption>(

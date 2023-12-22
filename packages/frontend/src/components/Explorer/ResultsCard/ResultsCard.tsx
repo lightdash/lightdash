@@ -21,7 +21,7 @@ import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
 
-const ResultsCard: FC = memo(() => {
+const ResultsCard: FC<React.PropsWithChildren> = memo(() => {
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );

@@ -11,7 +11,9 @@ export interface MantineLinkButtonProps extends ButtonProps {
     onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-const MantineLinkButton: FC<MantineLinkButtonProps> = ({
+const MantineLinkButton: FC<
+    React.PropsWithChildren<MantineLinkButtonProps>
+> = ({
     href,
     target,
     trackingEvent,

@@ -21,7 +21,7 @@ export enum ConnectMethod {
     MANUAL = 'manual',
 }
 
-const CreateProject: FC = () => {
+const CreateProject: FC<React.PropsWithChildren> = () => {
     const history = useHistory();
     const { isLoading: isLoadingOrganization, data: organization } =
         useOrganization();

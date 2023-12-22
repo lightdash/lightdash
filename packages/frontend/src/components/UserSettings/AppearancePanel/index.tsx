@@ -22,7 +22,7 @@ const getColorFormFields = (colors: string[]) =>
         {},
     );
 
-const AppearancePanel: FC = () => {
+const AppearancePanel: FC<React.PropsWithChildren> = () => {
     const ability = useAbilityContext();
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();

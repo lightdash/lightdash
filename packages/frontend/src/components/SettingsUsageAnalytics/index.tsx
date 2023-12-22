@@ -8,9 +8,9 @@ interface ProjectUserAccessProps {
     projectUuid: string;
 }
 
-const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
-    projectUuid,
-}) => {
+const SettingsUsageAnalytics: FC<
+    React.PropsWithChildren<ProjectUserAccessProps>
+> = ({ projectUuid }) => {
     return (
         <>
             <Text color="dimmed">

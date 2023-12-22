@@ -114,7 +114,7 @@ type Props = {
     colorPalette: string[];
 };
 
-const VisualizationProvider: FC<Props> = ({
+const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
     minimal = false,
     initialPivotDimensions,
     resultsData,

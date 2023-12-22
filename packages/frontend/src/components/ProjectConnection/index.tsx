@@ -64,7 +64,7 @@ interface Props {
     isProjectUpdate?: boolean;
 }
 
-const ProjectForm: FC<Props> = ({
+const ProjectForm: FC<React.PropsWithChildren<Props>> = ({
     showGeneralSettings,
     disabled,
     defaultType,
@@ -175,9 +175,11 @@ const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
     };
 };
 
-export const UpdateProjectConnection: FC<{
-    projectUuid: string;
-}> = ({ projectUuid }) => {
+export const UpdateProjectConnection: FC<
+    React.PropsWithChildren<{
+        projectUuid: string;
+    }>
+> = ({ projectUuid }) => {
     const { user, health } = useApp();
     const ability = useAbilityContext();
     const { data } = useProject(projectUuid);
@@ -302,10 +304,9 @@ interface CreateProjectConnectionProps {
     selectedWarehouse?: WarehouseTypes | undefined;
 }
 
-export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
-    isCreatingFirstProject,
-    selectedWarehouse,
-}) => {
+export const CreateProjectConnection: FC<
+    React.PropsWithChildren<CreateProjectConnectionProps>
+> = ({ isCreatingFirstProject, selectedWarehouse }) => {
     const history = useHistory();
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();

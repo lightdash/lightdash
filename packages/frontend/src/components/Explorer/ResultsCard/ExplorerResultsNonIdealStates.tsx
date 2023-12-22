@@ -151,9 +151,9 @@ export const EmptyStateNoColumns = () => {
     );
 };
 
-export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
-    description,
-}) => (
+export const EmptyStateNoTableData: FC<
+    React.PropsWithChildren<{ description: React.ReactNode }>
+> = ({ description }) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <EmptyState
             maw={500}

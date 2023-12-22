@@ -6,11 +6,13 @@ import {
 } from './cronInputUtils';
 import TimePicker from './TimePicker';
 
-const MonthlyInputs: FC<{
-    disabled?: boolean;
-    cronExpression: string;
-    onChange: (value: string) => void;
-}> = ({ disabled, cronExpression, onChange }) => {
+const MonthlyInputs: FC<
+    React.PropsWithChildren<{
+        disabled?: boolean;
+        cronExpression: string;
+        onChange: (value: string) => void;
+    }>
+> = ({ disabled, cronExpression, onChange }) => {
     const { minutes, hours, day } = parseCronExpression(cronExpression);
 
     const onDayChange = (newDay: number) => {

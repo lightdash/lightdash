@@ -17,10 +17,9 @@ type Props = Pick<ModalProps, 'onClose'> & {
     tableCalculation: TableCalculation;
 };
 
-export const DeleteTableCalculationModal: FC<Props> = ({
-    tableCalculation,
-    onClose,
-}) => {
+export const DeleteTableCalculationModal: FC<
+    React.PropsWithChildren<Props>
+> = ({ tableCalculation, onClose }) => {
     const deleteTableCalculation = useExplorerContext(
         (context) => context.actions.deleteTableCalculation,
     );

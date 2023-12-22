@@ -9,7 +9,9 @@ import {
 } from '../../../utils/fieldValidators';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
-const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
+const GitlabForm: FC<React.PropsWithChildren<{ disabled: boolean }>> = ({
+    disabled,
+}) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.GITLAB;

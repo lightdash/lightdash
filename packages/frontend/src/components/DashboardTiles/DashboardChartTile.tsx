@@ -89,12 +89,9 @@ interface ExportResultAsCSVModalProps {
     onConfirm: () => void;
 }
 
-const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
-    savedChart,
-    rows,
-    onClose,
-    onConfirm,
-}) => {
+const ExportResultAsCSVModal: FC<
+    React.PropsWithChildren<ExportResultAsCSVModalProps>
+> = ({ savedChart, rows, onClose, onConfirm }) => {
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
         return downloadCsv({
             projectUuid: savedChart.projectUuid,
@@ -125,10 +122,9 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
     );
 };
 
-const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
-    savedChart,
-    disabled,
-}) => {
+const ExportGoogleSheet: FC<
+    React.PropsWithChildren<{ savedChart: SavedChart; disabled?: boolean }>
+> = ({ savedChart, disabled }) => {
     const getGsheetLink = async () => {
         return uploadGsheet({
             projectUuid: savedChart.projectUuid,
@@ -154,16 +150,18 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
     );
 };
 
-const ValidDashboardChartTile: FC<{
-    tileUuid: string;
-    chartAndResults: ApiChartAndResults;
-    isTitleHidden?: boolean;
-    project: string;
-    onSeriesContextMenu?: (
-        e: EchartSeriesClickEvent,
-        series: EChartSeries[],
-    ) => void;
-}> = ({
+const ValidDashboardChartTile: FC<
+    React.PropsWithChildren<{
+        tileUuid: string;
+        chartAndResults: ApiChartAndResults;
+        isTitleHidden?: boolean;
+        project: string;
+        onSeriesContextMenu?: (
+            e: EchartSeriesClickEvent,
+            series: EChartSeries[],
+        ) => void;
+    }>
+> = ({
     tileUuid,
     isTitleHidden = false,
     chartAndResults: { chart, metricQuery, rows, cacheMetadata, fields },
@@ -219,12 +217,14 @@ const ValidDashboardChartTile: FC<{
     );
 };
 
-const ValidDashboardChartTileMinimal: FC<{
-    tileUuid: string;
-    isTitleHidden?: boolean;
-    title: string;
-    chartAndResults: ApiChartAndResults;
-}> = ({
+const ValidDashboardChartTileMinimal: FC<
+    React.PropsWithChildren<{
+        tileUuid: string;
+        isTitleHidden?: boolean;
+        title: string;
+        chartAndResults: ApiChartAndResults;
+    }>
+> = ({
     tileUuid,
     chartAndResults: { chart, metricQuery, rows, cacheMetadata, fields },
     isTitleHidden = false,
@@ -273,7 +273,9 @@ interface DashboardChartTileMainProps
     chartAndResults: ApiChartAndResults;
 }
 
-const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
+const DashboardChartTileMain: FC<
+    React.PropsWithChildren<DashboardChartTileMainProps>
+> = (props) => {
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
@@ -827,7 +829,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     );
 };
 
-const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
+const DashboardChartTileMinimal: FC<
+    React.PropsWithChildren<DashboardChartTileMainProps>
+> = (props) => {
     const {
         tile: {
             uuid: tileUuid,
@@ -866,11 +870,13 @@ type DashboardChartTileProps = Omit<
 // Abstraction needed for enterprise version
 // ts-unused-exports:disable-next-line
 export const GenericDashboardChartTile: FC<
-    DashboardChartTileProps & {
-        isLoading: boolean;
-        data: ApiChartAndResults | undefined;
-        error: ApiError | null;
-    }
+    React.PropsWithChildren<
+        DashboardChartTileProps & {
+            isLoading: boolean;
+            data: ApiChartAndResults | undefined;
+            error: ApiError | null;
+        }
+    >
 > = ({
     minimal = false,
     tile,

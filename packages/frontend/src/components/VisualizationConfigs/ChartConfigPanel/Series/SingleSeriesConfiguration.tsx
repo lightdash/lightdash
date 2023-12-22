@@ -40,7 +40,7 @@ type Props = {
     dragHandleProps?: DraggableProvidedDragHandleProps;
 };
 
-const SingleSeriesConfiguration: FC<Props> = ({
+const SingleSeriesConfiguration: FC<React.PropsWithChildren<Props>> = ({
     layout,
     isCollapsable,
     seriesLabel,

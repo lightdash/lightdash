@@ -66,7 +66,7 @@ interface AccessInfoProps {
     item: ResourceViewSpaceItem;
 }
 
-const AccessInfo: FC<AccessInfoProps> = ({ item }) => {
+const AccessInfo: FC<React.PropsWithChildren<AccessInfoProps>> = ({ item }) => {
     const { Icon, status } = AccessInfoData[getResourceAccessType(item)];
 
     const theme = useMantineTheme();
@@ -82,10 +82,9 @@ const AccessInfo: FC<AccessInfoProps> = ({ item }) => {
     );
 };
 
-const AttributeCount: FC<{ Icon: IconType; count: number }> = ({
-    Icon,
-    count,
-}) => {
+const AttributeCount: FC<
+    React.PropsWithChildren<{ Icon: IconType; count: number }>
+> = ({ Icon, count }) => {
     const theme = useMantineTheme();
     return (
         <Flex align="center" gap={4}>
@@ -98,11 +97,9 @@ const AttributeCount: FC<{ Icon: IconType; count: number }> = ({
     );
 };
 
-const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
-    item,
-    onAction,
-    dragIcon,
-}) => {
+const ResourceViewGridSpaceItem: FC<
+    React.PropsWithChildren<ResourceViewGridSpaceItemProps>
+> = ({ item, onAction, dragIcon }) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
 

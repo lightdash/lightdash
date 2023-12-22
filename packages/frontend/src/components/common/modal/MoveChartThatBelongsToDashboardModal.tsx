@@ -21,14 +21,9 @@ interface Props extends ModalProps {
     onConfirm: () => void;
 }
 
-const MoveChartThatBelongsToDashboardModal: FC<Props> = ({
-    uuid,
-    name,
-    spaceUuid,
-    spaceName,
-    onConfirm,
-    ...modelProps
-}) => {
+const MoveChartThatBelongsToDashboardModal: FC<
+    React.PropsWithChildren<Props>
+> = ({ uuid, name, spaceUuid, spaceName, onConfirm, ...modelProps }) => {
     const { mutate: moveChartToSpace } = useMoveChartMutation({
         onSuccess: async () => {
             onConfirm();

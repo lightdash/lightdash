@@ -19,7 +19,7 @@ type Props = {
     node: GroupNode;
 };
 
-const TreeGroupNode: FC<Props> = ({ node }) => {
+const TreeGroupNode: FC<React.PropsWithChildren<Props>> = ({ node }) => {
     const { selectedItems, isSearching, searchQuery, searchResults } =
         useTableTreeContext();
     const [isOpen, toggleOpen] = useToggle(false);

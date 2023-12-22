@@ -20,9 +20,11 @@ import FormCollapseButton from '../FormCollapseButton';
 import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
-export const SnowflakeSchemaInput: FC<{
-    disabled: boolean;
-}> = ({ disabled }) => {
+export const SnowflakeSchemaInput: FC<
+    React.PropsWithChildren<{
+        disabled: boolean;
+    }>
+> = ({ disabled }) => {
     const { register } = useFormContext();
     return (
         <TextInput
@@ -39,9 +41,11 @@ export const SnowflakeSchemaInput: FC<{
     );
 };
 
-const SnowflakeForm: FC<{
-    disabled: boolean;
-}> = ({ disabled }) => {
+const SnowflakeForm: FC<
+    React.PropsWithChildren<{
+        disabled: boolean;
+    }>
+> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const { register } = useFormContext();

@@ -15,7 +15,10 @@ type Props = {
     onEdit: (schedulerUuid: string) => void;
 };
 
-const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
+const SchedulersList: FC<React.PropsWithChildren<Props>> = ({
+    schedulersQuery,
+    onEdit,
+}) => {
     const { data: schedulers, isLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
 

@@ -83,149 +83,156 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
     'data-testid'?: string;
 };
 
-const SimpleChart: FC<SimpleChartProps> = memo((props) => {
-    const { chartRef, isLoading, onSeriesContextMenu } =
-        useVisualizationContext();
+const SimpleChart: FC<React.PropsWithChildren<SimpleChartProps>> = memo(
+    (props) => {
+        const { chartRef, isLoading, onSeriesContextMenu } =
+            useVisualizationContext();
 
-    const [selectedLegends, setSelectedLegends] = useState({});
-    const [selectedLegendsUpdated, setSelectedLegendsUpdated] = useState({});
+        const [selectedLegends, setSelectedLegends] = useState({});
+        const [selectedLegendsUpdated, setSelectedLegendsUpdated] = useState(
+            {},
+        );
 
-    const onLegendChange = useCallback((params: LegendClickEvent) => {
-        setSelectedLegends(params.selected);
-    }, []);
+        const onLegendChange = useCallback((params: LegendClickEvent) => {
+            setSelectedLegends(params.selected);
+        }, []);
 
-    useEffect(() => {
-        setSelectedLegendsUpdated(selectedLegends);
-    }, [selectedLegends]);
+        useEffect(() => {
+            setSelectedLegendsUpdated(selectedLegends);
+        }, [selectedLegends]);
 
-    const eChartsOptions = useEchartsCartesianConfig(
-        selectedLegendsUpdated,
-        props.isInDashboard,
-    );
+        const eChartsOptions = useEchartsCartesianConfig(
+            selectedLegendsUpdated,
+            props.isInDashboard,
+        );
 
-    useEffect(() => {
-        const listener = () => {
-            const eCharts = chartRef.current?.getEchartsInstance();
-            eCharts?.resize();
-        };
+        useEffect(() => {
+            const listener = () => {
+                const eCharts = chartRef.current?.getEchartsInstance();
+                eCharts?.resize();
+            };
 
-        window.addEventListener('resize', listener);
+            window.addEventListener('resize', listener);
 
-        return () => window.removeEventListener('resize', listener);
-    });
+            return () => window.removeEventListener('resize', listener);
+        });
 
-    const onChartContextMenu = useCallback(
-        (e: EchartClickEvent) => {
-            if (onSeriesContextMenu) {
-                if (e.event.event.defaultPrevented) {
-                    return;
-                }
-                e.event.event.preventDefault();
-                if (isSeriesClickEvent(e)) {
-                    const series = (eChartsOptions?.series || [])[
-                        e.seriesIndex
-                    ];
-                    if (series && series.encode) {
-                        onSeriesContextMenu(e, eChartsOptions?.series || []);
+        const onChartContextMenu = useCallback(
+            (e: EchartClickEvent) => {
+                if (onSeriesContextMenu) {
+                    if (e.event.event.defaultPrevented) {
+                        return;
+                    }
+                    e.event.event.preventDefault();
+                    if (isSeriesClickEvent(e)) {
+                        const series = (eChartsOptions?.series || [])[
+                            e.seriesIndex
+                        ];
+                        if (series && series.encode) {
+                            onSeriesContextMenu(
+                                e,
+                                eChartsOptions?.series || [],
+                            );
+                        }
                     }
                 }
-            }
-        },
-        [onSeriesContextMenu, eChartsOptions],
-    );
+            },
+            [onSeriesContextMenu, eChartsOptions],
+        );
 
-    const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
+        const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
 
-    const handleOnMouseOver = useCallback(
-        (params) => {
+        const handleOnMouseOver = useCallback(
+            (params) => {
+                const eCharts = chartRef.current?.getEchartsInstance();
+
+                if (eCharts) {
+                    // TODO: move to own util function
+                    let setTooltipItemTrigger = true;
+                    // Tooltip trigger 'item' does not work when symbol is not shown; reference: https://github.com/apache/echarts/issues/14563
+                    const series = eCharts.getOption().series;
+                    if (
+                        Array.isArray(series) &&
+                        isLineSeriesOption(series[params.seriesIndex])
+                    ) {
+                        setTooltipItemTrigger =
+                            !!series[params.seriesIndex].showSymbol;
+                    }
+
+                    if (setTooltipItemTrigger) {
+                        eCharts.setOption(
+                            {
+                                tooltip: {
+                                    trigger: 'item',
+                                    formatter: undefined,
+                                },
+                            },
+                            false,
+                            true, // lazy update
+                        );
+                    }
+
+                    // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
+                    setTimeout(() => {
+                        eCharts.dispatchAction({
+                            type: 'highlight',
+                            seriesIndex: params.seriesIndex,
+                        });
+                    }, 100);
+                }
+            },
+            [chartRef],
+        );
+
+        const handleOnMouseOut = useCallback(() => {
             const eCharts = chartRef.current?.getEchartsInstance();
 
             if (eCharts) {
-                // TODO: move to own util function
-                let setTooltipItemTrigger = true;
-                // Tooltip trigger 'item' does not work when symbol is not shown; reference: https://github.com/apache/echarts/issues/14563
-                const series = eCharts.getOption().series;
-                if (
-                    Array.isArray(series) &&
-                    isLineSeriesOption(series[params.seriesIndex])
-                ) {
-                    setTooltipItemTrigger =
-                        !!series[params.seriesIndex].showSymbol;
-                }
-
-                if (setTooltipItemTrigger) {
-                    eCharts.setOption(
-                        {
-                            tooltip: {
-                                trigger: 'item',
-                                formatter: undefined,
-                            },
-                        },
-                        false,
-                        true, // lazy update
-                    );
-                }
-
-                // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
-                setTimeout(() => {
-                    eCharts.dispatchAction({
-                        type: 'highlight',
-                        seriesIndex: params.seriesIndex,
-                    });
-                }, 100);
+                eCharts.setOption(
+                    {
+                        tooltip: eChartsOptions?.tooltip,
+                    },
+                    false,
+                    true, // lazy update
+                );
             }
-        },
-        [chartRef],
-    );
+        }, [chartRef, eChartsOptions?.tooltip]);
 
-    const handleOnMouseOut = useCallback(() => {
-        const eCharts = chartRef.current?.getEchartsInstance();
+        if (isLoading) return <LoadingChart />;
+        if (!eChartsOptions) return <EmptyChart />;
 
-        if (eCharts) {
-            eCharts.setOption(
-                {
-                    tooltip: eChartsOptions?.tooltip,
-                },
-                false,
-                true, // lazy update
-            );
-        }
-    }, [chartRef, eChartsOptions?.tooltip]);
-
-    if (isLoading) return <LoadingChart />;
-    if (!eChartsOptions) return <EmptyChart />;
-
-    return (
-        <EChartsReact
-            data-testid={props['data-testid']}
-            className={props.className}
-            style={
-                props.$shouldExpand
-                    ? {
-                          minHeight: 'inherit',
-                          height: '100%',
-                          width: '100%',
-                      }
-                    : {
-                          minHeight: 'inherit',
-                          // height defaults to 300px
-                          width: '100%',
-                      }
-            }
-            ref={chartRef}
-            option={eChartsOptions}
-            notMerge
-            opts={opts}
-            onEvents={{
-                contextmenu: onChartContextMenu,
-                click: onChartContextMenu,
-                mouseover: handleOnMouseOver,
-                mouseout: handleOnMouseOut,
-                legendselectchanged: onLegendChange,
-            }}
-            {...props}
-        />
-    );
-});
+        return (
+            <EChartsReact
+                data-testid={props['data-testid']}
+                className={props.className}
+                style={
+                    props.$shouldExpand
+                        ? {
+                              minHeight: 'inherit',
+                              height: '100%',
+                              width: '100%',
+                          }
+                        : {
+                              minHeight: 'inherit',
+                              // height defaults to 300px
+                              width: '100%',
+                          }
+                }
+                ref={chartRef}
+                option={eChartsOptions}
+                notMerge
+                opts={opts}
+                onEvents={{
+                    contextmenu: onChartContextMenu,
+                    click: onChartContextMenu,
+                    mouseover: handleOnMouseOver,
+                    mouseout: handleOnMouseOut,
+                    legendselectchanged: onLegendChange,
+                }}
+                {...props}
+            />
+        );
+    },
+);
 
 export default SimpleChart;

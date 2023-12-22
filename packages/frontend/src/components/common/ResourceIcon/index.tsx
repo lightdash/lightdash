@@ -39,7 +39,7 @@ interface IconBoxProps extends MantineIconProps {
     icon: TablerIconType | StyledComponent<'svg', any, {}, never>;
 }
 
-export const IconBox: FC<IconBoxProps> = ({
+export const IconBox: FC<React.PropsWithChildren<IconBoxProps>> = ({
     color,
     icon,
     size = 'lg',
@@ -97,9 +97,9 @@ export const getChartIcon = (chartType: ChartKind | undefined) => {
     }
 };
 
-export const ChartIcon: FC<{ chartType: ChartKind | undefined }> = ({
-    chartType,
-}) => (
+export const ChartIcon: FC<
+    React.PropsWithChildren<{ chartType: ChartKind | undefined }>
+> = ({ chartType }) => (
     <IconBox
         icon={getChartIcon(chartType)}
         color="blue.8"
@@ -109,7 +109,9 @@ export const ChartIcon: FC<{ chartType: ChartKind | undefined }> = ({
     />
 );
 
-export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
+export const ResourceIcon: FC<React.PropsWithChildren<ResourceIconProps>> = ({
+    item,
+}) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
             return <IconBox icon={IconLayoutDashboard} color="green.8" />;
@@ -131,7 +133,9 @@ const COMMON_ICON_PROPS = {
     fillOpacity: 0.1,
 };
 
-export const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
+export const ResourceTypeIcon: FC<
+    React.PropsWithChildren<ResourceTypeIconProps>
+> = ({ type }) => {
     switch (type) {
         case ResourceViewItemType.DASHBOARD:
             return (
@@ -166,12 +170,14 @@ export const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
 };
 
 export const ResourceIndicator: FC<
-    {
-        children: ReactNode;
-        tooltipLabel: ReactNode;
-        iconProps: MantineIconProps;
-        tooltipProps: Partial<TooltipProps>;
-    } & Pick<IndicatorProps, 'disabled'>
+    React.PropsWithChildren<
+        {
+            children: ReactNode;
+            tooltipLabel: ReactNode;
+            iconProps: MantineIconProps;
+            tooltipProps: Partial<TooltipProps>;
+        } & Pick<IndicatorProps, 'disabled'>
+    >
 > = ({ disabled, tooltipLabel, iconProps, tooltipProps, children }) => {
     // NOTE: Control the Tooltip visibility manually to allow hovering on Label.
     const [opened, setOpened] = useState(false);

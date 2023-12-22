@@ -170,7 +170,7 @@ type TableTreeContext = Props & {
 
 const Context = createContext<TableTreeContext | undefined>(undefined);
 
-export const TreeProvider: FC<Props> = ({
+export const TreeProvider: FC<React.PropsWithChildren<Props>> = ({
     searchQuery,
     children,
     itemsMap,

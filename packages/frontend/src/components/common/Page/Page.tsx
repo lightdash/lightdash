@@ -138,7 +138,7 @@ type Props = {
     hasBanner?: boolean;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
-const Page: FC<Props> = ({
+const Page: FC<React.PropsWithChildren<Props>> = ({
     title,
     header,
     sidebar,

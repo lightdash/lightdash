@@ -22,7 +22,7 @@ type ProjectListItemProps = {
     onDelete: (projectUuid: string) => void;
 };
 
-const ProjectListItem: FC<ProjectListItemProps> = ({
+const ProjectListItem: FC<React.PropsWithChildren<ProjectListItemProps>> = ({
     isCurrentProject,
     project: { projectUuid, name, type },
     onDelete,
@@ -95,7 +95,7 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
     );
 };
 
-const ProjectManagementPanel: FC = () => {
+const ProjectManagementPanel: FC<React.PropsWithChildren> = () => {
     const { classes } = useTableStyles();
 
     const { data: projects = [], isLoading: isLoadingProjects } = useProjects();

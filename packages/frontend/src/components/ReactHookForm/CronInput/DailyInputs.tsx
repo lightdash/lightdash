@@ -3,11 +3,13 @@ import React, { FC } from 'react';
 import { getDailyCronExpression } from './cronInputUtils';
 import TimePicker from './TimePicker';
 
-const DailyInputs: FC<{
-    disabled?: boolean;
-    cronExpression: string;
-    onChange: (value: string) => void;
-}> = ({ disabled, cronExpression, onChange }) => {
+const DailyInputs: FC<
+    React.PropsWithChildren<{
+        disabled?: boolean;
+        cronExpression: string;
+        onChange: (value: string) => void;
+    }>
+> = ({ disabled, cronExpression, onChange }) => {
     const handleChange = (newTime: { hours: number; minutes: number }) => {
         onChange(getDailyCronExpression(newTime.minutes, newTime.hours));
     };

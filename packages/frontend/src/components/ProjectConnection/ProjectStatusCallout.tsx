@@ -12,10 +12,9 @@ type ProjectStatusCalloutProps = Omit<AlertProps, 'children'> & {
     mutation: ReturnType<typeof useUpdateMutation | typeof useCreateMutation>;
 };
 
-const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
-    mutation: { isSuccess, error, isLoading, isError },
-    ...props
-}) => {
+const ProjectStatusCallout: FC<
+    React.PropsWithChildren<ProjectStatusCalloutProps>
+> = ({ mutation: { isSuccess, error, isLoading, isError }, ...props }) => {
     let stateProps: AlertProps;
 
     if (isLoading) {

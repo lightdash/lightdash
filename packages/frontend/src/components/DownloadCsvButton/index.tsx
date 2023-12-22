@@ -12,48 +12,50 @@ type Props = {
     getCsvLink: () => Promise<ApiScheduledDownloadCsv>;
 };
 
-const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
-    const { showToastError, showToastWarning } = useToaster();
-    const health = useHealth();
+const DownloadCsvButton: FC<React.PropsWithChildren<Props>> = memo(
+    ({ disabled, getCsvLink }) => {
+        const { showToastError, showToastWarning } = useToaster();
+        const health = useHealth();
 
-    return (
-        <Button
-            compact
-            variant="subtle"
-            leftIcon={<MantineIcon icon={IconTableExport} />}
-            disabled={disabled}
-            onClick={() => {
-                getCsvLink()
-                    .then((scheduledCsvResponse) => {
-                        pollCsvFileUrl(scheduledCsvResponse)
-                            .then((csvFile) => {
-                                window.location.href = csvFile.url;
+        return (
+            <Button
+                compact
+                variant="subtle"
+                leftIcon={<MantineIcon icon={IconTableExport} />}
+                disabled={disabled}
+                onClick={() => {
+                    getCsvLink()
+                        .then((scheduledCsvResponse) => {
+                            pollCsvFileUrl(scheduledCsvResponse)
+                                .then((csvFile) => {
+                                    window.location.href = csvFile.url;
 
-                                if (csvFile.truncated) {
-                                    showToastWarning({
-                                        title: `The results in this export have been limited.`,
-                                        subtitle: `The export limit is ${health.data?.query.csvCellsLimit} cells, but your file exceeded that limit.`,
+                                    if (csvFile.truncated) {
+                                        showToastWarning({
+                                            title: `The results in this export have been limited.`,
+                                            subtitle: `The export limit is ${health.data?.query.csvCellsLimit} cells, but your file exceeded that limit.`,
+                                        });
+                                    }
+                                })
+                                .catch((error) => {
+                                    showToastError({
+                                        title: `Unable to download CSV`,
+                                        subtitle: error?.error?.message,
                                     });
-                                }
-                            })
-                            .catch((error) => {
-                                showToastError({
-                                    title: `Unable to download CSV`,
-                                    subtitle: error?.error?.message,
                                 });
+                        })
+                        .catch((error) => {
+                            showToastError({
+                                title: `Unable to schedule download CSV`,
+                                subtitle: error?.error?.message,
                             });
-                    })
-                    .catch((error) => {
-                        showToastError({
-                            title: `Unable to schedule download CSV`,
-                            subtitle: error?.error?.message,
                         });
-                    });
-            }}
-        >
-            Export CSV
-        </Button>
-    );
-});
+                }}
+            >
+                Export CSV
+            </Button>
+        );
+    },
+);
 
 export default DownloadCsvButton;

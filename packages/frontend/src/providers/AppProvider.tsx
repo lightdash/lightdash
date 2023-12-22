@@ -11,7 +11,7 @@ interface AppContext {
 
 const Context = createContext<AppContext>(undefined as any);
 
-export const AppProvider: FC = ({ children }) => {
+export const AppProvider: FC<React.PropsWithChildren> = ({ children }) => {
     const health = useHealth();
     const user = useUser(!!health?.data?.isAuthenticated);
 

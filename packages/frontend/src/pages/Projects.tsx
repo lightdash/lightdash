@@ -5,7 +5,7 @@ import PageSpinner from '../components/PageSpinner';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProjects } from '../hooks/useProjects';
 
-const Projects: FC = () => {
+const Projects: FC<React.PropsWithChildren> = () => {
     const { isLoading, data, error } = useProjects();
     const { isLoading: isActiveProjectLoading, activeProjectUuid } =
         useActiveProjectUuid();

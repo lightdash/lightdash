@@ -12,7 +12,7 @@ import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 
-const SettingsMenu: FC = () => {
+const SettingsMenu: FC<React.PropsWithChildren> = () => {
     const {
         user: { data: user },
     } = useApp();

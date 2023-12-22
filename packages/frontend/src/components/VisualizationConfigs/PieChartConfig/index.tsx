@@ -10,7 +10,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 
 import PieChartConfigTabs from './PieChartConfigTabs';
 
-const PieChartConfig: React.FC = () => {
+const PieChartConfig: React.FC<React.PropsWithChildren> = () => {
     const { resultsData } = useVisualizationContext();
     const disabled = !resultsData;
 

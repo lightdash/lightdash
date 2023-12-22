@@ -60,7 +60,7 @@ const calculateFontSize = (
     return fontSize;
 };
 
-const SimpleStatistic: FC<SimpleStatisticsProps> = ({
+const SimpleStatistic: FC<React.PropsWithChildren<SimpleStatisticsProps>> = ({
     minimal = false,
     isTitleHidden = false,
     isDashboard = false,

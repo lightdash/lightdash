@@ -81,10 +81,12 @@ export const getResponsiveGridLayoutProps = (enableAnimation = true) => ({
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const GridTile: FC<
-    Pick<
-        React.ComponentProps<typeof TileBase>,
-        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    > & { isLazyLoadEnabled: boolean; index: number }
+    React.PropsWithChildren<
+        Pick<
+            React.ComponentProps<typeof TileBase>,
+            'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+        > & { isLazyLoadEnabled: boolean; index: number }
+    >
 > = memo((props) => {
     const { tile, isLazyLoadEnabled, index } = props;
     useProfiler(`Dashboard-${tile.type}`);
@@ -128,7 +130,7 @@ const GridTile: FC<
     }
 });
 
-const Dashboard: FC = () => {
+const Dashboard: FC<React.PropsWithChildren> = () => {
     const isLazyLoadFeatureFlagEnabled = useFeatureFlagEnabled(
         'lazy-load-dashboard-tiles',
     );
@@ -663,7 +665,7 @@ const Dashboard: FC = () => {
     );
 };
 
-const DashboardPage: FC = () => {
+const DashboardPage: React.PropsWithChildren<FC> = () => {
     useProfiler('Dashboard');
     return (
         <DashboardProvider>

@@ -9,7 +9,7 @@ import { isCartesianVisualizationConfig } from '../../LightdashVisualization/Vis
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ChartConfigTabs from './ChartConfigTabs';
 
-const ChartConfigPanel: React.FC = () => {
+const ChartConfigPanel: React.FC<React.PropsWithChildren> = () => {
     const { resultsData, visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;

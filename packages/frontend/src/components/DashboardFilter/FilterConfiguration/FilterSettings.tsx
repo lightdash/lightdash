@@ -32,7 +32,7 @@ interface FilterSettingsProps {
     onChangeFilterRule: (value: DashboardFilterRule) => void;
 }
 
-const FilterSettings: FC<FilterSettingsProps> = ({
+const FilterSettings: FC<React.PropsWithChildren<FilterSettingsProps>> = ({
     isEditMode,
     isCreatingNew,
     field,

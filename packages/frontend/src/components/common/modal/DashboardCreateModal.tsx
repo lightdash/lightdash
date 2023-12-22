@@ -29,13 +29,9 @@ interface DashboardCreateModalProps extends ModalProps {
     onConfirm?: (dashboard: Dashboard) => void;
 }
 
-const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
-    projectUuid,
-    defaultSpaceUuid,
-    onConfirm,
-    onClose,
-    ...modalProps
-}) => {
+const DashboardCreateModal: FC<
+    React.PropsWithChildren<DashboardCreateModalProps>
+> = ({ projectUuid, defaultSpaceUuid, onConfirm, onClose, ...modalProps }) => {
     const { mutateAsync: createDashboard, isLoading: isCreatingDashboard } =
         useCreateMutation(projectUuid);
     const { mutateAsync: createSpace, isLoading: isCreatingSpace } =

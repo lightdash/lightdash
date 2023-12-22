@@ -4,11 +4,13 @@ import { getWeeklyCronExpression, parseCronExpression } from './cronInputUtils';
 import TimePicker from './TimePicker';
 import WeekDaySelect from './WeekDaySelect';
 
-const WeeklyInputs: FC<{
-    disabled?: boolean;
-    cronExpression: string;
-    onChange: (value: string) => void;
-}> = ({ disabled, cronExpression, onChange }) => {
+const WeeklyInputs: FC<
+    React.PropsWithChildren<{
+        disabled?: boolean;
+        cronExpression: string;
+        onChange: (value: string) => void;
+    }>
+> = ({ disabled, cronExpression, onChange }) => {
     const { minutes, hours, weekDay } = parseCronExpression(cronExpression);
 
     const onDayChange = (newWeekday: number) => {

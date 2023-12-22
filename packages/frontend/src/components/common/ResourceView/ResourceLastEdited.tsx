@@ -12,7 +12,9 @@ interface ResourceLastEditedProps {
     item: ResourceViewChartItem | ResourceViewDashboardItem;
 }
 
-const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
+const ResourceLastEdited: FC<
+    React.PropsWithChildren<ResourceLastEditedProps>
+> = ({
     item: {
         data: { updatedAt, updatedByUser: user },
     },
