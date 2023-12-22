@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ApiChartAndResults,
+    ApiError,
     ChartType,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
@@ -861,17 +862,23 @@ type DashboardChartTileProps = Omit<
     minimal?: boolean;
 };
 
-const DashboardChartTile: FC<DashboardChartTileProps> = ({
+// Abstraction needed for enterprise version
+// ts-unused-exports:disable-next-line
+export const GenericDashboardChartTile: FC<
+    DashboardChartTileProps & {
+        isLoading: boolean;
+        data: ApiChartAndResults | undefined;
+        error: ApiError | null;
+    }
+> = ({
     minimal = false,
     tile,
     isEditMode,
+    isLoading,
+    data,
+    error,
     ...rest
 }) => {
-    const { isLoading, data, error } = useDashboardChart(
-        tile.uuid,
-        tile.properties?.savedChartUuid ?? null,
-    );
-
     if (isLoading)
         return (
             <TileBase
@@ -936,6 +943,22 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
             <UnderlyingDataModal />
             <DrillDownModal />
         </MetricQueryDataProvider>
+    );
+};
+
+const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
+    const { isLoading, data, error } = useDashboardChart(
+        props.tile.uuid,
+        props.tile.properties?.savedChartUuid ?? null,
+    );
+
+    return (
+        <GenericDashboardChartTile
+            {...props}
+            isLoading={isLoading}
+            data={data}
+            error={error}
+        />
     );
 };
 
