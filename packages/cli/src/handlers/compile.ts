@@ -69,9 +69,9 @@ export const compile = async (options: CompileHandlerOptions) => {
     }
 
     // Skipping assumes manifest.json already exists.
-    let modelIds: string[] = [];
+    let compiledModelIds: string[] | undefined;
     if (!options.skipDbtCompile) {
-        modelIds = await dbtCompile(options);
+        compiledModelIds = await dbtCompile(options);
     }
 
     const absoluteProjectPath = path.resolve(options.projectDir);
@@ -99,9 +99,13 @@ export const compile = async (options: CompileHandlerOptions) => {
             : undefined,
     });
     const manifest = await loadManifest({ targetDir: context.targetDir });
-    const models = getModelsFromManifest(manifest).filter((model) =>
-        modelIds.includes(model.unique_id),
-    );
+    const models = getModelsFromManifest(manifest).filter((model) => {
+        if (compiledModelIds) {
+            return compiledModelIds.includes(model.unique_id);
+        }
+        // in case they skipped the compile step, we check if the models are compiled
+        return model.compiled;
+    });
 
     const adapterType = manifest.metadata.adapter_type;
 
