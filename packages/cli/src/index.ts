@@ -327,6 +327,11 @@ program
         'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
         false,
     )
+    .option(
+        '--skip-warehouse-catalog',
+        'Skip fetch warehouse catalog and use types in yml',
+        false,
+    )
     .action(previewHandler);
 
 program
@@ -376,6 +381,11 @@ program
     .option(
         '--skip-dbt-compile',
         'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
+        false,
+    )
+    .option(
+        '--skip-warehouse-catalog',
+        'Skip fetch warehouse catalog and use types in yml',
         false,
     )
     .action(startPreviewHandler);
@@ -442,6 +452,11 @@ program
         'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
         false,
     )
+    .option(
+        '--skip-warehouse-catalog',
+        'Skip fetch warehouse catalog and use types in yml',
+        false,
+    )
     .action(deployHandler);
 
 program
@@ -500,6 +515,11 @@ program
     .option(
         '--skip-dbt-compile',
         'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
+        false,
+    )
+    .option(
+        '--skip-warehouse-catalog',
+        'Skip fetch warehouse catalog and use types in yml',
         false,
     )
     .action(validateHandler);

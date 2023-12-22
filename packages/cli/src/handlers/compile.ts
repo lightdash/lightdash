@@ -7,6 +7,7 @@ import {
     isSupportedDbtAdapter,
     isWeekDay,
     ParseError,
+    WarehouseCatalog,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import inquirer from 'inquirer';
@@ -121,11 +122,13 @@ ${errors.join('')}`),
         );
     }
 
-    // Ideally we'd skip this potentially expensive step
-    // const catalog = await warehouseClient.getCatalog(
-    //     getSchemaStructureFromDbtModels(validModels),
-    // );
-    const catalog = {};
+    // Skipping assumes yml has the field types.
+    let catalog: WarehouseCatalog = {};
+    if (!options.skipWarehouseCatalog) {
+        catalog = await warehouseClient.getCatalog(
+            getSchemaStructureFromDbtModels(validModels),
+        );
+    }
 
     const validModelsWithTypes = attachTypesToModels(
         validModels,
