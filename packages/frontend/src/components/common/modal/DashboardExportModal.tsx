@@ -1,15 +1,15 @@
 import { ApiError, Dashboard } from '@lightdash/common';
 import {
+    Box,
     Button,
-    Center,
-    Divider,
+    Card,
     Flex,
     Group,
     Image,
     LoadingOverlay,
     Modal,
     ModalProps,
-    Select,
+    Radio,
     Stack,
     Text,
     Title,
@@ -20,11 +20,10 @@ import {
     IconEyeCog,
     IconFileExport,
 } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { Dispatch, FC, SetStateAction, useCallback, useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
-import CollapsableCard from '../CollapsableCard';
 import MantineIcon from '../MantineIcon';
 
 type Props = {
@@ -38,162 +37,156 @@ const CUSTOM_WIDTH_OPTIONS = [
         value: '1000',
     },
     {
-        label: 'Medium (1200px)',
-        value: '1200',
+        label: 'Medium (1400px)',
+        value: '1400',
     },
     {
-        label: 'Large (1400px)',
-        value: '1400',
+        label: 'Large (1500px)',
+        value: '1500',
     },
 ];
 
-const PreviewAndCustomize: FC<
-    Props & {
-        exportDashboardMutation: UseMutationResult<
-            string,
-            ApiError,
-            {
-                dashboard: Dashboard;
-                gridWidth: number | undefined;
-                queryFilters: string;
-                isPreview?: boolean | undefined;
-            }
-        >;
-    }
-> = ({ gridWidth, dashboard, exportDashboardMutation }) => {
-    const [isOpenImage, setIsOpenImage] = useState(false);
-    const [previews, setPreviews] = useState<{ [key: string]: string }>({});
+type PreviewAndCustomizeProps = Props & {
+    exportDashboardMutation: UseMutationResult<
+        string,
+        ApiError,
+        {
+            dashboard: Dashboard;
+            gridWidth: number | undefined;
+            queryFilters: string;
+            isPreview?: boolean | undefined;
+        }
+    >;
+    previews: Record<string, string>;
+    setPreviews: Dispatch<SetStateAction<Record<string, string>>>;
+    previewChoice: string;
+    setPreviewChoice: Dispatch<SetStateAction<string>>;
+};
 
+const PreviewAndCustomize: FC<PreviewAndCustomizeProps> = ({
+    gridWidth,
+    dashboard,
+    exportDashboardMutation,
+    previews,
+    setPreviews,
+    previewChoice,
+    setPreviewChoice,
+}) => {
     const location = useLocation();
-
-    const [previewChoice, setPreviewChoice] = useState('current');
-    const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
     const handlePreviewClick = useCallback(async () => {
         const url = await exportDashboardMutation.mutateAsync({
             dashboard,
-            gridWidth: parseInt(previewChoice),
+            gridWidth: previewChoice ? parseInt(previewChoice) : undefined,
             queryFilters: location.search,
             isPreview: true,
         });
         setPreviews((prev) => ({
             ...prev,
-            [previewChoice]: url,
+            ...(previewChoice ? { [previewChoice]: url } : {}),
         }));
-    }, [dashboard, exportDashboardMutation, location.search, previewChoice]);
+    }, [
+        dashboard,
+        exportDashboardMutation,
+        location.search,
+        previewChoice,
+        setPreviews,
+    ]);
 
     return (
-        <>
-            <CollapsableCard
-                isOpen={isCustomizeOpen}
-                title="Customize"
-                headerElement={
-                    <Text fz="xs" c="gray.6">
-                        your dashboard before exporting (with preview)
-                    </Text>
-                }
-                onToggle={() => {
-                    setIsCustomizeOpen(!isCustomizeOpen);
-                }}
-            >
-                <Stack spacing="lg" p="md">
-                    <Group position="center" align="flex-end">
-                        <Select
-                            label="Use custom width"
-                            withinPortal
-                            data={CUSTOM_WIDTH_OPTIONS.concat([
+        <Box p="md">
+            <LoadingOverlay visible={exportDashboardMutation.isLoading} />
+
+            <Stack spacing="md" px="md" py="md">
+                <Flex align="flex-start" justify="space-between">
+                    <Radio.Group
+                        name="customWidth"
+                        label="Custom width configuration"
+                        defaultValue=""
+                        onChange={(value) => {
+                            setPreviewChoice(value);
+                        }}
+                        value={previewChoice}
+                    >
+                        <Flex direction="column" gap="sm" pt="sm">
+                            {CUSTOM_WIDTH_OPTIONS.concat([
                                 {
-                                    label: `Current view: ${gridWidth}px`,
+                                    label: `Current view (${gridWidth}px)`,
                                     value: gridWidth.toString(),
                                 },
-                            ])}
-                            defaultValue="current"
-                            onChange={(value) => {
-                                if (!value) return;
+                            ]).map((option) => (
+                                <Radio
+                                    key={option.value}
+                                    value={option.value}
+                                    label={option.label}
+                                    checked={previewChoice === option.value}
+                                />
+                            ))}
+                        </Flex>
+                    </Radio.Group>
 
-                                setPreviewChoice(value);
-                            }}
-                        />
+                    <Stack>
+                        <Card withBorder p={0}>
+                            <Image
+                                src={previewChoice && previews[previewChoice]}
+                                onClick={() => {
+                                    if (
+                                        previewChoice &&
+                                        previews[previewChoice]
+                                    )
+                                        setIsImageModalOpen(true);
+                                }}
+                                width={400}
+                                height={400}
+                                style={{
+                                    objectPosition: 'top',
+                                    cursor:
+                                        previewChoice && previews[previewChoice]
+                                            ? 'pointer'
+                                            : 'default',
+                                }}
+                                withPlaceholder
+                                placeholder={
+                                    <Flex
+                                        gap="md"
+                                        align="center"
+                                        direction="column"
+                                    >
+                                        <MantineIcon
+                                            icon={IconEyeClosed}
+                                            size={30}
+                                        />
 
+                                        <Text>No preview yet</Text>
+                                    </Flex>
+                                }
+                            />
+                        </Card>
                         <Button
+                            mx="auto"
+                            display="block"
+                            size="xs"
                             variant="default"
                             leftIcon={<MantineIcon icon={IconEye} />}
+                            disabled={!previewChoice}
                             onClick={handlePreviewClick}
                         >
-                            {previews[previewChoice]
-                                ? 'Re-generate preview'
-                                : 'Generate preview'}
+                            Generate preview
                         </Button>
-                    </Group>
-
-                    <Center h={400}>
-                        <LoadingOverlay
-                            visible={exportDashboardMutation.isLoading}
-                        />
-                        <Image
-                            src={previews[previewChoice]}
-                            onClick={() => {
-                                if (previews[previewChoice])
-                                    setIsOpenImage(true);
-                            }}
-                            width={400}
-                            height={400}
-                            style={{
-                                objectPosition: 'top',
-                                cursor: previews[previewChoice]
-                                    ? 'pointer'
-                                    : 'default',
-                            }}
-                            withPlaceholder
-                            placeholder={
-                                <Flex
-                                    gap="md"
-                                    align="center"
-                                    direction="column"
-                                >
-                                    <MantineIcon
-                                        icon={IconEyeClosed}
-                                        size={30}
-                                    />
-
-                                    <Text>No preview yet</Text>
-                                </Flex>
-                            }
-                        />
-                    </Center>
-                    <Button
-                        m="auto"
-                        leftIcon={<MantineIcon icon={IconEyeCog} />}
-                        onClick={() => {
-                            if (exportDashboardMutation.data)
-                                return window.open(
-                                    exportDashboardMutation.data,
-                                    '_blank',
-                                );
-                            exportDashboardMutation.mutate({
-                                dashboard,
-                                gridWidth:
-                                    previewChoice === 'current'
-                                        ? gridWidth
-                                        : parseInt(previewChoice),
-                                queryFilters: location.search,
-                            });
-                        }}
-                    >
-                        Export with current selection
-                    </Button>
-                </Stack>
-            </CollapsableCard>
+                    </Stack>
+                </Flex>
+            </Stack>
 
             <Modal
                 fullScreen
-                onClose={() => setIsOpenImage(false)}
-                opened={isOpenImage}
+                onClose={() => setIsImageModalOpen(false)}
+                opened={isImageModalOpen}
             >
                 <Image
                     src={exportDashboardMutation.data}
                     onClick={() => {
-                        setIsOpenImage(false);
+                        setIsImageModalOpen(false);
                     }}
                     width="100%"
                     height="100%"
@@ -202,7 +195,7 @@ const PreviewAndCustomize: FC<
                     }}
                 />
             </Modal>
-        </>
+        </Box>
     );
 };
 
@@ -212,6 +205,8 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
     gridWidth,
     dashboard,
 }) => {
+    const [previews, setPreviews] = useState<Record<string, string>>({});
+    const [previewChoice, setPreviewChoice] = useState<string>('1400');
     const location = useLocation();
     const exportDashboardMutation = useExportDashboard();
 
@@ -230,33 +225,60 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                 }}
             >
                 <Stack>
-                    <Button
-                        loading={exportDashboardMutation.isLoading}
-                        m="auto"
-                        onClick={() => {
-                            exportDashboardMutation.mutate({
-                                dashboard,
-                                gridWidth: undefined,
-                                queryFilters: location.search,
-                            });
-                        }}
-                        leftIcon={<MantineIcon icon={IconFileExport} />}
-                    >
-                        Export now
-                    </Button>
-
-                    <Divider label="OR" labelPosition="center" />
-
                     <PreviewAndCustomize
                         gridWidth={gridWidth}
                         dashboard={dashboard}
                         exportDashboardMutation={exportDashboardMutation}
+                        previews={previews}
+                        setPreviews={setPreviews}
+                        previewChoice={previewChoice}
+                        setPreviewChoice={setPreviewChoice}
                     />
 
-                    <Group position="left" pb="md" px="md">
+                    <Group position="right" pb="md" px="md" spacing="lg">
                         <Button variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
+
+                        <Group spacing="xs">
+                            <Button
+                                loading={exportDashboardMutation.isLoading}
+                                onClick={() => {
+                                    if (previewChoice) {
+                                        if (exportDashboardMutation.data)
+                                            return window.open(
+                                                exportDashboardMutation.data,
+                                                '_blank',
+                                            );
+                                        exportDashboardMutation.mutate({
+                                            dashboard,
+                                            gridWidth:
+                                                previewChoice === 'current'
+                                                    ? gridWidth
+                                                    : parseInt(previewChoice),
+                                            queryFilters: location.search,
+                                        });
+                                    } else {
+                                        exportDashboardMutation.mutate({
+                                            dashboard,
+                                            gridWidth: undefined,
+                                            queryFilters: location.search,
+                                        });
+                                    }
+                                }}
+                                leftIcon={
+                                    <MantineIcon
+                                        icon={
+                                            previewChoice
+                                                ? IconEyeCog
+                                                : IconFileExport
+                                        }
+                                    />
+                                }
+                            >
+                                Export dashboard
+                            </Button>
+                        </Group>
                     </Group>
                 </Stack>
             </Modal>
