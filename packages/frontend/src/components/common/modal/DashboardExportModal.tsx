@@ -244,27 +244,20 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                             <Button
                                 loading={exportDashboardMutation.isLoading}
                                 onClick={() => {
-                                    if (previewChoice) {
-                                        if (exportDashboardMutation.data)
-                                            return window.open(
-                                                exportDashboardMutation.data,
-                                                '_blank',
-                                            );
-                                        exportDashboardMutation.mutate({
-                                            dashboard,
-                                            gridWidth:
-                                                previewChoice === 'current'
-                                                    ? gridWidth
-                                                    : parseInt(previewChoice),
-                                            queryFilters: location.search,
-                                        });
-                                    } else {
-                                        exportDashboardMutation.mutate({
-                                            dashboard,
-                                            gridWidth: undefined,
-                                            queryFilters: location.search,
-                                        });
-                                    }
+                                    if (
+                                        previewChoice &&
+                                        previews[previewChoice]
+                                    )
+                                        return window.open(
+                                            exportDashboardMutation.data,
+                                            '_blank',
+                                        );
+
+                                    exportDashboardMutation.mutate({
+                                        dashboard,
+                                        gridWidth: undefined,
+                                        queryFilters: location.search,
+                                    });
                                 }}
                                 leftIcon={
                                     <MantineIcon
