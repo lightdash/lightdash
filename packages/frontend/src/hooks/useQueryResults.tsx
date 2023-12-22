@@ -110,17 +110,14 @@ export const useQueryResults = (props?: {
         fetchQuery,
         {
             mutationKey: ['queryResults'],
-            onError: useCallback(
-                (result) => {
-                    showToastError({
-                        title: 'Error running query',
-                        subtitle: result.error.message,
-                    });
+            onError: (error) => {
+                showToastError({
+                    title: 'Error running query',
+                    subtitle: error.error.message,
+                });
 
-                    return setErrorResponse(result);
-                },
-                [setErrorResponse, showToastError],
-            ),
+                return setErrorResponse(error);
+            },
         },
     );
 
@@ -310,15 +307,12 @@ export const useChartVersionResultsMutation = (
         () => getChartVersionResults(chartUuid, versionUuid!),
         {
             mutationKey: ['chartVersionResults', chartUuid, versionUuid],
-            onError: useCallback(
-                (result) => {
-                    showToastError({
-                        title: 'Error running query',
-                        subtitle: result.error.message,
-                    });
-                },
-                [showToastError],
-            ),
+            onError: (result) => {
+                showToastError({
+                    title: 'Error running query',
+                    subtitle: result.error.message,
+                });
+            },
         },
     );
     const { mutateAsync } = mutation;

@@ -4,7 +4,6 @@ import {
     ApiJobScheduledResponse,
     ValidationResponse,
 } from '@lightdash/common';
-import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
@@ -97,16 +96,13 @@ export const useValidationMutation = (
                     });
                 });
         },
-        onError: useCallback(
-            (error) => {
-                const [title, ...rest] = error.error.message.split('\n');
-                appendError({
-                    title,
-                    body: rest.join('\n'),
-                });
-            },
-            [appendError],
-        ),
+        onError: (error) => {
+            const [title, ...rest] = error.error.message.split('\n');
+            appendError({
+                title,
+                body: rest.join('\n'),
+            });
+        },
     });
 };
 

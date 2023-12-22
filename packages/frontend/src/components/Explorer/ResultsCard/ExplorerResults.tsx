@@ -8,6 +8,7 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import Table from '../../common/Table';
+import { CellContextMenuProps } from '../../common/Table/types';
 import { JsonViewerModal } from '../../JsonViewerModal';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
@@ -82,7 +83,7 @@ export const ExplorerResults = memo(() => {
     }, [exploreData, additionalMetrics, tableCalculations]);
 
     const cellContextMenu = useCallback(
-        (props) => (
+        (props: any) => (
             <CellContextMenu
                 isEditMode={isEditMode}
                 {...props}

@@ -1,4 +1,5 @@
 import {
+    ConditionalFormattingConfig,
     createConditionalFormattingConfigWithSingleColor,
     FilterableItem,
     getItemId,
@@ -75,7 +76,7 @@ const ConditionalFormattingList = ({}) => {
     }, [chartConfig, activeConfigs, colorPalette]);
 
     const handleRemove = useCallback(
-        (index) => {
+        (index: number) => {
             if (!chartConfig) return;
 
             const { onSetConditionalFormattings } = chartConfig;
@@ -90,7 +91,7 @@ const ConditionalFormattingList = ({}) => {
     );
 
     const handleChange = useCallback(
-        (index, newConfig) => {
+        (index: number, newConfig: ConditionalFormattingConfig) => {
             if (!chartConfig) return;
 
             const { onSetConditionalFormattings } = chartConfig;

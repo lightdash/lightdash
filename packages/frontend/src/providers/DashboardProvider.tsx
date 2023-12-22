@@ -476,7 +476,7 @@ export const DashboardProvider: React.FC<
     );
 
     const addMetricDashboardFilter = useCallback(
-        (filter, isTemporary: boolean) => {
+        (filter: DashboardFilterRule, isTemporary: boolean) => {
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;

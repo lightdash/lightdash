@@ -118,7 +118,7 @@ export const ReferenceLines: FC<React.PropsWithChildren<Props>> = ({
     }, [isCartesianChart, visualizationConfig]);
 
     const removeReferenceLine = useCallback(
-        (markLineId) => {
+        (markLineId: string) => {
             if (!isCartesianChart) return;
 
             const {
