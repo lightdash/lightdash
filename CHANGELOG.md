@@ -1,3 +1,10 @@
+## [0.915.1](https://github.com/lightdash/lightdash/compare/0.915.0...0.915.1) (2023-12-22)
+
+
+### Bug Fixes
+
+* upgrade package libcurl4 to fix CVE-2023-23914 ([cbab0ee](https://github.com/lightdash/lightdash/commit/cbab0eec1bac0bd79863c80c8e807ec77570b30f))
+
 # [0.915.0](https://github.com/lightdash/lightdash/compare/0.914.1...0.915.0) (2023-12-22)
 
 
