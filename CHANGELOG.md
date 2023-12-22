@@ -1,3 +1,10 @@
+# [0.913.0](https://github.com/lightdash/lightdash/compare/0.912.4...0.913.0) (2023-12-22)
+
+
+### Features
+
+* 100% mantine ([#8379](https://github.com/lightdash/lightdash/issues/8379)) ([0bd39fb](https://github.com/lightdash/lightdash/commit/0bd39fbed6d4448bf31e9d43daad897f0005a997))
+
 ## [0.912.4](https://github.com/lightdash/lightdash/compare/0.912.3...0.912.4) (2023-12-21)
 
 
