@@ -6,7 +6,6 @@ import {
     Group,
     Modal,
     ModalProps,
-    Select,
     Stack,
     TextInput,
     Title,
@@ -44,7 +43,7 @@ const ChartUpdateModal = ({
         },
     });
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
+    const { data: savedCharts } = useChartSummaries(projectUuid);
 
     const handleConfirm = form.onSubmit(
         ({
@@ -68,14 +67,14 @@ const ChartUpdateModal = ({
                         size="lg"
                         color="blue.8"
                     />
-                    <Title order={4}>Edit tile content</Title>
+                    <Title order={4}>Edit title</Title>
                 </Flex>
             }
             withCloseButton
             className="non-draggable"
             {...modalProps}
         >
-            <form onSubmit={handleConfirm} name="Edit tile content">
+            <form onSubmit={handleConfirm} name="Edit title">
                 <Stack spacing="md">
                     <Flex align="flex-end" gap="xs">
                         <TextInput
@@ -110,36 +109,7 @@ const ChartUpdateModal = ({
                             />
                         </ActionIcon>
                     </Flex>
-                    <Select
-                        styles={(theme) => ({
-                            separator: {
-                                position: 'sticky',
-                                top: 0,
-                                backgroundColor: 'white',
-                            },
-                            separatorLabel: {
-                                color: theme.colors.gray[6],
-                                fontWeight: 500,
-                            },
-                        })}
-                        id="savedChartUuid"
-                        name="savedChartUuid"
-                        label="Select chart"
-                        data={(savedCharts || []).map(
-                            ({ uuid, name, spaceName }) => {
-                                return {
-                                    value: uuid,
-                                    label: name,
-                                    group: spaceName,
-                                };
-                            },
-                        )}
-                        disabled={isLoading}
-                        withinPortal
-                        {...form.getInputProps('uuid')}
-                        searchable
-                        placeholder="Search..."
-                    />
+
                     <Group spacing="xs" position="right" mt="md">
                         <Button onClick={() => onClose?.()} variant="outline">
                             Cancel

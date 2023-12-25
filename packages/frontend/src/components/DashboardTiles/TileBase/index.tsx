@@ -173,24 +173,21 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                             )}
                                             {isEditMode && (
                                                 <>
-                                                    {!belongsToDashboard && (
-                                                        <Menu.Item
-                                                            icon={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconEdit
-                                                                    }
-                                                                />
-                                                            }
-                                                            onClick={() =>
-                                                                setIsEditingTileContent(
-                                                                    true,
-                                                                )
-                                                            }
-                                                        >
-                                                            Edit tile content
-                                                        </Menu.Item>
-                                                    )}
+                                                    <Menu.Item
+                                                        icon={
+                                                            <MantineIcon
+                                                                icon={IconEdit}
+                                                            />
+                                                        }
+                                                        onClick={() =>
+                                                            setIsEditingTileContent(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        Edit title
+                                                    </Menu.Item>
+
                                                     {belongsToDashboard ? (
                                                         <Menu.Item
                                                             color="red"
