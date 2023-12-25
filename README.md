@@ -355,6 +355,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/dansreis"><img src="https://avatars.githubusercontent.com/u/9052608?v=4?s=100" width="100px;" alt="Daniel Reis"/><br /><sub><b>Daniel Reis</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=dansreis" title="Code">💻</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Adansreis" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/jogeshwar01"><img src="https://avatars.githubusercontent.com/u/85165953?v=4?s=100" width="100px;" alt="Jogeshwar Singh"/><br /><sub><b>Jogeshwar Singh</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=jogeshwar01" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
