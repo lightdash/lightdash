@@ -43,9 +43,8 @@ export const useDashboards = (
 
     return useQuery<DashboardBasicDetails[], ApiError>(
         ['dashboards', projectUuid, includePrivateSpaces],
-        () => getDashboards(projectUuid || '', includePrivateSpaces),
+        () => getDashboards(projectUuid, includePrivateSpaces),
         {
-            enabled: projectUuid !== undefined,
             ...useQueryOptions,
             onError: (result) => {
                 setErrorResponse(result);

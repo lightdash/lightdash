@@ -26,9 +26,10 @@ const MobileHome: FC<React.PropsWithChildren> = () => {
     const selectedProjectUuid = params.projectUuid;
     const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
     const project = useProject(selectedProjectUuid);
-
-    const { data: pinnedItems = [], isLoading: pinnedItemsLoading } =
-        usePinnedItems(selectedProjectUuid, project.data?.pinnedListUuid);
+    const pinnedItems = usePinnedItems(
+        selectedProjectUuid,
+        project.data?.pinnedListUuid,
+    );
 
     const {
         data: mostPopularAndRecentlyUpdated,
@@ -47,10 +48,12 @@ const MobileHome: FC<React.PropsWithChildren> = () => {
                 ),
                 category: ResourceItemCategory.MOST_POPULAR,
             })) ?? [];
-        const pinnedItemsWithCategory = pinnedItems.map((item) => ({
-            ...item,
-            category: ResourceItemCategory.PINNED,
-        }));
+        const pinnedItemsWithCategory =
+            pinnedItems.data?.map((item) => ({
+                ...item,
+                category: ResourceItemCategory.PINNED,
+            })) ?? [];
+
         return [...pinnedItemsWithCategory, ...mostPopularItems];
     }, [mostPopularAndRecentlyUpdated, pinnedItems]);
 
@@ -58,7 +61,7 @@ const MobileHome: FC<React.PropsWithChildren> = () => {
         project.isLoading ||
         savedChartStatus.isLoading ||
         isMostPopularAndRecentlyUpdatedLoading ||
-        pinnedItemsLoading;
+        pinnedItems.isInitialLoading;
     const error = project.error || savedChartStatus.error;
 
     if (user.data?.ability?.cannot('view', 'SavedChart')) {
@@ -92,7 +95,7 @@ const MobileHome: FC<React.PropsWithChildren> = () => {
             <ResourceView
                 items={items}
                 tabs={
-                    pinnedItems.length > 0
+                    pinnedItems.data && pinnedItems.data.length > 0
                         ? [
                               {
                                   id: 'pinned',
