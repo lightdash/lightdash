@@ -1,5 +1,5 @@
 import { ApiError, Space } from '@lightdash/common';
-import { useMutation, useQueryClient } from 'react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -18,7 +18,7 @@ export const useSpacePinningMutation = (projectUuid: string) => {
         {
             mutationKey: ['space_pinning_update'],
             onSuccess: async (space) => {
-                await queryClient.invalidateQueries('pinned_items');
+                await queryClient.invalidateQueries(['pinned_items']);
                 await queryClient.invalidateQueries([
                     'spaces',
                     space.projectUuid,
@@ -33,9 +33,9 @@ export const useSpacePinningMutation = (projectUuid: string) => {
                     space.projectUuid,
                     space.uuid,
                 ]);
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
 
                 if (space.pinnedListUuid) {
                     showToastSuccess({

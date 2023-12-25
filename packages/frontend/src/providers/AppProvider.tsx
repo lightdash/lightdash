@@ -1,6 +1,6 @@
 import { ApiError, HealthState } from '@lightdash/common';
+import { UseQueryResult } from '@tanstack/react-query';
 import { createContext, FC, useContext } from 'react';
-import { UseQueryResult } from 'react-query/types/react/types';
 import useHealth from '../hooks/health/useHealth';
 import useUser, { UserWithAbility } from '../hooks/user/useUser';
 

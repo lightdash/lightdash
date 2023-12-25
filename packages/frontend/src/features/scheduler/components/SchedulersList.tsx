@@ -4,8 +4,8 @@ import {
     SchedulerFormat,
 } from '@lightdash/common';
 import { Loader, Stack, Text, Title } from '@mantine/core';
+import { UseQueryResult } from '@tanstack/react-query';
 import React, { FC, useState } from 'react';
-import { UseQueryResult } from 'react-query/types/react/types';
 import ErrorState from '../../../components/common/ErrorState';
 import { SchedulerDeleteModal } from './SchedulerDeleteModal';
 import SchedulersListItem from './SchedulersListItem';

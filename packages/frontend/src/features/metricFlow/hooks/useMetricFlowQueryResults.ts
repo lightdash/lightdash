@@ -1,6 +1,5 @@
 import { ApiError } from '@lightdash/common';
-import { useQuery } from 'react-query';
-import { UseQueryOptions } from 'react-query/types/react/types';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import {
     createMetricFlowQuery,
     CreateMetricFlowQueryResponse,

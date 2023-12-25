@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { ApiError, PinnedItems } from '@lightdash/common';
+import { UseMutateFunction } from '@tanstack/react-query';
 import React, { createContext, useContext } from 'react';
-import { UseMutateFunction } from 'react-query';
 import { useReorder } from '../hooks/pinning/usePinnedItems';
 import { useApp } from './AppProvider';
 

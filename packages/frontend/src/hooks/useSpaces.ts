@@ -10,7 +10,7 @@ import {
     useQuery,
     useQueryClient,
     UseQueryOptions,
-} from 'react-query';
+} from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useUser from './user/useUser';
@@ -112,7 +112,7 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
                     projectUuid,
                     'spaces',
                 ]);
-                await queryClient.invalidateQueries('pinned_items');
+                await queryClient.invalidateQueries(['pinned_items']);
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });

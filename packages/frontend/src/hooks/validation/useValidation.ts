@@ -4,7 +4,7 @@ import {
     ApiJobScheduledResponse,
     ValidationResponse,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';

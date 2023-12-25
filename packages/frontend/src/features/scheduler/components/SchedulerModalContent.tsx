@@ -6,11 +6,8 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { Box, Loader, LoadingOverlay, Stack, Text } from '@mantine/core';
+import { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { FC, useCallback, useEffect, useState } from 'react';
-import {
-    UseMutationResult,
-    UseQueryResult,
-} from 'react-query/types/react/types';
 import { useHistory, useLocation } from 'react-router-dom';
 import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';

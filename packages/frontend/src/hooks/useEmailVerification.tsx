@@ -1,5 +1,5 @@
 import { ApiError, EmailStatusExpiring } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -42,7 +42,7 @@ export const useOneTimePassword = () => {
         {
             mutationKey: ['send_verification_email'],
             onSuccess: async () => {
-                await queryClient.invalidateQueries('email_status');
+                await queryClient.invalidateQueries(['email_status']);
             },
             onError: (error) => {
                 showToastError({

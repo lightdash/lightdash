@@ -1,8 +1,8 @@
 import { ApiError, ApiQueryResults } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import React, { FC } from 'react';
-import { useQuery } from 'react-query';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import Table from '../../../components/common/Table';
 import { TableColumn } from '../../../components/common/Table/types';

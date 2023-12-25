@@ -7,8 +7,8 @@ import {
 import { Anchor, Button, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FC, useCallback, useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -59,8 +59,8 @@ const ProfilePanel: FC<React.PropsWithChildren> = () => {
     >(updateUserQuery, {
         mutationKey: ['user_update'],
         onSuccess: async () => {
-            await queryClient.refetchQueries('user');
-            await queryClient.refetchQueries('email_status');
+            await queryClient.refetchQueries(['user']);
+            await queryClient.refetchQueries(['email_status']);
             showToastSuccess({
                 title: 'Success! User details were updated.',
             });

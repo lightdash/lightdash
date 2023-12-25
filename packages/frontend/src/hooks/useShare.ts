@@ -1,5 +1,5 @@
 import { ApiError, CreateShareUrl, ShareUrl } from '@lightdash/common';
-import { useMutation, useQuery } from 'react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
 const getShare = async (shareNanoid: string) =>

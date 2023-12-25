@@ -3,7 +3,7 @@ import {
     DeleteOpenIdentity,
     OpenIdIdentitySummary,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -21,7 +21,7 @@ export const useDeleteOpenIdentityMutation = () => {
         deleteOpenIdentity,
         {
             onSuccess: async () => {
-                await queryClient.invalidateQueries('user_identities');
+                await queryClient.invalidateQueries(['user_identities']);
                 showToastSuccess({
                     title: `Deleted! Social login was deleted.`,
                 });
@@ -50,6 +50,6 @@ export const useOpenIdentities = () =>
         Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>,
         ApiError
     >({
-        queryKey: 'user_identities',
+        queryKey: ['user_identities'],
         queryFn: getIdentitiesQuery,
     });

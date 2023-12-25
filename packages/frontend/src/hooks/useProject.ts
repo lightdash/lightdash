@@ -6,7 +6,7 @@ import {
     Project,
     UpdateProject,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import { useActiveJob } from '../providers/ActiveJobProvider';
 import useToaster from './toaster/useToaster';
@@ -57,9 +57,9 @@ export const useUpdateMutation = (id: string) => {
 
                 await queryClient.invalidateQueries(['projects']);
                 await queryClient.invalidateQueries(['project', id]);
-                await queryClient.invalidateQueries('tables');
-                await queryClient.invalidateQueries('queryResults');
-                await queryClient.invalidateQueries('status');
+                await queryClient.invalidateQueries(['tables']);
+                await queryClient.invalidateQueries(['queryResults']);
+                await queryClient.invalidateQueries(['status']);
             },
             onError: (error) => {
                 showToastError({

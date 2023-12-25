@@ -41,6 +41,8 @@
         "@sentry/tracing": "^7.37.2",
         "@shopify/react-web-worker": "^5.0.13",
         "@tabler/icons-react": "^2.32.0",
+        "@tanstack/react-query": "^4.36.1",
+        "@tanstack/react-query-devtools": "^4.36.1",
         "@tanstack/react-table": "^8.5.11",
         "@tanstack/react-virtual": "^3.0.0-beta.54",
         "@uiw/react-md-editor": "^3.23.5",
@@ -73,7 +75,6 @@
         "react-helmet": "^6.1.0",
         "react-hook-form": "^7.26.1",
         "react-json-view": "^1.21.3",
-        "react-query": "^3.34.14",
         "react-router-dom": "^5.3.4",
         "react-use": "^17.3.2",
         "react-use-intercom": "^1.5.1",
@@ -89,7 +90,6 @@
         "zod": "^3.22.3"
     },
     "devDependencies": {
-        "@tanstack/react-query-devtools": "^4.3.5",
         "@testing-library/jest-dom": "^5.16.5",
         "@testing-library/react": "^12.1.4",
         "@testing-library/react-hooks": "^8.0.1",

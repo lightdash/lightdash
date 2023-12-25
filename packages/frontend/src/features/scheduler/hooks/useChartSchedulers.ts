@@ -3,7 +3,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerAndTargets,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 

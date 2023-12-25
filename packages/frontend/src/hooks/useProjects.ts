@@ -4,9 +4,8 @@ import {
     useQuery,
     useQueryClient,
     UseQueryOptions,
-} from 'react-query';
+} from '@tanstack/react-query';
 import { lightdashApi } from '../api';
-import { UseQueryFetchOptions } from '../types/UseQuery';
 import { useOrganization } from './organization/useOrganization';
 import useToaster from './toaster/useToaster';
 
@@ -27,16 +26,16 @@ export const useProjects = (
     });
 };
 
-export const useDefaultProject = (
-    useQueryFetchOptions?: UseQueryFetchOptions,
-): {
+export const useDefaultProject = (useQueryOptions?: {
+    refetchOnMount: boolean;
+}): {
     isLoading: boolean;
     data: OrganizationProject | undefined;
 } => {
     const { isLoading: isOrganizationLoading, data: org } =
-        useOrganization(useQueryFetchOptions);
+        useOrganization(useQueryOptions);
     const { isLoading: isLoadingProjects, data: projects = [] } =
-        useProjects(useQueryFetchOptions);
+        useProjects(useQueryOptions);
 
     const defaultProject = projects?.find(
         (project) => project.projectUuid === org?.defaultProjectUuid,
@@ -65,7 +64,7 @@ export const useDeleteProjectMutation = () => {
     return useMutation<undefined, ApiError, string>(deleteProjectQuery, {
         mutationKey: ['organization_project_delete'],
         onSuccess: async () => {
-            await queryClient.invalidateQueries('projects');
+            await queryClient.invalidateQueries(['projects']);
             showToastSuccess({
                 title: `Deleted! Project was deleted.`,
             });

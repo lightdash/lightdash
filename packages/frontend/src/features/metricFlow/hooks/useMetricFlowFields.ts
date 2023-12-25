@@ -1,7 +1,6 @@
 import { ApiError } from '@lightdash/common';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import uniqWith from 'lodash/uniqWith';
-import { useQuery } from 'react-query';
-import { UseQueryOptions } from 'react-query/types/react/types';
 import {
     getMetricFlowFields,
     GetMetricFlowFieldsResponse,

@@ -1,6 +1,7 @@
 import { ApiError, Job, JobStatusType, JobType } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import { IconArrowRight } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     createContext,
     Dispatch,
@@ -11,7 +12,6 @@ import {
     useEffect,
     useState,
 } from 'react';
-import { useQueryClient } from 'react-query';
 import useToaster from '../hooks/toaster/useToaster';
 import {
     jobStatusLabel,
@@ -111,7 +111,7 @@ export const ActiveJobProvider: FC<React.PropsWithChildren> = ({
             activeJob &&
             activeJob.jobStatus === JobStatusType.DONE
         ) {
-            queryClient.refetchQueries('user'); // a new project level permission might be added to the user
+            queryClient.refetchQueries(['user']); // a new project level permission might be added to the user
         }
     }, [activeJob, activeJobId, toastJobStatus, isJobsDrawerOpen, queryClient]);
 

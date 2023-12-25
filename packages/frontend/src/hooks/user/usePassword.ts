@@ -1,5 +1,9 @@
 import { ApiError } from '@lightdash/common';
-import { useMutation, UseMutationOptions, useQuery } from 'react-query';
+import {
+    useMutation,
+    UseMutationOptions,
+    useQuery,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 
 const getUserHasPassword = async (): Promise<boolean> =>
@@ -11,7 +15,7 @@ const getUserHasPassword = async (): Promise<boolean> =>
 
 export const useUserHasPassword = () =>
     useQuery<boolean, ApiError>({
-        queryKey: 'user-has-password',
+        queryKey: ['user-has-password'],
         queryFn: getUserHasPassword,
     });
 

@@ -1,5 +1,5 @@
 import { ApiError, TablesConfiguration } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -38,7 +38,7 @@ export const useUpdateProjectTablesConfiguration = (projectUuid: string) => {
         {
             mutationKey: ['tables_configuration_update', projectUuid],
             onSuccess: async (data) => {
-                await queryClient.invalidateQueries('tables');
+                await queryClient.invalidateQueries(['tables']);
                 queryClient.setQueryData(
                     ['tables_configuration_update', projectUuid],
                     data,

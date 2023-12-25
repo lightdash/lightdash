@@ -3,7 +3,7 @@ import {
     CreateUserAttribute,
     UserAttribute,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -103,7 +103,7 @@ export const useUserAttributesDeleteMutation = () => {
     return useMutation<undefined, ApiError, string>(deleteUserAttributes, {
         mutationKey: ['delete_user_attributes'],
         onSuccess: async () => {
-            await queryClient.invalidateQueries('user_attributes');
+            await queryClient.invalidateQueries(['user_attributes']);
             showToastSuccess({
                 title: `Success! user attribute was deleted.`,
             });

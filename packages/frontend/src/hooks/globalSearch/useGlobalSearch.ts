@@ -1,5 +1,5 @@
 import { ApiError, SearchResults } from '@lightdash/common';
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 
 export const GLOBAL_SEARCH_MIN_QUERY_LENGTH = 3;

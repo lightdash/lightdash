@@ -20,8 +20,8 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { useMutation } from '@tanstack/react-query';
 import { FC, useEffect } from 'react';
-import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 
 import { z } from 'zod';

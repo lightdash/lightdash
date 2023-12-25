@@ -8,7 +8,7 @@ import {
     useQuery,
     useQueryClient,
     UseQueryOptions,
-} from 'react-query';
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
@@ -94,13 +94,13 @@ export const useUpdateMultipleDashboard = (projectUuid: string) => {
             onSuccess: async (_, variables) => {
                 await queryClient.invalidateQueries(['space', projectUuid]);
 
-                await queryClient.invalidateQueries('dashboards');
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries(['dashboards']);
+                await queryClient.invalidateQueries([
                     'dashboards-containing-chart',
-                );
-                await queryClient.invalidateQueries(
+                ]);
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
 
                 const invalidateQueries = variables.map((dashboard) => [
                     'saved_dashboard_query',

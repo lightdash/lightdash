@@ -1,17 +1,18 @@
-import { useEffect } from 'react';
 import {
     QueryClient,
     useMutation,
     useQuery,
     useQueryClient,
-} from 'react-query';
+} from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { UseQueryFetchOptions } from '../types/UseQuery';
 import { useDefaultProject, useProjects } from './useProjects';
 
 const LAST_PROJECT_KEY = 'lastProject';
 
-export const useActiveProject = () => {
+export const useActiveProject = (useQueryFetchOptions?: {
+    refetchOnMount: boolean;
+}) => {
     return useQuery<string | undefined>(
         ['activeProject'],
         () =>
@@ -23,6 +24,7 @@ export const useActiveProject = () => {
             refetchOnWindowFocus: false,
             refetchOnMount: false,
             refetchOnReconnect: false,
+            ...useQueryFetchOptions,
         },
     );
 };
@@ -59,16 +61,16 @@ export const useDeleteActiveProjectMutation = () => {
     });
 };
 
-export const useActiveProjectUuid = (
-    useQueryFetchOptions?: UseQueryFetchOptions,
-) => {
+export const useActiveProjectUuid = (useQueryFetchOptions?: {
+    refetchOnMount: boolean;
+}) => {
     const params = useParams<{ projectUuid?: string }>();
     const { data: projects, isLoading: isLoadingProjects } =
         useProjects(useQueryFetchOptions);
     const { data: defaultProject, isLoading: isLoadingDefaultProject } =
         useDefaultProject(useQueryFetchOptions);
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
-        useActiveProject();
+        useActiveProject(useQueryFetchOptions);
     const { mutate } = useUpdateActiveProjectMutation();
 
     const isLoading =

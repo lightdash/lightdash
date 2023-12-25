@@ -1,5 +1,5 @@
 import { ApiError, CreateOrganization } from '@lightdash/common';
-import { useMutation, useQueryClient } from 'react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 
 const createOrgQuery = async (data: CreateOrganization) =>

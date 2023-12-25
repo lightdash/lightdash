@@ -9,7 +9,7 @@ import {
     useQuery,
     useQueryClient,
     UseQueryOptions,
-} from 'react-query';
+} from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -63,7 +63,7 @@ export const useCreateAccessToken = () => {
         mutationKey: ['personal_access_tokens'],
         retry: 3,
         onSuccess: async () => {
-            await queryClient.invalidateQueries('personal_access_tokens');
+            await queryClient.invalidateQueries(['personal_access_tokens']);
         },
         onError: (error) => {
             showToastError({
@@ -80,7 +80,7 @@ export const useDeleteAccessToken = () => {
     return useMutation<undefined, ApiError, string>(deleteAccessToken, {
         mutationKey: ['personal_access_tokens'],
         onSuccess: async () => {
-            await queryClient.invalidateQueries('personal_access_tokens');
+            await queryClient.invalidateQueries(['personal_access_tokens']);
             showToastSuccess({
                 title: `Success! Your token was deleted.`,
             });

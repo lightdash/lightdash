@@ -8,8 +8,8 @@ import {
     MetricQuery,
     SortField,
 } from '@lightdash/common';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useDashboardContext } from '../providers/DashboardProvider';
