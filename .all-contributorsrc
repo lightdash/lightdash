@@ -1276,6 +1276,15 @@
         "code",
         "bug"
       ]
+    },
+    {
+      "login": "jogeshwar01",
+      "name": "Jogeshwar Singh",
+      "avatar_url": "https://avatars.githubusercontent.com/u/85165953?v=4",
+      "profile": "https://github.com/jogeshwar01",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
