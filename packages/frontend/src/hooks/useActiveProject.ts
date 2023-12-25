@@ -10,9 +10,7 @@ import { useDefaultProject, useProjects } from './useProjects';
 
 const LAST_PROJECT_KEY = 'lastProject';
 
-export const useActiveProject = (useQueryFetchOptions?: {
-    refetchOnMount: boolean;
-}) => {
+export const useActiveProject = () => {
     return useQuery<string | undefined>(
         ['activeProject'],
         () =>
@@ -24,7 +22,6 @@ export const useActiveProject = (useQueryFetchOptions?: {
             refetchOnWindowFocus: false,
             refetchOnMount: false,
             refetchOnReconnect: false,
-            ...useQueryFetchOptions,
         },
     );
 };
@@ -70,7 +67,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     const { data: defaultProject, isLoading: isLoadingDefaultProject } =
         useDefaultProject(useQueryFetchOptions);
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
-        useActiveProject(useQueryFetchOptions);
+        useActiveProject();
     const { mutate } = useUpdateActiveProjectMutation();
 
     const isLoading =
