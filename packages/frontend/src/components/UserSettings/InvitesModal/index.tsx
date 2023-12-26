@@ -73,7 +73,10 @@ const InvitesModal: FC<{
                         handleSubmit(values),
                     )}
                 >
-                    <Group align="flex-end" spacing="xs">
+                    <Group
+                        spacing="xs"
+                        align={form.errors.email ? 'center' : 'end'}
+                    >
                         <TextInput
                             name="email"
                             label="Enter user email address"
@@ -83,7 +86,10 @@ const InvitesModal: FC<{
                             w="43%"
                             {...form.getInputProps('email')}
                         />
-                        <Group spacing="xs">
+                        <Group
+                            spacing="xs"
+                            align={form.errors.email ? 'center' : 'end'}
+                        >
                             {user.data?.ability?.can(
                                 'manage',
                                 'Organization',
