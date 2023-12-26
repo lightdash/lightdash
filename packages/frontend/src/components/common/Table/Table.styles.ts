@@ -82,20 +82,8 @@ export const Table = styled.table<{ $showFooter: boolean }>`
         box-shadow: inset 1px 1px 0 0 rgba(17, 20, 24, 0.15);
     }
 
-    tbody tr:nth-child(odd) td {
-        background: rgba(143, 153, 168, 0.15);
-    }
-
     th:not(:first-child) {
         box-shadow: inset 1px 0 0 0 rgba(17, 20, 24, 0.15);
-    }
-
-    tbody tr:hover td {
-        background-color: rgba(143, 153, 168, 0.3);
-        cursor: pointer;
-    }
-    tbody tr:active td {
-        background-color: rgba(143, 153, 168, 0.35);
     }
 
     /* FIXME: everything above this line is copied from blueprint's table css */
@@ -184,7 +172,10 @@ export const Tr = styled.tr<{
             : ''}
 
     :hover {
-        background-color: ${DEFAULT_THEME.colors.gray[1]} !important;
+        background-color: ${transparentize(
+            0.3,
+            DEFAULT_THEME.colors.gray[1],
+        )} !important;
     }
 
     :hover td {
@@ -240,7 +231,7 @@ export const Td = styled.td<{
                 background-color: ${$backgroundColor} !important;
             `
             : `
-                background-color: white;
+                background-color: transparent;
             `}
 
     ${({ $fontColor }) =>

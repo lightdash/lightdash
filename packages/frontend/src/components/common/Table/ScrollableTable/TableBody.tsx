@@ -51,6 +51,7 @@ const TableRow: FC<TableRowProps> = ({
     conditionalFormattings,
     minimal = false,
 }) => {
+    console.log(index);
     return (
         <Tr $index={index}>
             {row.getVisibleCells().map((cell) => {
