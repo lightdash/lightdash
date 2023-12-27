@@ -1,3 +1,4 @@
+import { ConnectMethod } from '@lightdash/common';
 import { Avatar, Button, Stack, Text } from '@mantine/core';
 import {
     IconChecklist,
@@ -6,7 +7,6 @@ import {
     IconTerminal,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { ConnectMethod } from '../../../pages/CreateProject';
 import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';

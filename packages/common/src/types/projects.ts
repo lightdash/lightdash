@@ -7,6 +7,11 @@ export enum ProjectType {
     PREVIEW = 'PREVIEW',
 }
 
+export enum ConnectMethod {
+    CLI = 'cli',
+    MANUAL = 'manual',
+}
+
 export enum DbtProjectType {
     DBT = 'dbt',
     DBT_CLOUD_IDE = 'dbt_cloud_ide',

@@ -1,3 +1,4 @@
+import { ConnectMethod } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
@@ -15,11 +16,6 @@ import { ProjectFormProvider } from '../components/ProjectConnection/ProjectForm
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useSearchParams from '../hooks/useSearchParams';
 import { useApp } from '../providers/AppProvider/useApp';
-
-export enum ConnectMethod {
-    CLI = 'cli',
-    MANUAL = 'manual',
-}
 
 const CreateProject: FC = () => {
     const history = useHistory();
