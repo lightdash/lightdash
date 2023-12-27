@@ -16,16 +16,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     unzip \
     wget \
-    && apt-get clean
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install security updates
 RUN echo "deb http://deb.debian.org/debian bullseye-backports main" >> /etc/apt/sources.list.d/backports.list
 RUN apt-get update && apt-get -t bullseye-backports install -y \
-    libcurl3-gnutls=7.88.1-10+deb12u3~bpo11+1
+    libcurl3-gnutls=7.88.1-10+deb12u3~bpo11+1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN echo "deb http://deb.debian.org/debian bookworm main" >> /etc/apt/sources.list.d/backports.list
 RUN apt-get update && apt-get install -y  \
-    zlib1g=1:1.2.13.dfsg-1
+    zlib1g=1:1.2.13.dfsg-1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
@@ -142,7 +147,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-psycopg2 \
     python3-venv \
-    && apt-get clean
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=prod-builder  /usr/local/dbt1.4 /usr/local/dbt1.4
 COPY --from=prod-builder  /usr/local/dbt1.5 /usr/local/dbt1.5
