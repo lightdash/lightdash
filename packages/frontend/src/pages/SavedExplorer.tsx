@@ -1,6 +1,5 @@
-import { useParams } from 'react-router-dom';
-
 import { useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -9,10 +8,8 @@ import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import {
-    ExplorerProvider,
-    ExplorerSection,
-} from '../providers/ExplorerProvider';
+import { ExplorerProvider } from '../providers/ExplorerProvider';
+import { ExplorerSection } from '../providers/ExplorerProvider/types';
 
 const SavedExplorer = () => {
     const { savedQueryUuid, mode } = useParams<{

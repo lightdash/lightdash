@@ -10,8 +10,8 @@ import {
     Metric,
 } from '@lightdash/common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';
+import { useExplorerContext } from '../providers/ExplorerProvider/useExplorerContext';
 
 const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
     fields,

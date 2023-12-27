@@ -6,7 +6,7 @@ import {
     DraggableProvidedDraggableProps,
     DraggableProvidedDragHandleProps,
 } from 'react-beautiful-dnd';
-import { ExplorerContext } from '../../providers/ExplorerProvider';
+import { ExplorerContext } from '../../providers/ExplorerProvider/types';
 import {
     getSortDirectionOrder,
     getSortLabel,

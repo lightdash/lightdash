@@ -2,7 +2,7 @@ import { Badge, Box, Group, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { FC, memo, useEffect } from 'react';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';

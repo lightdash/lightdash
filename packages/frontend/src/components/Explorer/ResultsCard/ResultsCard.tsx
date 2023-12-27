@@ -10,10 +10,8 @@ import {
 } from '../../../constants';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useApp } from '../../../providers/AppProvider/useApp';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../../../providers/ExplorerProvider';
+import { ExplorerSection } from '../../../providers/ExplorerProvider/types';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import AddColumnButton from '../../AddColumnButton';
 import { Can } from '../../common/Authorization';
 import CollapsableCard from '../../common/CollapsableCard';

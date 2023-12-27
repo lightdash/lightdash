@@ -9,7 +9,7 @@ import {
     useMemo,
     useState,
 } from 'react';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../providers/ExplorerProvider/useExplorerContext';
 
 const VegaLite = lazy(() =>
     import('react-vega').then((module) => ({ default: module.VegaLite })),

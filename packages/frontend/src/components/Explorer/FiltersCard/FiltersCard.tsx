@@ -13,10 +13,8 @@ import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../../../providers/ExplorerProvider';
+import { ExplorerSection } from '../../../providers/ExplorerProvider/types';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard';
 import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabel } from '../../common/Filters/FilterInputs';

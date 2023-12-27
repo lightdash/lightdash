@@ -23,7 +23,7 @@ import { useForm } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
 import { useEffect, useMemo } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import MantineIcon from '../../common/MantineIcon';
 
 // TODO: preview custom dimension results

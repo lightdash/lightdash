@@ -9,8 +9,8 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import {
     ExplorerReduceState,
     ExplorerSection,
-    useExplorerContext,
-} from '../providers/ExplorerProvider';
+} from '../providers/ExplorerProvider/types';
+import { useExplorerContext } from '../providers/ExplorerProvider/useExplorerContext';
 import useToaster from './toaster/useToaster';
 
 export const getExplorerUrlFromCreateSavedChartVersion = (

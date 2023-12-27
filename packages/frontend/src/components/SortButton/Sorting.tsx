@@ -8,7 +8,7 @@ import {
 } from 'react-beautiful-dnd';
 import { Props } from '.';
 import { useColumns } from '../../hooks/useColumns';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../providers/ExplorerProvider/useExplorerContext';
 import SortItem from './SortItem';
 
 const Sorting = forwardRef<HTMLDivElement, Props>(

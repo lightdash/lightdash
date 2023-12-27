@@ -1,7 +1,7 @@
 import { Skeleton, Stack } from '@mantine/core';
 import { FC, memo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 

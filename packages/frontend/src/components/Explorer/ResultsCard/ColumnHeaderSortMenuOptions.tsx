@@ -8,7 +8,7 @@ import {
 import { Menu, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { FC } from 'react';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import {
     getSortDirectionOrder,
     getSortLabel,

@@ -4,7 +4,7 @@ import { IconTelescope } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useApp } from '../../providers/AppProvider/useApp';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../providers/ExplorerProvider/useExplorerContext';
 import MantineIcon from '../common/MantineIcon';
 
 const ExploreFromHereButton = () => {

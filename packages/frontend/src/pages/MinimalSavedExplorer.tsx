@@ -8,11 +8,9 @@ import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useApp } from '../providers/AppProvider/useApp';
-import {
-    ExplorerProvider,
-    ExplorerSection,
-    useExplorerContext,
-} from '../providers/ExplorerProvider';
+import { ExplorerProvider } from '../providers/ExplorerProvider';
+import { ExplorerSection } from '../providers/ExplorerProvider/types';
+import { useExplorerContext } from '../providers/ExplorerProvider/useExplorerContext';
 
 const StyledLightdashVisualization = styled(LightdashVisualization)`
     min-height: inherit;

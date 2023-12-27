@@ -1,6 +1,6 @@
 import { ApiQueryResults, ChartConfig, ChartType } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
-import { getValidChartConfig } from '../../../providers/ExplorerProvider';
+import { getValidChartConfig } from '../../../providers/ExplorerProvider/utils/getValidChartConfig';
 
 const useMetricFlowVisualization = (
     resultsData: ApiQueryResults | undefined,

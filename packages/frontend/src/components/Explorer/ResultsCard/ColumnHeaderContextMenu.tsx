@@ -20,7 +20,7 @@ import {
     UpdateTableCalculationModal,
 } from '../../../features/tableCalculation';
 import { useFilters } from '../../../hooks/useFilters';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';

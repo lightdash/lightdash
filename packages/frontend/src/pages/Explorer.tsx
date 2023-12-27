@@ -16,10 +16,8 @@ import {
 } from '../hooks/useExplorerRoute';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useApp } from '../providers/AppProvider/useApp';
-import {
-    ExplorerProvider,
-    useExplorerContext,
-} from '../providers/ExplorerProvider';
+import { ExplorerProvider } from '../providers/ExplorerProvider';
+import { useExplorerContext } from '../providers/ExplorerProvider/useExplorerContext';
 
 const ExplorerWithUrlParams = memo(() => {
     useExplorerRoute();

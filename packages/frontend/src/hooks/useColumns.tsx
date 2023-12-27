@@ -24,7 +24,7 @@ import {
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
 import { columnHelper, TableColumn } from '../components/common/Table/types';
-import { useExplorerContext } from '../providers/ExplorerProvider';
+import { useExplorerContext } from '../providers/ExplorerProvider/useExplorerContext';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
 

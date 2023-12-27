@@ -1,299 +1,42 @@
 import {
     AdditionalMetric,
     assertUnreachable,
-    BigNumberConfig,
-    CartesianChartConfig,
     ChartConfig,
     ChartType,
-    CreateSavedChartVersion,
     CustomDimension,
-    CustomVisConfig,
     deepEqual,
-    Dimension,
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
     MetricQuery,
-    MetricType,
-    PieChartConfig,
     removeEmptyProperties,
     SavedChart,
     SortField,
     TableCalculation,
-    TableChartConfig,
     toggleArrayValue,
 } from '@lightdash/common';
 import produce from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 import { FC, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { useHistory } from 'react-router-dom';
-import { createContext, useContextSelector } from 'use-context-selector';
-import { EMPTY_CARTESIAN_CHART_CONFIG } from '../hooks/cartesianChartConfig/useCartesianChartConfig';
-import useDefaultSortField from '../hooks/useDefaultSortField';
+import { createContext } from 'use-context-selector';
+import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
     useChartVersionResultsMutation,
     useQueryResults,
-} from '../hooks/useQueryResults';
+} from '../../hooks/useQueryResults';
+import {
+    Action,
+    ActionType,
+    ConfigCacheMap,
+    ExplorerContext,
+    ExplorerReduceState,
+    ExplorerSection,
+} from './types';
+import { getValidChartConfig } from './utils/getValidChartConfig';
 
-export enum ExplorerSection {
-    FILTERS = 'FILTERS',
-    VISUALIZATION = 'VISUALIZATION',
-    CUSTOMVISUALIZATION = 'CUSTOMVISUALIZATION',
-    RESULTS = 'RESULTS',
-    SQL = 'SQL',
-}
-
-interface SwapSortFieldsPayload {
-    sourceIndex: number;
-    destinationIndex: number;
-}
-
-export enum ActionType {
-    RESET,
-    SET_TABLE_NAME,
-    REMOVE_FIELD,
-    TOGGLE_DIMENSION,
-    TOGGLE_METRIC,
-    TOGGLE_SORT_FIELD,
-    SET_SORT_FIELDS,
-    ADD_SORT_FIELD,
-    REMOVE_SORT_FIELD,
-    MOVE_SORT_FIELDS,
-    SET_ROW_LIMIT,
-    SET_FILTERS,
-    SET_COLUMN_ORDER,
-    ADD_TABLE_CALCULATION,
-    UPDATE_TABLE_CALCULATION,
-    DELETE_TABLE_CALCULATION,
-    SET_FETCH_RESULTS_FALSE,
-    SET_PREVIOUSLY_FETCHED_STATE,
-    ADD_ADDITIONAL_METRIC,
-    EDIT_ADDITIONAL_METRIC,
-    REMOVE_ADDITIONAL_METRIC,
-    TOGGLE_ADDITIONAL_METRIC_MODAL,
-    SET_PIVOT_FIELDS,
-    SET_CHART_TYPE,
-    SET_CHART_CONFIG,
-    TOGGLE_EXPANDED_SECTION,
-    ADD_CUSTOM_DIMENSION,
-    EDIT_CUSTOM_DIMENSION,
-    REMOVE_CUSTOM_DIMENSION,
-    TOGGLE_CUSTOM_DIMENSION_MODAL,
-}
-
-type Action =
-    | { type: ActionType.RESET; payload: ExplorerReduceState }
-    | { type: ActionType.SET_FETCH_RESULTS_FALSE }
-    | {
-          type: ActionType.SET_PREVIOUSLY_FETCHED_STATE;
-          payload: MetricQuery;
-      }
-    | { type: ActionType.SET_TABLE_NAME; payload: string }
-    | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
-    | {
-          type:
-              | ActionType.REMOVE_FIELD
-              | ActionType.TOGGLE_DIMENSION
-              | ActionType.TOGGLE_METRIC
-              | ActionType.TOGGLE_SORT_FIELD;
-          payload: FieldId;
-      }
-    | {
-          type: ActionType.SET_SORT_FIELDS;
-          payload: SortField[];
-      }
-    | {
-          type: ActionType.ADD_SORT_FIELD;
-          payload: SortField;
-      }
-    | {
-          type: ActionType.REMOVE_SORT_FIELD;
-          payload: FieldId;
-      }
-    | {
-          type: ActionType.MOVE_SORT_FIELDS;
-          payload: SwapSortFieldsPayload;
-      }
-    | {
-          type: ActionType.SET_ROW_LIMIT;
-          payload: number;
-      }
-    | {
-          type: ActionType.SET_FILTERS;
-          payload: MetricQuery['filters'];
-      }
-    | {
-          type: ActionType.ADD_TABLE_CALCULATION;
-          payload: TableCalculation;
-      }
-    | {
-          type: ActionType.UPDATE_TABLE_CALCULATION;
-          payload: { oldName: string; tableCalculation: TableCalculation };
-      }
-    | {
-          type: ActionType.DELETE_TABLE_CALCULATION;
-          payload: string;
-      }
-    | {
-          type: ActionType.SET_COLUMN_ORDER;
-          payload: string[];
-      }
-    | {
-          type: ActionType.ADD_ADDITIONAL_METRIC;
-          payload: AdditionalMetric;
-      }
-    | {
-          type: ActionType.EDIT_ADDITIONAL_METRIC;
-          payload: {
-              additionalMetric: AdditionalMetric;
-              previousAdditionalMetricName: string;
-          };
-      }
-    | {
-          type: ActionType.REMOVE_ADDITIONAL_METRIC;
-          payload: FieldId;
-      }
-    | {
-          type: ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL;
-          payload?: Omit<
-              ExplorerReduceState['modals']['additionalMetric'],
-              'isOpen'
-          >;
-      }
-    | {
-          type: ActionType.SET_PIVOT_FIELDS;
-          payload: FieldId[];
-      }
-    | {
-          type: ActionType.SET_CHART_TYPE;
-          payload: {
-              chartType: ChartType;
-              cachedConfigs: Partial<ConfigCacheMap>;
-          };
-      }
-    | {
-          type: ActionType.SET_CHART_CONFIG;
-          payload: {
-              chartConfig: ChartConfig;
-              cachedConfigs: Partial<ConfigCacheMap>;
-          };
-      }
-    | {
-          type: ActionType.ADD_CUSTOM_DIMENSION;
-          payload: CustomDimension;
-      }
-    | {
-          type: ActionType.EDIT_CUSTOM_DIMENSION;
-          payload: {
-              customDimension: CustomDimension;
-              previousCustomDimensionName: string;
-          };
-      }
-    | {
-          type: ActionType.REMOVE_CUSTOM_DIMENSION;
-          payload: FieldId;
-      }
-    | {
-          type: ActionType.TOGGLE_CUSTOM_DIMENSION_MODAL;
-          payload?: Omit<
-              ExplorerReduceState['modals']['customDimension'],
-              'isOpen'
-          >;
-      };
-
-export interface ExplorerReduceState {
-    shouldFetchResults: boolean;
-    expandedSections: ExplorerSection[];
-    unsavedChartVersion: CreateSavedChartVersion;
-    previouslyFetchedState?: MetricQuery;
-    modals: {
-        additionalMetric: {
-            isOpen: boolean;
-            isEditing?: boolean;
-            item?: Dimension | AdditionalMetric;
-            type?: MetricType;
-        };
-        customDimension: {
-            isOpen: boolean;
-            isEditing?: boolean;
-            item?: Dimension | CustomDimension;
-        };
-    };
-}
-
-export interface ExplorerState extends ExplorerReduceState {
-    activeFields: Set<FieldId>;
-    isValidQuery: boolean;
-    hasUnsavedChanges: boolean;
-    isEditMode: boolean;
-    savedChart: SavedChart | undefined;
-}
-
-export interface ExplorerContext {
-    state: ExplorerState;
-    queryResults: ReturnType<
-        typeof useQueryResults | typeof useChartVersionResultsMutation
-    >;
-    actions: {
-        clearExplore: () => void;
-        clearQuery: () => void;
-        reset: () => void;
-        setTableName: (tableName: string) => void;
-        removeActiveField: (fieldId: FieldId) => void;
-        toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
-        toggleSortField: (fieldId: FieldId) => void;
-        setSortFields: (sortFields: SortField[]) => void;
-        addSortField: (
-            fieldId: FieldId,
-            options?: { descending: boolean },
-        ) => void;
-        removeSortField: (fieldId: FieldId) => void;
-        moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
-        setRowLimit: (limit: number) => void;
-        setFilters: (
-            filters: MetricQuery['filters'],
-            syncPristineState: boolean,
-        ) => void;
-        addAdditionalMetric: (metric: AdditionalMetric) => void;
-        editAdditionalMetric: (
-            metric: AdditionalMetric,
-            previousMetricName: string,
-        ) => void;
-        removeAdditionalMetric: (key: FieldId) => void;
-        toggleAdditionalMetricModal: (
-            additionalMetricModalData?: Omit<
-                ExplorerReduceState['modals']['additionalMetric'],
-                'isOpen'
-            >,
-        ) => void;
-        setColumnOrder: (order: string[]) => void;
-        addTableCalculation: (tableCalculation: TableCalculation) => void;
-        updateTableCalculation: (
-            oldName: string,
-            tableCalculation: TableCalculation,
-        ) => void;
-        deleteTableCalculation: (name: string) => void;
-        setPivotFields: (fields: FieldId[] | undefined) => void;
-        setChartType: (chartType: ChartType) => void;
-        setChartConfig: (chartConfig: ChartConfig) => void;
-        fetchResults: () => void;
-        toggleExpandedSection: (section: ExplorerSection) => void;
-        addCustomDimension: (customDimension: CustomDimension) => void;
-        editCustomDimension: (
-            customDimension: CustomDimension,
-            previousCustomDimensionName: string,
-        ) => void;
-        removeCustomDimension: (key: FieldId) => void;
-        toggleCustomDimensionModal: (
-            additionalMetricModalData?: Omit<
-                ExplorerReduceState['modals']['customDimension'],
-                'isOpen'
-            >,
-        ) => void;
-    };
-}
-
-const Context = createContext<ExplorerContext | undefined>(undefined);
+export const Context = createContext<ExplorerContext | undefined>(undefined);
 
 const defaultState: ExplorerReduceState = {
     shouldFetchResults: false,
@@ -328,85 +71,6 @@ const defaultState: ExplorerReduceState = {
             isOpen: false,
         },
     },
-};
-
-export const getValidChartConfig = (
-    chartType: ChartType,
-    chartConfig: ChartConfig | undefined,
-    cachedConfigs?: Partial<ConfigCacheMap>,
-): ChartConfig => {
-    switch (chartType) {
-        case ChartType.CARTESIAN: {
-            const cachedConfig = cachedConfigs?.[chartType];
-
-            return {
-                type: chartType,
-                config:
-                    chartConfig && chartConfig.type === ChartType.CARTESIAN
-                        ? chartConfig.config
-                        : cachedConfig
-                        ? cachedConfig
-                        : EMPTY_CARTESIAN_CHART_CONFIG,
-            };
-        }
-        case ChartType.BIG_NUMBER: {
-            const cachedConfig = cachedConfigs?.[chartType];
-
-            return {
-                type: chartType,
-                config:
-                    chartConfig && chartConfig.type === ChartType.BIG_NUMBER
-                        ? chartConfig.config
-                        : cachedConfig
-                        ? cachedConfig
-                        : {},
-            };
-        }
-        case ChartType.TABLE: {
-            const cachedConfig = cachedConfigs?.[chartType];
-
-            return {
-                type: chartType,
-                config:
-                    chartConfig && chartConfig.type === ChartType.TABLE
-                        ? chartConfig.config
-                        : cachedConfig
-                        ? cachedConfig
-                        : {},
-            };
-        }
-        case ChartType.PIE: {
-            const cachedConfig = cachedConfigs?.[chartType];
-
-            return {
-                type: chartType,
-                config:
-                    chartConfig && chartConfig.type === ChartType.PIE
-                        ? chartConfig.config
-                        : cachedConfig
-                        ? cachedConfig
-                        : {},
-            };
-        }
-        case ChartType.CUSTOM: {
-            const cachedConfig = cachedConfigs?.[chartType];
-
-            return {
-                type: chartType,
-                config:
-                    chartConfig && chartConfig.type === ChartType.CUSTOM
-                        ? chartConfig.config
-                        : cachedConfig
-                        ? cachedConfig
-                        : {},
-            };
-        }
-        default:
-            return assertUnreachable(
-                chartType,
-                `Invalid chart type ${chartType}`,
-            );
-    }
 };
 
 const calcColumnOrder = (
@@ -1123,14 +787,6 @@ function reducer(
     }
 }
 
-type ConfigCacheMap = {
-    [ChartType.PIE]: PieChartConfig['config'];
-    [ChartType.BIG_NUMBER]: BigNumberConfig['config'];
-    [ChartType.TABLE]: TableChartConfig['config'];
-    [ChartType.CARTESIAN]: CartesianChartConfig['config'];
-    [ChartType.CUSTOM]: CustomVisConfig['config'];
-};
-
 export const ExplorerProvider: FC<{
     isEditMode?: boolean;
     initialState?: ExplorerReduceState;
@@ -1679,16 +1335,3 @@ export const ExplorerProvider: FC<{
     );
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
-
-export function useExplorerContext<Selected>(
-    selector: (value: ExplorerContext) => Selected,
-) {
-    return useContextSelector(Context, (context) => {
-        if (context === undefined) {
-            throw new Error(
-                'useExplorer must be used within a ExplorerProvider',
-            );
-        }
-        return selector(context);
-    });
-}

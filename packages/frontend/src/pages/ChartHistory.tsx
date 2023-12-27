@@ -38,10 +38,8 @@ import {
     useChartVersionRollbackMutation,
 } from '../hooks/useSavedQuery';
 import { useApp } from '../providers/AppProvider/useApp';
-import {
-    ExplorerProvider,
-    ExplorerSection,
-} from '../providers/ExplorerProvider';
+import { ExplorerProvider } from '../providers/ExplorerProvider';
+import { ExplorerSection } from '../providers/ExplorerProvider/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
 const ChartHistory = () => {

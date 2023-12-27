@@ -1,3 +1,4 @@
+import { SummaryExplore } from '@lightdash/common';
 import { ActionIcon, Skeleton, Stack, TextInput } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -8,10 +9,8 @@ import {
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-
-import { SummaryExplore } from '@lightdash/common';
 import { useExplores } from '../../../hooks/useExplores';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';

@@ -15,7 +15,7 @@ import {
     SupportedDbtAdapter,
 } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
-import { getValidChartConfig } from '../providers/ExplorerProvider';
+import { getValidChartConfig } from '../providers/ExplorerProvider/utils/getValidChartConfig';
 import { useSqlQueryMutation } from './useSqlQuery';
 import { SqlRunnerState } from './useSqlRunnerRoute';
 

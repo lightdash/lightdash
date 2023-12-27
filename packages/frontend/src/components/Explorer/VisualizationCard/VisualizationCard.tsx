@@ -12,10 +12,8 @@ import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
 import { useApp } from '../../../providers/AppProvider/useApp';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../../../providers/ExplorerProvider';
+import { ExplorerSection } from '../../../providers/ExplorerProvider/types';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import { ChartDownloadMenu } from '../../ChartDownload';
 import CollapsableCard from '../../common/CollapsableCard';
 import LightdashVisualization from '../../LightdashVisualization';

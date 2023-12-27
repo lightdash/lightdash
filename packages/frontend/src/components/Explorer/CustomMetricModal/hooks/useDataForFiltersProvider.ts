@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../../hooks/useExplore';
 import { useProject } from '../../../../hooks/useProject';
-import { useExplorerContext } from '../../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../../providers/ExplorerProvider/useExplorerContext';
 import { useFieldsWithSuggestions } from '../../FiltersCard/useFieldsWithSuggestions';
 
 export const useDataForFiltersProvider = () => {

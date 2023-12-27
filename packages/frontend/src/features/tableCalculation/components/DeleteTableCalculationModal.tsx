@@ -9,7 +9,7 @@ import {
     Title,
 } from '@mantine/core';
 import { FC } from 'react';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 

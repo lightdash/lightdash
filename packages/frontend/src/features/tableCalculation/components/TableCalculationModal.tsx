@@ -22,7 +22,7 @@ import { FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatForm } from './FormatForm';
 import { SqlForm } from './SqlForm';

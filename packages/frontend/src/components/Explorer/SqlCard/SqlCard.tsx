@@ -1,10 +1,8 @@
 import { subject } from '@casl/ability';
 import { FC, memo } from 'react';
 import { useApp } from '../../../providers/AppProvider/useApp';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../../../providers/ExplorerProvider';
+import { ExplorerSection } from '../../../providers/ExplorerProvider/types';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import { Can } from '../../common/Authorization';
 import CollapsableCard from '../../common/CollapsableCard';
 import { RenderedSql } from '../../RenderedSql';

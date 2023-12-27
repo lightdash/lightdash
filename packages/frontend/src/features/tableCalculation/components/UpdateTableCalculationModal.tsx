@@ -1,7 +1,7 @@
 import { TableCalculation } from '@lightdash/common';
 import { ModalProps } from '@mantine/core';
 import { FC } from 'react';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import TableCalculationModal from './TableCalculationModal';

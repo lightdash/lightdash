@@ -6,7 +6,7 @@ import {
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useExplorerContext } from '../providers/ExplorerProvider';
+import { useExplorerContext } from '../providers/ExplorerProvider/useExplorerContext';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 

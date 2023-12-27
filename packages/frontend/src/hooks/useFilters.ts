@@ -6,10 +6,8 @@ import {
     getTotalFilterRules,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../providers/ExplorerProvider';
+import { ExplorerSection } from '../providers/ExplorerProvider/types';
+import { useExplorerContext } from '../providers/ExplorerProvider/useExplorerContext';
 
 export const useFilters = () => {
     const expandedSections = useExplorerContext(
