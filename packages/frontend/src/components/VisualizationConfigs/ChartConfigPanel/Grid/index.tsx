@@ -3,7 +3,7 @@ import startCase from 'lodash/startCase';
 import { FC } from 'react';
 import { defaultGrid } from '../../../../constants';
 import UnitInput from '../../../common/UnitInput';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
 const POSITIONS = ['left', 'right', 'top', 'bottom'] as const;

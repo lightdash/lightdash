@@ -8,7 +8,7 @@ import {
 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {

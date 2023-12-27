@@ -10,22 +10,13 @@ import {
 } from '@lightdash/common';
 import { FC, useEffect, useMemo } from 'react';
 import usePieChartConfig from '../../hooks/usePieChartConfig';
-import {
-    VisualizationConfig,
-    VisualizationConfigCommon,
-} from './VisualizationProvider';
+import { VisualizationConfigCommon } from './VisualizationProvider';
 
 export type VisualizationConfigPie = {
     chartType: ChartType.PIE;
     chartConfig: ReturnType<typeof usePieChartConfig>;
     dimensions: Record<string, CustomDimension | Dimension>;
     numericMetrics: Record<string, Metric>;
-};
-
-export const isPieVisualizationConfig = (
-    visualizationConfig: VisualizationConfig | undefined,
-): visualizationConfig is VisualizationConfigPie => {
-    return visualizationConfig?.chartType === ChartType.PIE;
 };
 
 type VisualizationConfigPieProps =

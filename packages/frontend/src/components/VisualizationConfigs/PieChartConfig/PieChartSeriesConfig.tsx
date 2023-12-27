@@ -30,7 +30,7 @@ import {
     DropResult,
 } from 'react-beautiful-dnd';
 import MantineIcon from '../../common/MantineIcon';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
+import { isPieVisualizationConfig } from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../ColorSelector';
 

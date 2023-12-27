@@ -25,11 +25,13 @@ import {
 } from '../../../constants';
 import { useApp } from '../../../providers/AppProvider/useApp';
 import MantineIcon from '../../common/MantineIcon';
-import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
-import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
-import { isCustomVisualizationConfig } from '../../LightdashVisualization/VisualizationCustomConfigProps';
+import {
+    isBigNumberVisualizationConfig,
+    isCartesianVisualizationConfig,
+    isCustomVisualizationConfig,
+    isPieVisualizationConfig,
+    isTableVisualizationConfig,
+} from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = memo(() => {

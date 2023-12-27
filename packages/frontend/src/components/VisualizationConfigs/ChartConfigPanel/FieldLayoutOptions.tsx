@@ -24,7 +24,7 @@ import { MAX_PIVOTS } from '../../../constants';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
-import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
+import { isCartesianVisualizationConfig } from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 type Props = {

@@ -19,7 +19,7 @@ import {
 } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';

@@ -36,7 +36,7 @@ import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPic
 import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
 type Props = {

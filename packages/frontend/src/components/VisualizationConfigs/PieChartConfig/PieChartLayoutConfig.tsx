@@ -12,7 +12,7 @@ import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
+import { isPieVisualizationConfig } from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const PieChartLayoutConfig: React.FC = () => {

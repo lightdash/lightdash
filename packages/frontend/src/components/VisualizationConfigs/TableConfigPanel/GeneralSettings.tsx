@@ -4,7 +4,7 @@ import { FC, useCallback, useMemo, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { MAX_PIVOTS } from '../../../constants';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
 import DroppableItemsList from './DroppableItemsList';

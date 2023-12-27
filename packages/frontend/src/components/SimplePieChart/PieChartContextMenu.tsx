@@ -11,7 +11,7 @@ import { useApp } from '../../providers/AppProvider/useApp';
 import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
-import { isPieVisualizationConfig } from '../LightdashVisualization/VisualizationConfigPie';
+import { isPieVisualizationConfig } from '../LightdashVisualization/utils';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 

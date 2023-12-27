@@ -19,9 +19,11 @@ import { useApp } from '../providers/AppProvider/useApp';
 import { Can } from './common/Authorization';
 import MantineIcon from './common/MantineIcon';
 import ExportSelector from './ExportSelector';
-import { isBigNumberVisualizationConfig } from './LightdashVisualization/VisualizationBigNumberConfig';
-import { isCartesianVisualizationConfig } from './LightdashVisualization/VisualizationConfigCartesian';
-import { isTableVisualizationConfig } from './LightdashVisualization/VisualizationConfigTable';
+import {
+    isBigNumberVisualizationConfig,
+    isCartesianVisualizationConfig,
+    isTableVisualizationConfig,
+} from './LightdashVisualization/utils';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';

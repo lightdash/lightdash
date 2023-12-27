@@ -5,7 +5,7 @@ import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';
 import { ResultCount } from '../common/Table/TablePagination';
-import { isTableVisualizationConfig } from '../LightdashVisualization/VisualizationConfigTable';
+import { isTableVisualizationConfig } from '../LightdashVisualization/utils';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';

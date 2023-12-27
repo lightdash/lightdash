@@ -16,7 +16,7 @@ import startCase from 'lodash/startCase';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import UnitInput from '../../../common/UnitInput';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { ReferenceLines } from './ReferenceLines';
 

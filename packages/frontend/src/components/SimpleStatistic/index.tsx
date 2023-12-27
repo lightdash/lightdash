@@ -6,7 +6,7 @@ import { FC, HTMLAttributes, useMemo } from 'react';
 import { TILE_HEADER_HEIGHT } from '../../constants';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import MantineIcon from '../common/MantineIcon';
-import { isBigNumberVisualizationConfig } from '../LightdashVisualization/VisualizationBigNumberConfig';
+import { isBigNumberVisualizationConfig } from '../LightdashVisualization/utils';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';

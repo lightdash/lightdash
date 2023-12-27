@@ -17,7 +17,7 @@ import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { memo } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
-import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
+import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const StyleOptions = [

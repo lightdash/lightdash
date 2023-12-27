@@ -3,20 +3,11 @@ import { FC, useEffect } from 'react';
 import useCartesianChartConfig, {
     CartesianTypeOptions,
 } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import {
-    VisualizationConfig,
-    VisualizationConfigCommon,
-} from './VisualizationProvider';
+import { VisualizationConfigCommon } from './VisualizationProvider';
 
 export type VisualizationConfigCartesian = {
     chartType: ChartType.CARTESIAN;
     chartConfig: ReturnType<typeof useCartesianChartConfig>;
-};
-
-export const isCartesianVisualizationConfig = (
-    visualizationConfig: VisualizationConfig | undefined,
-): visualizationConfig is VisualizationConfigCartesian => {
-    return visualizationConfig?.chartType === ChartType.CARTESIAN;
 };
 
 type VisualizationCartesianConfigProps =

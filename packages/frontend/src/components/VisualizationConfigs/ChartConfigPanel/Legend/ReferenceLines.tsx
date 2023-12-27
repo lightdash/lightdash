@@ -15,7 +15,7 @@ import { IconPlus } from '@tabler/icons-react';
 import { useProject } from '../../../../hooks/useProject';
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { ReferenceLine } from './ReferenceLine';
 

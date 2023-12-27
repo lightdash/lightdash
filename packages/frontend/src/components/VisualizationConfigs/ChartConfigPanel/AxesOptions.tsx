@@ -18,7 +18,7 @@ import { FC, useCallback } from 'react';
 import { useToggle } from 'react-use';
 import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
-import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
+import { isCartesianVisualizationConfig } from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 interface MinMaxProps {

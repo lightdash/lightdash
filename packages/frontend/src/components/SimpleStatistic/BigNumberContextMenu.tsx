@@ -12,7 +12,7 @@ import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
-import { isBigNumberVisualizationConfig } from '../LightdashVisualization/VisualizationBigNumberConfig';
+import { isBigNumberVisualizationConfig } from '../LightdashVisualization/utils';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 

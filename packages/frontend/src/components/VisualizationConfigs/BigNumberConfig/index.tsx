@@ -6,7 +6,7 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../../constants';
 import MantineIcon from '../../common/MantineIcon';
-import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
+import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import BigNumberConfigTabs from './BigNumberConfigTabs';
 

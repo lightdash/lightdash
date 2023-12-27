@@ -5,7 +5,7 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../../constants';
 import MantineIcon from '../../common/MantineIcon';
-import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
+import { isCartesianVisualizationConfig } from '../../LightdashVisualization/utils';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ChartConfigTabs from './ChartConfigTabs';
 
