@@ -306,7 +306,7 @@ const UserManagementPanel: FC = () => {
 
             <Tabs defaultValue={'users'}>
                 {groupManagementEnabled && (
-                    <Tabs.List>
+                    <Tabs.List mb="xs">
                         <Tabs.Tab value="users">Users</Tabs.Tab>
                         <Tabs.Tab value="groups">Groups</Tabs.Tab>
                     </Tabs.List>
@@ -315,7 +315,7 @@ const UserManagementPanel: FC = () => {
                     {isLoadingUsers ? (
                         <LoadingState title="Loading users" />
                     ) : (
-                        <Stack spacing="xs" mt="xs">
+                        <Stack spacing="xs">
                             {user.data?.ability?.can(
                                 'create',
                                 'InviteLink',
