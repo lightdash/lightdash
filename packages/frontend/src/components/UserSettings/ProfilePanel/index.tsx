@@ -16,7 +16,7 @@ import {
     useOneTimePassword,
 } from '../../../hooks/useEmailVerification';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import MantineIcon from '../../common/MantineIcon';
 

@@ -11,12 +11,13 @@ import {
 } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
 import { Link, useHistory } from 'react-router-dom';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { Can } from '../common/Authorization';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
-import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
+import SpaceActionModal from '../common/SpaceActionModal';
+import { ActionType } from '../common/SpaceActionModal/types';
 
 type Props = {
     projectUuid: string;

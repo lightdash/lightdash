@@ -36,7 +36,7 @@ import convertMetricFlowQueryResultsToResultsData from '../features/metricFlow/u
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const MOCK_TABLE_NAME = 'metricflow';
 

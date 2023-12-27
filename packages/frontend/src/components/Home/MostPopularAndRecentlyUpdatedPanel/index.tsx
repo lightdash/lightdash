@@ -10,7 +10,7 @@ import { Button } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
 import ResourceView from '../../common/ResourceView';

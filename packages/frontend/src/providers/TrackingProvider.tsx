@@ -18,7 +18,7 @@ import {
     PageType,
     SectionName,
 } from '../types/Events';
-import { useApp } from './AppProvider';
+import { useApp } from './AppProvider/useApp';
 
 type GenericEvent = {
     name:

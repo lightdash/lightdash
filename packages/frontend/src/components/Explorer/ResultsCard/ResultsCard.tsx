@@ -9,7 +9,7 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../../constants';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import {
     ExplorerSection,
     useExplorerContext,

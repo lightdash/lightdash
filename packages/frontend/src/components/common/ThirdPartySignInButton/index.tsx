@@ -6,7 +6,7 @@ import { Button, ButtonProps, Image } from '@mantine/core';
 import { FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 
 type ThirdPartySignInButtonProps = {
     inviteCode?: string;

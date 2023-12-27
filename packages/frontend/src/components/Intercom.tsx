@@ -2,7 +2,7 @@ import { isUserWithOrg, LightdashMode } from '@lightdash/common';
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const LOCATIONS_WITH_INTERCOM = ['/welcome', '/register', '/login', '/invite'];
 

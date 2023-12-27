@@ -20,7 +20,7 @@ import {
     usePasswordResetLink,
     usePasswordResetMutation,
 } from '../hooks/usePasswordReset';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
 type ResetPasswordForm = { password: string };

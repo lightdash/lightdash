@@ -21,7 +21,7 @@ import { useOrganizationCreateMutation } from '../hooks/organization/useOrganiza
 import useAllowedOrganizations from '../hooks/user/useAllowedOrganizations';
 import { useJoinOrganizationMutation } from '../hooks/user/useJoinOrganizationMutation';
 import { useDeleteUserMutation } from '../hooks/user/useUserDeleteMutation';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
 const JoinOrganizationPage: FC = () => {

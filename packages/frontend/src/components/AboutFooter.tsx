@@ -16,7 +16,7 @@ import {
 import { IconBook, IconInfoCircle } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { FOOTER_HEIGHT, FOOTER_MARGIN } from '../constants';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import { TrackPage, TrackSection } from '../providers/TrackingProvider';
 import Logo from '../svgs/grey-icon-logo.svg?react';
 import { PageName, PageType, SectionName } from '../types/Events';

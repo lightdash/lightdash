@@ -3,7 +3,7 @@ import React, { ComponentProps, FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import { useProjects } from '../hooks/useProjects';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import { Can } from './common/Authorization';
 import PageSpinner from './PageSpinner';
 

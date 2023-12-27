@@ -1,7 +1,6 @@
 import { Avatar, AvatarProps, useMantineTheme } from '@mantine/core';
 import { forwardRef } from 'react';
-
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 export const UserAvatar = forwardRef<HTMLDivElement, AvatarProps>(
     (props, ref) => {

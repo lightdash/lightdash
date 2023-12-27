@@ -7,7 +7,7 @@ import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';

@@ -37,7 +37,7 @@ import {
     useChartVersion,
     useChartVersionRollbackMutation,
 } from '../hooks/useSavedQuery';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import {
     ExplorerProvider,
     ExplorerSection,

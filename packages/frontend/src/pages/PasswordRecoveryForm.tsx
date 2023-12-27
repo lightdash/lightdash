@@ -13,7 +13,7 @@ import { useForm } from '@mantine/form';
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
 import { usePasswordResetLinkMutation } from '../hooks/usePasswordReset';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 type RecoverPasswordForm = { email: string };
 

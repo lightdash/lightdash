@@ -1,7 +1,7 @@
 import React, { ComponentProps, FC, useEffect } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useEmailStatus } from '../hooks/useEmailVerification';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import { useAbilityContext } from './common/Authorization';
 import PageSpinner from './PageSpinner';
 

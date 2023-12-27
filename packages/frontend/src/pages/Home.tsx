@@ -20,7 +20,7 @@ import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
 const Home: FC = () => {

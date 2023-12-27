@@ -5,7 +5,7 @@ import { FC } from 'react';
 import { Link } from 'react-router-dom';
 
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { UserAvatar } from '../Avatar';
 import MantineIcon from '../common/MantineIcon';
 

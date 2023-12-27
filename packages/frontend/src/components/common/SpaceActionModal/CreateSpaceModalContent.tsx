@@ -8,7 +8,7 @@ import upperFirst from 'lodash/upperFirst';
 import { FC, useMemo, useState } from 'react';
 import { CreateSpaceModalBody } from '.';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import {
     AccessOption,
     SpaceAccessOptions,

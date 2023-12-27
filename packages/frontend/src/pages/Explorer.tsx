@@ -15,7 +15,7 @@ import {
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
 import { useQueryResults } from '../hooks/useQueryResults';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import {
     ExplorerProvider,
     useExplorerContext,

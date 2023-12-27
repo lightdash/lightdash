@@ -14,7 +14,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useSavedCharts } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const MobileCharts: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

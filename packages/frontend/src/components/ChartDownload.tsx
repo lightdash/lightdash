@@ -15,7 +15,7 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../constants';
 import useEchartsCartesianConfig from '../hooks/echarts/useEchartsCartesianConfig';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import { Can } from './common/Authorization';
 import MantineIcon from './common/MantineIcon';
 import ExportSelector from './ExportSelector';

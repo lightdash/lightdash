@@ -14,7 +14,7 @@ import { IconFolderShare, IconLock, IconUsers } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import MantineIcon from '../MantineIcon';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';

@@ -35,7 +35,7 @@ import {
     useOrganizationUsers,
     useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import LoadingState from '../../common/LoadingState';

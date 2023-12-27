@@ -44,7 +44,7 @@ import UserManagementPanel from '../components/UserSettings/UserManagementPanel'
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import { TrackPage, useTracking } from '../providers/TrackingProvider';
 import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';

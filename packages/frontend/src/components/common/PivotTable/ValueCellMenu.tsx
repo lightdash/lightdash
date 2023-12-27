@@ -4,8 +4,7 @@ import { Menu, MenuProps, Text } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
-
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';

@@ -18,7 +18,7 @@ import { SortDirection } from '../components/common/ResourceView/ResourceViewLis
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useProject } from '../hooks/useProject';
 import { useSpaceSummaries } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const MobileSpaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

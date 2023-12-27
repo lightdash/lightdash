@@ -6,7 +6,7 @@ import { Stack, Text, Title } from '@mantine/core';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const CreateProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

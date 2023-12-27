@@ -17,7 +17,7 @@ import { SortDirection } from '../components/common/ResourceView/ResourceViewLis
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpace } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const MobileSpace: FC = () => {
     const { projectUuid, spaceUuid } = useParams<{

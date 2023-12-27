@@ -17,7 +17,7 @@ import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFilters } from '../../../hooks/useFilters';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { Can } from '../../common/Authorization';

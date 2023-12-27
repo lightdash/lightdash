@@ -19,7 +19,7 @@ import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const MobileHome: FC = () => {
     const params = useParams<{ projectUuid: string }>();

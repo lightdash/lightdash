@@ -10,7 +10,7 @@ import {
     useUpdateActiveProjectMutation,
 } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';

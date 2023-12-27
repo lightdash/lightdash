@@ -39,7 +39,7 @@ import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useChartSummaries } from '../hooks/useChartSummaries';
 import { useSpace } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const Space: FC = () => {
     const { projectUuid, spaceUuid } = useParams<{

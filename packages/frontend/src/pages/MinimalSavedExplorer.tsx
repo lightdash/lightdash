@@ -7,7 +7,7 @@ import VisualizationProvider from '../components/LightdashVisualization/Visualiz
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import {
     ExplorerProvider,
     ExplorerSection,

@@ -18,7 +18,7 @@ import mapValues from 'lodash/mapValues';
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';

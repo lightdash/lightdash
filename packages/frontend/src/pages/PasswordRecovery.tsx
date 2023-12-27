@@ -4,7 +4,7 @@ import { Redirect } from 'react-router-dom';
 
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 

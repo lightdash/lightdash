@@ -1,8 +1,7 @@
 import { subject } from '@casl/ability';
 import { Group, Stack, Text, Title } from '@mantine/core';
 import { FC } from 'react';
-
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { Can } from '../../common/Authorization';
 import MantineLinkButton from '../../common/MantineLinkButton';
 

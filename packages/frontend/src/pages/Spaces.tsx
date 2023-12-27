@@ -18,7 +18,7 @@ import { ActionType } from '../components/common/SpaceActionModal/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useProject } from '../hooks/useProject';
 import { useSpaceSummaries } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 import { ResourceViewType } from '../types/ResourceView';
 

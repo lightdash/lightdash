@@ -13,7 +13,7 @@ import {
     useRevokeProjectAccessMutation,
     useUpdateProjectAccessMutation,
 } from '../../hooks/useProjectAccess';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { useAbilityContext } from '../common/Authorization';
 import LoadingState from '../common/LoadingState';
 import ProjectAccessRow from './ProjectAccessRow';

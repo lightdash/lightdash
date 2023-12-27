@@ -9,7 +9,7 @@ import {
 import { Select, Stack, TextInput } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import FormSection from '../ReactHookForm/FormSection';
 import { MultiKeyValuePairsInput } from '../ReactHookForm/MultiKeyValuePairsInput';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';

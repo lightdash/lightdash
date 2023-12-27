@@ -17,7 +17,7 @@ import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaceSummaries } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const SavedDashboards = () => {
     const history = useHistory();

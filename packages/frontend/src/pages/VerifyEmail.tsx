@@ -19,7 +19,7 @@ import PageSpinner from '../components/PageSpinner';
 import { SuccessIconBounce } from '../components/RegisterForms/ProjectConnectFlow.styles';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
 const VerificationSuccess: FC<{

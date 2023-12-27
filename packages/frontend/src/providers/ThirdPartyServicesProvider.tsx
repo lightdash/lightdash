@@ -3,7 +3,7 @@ import { FC } from 'react';
 import { IntercomProvider } from 'react-use-intercom';
 import { Intercom } from '../components/Intercom';
 import useSentry from '../hooks/thirdPartyServices/useSentry';
-import { useApp } from './AppProvider';
+import { useApp } from './AppProvider/useApp';
 
 const PosthogIdentified: FC = ({ children }) => {
     const { user } = useApp();

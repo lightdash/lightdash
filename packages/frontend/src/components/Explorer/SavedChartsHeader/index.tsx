@@ -47,7 +47,7 @@ import {
 } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';

@@ -27,7 +27,7 @@ import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useInviteLink } from '../hooks/useInviteLink';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 

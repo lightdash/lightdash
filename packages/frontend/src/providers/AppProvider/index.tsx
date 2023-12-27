@@ -1,15 +1,15 @@
 import { ApiError, HealthState } from '@lightdash/common';
 import { createContext, FC } from 'react';
 import { UseQueryResult } from 'react-query/types/react/types';
-import useHealth from '../hooks/health/useHealth';
-import useUser, { UserWithAbility } from '../hooks/user/useUser';
+import useHealth from '../../hooks/health/useHealth';
+import useUser, { UserWithAbility } from '../../hooks/user/useUser';
 
-interface AppContext {
+export interface AppContext {
     health: UseQueryResult<HealthState, ApiError>;
     user: UseQueryResult<UserWithAbility, ApiError>;
 }
 
-const Context = createContext<AppContext>(undefined as any);
+export const Context = createContext<AppContext>(undefined as any);
 
 export const AppProvider: FC = ({ children }) => {
     const health = useHealth();

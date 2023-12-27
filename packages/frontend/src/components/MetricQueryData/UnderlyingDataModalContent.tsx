@@ -24,7 +24,7 @@ import { downloadCsv } from '../../api/csv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';

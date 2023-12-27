@@ -23,7 +23,7 @@ import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../../constants';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';

@@ -21,7 +21,7 @@ import {
 import { FC, Fragment, useMemo } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import MantineIcon from '../MantineIcon';
 import {
     ResourceViewItemAction,

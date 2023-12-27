@@ -24,7 +24,7 @@ import {
     useUserAttributes,
     useUserAttributesDeleteMutation,
 } from '../../../hooks/useUserAttributes';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';

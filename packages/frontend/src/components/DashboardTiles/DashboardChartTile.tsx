@@ -57,7 +57,7 @@ import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';

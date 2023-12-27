@@ -17,7 +17,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
 import { useProject } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 const VisualizationCard = ({
     grid,

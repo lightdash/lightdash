@@ -42,7 +42,7 @@ import {
     useSqlRunnerRoute,
     useSqlRunnerUrlState,
 } from '../hooks/useSqlRunnerRoute';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 

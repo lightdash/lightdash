@@ -8,7 +8,7 @@ import { useForm } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { TrackPage, useTracking } from '../../../providers/TrackingProvider';
 import {
     CategoryName,

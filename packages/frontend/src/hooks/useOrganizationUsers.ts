@@ -6,7 +6,7 @@ import {
 import Fuse from 'fuse.js';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 

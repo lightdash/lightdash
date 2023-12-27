@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FC, memo } from 'react';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import {
     ExplorerSection,
     useExplorerContext,

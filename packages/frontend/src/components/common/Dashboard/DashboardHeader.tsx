@@ -34,7 +34,7 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';

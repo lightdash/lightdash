@@ -3,7 +3,7 @@ import { ApiError, PinnedItems } from '@lightdash/common';
 import React, { createContext } from 'react';
 import { UseMutateFunction } from 'react-query';
 import { useReorder } from '../../hooks/pinning/usePinnedItems';
-import { useApp } from '../AppProvider';
+import { useApp } from '../AppProvider/useApp';
 
 export type PinnedItemsContext = {
     userCanManage: boolean;

@@ -3,16 +3,15 @@ import {
     getHiddenTableFields,
     NotFoundError,
 } from '@lightdash/common';
-import { FC, memo, useCallback, useMemo, useState } from 'react';
-
 import { useDisclosure } from '@mantine/hooks';
+import { FC, memo, useCallback, useMemo, useState } from 'react';
 import { downloadCsv } from '../../../api/csv';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import {
     ExplorerSection,
     useExplorerContext,

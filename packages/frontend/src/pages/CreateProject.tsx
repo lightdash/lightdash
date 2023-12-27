@@ -14,7 +14,7 @@ import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnect
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useSearchParams from '../hooks/useSearchParams';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 
 export enum ConnectMethod {
     CLI = 'cli',

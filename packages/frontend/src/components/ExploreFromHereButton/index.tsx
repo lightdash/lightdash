@@ -3,7 +3,7 @@ import { Button } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import MantineIcon from '../common/MantineIcon';
 

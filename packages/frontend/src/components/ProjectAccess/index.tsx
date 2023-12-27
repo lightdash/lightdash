@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { Anchor, Button, Group, Text } from '@mantine/core';
 import { FC, useState } from 'react';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { Can } from '../common/Authorization';
 import ProjectAccess from './ProjectAccess';
 import ProjectAccessCreation from './ProjectAccessCreation';

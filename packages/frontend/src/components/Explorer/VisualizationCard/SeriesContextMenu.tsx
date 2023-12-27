@@ -8,7 +8,7 @@ import { useParams } from 'react-router-dom';
 import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';

@@ -1,7 +1,7 @@
 import { ComponentProps, FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import { useApp } from '../providers/AppProvider';
+import { useApp } from '../providers/AppProvider/useApp';
 import ErrorState from './common/ErrorState';
 import PageSpinner from './PageSpinner';
 

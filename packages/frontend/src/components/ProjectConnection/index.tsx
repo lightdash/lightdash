@@ -32,7 +32,7 @@ import {
     useUpdateMutation,
 } from '../../hooks/useProject';
 import { useActiveJob } from '../../providers/ActiveJobProvider/useActiveJob';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';

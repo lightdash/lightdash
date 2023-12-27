@@ -1,15 +1,14 @@
 import { subject } from '@casl/ability';
+import { Button, Menu } from '@mantine/core';
 import {
     IconBuildingBank,
     IconDatabase,
     IconSettings,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-
-import { Button, Menu } from '@mantine/core';
 import { Link } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
-import { useApp } from '../../providers/AppProvider';
+import { useApp } from '../../providers/AppProvider/useApp';
 import MantineIcon from '../common/MantineIcon';
 
 const SettingsMenu: FC = () => {

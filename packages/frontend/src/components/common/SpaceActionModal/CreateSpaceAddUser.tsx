@@ -15,7 +15,7 @@ import { UseFormReturnType } from '@mantine/form';
 import { FC, forwardRef, useMemo } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { useApp } from '../../../providers/AppProvider';
+import { useApp } from '../../../providers/AppProvider/useApp';
 import { getInitials, getUserNameOrEmail } from '../ShareSpaceModal/Utils';
 
 interface CreateSpaceAddUserProps {
