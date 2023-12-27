@@ -121,7 +121,8 @@ const Filter: FC<Props> = ({
             }}
             withArrow
             shadow="md"
-            offset={-1}
+            offset={1}
+            arrowOffset={14}
         >
             <Popover.Target>
                 {isCreatingNew ? (
@@ -143,7 +144,6 @@ const Filter: FC<Props> = ({
                     >
                         <Button
                             size="xs"
-                            mr="xxs"
                             variant="default"
                             leftIcon={
                                 <MantineIcon color="blue" icon={IconFilter} />
@@ -163,7 +163,6 @@ const Filter: FC<Props> = ({
                         size="xs"
                         variant={isTemporary ? 'outline' : 'default'}
                         bg="white"
-                        mr="xxs"
                         rightIcon={
                             (isEditMode || isTemporary) && (
                                 <CloseButton size="sm" onClick={onRemove} />
@@ -230,7 +229,7 @@ const Filter: FC<Props> = ({
                 )}
             </Popover.Target>
 
-            <Popover.Dropdown ml={5}>
+            <Popover.Dropdown>
                 {filterableFieldsByTileUuid && dashboardTiles && (
                     <FilterConfiguration
                         isCreatingNew={isCreatingNew}

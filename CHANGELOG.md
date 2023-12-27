@@ -1,3 +1,10 @@
+## [0.917.1](https://github.com/lightdash/lightdash/compare/0.917.0...0.917.1) (2023-12-27)
+
+
+### Bug Fixes
+
+* sort alignment on email error message ([#8409](https://github.com/lightdash/lightdash/issues/8409)) ([db996ac](https://github.com/lightdash/lightdash/commit/db996ac92195fa750a8e79af39e2c201d1575730))
+
 # [0.917.0](https://github.com/lightdash/lightdash/compare/0.916.0...0.917.0) (2023-12-27)
 
 
