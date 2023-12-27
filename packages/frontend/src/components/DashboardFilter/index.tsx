@@ -62,7 +62,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             }
             dashboardFilters={allFilters}
         >
-            <Flex gap={3} mb={8} ml={8} wrap="wrap">
+            <Flex gap="xs" wrap="wrap" mb="xs">
                 <Filter
                     isCreatingNew
                     isEditMode={isEditMode}
