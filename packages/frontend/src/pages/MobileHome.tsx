@@ -12,7 +12,6 @@ import {
 } from '@lightdash/common';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import ResourceView from '../components/common/ResourceView';
-import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useProjectSavedChartStatus } from '../hooks/useOnboardingStatus';
 import {
@@ -20,6 +19,7 @@ import {
     useProject,
 } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider/useApp';
+import { SortDirection } from '../utils/sortUtils';
 
 const MobileHome: FC = () => {
     const params = useParams<{ projectUuid: string }>();

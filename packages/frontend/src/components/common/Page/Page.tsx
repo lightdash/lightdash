@@ -3,8 +3,10 @@ import { Box, createStyles } from '@mantine/core';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import {
+    BANNER_HEIGHT,
     FOOTER_HEIGHT,
     FOOTER_MARGIN,
+    NAVBAR_HEIGHT,
     PAGE_CONTENT_WIDTH,
     PAGE_HEADER_HEIGHT,
 } from '../../../constants';
@@ -13,7 +15,6 @@ import { useProjects } from '../../../hooks/useProjects';
 import { TrackSection } from '../../../providers/TrackingProvider/TrackSection';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
-import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import Sidebar from './Sidebar';
 
 type StyleProps = {

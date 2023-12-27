@@ -1,11 +1,11 @@
 import { OtherWarehouse, WarehouseTypes } from '@lightdash/common';
 import { IconDots } from '@tabler/icons-react';
-import BigQuery from '../Assets/bigquery.svg';
-import Databricks from '../Assets/databricks.svg';
-import PostgressLogo from '../Assets/postgresql.svg';
-import Redshift from '../Assets/redshift.svg';
-import Snowflake from '../Assets/snowflake.svg';
-import Trino from '../Assets/trino.svg';
+import BigQuery from './Assets/bigquery.svg';
+import Databricks from './Assets/databricks.svg';
+import PostgressLogo from './Assets/postgresql.svg';
+import Redshift from './Assets/redshift.svg';
+import Snowflake from './Assets/snowflake.svg';
+import Trino from './Assets/trino.svg';
 import { WarehouseLabel } from './types';
 
 export const WarehouseTypeLabels: WarehouseLabel[] = [

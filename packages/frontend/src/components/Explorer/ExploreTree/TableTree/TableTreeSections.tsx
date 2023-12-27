@@ -8,7 +8,8 @@ import {
 import { Center, Group, Text } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
-import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
+import { TreeProvider } from './Tree/TreeProvider';
+import { getSearchResults } from './Tree/TreeProvider/utils/getSearchResults';
 import TreeRoot from './Tree/TreeRoot';
 
 type Props = {

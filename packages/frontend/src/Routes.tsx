@@ -2,7 +2,7 @@ import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 
-import { TrackPage } from './providers/TrackingProvider';
+import { TrackPage } from './providers/TrackingProvider/TrackPage';
 import { PageName } from './types/Events';
 
 import AppRoute from './components/AppRoute';

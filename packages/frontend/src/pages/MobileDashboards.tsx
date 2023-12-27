@@ -12,8 +12,8 @@ import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
-import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
+import { SortDirection } from '../utils/sortUtils';
 
 const MobileDashboards = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

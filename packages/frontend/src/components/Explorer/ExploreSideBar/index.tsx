@@ -11,7 +11,7 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useExplores } from '../../../hooks/useExplores';
 import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import { TrackSection } from '../../../providers/TrackingProvider/TrackSection';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';

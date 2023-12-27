@@ -12,7 +12,7 @@ import { IconSearch, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo, useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import TableTree from './TableTree';
-import { getSearchResults } from './TableTree/Tree/TreeProvider';
+import { getSearchResults } from './TableTree/Tree/TreeProvider/utils/getSearchResults';
 
 type ExploreTreeProps = {
     explore: Explore;

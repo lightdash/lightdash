@@ -11,7 +11,7 @@ import {
 import { FC } from 'react';
 
 import useSidebarResize from '../../../hooks/useSidebarResize';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import { TrackSection } from '../../../providers/TrackingProvider/TrackSection';
 import { SectionName } from '../../../types/Events';
 
 const SIDEBAR_DEFAULT_WIDTH = 400;
