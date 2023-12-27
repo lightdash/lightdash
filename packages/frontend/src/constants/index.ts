@@ -10,6 +10,9 @@ export const defaultGrid = {
     bottom: '30px', // pixels from bottom (makes room for x-axis)
 } as const;
 
+export const TILE_HEADER_HEIGHT = 24;
+export const TILE_HEADER_MARGIN_BOTTOM = 12;
+
 export const PAGE_HEADER_HEIGHT = 80;
 export const PAGE_CONTENT_WIDTH = 900;
 

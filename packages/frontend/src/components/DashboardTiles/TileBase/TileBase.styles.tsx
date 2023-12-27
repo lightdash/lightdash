@@ -1,13 +1,14 @@
 import styled, { css } from 'styled-components';
+import {
+    TILE_HEADER_HEIGHT,
+    TILE_HEADER_MARGIN_BOTTOM,
+} from '../../../constants';
 
 interface HeaderContainerProps {
     $isEditMode: boolean;
     $isHovering?: boolean;
     $isEmpty?: boolean;
 }
-
-export const TILE_HEADER_HEIGHT = 24;
-const TILE_HEADER_MARGIN_BOTTOM = 12;
 
 export const HeaderContainer = styled.div<HeaderContainerProps>`
     display: flex;
@@ -66,7 +67,6 @@ export const TitleWrapper = styled.div<TileTitleProps>`
                       }
                   `
                 : ''}
-        }
     }
 `;
 
