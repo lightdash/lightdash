@@ -16,6 +16,7 @@ import { ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
+import { SortDirection } from '../../../../utils/sortUtils';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
 import { ResourceInfoPopup } from '../../ResourceInfoPopup/ResourceInfoPopup';
 import {
@@ -23,14 +24,9 @@ import {
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
 } from '../resourceUtils';
-import { ResourceViewItemActionState } from './../ResourceActionHandlers';
+import { ResourceViewItemActionState } from '../types';
 import ResourceActionMenu from './../ResourceActionMenu';
 import ResourceLastEdited from './../ResourceLastEdited';
-
-export enum SortDirection {
-    ASC = 'asc',
-    DESC = 'desc',
-}
 
 type ColumnName = 'name' | 'space' | 'updatedAt' | 'actions';
 
@@ -445,8 +441,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
                                     {enableSorting && columnSort
                                         ? {
-                                              asc: <IconChevronUp size={12} />,
-                                              desc: (
+                                              ASC: <IconChevronUp size={12} />,
+                                              DESC: (
                                                   <IconChevronDown size={12} />
                                               ),
                                           }[columnSort]

@@ -13,11 +13,11 @@ import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
-import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider/useApp';
+import { SortDirection } from '../utils/sortUtils';
 
 const MobileSpace: FC = () => {
     const { projectUuid, spaceUuid } = useParams<{

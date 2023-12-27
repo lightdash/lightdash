@@ -14,10 +14,10 @@ import DashboardCreateModal from '../components/common/modal/DashboardCreateModa
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
-import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider/useApp';
+import { SortDirection } from '../utils/sortUtils';
 
 const SavedDashboards = () => {
     const history = useHistory();
