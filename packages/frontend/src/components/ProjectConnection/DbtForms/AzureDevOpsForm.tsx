@@ -6,7 +6,7 @@ import {
     hasNoWhiteSpaces,
     startWithSlash,
 } from '../../../utils/fieldValidators';
-import { useProjectFormContext } from '../ProjectFormProvider';
+import { useProjectFormContext } from '../ProjectFormProvider/useProjectFormContext';
 
 const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();

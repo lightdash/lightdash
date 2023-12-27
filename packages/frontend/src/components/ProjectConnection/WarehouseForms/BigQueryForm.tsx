@@ -14,7 +14,7 @@ import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import FormCollapseButton from '../FormCollapseButton';
-import { useProjectFormContext } from '../ProjectFormProvider';
+import { useProjectFormContext } from '../ProjectFormProvider/useProjectFormContext';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const BigQuerySchemaInput: FC<{
