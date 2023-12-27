@@ -12,9 +12,7 @@ import { useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import ResourceView, {
-    ResourceViewType,
-} from '../components/common/ResourceView';
+import ResourceView from '../components/common/ResourceView';
 import SpaceActionModal, {
     ActionType,
 } from '../components/common/SpaceActionModal';
@@ -23,6 +21,7 @@ import { useProject } from '../hooks/useProject';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
+import { ResourceViewType } from '../types/ResourceView';
 
 const Spaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

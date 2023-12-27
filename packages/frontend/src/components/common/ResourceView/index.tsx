@@ -13,6 +13,7 @@ import {
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
+import { ResourceViewType } from '../../../types/ResourceView';
 import MantineIcon from '../MantineIcon';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
@@ -51,11 +52,6 @@ export interface ResourceViewCommonProps {
     emptyStateProps?: ResourceEmptyStateProps;
     view?: ResourceViewType;
     hasReorder?: boolean;
-}
-
-export enum ResourceViewType {
-    LIST = 'list',
-    GRID = 'grid',
 }
 
 interface ResourceViewProps extends ResourceViewCommonProps {
