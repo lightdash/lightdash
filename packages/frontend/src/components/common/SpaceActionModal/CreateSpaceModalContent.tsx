@@ -17,11 +17,7 @@ import {
 } from '../ShareSpaceModal/ShareSpaceSelect';
 import { CreateSpaceAddUser } from './CreateSpaceAddUser';
 import { CreateSpaceSelectAccessType } from './CreateSpaceSelectAccessType';
-
-export enum CreateModalStep {
-    SET_NAME = 'first',
-    SET_ACCESS = 'second',
-}
+import { CreateModalStep } from './types';
 
 const UserListItem: FC<{
     isYou?: boolean;

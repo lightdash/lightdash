@@ -26,11 +26,9 @@ import {
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
 import { SpacePrivateAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
-import CreateSpaceModalContent, {
-    CreateModalStep,
-} from './CreateSpaceModalContent';
+import CreateSpaceModalContent from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
-import { ActionType } from './types';
+import { ActionType, CreateModalStep } from './types';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
 
 interface ActionModalProps {

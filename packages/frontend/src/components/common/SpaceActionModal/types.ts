@@ -3,3 +3,8 @@ export enum ActionType {
     UPDATE,
     DELETE,
 }
+
+export enum CreateModalStep {
+    SET_NAME = 'first',
+    SET_ACCESS = 'second',
+}
