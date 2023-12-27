@@ -49,7 +49,8 @@ import {
 import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
-import SpaceActionModal, { ActionType } from '../SpaceActionModal';
+import SpaceActionModal from '../SpaceActionModal';
+import { ActionType } from '../SpaceActionModal/types';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 
 type DashboardHeaderProps = {

@@ -30,13 +30,8 @@ import CreateSpaceModalContent, {
     CreateModalStep,
 } from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
+import { ActionType } from './types';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
-
-export enum ActionType {
-    CREATE,
-    UPDATE,
-    DELETE,
-}
 
 interface ActionModalProps {
     actionType: ActionType;

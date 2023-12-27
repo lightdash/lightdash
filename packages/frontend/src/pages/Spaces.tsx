@@ -13,9 +13,8 @@ import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
-import SpaceActionModal, {
-    ActionType,
-} from '../components/common/SpaceActionModal';
+import SpaceActionModal from '../components/common/SpaceActionModal';
+import { ActionType } from '../components/common/SpaceActionModal/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useProject } from '../hooks/useProject';
 import { useSpaceSummaries } from '../hooks/useSpaces';
