@@ -19,8 +19,6 @@ import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
-export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
-
 const SavedDashboards = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
