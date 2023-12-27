@@ -17,10 +17,8 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
-import {
-    FilterInputComponent,
-    getFilterOperatorOptions,
-} from '../../common/Filters/FilterInputs';
+import { getFilterOperatorOptions } from '../../common/Filters/FilterInputs';
+import { FilterInputComponent } from '../../common/Filters/FilterInputs/FilterInputComponent';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
 interface FilterSettingsProps {

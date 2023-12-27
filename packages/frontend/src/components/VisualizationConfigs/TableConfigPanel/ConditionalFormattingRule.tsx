@@ -15,10 +15,8 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { FC, useState } from 'react';
-import {
-    FilterInputComponent,
-    getFilterOperatorOptions,
-} from '../../common/Filters/FilterInputs';
+import { getFilterOperatorOptions } from '../../common/Filters/FilterInputs';
+import { FilterInputComponent } from '../../common/Filters/FilterInputs/FilterInputComponent';
 import MantineIcon from '../../common/MantineIcon';
 
 // conditional formatting only supports number filters

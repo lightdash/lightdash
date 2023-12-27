@@ -22,10 +22,10 @@ import { FC, useCallback, useMemo, useState } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import {
-    FilterInputComponent,
     getConditionalRuleLabel,
     getFilterOperatorOptions,
 } from '../../../components/common/Filters/FilterInputs';
+import { FilterInputComponent } from '../../../components/common/Filters/FilterInputs/FilterInputComponent';
 import { FiltersProvider } from '../../../components/common/Filters/FiltersProvider';
 import { useFiltersContext } from '../../../components/common/Filters/FiltersProvider/useFiltersContext';
 import MantineIcon from '../../../components/common/MantineIcon';
