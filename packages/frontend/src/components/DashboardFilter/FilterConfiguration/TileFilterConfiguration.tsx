@@ -19,10 +19,10 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
-import { FilterActions } from '.';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { ChartIconSelector } from '../../common/ResourceIcon';
+import { FilterActions } from './types';
 
 type Props = {
     tiles: DashboardTile[];

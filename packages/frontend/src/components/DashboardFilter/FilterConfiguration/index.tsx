@@ -32,23 +32,14 @@ import FieldLabel from '../../common/Filters/FieldLabel';
 import MantineIcon from '../../common/MantineIcon';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
+import { FilterActions, FilterTabs } from './types';
 import {
     getFilterRuleRevertableObject,
     hasSavedFilterValueChanged,
     isFilterEnabled,
 } from './utils';
 
-export enum FilterTabs {
-    SETTINGS = 'settings',
-    TILES = 'tiles',
-}
-
 const DEFAULT_TAB = FilterTabs.SETTINGS;
-
-export enum FilterActions {
-    ADD = 'add',
-    REMOVE = 'remove',
-}
 
 interface Props {
     tiles: DashboardTile[];
