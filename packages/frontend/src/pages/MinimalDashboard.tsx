@@ -14,12 +14,12 @@ import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import useSearchParams from '../hooks/useSearchParams';
 import { DashboardProvider } from '../providers/DashboardProvider';
+
+import '../styles/react-grid.css';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
-} from './Dashboard';
-
-import '../styles/react-grid.css';
+} from '../utils/reactGridLayout';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
