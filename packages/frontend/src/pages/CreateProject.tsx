@@ -1,4 +1,4 @@
-import { ConnectMethod } from '@lightdash/common';
+import { ConnectMethod, OtherWarehouse } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
@@ -8,7 +8,6 @@ import ConnectSuccess from '../components/ProjectConnection/ProjectConnectFlow/C
 import ConnectUsingCLI from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingCLI';
 import SelectConnectMethod from '../components/ProjectConnection/ProjectConnectFlow/SelectConnectMethod';
 import SelectWarehouse, {
-    OtherWarehouse,
     SelectedWarehouse,
 } from '../components/ProjectConnection/ProjectConnectFlow/SelectWarehouse';
 import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';

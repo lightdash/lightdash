@@ -41,7 +41,7 @@ import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
-import { getWarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
+import { WarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
 import { FormContainer } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -96,7 +96,7 @@ const ProjectForm: FC<Props> = ({
 
             <SettingsGridCard>
                 <div>
-                    {warehouse && getWarehouseIcon(warehouse)}
+                    {warehouse && <WarehouseIcon key={warehouse} />}
                     <Flex align="center" gap={2}>
                         <Title order={5}>Warehouse connection</Title>
                         <DocumentationHelpButton

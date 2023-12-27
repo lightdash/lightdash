@@ -31,6 +31,10 @@ export enum WarehouseTypes {
     TRINO = 'trino',
 }
 
+export enum OtherWarehouse {
+    Other = 'Other',
+}
+
 export type SshTunnelConfiguration = {
     useSshTunnel?: boolean;
     sshTunnelHost?: string;

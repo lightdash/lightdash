@@ -5,7 +5,11 @@ import { FC } from 'react';
 import { CreateProjectConnection } from '../..';
 import MantineIcon from '../../../common/MantineIcon';
 import { OnboardingTitle } from '../common/OnboardingTitle';
-import { getWarehouseLabel } from '../SelectWarehouse';
+import { WarehouseTypeLabels } from '../constants';
+import { SelectedWarehouse } from '../SelectWarehouse';
+
+const getWarehouseLabel = (key: SelectedWarehouse) =>
+    WarehouseTypeLabels.find((w) => w.key === key)?.label ?? null;
 
 interface ConnectManuallyStep2Props {
     isCreatingFirstProject: boolean;
