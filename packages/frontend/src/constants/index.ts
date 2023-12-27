@@ -10,6 +10,9 @@ export const defaultGrid = {
     bottom: '30px', // pixels from bottom (makes room for x-axis)
 } as const;
 
+export const NAVBAR_HEIGHT = 50;
+export const BANNER_HEIGHT = 35;
+
 export const TILE_HEADER_HEIGHT = 24;
 export const TILE_HEADER_MARGIN_BOTTOM = 12;
 

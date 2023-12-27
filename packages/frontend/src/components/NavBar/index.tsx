@@ -15,6 +15,7 @@ import {
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
+import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../constants';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
@@ -29,9 +30,6 @@ import { NotificationsMenu } from './NotificationsMenu';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
-
-export const NAVBAR_HEIGHT = 50;
-export const BANNER_HEIGHT = 35;
 
 const PreviewBanner = () => (
     <Center pos="fixed" w="100%" h={BANNER_HEIGHT} bg="blue.6">
