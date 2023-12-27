@@ -22,7 +22,7 @@ import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
-import { getChartIcon } from '../../common/ResourceIcon';
+import { ChartIconSelector } from '../../common/ResourceIcon';
 
 type Props = {
     tiles: DashboardTile[];
@@ -191,7 +191,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                         <Flex align="center" gap="xxs">
                                             <MantineIcon
                                                 color="blue.8"
-                                                icon={getChartIcon(
+                                                icon={ChartIconSelector(
                                                     value.tileChartKind,
                                                 )}
                                             />

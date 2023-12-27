@@ -66,7 +66,7 @@ export const IconBox: FC<IconBoxProps> = ({
     </Paper>
 );
 
-export const getChartIcon = (chartType: ChartKind | undefined) => {
+export const ChartIconSelector = (chartType: ChartKind | undefined) => {
     switch (chartType) {
         case undefined:
         case ChartKind.VERTICAL_BAR:
@@ -101,7 +101,7 @@ export const ChartIcon: FC<{ chartType: ChartKind | undefined }> = ({
     chartType,
 }) => (
     <IconBox
-        icon={getChartIcon(chartType)}
+        icon={ChartIconSelector(chartType)}
         color="blue.8"
         transform={
             chartType === ChartKind.HORIZONTAL_BAR ? 'rotate(90)' : undefined
