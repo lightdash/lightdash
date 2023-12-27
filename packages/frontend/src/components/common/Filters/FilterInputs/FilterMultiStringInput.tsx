@@ -4,7 +4,7 @@ import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import { FC, useCallback, useMemo, useState } from 'react';
 import MantineIcon from '../../MantineIcon';
-import { useFiltersContext } from '../FiltersProvider';
+import { useFiltersContext } from '../FiltersProvider/useFiltersContext';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     field: FilterableItem;

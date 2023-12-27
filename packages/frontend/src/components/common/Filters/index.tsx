@@ -29,7 +29,8 @@ import { v4 as uuidv4 } from 'uuid';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import FilterGroupForm from './FilterGroupForm';
-import { FieldWithSuggestions, useFiltersContext } from './FiltersProvider';
+import { FieldWithSuggestions } from './FiltersProvider';
+import { useFiltersContext } from './FiltersProvider/useFiltersContext';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 
 type Props = {

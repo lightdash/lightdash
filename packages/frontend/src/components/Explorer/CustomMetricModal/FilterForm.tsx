@@ -10,7 +10,7 @@ import { Button, Stack } from '@mantine/core';
 import { Dispatch, FC, SetStateAction, useCallback } from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
 import FilterRuleForm from '../../common/Filters/FilterRuleForm';
-import { useFiltersContext } from '../../common/Filters/FiltersProvider';
+import { useFiltersContext } from '../../common/Filters/FiltersProvider/useFiltersContext';
 import { addFieldRefToFilterRule } from './utils';
 
 export interface MetricFilterRuleWithFieldId

@@ -26,10 +26,8 @@ import {
     getConditionalRuleLabel,
     getFilterOperatorOptions,
 } from '../../../components/common/Filters/FilterInputs';
-import {
-    FiltersProvider,
-    useFiltersContext,
-} from '../../../components/common/Filters/FiltersProvider';
+import { FiltersProvider } from '../../../components/common/Filters/FiltersProvider';
+import { useFiltersContext } from '../../../components/common/Filters/FiltersProvider/useFiltersContext';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     hasSavedFilterValueChanged,

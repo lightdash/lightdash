@@ -13,7 +13,7 @@ import { FC, useCallback, useMemo } from 'react';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FilterInputComponent, getFilterOperatorOptions } from './FilterInputs';
-import { useFiltersContext } from './FiltersProvider';
+import { useFiltersContext } from './FiltersProvider/useFiltersContext';
 
 type Props = {
     fields: FilterableField[];

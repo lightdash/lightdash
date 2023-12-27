@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { PopoverProps } from '@mantine/core';
 import { uuid4 } from '@sentry/utils';
-import { createContext, FC, useCallback, useContext } from 'react';
+import { createContext, FC, useCallback } from 'react';
 
 export type FieldWithSuggestions = FilterableField & {
     suggestions?: string[];
@@ -17,7 +17,7 @@ export type FieldWithSuggestions = FilterableField & {
 
 export type FieldsWithSuggestions = Record<string, FieldWithSuggestions>;
 
-type FiltersContext = {
+export type FiltersContext = {
     projectUuid?: string;
     fieldsMap: FieldsWithSuggestions;
     startOfWeek?: WeekDay;
@@ -29,7 +29,7 @@ type FiltersContext = {
     popoverProps?: Omit<PopoverProps, 'children'>;
 };
 
-const Context = createContext<FiltersContext | undefined>(undefined);
+export const Context = createContext<FiltersContext | undefined>(undefined);
 
 type Props = {
     projectUuid?: string;
@@ -90,13 +90,3 @@ export const FiltersProvider: FC<Props> = ({
         </Context.Provider>
     );
 };
-
-export function useFiltersContext(): FiltersContext {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error(
-            'useFiltersContext must be used within a FiltersProvider',
-        );
-    }
-    return context;
-}

@@ -16,7 +16,7 @@ import {
     useFieldValues,
 } from '../../../../hooks/useFieldValues';
 import MantineIcon from '../../MantineIcon';
-import { useFiltersContext } from '../FiltersProvider';
+import { useFiltersContext } from '../FiltersProvider/useFiltersContext';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     filterId: string;

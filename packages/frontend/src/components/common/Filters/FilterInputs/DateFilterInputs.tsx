@@ -14,7 +14,7 @@ import {
 } from '@lightdash/common';
 import { Flex, NumberInput, Text } from '@mantine/core';
 import { FilterInputsProps } from '.';
-import { useFiltersContext } from '../FiltersProvider';
+import { useFiltersContext } from '../FiltersProvider/useFiltersContext';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs from './DefaultFilterInputs';

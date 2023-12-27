@@ -9,7 +9,7 @@ import {
 import isString from 'lodash/isString';
 import { FilterInputsProps } from '.';
 import { TagInput } from '../../TagInput/TagInput';
-import { useFiltersContext } from '../FiltersProvider';
+import { useFiltersContext } from '../FiltersProvider/useFiltersContext';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterMultiStringInput from './FilterMultiStringInput';
 import FilterNumberInput from './FilterNumberInput';
