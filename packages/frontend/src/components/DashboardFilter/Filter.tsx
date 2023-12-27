@@ -124,9 +124,7 @@ const Filter: FC<Props> = ({
             closeOnClickOutside={!isSubPopoverOpen}
             onClose={handleClose}
             disabled={isPopoverDisabled}
-            transitionProps={{
-                transition: 'pop',
-            }}
+            transitionProps={{ transition: 'pop-top-left' }}
             withArrow
             shadow="md"
             offset={1}
