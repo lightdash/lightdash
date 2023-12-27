@@ -1,4 +1,3 @@
-import { slackRequiredScopes, SlackSettings } from '@lightdash/common';
 import {
     Alert,
     Anchor,
@@ -12,19 +11,13 @@ import {
     Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconTrash } from '@tabler/icons-react';
-import intersection from 'lodash/intersection';
 import { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
+import { hasRequiredScopes } from './utils/hasRequiredScopes';
 
-export const hasRequiredScopes = (slackSettings: SlackSettings) => {
-    return (
-        intersection(slackSettings.scopes, slackRequiredScopes).length ===
-        slackRequiredScopes.length
-    );
-};
 const SlackSettingsPanel: FC = () => {
     const { data, isError, isLoading } = useGetSlack();
     const { mutate: deleteSlack } = useDeleteSlack();
