@@ -1,7 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
 import { createStyles, MantineTheme } from '@mantine/core';
 import { darken, rgba } from 'polished';
-import { CellType, SectionType } from '.';
+import { CellType, SectionType } from './types';
 
 export const CELL_HEIGHT = 32;
 

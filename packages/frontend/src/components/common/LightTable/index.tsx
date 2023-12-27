@@ -20,6 +20,7 @@ import {
     useTableSectionStyles,
     useTableStyles,
 } from './styles';
+import { CellType, SectionType } from './types';
 
 const SMALL_TEXT_LENGTH = 20;
 
@@ -64,17 +65,6 @@ interface TableCompoundComponents {
     Row: FC<TableRowProps>;
     Cell: FC<TableCellProps>;
     CellHead: FC<TableCellProps>;
-}
-
-export enum SectionType {
-    Head = 'head',
-    Body = 'body',
-    Footer = 'footer',
-}
-
-export enum CellType {
-    Head = 'head',
-    Data = 'data',
 }
 
 type TableContextType = {
