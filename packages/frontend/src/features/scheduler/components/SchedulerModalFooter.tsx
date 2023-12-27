@@ -1,6 +1,5 @@
 import { Box, Button, Group } from '@mantine/core';
 import { IconChevronLeft, IconSend } from '@tabler/icons-react';
-import React from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 interface FooterProps {

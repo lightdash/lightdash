@@ -51,13 +51,13 @@ import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
 
-export enum Limit {
+enum Limit {
     TABLE = 'table',
     ALL = 'all',
     CUSTOM = 'custom',
 }
 
-export enum Values {
+enum Values {
     FORMATTED = 'formatted',
     RAW = 'raw',
 }
@@ -695,7 +695,7 @@ const SchedulerForm: FC<Props> = ({
                     </Tabs.Panel>
                 ) : null}
 
-                <Tabs.Panel value="customization">
+                <Tabs.Panel value="customiasdaszaton">
                     <Text m="md">Customize delivery message body</Text>
 
                     <MDEditor
