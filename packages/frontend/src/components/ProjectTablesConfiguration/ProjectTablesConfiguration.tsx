@@ -23,7 +23,7 @@ import {
 import { useApp } from '../../providers/AppProvider/useApp';
 import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
-import { useAbilityContext } from '../common/Authorization';
+import { useAbilityContext } from '../common/Authorization/useAbilityContext';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 

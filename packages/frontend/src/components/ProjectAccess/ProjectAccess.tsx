@@ -5,7 +5,7 @@ import {
     ProjectMemberRole,
 } from '@lightdash/common';
 import { Paper, Table } from '@mantine/core';
-import React, { FC, useMemo } from 'react';
+import { FC, useMemo } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -14,7 +14,7 @@ import {
     useUpdateProjectAccessMutation,
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider/useApp';
-import { useAbilityContext } from '../common/Authorization';
+import { useAbilityContext } from '../common/Authorization/useAbilityContext';
 import LoadingState from '../common/LoadingState';
 import ProjectAccessRow from './ProjectAccessRow';
 
