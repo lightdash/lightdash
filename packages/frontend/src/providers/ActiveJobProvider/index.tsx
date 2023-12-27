@@ -7,20 +7,19 @@ import {
     FC,
     SetStateAction,
     useCallback,
-    useContext,
     useEffect,
     useState,
 } from 'react';
 import { useQueryClient } from 'react-query';
-import useToaster from '../hooks/toaster/useToaster';
+import useToaster from '../../hooks/toaster/useToaster';
 import {
     jobStatusLabel,
     runningStepsInfo,
     TOAST_KEY_FOR_REFRESH_JOB,
     useJob,
-} from '../hooks/useRefreshServer';
+} from '../../hooks/useRefreshServer';
 
-interface ContextType {
+export interface ContextType {
     isJobsDrawerOpen: boolean;
     setIsJobsDrawerOpen: Dispatch<SetStateAction<boolean>>;
     activeJobId: string | undefined;
@@ -29,7 +28,7 @@ interface ContextType {
     activeJobIsRunning: boolean | undefined;
 }
 
-const Context = createContext<ContextType>(undefined as any);
+export const Context = createContext<ContextType>(undefined as any);
 
 export const ActiveJobProvider: FC = ({ children }) => {
     const [isJobsDrawerOpen, setIsJobsDrawerOpen] = useState(false);
@@ -130,11 +129,3 @@ export const ActiveJobProvider: FC = ({ children }) => {
         </Context.Provider>
     );
 };
-
-export function useActiveJob(): ContextType {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error('useActiveJob must be used within a ActiveJobProvider');
-    }
-    return context;
-}

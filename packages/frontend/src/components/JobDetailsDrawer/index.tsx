@@ -27,7 +27,7 @@ import {
     jobStepStatusLabel,
     runningStepsInfo,
 } from '../../hooks/useRefreshServer';
-import { useActiveJob } from '../../providers/ActiveJobProvider';
+import { useActiveJob } from '../../providers/ActiveJobProvider/useActiveJob';
 import MantineIcon from '../common/MantineIcon';
 
 const statusInfo = (status: string, theme: MantineTheme) => {

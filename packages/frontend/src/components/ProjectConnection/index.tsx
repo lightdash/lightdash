@@ -31,7 +31,7 @@ import {
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
-import { useActiveJob } from '../../providers/ActiveJobProvider';
+import { useActiveJob } from '../../providers/ActiveJobProvider/useActiveJob';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';

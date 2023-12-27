@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
-import { useActiveJob } from '../providers/ActiveJobProvider';
+import { useActiveJob } from '../providers/ActiveJobProvider/useActiveJob';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 

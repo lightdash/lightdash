@@ -9,7 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useActiveJob } from '../providers/ActiveJobProvider';
+import { useActiveJob } from '../providers/ActiveJobProvider/useActiveJob';
 import useToaster from './toaster/useToaster';
 
 export const jobStepStatusLabel = (status: JobStepStatusType) => {
