@@ -19,12 +19,13 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { useIntersection } from 'react-use';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
+import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DashboardFilter from '../components/DashboardFilter';
@@ -37,7 +38,6 @@ import { DateZoom } from '../features/dateZoom';
 import {
     appendNewTilesToBottom,
     useDuplicateDashboardMutation,
-    useExportDashboard,
     useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
@@ -188,8 +188,6 @@ const Dashboard: FC = () => {
     const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
         showRedirectButton: true,
     });
-    const { mutate: exportDashboard } = useExportDashboard();
-    const location = useLocation();
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
@@ -250,6 +248,8 @@ const Dashboard: FC = () => {
         clearIsEditingDashboardChart,
         showToastError,
     ]);
+
+    const [gridWidth, setGridWidth] = useState(0);
 
     useEffect(() => {
         if (isSuccess) {
@@ -408,9 +408,13 @@ const Dashboard: FC = () => {
         setIsDeleteModalOpen(true);
     };
 
+    const [isExportDashboardModalOpen, setIsExportDashboardModalOpen] =
+        useState(false);
+
     const handleExportDashboard = () => {
         if (!dashboard) return;
-        exportDashboard({ dashboard, queryFilters: location.search });
+
+        setIsExportDashboardModalOpen(true);
     };
 
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
@@ -603,6 +607,7 @@ const Dashboard: FC = () => {
                     {...getResponsiveGridLayoutProps()}
                     onDragStop={handleUpdateTiles}
                     onResizeStop={handleUpdateTiles}
+                    onWidthChange={(cw) => setGridWidth(cw)}
                     layouts={layouts}
                 >
                     {sortedTiles?.map((tile, idx) => {
@@ -644,10 +649,19 @@ const Dashboard: FC = () => {
                         }}
                     />
                 )}
+                {isExportDashboardModalOpen && (
+                    <DashboardExportModal
+                        opened={isExportDashboardModalOpen}
+                        onClose={() => setIsExportDashboardModalOpen(false)}
+                        dashboard={dashboard}
+                        gridWidth={gridWidth}
+                    />
+                )}
             </Page>
         </>
     );
 };
+
 const DashboardPage: FC = () => {
     useProfiler('Dashboard');
     return (
