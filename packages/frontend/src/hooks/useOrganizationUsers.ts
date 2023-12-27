@@ -31,7 +31,7 @@ const updateUser = async (id: string, data: OrganizationMemberProfileUpdate) =>
         body: JSON.stringify(data),
     });
 
-export const useOrganizationUsers = (searchInput: string) => {
+export const useOrganizationUsers = (searchInput?: string) => {
     const setErrorResponse = useQueryError();
     return useQuery<OrganizationMemberProfile[], ApiError>({
         queryKey: ['organization_users'],
