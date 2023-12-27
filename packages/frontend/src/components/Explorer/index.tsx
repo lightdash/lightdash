@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 import { useExplore } from '../../hooks/useExplore';
 import { useProjects } from '../../hooks/useProjects';
 import { useExplorerContext } from '../../providers/ExplorerProvider/useExplorerContext';
-import { CustomVisualizationProvider } from '../CustomVisualization';
+import { CustomVisualizationProvider } from '../CustomVisualization/CustomVisualizationProvider';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
