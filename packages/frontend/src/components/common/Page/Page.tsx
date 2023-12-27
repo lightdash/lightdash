@@ -1,16 +1,19 @@
+import { ProjectType } from '@lightdash/common';
 import { Box, createStyles } from '@mantine/core';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
-
-import { ProjectType } from '@lightdash/common';
-import { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../../constants';
+import {
+    FOOTER_HEIGHT,
+    FOOTER_MARGIN,
+    PAGE_CONTENT_WIDTH,
+    PAGE_HEADER_HEIGHT,
+} from '../../../constants';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import { TrackSection } from '../../../providers/TrackingProvider/TrackSection';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
-import { PAGE_HEADER_HEIGHT } from './PageHeader';
 import Sidebar from './Sidebar';
 
 type StyleProps = {
@@ -27,7 +30,6 @@ type StyleProps = {
     hasBanner?: boolean;
 };
 
-export const PAGE_CONTENT_WIDTH = 900;
 const PAGE_MIN_CONTENT_WIDTH = 600;
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {

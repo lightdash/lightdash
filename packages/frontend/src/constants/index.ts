@@ -10,6 +10,9 @@ export const defaultGrid = {
     bottom: '30px', // pixels from bottom (makes room for x-axis)
 } as const;
 
+export const PAGE_HEADER_HEIGHT = 80;
+export const PAGE_CONTENT_WIDTH = 900;
+
 export const FOOTER_HEIGHT = 80;
 export const FOOTER_MARGIN: MantineSize = 'lg';
 

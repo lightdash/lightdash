@@ -1,7 +1,6 @@
 import { Card, CardProps, Flex } from '@mantine/core';
 import { FC } from 'react';
-
-export const PAGE_HEADER_HEIGHT = 80;
+import { PAGE_HEADER_HEIGHT } from '../../../constants';
 
 const PageHeader: FC<Pick<CardProps, 'h'>> = ({ h, children }) => (
     <Card

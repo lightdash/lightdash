@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { IconBook, IconInfoCircle } from '@tabler/icons-react';
 import { FC, useState } from 'react';
-import { FOOTER_HEIGHT, FOOTER_MARGIN } from '../constants';
+import { FOOTER_HEIGHT, FOOTER_MARGIN, PAGE_CONTENT_WIDTH } from '../constants';
 import { useApp } from '../providers/AppProvider/useApp';
 import { TrackPage } from '../providers/TrackingProvider/TrackPage';
 import { TrackSection } from '../providers/TrackingProvider/TrackSection';
@@ -23,7 +23,6 @@ import Logo from '../svgs/grey-icon-logo.svg?react';
 import { PageName, PageType, SectionName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
 import MantineLinkButton from './common/MantineLinkButton';
-import { PAGE_CONTENT_WIDTH } from './common/Page/Page';
 
 const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     minimal,
