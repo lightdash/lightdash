@@ -210,6 +210,23 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
     const location = useLocation();
     const exportDashboardMutation = useExportDashboard();
 
+    const handleExportClick = useCallback(() => {
+        if (previewChoice && previews[previewChoice])
+            return window.open(exportDashboardMutation.data, '_blank');
+
+        exportDashboardMutation.mutate({
+            dashboard,
+            gridWidth: undefined,
+            queryFilters: location.search,
+        });
+    }, [
+        dashboard,
+        exportDashboardMutation,
+        location.search,
+        previewChoice,
+        previews,
+    ]);
+
     return (
         <>
             <Modal
@@ -243,22 +260,7 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                         <Group spacing="xs">
                             <Button
                                 loading={exportDashboardMutation.isLoading}
-                                onClick={() => {
-                                    if (
-                                        previewChoice &&
-                                        previews[previewChoice]
-                                    )
-                                        return window.open(
-                                            exportDashboardMutation.data,
-                                            '_blank',
-                                        );
-
-                                    exportDashboardMutation.mutate({
-                                        dashboard,
-                                        gridWidth: undefined,
-                                        queryFilters: location.search,
-                                    });
-                                }}
+                                onClick={handleExportClick}
                                 leftIcon={
                                     <MantineIcon
                                         icon={

@@ -118,29 +118,32 @@ export const useExportDashboard = () => {
         {
             mutationKey: ['export_dashboard'],
             onMutate: (data) => {
-                if (data.isPreview) return;
                 showToastInfo({
                     key: 'dashboard_export_toast',
-                    title: `${data.dashboard.name} is being exported. This might take a few seconds.`,
+                    title: data.isPreview
+                        ? `Generating preview for ${data.dashboard.name}`
+                        : `${data.dashboard.name} is being exported. This might take a few seconds.`,
                     autoClose: false,
                     loading: true,
                 });
             },
             onSuccess: async (url, data) => {
                 if (url) {
-                    if (data.isPreview) return;
-                    window.open(url, '_blank');
+                    if (!data.isPreview) window.open(url, '_blank');
                     showToastSuccess({
                         key: 'dashboard_export_toast',
-                        title: `Success! ${data.dashboard.name} was exported.`,
+                        title: data.isPreview
+                            ? 'Success!'
+                            : `Success! ${data.dashboard.name} was exported.`,
                     });
                 }
             },
             onError: (error, data) => {
-                if (data.isPreview) return;
                 showToastError({
                     key: 'dashboard_export_toast',
-                    title: `Failed to export ${data.dashboard.name}`,
+                    title: data.isPreview
+                        ? `Failed to generate preview for ${data.dashboard.name}`
+                        : `Failed to export ${data.dashboard.name}`,
                     subtitle: error.error.message,
                 });
             },
