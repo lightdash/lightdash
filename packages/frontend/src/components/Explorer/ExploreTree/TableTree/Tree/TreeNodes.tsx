@@ -9,13 +9,11 @@ import {
 } from '@lightdash/common';
 import { FC, useMemo } from 'react';
 import TreeGroupNode from './TreeGroupNode';
-import {
-    isGroupNode,
-    Node,
-    NodeMap,
-    useTableTreeContext,
-} from './TreeProvider';
+import { GroupNode, Node, NodeMap } from './TreeProvider';
+import { useTableTreeContext } from './TreeProvider/useTableTreeContext';
 import TreeSingleNode from './TreeSingleNode';
+
+const isGroupNode = (node: Node): node is GroupNode => 'children' in node;
 
 const sortNodes =
     (

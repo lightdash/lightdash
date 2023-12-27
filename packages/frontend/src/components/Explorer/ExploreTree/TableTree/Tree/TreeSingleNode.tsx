@@ -20,7 +20,8 @@ import { getItemBgColor } from '../../../../../hooks/useColumns';
 import { useFilters } from '../../../../../hooks/useFilters';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
-import { Node, useTableTreeContext } from './TreeProvider';
+import { Node } from './TreeProvider';
+import { useTableTreeContext } from './TreeProvider/useTableTreeContext';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 
 type Props = {

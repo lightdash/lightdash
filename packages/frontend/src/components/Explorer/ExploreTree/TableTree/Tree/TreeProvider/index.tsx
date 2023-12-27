@@ -9,25 +9,8 @@ import {
     Metric,
     OrderFieldsByStrategy,
 } from '@lightdash/common';
-import Fuse from 'fuse.js';
-import { createContext, FC, useContext } from 'react';
-
-export const getSearchResults = (
-    itemsMap: Record<string, Item>,
-    searchQuery?: string,
-): Set<string> => {
-    const results = new Set<string>();
-    if (searchQuery && searchQuery !== '') {
-        new Fuse(Object.entries(itemsMap), {
-            keys: ['1.label', '1.groupLabel'],
-            ignoreLocation: true,
-            threshold: 0.3,
-        })
-            .search(searchQuery)
-            .forEach((res) => results.add(res.item[0]));
-    }
-    return results;
-};
+import { createContext, FC } from 'react';
+import { getSearchResults } from './utils/getSearchResults';
 
 const getNodeMapFromItemsMap = (
     itemsMap: Record<string, Item>,
@@ -148,9 +131,6 @@ export type GroupNode = Required<Node>;
 
 export type NodeMap = Record<string, Node>;
 
-export const isGroupNode = (node: Node): node is GroupNode =>
-    'children' in node;
-
 type Item = Dimension | Metric | AdditionalMetric | CustomDimension;
 
 type Props = {
@@ -162,13 +142,13 @@ type Props = {
     onItemClick: (key: string, item: Item) => void;
 };
 
-type TableTreeContext = Props & {
+export type TableTreeContext = Props & {
     nodeMap: NodeMap;
     isSearching: boolean;
     searchResults: Set<string>;
 };
 
-const Context = createContext<TableTreeContext | undefined>(undefined);
+export const Context = createContext<TableTreeContext | undefined>(undefined);
 
 export const TreeProvider: FC<Props> = ({
     searchQuery,
@@ -198,13 +178,3 @@ export const TreeProvider: FC<Props> = ({
         </Context.Provider>
     );
 };
-
-export function useTableTreeContext(): TableTreeContext {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error(
-            'useTableTreeContext must be used within a TableTreeProvider',
-        );
-    }
-    return context;
-}

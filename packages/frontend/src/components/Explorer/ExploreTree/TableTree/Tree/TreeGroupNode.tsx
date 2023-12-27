@@ -6,7 +6,8 @@ import { FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../../common/MantineIcon';
 import TreeNodes from './TreeNodes';
-import { GroupNode, Node, useTableTreeContext } from './TreeProvider';
+import { GroupNode, Node } from './TreeProvider';
+import { useTableTreeContext } from './TreeProvider/useTableTreeContext';
 
 const getAllChildrenKeys = (nodes: Node[]): string[] => {
     return nodes.flatMap(function loop(node): string[] {
