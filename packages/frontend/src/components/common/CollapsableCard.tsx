@@ -1,33 +1,7 @@
-import {
-    Box,
-    Button,
-    ButtonProps,
-    Card,
-    Flex,
-    Group,
-    PopoverProps,
-    Title,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Button, Card, Flex, Group, Title, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { FC, useCallback } from 'react';
 import MantineIcon from './MantineIcon';
-
-export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
-    variant: 'default',
-    size: 'xs',
-};
-
-export const COLLAPSABLE_CARD_POPOVER_PROPS: Omit<PopoverProps, 'children'> = {
-    shadow: 'md',
-    position: 'bottom',
-    withArrow: true,
-    closeOnClickOutside: true,
-    closeOnEscape: true,
-    keepMounted: false,
-    arrowSize: 10,
-    offset: 2,
-};
 
 interface CollapsableCardProps {
     onToggle?: (isOpen: boolean) => void;

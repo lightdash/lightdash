@@ -1,10 +1,10 @@
 import { Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
+import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../constants';
 import { CreateTableCalculationModal } from '../features/tableCalculation';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from './common/CollapsableCard';
 import MantineIcon from './common/MantineIcon';
 
 const AddColumnButton: FC = memo(() => {

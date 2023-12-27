@@ -4,6 +4,10 @@ import { IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../api/csv';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../../../constants';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useApp } from '../../../providers/AppProvider';
 import {
@@ -12,10 +16,7 @@ import {
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
 import { Can } from '../../common/Authorization';
-import CollapsableCard, {
-    COLLAPSABLE_CARD_BUTTON_PROPS,
-    COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../../common/CollapsableCard';
+import CollapsableCard from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';

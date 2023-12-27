@@ -10,13 +10,13 @@ import { IconDownload, IconShare2 } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
-import useEchartsCartesianConfig from '../hooks/echarts/useEchartsCartesianConfig';
-import { useApp } from '../providers/AppProvider';
-import { Can } from './common/Authorization';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
-} from './common/CollapsableCard';
+} from '../constants';
+import useEchartsCartesianConfig from '../hooks/echarts/useEchartsCartesianConfig';
+import { useApp } from '../providers/AppProvider';
+import { Can } from './common/Authorization';
 import MantineIcon from './common/MantineIcon';
 import ExportSelector from './ExportSelector';
 import { isBigNumberVisualizationConfig } from './LightdashVisualization/VisualizationBigNumberConfig';

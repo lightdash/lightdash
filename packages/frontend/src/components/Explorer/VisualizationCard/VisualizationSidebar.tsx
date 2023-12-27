@@ -5,7 +5,7 @@ import {
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import { FC, memo, useMemo } from 'react';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
+import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../../constants';
 import MantineIcon from '../../common/MantineIcon';
 import BigNumberConfigTabs from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import ChartConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/ChartConfigTabs';

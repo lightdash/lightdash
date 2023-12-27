@@ -2,8 +2,8 @@ import { Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { FC, memo } from 'react';
 import { Link } from 'react-router-dom';
+import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../../constants';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 
 interface OpenInSqlRunnerButtonProps {
