@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const restrictedGlobals = require('confusing-browser-globals');
 
 const unusedVarExceptions = {
@@ -33,6 +34,7 @@ module.exports = {
         'prettier',
         'react-hooks',
         'react',
+        'react-refresh',
     ],
 
     settings: {
@@ -54,6 +56,7 @@ module.exports = {
             },
         ],
         'react-hooks/exhaustive-deps': 'error',
+        'react-refresh/only-export-components': 'warn',
 
         // TODO: enable these rules once the codebase is fixed
         '@typescript-eslint/ban-ts-comment': 'off',
