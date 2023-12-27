@@ -15,10 +15,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import { ResourceViewType } from '../../../types/ResourceView';
 import MantineIcon from '../MantineIcon';
-import ResourceActionHandlers, {
-    ResourceViewItemAction,
-    ResourceViewItemActionState,
-} from './ResourceActionHandlers';
+import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceEmptyState, {
     ResourceEmptyStateProps,
 } from './ResourceEmptyState';
@@ -28,6 +25,7 @@ import ResourceViewGrid, {
 import ResourceViewList, {
     ResourceViewListCommonProps,
 } from './ResourceViewList';
+import { ResourceViewItemAction, ResourceViewItemActionState } from './types';
 
 type TabType = {
     id: string;

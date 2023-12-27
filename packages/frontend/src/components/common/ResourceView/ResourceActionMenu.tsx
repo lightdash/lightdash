@@ -23,10 +23,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider/useApp';
 import MantineIcon from '../MantineIcon';
-import {
-    ResourceViewItemAction,
-    ResourceViewItemActionState,
-} from './ResourceActionHandlers';
+import { ResourceViewItemAction, ResourceViewItemActionState } from './types';
 
 export interface ResourceViewActionMenuCommonProps {
     onAction: (newAction: ResourceViewItemActionState) => void;
