@@ -1,12 +1,5 @@
-import React, {
-    createContext,
-    FC,
-    useCallback,
-    useContext,
-    useEffect,
-    useState,
-} from 'react';
-import useToaster from '../hooks/toaster/useToaster';
+import { createContext, FC, useCallback, useEffect, useState } from 'react';
+import useToaster from '../../hooks/toaster/useToaster';
 
 const MAX_LOG_ENTRIES = 50;
 
@@ -22,7 +15,7 @@ export interface ErrorLogs {
     deleteError: (idx: number) => void;
 }
 
-const Context = createContext<ErrorLogs>(undefined as any);
+export const Context = createContext<ErrorLogs>(undefined as any);
 
 export const ErrorLogsProvider: FC = ({ children }) => {
     const [errorLogs, setErrorLogs] = useState<ErrorLogEntry[]>([]);
@@ -87,13 +80,3 @@ export const ErrorLogsProvider: FC = ({ children }) => {
 
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
-
-export function useErrorLogs(): ErrorLogs {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error(
-            'useErrorLogsContext must be used within a ErrorLogsProvider',
-        );
-    }
-    return context;
-}

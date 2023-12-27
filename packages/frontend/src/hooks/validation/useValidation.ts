@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from 'react-query';
 import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
-import { useErrorLogs } from '../../providers/ErrorLogsProvider';
+import { useErrorLogs } from '../../providers/ErrorLogsProvider/useErrorLogs';
 import useToaster from '../toaster/useToaster';
 import { useProject } from '../useProject';
 import useUser from '../user/useUser';

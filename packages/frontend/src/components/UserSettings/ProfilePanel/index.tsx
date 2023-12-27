@@ -17,7 +17,7 @@ import {
 } from '../../../hooks/useEmailVerification';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import { useApp } from '../../../providers/AppProvider/useApp';
-import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
+import { useErrorLogs } from '../../../providers/ErrorLogsProvider/useErrorLogs';
 import MantineIcon from '../../common/MantineIcon';
 
 const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
