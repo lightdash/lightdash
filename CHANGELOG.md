@@ -1,3 +1,10 @@
+# [0.916.0](https://github.com/lightdash/lightdash/compare/0.915.4...0.916.0) (2023-12-27)
+
+
+### Features
+
+* customise width and preview dashboard exports ([#8389](https://github.com/lightdash/lightdash/issues/8389)) ([71302e0](https://github.com/lightdash/lightdash/commit/71302e00f40c6e19882ee002633890eb8f44f909))
+
 ## [0.915.4](https://github.com/lightdash/lightdash/compare/0.915.3...0.915.4) (2023-12-27)
 
 
