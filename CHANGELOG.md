@@ -1,3 +1,11 @@
+## [0.915.4](https://github.com/lightdash/lightdash/compare/0.915.3...0.915.4) (2023-12-27)
+
+
+### Bug Fixes
+
+* alllow scrolling in react-ace table calc ([#8401](https://github.com/lightdash/lightdash/issues/8401)) ([b79906a](https://github.com/lightdash/lightdash/commit/b79906aa288f9213be1f409906b7e20ab2f2194a))
+* displaying error inside underlying data modal ([#8411](https://github.com/lightdash/lightdash/issues/8411)) ([6f70b50](https://github.com/lightdash/lightdash/commit/6f70b50a4993be9b9b9f2bc9871dcad7ff18ce22))
+
 ## [0.915.3](https://github.com/lightdash/lightdash/compare/0.915.2...0.915.3) (2023-12-27)
 
 
