@@ -1,17 +1,10 @@
 import { SimpleGrid } from '@mantine/core';
 import startCase from 'lodash/startCase';
 import { FC } from 'react';
+import { defaultGrid } from '../../../../constants';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-
-export const defaultGrid = {
-    containLabel: true,
-    left: '5%', // small padding
-    right: '5%', // small padding
-    top: '70px', // pixels from top (makes room for legend)
-    bottom: '30px', // pixels from bottom (makes room for x-axis)
-} as const;
 
 const POSITIONS = ['left', 'right', 'top', 'bottom'] as const;
 
