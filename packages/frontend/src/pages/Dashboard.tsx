@@ -46,10 +46,8 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
-import {
-    DashboardProvider,
-    useDashboardContext,
-} from '../providers/DashboardProvider';
+import { DashboardProvider } from '../providers/DashboardProvider';
+import { useDashboardContext } from '../providers/DashboardProvider/useDashboardContext';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
 import { SectionName } from '../types/Events';

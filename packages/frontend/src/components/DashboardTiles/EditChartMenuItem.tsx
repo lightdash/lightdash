@@ -4,7 +4,7 @@ import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useApp } from '../../providers/AppProvider/useApp';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useDashboardContext } from '../../providers/DashboardProvider/useDashboardContext';
 import LinkMenuItem, { LinkMenuItemProps } from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 

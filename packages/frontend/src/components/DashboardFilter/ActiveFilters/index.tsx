@@ -1,6 +1,6 @@
 import { Group, Skeleton } from '@mantine/core';
 import { FC } from 'react';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { useDashboardContext } from '../../../providers/DashboardProvider/useDashboardContext';
 import Filter from '../Filter';
 
 interface ActiveFiltersProps {

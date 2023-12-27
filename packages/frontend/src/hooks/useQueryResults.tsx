@@ -12,7 +12,7 @@ import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useDashboardContext } from '../providers/DashboardProvider';
+import { useDashboardContext } from '../providers/DashboardProvider/useDashboardContext';
 import {
     convertDateDashboardFilters,
     convertDateFilters,

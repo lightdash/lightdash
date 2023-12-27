@@ -7,7 +7,7 @@ import {
 import { ActionIcon, Flex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useDashboardContext } from '../../providers/DashboardProvider/useDashboardContext';
 import {
     getSortDirectionOrder,
     getSortIcon,

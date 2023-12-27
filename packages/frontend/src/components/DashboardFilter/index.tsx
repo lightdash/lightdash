@@ -7,7 +7,7 @@ import { Flex } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useDashboardContext } from '../../providers/DashboardProvider/useDashboardContext';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';

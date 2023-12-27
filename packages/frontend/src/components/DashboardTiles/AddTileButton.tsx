@@ -10,7 +10,7 @@ import {
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useDashboardContext } from '../../providers/DashboardProvider/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { TileAddModal } from './TileForms/TileAddModal';

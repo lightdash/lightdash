@@ -26,17 +26,17 @@ import React, {
 } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
-import { createContext, useContextSelector } from 'use-context-selector';
-import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
-import { hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
+import { createContext } from 'use-context-selector';
+import { FieldsWithSuggestions } from '../../components/common/Filters/FiltersProvider';
+import { hasSavedFilterValueChanged } from '../../components/DashboardFilter/FilterConfiguration/utils';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
-} from '../hooks/dashboard/useDashboard';
+} from '../../hooks/dashboard/useDashboard';
 import {
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
-} from '../hooks/useSavedDashboardFiltersOverrides';
+} from '../../hooks/useSavedDashboardFiltersOverrides';
 
 const emptyFilters: DashboardFilters = {
     dimensions: [],
@@ -44,7 +44,7 @@ const emptyFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
-type DashboardContext = {
+export type DashboardContext = {
     dashboard: Dashboard | undefined;
     dashboardError: ApiError | null;
     dashboardTiles: Dashboard['tiles'] | undefined;
@@ -98,7 +98,7 @@ type DashboardContext = {
     >;
 };
 
-const Context = createContext<DashboardContext | undefined>(undefined);
+export const Context = createContext<DashboardContext | undefined>(undefined);
 
 export const DashboardProvider: React.FC<{
     schedulerFilters?: SchedulerFilterRule[] | undefined;
@@ -572,16 +572,3 @@ export const DashboardProvider: React.FC<{
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
-
-export function useDashboardContext<Selected>(
-    selector: (value: DashboardContext) => Selected,
-) {
-    return useContextSelector(Context, (context) => {
-        if (context === undefined) {
-            throw new Error(
-                'useDashboardContext must be used within a DashboardProvider',
-            );
-        }
-        return selector(context);
-    });
-}

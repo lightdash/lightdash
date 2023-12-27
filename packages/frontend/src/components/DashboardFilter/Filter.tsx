@@ -7,7 +7,7 @@ import { Button, CloseButton, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useDashboardContext } from '../../providers/DashboardProvider/useDashboardContext';
 import {
     getConditionalRuleLabel,
     getFilterRuleTables,

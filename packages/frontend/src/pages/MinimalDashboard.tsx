@@ -11,6 +11,7 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
+import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import useSearchParams from '../hooks/useSearchParams';
 import { DashboardProvider } from '../providers/DashboardProvider';
 import {
@@ -18,7 +19,6 @@ import {
     getResponsiveGridLayoutProps,
 } from './Dashboard';
 
-import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);

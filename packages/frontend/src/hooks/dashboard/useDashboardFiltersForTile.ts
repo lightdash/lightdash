@@ -3,7 +3,7 @@ import {
     getDashboardFilterRulesForTile,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useDashboardContext } from '../../providers/DashboardProvider/useDashboardContext';
 
 const useDashboardFiltersForTile = (tileUuid: string): DashboardFilters => {
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);

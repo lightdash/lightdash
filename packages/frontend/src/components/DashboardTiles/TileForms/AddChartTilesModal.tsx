@@ -20,7 +20,7 @@ import React, { FC, forwardRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { useDashboardContext } from '../../../providers/DashboardProvider/useDashboardContext';
 import MantineIcon from '../../common/MantineIcon';
 
 type Props = {

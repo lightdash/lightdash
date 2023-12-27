@@ -7,7 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { useDashboardContext } from '../../../providers/DashboardProvider/useDashboardContext';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 

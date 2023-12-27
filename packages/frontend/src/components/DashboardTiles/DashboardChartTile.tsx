@@ -58,7 +58,7 @@ import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useApp } from '../../providers/AppProvider/useApp';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useDashboardContext } from '../../providers/DashboardProvider/useDashboardContext';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';

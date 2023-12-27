@@ -36,7 +36,7 @@ import {
     isFilterEnabled,
 } from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { useDashboardContext } from '../../../providers/DashboardProvider/useDashboardContext';
 
 const FilterSummaryLabel: FC<
     { filterSummary: ReturnType<typeof getConditionalRuleLabel> } & Record<
