@@ -1,6 +1,6 @@
 import { Modal } from '@mantine/core';
 import { FC } from 'react';
-import { useMetricQueryDataContext } from './MetricQueryDataProvider';
+import { useMetricQueryDataContext } from './MetricQueryDataProvider/useMetricQueryDataContext';
 import UnderlyingDataModalContent from './UnderlyingDataModalContent';
 
 const UnderlyingDataModal: FC = () => {

@@ -10,10 +10,8 @@ import { FC, useCallback, useMemo } from 'react';
 import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
-import {
-    DrillDownConfig,
-    useMetricQueryDataContext,
-} from './MetricQueryDataProvider';
+import { DrillDownConfig } from './MetricQueryDataProvider';
+import { useMetricQueryDataContext } from './MetricQueryDataProvider/useMetricQueryDataContext';
 
 type DrillDownMenuItemProps = Partial<DrillDownConfig> & {
     trackingData: {

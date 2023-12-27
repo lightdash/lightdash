@@ -30,7 +30,7 @@ import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
 import { TableColumn } from '../common/Table/types';
 import DownloadCsvButton from '../DownloadCsvButton';
-import { useMetricQueryDataContext } from './MetricQueryDataProvider';
+import { useMetricQueryDataContext } from './MetricQueryDataProvider/useMetricQueryDataContext';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 
 interface Props {}

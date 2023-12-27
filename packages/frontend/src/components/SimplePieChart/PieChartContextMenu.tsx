@@ -13,7 +13,7 @@ import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { isPieVisualizationConfig } from '../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 
 export type PieChartContextMenuProps = {
     menuPosition?: {

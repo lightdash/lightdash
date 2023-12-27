@@ -7,7 +7,7 @@ import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider/useApp';
 import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
-import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {

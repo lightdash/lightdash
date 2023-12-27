@@ -16,10 +16,8 @@ import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
-import {
-    getDataFromChartClick,
-    useMetricQueryDataContext,
-} from '../../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
+import { getDataFromChartClick } from '../../MetricQueryData/utils/getDataFromChartClick';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 
 export const SeriesContextMenu: FC<{

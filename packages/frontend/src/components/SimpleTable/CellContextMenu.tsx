@@ -21,7 +21,7 @@ import MantineIcon from '../common/MantineIcon';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
-import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery } =

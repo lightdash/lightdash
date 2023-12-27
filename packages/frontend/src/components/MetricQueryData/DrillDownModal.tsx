@@ -25,7 +25,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import FieldSelect from '../common/FieldSelect';
 import MantineIcon from '../common/MantineIcon';
-import { useMetricQueryDataContext } from './MetricQueryDataProvider';
+import { useMetricQueryDataContext } from './MetricQueryDataProvider/useMetricQueryDataContext';
 
 type CombineFiltersArgs = {
     fieldValues: Record<string, ResultValue>;

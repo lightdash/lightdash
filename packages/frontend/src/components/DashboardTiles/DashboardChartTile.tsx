@@ -72,11 +72,10 @@ import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
-import MetricQueryDataProvider, {
-    getDataFromChartClick,
-    useMetricQueryDataContext,
-} from '../MetricQueryData/MetricQueryDataProvider';
+import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
+import { getDataFromChartClick } from '../MetricQueryData/utils/getDataFromChartClick';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import EditChartMenuItem from './EditChartMenuItem';
 import TileBase from './TileBase/index';

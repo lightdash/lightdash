@@ -24,7 +24,7 @@ import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
 import { CellContextMenuProps } from '../../common/Table/types';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
-import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<

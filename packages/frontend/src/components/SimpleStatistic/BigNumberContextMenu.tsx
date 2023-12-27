@@ -14,7 +14,7 @@ import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/VisualizationBigNumberConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 
 const BigNumberContextMenu: FC<{}> = ({ children }) => {
     const clipboard = useClipboard({ timeout: 200 });
