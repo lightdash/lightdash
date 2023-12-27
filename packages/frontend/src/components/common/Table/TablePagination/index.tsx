@@ -3,7 +3,7 @@ import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../MantineIcon';
 import { TableFooter } from '../Table.styles';
-import { useTableContext } from '../TableProvider';
+import { useTableContext } from '../TableProvider/useTableContext';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../types';
 
 interface ResultCountProps {

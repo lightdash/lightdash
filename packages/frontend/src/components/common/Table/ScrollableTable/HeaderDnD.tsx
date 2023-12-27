@@ -1,8 +1,8 @@
 import { ResultRow } from '@lightdash/common';
 import { flexRender, HeaderGroup } from '@tanstack/react-table';
-import React, { FC, MutableRefObject } from 'react';
+import { FC, MutableRefObject } from 'react';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
-import { useTableContext } from '../TableProvider';
+import { useTableContext } from '../TableProvider/useTableContext';
 import { ROW_NUMBER_COLUMN_ID } from '../types';
 
 type HeaderDndContextProps = {

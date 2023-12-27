@@ -10,7 +10,7 @@ import {
     ThContainer,
     ThLabelContainer,
 } from '../Table.styles';
-import { useTableContext } from '../TableProvider';
+import { useTableContext } from '../TableProvider/useTableContext';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 
 interface TableHeaderProps {

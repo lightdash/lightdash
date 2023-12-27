@@ -6,14 +6,7 @@ import {
     Table,
     useReactTable,
 } from '@tanstack/react-table';
-import React, {
-    createContext,
-    FC,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react';
+import { createContext, FC, useEffect, useMemo, useState } from 'react';
 import {
     CellContextMenuProps,
     DEFAULT_PAGE_SIZE,
@@ -22,7 +15,7 @@ import {
     ROW_NUMBER_COLUMN_ID,
     TableColumn,
     TableHeader,
-} from './types';
+} from '../types';
 
 type Props = {
     data: ResultRow[];
@@ -48,7 +41,7 @@ export type TableContext = Props & {
     table: Table<ResultRow>;
 };
 
-const Context = createContext<TableContext | undefined>(undefined);
+export const Context = createContext<TableContext | undefined>(undefined);
 
 const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
@@ -184,11 +177,3 @@ export const TableProvider: FC<Props> = ({
         </Context.Provider>
     );
 };
-
-export function useTableContext(): TableContext {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error('useTableContext must be used within a TableProvider');
-    }
-    return context;
-}
