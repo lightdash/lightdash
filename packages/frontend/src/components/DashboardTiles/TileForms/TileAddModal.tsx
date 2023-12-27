@@ -12,7 +12,8 @@ import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../common/MantineIcon';
-import LoomTileForm, { getLoomId } from './LoomTileForm';
+import { getLoomId } from '../utils/getLoomId';
+import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 
 type Tile = Dashboard['tiles'][number];

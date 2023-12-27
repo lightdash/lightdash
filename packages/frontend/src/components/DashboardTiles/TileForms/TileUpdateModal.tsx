@@ -10,7 +10,8 @@ import { useForm, UseFormReturnType } from '@mantine/form';
 import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import produce from 'immer';
 import MantineIcon from '../../common/MantineIcon';
-import LoomTileForm, { getLoomId } from './LoomTileForm';
+import { getLoomId } from '../utils/getLoomId';
+import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 
 type Tile = Dashboard['tiles'][number];
