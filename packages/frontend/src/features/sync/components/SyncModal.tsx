@@ -5,11 +5,9 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
-import {
-    SyncModalAction,
-    SyncModalProvider,
-    useSyncModal,
-} from '../providers/SyncModalProvider';
+import { SyncModalProvider } from '../providers/SyncModalProvider';
+import { useSyncModal } from '../providers/useSyncModal';
+import { SyncModalAction } from '../types';
 import { SyncModalDelete } from './SyncModalDelete';
 import { SyncModalForm } from './SyncModalForm';
 import { SyncModalView } from './SyncModalView';

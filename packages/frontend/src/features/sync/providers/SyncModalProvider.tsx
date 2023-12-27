@@ -1,20 +1,7 @@
-import {
-    createContext,
-    Dispatch,
-    FC,
-    SetStateAction,
-    useContext,
-    useState,
-} from 'react';
+import { createContext, Dispatch, FC, SetStateAction, useState } from 'react';
+import { SyncModalAction } from '../types';
 
-export enum SyncModalAction {
-    CREATE = 'create',
-    EDIT = 'edit',
-    VIEW = 'view',
-    DELETE = 'delete',
-}
-
-const SyncModalContext = createContext<
+export const SyncModalContext = createContext<
     | {
           action: SyncModalAction;
           setAction: Dispatch<SetStateAction<SyncModalAction>>;
@@ -40,14 +27,4 @@ export const SyncModalProvider: FC = ({ children }) => {
             {children}
         </SyncModalContext.Provider>
     );
-};
-
-export const useSyncModal = () => {
-    const context = useContext(SyncModalContext);
-    if (!context) {
-        throw new Error(
-            'useSyncWithGoogleSheets must be used within a SyncModalProvider',
-        );
-    }
-    return context;
 };

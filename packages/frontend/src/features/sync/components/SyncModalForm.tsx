@@ -23,7 +23,8 @@ import { useChartSchedulerCreateMutation } from '../../../features/scheduler/hoo
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../features/scheduler/hooks/useSchedulersUpdateMutation';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
-import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
+import { useSyncModal } from '../providers/useSyncModal';
+import { SyncModalAction } from '../types';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';
 
 export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {

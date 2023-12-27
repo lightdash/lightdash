@@ -21,7 +21,8 @@ import cronstrue from 'cronstrue';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
-import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
+import { useSyncModal } from '../providers/useSyncModal';
+import { SyncModalAction } from '../types';
 
 export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { data } = useChartSchedulers(chartUuid);
