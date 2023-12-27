@@ -2,7 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { FC, useEffect } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
-import { AddToSpaceResources } from './AddResourceToSpaceModal';
+import { AddToSpaceResources } from './types';
 
 const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 

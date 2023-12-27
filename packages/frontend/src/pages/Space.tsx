@@ -25,15 +25,13 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import { ResourceTypeIcon } from '../components/common/ResourceIcon';
 import ResourceView from '../components/common/ResourceView';
 import ShareSpaceModal from '../components/common/ShareSpaceModal';
-import SpaceActionModal, {
-    ActionType,
-} from '../components/common/SpaceActionModal';
+import SpaceActionModal from '../components/common/SpaceActionModal';
+import { ActionType } from '../components/common/SpaceActionModal/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import AddResourceToSpaceModal, {
-    AddToSpaceResources,
-} from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
+import AddResourceToSpaceModal from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
 import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
+import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';

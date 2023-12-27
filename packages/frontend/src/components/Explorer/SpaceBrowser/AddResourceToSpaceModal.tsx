@@ -21,11 +21,7 @@ import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
 import { useSpace, useSpaceSummaries } from '../../../hooks/useSpaces';
 import MantineIcon from '../../common/MantineIcon';
-
-export enum AddToSpaceResources {
-    DASHBOARD = 'dashboard',
-    CHART = 'chart',
-}
+import { AddToSpaceResources } from './types';
 
 const getResourceTypeLabel = (resourceType: AddToSpaceResources) => {
     switch (resourceType) {
