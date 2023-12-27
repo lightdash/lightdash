@@ -1,3 +1,11 @@
+## [0.915.3](https://github.com/lightdash/lightdash/compare/0.915.2...0.915.3) (2023-12-27)
+
+
+### Bug Fixes
+
+* alignment fix for date zoom icon ([#8404](https://github.com/lightdash/lightdash/issues/8404)) ([f32b0c7](https://github.com/lightdash/lightdash/commit/f32b0c758f6484afaf5d39c24008152b1d58ceaf))
+* table alternating row styles ([#8408](https://github.com/lightdash/lightdash/issues/8408)) ([dee37ec](https://github.com/lightdash/lightdash/commit/dee37eca53b9fc3d9f44c826618b6903d9eff011))
+
 ## [0.915.2](https://github.com/lightdash/lightdash/compare/0.915.1...0.915.2) (2023-12-22)
 
 
