@@ -20,12 +20,12 @@ import {
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
+import { MAX_PIVOTS } from '../../../constants';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];

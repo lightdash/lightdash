@@ -1,14 +1,13 @@
 import { getCustomDimensionId } from '@lightdash/common';
 import { Box, Checkbox, Stack, Title, Tooltip } from '@mantine/core';
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback, useMemo, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
+import { MAX_PIVOTS } from '../../../constants';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
 import DroppableItemsList from './DroppableItemsList';
-
-export const MAX_PIVOTS = 3;
 
 enum DroppableIds {
     COLUMNS = 'COLUMNS',

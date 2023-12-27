@@ -1,5 +1,7 @@
 import { ButtonProps, MantineSize, PopoverProps } from '@mantine/core';
 
+export const MAX_PIVOTS = 3;
+
 export const FOOTER_HEIGHT = 80;
 export const FOOTER_MARGIN: MantineSize = 'lg';
 
