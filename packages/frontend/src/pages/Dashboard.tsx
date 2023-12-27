@@ -601,6 +601,7 @@ const Dashboard: FC = () => {
 
                 <ResponsiveGridLayout
                     {...getResponsiveGridLayoutProps()}
+                    className="react-grid-layout-dashboard"
                     onDragStop={handleUpdateTiles}
                     onResizeStop={handleUpdateTiles}
                     layouts={layouts}
