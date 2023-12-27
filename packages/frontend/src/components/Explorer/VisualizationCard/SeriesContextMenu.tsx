@@ -14,7 +14,7 @@ import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
 import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils/getDataFromChartClick';

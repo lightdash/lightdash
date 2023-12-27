@@ -6,7 +6,7 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../../constants';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import PieChartConfigTabs from './PieChartConfigTabs';
 
 const PieChartConfig: React.FC = () => {

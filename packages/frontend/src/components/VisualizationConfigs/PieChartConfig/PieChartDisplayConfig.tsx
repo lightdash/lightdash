@@ -5,7 +5,7 @@ import {
 import { Collapse, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import React from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 const PieChartDisplayConfig: React.FC = () => {
     const { visualizationConfig } = useVisualizationContext();

@@ -23,7 +23,7 @@ import {
 import React, { FC } from 'react';
 import { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
 import MantineIcon from '../../../common/MantineIcon';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 
 type Props = {

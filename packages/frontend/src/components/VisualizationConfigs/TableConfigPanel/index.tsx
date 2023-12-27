@@ -2,12 +2,12 @@ import { Box, Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../../constants';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import TableConfigTabs from './TableConfigTabs';
 
 const TableConfigPanel: React.FC = () => {

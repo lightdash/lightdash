@@ -9,7 +9,7 @@ import {
 import React, { useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
     const { pivotDimensions, visualizationConfig } = useVisualizationContext();

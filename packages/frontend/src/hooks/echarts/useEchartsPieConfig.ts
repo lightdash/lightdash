@@ -2,7 +2,7 @@ import { formatItemValue, ResultRow, ResultValue } from '@lightdash/common';
 import { EChartsOption, PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/utils';
-import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']

@@ -25,7 +25,7 @@ import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianCh
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];

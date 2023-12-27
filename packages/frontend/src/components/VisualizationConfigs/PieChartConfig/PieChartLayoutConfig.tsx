@@ -13,7 +13,7 @@ import { IconPlus } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 const PieChartLayoutConfig: React.FC = () => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();

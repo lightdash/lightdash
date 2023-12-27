@@ -8,7 +8,7 @@ import useEchartsPieConfig, {
     PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import PieChartContextMenu, {
     PieChartContextMenuProps,
 } from './PieChartContextMenu';

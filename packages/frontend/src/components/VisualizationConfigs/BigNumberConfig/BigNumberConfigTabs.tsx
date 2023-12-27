@@ -18,7 +18,7 @@ import { memo } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 const StyleOptions = [
     { value: '', label: 'none' },

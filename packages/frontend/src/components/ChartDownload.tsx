@@ -24,7 +24,7 @@ import {
     isCartesianVisualizationConfig,
     isTableVisualizationConfig,
 } from './LightdashVisualization/utils';
-import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 const FILE_NAME = 'lightdash_chart';
 

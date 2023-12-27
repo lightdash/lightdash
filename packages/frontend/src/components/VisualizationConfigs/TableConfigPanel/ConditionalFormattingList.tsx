@@ -10,8 +10,8 @@ import { IconPlus } from '@tabler/icons-react';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/utils';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import ConditionalFormatting from './ConditionalFormatting';
 
 const ConditionalFormattingList = ({}) => {

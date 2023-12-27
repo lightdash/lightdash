@@ -39,7 +39,7 @@ import toNumber from 'lodash/toNumber';
 import moment from 'moment';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/utils';
-import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import { defaultGrid } from '../../constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import getPlottedData from '../plottedData/getPlottedData';

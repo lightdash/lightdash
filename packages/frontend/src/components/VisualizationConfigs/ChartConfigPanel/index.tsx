@@ -6,7 +6,7 @@ import {
 } from '../../../constants';
 import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import ChartConfigTabs from './ChartConfigTabs';
 
 const ChartConfigPanel: React.FC = () => {

@@ -14,31 +14,30 @@ import {
     FC,
     RefObject,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useRef,
     useState,
 } from 'react';
-import { CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
-import usePivotDimensions from '../../hooks/usePivotDimensions';
-import { EchartSeriesClickEvent } from '../SimpleChart';
+import { CartesianTypeOptions } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
+import usePivotDimensions from '../../../hooks/usePivotDimensions';
+import { EchartSeriesClickEvent } from '../../SimpleChart';
 import VisualizationBigNumberConfig, {
     VisualizationConfigBigNumber,
-} from './VisualizationBigNumberConfig';
+} from '../VisualizationBigNumberConfig';
 import VisualizationCartesianConfig, {
     VisualizationConfigCartesian,
-} from './VisualizationConfigCartesian';
+} from '../VisualizationConfigCartesian';
 import VisualizationPieConfig, {
     VisualizationConfigPie,
-} from './VisualizationConfigPie';
+} from '../VisualizationConfigPie';
 import VisualizationTableConfig, {
     VisualizationConfigTable,
-} from './VisualizationConfigTable';
+} from '../VisualizationConfigTable';
 import VisualizationCustomConfig, {
     VisualizationConfigCustom,
-} from './VisualizationCustomConfigProps';
+} from '../VisualizationCustomConfigProps';
 
 export type VisualizationConfig =
     | VisualizationConfigBigNumber
@@ -47,7 +46,7 @@ export type VisualizationConfig =
     | VisualizationConfigPie
     | VisualizationConfigTable;
 
-type VisualizationContext = {
+export type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact>;
     pivotDimensions: string[] | undefined;
@@ -70,17 +69,9 @@ type VisualizationContext = {
     colorPalette: string[];
 };
 
-const Context = createContext<VisualizationContext | undefined>(undefined);
-
-export function useVisualizationContext(): VisualizationContext {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error(
-            'useVisualizationContext must be used within a VisualizationProvider',
-        );
-    }
-    return context;
-}
+export const Context = createContext<VisualizationContext | undefined>(
+    undefined,
+);
 
 export type VisualizationConfigCommon<T extends VisualizationConfig> = {
     resultsData: ApiQueryResults | undefined;

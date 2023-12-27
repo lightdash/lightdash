@@ -13,7 +13,7 @@ import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/utils';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider/useMetricQueryDataContext';
 
 const BigNumberContextMenu: FC<{}> = ({ children }) => {

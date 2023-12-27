@@ -7,7 +7,7 @@ import { TILE_HEADER_HEIGHT } from '../../constants';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import MantineIcon from '../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/utils';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
 import {

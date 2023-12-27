@@ -32,7 +32,7 @@ import {
     isPieVisualizationConfig,
     isTableVisualizationConfig,
 } from '../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 const VisualizationCardOptions: FC = memo(() => {
     const { health } = useApp();

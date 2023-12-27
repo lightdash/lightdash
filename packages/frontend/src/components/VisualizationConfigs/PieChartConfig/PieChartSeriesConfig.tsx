@@ -31,7 +31,7 @@ import {
 } from 'react-beautiful-dnd';
 import MantineIcon from '../../common/MantineIcon';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 
 type ValueOptionsProps = {

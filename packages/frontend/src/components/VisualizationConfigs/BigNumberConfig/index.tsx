@@ -7,7 +7,7 @@ import {
 } from '../../../constants';
 import MantineIcon from '../../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import BigNumberConfigTabs from './BigNumberConfigTabs';
 
 const BigNumberConfig: React.FC = () => {

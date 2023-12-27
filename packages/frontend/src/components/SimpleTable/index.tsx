@@ -6,7 +6,7 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';
 import { ResultCount } from '../common/Table/TablePagination';
 import { isTableVisualizationConfig } from '../LightdashVisualization/utils';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';

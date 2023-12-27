@@ -37,7 +37,7 @@ import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 type Props = {
     index: number;

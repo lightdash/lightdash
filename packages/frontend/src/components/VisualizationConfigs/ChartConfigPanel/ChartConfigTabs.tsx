@@ -1,6 +1,6 @@
 import { Tabs } from '@mantine/core';
 import { FC, memo, useMemo } from 'react';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import AxesOptions from './AxesOptions';
 import FieldLayoutOptions from './FieldLayoutOptions';
 import GridPanel from './Grid';

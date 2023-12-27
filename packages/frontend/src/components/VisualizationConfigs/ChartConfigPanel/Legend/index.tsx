@@ -17,7 +17,7 @@ import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import { ReferenceLines } from './ReferenceLines';
 
 enum Positions {

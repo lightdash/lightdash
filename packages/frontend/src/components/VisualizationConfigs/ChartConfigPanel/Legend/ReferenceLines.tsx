@@ -16,7 +16,7 @@ import { useProject } from '../../../../hooks/useProject';
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import { ReferenceLine } from './ReferenceLine';
 
 type Props = {

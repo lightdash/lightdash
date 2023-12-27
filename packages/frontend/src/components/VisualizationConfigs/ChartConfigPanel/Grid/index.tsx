@@ -4,7 +4,7 @@ import { FC } from 'react';
 import { defaultGrid } from '../../../../constants';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 const POSITIONS = ['left', 'right', 'top', 'bottom'] as const;
 

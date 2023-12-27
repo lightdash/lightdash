@@ -20,7 +20,7 @@ import {
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/utils';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';

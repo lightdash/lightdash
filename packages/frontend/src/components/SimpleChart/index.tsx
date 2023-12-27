@@ -7,7 +7,7 @@ import useEchartsCartesianConfig, {
     isLineSeriesOption,
 } from '../../hooks/echarts/useEchartsCartesianConfig';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider/useVisualizationContext';
 
 type EchartBaseClickEvent = {
     // The component name clicked,
