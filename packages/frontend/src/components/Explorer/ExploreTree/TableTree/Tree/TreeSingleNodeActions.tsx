@@ -25,7 +25,7 @@ import {
 import { FC, useMemo } from 'react';
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider/useExplorerContext';
-import { useTracking } from '../../../../../providers/TrackingProvider';
+import { useTracking } from '../../../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
 

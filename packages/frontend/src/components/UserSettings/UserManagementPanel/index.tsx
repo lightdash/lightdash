@@ -36,7 +36,7 @@ import {
     useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider/useApp';
-import { useTracking } from '../../../providers/TrackingProvider';
+import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';

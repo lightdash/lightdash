@@ -28,7 +28,7 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider/useApp';
-import { useTracking } from '../providers/TrackingProvider';
+import { useTracking } from '../providers/TrackingProvider/useTracking';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
 interface WelcomeCardProps {

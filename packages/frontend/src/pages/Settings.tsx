@@ -45,7 +45,8 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider/useApp';
-import { TrackPage, useTracking } from '../providers/TrackingProvider';
+import { TrackPage } from '../providers/TrackingProvider/TrackPage';
+import { useTracking } from '../providers/TrackingProvider/useTracking';
 import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 

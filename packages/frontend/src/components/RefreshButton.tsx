@@ -11,7 +11,7 @@ import { useHotkeys, useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { FC, memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider/useExplorerContext';
-import { useTracking } from '../providers/TrackingProvider';
+import { useTracking } from '../providers/TrackingProvider/useTracking';
 import { EventName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
 import LimitButton from './LimitButton';

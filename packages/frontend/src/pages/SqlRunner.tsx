@@ -43,7 +43,7 @@ import {
     useSqlRunnerUrlState,
 } from '../hooks/useSqlRunnerRoute';
 import { useApp } from '../providers/AppProvider/useApp';
-import { TrackSection } from '../providers/TrackingProvider';
+import { TrackSection } from '../providers/TrackingProvider/TrackSection';
 import { SectionName } from '../types/Events';
 
 const generateBasicSqlQuery = (table: string) =>

@@ -7,7 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { ConnectMethod } from '../../../pages/CreateProject';
-import { useTracking } from '../../../providers/TrackingProvider';
+import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';

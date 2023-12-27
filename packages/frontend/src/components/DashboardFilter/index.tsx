@@ -8,7 +8,7 @@ import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider/useDashboardContext';
-import { useTracking } from '../../providers/TrackingProvider';
+import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import ActiveFilters from './ActiveFilters';

@@ -21,7 +21,7 @@ import {
     useUpdateProjectTablesConfiguration,
 } from '../../hooks/useProjectTablesConfiguration';
 import { useApp } from '../../providers/AppProvider/useApp';
-import { useTracking } from '../../providers/TrackingProvider';
+import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';

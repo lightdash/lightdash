@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { FC, useCallback } from 'react';
 import { useToggle } from 'react-use';
-import { useTracking } from '../../../providers/TrackingProvider';
+import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';

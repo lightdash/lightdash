@@ -3,7 +3,7 @@ import { IconPlus } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../constants';
 import { CreateTableCalculationModal } from '../features/tableCalculation';
-import { useTracking } from '../providers/TrackingProvider';
+import { useTracking } from '../providers/TrackingProvider/useTracking';
 import { EventName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
 

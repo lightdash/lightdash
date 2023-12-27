@@ -40,7 +40,7 @@ import MobileSpace from './pages/MobileSpace';
 import MobileSpaces from './pages/MobileSpaces';
 import Projects from './pages/Projects';
 import ShareRedirect from './pages/ShareRedirect';
-import { TrackPage } from './providers/TrackingProvider';
+import { TrackPage } from './providers/TrackingProvider/TrackPage';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
 

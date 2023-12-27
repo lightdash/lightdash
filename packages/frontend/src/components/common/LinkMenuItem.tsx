@@ -1,7 +1,8 @@
 import { Menu, MenuItemProps, UnstyledButton } from '@mantine/core';
 import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import { EventData, useTracking } from '../../providers/TrackingProvider';
+import { EventData } from '../../providers/TrackingProvider/types';
+import { useTracking } from '../../providers/TrackingProvider/useTracking';
 
 export interface LinkMenuItemProps extends MenuItemProps {
     trackingEvent?: EventData;

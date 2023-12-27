@@ -8,7 +8,7 @@ import {
 import { FC, useEffect, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useDashboardContext } from '../../../providers/DashboardProvider/useDashboardContext';
-import { useTracking } from '../../../providers/TrackingProvider';
+import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
 
 type Props = {

@@ -6,10 +6,11 @@ import {
 import { Button, Group, Modal, Select, TextInput, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useApp } from '../../../providers/AppProvider/useApp';
-import { TrackPage, useTracking } from '../../../providers/TrackingProvider';
+import { TrackPage } from '../../../providers/TrackingProvider/TrackPage';
+import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import {
     CategoryName,
     EventName,

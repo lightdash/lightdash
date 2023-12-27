@@ -1,4 +1,4 @@
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { FormProvider } from 'react-hook-form';
 import { UseFormReturn } from 'react-hook-form/dist/types';
 import {
@@ -6,7 +6,7 @@ import {
     SubmitHandler,
 } from 'react-hook-form/dist/types/form';
 import { StyledProps } from 'styled-components';
-import { useTracking } from '../../providers/TrackingProvider';
+import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 
 interface FormProps<T extends object = any> {

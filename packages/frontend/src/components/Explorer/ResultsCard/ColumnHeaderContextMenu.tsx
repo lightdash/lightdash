@@ -21,7 +21,7 @@ import {
 } from '../../../features/tableCalculation';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
-import { useTracking } from '../../../providers/TrackingProvider';
+import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { HeaderProps, TableColumn } from '../../common/Table/types';

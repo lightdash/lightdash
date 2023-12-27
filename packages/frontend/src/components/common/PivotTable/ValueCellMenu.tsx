@@ -5,7 +5,7 @@ import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider/useApp';
-import { useTracking } from '../../../providers/TrackingProvider';
+import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
 import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
 import MantineIcon from '../MantineIcon';

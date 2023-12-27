@@ -15,7 +15,7 @@ import { useProject } from '../../hooks/useProject';
 import { useRefreshServer } from '../../hooks/useRefreshServer';
 import { useActiveJob } from '../../providers/ActiveJobProvider/useActiveJob';
 import { useApp } from '../../providers/AppProvider/useApp';
-import { useTracking } from '../../providers/TrackingProvider';
+import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 

@@ -23,7 +23,7 @@ import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider/useApp';
-import { useTracking } from '../providers/TrackingProvider';
+import { useTracking } from '../providers/TrackingProvider/useTracking';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
 const registerQuery = async (data: CreateUserArgs) =>

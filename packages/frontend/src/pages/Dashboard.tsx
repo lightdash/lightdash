@@ -48,7 +48,7 @@ import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { DashboardProvider } from '../providers/DashboardProvider';
 import { useDashboardContext } from '../providers/DashboardProvider/useDashboardContext';
-import { TrackSection } from '../providers/TrackingProvider';
+import { TrackSection } from '../providers/TrackingProvider/TrackSection';
 import '../styles/react-grid.css';
 import { SectionName } from '../types/Events';
 

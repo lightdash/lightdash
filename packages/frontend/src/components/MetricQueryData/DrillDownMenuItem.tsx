@@ -7,7 +7,7 @@ import {
 import { Menu, Text } from '@mantine/core';
 import { IconArrowBarToDown } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
-import { useTracking } from '../../providers/TrackingProvider';
+import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import {

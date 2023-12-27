@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { FC } from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider/useExplorerContext';
-import { useTracking } from '../../../providers/TrackingProvider';
+import { useTracking } from '../../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../../types/Events';
 
 type Props = Pick<ModalProps, 'onClose'> & {

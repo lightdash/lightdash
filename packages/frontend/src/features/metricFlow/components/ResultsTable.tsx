@@ -6,7 +6,7 @@ import { useQuery } from 'react-query';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import Table from '../../../components/common/Table';
 import { TableColumn } from '../../../components/common/Table/types';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import { TrackSection } from '../../../providers/TrackingProvider/TrackSection';
 import { SectionName } from '../../../types/Events';
 
 const ResultsErrorState: FC<{ error: string }> = ({ error }) => (

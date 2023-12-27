@@ -59,7 +59,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useApp } from '../../providers/AppProvider/useApp';
 import { useDashboardContext } from '../../providers/DashboardProvider/useDashboardContext';
-import { useTracking } from '../../providers/TrackingProvider';
+import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';

@@ -8,7 +8,7 @@ import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import { useApp } from '../../providers/AppProvider/useApp';
-import { useTracking } from '../../providers/TrackingProvider';
+import { useTracking } from '../../providers/TrackingProvider/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { isPieVisualizationConfig } from '../LightdashVisualization/VisualizationConfigPie';

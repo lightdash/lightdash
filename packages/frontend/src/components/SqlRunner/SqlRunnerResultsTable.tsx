@@ -4,7 +4,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
 import useSqlRunnerColumns from '../../hooks/useSqlRunnerColumns';
-import { TrackSection } from '../../providers/TrackingProvider';
+import { TrackSection } from '../../providers/TrackingProvider/TrackSection';
 import { SectionName } from '../../types/Events';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';
