@@ -11,10 +11,12 @@ import {
     Flex,
     Group,
     Modal,
+    Paper,
     Select,
     Stack,
     Table,
     Text,
+    TextInput,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -263,7 +265,8 @@ const UserManagementPanel: FC = () => {
     const { classes } = useTableStyles();
     const { user } = useApp();
     const [showInviteModal, setShowInviteModal] = useState(false);
-    const { data: organizationUsers, isLoading } = useOrganizationUsers();
+    const [search, setSearch] = useState('');
+    const { data: organizationUsers, isLoading } = useOrganizationUsers(search);
 
     if (user.data?.ability.cannot('view', 'OrganizationMemberProfile')) {
         return <ForbiddenPanel />;
@@ -303,6 +306,14 @@ const UserManagementPanel: FC = () => {
                 <LoadingState title="Loading users" />
             ) : (
                 <SettingsCard shadow="none" p={0}>
+                    <Paper p="sm">
+                        <TextInput
+                            size="xs"
+                            placeholder="Search users by name, email, or role"
+                            onChange={(e) => setSearch(e.target.value)}
+                            value={search}
+                        />
+                    </Paper>
                     <Table className={classes.root}>
                         <thead>
                             <tr>
@@ -319,17 +330,31 @@ const UserManagementPanel: FC = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {organizationUsers?.map((orgUser) => (
-                                <UserListItem
-                                    key={orgUser.email}
-                                    user={orgUser}
-                                    disabled={
-                                        user.data?.userUuid ===
-                                            orgUser.userUuid ||
-                                        organizationUsers.length <= 1
-                                    }
-                                />
-                            ))}
+                            {organizationUsers && organizationUsers.length ? (
+                                organizationUsers.map((orgUser) => (
+                                    <UserListItem
+                                        key={orgUser.email}
+                                        user={orgUser}
+                                        disabled={
+                                            user.data?.userUuid ===
+                                                orgUser.userUuid ||
+                                            organizationUsers.length <= 1
+                                        }
+                                    />
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={3}>
+                                        <Text
+                                            c="gray.6"
+                                            fs="italic"
+                                            ta="center"
+                                        >
+                                            No users found
+                                        </Text>
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </Table>
                 </SettingsCard>
