@@ -17,7 +17,7 @@ import {
 } from 'react-beautiful-dnd';
 import { Link, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
-import { usePinnedItemsContext } from '../../../../providers/PinnedItemsProvider';
+import { usePinnedItemsContext } from '../../../../providers/PinnedItemsProvider/usePinnedItemsContext';
 import MantineIcon from '../../MantineIcon';
 import { ResourceViewItemActionState } from '../ResourceActionHandlers';
 import { getResourceName, getResourceUrl } from '../resourceUtils';

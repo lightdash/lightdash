@@ -1,11 +1,11 @@
 import { subject } from '@casl/ability';
 import { ApiError, PinnedItems } from '@lightdash/common';
-import React, { createContext, useContext } from 'react';
+import React, { createContext } from 'react';
 import { UseMutateFunction } from 'react-query';
-import { useReorder } from '../hooks/pinning/usePinnedItems';
-import { useApp } from './AppProvider';
+import { useReorder } from '../../hooks/pinning/usePinnedItems';
+import { useApp } from '../AppProvider';
 
-type PinnedItemsContext = {
+export type PinnedItemsContext = {
     userCanManage: boolean;
     reorderItems: UseMutateFunction<
         PinnedItems,
@@ -15,7 +15,7 @@ type PinnedItemsContext = {
     >;
 };
 
-const Context = createContext<PinnedItemsContext | null>(null);
+export const Context = createContext<PinnedItemsContext | null>(null);
 
 type PinnedItemsProviderProps = {
     projectUuid: string;
@@ -43,14 +43,4 @@ export const PinnedItemsProvider: React.FC<PinnedItemsProviderProps> = ({
         reorderItems,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
-};
-
-export const usePinnedItemsContext = (): PinnedItemsContext => {
-    const context = useContext(Context);
-    if (!context) {
-        throw new Error(
-            'usePinnedItemsContext must be used within a PinnedItemsContext',
-        );
-    }
-    return context;
 };
