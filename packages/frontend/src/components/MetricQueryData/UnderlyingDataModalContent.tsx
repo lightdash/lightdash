@@ -305,10 +305,6 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         isLoading,
     } = useUnderlyingDataResults(tableName, underlyingDataMetricQuery);
 
-    if (error) {
-        return <ErrorState error={error.error} hasMarginTop={false} />;
-    }
-
     const getCsvLink = async () => {
         const csvResponse = await downloadCsv({
             projectUuid,
@@ -380,13 +376,17 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     40
                 }
             >
-                <UnderlyingDataResultsTable
-                    isLoading={isLoading}
-                    resultsData={resultsData}
-                    fieldsMap={fieldsMap}
-                    hasJoins={joinedTables.length > 0}
-                    sortByUnderlyingValues={sortByUnderlyingValues}
-                />
+                {error ? (
+                    <ErrorState error={error.error} hasMarginTop={false} />
+                ) : (
+                    <UnderlyingDataResultsTable
+                        isLoading={isLoading}
+                        resultsData={resultsData}
+                        fieldsMap={fieldsMap}
+                        hasJoins={joinedTables.length > 0}
+                        sortByUnderlyingValues={sortByUnderlyingValues}
+                    />
+                )}
             </Modal.Body>
         </Modal.Content>
     );

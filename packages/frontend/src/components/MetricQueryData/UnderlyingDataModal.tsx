@@ -10,7 +10,7 @@ const UnderlyingDataModal: FC = () => {
     return isUnderlyingDataModalOpen ? (
         <Modal.Root
             centered
-            opened={isUnderlyingDataModalOpen}
+            opened
             onClose={closeUnderlyingDataModal}
             size="auto"
         >
