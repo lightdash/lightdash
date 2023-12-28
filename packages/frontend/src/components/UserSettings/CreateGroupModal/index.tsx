@@ -1,4 +1,12 @@
-import { Button, Group, Modal, Stack, TextInput, Title } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Modal,
+    ModalProps,
+    Stack,
+    TextInput,
+    Title,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
 import React, { FC } from 'react';
@@ -6,17 +14,14 @@ import { useGroupCreateMutation } from '../../../hooks/useOrganizationGroups';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
-const CreateGroupModal: FC<{
-    opened: boolean;
-    onClose: () => void;
-}> = ({ opened, onClose }) => {
+const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
     const form = useForm<{ name: string }>({
         initialValues: {
             name: '',
         },
         validate: {
             name: (value: string) =>
-                value.length ? null : 'Group name is required',
+                value.trim().length ? null : 'Group name is required',
         },
     });
     const { user } = useApp();
