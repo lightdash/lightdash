@@ -1,3 +1,10 @@
+## [0.917.5](https://github.com/lightdash/lightdash/compare/0.917.4...0.917.5) (2023-12-28)
+
+
+### Bug Fixes
+
+* upgrade @docusaurus/core from 2.4.1 to 2.4.3 ([#8400](https://github.com/lightdash/lightdash/issues/8400)) ([59fe2ff](https://github.com/lightdash/lightdash/commit/59fe2ff7ec64c69d63743677f245230ec8d065b8))
+
 ## [0.917.4](https://github.com/lightdash/lightdash/compare/0.917.3...0.917.4) (2023-12-28)
 
 
