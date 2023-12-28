@@ -18,6 +18,7 @@ import {
     IconUsers,
     IconUserShield,
 } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
@@ -50,6 +51,10 @@ import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 
 const Settings: FC = () => {
+    // TODO: this is a feature flag while we are building groups.
+    // Remove this when groups are ready to be released.
+    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
+
     const {
         health: {
             data: health,
@@ -182,7 +187,11 @@ const Settings: FC = () => {
                                     'OrganizationMemberProfile',
                                 ) && (
                                     <RouterNavLink
-                                        label="User management"
+                                        label={
+                                            groupManagementEnabled
+                                                ? 'Users and groups'
+                                                : 'User management'
+                                        }
                                         to="/generalSettings/userManagement"
                                         exact
                                         icon={

@@ -15,6 +15,7 @@ import {
     Select,
     Stack,
     Table,
+    Tabs,
     Text,
     TextInput,
     Title,
@@ -24,12 +25,15 @@ import {
     IconAlertCircle,
     IconHelp,
     IconInfoCircle,
+    IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
+import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import {
     useDeleteOrganizationUserMutation,
     useOrganizationUsers,
@@ -262,103 +266,175 @@ const UserListItem: FC<{
 };
 
 const UserManagementPanel: FC = () => {
+    // TODO: this is a feature flag while we are building groups.
+    // Remove this when groups are ready to be released.
+    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
+
     const { classes } = useTableStyles();
     const { user } = useApp();
     const [showInviteModal, setShowInviteModal] = useState(false);
+
     const [search, setSearch] = useState('');
-    const { data: organizationUsers, isLoading } = useOrganizationUsers(search);
+    const { data: organizationUsers, isLoading: isLoadingUsers } =
+        useOrganizationUsers(search);
+    const { data: groups, isLoading: isLoadingGroups } =
+        useOrganizationGroups();
 
     if (user.data?.ability.cannot('view', 'OrganizationMemberProfile')) {
         return <ForbiddenPanel />;
     }
 
     return (
-        <Stack>
-            <Group position="apart">
-                <Group spacing="two">
+        <Stack spacing="sm">
+            <Group spacing="two">
+                {groupManagementEnabled ? (
+                    <Title order={5}>Users and groups</Title>
+                ) : (
                     <Title order={5}>User management settings</Title>
-                    <Tooltip label="Click here to learn more about user roles">
-                        <ActionIcon
-                            component="a"
-                            href="https://docs.lightdash.com/references/roles"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-                {user.data?.ability?.can('create', 'InviteLink') && (
-                    <>
-                        <Button onClick={() => setShowInviteModal(true)}>
-                            Add user
-                        </Button>
-                        <InvitesModal
-                            key={`invite-modal-${showInviteModal}`}
-                            opened={showInviteModal}
-                            onClose={() => setShowInviteModal(false)}
-                        />
-                    </>
                 )}
+                <Tooltip label="Click here to learn more about user roles">
+                    <ActionIcon
+                        component="a"
+                        href="https://docs.lightdash.com/references/roles"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        <MantineIcon icon={IconInfoCircle} />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
 
-            {isLoading ? (
-                <LoadingState title="Loading users" />
-            ) : (
-                <SettingsCard shadow="none" p={0}>
-                    <Paper p="sm">
-                        <TextInput
-                            size="xs"
-                            placeholder="Search users by name, email, or role"
-                            onChange={(e) => setSearch(e.target.value)}
-                            value={search}
-                        />
-                    </Paper>
-                    <Table className={classes.root}>
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                {user.data?.ability?.can(
-                                    'manage',
-                                    'OrganizationMemberProfile',
-                                ) && (
-                                    <>
-                                        <th>Role</th>
-                                        <th></th>
-                                    </>
-                                )}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {organizationUsers && organizationUsers.length ? (
-                                organizationUsers.map((orgUser) => (
-                                    <UserListItem
-                                        key={orgUser.email}
-                                        user={orgUser}
-                                        disabled={
-                                            user.data?.userUuid ===
-                                                orgUser.userUuid ||
-                                            organizationUsers.length <= 1
-                                        }
-                                    />
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={3}>
-                                        <Text
-                                            c="gray.6"
-                                            fs="italic"
-                                            ta="center"
-                                        >
-                                            No users found
-                                        </Text>
-                                    </td>
-                                </tr>
+            <Tabs defaultValue={'users'}>
+                {groupManagementEnabled && (
+                    <Tabs.List mb="xs">
+                        <Tabs.Tab value="users">Users</Tabs.Tab>
+                        <Tabs.Tab value="groups">Groups</Tabs.Tab>
+                    </Tabs.List>
+                )}
+                <Tabs.Panel value="users">
+                    {isLoadingUsers ? (
+                        <LoadingState title="Loading users" />
+                    ) : (
+                        <Stack spacing="xs">
+                            {user.data?.ability?.can(
+                                'create',
+                                'InviteLink',
+                            ) && (
+                                <Button
+                                    compact
+                                    leftIcon={<MantineIcon icon={IconPlus} />}
+                                    onClick={() => setShowInviteModal(true)}
+                                    sx={{ alignSelf: 'end' }}
+                                >
+                                    Add user
+                                </Button>
                             )}
-                        </tbody>
-                    </Table>
-                </SettingsCard>
-            )}
+                            <SettingsCard shadow="none" p={0}>
+                                <Paper p="sm">
+                                    <TextInput
+                                        size="xs"
+                                        placeholder="Search users by name, email, or role"
+                                        onChange={(e) =>
+                                            setSearch(e.target.value)
+                                        }
+                                        value={search}
+                                    />
+                                </Paper>
+                                <Table className={classes.root}>
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            {user.data?.ability?.can(
+                                                'manage',
+                                                'OrganizationMemberProfile',
+                                            ) && (
+                                                <>
+                                                    <th>Role</th>
+                                                    <th></th>
+                                                </>
+                                            )}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {organizationUsers &&
+                                        organizationUsers.length ? (
+                                            organizationUsers.map((orgUser) => (
+                                                <UserListItem
+                                                    key={orgUser.email}
+                                                    user={orgUser}
+                                                    disabled={
+                                                        user.data?.userUuid ===
+                                                            orgUser.userUuid ||
+                                                        organizationUsers.length <=
+                                                            1
+                                                    }
+                                                />
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={3}>
+                                                    <Text
+                                                        c="gray.6"
+                                                        fs="italic"
+                                                        ta="center"
+                                                    >
+                                                        No users found
+                                                    </Text>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </Table>
+                            </SettingsCard>
+                        </Stack>
+                    )}
+                </Tabs.Panel>
+                <Tabs.Panel value="groups">
+                    {isLoadingGroups ? (
+                        <LoadingState title="Loading groups" />
+                    ) : (
+                        <Stack spacing="xs" mt="xs">
+                            {user.data?.ability?.can(
+                                'manage',
+                                'Organization',
+                            ) && (
+                                <Button
+                                    compact
+                                    leftIcon={<MantineIcon icon={IconPlus} />}
+                                    onClick={() => {
+                                        /* TODO: add group dialog */
+                                    }}
+                                    sx={{ alignSelf: 'end' }}
+                                >
+                                    Add group
+                                </Button>
+                            )}
+                            <SettingsCard shadow="none" p={0}>
+                                <Table className={classes.root}>
+                                    <thead>
+                                        <tr>
+                                            <th>Group</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {groups?.map((group) => (
+                                            <tr key={group.name}>
+                                                <td>{group.name}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </Table>
+                            </SettingsCard>
+                        </Stack>
+                    )}
+                </Tabs.Panel>
+            </Tabs>
+
+            <InvitesModal
+                key={`invite-modal-${showInviteModal}`}
+                opened={showInviteModal}
+                onClose={() => setShowInviteModal(false)}
+            />
         </Stack>
     );
 };
