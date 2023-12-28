@@ -1,0 +1,45 @@
+import EmbedCreateSecret from './assets/embed-create-secret.png';
+import EmbedAddDashboard from './assets/embed-add-dashboard.png';
+import EmbedDeveloper from './assets/embed-developer.png';
+import EmbedPreview from './assets/embed-preview.png';
+
+# Embedding
+
+Lightdash allow you to embed some of your dashboards using expirable URLs and tokens (embed URLs from now on).
+
+## How to generate embed dashboards 
+
+### Create an embed secret
+
+First, you need to generate a secret per project. 
+This secret is like a password that will help you encrypt the URLs so we know the access is valid. 
+
+<img src={EmbedCreateSecret} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can regenerate this secret, people with an old URL will automatically lose access to any previously shared embed URL.
+
+
+### Allowed dashboards 
+
+Only selected dashboards can be accessed via embed URLs
+
+<img src={EmbedAddDashboard} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+### Preview 
+
+Under preview you can generate a one-off shareable embed URL for a single dashboard. 
+
+<img src={EmbedPreview} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Click on `preview` to see the embed content and click on `Generate & copy URL` to generate an embed URL for this dashboard  
+
+### Developer flow and code snippet 
+
+Although you can generate URLs directly from Lightdash with a long expiration 
+it is recommended to generate your own JWT tokens in your backend with a short expiration using your `secret` 
+to make sure people can't be using embed URLs outside your app. 
+
+To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL  
+
+<img src={EmbedDeveloper} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
