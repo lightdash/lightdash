@@ -1,3 +1,10 @@
+## [0.917.2](https://github.com/lightdash/lightdash/compare/0.917.1...0.917.2) (2023-12-28)
+
+
+### Bug Fixes
+
+* dashboard filter popover state ([#8423](https://github.com/lightdash/lightdash/issues/8423)) ([338268e](https://github.com/lightdash/lightdash/commit/338268e7c192bed945efc6950d76f1341535088a))
+
 ## [0.917.1](https://github.com/lightdash/lightdash/compare/0.917.0...0.917.1) (2023-12-27)
 
 
