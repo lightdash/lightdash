@@ -441,7 +441,7 @@ export class OrganizationService {
 
     async addGroupToOrganization(
         actor: SessionUser,
-        createGroup: Pick<CreateGroup, 'name'>,
+        createGroup: CreateGroup,
     ): Promise<Group> {
         if (
             actor.organizationUuid === undefined ||

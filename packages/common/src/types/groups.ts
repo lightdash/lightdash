@@ -17,7 +17,7 @@ export type Group = {
     organizationUuid: string;
 };
 
-export type CreateGroup = Pick<Group, 'name' | 'organizationUuid'>;
+export type CreateGroup = Pick<Group, 'name'>;
 
 export type UpdateGroup = Pick<Group, 'name'>;
 

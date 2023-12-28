@@ -1,4 +1,4 @@
-import { ApiError, Group } from '@lightdash/common';
+import { ApiError, CreateGroup, Group } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
@@ -19,7 +19,7 @@ export const useOrganizationGroups = () => {
         onError: (result) => setErrorResponse(result),
     });
 };
-const createGroupQuery = async (data: { name: string }) =>
+const createGroupQuery = async (data: CreateGroup) =>
     lightdashApi<Group>({
         url: `/org/groups`,
         method: 'POST',
@@ -29,7 +29,7 @@ const createGroupQuery = async (data: { name: string }) =>
 export const useGroupCreateMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<Group, ApiError, { name: string }>(
+    return useMutation<Group, ApiError, CreateGroup>(
         (data) => createGroupQuery(data),
         {
             mutationKey: ['create_group'],

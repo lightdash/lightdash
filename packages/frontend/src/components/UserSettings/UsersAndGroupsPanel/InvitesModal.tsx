@@ -17,7 +17,7 @@ import {
     PageType,
 } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
-import InviteSuccess from '../UserManagementPanel/InviteSuccess';
+import InviteSuccess from './InviteSuccess';
 
 type SendInviteFormProps = Omit<CreateInviteLink, 'expiresAt'>;
 

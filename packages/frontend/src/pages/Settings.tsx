@@ -41,7 +41,7 @@ import ProjectManagementPanel from '../components/UserSettings/ProjectManagement
 import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
-import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
+import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
@@ -452,7 +452,7 @@ const Settings: FC = () => {
 
                 {user.ability.can('view', 'OrganizationMemberProfile') && (
                     <Route path="/generalSettings/userManagement">
-                        <UserManagementPanel />
+                        <UsersAndGroupsPanel />
                     </Route>
                 )}
 

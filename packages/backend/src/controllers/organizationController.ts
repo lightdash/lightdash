@@ -306,7 +306,7 @@ export class OrganizationController extends Controller {
     @OperationId('CreateGroupInOrganization')
     async createGroup(
         @Request() req: express.Request,
-        @Body() body: Pick<CreateGroup, 'name'>,
+        @Body() body: CreateGroup,
     ): Promise<ApiGroupResponse> {
         const group = await organizationService.addGroupToOrganization(
             req.user!,
