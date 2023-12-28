@@ -25,7 +25,7 @@ const useHealth = () => {
             showToastError({
                 key: first,
                 subtitle: (
-                    <div>
+                    <div style={{ color: 'white' }}>
                         <b>{first}</b>
                         <p>{rest.join('\n')}</p>
                     </div>
