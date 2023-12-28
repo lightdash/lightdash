@@ -1,3 +1,10 @@
+## [0.917.3](https://github.com/lightdash/lightdash/compare/0.917.2...0.917.3) (2023-12-28)
+
+
+### Bug Fixes
+
+* upgrade @docusaurus/plugin-client-redirects from 2.4.1 to 2.4.3 ([#8398](https://github.com/lightdash/lightdash/issues/8398)) ([e776cac](https://github.com/lightdash/lightdash/commit/e776cacb9281ea3428680b3f326be8b462350199))
+
 ## [0.917.2](https://github.com/lightdash/lightdash/compare/0.917.1...0.917.2) (2023-12-28)
 
 
