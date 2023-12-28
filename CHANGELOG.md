@@ -1,3 +1,10 @@
+## [0.917.6](https://github.com/lightdash/lightdash/compare/0.917.5...0.917.6) (2023-12-28)
+
+
+### Bug Fixes
+
+* styles for errors on health endpoint ([#8427](https://github.com/lightdash/lightdash/issues/8427)) ([d5b6d9c](https://github.com/lightdash/lightdash/commit/d5b6d9c16da1cc7a4efb3771a5ba3845a2fd98a4))
+
 ## [0.917.5](https://github.com/lightdash/lightdash/compare/0.917.4...0.917.5) (2023-12-28)
 
 
