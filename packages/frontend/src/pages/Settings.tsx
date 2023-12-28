@@ -450,7 +450,12 @@ const Settings: FC = () => {
                     </Route>
                 )}
 
-                {user.ability.can('view', 'OrganizationMemberProfile') && (
+                {user.ability.can(
+                    'manage',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: organization.organizationUuid,
+                    }),
+                ) && (
                     <Route path="/generalSettings/userManagement">
                         <UsersAndGroupsPanel />
                     </Route>
