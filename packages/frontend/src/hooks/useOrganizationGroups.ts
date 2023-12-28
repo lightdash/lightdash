@@ -19,7 +19,6 @@ export const useOrganizationGroups = () => {
         onError: (result) => setErrorResponse(result),
     });
 };
-
 const createGroupQuery = async (data: { name: string }) =>
     lightdashApi<Group>({
         url: `/org/groups`,
