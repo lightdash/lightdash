@@ -46,6 +46,7 @@ import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import ForbiddenPanel from '../../ForbiddenPanel';
+import CreateGroupModal from '../CreateGroupModal';
 import InvitesModal from '../InvitesModal';
 import InviteSuccess from './InviteSuccess';
 
@@ -273,6 +274,7 @@ const UserManagementPanel: FC = () => {
     const { classes } = useTableStyles();
     const { user } = useApp();
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
 
     const [search, setSearch] = useState('');
     const { data: organizationUsers, isLoading: isLoadingUsers } =
@@ -401,9 +403,9 @@ const UserManagementPanel: FC = () => {
                                 <Button
                                     compact
                                     leftIcon={<MantineIcon icon={IconPlus} />}
-                                    onClick={() => {
-                                        /* TODO: add group dialog */
-                                    }}
+                                    onClick={() =>
+                                        setShowCreateGroupModal(true)
+                                    }
                                     sx={{ alignSelf: 'end' }}
                                 >
                                     Add group
@@ -434,6 +436,11 @@ const UserManagementPanel: FC = () => {
                 key={`invite-modal-${showInviteModal}`}
                 opened={showInviteModal}
                 onClose={() => setShowInviteModal(false)}
+            />
+            <CreateGroupModal
+                key={`create-group-modal-${showCreateGroupModal}`}
+                opened={showCreateGroupModal}
+                onClose={() => setShowCreateGroupModal(false)}
             />
         </Stack>
     );
