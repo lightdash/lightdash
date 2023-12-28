@@ -1,3 +1,4 @@
+import { CreateGroup } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -15,7 +16,7 @@ import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
 const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
-    const form = useForm<{ name: string }>({
+    const form = useForm<CreateGroup>({
         initialValues: {
             name: '',
         },
@@ -28,13 +29,13 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
 
     const { mutateAsync, isLoading } = useGroupCreateMutation();
 
-    const handleSubmit = async (data: { name: string }) => {
+    const handleSubmit = async (data: CreateGroup) => {
         await mutateAsync(data);
         form.reset();
         onClose();
     };
 
-    if (user.data?.ability?.cannot('manage', 'Organization')) {
+    if (user.data?.ability?.cannot('manage', 'Group')) {
         return null;
     }
 
@@ -52,7 +53,7 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
         >
             <form
                 name="create_group"
-                onSubmit={form.onSubmit((values: { name: string }) =>
+                onSubmit={form.onSubmit((values: CreateGroup) =>
                     handleSubmit(values),
                 )}
             >

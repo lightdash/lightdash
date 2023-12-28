@@ -39,7 +39,9 @@ export class GroupsModel {
         }));
     }
 
-    async createGroup(group: CreateGroup): Promise<Group> {
+    async createGroup(
+        group: CreateGroup & { organizationUuid: string },
+    ): Promise<Group> {
         const results = await this.database.raw<{
             rows: { created_at: Date; group_uuid: string }[];
         }>(

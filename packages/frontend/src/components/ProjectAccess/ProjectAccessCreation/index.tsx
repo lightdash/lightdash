@@ -20,7 +20,7 @@ import {
     PageType,
 } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
-import InviteSuccess from '../../UserSettings/UserManagementPanel/InviteSuccess';
+import InviteSuccess from '../../UserSettings/UsersAndGroupsPanel/InviteSuccess';
 
 interface ProjectAccessCreationProps extends ModalProps {
     projectUuid: string;
