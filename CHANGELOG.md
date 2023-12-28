@@ -1,3 +1,10 @@
+## [0.917.4](https://github.com/lightdash/lightdash/compare/0.917.3...0.917.4) (2023-12-28)
+
+
+### Bug Fixes
+
+* upgrade @docusaurus/preset-classic from 2.4.1 to 2.4.3 ([#8399](https://github.com/lightdash/lightdash/issues/8399)) ([ef80054](https://github.com/lightdash/lightdash/commit/ef80054a286af355086d6600cad84ba1f03a56af))
+
 ## [0.917.3](https://github.com/lightdash/lightdash/compare/0.917.2...0.917.3) (2023-12-28)
 
 
