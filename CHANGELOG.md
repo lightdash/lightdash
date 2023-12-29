@@ -1,3 +1,11 @@
+# [0.918.0](https://github.com/lightdash/lightdash/compare/0.917.7...0.918.0) (2023-12-29)
+
+
+### Features
+
+* organization group with members api ([#8437](https://github.com/lightdash/lightdash/issues/8437)) ([7c9f401](https://github.com/lightdash/lightdash/commit/7c9f401535de2140fe210270cfeb0970a70a92a8))
+* organization groups with members api ([#8436](https://github.com/lightdash/lightdash/issues/8436)) ([8f5b570](https://github.com/lightdash/lightdash/commit/8f5b570d5201401e44fe4ce312a1f74a23fc98e1))
+
 ## [0.917.7](https://github.com/lightdash/lightdash/compare/0.917.6...0.917.7) (2023-12-29)
 
 
