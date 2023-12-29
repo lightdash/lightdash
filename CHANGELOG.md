@@ -1,3 +1,10 @@
+## [0.917.7](https://github.com/lightdash/lightdash/compare/0.917.6...0.917.7) (2023-12-29)
+
+
+### Bug Fixes
+
+* only admins can view userManagement route ([#8429](https://github.com/lightdash/lightdash/issues/8429)) ([f291271](https://github.com/lightdash/lightdash/commit/f291271a7e2c35a525dbed80145148b4b05c0a74))
+
 ## [0.917.6](https://github.com/lightdash/lightdash/compare/0.917.5...0.917.6) (2023-12-28)
 
 
