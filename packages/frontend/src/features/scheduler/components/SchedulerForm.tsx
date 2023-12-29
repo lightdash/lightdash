@@ -50,6 +50,7 @@ import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
+import { SchedulerPreview } from './SchedulerPreview';
 
 export enum Limit {
     TABLE = 'table',
@@ -83,6 +84,7 @@ const DEFAULT_VALUES = {
     emailTargets: [] as string[],
     slackTargets: [] as string[],
     filters: undefined,
+    customViewportWidth: undefined,
 };
 
 const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
@@ -128,6 +130,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         slackTargets: slackTargets,
         ...(isDashboardScheduler(schedulerData) && {
             filters: schedulerData.filters,
+            customViewportWidth: schedulerData.customViewportWidth,
         }),
     };
 };
@@ -257,6 +260,7 @@ const SchedulerForm: FC<Props> = ({
                 targets,
                 ...(resource?.type === 'dashboard' && {
                     filters: values.filters,
+                    customViewportWidth: values.customViewportWidth,
                 }),
             };
         },
@@ -343,6 +347,7 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
                     <Tabs.Tab value="customization">Customization</Tabs.Tab>
+                    <Tabs.Tab value="preview">Preview</Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="setup" mt="md">
@@ -713,6 +718,23 @@ const SchedulerForm: FC<Props> = ({
                         }
                     />
                 </Tabs.Panel>
+                {isDashboard && dashboard ? (
+                    <Tabs.Panel value="preview" p="md">
+                        <Text c="gray.7" m="md">
+                            Preview your scheduled delivery
+                        </Text>
+                        <SchedulerPreview
+                            schedulerFilters={form.values.filters}
+                            dashboard={dashboard}
+                            onChange={(customViewportWidth) => {
+                                form.setFieldValue(
+                                    'customViewportWidth',
+                                    parseInt(customViewportWidth),
+                                );
+                            }}
+                        />
+                    </Tabs.Panel>
+                ) : null}
             </Tabs>
 
             <SchedulersModalFooter
