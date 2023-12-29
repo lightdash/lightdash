@@ -121,6 +121,7 @@ const ProjectAccessRow: FC<{
                     <Button
                         variant="outline"
                         onClick={() => setIsDeleteDialogOpen(false)}
+                        color="dark"
                     >
                         Cancel
                     </Button>
