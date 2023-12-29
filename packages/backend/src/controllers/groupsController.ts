@@ -15,6 +15,7 @@ import {
     Patch,
     Path,
     Put,
+    Query,
     Request,
     Response,
     Route,
@@ -35,6 +36,8 @@ export class GroupsController extends Controller {
     /**
      * Get group details
      * @param groupUuid unique id of the group
+     * @param includeMembers number of members to include
+     * @param offset offset of members to include
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('{groupUuid}')
@@ -42,11 +45,18 @@ export class GroupsController extends Controller {
     async getGroup(
         @Path() groupUuid: string,
         @Request() req: express.Request,
+        @Query() includeMembers?: number,
+        @Query() offset?: number,
     ): Promise<ApiGroupResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await groupService.get(req.user!, groupUuid),
+            results: await groupService.get(
+                req.user!,
+                groupUuid,
+                includeMembers,
+                offset,
+            ),
         };
     }
 
