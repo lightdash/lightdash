@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
 import { PreviewAndCustomizeScreenshot } from '../../preview';
@@ -69,14 +69,6 @@ export const SchedulerPreview: FC<Props> = ({
         getSchedulerFilterOverridesQueryString,
     ]);
 
-    useEffect(() => {
-        onChange(
-            previewChoice === CUSTOM_WIDTH_OPTIONS[1].value
-                ? undefined
-                : previewChoice,
-        );
-    }, [onChange, previewChoice]);
-
     return (
         <Stack p="md">
             <Group spacing="xs">
@@ -98,7 +90,16 @@ export const SchedulerPreview: FC<Props> = ({
                 previews={previews}
                 setPreviews={setPreviews}
                 previewChoice={previewChoice}
-                setPreviewChoice={setPreviewChoice}
+                setPreviewChoice={(pc: string | undefined) => {
+                    setPreviewChoice(() => {
+                        onChange(
+                            pc === CUSTOM_WIDTH_OPTIONS[1].value
+                                ? undefined
+                                : pc,
+                        );
+                        return pc;
+                    });
+                }}
                 onPreviewClick={handlePreviewClick}
             />
         </Stack>

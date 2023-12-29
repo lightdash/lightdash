@@ -32,9 +32,9 @@ type PreviewAndCustomizeScreenshotProps = {
     previews: Record<string, string>;
     setPreviews: Dispatch<SetStateAction<Record<string, string>>>;
     previewChoice: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined;
-    setPreviewChoice: Dispatch<
-        SetStateAction<typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined>
-    >;
+    setPreviewChoice: (
+        prev: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined,
+    ) => void;
     onPreviewClick?: () => Promise<void>;
 };
 

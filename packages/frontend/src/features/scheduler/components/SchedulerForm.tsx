@@ -330,17 +330,6 @@ const SchedulerForm: FC<Props> = ({
         }
     }, [form, onSendNow]);
 
-    const { setFieldValue } = form;
-    const handleOnCustomViewportWidthChange = useCallback(
-        (customViewportWidth) => {
-            setFieldValue(
-                'customViewportWidth',
-                customViewportWidth ? parseInt(customViewportWidth) : undefined,
-            );
-        },
-        [setFieldValue],
-    );
-
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
@@ -747,7 +736,14 @@ const SchedulerForm: FC<Props> = ({
                             customViewportWidth={
                                 form.values.customViewportWidth
                             }
-                            onChange={handleOnCustomViewportWidthChange}
+                            onChange={(customViewportWidth) => {
+                                form.setFieldValue(
+                                    'customViewportWidth',
+                                    customViewportWidth
+                                        ? parseInt(customViewportWidth)
+                                        : undefined,
+                                );
+                            }}
                         />
                     </Tabs.Panel>
                 ) : null}
