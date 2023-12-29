@@ -24,6 +24,7 @@ import {
     IconHelp,
     IconPlus,
     IconTrash,
+    IconX,
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import { FC, useState } from 'react';
@@ -292,6 +293,17 @@ const UsersView: FC = () => {
                         placeholder="Search users by name, email, or role"
                         onChange={(e) => setSearch(e.target.value)}
                         value={search}
+                        w={320}
+                        rightSection={
+                            search.length > 0 && (
+                                <MantineIcon
+                                    color="gray.6"
+                                    icon={IconX}
+                                    onClick={() => setSearch('')}
+                                    style={{ cursor: 'pointer' }}
+                                />
+                            )
+                        }
                     />
                 </Paper>
                 <Table className={classes.root}>
