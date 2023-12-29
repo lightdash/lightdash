@@ -1,5 +1,13 @@
 import { Dashboard } from '@lightdash/common';
-import { Button, Group, Modal, ModalProps, Stack, Title } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Modal,
+    ModalProps,
+    Stack,
+    Title,
+} from '@mantine/core';
 import { IconEyeCog, IconFileExport } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -77,15 +85,17 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                 }}
             >
                 <Stack>
-                    <PreviewAndCustomizeScreenshot
-                        containerWidth={gridWidth}
-                        exportMutation={exportDashboardMutation}
-                        previews={previews}
-                        setPreviews={setPreviews}
-                        previewChoice={previewChoice}
-                        setPreviewChoice={setPreviewChoice}
-                        onPreviewClick={handlePreviewClick}
-                    />
+                    <Box p="md">
+                        <PreviewAndCustomizeScreenshot
+                            containerWidth={gridWidth}
+                            exportMutation={exportDashboardMutation}
+                            previews={previews}
+                            setPreviews={setPreviews}
+                            previewChoice={previewChoice}
+                            setPreviewChoice={setPreviewChoice}
+                            onPreviewClick={handlePreviewClick}
+                        />
+                    </Box>
 
                     <Group position="right" pb="md" px="md" spacing="lg">
                         <Button variant="outline" onClick={onClose}>

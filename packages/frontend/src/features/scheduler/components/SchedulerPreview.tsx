@@ -4,7 +4,10 @@ import {
     DashboardScheduler,
     SchedulerFilterRule,
 } from '@lightdash/common';
+import { Group, Stack, Text, Tooltip } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { FC, useCallback, useEffect, useState } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
 import { PreviewAndCustomizeScreenshot } from '../../preview';
 import { CUSTOM_WIDTH_OPTIONS } from '../constants';
@@ -75,13 +78,29 @@ export const SchedulerPreview: FC<Props> = ({
     }, [onChange, previewChoice]);
 
     return (
-        <PreviewAndCustomizeScreenshot
-            exportMutation={exportDashboardMutation}
-            previews={previews}
-            setPreviews={setPreviews}
-            previewChoice={previewChoice}
-            setPreviewChoice={setPreviewChoice}
-            onPreviewClick={handlePreviewClick}
-        />
+        <Stack p="md">
+            <Group spacing="xs">
+                <Text fw={600}>
+                    Preview your Scheduled Delivery and Customize
+                </Text>
+                <Tooltip
+                    multiline
+                    withinPortal
+                    maw={350}
+                    label="You can preview your Scheduled Delivery below. You are also
+                able to customize the size of the Scheduled Delivery to ensure it is sent as expected. The filters you have applied to this scheduled delivery will be applied to the preview."
+                >
+                    <MantineIcon icon={IconInfoCircle} />
+                </Tooltip>
+            </Group>
+            <PreviewAndCustomizeScreenshot
+                exportMutation={exportDashboardMutation}
+                previews={previews}
+                setPreviews={setPreviews}
+                previewChoice={previewChoice}
+                setPreviewChoice={setPreviewChoice}
+                onPreviewClick={handlePreviewClick}
+            />
+        </Stack>
     );
 };

@@ -54,7 +54,7 @@ export const PreviewAndCustomizeScreenshot: FC<
         <Box>
             <LoadingOverlay visible={exportMutation.isLoading} />
 
-            <Stack spacing="md" px="md" py="md">
+            <Stack spacing="md">
                 <Flex align="flex-start" justify="space-between">
                     <Radio.Group
                         name="customWidth"
@@ -97,8 +97,8 @@ export const PreviewAndCustomizeScreenshot: FC<
                                     )
                                         setIsImageModalOpen(true);
                                 }}
-                                width={400}
-                                height={400}
+                                width={350}
+                                height={350}
                                 styles={{
                                     root: {
                                         objectPosition: 'top',

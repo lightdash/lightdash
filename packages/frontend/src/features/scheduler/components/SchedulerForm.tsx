@@ -627,7 +627,6 @@ const SchedulerForm: FC<Props> = ({
                                         <SlackSvg
                                             style={{
                                                 margin: '5px 2px',
-
                                                 width: '20px',
                                                 height: '20px',
                                             }}
@@ -721,28 +720,27 @@ const SchedulerForm: FC<Props> = ({
                 ) : null}
 
                 <Tabs.Panel value="customization">
-                    <Text m="md">Customize delivery message body</Text>
+                    <Stack p="md">
+                        <Text fw={600}>Customize delivery message body</Text>
 
-                    <MDEditor
-                        preview="edit"
-                        commands={[
-                            commands.bold,
-                            commands.italic,
-                            commands.strikethrough,
-                            commands.divider,
-                            commands.link,
-                        ]}
-                        value={form.values.message}
-                        onChange={(value) =>
-                            form.setFieldValue('message', value || '')
-                        }
-                    />
+                        <MDEditor
+                            preview="edit"
+                            commands={[
+                                commands.bold,
+                                commands.italic,
+                                commands.strikethrough,
+                                commands.divider,
+                                commands.link,
+                            ]}
+                            value={form.values.message}
+                            onChange={(value) =>
+                                form.setFieldValue('message', value || '')
+                            }
+                        />
+                    </Stack>
                 </Tabs.Panel>
                 {isDashboard && dashboard ? (
-                    <Tabs.Panel value="preview" p="md">
-                        <Text c="gray.7" m="md">
-                            Preview your scheduled delivery
-                        </Text>
+                    <Tabs.Panel value="preview">
                         <SchedulerPreview
                             schedulerFilters={form.values.filters}
                             dashboard={dashboard}
