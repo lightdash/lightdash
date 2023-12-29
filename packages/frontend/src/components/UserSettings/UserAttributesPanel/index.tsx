@@ -105,6 +105,7 @@ const UserListItem: FC<{
                             <Button
                                 onClick={deleteDialog.close}
                                 variant="outline"
+                                color="dark"
                             >
                                 Cancel
                             </Button>

@@ -42,7 +42,11 @@ const DeleteChartTileThatBelongsToDashboardModal: FC<Props> = ({
             </Text>
 
             <Group position="right" spacing="xs">
-                <Button variant="outline" onClick={modelProps.onClose}>
+                <Button
+                    variant="outline"
+                    color="dark"
+                    onClick={modelProps.onClose}
+                >
                     Cancel
                 </Button>
 

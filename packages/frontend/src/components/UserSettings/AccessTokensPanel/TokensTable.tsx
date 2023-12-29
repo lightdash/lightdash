@@ -112,7 +112,7 @@ export const TokensTable = () => {
 
                     <Flex gap="sm" justify="flex-end">
                         <Button
-                            color="gray"
+                            color="dark"
                             variant="outline"
                             disabled={isDeleting}
                             onClick={() => setTokenToDelete(undefined)}
