@@ -86,10 +86,10 @@ export class GroupsModel {
         };
     }
 
-    async getGroupWithMembers(groupUuid: string): Promise<GroupWithMembers> {
+    async getGroupWithMembers(groupUuid: string, includeMembers?: number) {
         const rows = await this.database('groups')
             .with('members', (query) => {
-                query
+                let memberQuery = query
                     .from('group_memberships')
                     .innerJoin(
                         'users',
@@ -98,14 +98,19 @@ export class GroupsModel {
                     )
                     .innerJoin('emails', 'users.user_id', 'emails.user_id')
                     .where('group_memberships.group_uuid', groupUuid)
-                    .andWhere('emails.is_primary', true)
-                    .select(
-                        'group_memberships.group_uuid',
-                        'users.user_uuid',
-                        'users.first_name',
-                        'users.last_name',
-                        'emails.email',
-                    );
+                    .andWhere('emails.is_primary', true);
+
+                if (includeMembers !== undefined) {
+                    memberQuery = memberQuery.limit(includeMembers);
+                }
+
+                return memberQuery.select(
+                    'group_memberships.group_uuid',
+                    'users.user_uuid',
+                    'users.first_name',
+                    'users.last_name',
+                    'emails.email',
+                );
             })
             .innerJoin(
                 'organizations',
@@ -115,6 +120,7 @@ export class GroupsModel {
             .leftJoin('members', 'groups.group_uuid', 'members.group_uuid')
             .where('groups.group_uuid', groupUuid)
             .select();
+
         if (rows.length === 0) {
             throw new NotFoundError(`No group found`);
         }
