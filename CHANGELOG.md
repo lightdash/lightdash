@@ -1,3 +1,10 @@
+# [0.919.0](https://github.com/lightdash/lightdash/compare/0.918.0...0.919.0) (2023-12-29)
+
+
+### Features
+
+* organization group creation with members ([#8438](https://github.com/lightdash/lightdash/issues/8438)) ([d9e9a23](https://github.com/lightdash/lightdash/commit/d9e9a2398164801dd76345680349da45eb87542f))
+
 # [0.918.0](https://github.com/lightdash/lightdash/compare/0.917.7...0.918.0) (2023-12-29)
 
 
