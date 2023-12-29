@@ -347,7 +347,11 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
                     <Tabs.Tab value="customization">Customization</Tabs.Tab>
-                    <Tabs.Tab value="preview">Preview</Tabs.Tab>
+                    {form.values.format === SchedulerFormat.IMAGE && (
+                        <Tabs.Tab value="preview">
+                            Preview and change layout
+                        </Tabs.Tab>
+                    )}
                 </Tabs.List>
 
                 <Tabs.Panel value="setup" mt="md">
