@@ -284,6 +284,8 @@ const SchedulerForm: FC<Props> = ({
         enabled: isDashboard,
     });
 
+    console.log('form', form.values.customViewportWidth);
+
     const slackQuery = useGetSlack();
     const slackState = useMemo(() => {
         if (slackQuery.isLoading) {
@@ -329,6 +331,17 @@ const SchedulerForm: FC<Props> = ({
             form.validate();
         }
     }, [form, onSendNow]);
+
+    const { setFieldValue } = form;
+    const handleOnCustomViewportWidthChange = useCallback(
+        (customViewportWidth) => {
+            setFieldValue(
+                'customViewportWidth',
+                customViewportWidth ? parseInt(customViewportWidth) : undefined,
+            );
+        },
+        [setFieldValue],
+    );
 
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
@@ -730,12 +743,10 @@ const SchedulerForm: FC<Props> = ({
                         <SchedulerPreview
                             schedulerFilters={form.values.filters}
                             dashboard={dashboard}
-                            onChange={(customViewportWidth) => {
-                                form.setFieldValue(
-                                    'customViewportWidth',
-                                    parseInt(customViewportWidth),
-                                );
-                            }}
+                            customViewportWidth={
+                                form.values.customViewportWidth
+                            }
+                            onChange={handleOnCustomViewportWidthChange}
                         />
                     </Tabs.Panel>
                 ) : null}
