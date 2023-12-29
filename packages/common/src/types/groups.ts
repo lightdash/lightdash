@@ -71,5 +71,5 @@ export type ApiGroupResponse = {
 
 export type ApiGroupListResponse = {
     status: 'ok';
-    results: Group[];
+    results: GroupWithMembers[];
 };

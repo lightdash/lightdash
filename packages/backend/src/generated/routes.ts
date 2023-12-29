@@ -983,6 +983,27 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Pick_Group.name_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GroupWithMembers: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Group' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        members: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'GroupMember' },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGroupListResponse: {
         dataType: 'refAlias',
         type: {
@@ -990,7 +1011,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 results: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'Group' },
+                    array: { dataType: 'refAlias', ref: 'GroupWithMembers' },
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -5990,6 +6011,11 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'req',
                     required: true,
                     dataType: 'object',
+                },
+                includeMembers: {
+                    in: 'query',
+                    name: 'includeMembers',
+                    dataType: 'double',
                 },
             };
 

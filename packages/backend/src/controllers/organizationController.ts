@@ -26,6 +26,7 @@ import {
     Path,
     Post,
     Put,
+    Query,
     Request,
     Response,
     Route,
@@ -322,15 +323,18 @@ export class OrganizationController extends Controller {
     /**
      * Gets all the groups in the current user's organization
      * @param req
+     * @param includeMembers number of members to include
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/groups')
     @OperationId('ListGroupsInOrganization')
     async listGroupsInOrganization(
         @Request() req: express.Request,
+        @Query() includeMembers?: number,
     ): Promise<ApiGroupListResponse> {
         const groups = await organizationService.listGroupsInOrganization(
             req.user!,
+            includeMembers,
         );
         this.setStatus(200);
         return {

@@ -5,6 +5,7 @@ import {
     CreateOrganization,
     ForbiddenError,
     Group,
+    GroupWithMembers,
     isUserWithOrg,
     LightdashMode,
     NotExistsError,
@@ -461,7 +462,10 @@ export class OrganizationService {
         return group;
     }
 
-    async listGroupsInOrganization(actor: SessionUser): Promise<Group[]> {
+    async listGroupsInOrganization(
+        actor: SessionUser,
+        includeMembers?: number,
+    ): Promise<GroupWithMembers[]> {
         if (actor.organizationUuid === undefined) {
             throw new ForbiddenError();
         }
@@ -471,6 +475,16 @@ export class OrganizationService {
         const allowedGroups = groups.filter((group) =>
             actor.ability.can('view', subject('Group', group)),
         );
-        return allowedGroups;
+
+        const groupWithMembers = await Promise.all(
+            allowedGroups.map((group) =>
+                this.groupsModel.getGroupWithMembers(
+                    group.uuid,
+                    includeMembers,
+                ),
+            ),
+        );
+
+        return groupWithMembers;
     }
 }
