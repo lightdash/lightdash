@@ -95,7 +95,6 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
                             form?.values.members?.map((v) => v.userUuid) ?? []
                         }
                         onChange={(userIds) => {
-                            console.log('add users', userIds);
                             form?.setValues({
                                 members: userIds.map((userUuid) => ({
                                     userUuid,
