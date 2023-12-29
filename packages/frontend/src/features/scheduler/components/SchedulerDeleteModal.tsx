@@ -51,17 +51,13 @@ export const SchedulerDeleteModal: FC<
             })}
         >
             <Box px="md" py="xl">
-                {scheduler.isLoading || scheduler.error ? (
-                    <>
-                        {scheduler.isLoading ? (
-                            <Stack h={300} w="100%" align="center">
-                                <Text fw={600}>Loading schedulers</Text>
-                                <Loader />
-                            </Stack>
-                        ) : (
-                            <ErrorState error={scheduler.error.error} />
-                        )}
-                    </>
+                {scheduler.isInitialLoading ? (
+                    <Stack h={300} w="100%" align="center">
+                        <Text fw={600}>Loading schedulers</Text>
+                        <Loader />
+                    </Stack>
+                ) : scheduler.isError ? (
+                    <ErrorState error={scheduler.error.error} />
                 ) : (
                     <Text span>
                         Are you sure you want to delete{' '}

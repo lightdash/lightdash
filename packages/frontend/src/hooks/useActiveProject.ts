@@ -62,11 +62,11 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     refetchOnMount: boolean;
 }) => {
     const params = useParams<{ projectUuid?: string }>();
-    const { data: projects, isLoading: isLoadingProjects } =
+    const { data: projects, isInitialLoading: isLoadingProjects } =
         useProjects(useQueryFetchOptions);
     const { data: defaultProject, isLoading: isLoadingDefaultProject } =
         useDefaultProject(useQueryFetchOptions);
-    const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
+    const { data: lastProjectUuid, isInitialLoading: isLoadingLastProject } =
         useActiveProject();
     const { mutate } = useUpdateActiveProjectMutation();
 

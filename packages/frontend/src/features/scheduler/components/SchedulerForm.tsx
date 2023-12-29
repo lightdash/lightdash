@@ -287,7 +287,7 @@ const SchedulerForm: FC<React.PropsWithChildren<Props>> = ({
 
     const slackQuery = useGetSlack();
     const slackState = useMemo(() => {
-        if (slackQuery.isLoading) {
+        if (slackQuery.isInitialLoading) {
             return SlackStates.LOADING;
         } else {
             if (
@@ -640,7 +640,7 @@ const SchedulerForm: FC<React.PropsWithChildren<Props>> = ({
                                                                 .slackTargets
                                                         }
                                                         rightSection={
-                                                            slackChannelsQuery.isLoading ?? (
+                                                            slackChannelsQuery.isInitialLoading ?? (
                                                                 <Loader size="sm" />
                                                             )
                                                         }

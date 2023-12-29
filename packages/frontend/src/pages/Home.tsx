@@ -36,15 +36,15 @@ const Home: FC<React.PropsWithChildren> = () => {
 
     const {
         data: mostPopularAndRecentlyUpdated,
-        isLoading: isMostPopularAndRecentlyUpdatedLoading,
+        isInitialLoading: isMostPopularAndRecentlyUpdatedLoading,
     } = useMostPopularAndRecentlyUpdated(selectedProjectUuid);
 
     const { user } = useApp();
 
     const isLoading =
-        onboarding.isLoading ||
-        project.isLoading ||
-        savedChartStatus.isLoading ||
+        onboarding.isInitialLoading ||
+        project.isInitialLoading ||
+        savedChartStatus.isInitialLoading ||
         isMostPopularAndRecentlyUpdatedLoading ||
         pinnedItems.isInitialLoading;
 

@@ -58,22 +58,22 @@ const Settings: FC<React.PropsWithChildren> = () => {
     const {
         health: {
             data: health,
-            isLoading: isHealthLoading,
+            isInitialLoading: isHealthLoading,
             error: healthError,
         },
-        user: { data: user, isLoading: isUserLoading, error: userError },
+        user: { data: user, isInitialLoading: isUserLoading, error: userError },
     } = useApp();
     const { track } = useTracking();
     const {
         data: organization,
-        isLoading: isOrganizationLoading,
+        isInitialLoading: isOrganizationLoading,
         error: organizationError,
     } = useOrganization();
     const { activeProjectUuid, isLoading: isActiveProjectUuidLoading } =
         useActiveProjectUuid();
     const {
         data: project,
-        isLoading: isProjectLoading,
+        isInitialLoading: isProjectLoading,
         error: projectError,
     } = useProject(activeProjectUuid);
 

@@ -6,7 +6,8 @@ import MantineIcon from '../../common/MantineIcon';
 import { OrganizationDeleteModal } from './DeleteOrganizationModal';
 
 export const DeleteOrganizationPanel: FC<React.PropsWithChildren> = () => {
-    const { isLoading: isLoading, data: organization } = useOrganization();
+    const { isInitialLoading: isLoading, data: organization } =
+        useOrganization();
 
     const [showDeleteOrganizationModal, setShowDeleteOrganizationModal] =
         useState(false);

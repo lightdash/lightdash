@@ -26,7 +26,7 @@ const ChartUpdateModal: FC<React.PropsWithChildren<ChartUpdateModalProps>> = ({
     ...modalProps
 }) => {
     const dashboardUuid = useSearchParams('fromDashboard');
-    const { data: chart, isLoading } = useSavedQuery({ id: uuid });
+    const { data: chart, isInitialLoading } = useSavedQuery({ id: uuid });
     const { mutateAsync, isLoading: isUpdating } = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         uuid,
@@ -49,7 +49,7 @@ const ChartUpdateModal: FC<React.PropsWithChildren<ChartUpdateModalProps>> = ({
         });
     }, [chart, setValues]);
 
-    if (isLoading || !chart) {
+    if (isInitialLoading || !chart) {
         return null;
     }
 

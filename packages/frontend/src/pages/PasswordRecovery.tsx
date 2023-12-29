@@ -11,7 +11,7 @@ import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 const PasswordRecovery: FC<React.PropsWithChildren> = () => {
     const { health } = useApp();
 
-    if (health.isLoading) {
+    if (health.isInitialLoading) {
         return <PageSpinner />;
     }
 

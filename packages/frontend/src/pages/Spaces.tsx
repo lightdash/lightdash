@@ -27,12 +27,10 @@ import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 const Spaces: FC<React.PropsWithChildren> = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-    const { data: spaces = [], isLoading: spaceIsLoading } = useSpaceSummaries(
-        projectUuid,
-        true,
-    );
+    const { data: spaces = [], isInitialLoading: spaceIsLoading } =
+        useSpaceSummaries(projectUuid, true);
     const project = useProject(projectUuid);
-    const isLoading = spaceIsLoading || project.isLoading;
+    const isLoading = spaceIsLoading || project.isInitialLoading;
 
     const { user, health } = useApp();
 

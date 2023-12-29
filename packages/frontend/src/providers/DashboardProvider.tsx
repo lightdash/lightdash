@@ -325,7 +325,7 @@ export const DashboardProvider: React.FC<
     });
 
     const {
-        isLoading: isLoadingDashboardFilters,
+        isInitialLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
         data: dashboardAvailableFiltersData,
     } = useDashboardsAvailableFilters(savedChartUuidsAndTileUuids ?? []);

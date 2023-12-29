@@ -31,14 +31,16 @@ const ChartDeleteModal: FC<React.PropsWithChildren<ChartDeleteModalProps>> = ({
     ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: chart, isLoading } = useSavedQuery({ id: uuid });
-    const { data: relatedDashboards, isLoading: isLoadingRelatedDashboards } =
-        useDashboardsContainingChart(projectUuid, uuid);
+    const { data: chart, isInitialLoading } = useSavedQuery({ id: uuid });
+    const {
+        data: relatedDashboards,
+        isInitialLoading: isLoadingRelatedDashboards,
+    } = useDashboardsContainingChart(projectUuid, uuid);
     const { mutateAsync: deleteChart, isLoading: isDeleting } =
         useSavedQueryDeleteMutation();
 
     if (
-        isLoading ||
+        isInitialLoading ||
         isLoadingRelatedDashboards ||
         !chart ||
         !relatedDashboards

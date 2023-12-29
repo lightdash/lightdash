@@ -13,7 +13,7 @@ const CreateProjectSettings: FC<React.PropsWithChildren> = () => {
     const queryClient = useQueryClient();
     const history = useHistory();
     const { health } = useApp();
-    if (health.isLoading) {
+    if (health.isInitialLoading) {
         return <PageSpinner />;
     }
 

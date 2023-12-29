@@ -51,18 +51,19 @@ const AddTilesToDashboardModal: FC<
     const [isLoading, setIsLoading] = useState(false);
 
     const { data: savedChart } = useSavedQuery({ id: savedChartUuid });
-    const { data: dashboards, isLoading: isLoadingDashboards } = useDashboards(
-        projectUuid,
-        {
-            staleTime: 0,
-            onSuccess: (data) => {
-                if (data.length === 0) {
-                    setIsCreatingNewDashboard(true);
-                }
+    const { data: dashboards, isInitialLoading: isLoadingDashboards } =
+        useDashboards(
+            projectUuid,
+            {
+                staleTime: 0,
+                onSuccess: (data) => {
+                    if (data.length === 0) {
+                        setIsCreatingNewDashboard(true);
+                    }
+                },
             },
-        },
-        true, // includePrivateSpaces
-    );
+            true, // includePrivateSpaces
+        );
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
         true,

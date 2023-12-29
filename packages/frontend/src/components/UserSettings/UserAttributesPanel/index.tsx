@@ -147,7 +147,7 @@ const UserAttributesPanel: FC = () => {
     const [editAttribute, setEditAttribute] = useState<
         UserAttribute | undefined
     >();
-    const { data: orgUserAttributes, isLoading } = useUserAttributes();
+    const { data: orgUserAttributes, isInitialLoading } = useUserAttributes();
     const { data: organization } = useOrganization();
     if (
         user.data?.ability.cannot(
@@ -160,7 +160,8 @@ const UserAttributesPanel: FC = () => {
         return <ForbiddenPanel />;
     }
 
-    if (isLoading) return <LoadingState title="Loading user attributes" />;
+    if (isInitialLoading)
+        return <LoadingState title="Loading user attributes" />;
 
     return (
         <Stack>
@@ -211,7 +212,7 @@ const UserAttributesPanel: FC = () => {
                 </>
             </Group>
 
-            {isLoading ? (
+            {isInitialLoading ? (
                 <LoadingState title="Loading user attributes" />
             ) : orgUserAttributes?.length === 0 ? (
                 <SettingsCard shadow="none">

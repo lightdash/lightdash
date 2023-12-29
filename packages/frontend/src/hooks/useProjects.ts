@@ -32,9 +32,9 @@ export const useDefaultProject = (useQueryOptions?: {
     isLoading: boolean;
     data: OrganizationProject | undefined;
 } => {
-    const { isLoading: isOrganizationLoading, data: org } =
+    const { isInitialLoading: isOrganizationLoading, data: org } =
         useOrganization(useQueryOptions);
-    const { isLoading: isLoadingProjects, data: projects = [] } =
+    const { isInitialLoading: isLoadingProjects, data: projects = [] } =
         useProjects(useQueryOptions);
 
     const defaultProject = projects?.find(

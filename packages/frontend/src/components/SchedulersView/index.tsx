@@ -15,7 +15,7 @@ import Schedulers from './SchedulersView';
 const SchedulersView: FC<React.PropsWithChildren<{ projectUuid: string }>> = ({
     projectUuid,
 }) => {
-    const { data, isLoading } = useSchedulerLogs(projectUuid);
+    const { data, isInitialLoading } = useSchedulerLogs(projectUuid);
     const tableTabStyles = useTableTabStyles();
     const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
@@ -26,7 +26,7 @@ const SchedulersView: FC<React.PropsWithChildren<{ projectUuid: string }>> = ({
             }),
         );
     };
-    if (isLoading) {
+    if (isInitialLoading) {
         return <LoadingState title="Loading scheduled deliveries" />;
     }
     return (

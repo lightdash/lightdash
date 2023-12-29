@@ -19,13 +19,13 @@ const ProjectSettings: FC<React.PropsWithChildren> = () => {
         projectUuid: string;
     }>();
 
-    const { isLoading, data: project, error } = useProject(projectUuid);
+    const { isInitialLoading, data: project, error } = useProject(projectUuid);
 
     if (error) {
         return <ErrorState error={error.error} />;
     }
 
-    if (isLoading || !project) {
+    if (isInitialLoading || !project) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading project" loading />

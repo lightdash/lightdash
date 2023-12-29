@@ -55,11 +55,11 @@ const VerificationSuccess: FC<
 
 const VerifyEmailPage: FC<React.PropsWithChildren> = () => {
     const { health } = useApp();
-    const { data, isLoading: statusLoading } = useEmailStatus();
+    const { data, isInitialLoading: statusLoading } = useEmailStatus();
     const { show: showIntercom } = useIntercom();
     const history = useHistory();
 
-    if (health.isLoading || statusLoading) {
+    if (health.isInitialLoading || statusLoading) {
         return <PageSpinner />;
     }
 

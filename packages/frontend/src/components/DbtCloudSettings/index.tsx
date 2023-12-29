@@ -146,7 +146,7 @@ const DbtCloudSettings: FC<React.PropsWithChildren<DbtCloudSettingsProps>> = ({
                             <Button
                                 type="submit"
                                 disabled
-                                loading={dbtCloudSettings.isLoading}
+                                loading={dbtCloudSettings.isInitialLoading}
                             >
                                 Save
                             </Button>

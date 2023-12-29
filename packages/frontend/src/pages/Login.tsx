@@ -109,7 +109,7 @@ const LoginContent: FC<React.PropsWithChildren> = () => {
         }
     }, [isDemo, mutate, isIdle]);
 
-    if (health.isLoading || isDemo) {
+    if (health.isInitialLoading || isDemo) {
         return <PageSpinner />;
     }
     if (health.status === 'success' && health.data?.requiresOrgRegistration) {

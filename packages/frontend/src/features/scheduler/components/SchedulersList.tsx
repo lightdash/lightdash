@@ -19,10 +19,10 @@ const SchedulersList: FC<React.PropsWithChildren<Props>> = ({
     schedulersQuery,
     onEdit,
 }) => {
-    const { data: schedulers, isLoading, error } = schedulersQuery;
+    const { data: schedulers, isInitialLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return (
             <Stack h={300} w="100%" align="center">
                 <Text fw={600}>Loading schedulers</Text>

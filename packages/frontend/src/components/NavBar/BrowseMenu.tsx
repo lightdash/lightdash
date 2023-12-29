@@ -17,7 +17,7 @@ interface Props {
 }
 
 const BrowseMenu: FC<React.PropsWithChildren<Props>> = ({ projectUuid }) => {
-    const { data: spaces, isLoading } = useSpaceSummaries(projectUuid);
+    const { data: spaces, isInitialLoading } = useSpaceSummaries(projectUuid);
 
     return (
         <Menu
@@ -63,12 +63,12 @@ const BrowseMenu: FC<React.PropsWithChildren<Props>> = ({ projectUuid }) => {
                     All saved charts
                 </Menu.Item>
 
-                {isLoading || (spaces && spaces.length > 0) ? (
+                {isInitialLoading || (spaces && spaces.length > 0) ? (
                     <>
                         <Menu.Divider />
                         <Menu.Label>Spaces</Menu.Label>
 
-                        {isLoading ? (
+                        {isInitialLoading ? (
                             <Center my="sm">
                                 <Loader size="sm" color="gray" />
                             </Center>

@@ -33,7 +33,7 @@ const MobileHome: FC<React.PropsWithChildren> = () => {
 
     const {
         data: mostPopularAndRecentlyUpdated,
-        isLoading: isMostPopularAndRecentlyUpdatedLoading,
+        isInitialLoading: isMostPopularAndRecentlyUpdatedLoading,
     } = useMostPopularAndRecentlyUpdated(selectedProjectUuid);
 
     const { user } = useApp();
@@ -58,8 +58,8 @@ const MobileHome: FC<React.PropsWithChildren> = () => {
     }, [mostPopularAndRecentlyUpdated, pinnedItems]);
 
     const isLoading =
-        project.isLoading ||
-        savedChartStatus.isLoading ||
+        project.isInitialLoading ||
+        savedChartStatus.isInitialLoading ||
         isMostPopularAndRecentlyUpdatedLoading ||
         pinnedItems.isInitialLoading;
     const error = project.error || savedChartStatus.error;

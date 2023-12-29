@@ -42,9 +42,10 @@ export const ExplorerResults = memo(() => {
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
     );
-    const { isLoading, data: exploreData } = useExplore(activeTableName, {
-        refetchOnMount: false,
-    });
+    const { isInitialLoading, data: exploreData } = useExplore(
+        activeTableName,
+        { refetchOnMount: false },
+    );
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
@@ -136,7 +137,7 @@ export const ExplorerResults = memo(() => {
 
     if (!activeTableName) return <NoTableSelected />;
 
-    if (isLoading) return <EmptyStateExploreLoading />;
+    if (isInitialLoading) return <EmptyStateExploreLoading />;
 
     if (columns.length === 0) return <EmptyStateNoColumns />;
     return (

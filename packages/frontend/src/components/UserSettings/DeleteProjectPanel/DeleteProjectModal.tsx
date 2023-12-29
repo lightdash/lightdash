@@ -23,14 +23,14 @@ export const ProjectDeleteModal: FC<
         }
     >
 > = ({ opened, onClose, projectUuid, isCurrentProject }) => {
-    const { isLoading, data: project } = useProject(projectUuid);
+    const { isInitialLoading, data: project } = useProject(projectUuid);
     const { mutateAsync, isLoading: isDeleting } = useDeleteProjectMutation();
     const { mutate: deleteActiveProjectMutation } =
         useDeleteActiveProjectMutation();
 
     const [confirmOrgName, setConfirmOrgName] = useState<string>();
 
-    if (isLoading || !project) return null;
+    if (isInitialLoading || !project) return null;
 
     const handleConfirm = async () => {
         await mutateAsync(projectUuid);

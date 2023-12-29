@@ -190,7 +190,7 @@ const ValidDashboardChartTile: FC<
         [rows, metricQuery, cacheMetadata, fields],
     );
 
-    if (health.isLoading || !health.data) {
+    if (health.isInitialLoading || !health.data) {
         return null;
     }
 
@@ -238,7 +238,7 @@ const ValidDashboardChartTileMinimal: FC<
         [rows, metricQuery, cacheMetadata, fields],
     );
 
-    if (health.isLoading || !health.data) {
+    if (health.isInitialLoading || !health.data) {
         return null;
     }
 
@@ -974,7 +974,7 @@ export const GenericDashboardChartTile: FC<
 };
 
 const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
-    const { isLoading, data, error } = useDashboardChart(
+    const { isInitialLoading, data, error } = useDashboardChart(
         props.tile.uuid,
         props.tile.properties?.savedChartUuid ?? null,
     );
@@ -982,7 +982,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     return (
         <GenericDashboardChartTile
             {...props}
-            isLoading={isLoading}
+            isLoading={isInitialLoading}
             data={data}
             error={error}
         />

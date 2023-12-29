@@ -26,7 +26,7 @@ const VerifyEmailForm: FC<React.PropsWithChildren<{ isLoading?: boolean }>> = ({
     const { health, user } = useApp();
     const { mutate: verifyCode, isLoading: verificationLoading } =
         useVerifyEmail();
-    const { data, isLoading: statusLoading } = useEmailStatus();
+    const { data, isInitialLoading: statusLoading } = useEmailStatus();
     const { mutate: sendVerificationEmail, isLoading: emailLoading } =
         useOneTimePassword();
     const form = useForm<{ code: string }>({
@@ -41,7 +41,7 @@ const VerifyEmailForm: FC<React.PropsWithChildren<{ isLoading?: boolean }>> = ({
     const errorMessage = form.errors.code;
     const expirationTime = data?.otp?.expiresAt || new Date();
     const loadingState =
-        statusLoading || emailLoading || health.isLoading || isLoading;
+        statusLoading || emailLoading || health.isInitialLoading || isLoading;
 
     useEffect(() => {
         if (data?.otp && data?.otp.numberOfAttempts > 0) {

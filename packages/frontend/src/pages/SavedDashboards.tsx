@@ -24,13 +24,14 @@ export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 const SavedDashboards = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { isLoading, data: dashboards = [] } = useDashboards(projectUuid);
+    const { isInitialLoading, data: dashboards = [] } =
+        useDashboards(projectUuid);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
 
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const { data: spaces, isLoading: isLoadingSpaces } =
+    const { data: spaces, isInitialLoading: isLoadingSpaces } =
         useSpaceSummaries(projectUuid);
     const hasNoSpaces = spaces && spaces.length === 0;
 
@@ -42,7 +43,7 @@ const SavedDashboards = () => {
         }),
     );
 
-    if (isLoading || isLoadingSpaces) {
+    if (isInitialLoading || isLoadingSpaces) {
         return <LoadingState title="Loading dashboards" />;
     }
 

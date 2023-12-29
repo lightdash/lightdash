@@ -25,7 +25,7 @@ type FormState = Pick<Dashboard, 'name' | 'description'>;
 const DashboardUpdateModal: FC<
     React.PropsWithChildren<DashboardUpdateModalProps>
 > = ({ uuid, onConfirm, ...modalProps }) => {
-    const { data: dashboard, isLoading } = useDashboardQuery(uuid);
+    const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
     const { mutateAsync, isLoading: isUpdating } = useUpdateDashboard(uuid);
 
     const form = useForm<FormState>({
@@ -46,7 +46,7 @@ const DashboardUpdateModal: FC<
         });
     }, [dashboard, setValues]);
 
-    if (isLoading || !dashboard) {
+    if (isInitialLoading || !dashboard) {
         return null;
     }
 

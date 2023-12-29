@@ -98,8 +98,9 @@ const ProjectListItem: FC<React.PropsWithChildren<ProjectListItemProps>> = ({
 const ProjectManagementPanel: FC<React.PropsWithChildren> = () => {
     const { classes } = useTableStyles();
 
-    const { data: projects = [], isLoading: isLoadingProjects } = useProjects();
-    const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
+    const { data: projects = [], isInitialLoading: isLoadingProjects } =
+        useProjects();
+    const { data: lastProjectUuid, isInitialLoading: isLoadingLastProject } =
         useActiveProject();
 
     const [deletingProjectUuid, setDeletingProjectUuid] = useState<string>();

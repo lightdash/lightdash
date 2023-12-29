@@ -63,10 +63,12 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     const { mutate: updateAccess } =
         useUpdateProjectAccessMutation(projectUuid);
 
-    const { data: projectAccess, isLoading: isProjectAccessLoading } =
+    const { data: projectAccess, isInitialLoading: isProjectAccessLoading } =
         useProjectAccess(projectUuid);
-    const { data: organizationUsers, isLoading: isOrganizationUsersLoading } =
-        useOrganizationUsers();
+    const {
+        data: organizationUsers,
+        isInitialLoading: isOrganizationUsersLoading,
+    } = useOrganizationUsers();
 
     const [inheritedPermissions, overlapPermissions] = useMemo(() => {
         const projectMemberEmails =

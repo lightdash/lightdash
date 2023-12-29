@@ -179,18 +179,18 @@ const UpdateStateContent: FC<
         [scheduler.data, user?.userUuid, track, sendNow],
     );
 
-    if (scheduler.isLoading || scheduler.error) {
+    if (scheduler.isInitialLoading || scheduler.error) {
         return (
             <>
                 <Box m="xl">
-                    {scheduler.isLoading ? (
+                    {scheduler.isInitialLoading ? (
                         <Stack h={300} w="100%" align="center">
                             <Text fw={600}>Loading scheduler</Text>
                             <Loader size="lg" />
                         </Stack>
-                    ) : (
+                    ) : scheduler.error ? (
                         <ErrorState error={scheduler.error.error} />
-                    )}
+                    ) : null}
                 </Box>
                 <SchedulersModalFooter onBack={onBack} />
             </>
@@ -220,7 +220,7 @@ const UpdateStateContent: FC<
                 confirmText="Save"
                 onBack={onBack}
                 onSendNow={handleSendNow}
-                loading={mutation.isLoading || scheduler.isLoading}
+                loading={mutation.isLoading || scheduler.isInitialLoading}
             />
         </>
     );

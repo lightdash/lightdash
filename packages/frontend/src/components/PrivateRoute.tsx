@@ -10,7 +10,7 @@ const PrivateRoute: FC<
 > = ({ children, ...rest }) => {
     const {
         health,
-        user: { data, isLoading },
+        user: { data, isInitialLoading },
     } = useApp();
     const ability = useAbilityContext();
     const emailStatus = useEmailStatus(!!health.data?.isAuthenticated);
@@ -26,7 +26,7 @@ const PrivateRoute: FC<
         <Route
             {...rest}
             render={({ location }) => {
-                if (health.isLoading || health.error) {
+                if (health.isInitialLoading || health.error) {
                     return <PageSpinner />;
                 }
 
@@ -41,7 +41,7 @@ const PrivateRoute: FC<
                     );
                 }
 
-                if (isLoading || emailStatus.isLoading) {
+                if (isInitialLoading || emailStatus.isInitialLoading) {
                     return <PageSpinner />;
                 }
 

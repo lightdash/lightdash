@@ -227,7 +227,7 @@ const SpaceActionModal: FC<
     shouldRedirect = true,
     ...props
 }) => {
-    const { data, isLoading } = useSpace(projectUuid, spaceUuid!, {
+    const { data, isInitialLoading } = useSpace(projectUuid, spaceUuid!, {
         enabled: !!spaceUuid,
     });
     const history = useHistory();
@@ -275,7 +275,7 @@ const SpaceActionModal: FC<
         props.onClose?.();
     };
 
-    if (isLoading) return null;
+    if (isInitialLoading) return null;
 
     const isWorking = isCreating || isUpdating || isDeleting;
 

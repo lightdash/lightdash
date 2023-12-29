@@ -23,7 +23,7 @@ const SavedExplorer = () => {
 
     const isEditMode = mode === 'edit';
 
-    const { data, isLoading, error } = useSavedQuery({
+    const { data, isInitialLoading, error } = useSavedQuery({
         id: savedQueryUuid,
     });
 
@@ -39,7 +39,7 @@ const SavedExplorer = () => {
         }
     }, [data]);
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading..." loading />

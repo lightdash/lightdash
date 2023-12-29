@@ -24,7 +24,11 @@ const MobileSpace: FC<React.PropsWithChildren> = () => {
         projectUuid: string;
         spaceUuid: string;
     }>();
-    const { data: space, isLoading, error } = useSpace(projectUuid, spaceUuid);
+    const {
+        data: space,
+        isInitialLoading,
+        error,
+    } = useSpace(projectUuid, spaceUuid);
     const { user } = useApp();
     const [search, setSearch] = useState<string>('');
     const visibleItems = useMemo(() => {
@@ -55,7 +59,7 @@ const MobileSpace: FC<React.PropsWithChildren> = () => {
         return <ForbiddenPanel />;
     }
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return <LoadingState title="Loading space" />;
     }
 

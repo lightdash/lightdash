@@ -152,7 +152,7 @@ const Invite: FC<React.PropsWithChildren> = () => {
         }
     }, [search]);
 
-    if (health.isLoading || inviteLinkQuery.isLoading) {
+    if (health.isInitialLoading || inviteLinkQuery.isInitialLoading) {
         return <PageSpinner />;
     }
 

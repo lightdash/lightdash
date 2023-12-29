@@ -34,7 +34,7 @@ const ProfilePanel: FC<React.PropsWithChildren> = () => {
     const { appendError } = useErrorLogs();
 
     const isEmailServerConfigured = health.data?.hasEmailClient;
-    const { data, isLoading: statusLoading } = useEmailStatus();
+    const { data, isInitialLoading: statusLoading } = useEmailStatus();
     const {
         mutate: sendVerificationEmail,
         error: sendVerificationEmailError,

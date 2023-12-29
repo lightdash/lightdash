@@ -96,10 +96,11 @@ const useMetricFlowQueryResults = (
 
     return {
         isLoading:
-            metricFlowQuery.isLoading || metricFlowQueryResultsQuery.isLoading,
+            metricFlowQuery.isInitialLoading ||
+            metricFlowQueryResultsQuery.isInitialLoading,
         error: metricFlowQuery.error || metricFlowQueryResultsQuery.error,
         data: metricFlowQueryResultsQuery.data,
-        status: metricFlowQuery.isLoading
+        status: metricFlowQuery.isInitialLoading
             ? metricFlowQuery.status
             : metricFlowQueryResultsQuery.status,
         refetch: metricFlowQuery.refetch,

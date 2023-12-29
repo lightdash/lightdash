@@ -72,7 +72,7 @@ const Register: FC<React.PropsWithChildren> = () => {
         },
     });
 
-    if (health.isLoading) {
+    if (health.isInitialLoading) {
         return <PageSpinner />;
     }
 

@@ -39,7 +39,8 @@ const ProjectSwitcher = () => {
     const { showToastSuccess } = useToaster();
     const history = useHistory();
 
-    const { isLoading: isLoadingProjects, data: projects } = useProjects();
+    const { isInitialLoading: isLoadingProjects, data: projects } =
+        useProjects();
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();

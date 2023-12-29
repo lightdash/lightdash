@@ -62,7 +62,7 @@ const SqlRunnerPage = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const initialState = useSqlRunnerUrlState();
     const sqlQueryMutation = useSqlQueryMutation();
-    const { isLoading: isCatalogLoading, data: catalogData } =
+    const { isInitialLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
 
     const [sql, setSql] = useState<string>(initialState?.sqlRunner?.sql || '');
@@ -172,7 +172,7 @@ const SqlRunnerPage = () => {
         throw new NotFoundError('no SQL query defined');
     };
 
-    if (health.isLoading || !health.data) {
+    if (health.isInitialLoading || !health.data) {
         return null;
     }
 

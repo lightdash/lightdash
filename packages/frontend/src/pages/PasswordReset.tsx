@@ -29,7 +29,7 @@ const PasswordReset: FC<React.PropsWithChildren> = () => {
     const history = useHistory();
     const { code } = useParams<{ code: string }>();
     const { health } = useApp();
-    const { isLoading, error } = usePasswordResetLink(code);
+    const { isInitialLoading, error } = usePasswordResetLink(code);
     const passwordResetMutation = usePasswordResetMutation();
 
     const form = useForm<ResetPasswordForm>({
@@ -38,7 +38,7 @@ const PasswordReset: FC<React.PropsWithChildren> = () => {
         },
     });
 
-    if (health.isLoading || isLoading) {
+    if (health.isInitialLoading || isInitialLoading) {
         return <PageSpinner />;
     }
 

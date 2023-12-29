@@ -17,7 +17,7 @@ const AppRoute: FC<React.PropsWithChildren<ComponentProps<typeof Route>>> = ({
         <Route
             {...rest}
             render={({ location }) => {
-                if (health.isLoading || orgRequest.isLoading) {
+                if (health.isInitialLoading || orgRequest.isInitialLoading) {
                     return <PageSpinner />;
                 }
 

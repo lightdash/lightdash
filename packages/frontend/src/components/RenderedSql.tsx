@@ -4,9 +4,9 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useCompiledSql } from '../hooks/useCompiledSql';
 
 export const RenderedSql = () => {
-    const { data, error, isLoading } = useCompiledSql();
+    const { data, error, isInitialLoading } = useCompiledSql();
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return (
             <Stack my="xs" align="center">
                 <Loader size="lg" color="gray" mt="xs" />
