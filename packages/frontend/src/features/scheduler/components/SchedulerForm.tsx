@@ -284,8 +284,6 @@ const SchedulerForm: FC<Props> = ({
         enabled: isDashboard,
     });
 
-    console.log('form', form.values.customViewportWidth);
-
     const slackQuery = useGetSlack();
     const slackState = useMemo(() => {
         if (slackQuery.isLoading) {
