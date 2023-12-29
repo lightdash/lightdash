@@ -86,7 +86,11 @@ export class GroupsModel {
         };
     }
 
-    async getGroupWithMembers(groupUuid: string, includeMembers?: number) {
+    async getGroupWithMembers(
+        groupUuid: string,
+        includeMembers?: number,
+        offset?: number,
+    ): Promise<GroupWithMembers> {
         const rows = await this.database('groups')
             .with('members', (query) => {
                 let memberQuery = query
@@ -102,6 +106,10 @@ export class GroupsModel {
 
                 if (includeMembers !== undefined) {
                     memberQuery = memberQuery.limit(includeMembers);
+                }
+
+                if (offset !== undefined) {
+                    memberQuery = memberQuery.offset(offset);
                 }
 
                 return memberQuery.select(
