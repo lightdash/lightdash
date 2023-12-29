@@ -665,7 +665,7 @@ const Dashboard: FC<React.PropsWithChildren> = () => {
     );
 };
 
-const DashboardPage: React.PropsWithChildren<FC> = () => {
+const DashboardPage: FC<React.PropsWithChildren> = () => {
     useProfiler('Dashboard');
     return (
         <DashboardProvider>
