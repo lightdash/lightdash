@@ -20,21 +20,7 @@ import { IconCheck, IconEye, IconEyeClosed } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
-
-const CUSTOM_WIDTH_OPTIONS = [
-    {
-        label: 'Small (1000px)',
-        value: '1000',
-    },
-    {
-        label: 'Medium (1400px)',
-        value: '1400',
-    },
-    {
-        label: 'Large (1500px)',
-        value: '1500',
-    },
-];
+import { CUSTOM_WIDTH_OPTIONS } from '../constants';
 
 type Props = {
     dashboard: Dashboard;
@@ -52,7 +38,7 @@ export const SchedulerPreview: FC<Props> = ({
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
         typeof CUSTOM_WIDTH_OPTIONS[number]['value']
-    >(CUSTOM_WIDTH_OPTIONS[0].value);
+    >(CUSTOM_WIDTH_OPTIONS[1].value);
     const exportDashboardMutation = useExportDashboard();
 
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);

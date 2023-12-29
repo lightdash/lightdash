@@ -23,6 +23,7 @@ import {
 import { Dispatch, FC, SetStateAction, useCallback, useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import { useLocation } from 'react-router-dom';
+import { CUSTOM_WIDTH_OPTIONS } from '../../../features/scheduler/constants';
 import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
 import MantineIcon from '../MantineIcon';
 
@@ -30,21 +31,6 @@ type Props = {
     gridWidth: number;
     dashboard: Dashboard;
 };
-
-const CUSTOM_WIDTH_OPTIONS = [
-    {
-        label: 'Small (1000px)',
-        value: '1000',
-    },
-    {
-        label: 'Medium (1400px)',
-        value: '1400',
-    },
-    {
-        label: 'Large (1500px)',
-        value: '1500',
-    },
-];
 
 type PreviewAndCustomizeProps = Props & {
     exportDashboardMutation: UseMutationResult<
