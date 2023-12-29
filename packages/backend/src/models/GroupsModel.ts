@@ -100,7 +100,7 @@ export class GroupsModel {
                     .where('group_memberships.group_uuid', groupUuid)
                     .andWhere('emails.is_primary', true);
 
-                if (includeMembers) {
+                if (includeMembers !== undefined) {
                     memberQuery = memberQuery.limit(includeMembers);
                 }
 

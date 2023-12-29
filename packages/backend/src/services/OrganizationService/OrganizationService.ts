@@ -465,7 +465,7 @@ export class OrganizationService {
     async listGroupsInOrganization(
         actor: SessionUser,
         includeMembers?: number,
-    ): Promise<GroupWithMembers[]> {
+    ): Promise<Group[] | GroupWithMembers[]> {
         if (actor.organizationUuid === undefined) {
             throw new ForbiddenError();
         }
@@ -476,7 +476,11 @@ export class OrganizationService {
             actor.ability.can('view', subject('Group', group)),
         );
 
-        const groupWithMembers = await Promise.all(
+        if (includeMembers === undefined) {
+            return allowedGroups;
+        }
+
+        const groupsWithMembers = await Promise.all(
             allowedGroups.map((group) =>
                 this.groupsModel.getGroupWithMembers(
                     group.uuid,
@@ -485,6 +489,6 @@ export class OrganizationService {
             ),
         );
 
-        return groupWithMembers;
+        return groupsWithMembers;
     }
 }
