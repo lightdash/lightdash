@@ -1,21 +1,28 @@
-import { ApiError, CreateGroup, Group } from '@lightdash/common';
+import {
+    ApiError,
+    CreateGroup,
+    Group,
+    GroupWithMembers,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
-const getOrganizationGroupsQuery = async () =>
-    lightdashApi<Group[]>({
-        url: `/org/groups`,
+const getOrganizationGroupsQuery = async (includeMembers?: number) =>
+    lightdashApi<GroupWithMembers[]>({
+        url: `/org/groups${
+            includeMembers ? `?includeMembers=${includeMembers}` : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
 
-export const useOrganizationGroups = () => {
+export const useOrganizationGroups = (includeMembers?: number) => {
     const setErrorResponse = useQueryError();
-    return useQuery<Group[], ApiError>({
+    return useQuery<GroupWithMembers[], ApiError>({
         queryKey: ['organization_groups'],
-        queryFn: getOrganizationGroupsQuery,
+        queryFn: () => getOrganizationGroupsQuery(includeMembers),
         onError: (result) => setErrorResponse(result),
     });
 };

@@ -1,5 +1,6 @@
-import { Group as UserGroup } from '@lightdash/common';
+import { GroupWithMembers } from '@lightdash/common';
 import {
+    Badge,
     Button,
     Group,
     Modal,
@@ -24,19 +25,53 @@ import CreateGroupModal from './CreateGroupModal';
 
 const GroupListItem: FC<{
     disabled?: boolean;
-    group: UserGroup;
-    onDelete: (group: UserGroup) => void;
+    group: GroupWithMembers;
+    onDelete: (group: GroupWithMembers) => void;
 }> = ({ disabled, group, onDelete }) => {
     return (
         <tr>
-            <td width={500}>
-                <Text fz="xs" fw={400} color="gray.8">
-                    {group.name}
-                </Text>
+            <td width={260}>
+                <Stack spacing="xxs">
+                    <Title order={6}>{group.name}</Title>
+                    {group.members.length > 0 && (
+                        <Text color="gray">{`${group.members.length} members`}</Text>
+                    )}
+                </Stack>
             </td>
 
             <td>
-                <Text>No users</Text>
+                {group.members.length > 0 ? (
+                    <Group
+                        spacing="xxs"
+                        maw={400}
+                        mah={55}
+                        sx={(theme) => ({
+                            overflow: 'auto',
+                            border: `1px solid ${theme.colors.gray[2]}`,
+                            borderRadius: theme.radius.xs,
+                            padding: theme.spacing.xxs,
+                        })}
+                    >
+                        {group.members.map((member) => (
+                            <Badge
+                                key={member.userUuid}
+                                variant="filled"
+                                color="gray.2"
+                                radius="xs"
+                                sx={{ textTransform: 'none' }}
+                                px="xxs"
+                            >
+                                <Text fz="xs" fw={400} color="gray.8">
+                                    {member.email}
+                                </Text>
+                            </Badge>
+                        ))}
+                    </Group>
+                ) : (
+                    <Text color="gray" fs="italic">
+                        No members
+                    </Text>
+                )}
             </td>
             <td>
                 <Group position="right">
@@ -57,7 +92,7 @@ const GroupListItem: FC<{
 
 const DeleteGroupModal: FC<
     ModalProps & {
-        group?: UserGroup;
+        group?: GroupWithMembers;
         disableControls?: boolean;
         onAcceptDelete: () => void;
     }
@@ -102,14 +137,14 @@ const GroupsView: FC = () => {
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
 
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [groupToDelete, setGroupToDelete] = useState<UserGroup | undefined>(
-        undefined,
-    );
+    const [groupToDelete, setGroupToDelete] = useState<
+        GroupWithMembers | undefined
+    >(undefined);
 
     const { mutate, isLoading: isDeleting } = useGroupDeleteMutation();
 
     const { data: groups, isLoading: isLoadingGroups } =
-        useOrganizationGroups();
+        useOrganizationGroups(100); // TODO: pagination
 
     const handleDelete = useCallback(() => {
         if (groupToDelete) {
@@ -139,7 +174,7 @@ const GroupsView: FC = () => {
                     <thead>
                         <tr>
                             <th>Group</th>
-                            <th>Users</th>
+                            <th>Members</th>
                             <th />
                         </tr>
                     </thead>
