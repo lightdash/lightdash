@@ -1,3 +1,10 @@
+# [0.920.0](https://github.com/lightdash/lightdash/compare/0.919.0...0.920.0) (2023-12-29)
+
+
+### Features
+
+* add clear to user search ([#8441](https://github.com/lightdash/lightdash/issues/8441)) ([39a3966](https://github.com/lightdash/lightdash/commit/39a3966dfde3f0c3fea9acf5139746173156823e))
+
 # [0.919.0](https://github.com/lightdash/lightdash/compare/0.918.0...0.919.0) (2023-12-29)
 
 
