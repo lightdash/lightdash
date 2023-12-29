@@ -183,7 +183,10 @@ export class OrganizationService {
         });
     }
 
-    async getUsers(user: SessionUser): Promise<OrganizationMemberProfile[]> {
+    async getUsers(
+        user: SessionUser,
+        includeGroups?: boolean,
+    ): Promise<OrganizationMemberProfile[]> {
         const { organizationUuid } = user;
         if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
             throw new ForbiddenError();
@@ -191,10 +194,19 @@ export class OrganizationService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
-        const members =
-            await this.organizationMemberProfileModel.getOrganizationMembers(
-                organizationUuid,
-            );
+        const members = includeGroups
+            ? await this.organizationMemberProfileModel.getOrganizationMembersAndGroups(
+                  organizationUuid,
+              )
+            : await this.organizationMemberProfileModel.getOrganizationMembers(
+                  organizationUuid,
+              );
+
+        if (user.organizationUuid === undefined) {
+            throw new ForbiddenError();
+        }
+
+        // TODO: Get groups that user is a member of
         return members.filter((member) =>
             user.ability.can(
                 'view',

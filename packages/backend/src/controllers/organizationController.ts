@@ -172,7 +172,10 @@ export class OrganizationController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.getUsers(req.user!),
+            results: await organizationService.getUsers(
+                req.user!,
+                !!req.query.includeGroups,
+            ),
         };
     }
 
