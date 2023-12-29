@@ -443,7 +443,7 @@ export class OrganizationService {
     async addGroupToOrganization(
         actor: SessionUser,
         createGroup: CreateGroup,
-    ): Promise<Group> {
+    ): Promise<Group | GroupWithMembers> {
         if (
             actor.organizationUuid === undefined ||
             actor.ability.cannot(
@@ -455,11 +455,30 @@ export class OrganizationService {
         ) {
             throw new ForbiddenError();
         }
+
         const group = await this.groupsModel.createGroup({
             organizationUuid: actor.organizationUuid,
             ...createGroup,
         });
-        return group;
+
+        if (createGroup.members === undefined) {
+            return group;
+        }
+
+        await Promise.all(
+            createGroup.members.map((member) =>
+                this.groupsModel.addGroupMember({
+                    groupUuid: group.uuid,
+                    userUuid: member.userUuid,
+                }),
+            ),
+        );
+
+        const groupWithMembers = await this.groupsModel.getGroupWithMembers(
+            group.uuid,
+        );
+
+        return groupWithMembers;
     }
 
     async listGroupsInOrganization(
