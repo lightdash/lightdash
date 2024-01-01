@@ -97,6 +97,7 @@ export const hasMatchingConditionalRules = (
                 case ConditionalOperator.NOT_NULL:
                     return convertedValue !== null;
                 case ConditionalOperator.EQUALS:
+                case ConditionalOperator.EQUALS_ONLY:
                     return rule.values.some((v) => convertedValue === v);
                 case ConditionalOperator.NOT_EQUALS:
                     return rule.values.some((v) => convertedValue !== v);

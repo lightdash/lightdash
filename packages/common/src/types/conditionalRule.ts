@@ -3,6 +3,7 @@ export enum ConditionalOperator {
     NOT_NULL = 'notNull',
     EQUALS = 'equals',
     NOT_EQUALS = 'notEquals',
+    EQUALS_ONLY = 'equalsOnly',
     STARTS_WITH = 'startsWith',
     ENDS_WITH = 'endsWith',
     INCLUDE = 'include',
