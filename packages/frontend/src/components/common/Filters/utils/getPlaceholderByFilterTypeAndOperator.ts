@@ -21,6 +21,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
                     return 'Enter value(s)';
+                case FilterOperator.EQUALS_ONLY:
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.GREATER_THAN:
                     return 'Enter value';
@@ -47,6 +48,8 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
                     return 'Start typing to filter results';
+                case FilterOperator.EQUALS_ONLY:
+                    return 'Select one value';
                 case FilterOperator.STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
                 case FilterOperator.INCLUDE:
@@ -89,6 +92,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';
+                case FilterOperator.EQUALS_ONLY:
                 case FilterOperator.STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
                 case FilterOperator.INCLUDE:
@@ -105,6 +109,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_NULL:
                     return '';
                 case FilterOperator.NOT_EQUALS:
+                case FilterOperator.EQUALS_ONLY:
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.GREATER_THAN:
                 case FilterOperator.LESS_THAN_OR_EQUAL:
