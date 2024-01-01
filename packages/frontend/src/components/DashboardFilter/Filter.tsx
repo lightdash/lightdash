@@ -180,7 +180,9 @@ const Filter: FC<Props> = ({
                             <Tooltip
                                 withinPortal
                                 position="top-start"
-                                disabled={isPopoverOpen}
+                                disabled={
+                                    isPopoverOpen || !filterRuleTables?.length
+                                }
                                 offset={8}
                                 label={
                                     <Text fz="xs">
