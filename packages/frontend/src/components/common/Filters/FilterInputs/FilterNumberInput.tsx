@@ -1,5 +1,5 @@
 import { TextInput, TextInputProps } from '@mantine/core';
-import { ChangeEvent, FC, useEffect, useState } from 'react';
+import { ChangeEvent, FC, useEffect, useRef, useState } from 'react';
 
 interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
     value: unknown;
@@ -15,8 +15,21 @@ const FilterNumberInput: FC<Props> = ({
     ...rest
 }) => {
     const [internalValue, setInternalValue] = useState('');
+    const initialized = useRef(false);
 
     useEffect(() => {
+        // To update value when option changes from Multi-Value to Single-Value
+        if (!initialized.current) {
+            onChange(
+                typeof value === 'string'
+                    ? parseFloat(value)
+                    : typeof value === 'number'
+                    ? value
+                    : null,
+            );
+            initialized.current = true;
+        }
+
         if (typeof value === 'string') {
             setInternalValue(value);
         } else if (typeof value === 'number') {
@@ -28,7 +41,7 @@ const FilterNumberInput: FC<Props> = ({
                 `FilterNumberInput: Invalid value type: ${typeof value}`,
             );
         }
-    }, [value]);
+    }, [value, onChange]);
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;

@@ -13,6 +13,7 @@ import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterMultiStringInput from './FilterMultiStringInput';
 import FilterNumberInput from './FilterNumberInput';
+import FilterSingleStringAutoComplete from './FilterSingleStringAutoComplete';
 import FilterStringAutoComplete from './FilterStringAutoComplete';
 
 const DefaultFilterInputs = <T extends ConditionalRule>({
@@ -133,6 +134,55 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     }}
                 />
             );
+        case FilterOperator.EQUALS_ONLY: {
+            switch (filterType) {
+                case FilterType.STRING:
+                    return (
+                        <FilterSingleStringAutoComplete
+                            filterId={
+                                isTableCalculationField(field) ? '' : rule.id
+                            }
+                            disabled={disabled}
+                            field={field}
+                            placeholder={placeholder}
+                            suggestions={
+                                isTableCalculationField(field)
+                                    ? []
+                                    : suggestions || []
+                            }
+                            withinPortal={popoverProps?.withinPortal}
+                            onDropdownOpen={popoverProps?.onOpen}
+                            onDropdownClose={popoverProps?.onClose}
+                            value={
+                                (rule.values || []).filter(isString)[0] || ''
+                            } // Take the first value or empty string if none
+                            onChange={(value) =>
+                                onChange({
+                                    ...rule,
+                                    values: value !== '' ? [value] : [], // Wrap the single value in an array
+                                })
+                            }
+                            tableCalculationField={isTableCalculationField(
+                                field,
+                            )}
+                        />
+                    );
+                default:
+                    return (
+                        <FilterNumberInput
+                            disabled={disabled}
+                            placeholder={placeholder}
+                            value={rule.values?.[0]}
+                            onChange={(newValue) => {
+                                onChange({
+                                    ...rule,
+                                    values: newValue ? [newValue] : [],
+                                });
+                            }}
+                        />
+                    );
+            }
+        }
         default:
             return assertUnreachable(
                 rule.operator,
