@@ -13,7 +13,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconTrash, IconUserPlus } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import {
@@ -116,7 +116,7 @@ const UserAttributeModal: FC<{
                     handleSubmit(values),
                 )}
             >
-                <Stack spacing="md">
+                <Stack spacing="xs">
                     <TextInput
                         name="name"
                         label="Attribute name"
@@ -153,6 +153,7 @@ const UserAttributeModal: FC<{
                             />
                             {checked && (
                                 <TextInput
+                                    size="xs"
                                     name={`attributeDefault`}
                                     placeholder="E.g. US"
                                     required
@@ -168,6 +169,7 @@ const UserAttributeModal: FC<{
                             return (
                                 <Group key={index}>
                                     <Select
+                                        size="xs"
                                         sx={{ flexGrow: 1 }}
                                         label={
                                             index === 0
@@ -190,6 +192,7 @@ const UserAttributeModal: FC<{
                                     />
 
                                     <TextInput
+                                        size="xs"
                                         sx={{ flexGrow: 1 }}
                                         label={
                                             index === 0 ? 'Value' : undefined
@@ -220,8 +223,10 @@ const UserAttributeModal: FC<{
                             );
                         })}
                         <Button
-                            w={200}
-                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            size="xs"
+                            variant="default"
+                            sx={{ alignSelf: 'flex-start' }}
+                            leftIcon={<MantineIcon icon={IconUserPlus} />}
                             onClick={() => {
                                 form.setFieldValue('users', [
                                     ...(form.values.users || []),
