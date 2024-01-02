@@ -45,7 +45,7 @@ export const DeleteTableCalculationModal: FC<Props> = ({
                 </Text>
 
                 <Group position="right" mt="sm">
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" color="dark" onClick={onClose}>
                         Cancel
                     </Button>
                     <Button color="red" onClick={onConfirm}>

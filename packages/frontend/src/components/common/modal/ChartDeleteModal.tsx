@@ -92,7 +92,11 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
                 )}
 
                 <Group position="right" mt="sm">
-                    <Button variant="outline" onClick={modalProps.onClose}>
+                    <Button
+                        color="dark"
+                        variant="outline"
+                        onClick={modalProps.onClose}
+                    >
                         Cancel
                     </Button>
 

@@ -63,7 +63,11 @@ export const OrganizationDeleteModal: FC<
                 />
 
                 <Group position="right" spacing="xs">
-                    <Button variant="outline" onClick={handleOnClose}>
+                    <Button
+                        variant="outline"
+                        onClick={handleOnClose}
+                        color="dark"
+                    >
                         Cancel
                     </Button>
 

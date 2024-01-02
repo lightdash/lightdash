@@ -1,3 +1,10 @@
+# [0.921.0](https://github.com/lightdash/lightdash/compare/0.920.0...0.921.0) (2024-01-02)
+
+
+### Features
+
+* add preview choice to dashboard scheduled deliveries ([#8428](https://github.com/lightdash/lightdash/issues/8428)) ([67e1fcb](https://github.com/lightdash/lightdash/commit/67e1fcb54f1c58473da2646620e3bf30d704ca6f))
+
 # [0.920.0](https://github.com/lightdash/lightdash/compare/0.919.0...0.920.0) (2023-12-29)
 
 

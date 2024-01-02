@@ -193,27 +193,18 @@ const Filter: FC<Props> = ({
                             <Tooltip
                                 withinPortal
                                 position="top-start"
-                                disabled={isPopoverOpen}
+                                disabled={
+                                    isPopoverOpen || !filterRuleTables?.length
+                                }
                                 offset={8}
                                 label={
                                     <Text fz="xs">
-                                        {filterRuleTables?.length === 0 ? (
-                                            <>
-                                                Table:
-                                                <Text span fw={600}>
-                                                    {filterRuleTables[0]}
-                                                </Text>
-                                            </>
-                                        ) : (
-                                            <>
-                                                Tables:{' '}
-                                                <Text span fw={600}>
-                                                    {filterRuleTables?.join(
-                                                        ', ',
-                                                    )}
-                                                </Text>
-                                            </>
-                                        )}
+                                        {filterRuleTables?.length === 1
+                                            ? 'Table: '
+                                            : 'Tables: '}
+                                        <Text span fw={600}>
+                                            {filterRuleTables?.join(', ')}
+                                        </Text>
                                     </Text>
                                 }
                             >

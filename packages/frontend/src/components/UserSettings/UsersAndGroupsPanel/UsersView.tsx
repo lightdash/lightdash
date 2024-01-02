@@ -226,6 +226,7 @@ const UserListItem: FC<{
                                             setIsDeleteDialogOpen(false)
                                         }
                                         variant="outline"
+                                        color="dark"
                                     >
                                         Cancel
                                     </Button>
