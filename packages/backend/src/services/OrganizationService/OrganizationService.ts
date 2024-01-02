@@ -206,7 +206,6 @@ export class OrganizationService {
             throw new ForbiddenError();
         }
 
-        // TODO: Get groups that user is a member of
         return members.filter((member) =>
             user.ability.can(
                 'view',
