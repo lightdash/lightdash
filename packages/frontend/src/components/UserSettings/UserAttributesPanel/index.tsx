@@ -17,6 +17,7 @@ import {
     IconAlertCircle,
     IconEdit,
     IconInfoCircle,
+    IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
@@ -186,8 +187,12 @@ const UserAttributesPanel: FC = () => {
                     </Tooltip>
                 </Group>
                 <>
-                    <Button onClick={addAttributeModal.open}>
-                        Add new attributes
+                    <Button
+                        size="xs"
+                        leftIcon={<MantineIcon icon={IconPlus} />}
+                        onClick={addAttributeModal.open}
+                    >
+                        Add new attribute
                     </Button>
                     <UserAttributeModal
                         opened={showAddAttributeModal}
