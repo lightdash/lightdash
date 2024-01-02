@@ -1,3 +1,10 @@
+## [0.921.2](https://github.com/lightdash/lightdash/compare/0.921.1...0.921.2) (2024-01-02)
+
+
+### Bug Fixes
+
+* discard explores with duplicate name ([#8390](https://github.com/lightdash/lightdash/issues/8390)) ([cf6540a](https://github.com/lightdash/lightdash/commit/cf6540a01929ccf4d369407428a96c07883fbf59))
+
 ## [0.921.1](https://github.com/lightdash/lightdash/compare/0.921.0...0.921.1) (2024-01-02)
 
 
