@@ -11,12 +11,9 @@ import { useDefaultProject, useProjects } from './useProjects';
 const LAST_PROJECT_KEY = 'lastProject';
 
 export const useActiveProject = () => {
-    return useQuery<string | undefined>(
+    return useQuery<string | null>(
         ['activeProject'],
-        () =>
-            Promise.resolve(
-                localStorage.getItem(LAST_PROJECT_KEY) || undefined,
-            ),
+        () => Promise.resolve(localStorage.getItem(LAST_PROJECT_KEY) || null),
         {
             cacheTime: 0,
             refetchOnWindowFocus: false,
