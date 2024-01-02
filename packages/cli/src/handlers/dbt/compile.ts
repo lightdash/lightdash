@@ -65,8 +65,6 @@ export const dbtCompile = async (
             'json',
             '--output-keys',
             'unique_id',
-            '--resource-type',
-            'model',
         ];
         const version = await getDbtVersion();
         // older dbt versions don't support --quiet flag
@@ -77,7 +75,8 @@ export const dbtCompile = async (
         const { stdout, stderr } = await execa('dbt', ['ls', ...args]);
         const models = stdout
             .split('\n')
-            .map((line) => JSON.parse(line).unique_id);
+            .map<string>((line) => JSON.parse(line).unique_id)
+            .filter((modelId) => modelId.startsWith('model.')); // filter models by name because "--models" and "--resource_type" are mutually exclusive arguments
         GlobalState.debug(`> Models: ${models.join(' ')}`);
         console.error(stderr);
         return models;
