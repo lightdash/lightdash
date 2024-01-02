@@ -1,3 +1,10 @@
+## [0.921.1](https://github.com/lightdash/lightdash/compare/0.921.0...0.921.1) (2024-01-02)
+
+
+### Bug Fixes
+
+* formatting of tooltip on dashboard filter ([#8449](https://github.com/lightdash/lightdash/issues/8449)) ([80af095](https://github.com/lightdash/lightdash/commit/80af09527b8e4f8d1ab68ea8df760bbabe8a9f65))
+
 # [0.921.0](https://github.com/lightdash/lightdash/compare/0.920.0...0.921.0) (2024-01-02)
 
 
