@@ -162,7 +162,7 @@ const UserAttributeModal: FC<{
                             )}
                         </Group>
                     </Stack>
-                    <Stack>
+                    <Stack spacing="xs">
                         <Text fw={500}>Assign to users</Text>
 
                         {form.values.users?.map((user, index) => {
