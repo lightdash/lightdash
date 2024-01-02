@@ -177,6 +177,11 @@ export const getNotificationPageData = async (
                 imageId,
                 authUserUuid: userUuid,
                 withPdf: imageOptions?.withPdf,
+                gridWidth:
+                    isDashboardScheduler(scheduler) &&
+                    scheduler.customViewportWidth
+                        ? scheduler.customViewportWidth
+                        : undefined,
             });
             if (unfurlImage.imageUrl === undefined) {
                 throw new Error('Unable to unfurl image');
