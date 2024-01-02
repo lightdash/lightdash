@@ -202,10 +202,6 @@ export class OrganizationService {
                   organizationUuid,
               );
 
-        if (user.organizationUuid === undefined) {
-            throw new ForbiddenError();
-        }
-
         return members.filter((member) =>
             user.ability.can(
                 'view',

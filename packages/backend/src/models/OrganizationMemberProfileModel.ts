@@ -190,8 +190,6 @@ export class OrganizationMemberProfileModel {
                 ),
             );
 
-        console.log({ queryResult });
-
         const updatedMembers = queryResult.map((row) => ({
             ...row,
             groups:
