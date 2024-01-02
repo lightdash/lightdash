@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import { UserAttribute } from '@lightdash/common';
 import {
+    ActionIcon,
+    Box,
     Button,
     Group,
     Modal,
@@ -17,6 +19,7 @@ import {
     IconInfoCircle,
     IconTrash,
 } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
@@ -126,6 +129,8 @@ const UserListItem: FC<{
 };
 
 const UserAttributesPanel: FC = () => {
+    const isGroupsFeatureFlagEnabled =
+        useFeatureFlagEnabled('group-management');
     const { classes } = useTableStyles();
     const { user } = useApp();
     const [showAddAttributeModal, addAttributeModal] = useDisclosure(false);
@@ -152,34 +157,33 @@ const UserAttributesPanel: FC = () => {
         <Stack>
             <Group position="apart">
                 <Group spacing="two">
-                    <Title order={5}>User attributes</Title>
+                    <Title order={5}>
+                        {isGroupsFeatureFlagEnabled
+                            ? 'User and Group attributes'
+                            : 'User attributes'}
+                    </Title>
                     <Tooltip
                         multiline
                         w={400}
                         withArrow
                         label={
-                            <div>
+                            <Box>
                                 User attributes are metadata defined by your
                                 organization. They can used to control and
                                 cutomize the user experience through data access
-                                and personzalization. Learn more about using
-                                user attributes in the
-                                <a
-                                    href="https://docs.lightdash.com"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    {' '}
-                                    docs
-                                </a>
-                                .
-                            </div>
+                                and personalization. Learn more about using user
+                                attributes by clicking on the icon.
+                            </Box>
                         }
                     >
-                        {/* TODO add link to docs */}
-                        {/* TODO keep tooltip open on hover */}
-
-                        <MantineIcon icon={IconInfoCircle} color="gray.6" />
+                        <ActionIcon
+                            component="a"
+                            href="https://docs.lightdash.com/references/user-attributes"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            <MantineIcon icon={IconInfoCircle} />
+                        </ActionIcon>
                     </Tooltip>
                 </Group>
                 <>
