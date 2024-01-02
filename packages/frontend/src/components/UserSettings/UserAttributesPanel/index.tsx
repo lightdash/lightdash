@@ -169,10 +169,10 @@ const UserAttributesPanel: FC = () => {
                         label={
                             <Box>
                                 User attributes are metadata defined by your
-                                organization. They can used to control and
+                                organization. They can be used to control and
                                 cutomize the user experience through data access
                                 and personalization. Learn more about using user
-                                attributes by clicking on the icon.
+                                attributes by clicking on this icon.
                             </Box>
                         }
                     >
