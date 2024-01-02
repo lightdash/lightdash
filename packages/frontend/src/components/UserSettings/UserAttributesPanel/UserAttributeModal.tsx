@@ -104,7 +104,7 @@ const UserAttributeModal: FC<{
     };
 
     const { data: orgUsers } = useOrganizationUsers();
-    const { data: groups } = useOrganizationGroups({
+    const { data: groups } = useOrganizationGroups(undefined, {
         enabled: !!isGroupsFeatureFlagEnabled,
     });
 
