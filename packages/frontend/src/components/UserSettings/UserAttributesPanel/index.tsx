@@ -69,23 +69,22 @@ const UserListItem: FC<{
             </td>
             <td width="1%">
                 <Group noWrap spacing="xs">
-                    <Button
-                        onClick={onEdit}
-                        variant="outline"
+                    <ActionIcon
                         color="blue.4"
-                        leftIcon={<MantineIcon icon={IconEdit} />}
+                        variant="outline"
+                        onClick={onEdit}
                     >
-                        Edit
-                    </Button>
+                        <MantineIcon icon={IconEdit} />
+                    </ActionIcon>
 
-                    <Button
-                        leftIcon={<MantineIcon icon={IconTrash} />}
+                    <ActionIcon
                         variant="outline"
                         onClick={deleteDialog.open}
                         color="red"
                     >
-                        Delete
-                    </Button>
+                        <MantineIcon icon={IconTrash} />
+                    </ActionIcon>
+
                     <Modal
                         opened={isDeleteDialogOpen}
                         onClose={deleteDialog.close}
