@@ -121,12 +121,9 @@ export class OrganizationMemberProfileModel {
 
     async getOrganizationMembersAndGroups(
         organizationUuid: string,
+        includeGroups?: number,
     ): Promise<OrganizationMemberProfileWithGroups[]> {
-        const queryResult: (DbOrganizationMemberProfile & {
-            group_uuids: string[];
-            group_names: string[];
-            groups: { name: string; uuid: string }[];
-        })[] = await this.database(UserTableName)
+        let orgMembersAndGroupsQuery = this.database(UserTableName)
             .leftJoin(
                 OrganizationMembershipsTableName,
                 `${UserTableName}.user_id`,
@@ -190,7 +187,18 @@ export class OrganizationMemberProfileModel {
                 ),
             );
 
-        const updatedMembers = queryResult.map((row) => ({
+        if (includeGroups !== undefined) {
+            orgMembersAndGroupsQuery =
+                orgMembersAndGroupsQuery.limit(includeGroups);
+        }
+
+        const result: (DbOrganizationMemberProfile & {
+            group_uuids: string[];
+            group_names: string[];
+            groups: { name: string; uuid: string }[];
+        })[] = await orgMembersAndGroupsQuery;
+
+        const updatedMembers = result.map((row) => ({
             ...row,
             groups:
                 !row.group_uuids && !row.group_names

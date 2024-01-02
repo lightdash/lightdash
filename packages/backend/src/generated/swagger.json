@@ -4118,6 +4118,10 @@
                     },
                     {
                         "properties": {
+                            "customViewportWidth": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "filters": {
                                 "items": {
                                     "$ref": "#/components/schemas/SchedulerFilterRule"
@@ -5552,7 +5556,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.920.0",
+        "version": "0.921.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -6360,7 +6364,17 @@
                 "description": "Gets all the members of the current user's organization",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "includeGroups",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/org/users/{userUuid}": {

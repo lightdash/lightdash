@@ -185,7 +185,7 @@ export class OrganizationService {
 
     async getUsers(
         user: SessionUser,
-        includeGroups?: boolean,
+        includeGroups?: number,
     ): Promise<OrganizationMemberProfile[]> {
         const { organizationUuid } = user;
         if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
@@ -197,6 +197,7 @@ export class OrganizationService {
         const members = includeGroups
             ? await this.organizationMemberProfileModel.getOrganizationMembersAndGroups(
                   organizationUuid,
+                  includeGroups,
               )
             : await this.organizationMemberProfileModel.getOrganizationMembers(
                   organizationUuid,
