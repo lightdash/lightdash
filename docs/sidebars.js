@@ -127,6 +127,7 @@ module.exports = {
                 },
                 'guides/how-to-create-custom-fields',
                 'guides/interactive-dashboards',
+                'guides/how-to-embed-content',
                 'guides/spaces',
                 'guides/pinning',
                 'guides/sharing-in-slack',
