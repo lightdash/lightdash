@@ -1,3 +1,10 @@
+# [0.922.0](https://github.com/lightdash/lightdash/compare/0.921.2...0.922.0) (2024-01-03)
+
+
+### Features
+
+* add option to query members and their groups ([#8445](https://github.com/lightdash/lightdash/issues/8445)) ([d071265](https://github.com/lightdash/lightdash/commit/d0712655e5705a52008c3a2641a304b0a544f3db))
+
 ## [0.921.2](https://github.com/lightdash/lightdash/compare/0.921.1...0.921.2) (2024-01-02)
 
 
