@@ -168,11 +168,15 @@ export class OrganizationController extends Controller {
     @OperationId('ListOrganizationMembers')
     async getOrganizationMembers(
         @Request() req: express.Request,
+        @Query() includeGroups?: number,
     ): Promise<ApiOrganizationMemberProfiles> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.getUsers(req.user!),
+            results: await organizationService.getUsers(
+                req.user!,
+                includeGroups,
+            ),
         };
     }
 
