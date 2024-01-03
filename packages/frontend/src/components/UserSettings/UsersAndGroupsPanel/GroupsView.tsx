@@ -10,7 +10,12 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconEdit,
+    IconPlus,
+    IconTrash,
+} from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
@@ -27,7 +32,8 @@ const GroupListItem: FC<{
     disabled?: boolean;
     group: GroupWithMembers;
     onDelete: (group: GroupWithMembers) => void;
-}> = ({ disabled, group, onDelete }) => {
+    onEdit: (group: GroupWithMembers) => void;
+}> = ({ disabled, group, onDelete, onEdit }) => {
     return (
         <tr>
             <td width={260}>
@@ -75,6 +81,14 @@ const GroupListItem: FC<{
             </td>
             <td>
                 <Group position="right">
+                    <Button
+                        px="xs"
+                        variant="outline"
+                        onClick={() => onEdit(group)}
+                        disabled={disabled}
+                    >
+                        <MantineIcon icon={IconEdit} />
+                    </Button>
                     <Button
                         px="xs"
                         variant="outline"
@@ -136,6 +150,11 @@ const GroupsView: FC = () => {
 
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
 
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [groupToEdit, setGroupToEdit] = useState<
+        GroupWithMembers | undefined
+    >(undefined);
+
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [groupToDelete, setGroupToDelete] = useState<
         GroupWithMembers | undefined
@@ -187,6 +206,10 @@ const GroupsView: FC = () => {
                                     'manage',
                                     'Group',
                                 )}
+                                onEdit={(g) => {
+                                    setGroupToEdit(g);
+                                    setIsEditDialogOpen(true);
+                                }}
                                 onDelete={(groupForDeletion) => {
                                     setGroupToDelete(groupForDeletion);
                                     setIsDeleteDialogOpen(true);
@@ -196,11 +219,19 @@ const GroupsView: FC = () => {
                     </tbody>
                 </Table>
             </SettingsCard>
-            <CreateGroupModal
-                key={`create-group-modal-${showCreateGroupModal}`}
-                opened={showCreateGroupModal}
-                onClose={() => setShowCreateGroupModal(false)}
-            />
+            {showCreateGroupModal ||
+                (isEditDialogOpen && (
+                    <CreateGroupModal
+                        key={`create-group-modal-${showCreateGroupModal}`}
+                        opened={showCreateGroupModal || isEditDialogOpen}
+                        onClose={() => {
+                            setShowCreateGroupModal(false);
+                            setIsEditDialogOpen(false);
+                        }}
+                        groupToEdit={groupToEdit}
+                        isEditing={isEditDialogOpen}
+                    />
+                ))}
             <DeleteGroupModal
                 key={`delete-group-modal-${isDeleteDialogOpen}`}
                 opened={isDeleteDialogOpen}

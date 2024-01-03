@@ -1,4 +1,4 @@
-import { CreateGroup } from '@lightdash/common';
+import { CreateGroup, GroupWithMembers } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -18,22 +18,38 @@ import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
-const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
+const CreateGroupModal: FC<
+    ModalProps & { isEditing: boolean; groupToEdit?: GroupWithMembers }
+> = ({ opened, onClose, isEditing, groupToEdit }) => {
+    console.log('------------>', groupToEdit, groupToEdit?.name ?? '');
+
     const form = useForm<CreateGroup>({
         initialValues: {
-            name: '',
-            members: [],
+            name: groupToEdit?.name ?? '',
+            members: groupToEdit?.members ?? [],
         },
         validate: {
             name: (value: string) =>
                 value.trim().length ? null : 'Group name is required',
         },
     });
+
     const { user } = useApp();
     const { data: organizationUsers, isLoading: isLoadingUsers } =
         useOrganizationUsers();
 
-    const { mutateAsync, isLoading } = useGroupCreateMutation();
+    const { mutateAsync: mutateAsyncCreateGroup, isLoading } =
+        useGroupCreateMutation();
+
+    const handleSubmit = async (data: CreateGroup) => {
+        if (isEditing) {
+            console.log('new values', data);
+        } else {
+            await mutateAsyncCreateGroup(data);
+        }
+        form.reset();
+        onClose();
+    };
 
     const users = useMemo(() => {
         if (organizationUsers === undefined) return [];
@@ -42,12 +58,6 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
             label: u.email,
         }));
     }, [organizationUsers]);
-
-    const handleSubmit = async (data: CreateGroup) => {
-        await mutateAsync(data);
-        form.reset();
-        onClose();
-    };
 
     if (user.data?.ability?.cannot('manage', 'Group')) {
         return null;
@@ -60,13 +70,17 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
             title={
                 <Group spacing="xs">
                     <MantineIcon size="lg" icon={IconUsersGroup} />
-                    <Title order={4}>Create group</Title>
+                    <Title order={4}>
+                        {isEditing
+                            ? `Editing ${groupToEdit?.name}`
+                            : `Create group`}
+                    </Title>
                 </Group>
             }
             size="lg"
         >
             <form
-                name="create_group"
+                name="create_edit_group"
                 onSubmit={form.onSubmit((values: CreateGroup) =>
                     handleSubmit(values),
                 )}
@@ -77,7 +91,7 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
                         placeholder="Name of the new group"
                         required
                         w="100%"
-                        disabled={isLoading}
+                        disabled={isLoading || isEditing}
                         {...form.getInputProps('name')}
                     />
                     <MultiSelect
@@ -108,7 +122,7 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
                         type="submit"
                         sx={{ alignSelf: 'end' }}
                     >
-                        Create group
+                        {isEditing ? 'Save' : 'Create group'}
                     </Button>
                 </Stack>
             </form>
