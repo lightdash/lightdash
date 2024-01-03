@@ -142,7 +142,9 @@ export const isAndFilterGroup = (
 export const isFilterGroup = (value: FilterGroupItem): value is FilterGroup =>
     isOrFilterGroup(value) || isAndFilterGroup(value);
 
-export const isFilterRule = (value: ConditionalRule): value is FilterRule =>
+export const isFilterRule = (
+    value: ConditionalRule | FilterGroupItem,
+): value is FilterRule =>
     'id' in value && 'target' in value && 'operator' in value;
 
 export const getFilterRules = (filters: Filters): FilterRule[] => {

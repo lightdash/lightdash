@@ -20,6 +20,8 @@ import {
     FilterType,
     isAndFilterGroup,
     isFilterGroup,
+    isFilterRule,
+    OrFilterGroup,
     UnitOfTime,
     type DashboardFieldTarget,
     type DashboardFilterRule,
@@ -30,6 +32,7 @@ import {
     type FilterGroupItem,
     type FilterRule,
     type Filters,
+    type AndFilterGroup,
 } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
@@ -519,12 +522,52 @@ export const addFiltersToMetricQuery = (
     },
 });
 
+const findAndOverrideChartFilter = (
+    item: FilterGroupItem,
+    filterRulesList: FilterRule[],
+): FilterGroupItem => {
+    const identicalDashboardFilter = isFilterRule(item)
+        ? filterRulesList.find(
+              (x) =>
+                  x.target.fieldId === item.target.fieldId &&
+                  x.operator === item.operator,
+          )
+        : undefined;
+    return identicalDashboardFilter
+        ? {
+              ...item,
+              values: identicalDashboardFilter.values,
+          }
+        : item;
+};
+
+export const overrideChartFilter = (
+    filterGroup: AndFilterGroup | OrFilterGroup,
+    filterRules: FilterRule[],
+): FilterGroup =>
+    isAndFilterGroup(filterGroup)
+        ? {
+              id: filterGroup.id,
+              and: filterGroup.and.map((item) =>
+                  findAndOverrideChartFilter(item, filterRules),
+              ),
+          }
+        : {
+              id: filterGroup.id,
+              or: filterGroup.or.map((item) =>
+                  findAndOverrideChartFilter(item, filterRules),
+              ),
+          };
+
 const combineFilterGroupWithFilterRules = (
     filterGroup: FilterGroup | undefined,
     filterRules: FilterRule[],
 ): FilterGroup => ({
     id: uuidv4(),
-    and: [...(filterGroup ? [filterGroup] : []), ...filterRules],
+    and: [
+        ...(filterGroup ? [overrideChartFilter(filterGroup, filterRules)] : []),
+        ...filterRules,
+    ],
 });
 
 const convertDashboardFilterRuleToFilterRule = (
