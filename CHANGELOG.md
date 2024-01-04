@@ -1,3 +1,10 @@
+## [0.923.1](https://github.com/lightdash/lightdash/compare/0.923.0...0.923.1) (2024-01-04)
+
+
+### Bug Fixes
+
+* update libcurl3-gnutls on bullseye-backports dependency ([#8469](https://github.com/lightdash/lightdash/issues/8469)) ([475ad20](https://github.com/lightdash/lightdash/commit/475ad207ef71a1f08d691e597a9598969b0a0260))
+
 # [0.923.0](https://github.com/lightdash/lightdash/compare/0.922.0...0.923.0) (2024-01-04)
 
 
