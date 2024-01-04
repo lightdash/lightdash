@@ -225,23 +225,32 @@ export class UnfurlService {
         return path;
     }
 
-    async unfurlImage(
-        url: string,
-        lightdashPage: LightdashPage,
-        imageId: string,
-        authUserUuid: string,
-        withPdf: boolean = false,
-    ): Promise<{ imageUrl?: string; pdfPath?: string }> {
+    async unfurlImage({
+        url,
+        lightdashPage,
+        imageId,
+        authUserUuid,
+        gridWidth,
+        withPdf = false,
+    }: {
+        url: string;
+        lightdashPage: LightdashPage;
+        imageId: string;
+        authUserUuid: string;
+        gridWidth?: number | undefined;
+        withPdf?: boolean;
+    }): Promise<{ imageUrl?: string; pdfPath?: string }> {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url);
-        const buffer = await this.saveScreenshot(
+        const buffer = await this.saveScreenshot({
             imageId,
             cookie,
             url,
             lightdashPage,
-            details?.chartType,
-            details?.organizationUuid,
-        );
+            chartType: details?.chartType,
+            organizationUuid: details?.organizationUuid,
+            gridWidth,
+        });
 
         let imageUrl;
         let pdfPath;
@@ -263,6 +272,7 @@ export class UnfurlService {
     async exportDashboard(
         dashboardUuid: string,
         queryFilters: string,
+        gridWidth: number | undefined,
         user: SessionUser,
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
@@ -281,26 +291,36 @@ export class UnfurlService {
         ) {
             throw new ForbiddenError();
         }
-        const unfurlImage = await this.unfurlImage(
-            minimalUrl,
-            pageType,
-            `slack-image_${snakeCaseName(name)}_${useNanoid()}`, // In order to use local images from slackRouter, image needs to start with slack-image
-            user.userUuid,
-        );
+        const unfurlImage = await this.unfurlImage({
+            url: minimalUrl,
+            lightdashPage: pageType,
+            imageId: `slack-image_${snakeCaseName(name)}_${useNanoid()}`,
+            authUserUuid: user.userUuid,
+            gridWidth,
+        });
         if (unfurlImage.imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
         }
         return unfurlImage.imageUrl;
     }
 
-    private async saveScreenshot(
-        imageId: string,
-        cookie: string,
-        url: string,
-        lightdashPage: LightdashPage,
-        chartType?: string,
-        organizationUuid?: string,
-    ): Promise<Buffer | undefined> {
+    private async saveScreenshot({
+        imageId,
+        cookie,
+        url,
+        lightdashPage,
+        chartType,
+        organizationUuid,
+        gridWidth = undefined,
+    }: {
+        imageId: string;
+        cookie: string;
+        url: string;
+        lightdashPage: LightdashPage;
+        chartType?: string;
+        organizationUuid?: string;
+        gridWidth?: number | undefined;
+    }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             Logger.error(
                 `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
@@ -332,7 +352,10 @@ export class UnfurlService {
                     if (chartType === ChartType.BIG_NUMBER) {
                         await page.setViewport(bigNumberViewport);
                     } else {
-                        await page.setViewport(viewport);
+                        await page.setViewport({
+                            ...viewport,
+                            width: gridWidth ?? viewport.width,
+                        });
                     }
                     await page.on('requestfailed', (request) => {
                         Logger.warn(
@@ -470,9 +493,11 @@ export class UnfurlService {
                         });
                     }
 
-                    const imageBuffer = (await element.screenshot({
+                    const imageBuffer = await page.screenshot({
                         path,
-                    })) as Buffer;
+                        fullPage: true,
+                        captureBeyondViewport: true,
+                    });
 
                     return imageBuffer;
                 } catch (e) {

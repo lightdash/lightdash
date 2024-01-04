@@ -12,7 +12,8 @@ const TILE_HEADER_MARGIN_BOTTOM = 12;
 export const HeaderContainer = styled.div<HeaderContainerProps>`
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    justify-content: space-between;
+    align-items: center;
     gap: 8px;
     height: ${TILE_HEADER_HEIGHT}px;
     margin-bottom: ${TILE_HEADER_MARGIN_BOTTOM}px;

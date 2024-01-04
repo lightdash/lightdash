@@ -18,10 +18,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && apt-get clean
 
+# Install security updates
+RUN echo "deb http://deb.debian.org/debian bullseye-backports main" >> /etc/apt/sources.list.d/backports.list \
+    && apt-get update && apt-get -t bullseye-backports install -y \
+    libcurl3-gnutls=7.88.1-10+deb12u3~bpo11+1
+
+RUN echo "deb http://deb.debian.org/debian bookworm main" >> /etc/apt/sources.list.d/backports.list \
+    && apt-get update && apt-get install -y  \
+    zlib1g=1:1.2.13.dfsg-1
+
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
-RUN python3 -m venv /usr/local/dbt1.4
-RUN /usr/local/dbt1.4/bin/pip install \
+RUN python3 -m venv /usr/local/dbt1.4 \
+    && /usr/local/dbt1.4/bin/pip install \
     "dbt-postgres~=1.4.0" \
     "dbt-redshift~=1.4.0" \
     "dbt-snowflake~=1.4.0" \
@@ -30,40 +39,37 @@ RUN /usr/local/dbt1.4/bin/pip install \
     "dbt-trino~=1.4.0" \
     "psycopg2-binary==2.8.6"
 
-RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt
-
-RUN python3 -m venv /usr/local/dbt1.5
-RUN /usr/local/dbt1.5/bin/pip install \
+RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
+    && python3 -m venv /usr/local/dbt1.5 \
+    && /usr/local/dbt1.5/bin/pip install \
     "dbt-postgres~=1.5.0" \
     "dbt-redshift~=1.5.0" \
     "dbt-snowflake~=1.5.0" \
     "dbt-bigquery~=1.5.0" \
     "dbt-databricks~=1.5.0" \
     "dbt-trino==1.5.0" \
-    "psycopg2-binary==2.8.6"
-RUN ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5
-
-RUN python3 -m venv /usr/local/dbt1.6
-RUN /usr/local/dbt1.6/bin/pip install \
+    "psycopg2-binary==2.8.6" \
+    && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5\
+    && python3 -m venv /usr/local/dbt1.6 \
+    && /usr/local/dbt1.6/bin/pip install \
     "dbt-postgres~=1.6.0" \
     "dbt-redshift~=1.6.0" \
     "dbt-snowflake~=1.6.0" \
     "dbt-bigquery~=1.6.0" \
     "dbt-databricks~=1.6.0" \
     "dbt-trino==1.6.0" \
-    "psycopg2-binary==2.8.6"
-RUN ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6
-
-RUN python3 -m venv /usr/local/dbt1.7
-RUN /usr/local/dbt1.7/bin/pip install \
+    "psycopg2-binary==2.8.6"\
+    && ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6 \
+    && python3 -m venv /usr/local/dbt1.7 \
+    && /usr/local/dbt1.7/bin/pip install \
     "dbt-postgres~=1.7.0" \
     "dbt-redshift~=1.7.0" \
     "dbt-snowflake~=1.7.0" \
     "dbt-bigquery~=1.7.0" \
     "dbt-databricks~=1.7.0" \
     "dbt-trino==1.7.0" \
-    "psycopg2-binary==2.8.6"
-RUN ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7
+    "psycopg2-binary==2.8.6" \
+    && ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7
 
 # -----------------------------
 # Stage 1: stop here for dev environment
@@ -113,8 +119,8 @@ COPY packages/frontend ./packages/frontend
 RUN yarn --cwd ./packages/frontend/ build
 
 # Cleanup development dependencies
-RUN rm -rf node_modules
-RUN rm -rf packages/*/node_modules
+RUN rm -rf node_modules \
+    && rm -rf packages/*/node_modules
 
 # Install production dependencies
 ENV NODE_ENV production
@@ -141,10 +147,10 @@ COPY --from=prod-builder  /usr/local/dbt1.6 /usr/local/dbt1.6
 COPY --from=prod-builder  /usr/local/dbt1.7 /usr/local/dbt1.7
 COPY --from=prod-builder /usr/app /usr/app
 
-RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt
-RUN ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5
-RUN ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6
-RUN ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7
+RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
+    && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \
+    && ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6 \
+    && ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7
 
 
 # Production config

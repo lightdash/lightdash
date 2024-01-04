@@ -4,25 +4,27 @@ import {
     OrganizationMemberRole,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Badge,
     Button,
     Flex,
     Group,
     Modal,
+    Paper,
     Select,
     Stack,
     Table,
     Text,
+    TextInput,
     Title,
     Tooltip,
 } from '@mantine/core';
 import {
     IconAlertCircle,
     IconHelp,
-    IconInfoCircle,
+    IconPlus,
     IconTrash,
+    IconX,
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import { FC, useState } from 'react';
@@ -39,8 +41,7 @@ import { EventName } from '../../../types/Events';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
-import ForbiddenPanel from '../../ForbiddenPanel';
-import InvitesModal from '../InvitesModal';
+import InvitesModal from './InvitesModal';
 import InviteSuccess from './InviteSuccess';
 
 const UserListItem: FC<{
@@ -225,6 +226,7 @@ const UserListItem: FC<{
                                             setIsDeleteDialogOpen(false)
                                         }
                                         variant="outline"
+                                        color="dark"
                                     >
                                         Cancel
                                     </Button>
@@ -259,67 +261,70 @@ const UserListItem: FC<{
     );
 };
 
-const UserManagementPanel: FC = () => {
-    const { classes } = useTableStyles();
-    const { user } = useApp();
+const UsersView: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
-    const { data: organizationUsers, isLoading } = useOrganizationUsers();
+    const { user } = useApp();
+    const { classes } = useTableStyles();
 
-    if (user.data?.ability.cannot('view', 'OrganizationMemberProfile')) {
-        return <ForbiddenPanel />;
+    const [search, setSearch] = useState('');
+
+    const { data: organizationUsers, isLoading: isLoadingUsers } =
+        useOrganizationUsers(search);
+
+    if (isLoadingUsers) {
+        return <LoadingState title="Loading users" />;
     }
 
     return (
-        <Stack>
-            <Group position="apart">
-                <Group spacing="two">
-                    <Title order={5}>User management settings</Title>
-                    <Tooltip label="Click here to learn more about user roles">
-                        <ActionIcon
-                            component="a"
-                            href="https://docs.lightdash.com/references/roles"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-                {user.data?.ability?.can('create', 'InviteLink') && (
-                    <>
-                        <Button onClick={() => setShowInviteModal(true)}>
-                            Add user
-                        </Button>
-                        <InvitesModal
-                            key={`invite-modal-${showInviteModal}`}
-                            opened={showInviteModal}
-                            onClose={() => setShowInviteModal(false)}
-                        />
-                    </>
-                )}
-            </Group>
-
-            {isLoading ? (
-                <LoadingState title="Loading users" />
-            ) : (
-                <SettingsCard shadow="none" p={0}>
-                    <Table className={classes.root}>
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                {user.data?.ability?.can(
-                                    'manage',
-                                    'OrganizationMemberProfile',
-                                ) && (
-                                    <>
-                                        <th>Role</th>
-                                        <th></th>
-                                    </>
-                                )}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {organizationUsers?.map((orgUser) => (
+        <Stack spacing="xs">
+            {user.data?.ability?.can('create', 'InviteLink') && (
+                <Button
+                    compact
+                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setShowInviteModal(true)}
+                    sx={{ alignSelf: 'end' }}
+                >
+                    Add user
+                </Button>
+            )}
+            <SettingsCard shadow="none" p={0}>
+                <Paper p="sm">
+                    <TextInput
+                        size="xs"
+                        placeholder="Search users by name, email, or role"
+                        onChange={(e) => setSearch(e.target.value)}
+                        value={search}
+                        w={320}
+                        rightSection={
+                            search.length > 0 && (
+                                <MantineIcon
+                                    color="gray.6"
+                                    icon={IconX}
+                                    onClick={() => setSearch('')}
+                                    style={{ cursor: 'pointer' }}
+                                />
+                            )
+                        }
+                    />
+                </Paper>
+                <Table className={classes.root}>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            {user.data?.ability?.can(
+                                'manage',
+                                'OrganizationMemberProfile',
+                            ) && (
+                                <>
+                                    <th>Role</th>
+                                    <th></th>
+                                </>
+                            )}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {organizationUsers && organizationUsers.length ? (
+                            organizationUsers.map((orgUser) => (
                                 <UserListItem
                                     key={orgUser.email}
                                     user={orgUser}
@@ -329,13 +334,26 @@ const UserManagementPanel: FC = () => {
                                         organizationUsers.length <= 1
                                     }
                                 />
-                            ))}
-                        </tbody>
-                    </Table>
-                </SettingsCard>
-            )}
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={3}>
+                                    <Text c="gray.6" fs="italic" ta="center">
+                                        No users found
+                                    </Text>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </Table>
+            </SettingsCard>
+            <InvitesModal
+                key={`invite-modal-${showInviteModal}`}
+                opened={showInviteModal}
+                onClose={() => setShowInviteModal(false)}
+            />
         </Stack>
     );
 };
 
-export default UserManagementPanel;
+export default UsersView;

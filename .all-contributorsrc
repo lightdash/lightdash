@@ -1276,6 +1276,34 @@
         "code",
         "bug"
       ]
+    },
+    {
+      "login": "jogeshwar01",
+      "name": "Jogeshwar Singh",
+      "avatar_url": "https://avatars.githubusercontent.com/u/85165953?v=4",
+      "profile": "https://github.com/jogeshwar01",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "lancerael",
+      "name": "lancerael",
+      "avatar_url": "https://avatars.githubusercontent.com/u/11949472?v=4",
+      "profile": "https://github.com/lancerael",
+      "contributions": [
+        "code",
+        "bug"
+      ]
+    },
+    {
+      "login": "UlisesGascon",
+      "name": "Ulises Gascón",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5110813?v=4",
+      "profile": "https://ulisesgascon.com/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

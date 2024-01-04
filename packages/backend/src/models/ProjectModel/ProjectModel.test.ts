@@ -1,12 +1,18 @@
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
-import { ProjectTableName } from '../../database/entities/projects';
+import isEqual from 'lodash/isEqual';
+import {
+    CachedExploresTableName,
+    CachedExploreTableName,
+    ProjectTableName,
+} from '../../database/entities/projects';
 import { ProjectModel } from './ProjectModel';
 import {
     encryptionServiceMock,
     expectedProject,
     expectedTablesConfiguration,
+    exploresWithSameName,
     exploreWithMetricFilters,
     lightdashConfigMock,
     mockExploreWithOutdatedMetricFilters,
@@ -24,7 +30,7 @@ function queryMatcher(
         sql.includes(tableName) &&
         params.length === bindings.length &&
         params.reduce(
-            (valid, arg, index) => valid && bindings[index] === arg,
+            (valid, arg, index) => valid && isEqual(bindings[index], arg),
             true,
         );
 }
@@ -94,6 +100,35 @@ describe('ProjectModel', () => {
                     exploreWithMetricFilters,
                 ),
             ).toEqual(exploreWithMetricFilters);
+        });
+    });
+
+    describe('saveExploresToCache', () => {
+        test('should discard explores with duplicate name', async () => {
+            tracker.on
+                .delete(queryMatcher(CachedExploreTableName, [projectUuid]))
+                .response([]);
+            tracker.on
+                .insert(
+                    queryMatcher(CachedExploreTableName, [
+                        JSON.stringify(exploresWithSameName[0]),
+                        exploresWithSameName[0].name,
+                        projectUuid,
+                        [],
+                    ]),
+                )
+                .response([]);
+            tracker.on
+                .insert(
+                    queryMatcher(CachedExploresTableName, [
+                        JSON.stringify([exploresWithSameName[0]]),
+                        projectUuid,
+                    ]),
+                )
+                .response([]);
+            await model.saveExploresToCache(projectUuid, exploresWithSameName);
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.insert).toHaveLength(2);
         });
     });
 });

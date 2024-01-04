@@ -26,6 +26,7 @@ import {
     Path,
     Post,
     Put,
+    Query,
     Request,
     Response,
     Route,
@@ -167,11 +168,15 @@ export class OrganizationController extends Controller {
     @OperationId('ListOrganizationMembers')
     async getOrganizationMembers(
         @Request() req: express.Request,
+        @Query() includeGroups?: number,
     ): Promise<ApiOrganizationMemberProfiles> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.getUsers(req.user!),
+            results: await organizationService.getUsers(
+                req.user!,
+                includeGroups,
+            ),
         };
     }
 
@@ -306,7 +311,7 @@ export class OrganizationController extends Controller {
     @OperationId('CreateGroupInOrganization')
     async createGroup(
         @Request() req: express.Request,
-        @Body() body: Pick<CreateGroup, 'name'>,
+        @Body() body: CreateGroup,
     ): Promise<ApiGroupResponse> {
         const group = await organizationService.addGroupToOrganization(
             req.user!,
@@ -322,15 +327,18 @@ export class OrganizationController extends Controller {
     /**
      * Gets all the groups in the current user's organization
      * @param req
+     * @param includeMembers number of members to include
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/groups')
     @OperationId('ListGroupsInOrganization')
     async listGroupsInOrganization(
         @Request() req: express.Request,
+        @Query() includeMembers?: number,
     ): Promise<ApiGroupListResponse> {
         const groups = await organizationService.listGroupsInOrganization(
             req.user!,
+            includeMembers,
         );
         this.setStatus(200);
         return {

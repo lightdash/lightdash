@@ -90,6 +90,7 @@ export type DashboardScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: string;
     filters?: SchedulerFilterRule[];
+    customViewportWidth?: number;
 };
 
 export type Scheduler = ChartScheduler | DashboardScheduler;
@@ -156,7 +157,7 @@ export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
     'schedulerUuid' | 'name' | 'message' | 'cron' | 'format' | 'options'
 > &
-    Pick<DashboardScheduler, 'filters'> & {
+    Pick<DashboardScheduler, 'filters' | 'customViewportWidth'> & {
         targets: Array<
             | CreateSchedulerTarget
             | UpdateSchedulerSlackTarget

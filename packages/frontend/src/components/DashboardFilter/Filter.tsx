@@ -4,7 +4,7 @@ import {
     FilterableField,
 } from '@lightdash/common';
 import { Button, CloseButton, Popover, Text, Tooltip } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useId } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -21,6 +21,9 @@ type Props = {
     isTemporary?: boolean;
     field?: FilterableField;
     filterRule?: DashboardFilterRule;
+    openPopoverId: string | undefined;
+    onPopoverOpen: (popoverId: string) => void;
+    onPopoverClose: () => void;
     onSave?: (value: DashboardFilterRule) => void;
     onUpdate?: (filter: DashboardFilterRule) => void;
     onRemove?: () => void;
@@ -32,10 +35,15 @@ const Filter: FC<Props> = ({
     isTemporary,
     field,
     filterRule,
+    openPopoverId,
+    onPopoverOpen,
+    onPopoverClose,
     onSave,
     onUpdate,
     onRemove,
 }) => {
+    const popoverId = useId();
+
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const allFilterableFields = useDashboardContext(
@@ -51,8 +59,8 @@ const Filter: FC<Props> = ({
         (c) => c.isFetchingDashboardFilters,
     );
 
-    const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
-        useDisclosure();
+    const isPopoverOpen = openPopoverId === popoverId;
+
     const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
         useDisclosure();
 
@@ -88,9 +96,9 @@ const Filter: FC<Props> = ({
     }, [filterRule, field, allFilterableFields]);
 
     const handleClose = useCallback(() => {
+        if (isPopoverOpen) onPopoverClose();
         closeSubPopover();
-        closePopover();
-    }, [closeSubPopover, closePopover]);
+    }, [isPopoverOpen, onPopoverClose, closeSubPopover]);
 
     const handelSaveChanges = useCallback(
         (newRule: DashboardFilterRule) => {
@@ -116,12 +124,11 @@ const Filter: FC<Props> = ({
             closeOnClickOutside={!isSubPopoverOpen}
             onClose={handleClose}
             disabled={isPopoverDisabled}
-            transitionProps={{
-                transition: 'pop',
-            }}
+            transitionProps={{ transition: 'pop-top-left' }}
             withArrow
             shadow="md"
-            offset={-1}
+            offset={1}
+            arrowOffset={14}
         >
             <Popover.Target>
                 {isCreatingNew ? (
@@ -143,7 +150,6 @@ const Filter: FC<Props> = ({
                     >
                         <Button
                             size="xs"
-                            mr="xxs"
                             variant="default"
                             leftIcon={
                                 <MantineIcon color="blue" icon={IconFilter} />
@@ -153,7 +159,11 @@ const Filter: FC<Props> = ({
                                 isLoadingDashboardFilters ||
                                 isFetchingDashboardFilters
                             }
-                            onClick={togglePopover}
+                            onClick={() =>
+                                isPopoverOpen
+                                    ? handleClose()
+                                    : onPopoverOpen(popoverId)
+                            }
                         >
                             Add filter
                         </Button>
@@ -163,7 +173,6 @@ const Filter: FC<Props> = ({
                         size="xs"
                         variant={isTemporary ? 'outline' : 'default'}
                         bg="white"
-                        mr="xxs"
                         rightIcon={
                             (isEditMode || isTemporary) && (
                                 <CloseButton size="sm" onClick={onRemove} />
@@ -174,33 +183,28 @@ const Filter: FC<Props> = ({
                                 color: 'black',
                             },
                         }}
-                        onClick={togglePopover}
+                        onClick={() =>
+                            isPopoverOpen
+                                ? handleClose()
+                                : onPopoverOpen(popoverId)
+                        }
                     >
                         <Text fz="xs">
                             <Tooltip
                                 withinPortal
                                 position="top-start"
-                                disabled={isPopoverOpen}
+                                disabled={
+                                    isPopoverOpen || !filterRuleTables?.length
+                                }
                                 offset={8}
                                 label={
                                     <Text fz="xs">
-                                        {filterRuleTables?.length === 0 ? (
-                                            <>
-                                                Table:
-                                                <Text span fw={600}>
-                                                    {filterRuleTables[0]}
-                                                </Text>
-                                            </>
-                                        ) : (
-                                            <>
-                                                Tables:{' '}
-                                                <Text span fw={600}>
-                                                    {filterRuleTables?.join(
-                                                        ', ',
-                                                    )}
-                                                </Text>
-                                            </>
-                                        )}
+                                        {filterRuleTables?.length === 1
+                                            ? 'Table: '
+                                            : 'Tables: '}
+                                        <Text span fw={600}>
+                                            {filterRuleTables?.join(', ')}
+                                        </Text>
                                     </Text>
                                 }
                             >
@@ -230,7 +234,7 @@ const Filter: FC<Props> = ({
                 )}
             </Popover.Target>
 
-            <Popover.Dropdown ml={5}>
+            <Popover.Dropdown>
                 {filterableFieldsByTileUuid && dashboardTiles && (
                     <FilterConfiguration
                         isCreatingNew={isCreatingNew}

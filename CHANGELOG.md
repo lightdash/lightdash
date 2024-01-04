@@ -1,3 +1,154 @@
+# [0.922.0](https://github.com/lightdash/lightdash/compare/0.921.2...0.922.0) (2024-01-03)
+
+
+### Features
+
+* add option to query members and their groups ([#8445](https://github.com/lightdash/lightdash/issues/8445)) ([d071265](https://github.com/lightdash/lightdash/commit/d0712655e5705a52008c3a2641a304b0a544f3db))
+
+## [0.921.2](https://github.com/lightdash/lightdash/compare/0.921.1...0.921.2) (2024-01-02)
+
+
+### Bug Fixes
+
+* discard explores with duplicate name ([#8390](https://github.com/lightdash/lightdash/issues/8390)) ([cf6540a](https://github.com/lightdash/lightdash/commit/cf6540a01929ccf4d369407428a96c07883fbf59))
+
+## [0.921.1](https://github.com/lightdash/lightdash/compare/0.921.0...0.921.1) (2024-01-02)
+
+
+### Bug Fixes
+
+* formatting of tooltip on dashboard filter ([#8449](https://github.com/lightdash/lightdash/issues/8449)) ([80af095](https://github.com/lightdash/lightdash/commit/80af09527b8e4f8d1ab68ea8df760bbabe8a9f65))
+
+# [0.921.0](https://github.com/lightdash/lightdash/compare/0.920.0...0.921.0) (2024-01-02)
+
+
+### Features
+
+* add preview choice to dashboard scheduled deliveries ([#8428](https://github.com/lightdash/lightdash/issues/8428)) ([67e1fcb](https://github.com/lightdash/lightdash/commit/67e1fcb54f1c58473da2646620e3bf30d704ca6f))
+
+# [0.920.0](https://github.com/lightdash/lightdash/compare/0.919.0...0.920.0) (2023-12-29)
+
+
+### Features
+
+* add clear to user search ([#8441](https://github.com/lightdash/lightdash/issues/8441)) ([39a3966](https://github.com/lightdash/lightdash/commit/39a3966dfde3f0c3fea9acf5139746173156823e))
+
+# [0.919.0](https://github.com/lightdash/lightdash/compare/0.918.0...0.919.0) (2023-12-29)
+
+
+### Features
+
+* organization group creation with members ([#8438](https://github.com/lightdash/lightdash/issues/8438)) ([d9e9a23](https://github.com/lightdash/lightdash/commit/d9e9a2398164801dd76345680349da45eb87542f))
+
+# [0.918.0](https://github.com/lightdash/lightdash/compare/0.917.7...0.918.0) (2023-12-29)
+
+
+### Features
+
+* organization group with members api ([#8437](https://github.com/lightdash/lightdash/issues/8437)) ([7c9f401](https://github.com/lightdash/lightdash/commit/7c9f401535de2140fe210270cfeb0970a70a92a8))
+* organization groups with members api ([#8436](https://github.com/lightdash/lightdash/issues/8436)) ([8f5b570](https://github.com/lightdash/lightdash/commit/8f5b570d5201401e44fe4ce312a1f74a23fc98e1))
+
+## [0.917.7](https://github.com/lightdash/lightdash/compare/0.917.6...0.917.7) (2023-12-29)
+
+
+### Bug Fixes
+
+* only admins can view userManagement route ([#8429](https://github.com/lightdash/lightdash/issues/8429)) ([f291271](https://github.com/lightdash/lightdash/commit/f291271a7e2c35a525dbed80145148b4b05c0a74))
+
+## [0.917.6](https://github.com/lightdash/lightdash/compare/0.917.5...0.917.6) (2023-12-28)
+
+
+### Bug Fixes
+
+* styles for errors on health endpoint ([#8427](https://github.com/lightdash/lightdash/issues/8427)) ([d5b6d9c](https://github.com/lightdash/lightdash/commit/d5b6d9c16da1cc7a4efb3771a5ba3845a2fd98a4))
+
+## [0.917.5](https://github.com/lightdash/lightdash/compare/0.917.4...0.917.5) (2023-12-28)
+
+
+### Bug Fixes
+
+* upgrade @docusaurus/core from 2.4.1 to 2.4.3 ([#8400](https://github.com/lightdash/lightdash/issues/8400)) ([59fe2ff](https://github.com/lightdash/lightdash/commit/59fe2ff7ec64c69d63743677f245230ec8d065b8))
+
+## [0.917.4](https://github.com/lightdash/lightdash/compare/0.917.3...0.917.4) (2023-12-28)
+
+
+### Bug Fixes
+
+* upgrade @docusaurus/preset-classic from 2.4.1 to 2.4.3 ([#8399](https://github.com/lightdash/lightdash/issues/8399)) ([ef80054](https://github.com/lightdash/lightdash/commit/ef80054a286af355086d6600cad84ba1f03a56af))
+
+## [0.917.3](https://github.com/lightdash/lightdash/compare/0.917.2...0.917.3) (2023-12-28)
+
+
+### Bug Fixes
+
+* upgrade @docusaurus/plugin-client-redirects from 2.4.1 to 2.4.3 ([#8398](https://github.com/lightdash/lightdash/issues/8398)) ([e776cac](https://github.com/lightdash/lightdash/commit/e776cacb9281ea3428680b3f326be8b462350199))
+
+## [0.917.2](https://github.com/lightdash/lightdash/compare/0.917.1...0.917.2) (2023-12-28)
+
+
+### Bug Fixes
+
+* dashboard filter popover state ([#8423](https://github.com/lightdash/lightdash/issues/8423)) ([338268e](https://github.com/lightdash/lightdash/commit/338268e7c192bed945efc6950d76f1341535088a))
+
+## [0.917.1](https://github.com/lightdash/lightdash/compare/0.917.0...0.917.1) (2023-12-27)
+
+
+### Bug Fixes
+
+* sort alignment on email error message ([#8409](https://github.com/lightdash/lightdash/issues/8409)) ([db996ac](https://github.com/lightdash/lightdash/commit/db996ac92195fa750a8e79af39e2c201d1575730))
+
+# [0.917.0](https://github.com/lightdash/lightdash/compare/0.916.0...0.917.0) (2023-12-27)
+
+
+### Features
+
+* add search to user management table ([#8416](https://github.com/lightdash/lightdash/issues/8416)) ([3956318](https://github.com/lightdash/lightdash/commit/3956318a12fd1322b785304db62a00233006e759))
+
+# [0.916.0](https://github.com/lightdash/lightdash/compare/0.915.4...0.916.0) (2023-12-27)
+
+
+### Features
+
+* customise width and preview dashboard exports ([#8389](https://github.com/lightdash/lightdash/issues/8389)) ([71302e0](https://github.com/lightdash/lightdash/commit/71302e00f40c6e19882ee002633890eb8f44f909))
+
+## [0.915.4](https://github.com/lightdash/lightdash/compare/0.915.3...0.915.4) (2023-12-27)
+
+
+### Bug Fixes
+
+* alllow scrolling in react-ace table calc ([#8401](https://github.com/lightdash/lightdash/issues/8401)) ([b79906a](https://github.com/lightdash/lightdash/commit/b79906aa288f9213be1f409906b7e20ab2f2194a))
+* displaying error inside underlying data modal ([#8411](https://github.com/lightdash/lightdash/issues/8411)) ([6f70b50](https://github.com/lightdash/lightdash/commit/6f70b50a4993be9b9b9f2bc9871dcad7ff18ce22))
+
+## [0.915.3](https://github.com/lightdash/lightdash/compare/0.915.2...0.915.3) (2023-12-27)
+
+
+### Bug Fixes
+
+* alignment fix for date zoom icon ([#8404](https://github.com/lightdash/lightdash/issues/8404)) ([f32b0c7](https://github.com/lightdash/lightdash/commit/f32b0c758f6484afaf5d39c24008152b1d58ceaf))
+* table alternating row styles ([#8408](https://github.com/lightdash/lightdash/issues/8408)) ([dee37ec](https://github.com/lightdash/lightdash/commit/dee37eca53b9fc3d9f44c826618b6903d9eff011))
+
+## [0.915.2](https://github.com/lightdash/lightdash/compare/0.915.1...0.915.2) (2023-12-22)
+
+
+### Bug Fixes
+
+* upgrade @easyops-cn/docusaurus-search-local from 0.35.0 to 0.38.1 ([#8396](https://github.com/lightdash/lightdash/issues/8396)) ([ce14232](https://github.com/lightdash/lightdash/commit/ce14232a8cf6e7ec37324b6707e2f4387076a0ed))
+* upgrade redocusaurus from 1.6.3 to 1.6.4 ([#8397](https://github.com/lightdash/lightdash/issues/8397)) ([b17ff53](https://github.com/lightdash/lightdash/commit/b17ff53d537fce4cb7947f2a2c64712aa9adf4c7))
+
+## [0.915.1](https://github.com/lightdash/lightdash/compare/0.915.0...0.915.1) (2023-12-22)
+
+
+### Bug Fixes
+
+* upgrade package libcurl4 to fix CVE-2023-23914 ([cbab0ee](https://github.com/lightdash/lightdash/commit/cbab0eec1bac0bd79863c80c8e807ec77570b30f))
+
+# [0.915.0](https://github.com/lightdash/lightdash/compare/0.914.1...0.915.0) (2023-12-22)
+
+
+### Features
+
+* change copy on sign-in-with-microsoft button ([#8381](https://github.com/lightdash/lightdash/issues/8381)) ([92ff23d](https://github.com/lightdash/lightdash/commit/92ff23d181d2e8cd9b89ca048d46f5df0464fe80))
+
 ## [0.914.1](https://github.com/lightdash/lightdash/compare/0.914.0...0.914.1) (2023-12-22)
 
 

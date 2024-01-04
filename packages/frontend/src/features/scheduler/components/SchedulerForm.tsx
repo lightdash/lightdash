@@ -50,6 +50,7 @@ import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
+import { SchedulerPreview } from './SchedulerPreview';
 
 export enum Limit {
     TABLE = 'table',
@@ -83,6 +84,7 @@ const DEFAULT_VALUES = {
     emailTargets: [] as string[],
     slackTargets: [] as string[],
     filters: undefined,
+    customViewportWidth: undefined,
 };
 
 const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
@@ -128,6 +130,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         slackTargets: slackTargets,
         ...(isDashboardScheduler(schedulerData) && {
             filters: schedulerData.filters,
+            customViewportWidth: schedulerData.customViewportWidth,
         }),
     };
 };
@@ -257,6 +260,7 @@ const SchedulerForm: FC<Props> = ({
                 targets,
                 ...(resource?.type === 'dashboard' && {
                     filters: values.filters,
+                    customViewportWidth: values.customViewportWidth,
                 }),
             };
         },
@@ -343,6 +347,16 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
                     <Tabs.Tab value="customization">Customization</Tabs.Tab>
+
+                    <Tabs.Tab
+                        disabled={
+                            form.values.format !== SchedulerFormat.IMAGE ||
+                            !isDashboard
+                        }
+                        value="preview"
+                    >
+                        Preview and Size
+                    </Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="setup" mt="md">
@@ -602,7 +616,6 @@ const SchedulerForm: FC<Props> = ({
                                         <SlackSvg
                                             style={{
                                                 margin: '5px 2px',
-
                                                 width: '20px',
                                                 height: '20px',
                                             }}
@@ -696,23 +709,44 @@ const SchedulerForm: FC<Props> = ({
                 ) : null}
 
                 <Tabs.Panel value="customization">
-                    <Text m="md">Customize delivery message body</Text>
+                    <Stack p="md">
+                        <Text fw={600}>Customize delivery message body</Text>
 
-                    <MDEditor
-                        preview="edit"
-                        commands={[
-                            commands.bold,
-                            commands.italic,
-                            commands.strikethrough,
-                            commands.divider,
-                            commands.link,
-                        ]}
-                        value={form.values.message}
-                        onChange={(value) =>
-                            form.setFieldValue('message', value || '')
-                        }
-                    />
+                        <MDEditor
+                            preview="edit"
+                            commands={[
+                                commands.bold,
+                                commands.italic,
+                                commands.strikethrough,
+                                commands.divider,
+                                commands.link,
+                            ]}
+                            value={form.values.message}
+                            onChange={(value) =>
+                                form.setFieldValue('message', value || '')
+                            }
+                        />
+                    </Stack>
                 </Tabs.Panel>
+                {isDashboard && dashboard ? (
+                    <Tabs.Panel value="preview">
+                        <SchedulerPreview
+                            schedulerFilters={form.values.filters}
+                            dashboard={dashboard}
+                            customViewportWidth={
+                                form.values.customViewportWidth
+                            }
+                            onChange={(customViewportWidth) => {
+                                form.setFieldValue(
+                                    'customViewportWidth',
+                                    customViewportWidth
+                                        ? parseInt(customViewportWidth)
+                                        : undefined,
+                                );
+                            }}
+                        />
+                    </Tabs.Panel>
+                ) : null}
             </Tabs>
 
             <SchedulersModalFooter

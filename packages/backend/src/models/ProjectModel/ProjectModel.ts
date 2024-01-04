@@ -29,6 +29,7 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -671,10 +672,17 @@ export class ProjectModel {
                 await this.database(CachedExploreTableName)
                     .where('project_uuid', projectUuid)
                     .delete();
+
+                // We don't support multiple explores with the same name at the moment
+                const uniqueExplores = uniqWith(
+                    explores,
+                    (a, b) => a.name === b.name,
+                );
+
                 // cache explores individually
                 await this.database(CachedExploreTableName)
                     .insert(
-                        explores.map((explore) => ({
+                        uniqueExplores.map((explore) => ({
                             project_uuid: projectUuid,
                             name: explore.name,
                             table_names: Object.keys(explore.tables || {}),
@@ -690,7 +698,7 @@ export class ProjectModel {
                 )
                     .insert({
                         project_uuid: projectUuid,
-                        explores: JSON.stringify(explores),
+                        explores: JSON.stringify(uniqueExplores),
                     })
                     .onConflict('project_uuid')
                     .merge()

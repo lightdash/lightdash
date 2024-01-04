@@ -86,7 +86,11 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
                 )}
 
                 <Group position="right" spacing="xs">
-                    <Button variant="outline" onClick={modalProps.onClose}>
+                    <Button
+                        color="dark"
+                        variant="outline"
+                        onClick={modalProps.onClose}
+                    >
                         Cancel
                     </Button>
 

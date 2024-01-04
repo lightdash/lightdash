@@ -5,6 +5,7 @@ import {
     CreateOrganization,
     ForbiddenError,
     Group,
+    GroupWithMembers,
     isUserWithOrg,
     LightdashMode,
     NotExistsError,
@@ -182,7 +183,10 @@ export class OrganizationService {
         });
     }
 
-    async getUsers(user: SessionUser): Promise<OrganizationMemberProfile[]> {
+    async getUsers(
+        user: SessionUser,
+        includeGroups?: number,
+    ): Promise<OrganizationMemberProfile[]> {
         const { organizationUuid } = user;
         if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
             throw new ForbiddenError();
@@ -190,10 +194,15 @@ export class OrganizationService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
-        const members =
-            await this.organizationMemberProfileModel.getOrganizationMembers(
-                organizationUuid,
-            );
+        const members = includeGroups
+            ? await this.organizationMemberProfileModel.getOrganizationMembersAndGroups(
+                  organizationUuid,
+                  includeGroups,
+              )
+            : await this.organizationMemberProfileModel.getOrganizationMembers(
+                  organizationUuid,
+              );
+
         return members.filter((member) =>
             user.ability.can(
                 'view',
@@ -441,8 +450,8 @@ export class OrganizationService {
 
     async addGroupToOrganization(
         actor: SessionUser,
-        createGroup: Pick<CreateGroup, 'name'>,
-    ): Promise<Group> {
+        createGroup: CreateGroup,
+    ): Promise<Group | GroupWithMembers> {
         if (
             actor.organizationUuid === undefined ||
             actor.ability.cannot(
@@ -454,14 +463,36 @@ export class OrganizationService {
         ) {
             throw new ForbiddenError();
         }
+
         const group = await this.groupsModel.createGroup({
             organizationUuid: actor.organizationUuid,
             ...createGroup,
         });
-        return group;
+
+        if (createGroup.members === undefined) {
+            return group;
+        }
+
+        await Promise.all(
+            createGroup.members.map((member) =>
+                this.groupsModel.addGroupMember({
+                    groupUuid: group.uuid,
+                    userUuid: member.userUuid,
+                }),
+            ),
+        );
+
+        const groupWithMembers = await this.groupsModel.getGroupWithMembers(
+            group.uuid,
+        );
+
+        return groupWithMembers;
     }
 
-    async listGroupsInOrganization(actor: SessionUser): Promise<Group[]> {
+    async listGroupsInOrganization(
+        actor: SessionUser,
+        includeMembers?: number,
+    ): Promise<Group[] | GroupWithMembers[]> {
         if (actor.organizationUuid === undefined) {
             throw new ForbiddenError();
         }
@@ -471,6 +502,20 @@ export class OrganizationService {
         const allowedGroups = groups.filter((group) =>
             actor.ability.can('view', subject('Group', group)),
         );
-        return allowedGroups;
+
+        if (includeMembers === undefined) {
+            return allowedGroups;
+        }
+
+        const groupsWithMembers = await Promise.all(
+            allowedGroups.map((group) =>
+                this.groupsModel.getGroupWithMembers(
+                    group.uuid,
+                    includeMembers,
+                ),
+            ),
+        );
+
+        return groupsWithMembers;
     }
 }
