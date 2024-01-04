@@ -272,7 +272,9 @@
                                                                     "DAY_OF_MONTH_NUM",
                                                                     "DAY_OF_YEAR_NUM",
                                                                     "QUARTER_NUM",
-                                                                    "YEAR_NUM"
+                                                                    "YEAR_NUM",
+                                                                    "HOUR_OF_DAY_NUM",
+                                                                    "MINUTE_OF_HOUR_NUM"
                                                                 ]
                                                             }
                                                         },
