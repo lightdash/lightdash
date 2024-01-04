@@ -1,10 +1,52 @@
-import EmbedCreateSecret from './assets/embed-create-secret.png';
-import EmbedAddDashboard from './assets/embed-add-dashboard.png';
-import EmbedDeveloper from './assets/embed-developer.png';
-import EmbedPreview from './assets/embed-preview.png';
+import UserAttributesDefault from './assets/user-attributes-default.png';
+import UserAttributesOverride from './assets/user-attributes-override.png';
 
 # Embedding
 
 You can embed Lightdash content in your website or application securely using Lightdash embedding. Embedding is a paid-per-usage feature. To get embedding enabled on your instance, contact the Lightdash team. 
 
-##
+## Embed secret
+
+The embed secret is used to generate tokens for embedding dashboards. 
+
+This secret is like a password that will help you encrypt the URLs so we know the access is valid.
+
+You can regenerate the secret by clicking on the `Generate new secret` button.  If you do this, people with an old URL will automatically lose access to any previously shared embed URL. 
+
+## Allowed dashboards
+
+Only dashboards included in the `allowed dashboards` can be accessed using embed URLs. To embed a dashboard, you need to first add it to the `allowed dashboards` list. 
+
+## Configure 
+
+Configure the embed URL. Then preview your settings and copy it to your clipboard.
+
+### Dashboard
+
+Select the dashboard that you want to embed. Only dashboards included in the `allowed dashboards` list appear here.
+
+### Expires in
+
+Set the time that 
+
+### User attributes
+
+Use user attributes to limit access to certain data in the embedded dashboard. You can use any [user attribute](/references/user-attributes.mdx) that you've defined in your organization in the embedded dashboard. 
+
+By default, anyone viewing an embedded dashboard will have the `default` attribute value you've set for your user attributes. 
+
+For example, here I have a user attribute `access_pii_data` with the default value `false`. Anyone viewing my embedded dashboard will also have `access_pii_data = false`.
+
+<img src={UserAttributesDefault} width="447" height="378" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can override the `default` value for a user attribute in your embedded dashboard by specifying the attribute name and value in the `user attributes` section here. 
+
+For example, if I wanted the `access_pii_data` user attribute from above to be `true` (not the default value, `false`) for people viewing my embedded dashboard, then I would add it to the user attributes section in the embed configuration. 
+
+<img src={UserAttributesOverride} width="314" height="91" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+If you haven't set a `default` value for a user attribute, then you need to set a specific value for the user attribute in the `user attributes` section here. Otherwise, anyone viewing the embedded dashboard will see an error for content usign data that's limited by the user attribute. 
+
+
+
+
