@@ -7,6 +7,7 @@ import { FC, memo, useCallback, useEffect, useState } from 'react';
 import useEchartsPieConfig, {
     PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
+import { useApp } from '../../providers/AppProvider';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import PieChartContextMenu, {
@@ -46,6 +47,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     const { chartRef, isLoading } = useVisualizationContext();
 
     const pieChartOptions = useEchartsPieConfig(props.isInDashboard);
+    const { user } = useApp();
 
     const [isOpen, { open, close }] = useDisclosure();
     const [menuProps, setMenuProps] = useState<{
@@ -116,13 +118,15 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
                 }}
             />
 
-            <PieChartContextMenu
-                value={menuProps?.value}
-                menuPosition={menuProps?.position}
-                rows={menuProps?.rows}
-                opened={isOpen}
-                onClose={handleCloseContextMenu}
-            />
+            {user.data && (
+                <PieChartContextMenu
+                    value={menuProps?.value}
+                    menuPosition={menuProps?.position}
+                    rows={menuProps?.rows}
+                    opened={isOpen}
+                    onClose={handleCloseContextMenu}
+                />
+            )}
         </>
     );
 });
