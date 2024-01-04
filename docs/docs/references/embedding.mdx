@@ -35,17 +35,23 @@ Although you can generate URLs directly from Lightdash with a long expiration us
 
 Use user attributes to limit access to certain data in the embedded dashboard. You can use any [user attribute](/references/user-attributes.mdx) that you've defined in your organization in the embedded dashboard. 
 
+#### How default values interact with embedding
+
 By default, anyone viewing an embedded dashboard will have the `default` attribute value you've set for your user attributes. 
 
 For example, here I have a user attribute `access_pii_data` with the default value `false`. Anyone viewing my embedded dashboard will also have `access_pii_data = false`.
 
 <img src={UserAttributesDefault} width="447" height="378" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+#### How to override default values
+
 You can override the `default` value for a user attribute in your embedded dashboard by specifying the attribute name and value in the `user attributes` section here. 
 
 For example, if I wanted the `access_pii_data` user attribute from above to be `true` (not the default value, `false`) for people viewing my embedded dashboard, then I would add it to the user attributes section in the embed configuration. 
 
-<img src={UserAttributesOverride} width="314" height="91" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={UserAttributesOverride} width="448" height="130" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### What happens if you don't have a default value set
 
 If you haven't set a `default` value for a user attribute, then you need to set a specific value for the user attribute in the `user attributes` section here. Otherwise, anyone viewing the embedded dashboard will see an error for content usign data that's limited by the user attribute. 
 
