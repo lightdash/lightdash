@@ -92,7 +92,7 @@ const data = {
         type: 'dashboard',
         dashboardUuid: 'a392ed6d-4c53-4102-89b7-1c57a87df391',
     },
-    userAttributes: {"company_name":${my_app_company_name_value},
+    userAttributes: {"company_name": userCompanyName},
 };
 const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '1 hour' });
 const url = `https://analytics.lightdash.cloud/embed/${projectUuid}/#${token}`;
