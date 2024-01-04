@@ -1,3 +1,10 @@
+# [0.923.0](https://github.com/lightdash/lightdash/compare/0.922.0...0.923.0) (2024-01-04)
+
+
+### Features
+
+* multiple values in required attributes ([#8466](https://github.com/lightdash/lightdash/issues/8466)) ([3d32623](https://github.com/lightdash/lightdash/commit/3d3262397b943ad65f8886012530f3fd29528f5f))
+
 # [0.922.0](https://github.com/lightdash/lightdash/compare/0.921.2...0.922.0) (2024-01-03)
 
 
