@@ -295,6 +295,8 @@ const testTimeIntervalsResults = (
                 'events_timestamp_tz_quarter_name',
                 'events_timestamp_tz_year',
                 'events_timestamp_tz_year_num',
+                'events_timestamp_tz_hour_of_day_num',
+                'events_timestamp_tz_minute_of_hour_num',
             ],
             metrics: [],
             filters: {},
