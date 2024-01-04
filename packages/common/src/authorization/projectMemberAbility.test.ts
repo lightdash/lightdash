@@ -128,6 +128,14 @@ describe('Project member permissions', () => {
                 ability.can('manage', subject('ExportCsv', { projectUuid })),
             ).toEqual(true);
         });
+        it('can change csv results', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('ChangeCsvResults', { projectUuid }),
+                ),
+            ).toEqual(true);
+        });
 
         it('cannot use SQL runner', () => {
             expect(
@@ -209,9 +217,17 @@ describe('Project member permissions', () => {
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
             ).toEqual(false);
         });
-        it('cannot download CSV', () => {
+        it('can download CSV', () => {
             expect(
                 ability.can('manage', subject('ExportCsv', { projectUuid })),
+            ).toEqual(true);
+        });
+        it('cannot change csv results', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('ChangeCsvResults', { projectUuid }),
+                ),
             ).toEqual(false);
         });
         it('cannot Explore', () => {
