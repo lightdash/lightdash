@@ -1,3 +1,17 @@
+# [0.924.0](https://github.com/lightdash/lightdash/compare/0.923.2...0.924.0) (2024-01-04)
+
+
+### Features
+
+* add placeholder UI to add user attributes to groups ([#8455](https://github.com/lightdash/lightdash/issues/8455)) ([d55c668](https://github.com/lightdash/lightdash/commit/d55c668fd3f29382026fccc3136cbca3d4bcb860))
+* extra large option to export and scheduler ([#8478](https://github.com/lightdash/lightdash/issues/8478)) ([4a363da](https://github.com/lightdash/lightdash/commit/4a363da21132438f7e4c73cf435c65bfc562b89f))
+* viewer can download csv ([#8392](https://github.com/lightdash/lightdash/issues/8392)) ([390a963](https://github.com/lightdash/lightdash/commit/390a96319eb2018ad3478400021ef53e51b1b47e))
+
+
+### Reverts
+
+* "feat: strict same site cookies ([#8374](https://github.com/lightdash/lightdash/issues/8374))" ([#8479](https://github.com/lightdash/lightdash/issues/8479)) ([2c33ce7](https://github.com/lightdash/lightdash/commit/2c33ce76ca6dce25bb07338086776f754cf62c29))
+
 ## [0.923.2](https://github.com/lightdash/lightdash/compare/0.923.1...0.923.2) (2024-01-04)
 
 
