@@ -1,3 +1,10 @@
+## [0.923.2](https://github.com/lightdash/lightdash/compare/0.923.1...0.923.2) (2024-01-04)
+
+
+### Bug Fixes
+
+* get screenshot from element instead ([#8477](https://github.com/lightdash/lightdash/issues/8477)) ([bc1ff5b](https://github.com/lightdash/lightdash/commit/bc1ff5bb550829e97e68b3de85f9df2f6557efec))
+
 ## [0.923.1](https://github.com/lightdash/lightdash/compare/0.923.0...0.923.1) (2024-01-04)
 
 
