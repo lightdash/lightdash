@@ -493,10 +493,8 @@ export class UnfurlService {
                         });
                     }
 
-                    const imageBuffer = await page.screenshot({
+                    const imageBuffer = await element.screenshot({
                         path,
-                        fullPage: true,
-                        captureBeyondViewport: true,
                     });
 
                     return imageBuffer;
