@@ -55,6 +55,10 @@ For example, if I wanted the `access_pii_data` user attribute from above to be `
 
 If you haven't set a `default` value for a user attribute, then you need to set a specific value for the user attribute in the `user attributes` section here. Otherwise, anyone viewing the embedded dashboard will see an error for content usign data that's limited by the user attribute. 
 
+#### How to use external variables in user attributes
+
+See the section on [user attributes in the `Code snippet`](#passing-external-variables-to-user-attributes) below. 
+
 ### Preview
 
 Clicking on `preview` allows you to preview the configuration for your embedded dashboard. This what people viewing your embedded dashboard will see.
@@ -70,3 +74,26 @@ You can embed this one-off URL directly into your application, but you will manu
 Although you can generate URLs directly from Lightdash with a long expiration, it is recommended to generate your own JWT embed tokens in your backend with a short expiration using your `secret` to make sure people can't be using embed URLs outside your app. 
 
 To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL.
+
+### Passing external variables to user attributes
+
+For embedded content, you can either set user attributes to constant values, or you can adjust the value of the user attribute based on a variable coming from your app. 
+
+For example, if I want users in my app to only see data filtered to their company, I can use a variable user attribute. 
+
+To do this, I would create a user attribute in Lightdash called `company_name` and set some default (e.g. `null`) then, I would pass the Lightdash an external value for company name in the embed code snippet, like:
+
+```node
+import jwt from 'jsonwebtoken';
+const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
+const projectUuid = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+const data = {
+    content: {
+        type: 'dashboard',
+        dashboardUuid: 'a392ed6d-4c53-4102-89b7-1c57a87df391',
+    },
+    userAttributes: {"company_name":${my_app_company_name_value},
+};
+const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '1 hour' });
+const url = `https://analytics.lightdash.cloud/embed/${projectUuid}/#${token}`;
+```
