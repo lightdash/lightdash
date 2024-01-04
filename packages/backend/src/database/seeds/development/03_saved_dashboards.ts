@@ -203,7 +203,7 @@ export async function seed(knex: Knex): Promise<void> {
                             fieldId: 'orders_order_date_year',
                             tableName: 'orders',
                         },
-                        values: [5],
+                        values: [10],
                         operator: FilterOperator.IN_THE_PAST,
                         settings: { completed: true, unitOfTime: 'years' },
                         label: undefined,

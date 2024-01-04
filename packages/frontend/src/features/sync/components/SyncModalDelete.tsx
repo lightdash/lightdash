@@ -43,7 +43,7 @@ export const SyncModalDelete = () => {
             <Group position="apart">
                 <Button
                     variant="outline"
-                    color="gray"
+                    color="dark"
                     onClick={() => setAction(SyncModalAction.VIEW)}
                 >
                     Cancel

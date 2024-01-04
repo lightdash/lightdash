@@ -26,6 +26,7 @@ export type SchedulerDb = {
     dashboard_uuid: string | null;
     options: Record<string, any>;
     filters: string | null;
+    custom_viewport_width: number | null;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {
@@ -68,6 +69,7 @@ export type SchedulerTable = Knex.CompositeTableType<
         | 'format'
         | 'options'
         | 'filters'
+        | 'custom_viewport_width'
     >
 >;
 

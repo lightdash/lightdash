@@ -171,13 +171,18 @@ export const getNotificationPageData = async (
             const imageOptions = isSchedulerImageOptions(scheduler.options)
                 ? scheduler.options
                 : undefined;
-            const unfurlImage = await unfurlService.unfurlImage(
-                minimalUrl,
-                pageType,
+            const unfurlImage = await unfurlService.unfurlImage({
+                url: minimalUrl,
+                lightdashPage: pageType,
                 imageId,
-                userUuid,
-                imageOptions?.withPdf,
-            );
+                authUserUuid: userUuid,
+                withPdf: imageOptions?.withPdf,
+                gridWidth:
+                    isDashboardScheduler(scheduler) &&
+                    scheduler.customViewportWidth
+                        ? scheduler.customViewportWidth
+                        : undefined,
+            });
             if (unfurlImage.imageUrl === undefined) {
                 throw new Error('Unable to unfurl image');
             }

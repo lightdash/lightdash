@@ -625,32 +625,6 @@
                 "required": ["organizationUuid", "createdAt", "name", "uuid"],
                 "type": "object"
             },
-            "ApiGroupResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/Group"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiSuccessEmpty": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
             "GroupMember": {
                 "properties": {
                     "lastName": {
@@ -674,6 +648,60 @@
                 "required": ["lastName", "firstName", "email", "userUuid"],
                 "type": "object",
                 "description": "A summary for a Lightdash user within a group"
+            },
+            "GroupWithMembers": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Group"
+                    },
+                    {
+                        "properties": {
+                            "members": {
+                                "items": {
+                                    "$ref": "#/components/schemas/GroupMember"
+                                },
+                                "type": "array",
+                                "description": "A list of the group's members."
+                            }
+                        },
+                        "required": ["members"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Details for a group including a list of the group's members."
+            },
+            "ApiGroupResponse": {
+                "properties": {
+                    "results": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Group"
+                            },
+                            {
+                                "$ref": "#/components/schemas/GroupWithMembers"
+                            }
+                        ]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSuccessEmpty": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
             },
             "ApiGroupMembersResponse": {
                 "properties": {
@@ -1078,24 +1106,53 @@
             "UpdateAllowedEmailDomains": {
                 "$ref": "#/components/schemas/Omit_AllowedEmailDomains.organizationUuid_"
             },
-            "Pick_CreateGroup.name_": {
+            "Pick_GroupMember.userUuid_": {
                 "properties": {
-                    "name": {
+                    "userUuid": {
                         "type": "string",
-                        "description": "A friendly name for the group"
+                        "description": "Unique id for the user",
+                        "format": "uuid"
                     }
                 },
-                "required": ["name"],
+                "required": ["userUuid"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CreateGroup": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Group.name_"
+                    },
+                    {
+                        "properties": {
+                            "members": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Pick_GroupMember.userUuid_"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "ApiGroupListResponse": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/Group"
-                        },
-                        "type": "array"
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/Group"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/GroupWithMembers"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     },
                     "status": {
                         "type": "string",
@@ -4061,6 +4118,10 @@
                     },
                     {
                         "properties": {
+                            "customViewportWidth": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "filters": {
                                 "items": {
                                     "$ref": "#/components/schemas/SchedulerFilterRule"
@@ -5495,7 +5556,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.911.1",
+        "version": "0.921.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5775,6 +5836,26 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "description": "number of members to include",
+                        "in": "query",
+                        "name": "includeMembers",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "offset of members to include",
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]
@@ -6283,7 +6364,17 @@
                 "description": "Gets all the members of the current user's organization",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "includeGroups",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/org/users/{userUuid}": {
@@ -6526,7 +6617,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Pick_CreateGroup.name_",
+                                "$ref": "#/components/schemas/CreateGroup",
                                 "description": "the new group details"
                             }
                         }
@@ -6560,7 +6651,18 @@
                 "description": "Gets all the groups in the current user's organization",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "description": "number of members to include",
+                        "in": "query",
+                        "name": "includeMembers",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/pinned-lists/{pinnedListUuid}/items": {

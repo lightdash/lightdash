@@ -137,7 +137,21 @@ export const assertValidDimensionRequiredAttribute = (
     if (dimension.requiredAttributes)
         Object.entries(dimension.requiredAttributes).map((attribute) => {
             const [attributeName, value] = attribute;
-            if (!hasUserAttribute(userAttributes, attributeName, value)) {
+            let hasUserAttributeVal = false;
+
+            if (typeof value === 'string') {
+                hasUserAttributeVal = hasUserAttribute(
+                    userAttributes,
+                    attributeName,
+                    value,
+                );
+            } else {
+                hasUserAttributeVal = value.some((v) =>
+                    hasUserAttribute(userAttributes, attributeName, v),
+                );
+            }
+
+            if (!hasUserAttributeVal) {
                 throw new ForbiddenError(
                     `Invalid or missing user attribute "${attribute}" on ${field}`,
                 );

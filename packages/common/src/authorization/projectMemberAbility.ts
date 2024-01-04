@@ -29,16 +29,19 @@ export const projectMemberAbilities: Record<
         can('view', 'PinnedItems', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'ExportCsv', {
+            projectUuid: member.projectUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
         can('view', 'UnderlyingData', {
             projectUuid: member.projectUuid,
         });
-        can('manage', 'ExportCsv', {
+        can('manage', 'Explore', {
             projectUuid: member.projectUuid,
         });
-        can('manage', 'Explore', {
+        can('manage', 'ChangeCsvResults', {
             projectUuid: member.projectUuid,
         });
     },

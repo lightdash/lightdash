@@ -17,7 +17,7 @@ import {
     PageType,
 } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
-import InviteSuccess from '../UserManagementPanel/InviteSuccess';
+import InviteSuccess from './InviteSuccess';
 
 type SendInviteFormProps = Omit<CreateInviteLink, 'expiresAt'>;
 
@@ -73,7 +73,10 @@ const InvitesModal: FC<{
                         handleSubmit(values),
                     )}
                 >
-                    <Group align="flex-end" spacing="xs">
+                    <Group
+                        spacing="xs"
+                        align={form.errors.email ? 'center' : 'end'}
+                    >
                         <TextInput
                             name="email"
                             label="Enter user email address"
@@ -83,7 +86,10 @@ const InvitesModal: FC<{
                             w="43%"
                             {...form.getInputProps('email')}
                         />
-                        <Group spacing="xs">
+                        <Group
+                            spacing="xs"
+                            align={form.errors.email ? 'center' : 'end'}
+                        >
                             {user.data?.ability?.can(
                                 'manage',
                                 'Organization',

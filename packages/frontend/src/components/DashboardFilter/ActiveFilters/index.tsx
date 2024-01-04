@@ -5,9 +5,17 @@ import Filter from '../Filter';
 
 interface ActiveFiltersProps {
     isEditMode: boolean;
+    openPopoverId: string | undefined;
+    onPopoverOpen: (popoverId: string) => void;
+    onPopoverClose: () => void;
 }
 
-const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
+const ActiveFilters: FC<ActiveFiltersProps> = ({
+    isEditMode,
+    openPopoverId,
+    onPopoverOpen,
+    onPopoverClose,
+}) => {
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
@@ -52,6 +60,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
                         isEditMode={isEditMode}
                         field={fieldsWithSuggestions[item.target.fieldId]}
                         filterRule={item}
+                        openPopoverId={openPopoverId}
+                        onPopoverOpen={onPopoverOpen}
+                        onPopoverClose={onPopoverClose}
                         onRemove={() =>
                             removeDimensionDashboardFilter(index, false)
                         }
@@ -75,6 +86,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
                         isEditMode={isEditMode}
                         field={fieldsWithSuggestions[item.target.fieldId]}
                         filterRule={item}
+                        openPopoverId={openPopoverId}
+                        onPopoverOpen={onPopoverOpen}
+                        onPopoverClose={onPopoverClose}
                         onRemove={() =>
                             removeDimensionDashboardFilter(index, true)
                         }

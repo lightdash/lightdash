@@ -18,6 +18,7 @@ import {
     IconUsers,
     IconUserShield,
 } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
@@ -40,7 +41,7 @@ import ProjectManagementPanel from '../components/UserSettings/ProjectManagement
 import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
-import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
+import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
@@ -50,6 +51,10 @@ import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 
 const Settings: FC = () => {
+    // TODO: this is a feature flag while we are building groups.
+    // Remove this when groups are ready to be released.
+    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
+
     const {
         health: {
             data: health,
@@ -182,7 +187,11 @@ const Settings: FC = () => {
                                     'OrganizationMemberProfile',
                                 ) && (
                                     <RouterNavLink
-                                        label="User management"
+                                        label={
+                                            groupManagementEnabled
+                                                ? 'Users & groups'
+                                                : 'User management'
+                                        }
                                         to="/generalSettings/userManagement"
                                         exact
                                         icon={
@@ -198,7 +207,11 @@ const Settings: FC = () => {
                                     }),
                                 ) && (
                                     <RouterNavLink
-                                        label="User attributes"
+                                        label={
+                                            groupManagementEnabled
+                                                ? 'User & Group Attributes'
+                                                : 'User attributes'
+                                        }
                                         to="/generalSettings/userAttributes"
                                         exact
                                         icon={
@@ -441,9 +454,14 @@ const Settings: FC = () => {
                     </Route>
                 )}
 
-                {user.ability.can('view', 'OrganizationMemberProfile') && (
+                {user.ability.can(
+                    'manage',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: organization.organizationUuid,
+                    }),
+                ) && (
                     <Route path="/generalSettings/userManagement">
-                        <UserManagementPanel />
+                        <UsersAndGroupsPanel />
                     </Route>
                 )}
 

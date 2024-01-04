@@ -82,7 +82,7 @@ export const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
                     borderTop: `1px solid ${theme.colors.gray[4]}`,
                 })}
             >
-                <Button onClick={onClose} color="gray" variant="outline">
+                <Button onClick={onClose} color="dark" variant="outline">
                     Cancel
                 </Button>
                 {scheduler.isSuccess && (

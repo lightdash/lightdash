@@ -2,6 +2,10 @@
     position: relative;
     transition: height 200ms ease;
 }
+.react-grid-layout-dashboard {
+    margin-left: -9px;
+    margin-right: -9px;
+}
 .react-grid-item {
     transition: all 200ms ease;
     transition-property: left, top;

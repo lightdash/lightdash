@@ -3,6 +3,7 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
 } from '@lightdash/common';
+import Fuse from 'fuse.js';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
@@ -30,12 +31,24 @@ const updateUser = async (id: string, data: OrganizationMemberProfileUpdate) =>
         body: JSON.stringify(data),
     });
 
-export const useOrganizationUsers = () => {
+export const useOrganizationUsers = (searchInput?: string) => {
     const setErrorResponse = useQueryError();
     return useQuery<OrganizationMemberProfile[], ApiError>({
         queryKey: ['organization_users'],
         queryFn: getOrganizationUsersQuery,
         onError: (result) => setErrorResponse(result),
+        select: (data) => {
+            if (searchInput) {
+                return new Fuse(Object.values(data), {
+                    keys: ['firstName', 'lastName', 'email', 'role'],
+                    ignoreLocation: true,
+                    threshold: 0.3,
+                })
+                    .search(searchInput)
+                    .map((result) => result.item);
+            }
+            return data;
+        },
     });
 };
 
@@ -43,7 +56,7 @@ export const useDeleteOrganizationUserMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteUserQuery, {
-        mutationKey: ['saved_query_create'],
+        mutationKey: ['organization_users_delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries('organization_users');
             showToastSuccess({

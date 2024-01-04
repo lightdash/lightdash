@@ -4,7 +4,7 @@ import {
     FilterOperator,
 } from '@lightdash/common';
 import { Flex } from '@mantine/core';
-import { FC } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -21,6 +21,7 @@ interface Props {
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const [openPopoverId, setPopoverId] = useState<string>();
 
     const project = useProject(projectUuid);
 
@@ -33,22 +34,33 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     );
     const hasChartTiles = useDashboardContext((c) => c.hasChartTiles);
 
-    const handleSaveNew = (
-        value: DashboardFilterRule<
-            FilterOperator,
-            DashboardFieldTarget,
-            any,
-            any
-        >,
-    ) => {
-        track({
-            name: EventName.ADD_FILTER_CLICKED,
-            properties: {
-                mode: isEditMode ? 'edit' : 'viewer',
-            },
-        });
-        addDimensionDashboardFilter(value, !isEditMode);
-    };
+    const handleSaveNew = useCallback(
+        (
+            value: DashboardFilterRule<
+                FilterOperator,
+                DashboardFieldTarget,
+                any,
+                any
+            >,
+        ) => {
+            track({
+                name: EventName.ADD_FILTER_CLICKED,
+                properties: {
+                    mode: isEditMode ? 'edit' : 'viewer',
+                },
+            });
+            addDimensionDashboardFilter(value, !isEditMode);
+        },
+        [addDimensionDashboardFilter, isEditMode, track],
+    );
+
+    const handlePopoverOpen = useCallback((id: string) => {
+        setPopoverId(id);
+    }, []);
+
+    const handlePopoverClose = useCallback(() => {
+        setPopoverId(undefined);
+    }, []);
 
     if (!hasChartTiles) return null;
 
@@ -62,14 +74,22 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             }
             dashboardFilters={allFilters}
         >
-            <Flex gap={3} mb={8} ml={8} wrap="wrap">
+            <Flex gap="xs" wrap="wrap" mb="xs">
                 <Filter
                     isCreatingNew
                     isEditMode={isEditMode}
+                    openPopoverId={openPopoverId}
+                    onPopoverOpen={handlePopoverOpen}
+                    onPopoverClose={handlePopoverClose}
                     onSave={handleSaveNew}
                 />
 
-                <ActiveFilters isEditMode={isEditMode} />
+                <ActiveFilters
+                    isEditMode={isEditMode}
+                    openPopoverId={openPopoverId}
+                    onPopoverOpen={handlePopoverOpen}
+                    onPopoverClose={handlePopoverClose}
+                />
             </Flex>
         </FiltersProvider>
     );

@@ -10,6 +10,7 @@ type ExportCSVModalProps = ModalProps &
     };
 
 const ExportCSVModal: FC<ExportCSVModalProps> = ({
+    projectUuid,
     onConfirm,
     rows,
     getCsvLink,
@@ -34,6 +35,7 @@ const ExportCSVModal: FC<ExportCSVModalProps> = ({
             {...modalProps}
         >
             <ExportCSV
+                projectUuid={projectUuid}
                 rows={rows}
                 getCsvLink={getCsvLink}
                 isDialogBody

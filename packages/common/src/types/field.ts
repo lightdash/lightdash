@@ -236,7 +236,7 @@ export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
     group?: string;
-    requiredAttributes?: Record<string, string>;
+    requiredAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     isAdditionalDimension?: boolean;
 }

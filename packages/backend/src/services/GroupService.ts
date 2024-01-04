@@ -4,6 +4,7 @@ import {
     Group,
     GroupMember,
     GroupMembership,
+    GroupWithMembers,
     SessionUser,
     UpdateGroup,
 } from '@lightdash/common';
@@ -71,8 +72,21 @@ export class GroupsService {
         await this.groupsModel.deleteGroup(groupUuid);
     }
 
-    async get(actor: SessionUser, groupUuid: string): Promise<Group> {
-        const group = await this.groupsModel.getGroup(groupUuid);
+    async get(
+        actor: SessionUser,
+        groupUuid: string,
+        includeMembers?: number,
+        offset?: number,
+    ): Promise<Group | GroupWithMembers> {
+        const group =
+            includeMembers === undefined
+                ? await this.groupsModel.getGroup(groupUuid)
+                : await this.groupsModel.getGroupWithMembers(
+                      groupUuid,
+                      includeMembers,
+                      offset,
+                  );
+
         if (
             actor.ability.cannot(
                 'view',

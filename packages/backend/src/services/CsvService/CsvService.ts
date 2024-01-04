@@ -612,8 +612,22 @@ export class CsvService {
             throw new ForbiddenError();
         }
 
+        // If the user can't change the csv limit, default csvLimit to undefined
+        // csvLimit undefined means that we will be using the limit from the metricQuery
+        // csvLimit null means all rows
+        const csvLimit = user.ability.cannot(
+            'manage',
+            subject('ChangeCsvResults', {
+                organizationUuid: user.organizationUuid,
+                projectUuid: csvOptions.projectUuid,
+            }),
+        )
+            ? undefined
+            : csvOptions.csvLimit;
+
         const payload: DownloadCsvPayload = {
             ...csvOptions,
+            csvLimit,
             userUuid: user.userUuid,
         };
         const { jobId } = await schedulerClient.downloadCsvJob(payload);

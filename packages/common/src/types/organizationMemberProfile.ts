@@ -1,3 +1,5 @@
+import { Group } from './groups';
+
 export enum OrganizationMemberRole {
     MEMBER = 'member',
     VIEWER = 'viewer',
@@ -35,6 +37,10 @@ export type OrganizationMemberProfile = {
      * Whether the user's invite to the organization has expired
      */
     isInviteExpired?: boolean;
+};
+
+export type OrganizationMemberProfileWithGroups = OrganizationMemberProfile & {
+    groups: Pick<Group, 'name' | 'uuid'>[];
 };
 
 export type OrganizationMemberProfileUpdate = {
