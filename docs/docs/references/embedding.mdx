@@ -87,6 +87,7 @@ To do this, I would create a user attribute in Lightdash called `company_name` a
 import jwt from 'jsonwebtoken';
 const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
 const projectUuid = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+const userCompanyName = await getUserCompanyNameFromDatabase();
 const data = {
     content: {
         type: 'dashboard',
