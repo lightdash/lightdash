@@ -1,4 +1,8 @@
-import { CreateGroup, GroupWithMembers } from '@lightdash/common';
+import {
+    CreateGroup,
+    GroupWithMembers,
+    UpdateGroupWithMembers,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -13,16 +17,17 @@ import {
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
 import React, { FC, useMemo } from 'react';
-import { useGroupCreateMutation } from '../../../hooks/useOrganizationGroups';
+import {
+    useGroupCreateMutation,
+    useGroupUpdateMutation,
+} from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
 const CreateGroupModal: FC<
-    ModalProps & { isEditing: boolean; groupToEdit?: GroupWithMembers }
+    ModalProps & { isEditing?: boolean; groupToEdit?: GroupWithMembers }
 > = ({ opened, onClose, isEditing, groupToEdit }) => {
-    console.log('------------>', groupToEdit, groupToEdit?.name ?? '');
-
     const form = useForm<CreateGroup>({
         initialValues: {
             name: groupToEdit?.name ?? '',
@@ -38,15 +43,24 @@ const CreateGroupModal: FC<
     const { data: organizationUsers, isLoading: isLoadingUsers } =
         useOrganizationUsers();
 
-    const { mutateAsync: mutateAsyncCreateGroup, isLoading } =
+    const { mutateAsync: mutateAsyncCreateGroup, isLoading: isLoadingCreate } =
         useGroupCreateMutation();
 
-    const handleSubmit = async (data: CreateGroup) => {
-        if (isEditing) {
-            console.log('new values', data);
-        } else {
-            await mutateAsyncCreateGroup(data);
-        }
+    const { mutateAsync: mutateAsyncUpdateGroup, isLoading: isLoadingUpdate } =
+        useGroupUpdateMutation();
+
+    const handleSubmitCreate = async (data: CreateGroup) => {
+        await mutateAsyncCreateGroup(data);
+        form.reset();
+        onClose();
+    };
+
+    const handleSubmitUpdate = async (data: UpdateGroupWithMembers) => {
+        mutateAsyncUpdateGroup({
+            name: form.isDirty('name') ? data.name : undefined,
+            members: form.isDirty('members') ? data.members : undefined,
+            uuid: data.uuid,
+        });
         form.reset();
         onClose();
     };
@@ -62,6 +76,8 @@ const CreateGroupModal: FC<
     if (user.data?.ability?.cannot('manage', 'Group')) {
         return null;
     }
+
+    const isLoading = isLoadingCreate || isLoadingUpdate;
 
     return (
         <Modal
@@ -82,7 +98,12 @@ const CreateGroupModal: FC<
             <form
                 name="create_edit_group"
                 onSubmit={form.onSubmit((values: CreateGroup) =>
-                    handleSubmit(values),
+                    isEditing && groupToEdit
+                        ? handleSubmitUpdate({
+                              ...values,
+                              uuid: groupToEdit?.uuid,
+                          })
+                        : handleSubmitCreate(values),
                 )}
             >
                 <Stack>
@@ -91,13 +112,12 @@ const CreateGroupModal: FC<
                         placeholder="Name of the new group"
                         required
                         w="100%"
-                        disabled={isLoading || isEditing}
+                        disabled={isLoading}
                         {...form.getInputProps('name')}
                     />
                     <MultiSelect
                         withinPortal
                         searchable
-                        clearable
                         clearSearchOnChange
                         clearSearchOnBlur
                         label="Group members"
@@ -118,7 +138,7 @@ const CreateGroupModal: FC<
                     />
 
                     <Button
-                        disabled={isLoading}
+                        disabled={isLoading || !form.isDirty()}
                         type="submit"
                         sx={{ alignSelf: 'end' }}
                     >

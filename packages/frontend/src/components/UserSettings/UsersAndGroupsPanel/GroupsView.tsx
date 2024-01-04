@@ -148,9 +148,8 @@ const GroupsView: FC = () => {
     const { classes } = useTableStyles();
     const { user } = useApp();
 
-    const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+    const [showCreateAndEditModal, setShowCreateAndEditModal] = useState(false);
 
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [groupToEdit, setGroupToEdit] = useState<
         GroupWithMembers | undefined
     >(undefined);
@@ -182,7 +181,7 @@ const GroupsView: FC = () => {
                 <Button
                     compact
                     leftIcon={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setShowCreateGroupModal(true)}
+                    onClick={() => setShowCreateAndEditModal(true)}
                     sx={{ alignSelf: 'end' }}
                 >
                     Add group
@@ -208,7 +207,7 @@ const GroupsView: FC = () => {
                                 )}
                                 onEdit={(g) => {
                                     setGroupToEdit(g);
-                                    setIsEditDialogOpen(true);
+                                    setShowCreateAndEditModal(true);
                                 }}
                                 onDelete={(groupForDeletion) => {
                                     setGroupToDelete(groupForDeletion);
@@ -219,19 +218,18 @@ const GroupsView: FC = () => {
                     </tbody>
                 </Table>
             </SettingsCard>
-            {showCreateGroupModal ||
-                (isEditDialogOpen && (
-                    <CreateGroupModal
-                        key={`create-group-modal-${showCreateGroupModal}`}
-                        opened={showCreateGroupModal || isEditDialogOpen}
-                        onClose={() => {
-                            setShowCreateGroupModal(false);
-                            setIsEditDialogOpen(false);
-                        }}
-                        groupToEdit={groupToEdit}
-                        isEditing={isEditDialogOpen}
-                    />
-                ))}
+            {showCreateAndEditModal && (
+                <CreateGroupModal
+                    key={`create-group-modal-${showCreateAndEditModal}`}
+                    opened={showCreateAndEditModal}
+                    onClose={() => {
+                        setShowCreateAndEditModal(false);
+                        setGroupToEdit(undefined);
+                    }}
+                    groupToEdit={groupToEdit}
+                    isEditing={groupToEdit !== undefined}
+                />
+            )}
             <DeleteGroupModal
                 key={`delete-group-modal-${isDeleteDialogOpen}`}
                 opened={isDeleteDialogOpen}
