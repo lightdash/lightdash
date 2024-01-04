@@ -21,6 +21,8 @@ export enum TimeFrames {
     DAY_OF_WEEK_NAME = 'DAY_OF_WEEK_NAME',
     MONTH_NAME = 'MONTH_NAME',
     QUARTER_NAME = 'QUARTER_NAME',
+    HOUR_OF_DAY_NUM = 'HOUR_OF_DAY_NUM',
+    MINUTE_OF_HOUR_NUM = 'MINUTE_OF_HOUR_NUM',
 }
 
 export enum DateGranularity {
