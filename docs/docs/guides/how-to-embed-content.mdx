@@ -3,9 +3,9 @@ import EmbedAddDashboard from './assets/embed-add-dashboard.png';
 import EmbedDeveloper from './assets/embed-developer.png';
 import EmbedPreview from './assets/embed-preview.png';
 
-# Embedding
+# How to embed content
 
-Lightdash allow you to embed some of your dashboards using expirable URLs and tokens (embed URLs from now on).
+Lightdash allow you to embed some of your dashboards using expirable URLs and tokens (embed URLs from now on). Embedding is a paid-per-usage feature. To get embedding enabled on your instance, contact the Lightdash team. 
 
 ## How to embed dashboards 
 
@@ -14,9 +14,9 @@ Lightdash allow you to embed some of your dashboards using expirable URLs and to
 First, you need to generate a secret per project. 
 This secret is like a password that will help you encrypt the URLs so we know the access is valid. 
 
-<img src={EmbedCreateSecret} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={EmbedCreateSecret} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>.
 
-You can regenerate this secret, people with an old URL will automatically lose access to any previously shared embed URL.
+You can regenerate the secret by clicking on the `Generate new secret` button.  If you do this, people with an old URL will automatically lose access to any previously shared embed URL.
 
 ### Allowed dashboards 
 
@@ -42,3 +42,4 @@ To make this easier to integrate, we included some code snippets you can copy an
 
 <img src={EmbedDeveloper} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+### For more information on embed settings, see the [embedding reference doc](../references/embedding.mdx)
