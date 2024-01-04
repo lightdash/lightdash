@@ -7,6 +7,7 @@ import {
     GroupWithMembers,
     SessionUser,
     UpdateGroup,
+    UpdateGroupWithMembers,
 } from '@lightdash/common';
 import { GroupsModel } from '../models/GroupsModel';
 
@@ -103,8 +104,8 @@ export class GroupsService {
     async update(
         actor: SessionUser,
         groupUuid: string,
-        update: UpdateGroup,
-    ): Promise<Group> {
+        update: UpdateGroupWithMembers,
+    ): Promise<Group | GroupWithMembers> {
         const group = await this.groupsModel.getGroup(groupUuid);
         if (
             actor.ability.cannot(

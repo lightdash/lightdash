@@ -6,8 +6,10 @@ import {
     NotFoundError,
     UnexpectedDatabaseError,
     UpdateGroup,
+    UpdateGroupWithMembers,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import differenceBy from 'lodash/differenceBy';
 
 export class GroupsModel {
     database: Knex;
@@ -187,38 +189,83 @@ export class GroupsModel {
         return deletedRows.length > 0;
     }
 
-    async updateGroup(groupUuid: string, update: UpdateGroup): Promise<Group> {
-        // Updates with joins not supported by knex
-        const results = await this.database.raw<{
-            rows: {
-                group_uuid: string;
-                name: string;
-                created_at: Date;
-                organization_uuid: string;
-            }[];
-        }>(
-            `
-            UPDATE groups
-            SET name = :name
-            FROM organizations
-            WHERE groups.group_uuid = :groupUuid
-            AND groups.organization_id = organizations.organization_id
-            RETURNING groups.group_uuid, groups.name, groups.created_at, organizations.organization_uuid
-            `,
-            {
-                groupUuid,
-                name: update.name,
-            },
-        );
-        const [updatedGroup] = results.rows;
-        if (updatedGroup === undefined) {
+    async updateGroup(
+        groupUuid: string,
+        update: UpdateGroupWithMembers,
+    ): Promise<Group | GroupWithMembers> {
+        // TODO: fix include member count
+        const existingGroup = await this.getGroupWithMembers(groupUuid, 10000);
+        if (existingGroup === undefined) {
             throw new NotFoundError(`No group found`);
         }
-        return {
-            uuid: updatedGroup.group_uuid,
-            name: updatedGroup.name,
-            createdAt: updatedGroup.created_at,
-            organizationUuid: updatedGroup.organization_uuid,
-        };
+
+        await this.database.transaction(async (trx) => {
+            let group;
+            if (update.name) {
+                group = await trx('groups')
+                    .update({ name: update.name })
+                    .where('group_uuid', groupUuid)
+                    .returning('*');
+            }
+            if (update.members !== undefined) {
+                const membersToAdd = differenceBy(
+                    update.members,
+                    existingGroup.members,
+                    'userUuid',
+                );
+                const membersToRemove = differenceBy(
+                    existingGroup.members,
+                    update.members || [],
+                    'userUuid',
+                );
+                if (membersToAdd.length > 0) {
+                    const newMembers = await trx
+                        .select([
+                            'groups.group_uuid',
+                            'users.user_id',
+                            'organization_memberships.organization_id',
+                        ])
+                        .from('groups')
+                        .innerJoin(
+                            'organization_memberships',
+                            'groups.organization_id',
+                            'organization_memberships.organization_id',
+                        )
+                        .innerJoin(
+                            'users',
+                            'organization_memberships.user_id',
+                            'users.user_id',
+                        )
+                        .whereIn(
+                            'users.user_uuid',
+                            membersToAdd.map((m) => m.userUuid),
+                        )
+                        .andWhere('groups.group_uuid', groupUuid);
+
+                    await trx('group_memberships')
+                        .insert(newMembers)
+                        .onConflict()
+                        .ignore()
+                        .returning('*');
+                }
+                if (membersToRemove.length > 0) {
+                    await trx('group_memberships')
+                        .innerJoin(
+                            'users',
+                            'group_memberships.user_id',
+                            'users.user_id',
+                        )
+                        .where('group_uuid', groupUuid)
+                        .whereIn(
+                            'users.user_uuid',
+                            membersToRemove.map((m) => m.userUuid),
+                        )
+                        .del()
+                        .returning('*');
+                }
+            }
+        });
+        // TODO: fix include member count
+        return this.getGroupWithMembers(groupUuid, 10000);
     }
 }

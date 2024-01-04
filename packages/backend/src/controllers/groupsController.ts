@@ -4,6 +4,7 @@ import {
     ApiGroupResponse,
     ApiSuccessEmpty,
     UpdateGroup,
+    UpdateGroupWithMembers,
 } from '@lightdash/common';
 import {
     Body,
@@ -170,7 +171,7 @@ export class GroupsController extends Controller {
     async updateGroup(
         @Path() groupUuid: string,
         @Request() req: express.Request,
-        @Body() body: UpdateGroup,
+        @Body() body: UpdateGroupWithMembers,
     ): Promise<ApiGroupResponse> {
         const group = await groupService.update(req.user!, groupUuid, body);
         this.setStatus(200);
