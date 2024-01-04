@@ -11,4 +11,8 @@ export const CUSTOM_WIDTH_OPTIONS = [
         label: 'Large (1500px)',
         value: '1500',
     },
+    {
+        label: 'Extra Large (1600px)',
+        value: '1600',
+    },
 ];
