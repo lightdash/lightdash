@@ -1,3 +1,10 @@
+## [0.924.1](https://github.com/lightdash/lightdash/compare/0.924.0...0.924.1) (2024-01-04)
+
+
+### Bug Fixes
+
+* Remedy for disappearing Organisation input issue 8450 ([#8458](https://github.com/lightdash/lightdash/issues/8458)) ([0434c86](https://github.com/lightdash/lightdash/commit/0434c86bedea61296b178255f289f403d72cabd2))
+
 # [0.924.0](https://github.com/lightdash/lightdash/compare/0.923.2...0.924.0) (2024-01-04)
 
 
