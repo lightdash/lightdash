@@ -1,3 +1,10 @@
+## [0.924.2](https://github.com/lightdash/lightdash/compare/0.924.1...0.924.2) (2024-01-04)
+
+
+### Bug Fixes
+
+* fix incorrect query key in useOrganizationUsers ([#8483](https://github.com/lightdash/lightdash/issues/8483)) ([27fe563](https://github.com/lightdash/lightdash/commit/27fe563e211693730a2cf1d8c91681fcfad6bf67))
+
 ## [0.924.1](https://github.com/lightdash/lightdash/compare/0.924.0...0.924.1) (2024-01-04)
 
 
