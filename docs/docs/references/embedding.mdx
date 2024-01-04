@@ -27,7 +27,9 @@ Select the dashboard that you want to embed. Only dashboards included in the `al
 
 ### Expires in
 
-Set the time that 
+Set the amount of time it takes before your embed token expires. 
+
+Although you can generate URLs directly from Lightdash with a long expiration using [`generate and copy URL`](#generate-copy-url), it is recommended to generate your own JWT embed tokens in your backend (using the [`code snippet`](#code-snippet)) with a short expiration using your `secret` to make sure people can't be using embed URLs outside your app.
 
 ### User attributes
 
@@ -47,6 +49,18 @@ For example, if I wanted the `access_pii_data` user attribute from above to be `
 
 If you haven't set a `default` value for a user attribute, then you need to set a specific value for the user attribute in the `user attributes` section here. Otherwise, anyone viewing the embedded dashboard will see an error for content usign data that's limited by the user attribute. 
 
+### Preview
 
+Clicking on `preview` allows you to preview the configuration for your embedded dashboard. This is how people viewing your embedded dashboard will see the dashboard + data.
 
+### Generate & Copy URL
 
+Clicking `generate & copy url` will generate an embed URL based on the configuration that you've set. You can embed this one-off URL directly into your application, but you will manually need to update the URL each time the embed URL expires. Alternatively, you can add the `code snippet` to your app to automatically generate embed URLs in your application.  
+
+### Code snippet
+
+Although you can generate URLs directly from Lightdash with a long expiration, it is recommended to generate your own JWT embed tokens in your backend with a short expiration using your `secret` to make sure people can't be using embed URLs outside your app. 
+
+To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL.
+
+You can adjust the code 
