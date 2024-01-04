@@ -6,9 +6,11 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Card, Group, Stack, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
 import { Entries } from 'type-fest';
 import useHealth from '../../../hooks/health/useHealth';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import {
     useDeleteOpenIdentityMutation,
     useOpenIdentities,
@@ -40,8 +42,18 @@ const isIssuerTypeAvailable = (
 const SocialLoginsPanel: FC = () => {
     const { data: health } = useHealth();
     const { data: userSocialLogins } = useOpenIdentities();
-
     const deleteMutation = useDeleteOpenIdentityMutation();
+    const { showToastError } = useToaster();
+    const flashMessages = useFlashMessages();
+
+    useEffect(() => {
+        if (flashMessages.data?.error) {
+            showToastError({
+                title: 'Failed to authenticate',
+                subtitle: flashMessages.data.error.join('\n'),
+            });
+        }
+    }, [flashMessages.data, showToastError]);
 
     if (!health) return null;
 
