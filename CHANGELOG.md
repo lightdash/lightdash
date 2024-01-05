@@ -1,3 +1,10 @@
+## [0.924.5](https://github.com/lightdash/lightdash/compare/0.924.4...0.924.5) (2024-01-05)
+
+
+### Bug Fixes
+
+* only show pie chart context menu if user is authenticated ([#8474](https://github.com/lightdash/lightdash/issues/8474)) ([dbcb3a0](https://github.com/lightdash/lightdash/commit/dbcb3a0f8d4cf70666bbe232f3576161a03e6e88))
+
 ## [0.924.4](https://github.com/lightdash/lightdash/compare/0.924.3...0.924.4) (2024-01-05)
 
 
