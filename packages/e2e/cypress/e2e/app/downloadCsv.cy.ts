@@ -97,7 +97,7 @@ describe('Download CSV on Dashboards', () => {
 
             cy.contains('a', 'Jaffle dashboard').click();
 
-            cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
+            cy.findByTestId('page-spinner').should('not.exist');
 
             cy.findAllByText('No chart available').should('have.length', 0);
             cy.findAllByText('No data available').should('have.length', 0);
@@ -179,6 +179,9 @@ describe('Download CSV on Explore', () => {
                 method: 'POST',
                 url: downloadUrl,
             }).as('apiDownloadCsv');
+
+            cy.findByTestId('page-spinner').should('not.exist');
+
             // choose table and select fields
             cy.findByText('Orders').click();
             cy.findByText('Customers').click();
@@ -193,7 +196,6 @@ describe('Download CSV on Explore', () => {
             // Close results
             cy.findByTestId('Results-card-expand').click();
             // wait for the chart to finish loading
-            cy.findByText('Loading chart').should('not.exist');
 
             // open chart menu and change chart type to Table
             cy.findByText('Configure').click();
