@@ -6,7 +6,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconAlertTriangleFilled } from '@tabler/icons-react';
+import { IconAlertTriangle } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
@@ -39,7 +39,7 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
                 data-disabled
                 leftIcon={
                     <MantineIcon
-                        icon={IconAlertTriangleFilled}
+                        icon={IconAlertTriangle}
                         color="red.6"
                         style={{ color: theme.colors.red[6] }}
                     />
