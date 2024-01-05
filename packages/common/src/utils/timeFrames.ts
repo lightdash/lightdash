@@ -189,7 +189,7 @@ const postgresConfig: WarehouseConfig = {
                 `Cannot recognise format expression for ${timeFrame}`,
             );
         }
-        return `TO_CHAR(${originalSql}, '${formatExpression}')`;
+        return `TO_CHAR(${originalSql}, 'FM${formatExpression}')`;
     },
 };
 
