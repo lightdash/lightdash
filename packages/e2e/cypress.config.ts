@@ -20,7 +20,6 @@ export default defineConfig({
             'analytics.lightdash.com',
         ],
         trashAssetsBeforeRuns: true,
-        videoUploadOnPasses: false,
         setupNodeEvents(on, config) {
             cypressSplit(on, config);
             // IMPORTANT: return the config object
