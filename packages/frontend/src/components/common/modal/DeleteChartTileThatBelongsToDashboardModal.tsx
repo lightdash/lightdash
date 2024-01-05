@@ -18,7 +18,7 @@ interface Props extends ModalProps {
 
 const DeleteChartTileThatBelongsToDashboardModal: FC<
     React.PropsWithChildren<Props>
-> = ({ name, onConfirm, ...modelProps }) => (
+> = ({ name, onConfirm, ...modalProps }) => (
     <Modal
         size="md"
         title={
@@ -27,7 +27,7 @@ const DeleteChartTileThatBelongsToDashboardModal: FC<
                 <Title order={4}>Delete chart</Title>
             </Group>
         }
-        {...modelProps}
+        {...modalProps}
     >
         <Stack>
             <Text>
@@ -43,7 +43,7 @@ const DeleteChartTileThatBelongsToDashboardModal: FC<
                 <Button
                     variant="outline"
                     color="dark"
-                    onClick={modelProps.onClose}
+                    onClick={modalProps.onClose}
                 >
                     Cancel
                 </Button>

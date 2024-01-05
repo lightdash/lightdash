@@ -23,11 +23,11 @@ interface Props extends ModalProps {
 
 const MoveChartThatBelongsToDashboardModal: FC<
     React.PropsWithChildren<Props>
-> = ({ uuid, name, spaceUuid, spaceName, onConfirm, ...modelProps }) => {
+> = ({ uuid, name, spaceUuid, spaceName, onConfirm, ...modalProps }) => {
     const { mutate: moveChartToSpace } = useMoveChartMutation({
         onSuccess: async () => {
             onConfirm();
-            modelProps.onClose();
+            modalProps.onClose();
         },
     });
 
@@ -45,7 +45,7 @@ const MoveChartThatBelongsToDashboardModal: FC<
                     </Title>
                 </Flex>
             }
-            {...modelProps}
+            {...modalProps}
         >
             <Stack mt="sm">
                 <Text>
@@ -67,7 +67,7 @@ const MoveChartThatBelongsToDashboardModal: FC<
                 <Text fw={600}>This change cannot be undone.</Text>
 
                 <Group position="right" spacing="xs">
-                    <Button variant="outline" onClick={modelProps.onClose}>
+                    <Button variant="outline" onClick={modalProps.onClose}>
                         Cancel
                     </Button>
 
