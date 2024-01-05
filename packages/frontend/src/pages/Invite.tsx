@@ -26,6 +26,7 @@ import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
+import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -102,6 +103,16 @@ const Invite: FC = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
     const { health } = useApp();
     const { showToastError } = useToaster();
+    const flashMessages = useFlashMessages();
+
+    useEffect(() => {
+        if (flashMessages.data?.error) {
+            showToastError({
+                title: 'Failed to authenticate',
+                subtitle: flashMessages.data.error.join('\n'),
+            });
+        }
+    }, [flashMessages.data, showToastError]);
     const { search } = useLocation();
     const { identify } = useTracking();
     const redirectUrl = '/';

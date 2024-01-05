@@ -13,7 +13,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
 import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -22,6 +22,7 @@ import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInBut
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';
+import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
@@ -37,6 +38,16 @@ const Register: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const { showToastError } = useToaster();
+    const flashMessages = useFlashMessages();
+
+    useEffect(() => {
+        if (flashMessages.data?.error) {
+            showToastError({
+                title: 'Failed to authenticate',
+                subtitle: flashMessages.data.error.join('\n'),
+            });
+        }
+    }, [flashMessages.data, showToastError]);
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const { identify } = useTracking();

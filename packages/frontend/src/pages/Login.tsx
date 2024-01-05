@@ -29,6 +29,7 @@ import Page from '../components/common/Page/Page';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
 import useToaster from '../hooks/toaster/useToaster';
+import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
@@ -46,6 +47,17 @@ const LoginContent: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const { showToastError } = useToaster();
+    const flashMessages = useFlashMessages();
+
+    useEffect(() => {
+        if (flashMessages.data?.error) {
+            showToastError({
+                title: 'Failed to authenticate',
+                subtitle: flashMessages.data.error.join('\n'),
+            });
+        }
+    }, [flashMessages.data, showToastError]);
+
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
         : '/';

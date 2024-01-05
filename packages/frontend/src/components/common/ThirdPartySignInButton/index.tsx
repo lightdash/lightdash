@@ -4,8 +4,6 @@ import {
 } from '@lightdash/common';
 import { Button, ButtonProps, Image } from '@mantine/core';
 import { FC } from 'react';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import { useApp } from '../../../providers/AppProvider';
 
 type ThirdPartySignInButtonProps = {
@@ -33,16 +31,6 @@ const ThirdPartySignInButtonBase: FC<
     redirect,
     ...props
 }) => {
-    const { showToastError } = useToaster();
-    const flashMessages = useFlashMessages();
-
-    if (flashMessages.data?.error) {
-        showToastError({
-            title: 'Failed to authenticate',
-            subtitle: flashMessages.data.error.join('\n'),
-        });
-    }
-
     return (
         <Button
             variant="default"
