@@ -1,3 +1,10 @@
+## [0.924.3](https://github.com/lightdash/lightdash/compare/0.924.2...0.924.3) (2024-01-05)
+
+
+### Bug Fixes
+
+* show SSO authentication error once ([#8486](https://github.com/lightdash/lightdash/issues/8486)) ([57b5709](https://github.com/lightdash/lightdash/commit/57b5709978ce312f449c25629758f2fede17385c))
+
 ## [0.924.2](https://github.com/lightdash/lightdash/compare/0.924.1...0.924.2) (2024-01-04)
 
 
