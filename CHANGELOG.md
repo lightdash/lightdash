@@ -1,3 +1,10 @@
+## [0.924.4](https://github.com/lightdash/lightdash/compare/0.924.3...0.924.4) (2024-01-05)
+
+
+### Bug Fixes
+
+* spaces in date part names ([#8459](https://github.com/lightdash/lightdash/issues/8459)) ([9723383](https://github.com/lightdash/lightdash/commit/97233830ff9a0a78fdb0cf0994d07f0789bbe062))
+
 ## [0.924.3](https://github.com/lightdash/lightdash/compare/0.924.2...0.924.3) (2024-01-05)
 
 
