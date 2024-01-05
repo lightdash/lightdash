@@ -5,7 +5,12 @@ import {
     GroupWithMembers,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    UseQueryOptions,
+} from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -19,12 +24,16 @@ const getOrganizationGroupsQuery = async (includeMembers?: number) =>
         body: undefined,
     });
 
-export const useOrganizationGroups = (includeMembers?: number) => {
+export const useOrganizationGroups = (
+    includeMembers?: number,
+    queryOptions?: UseQueryOptions<GroupWithMembers[], ApiError>,
+) => {
     const setErrorResponse = useQueryError();
     return useQuery<GroupWithMembers[], ApiError>({
         queryKey: ['organization_groups'],
         queryFn: () => getOrganizationGroupsQuery(includeMembers),
         onError: (result) => setErrorResponse(result),
+        ...queryOptions,
     });
 };
 

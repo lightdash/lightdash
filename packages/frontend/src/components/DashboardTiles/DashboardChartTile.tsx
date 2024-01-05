@@ -115,6 +115,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
 
     return (
         <ExportCSVModal
+            projectUuid={savedChart.projectUuid}
             opened
             rows={rows}
             getCsvLink={getCsvLink}

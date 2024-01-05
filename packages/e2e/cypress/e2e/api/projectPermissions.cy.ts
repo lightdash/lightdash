@@ -1087,7 +1087,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
             expect(resp.status).to.eq(403);
         });
     });
-    it('Should get forbidden (403) from POST downloadCsv', () => {
+    it('Should get csv (200) from POST downloadCsv', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores/customers/downloadCsv`;
@@ -1098,7 +1098,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
             body: runqueryBody,
             failOnStatusCode: false,
         }).then((resp) => {
-            expect(resp.status).to.eq(403);
+            expect(resp.status).to.eq(200);
         });
     });
     it('Should get forbidden (403) from POST runUnderlyingDataQuery', () => {

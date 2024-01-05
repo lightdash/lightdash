@@ -17,7 +17,7 @@ const ExportSelector: FC<
     ExportCSVProps & {
         getGsheetLink?: () => Promise<ApiScheduledDownloadCsv>;
     }
-> = memo(({ rows, getCsvLink, getGsheetLink }) => {
+> = memo(({ projectUuid, rows, getCsvLink, getGsheetLink }) => {
     const health = useHealth();
     const hasGoogleDrive =
         health.data?.auth.google.oauth2ClientId !== undefined &&
@@ -45,7 +45,11 @@ const ExportSelector: FC<
                 >
                     Back to export selector
                 </Button>
-                <ExportCSV rows={rows} getCsvLink={getCsvLink} />
+                <ExportCSV
+                    rows={rows}
+                    getCsvLink={getCsvLink}
+                    projectUuid={projectUuid}
+                />
             </>
         );
     } else if (hasGoogleDrive && getGsheetLink) {
@@ -66,7 +70,13 @@ const ExportSelector: FC<
         );
     }
 
-    return <ExportCSV rows={rows} getCsvLink={getCsvLink} />;
+    return (
+        <ExportCSV
+            rows={rows}
+            getCsvLink={getCsvLink}
+            projectUuid={projectUuid}
+        />
+    );
 });
 
 export default ExportSelector;

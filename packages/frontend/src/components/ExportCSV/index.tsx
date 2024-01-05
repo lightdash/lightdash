@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { ApiScheduledDownloadCsv, ResultRow } from '@lightdash/common';
 import { Alert, Box, Button, NumberInput, Radio, Stack } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -7,6 +8,8 @@ import { useMutation } from 'react-query';
 import { pollCsvFileUrl } from '../../api/csv';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
+import useUser from '../../hooks/user/useUser';
+import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 
 enum Limit {
@@ -26,6 +29,7 @@ type ExportCsvRenderProps = {
 };
 
 export type ExportCSVProps = {
+    projectUuid: string;
     rows: ResultRow[] | undefined;
     getCsvLink: (
         limit: number | null,
@@ -36,10 +40,11 @@ export type ExportCSVProps = {
 };
 
 const ExportCSV: FC<ExportCSVProps> = memo(
-    ({ rows, getCsvLink, isDialogBody, renderDialogActions }) => {
+    ({ projectUuid, rows, getCsvLink, isDialogBody, renderDialogActions }) => {
         const { showToastError, showToastInfo, showToastWarning } =
             useToaster();
 
+        const user = useUser(true);
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
@@ -123,20 +128,28 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                         </Stack>
                     </Radio.Group>
 
-                    <Radio.Group
-                        label="Limit"
-                        value={limit}
-                        onChange={(val) => setLimit(val)}
+                    <Can
+                        I="manage"
+                        this={subject('ChangeCsvResults', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid: projectUuid,
+                        })}
                     >
-                        <Stack spacing="xs" mt="xs">
-                            <Radio
-                                label="Results in Table"
-                                value={Limit.TABLE}
-                            />
-                            <Radio label="All Results" value={Limit.ALL} />
-                            <Radio label="Custom..." value={Limit.CUSTOM} />
-                        </Stack>
-                    </Radio.Group>
+                        <Radio.Group
+                            label="Limit"
+                            value={limit}
+                            onChange={(val) => setLimit(val)}
+                        >
+                            <Stack spacing="xs" mt="xs">
+                                <Radio
+                                    label="Results in Table"
+                                    value={Limit.TABLE}
+                                />
+                                <Radio label="All Results" value={Limit.ALL} />
+                                <Radio label="Custom..." value={Limit.CUSTOM} />
+                            </Stack>
+                        </Radio.Group>
+                    </Can>
 
                     {limit === Limit.CUSTOM && (
                         <NumberInput

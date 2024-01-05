@@ -103,7 +103,7 @@ const UserCompletionModal: FC = () => {
                 <Stack>
                     <form name="complete_user" onSubmit={handleSubmit}>
                         <Stack>
-                            {form.values.organizationName === '' && (
+                            {user.data?.organizationName === '' && (
                                 <TextInput
                                     label="Organization name"
                                     placeholder="Enter company name"
@@ -123,7 +123,7 @@ const UserCompletionModal: FC = () => {
                             />
 
                             <Stack spacing="xs">
-                                {form.values.organizationName === '' &&
+                                {user.data?.organizationName === '' &&
                                     isValidOrganizationDomain && (
                                         <Checkbox
                                             label={`Allow users with @${getEmailDomain(

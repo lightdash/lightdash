@@ -56,7 +56,7 @@ export const useDeleteOrganizationUserMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteUserQuery, {
-        mutationKey: ['saved_query_create'],
+        mutationKey: ['organization_users_delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries('organization_users');
             showToastSuccess({

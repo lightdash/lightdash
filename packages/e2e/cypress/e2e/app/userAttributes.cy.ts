@@ -40,7 +40,7 @@ describe('User attributes sql_filter', () => {
 
     it('Create user attribute', () => {
         cy.visit(`/generalSettings/userAttributes`);
-        cy.findByText('Add new attributes').click();
+        cy.findByText('Add new attribute').click();
 
         cy.get('input[name="name"]').type('customer_id');
         cy.findByText('Add user').click();
@@ -65,7 +65,7 @@ describe('User attributes sql_filter', () => {
     it('Edit user attribute', () => {
         cy.visit(`/generalSettings/userAttributes`);
 
-        cy.contains('customer_id').parents('tr').contains('Edit').click();
+        cy.contains('customer_id').parents('tr').find('button').first().click();
         cy.get('input[name="users.0.value"]').clear().type('30');
         cy.findByText('Update').click();
         cy.contains('Success');
@@ -130,7 +130,7 @@ describe('User attributes dimension required_attribute', () => {
 
     it('Create user attribute', () => {
         cy.visit(`/generalSettings/userAttributes`);
-        cy.findByText('Add new attributes').click();
+        cy.findByText('Add new attribute').click();
 
         cy.get('input[name="name"]').type('is_admin');
         cy.findByText('Add user').click();
@@ -155,7 +155,7 @@ describe('User attributes dimension required_attribute', () => {
     it('Edit user attribute', () => {
         cy.visit(`/generalSettings/userAttributes`);
 
-        cy.contains('is_admin').parents('tr').contains('Edit').click();
+        cy.contains('is_admin').parents('tr').find('button').first().click();
         cy.get('input[name="users.0.value"]').clear().type('false');
         cy.findByText('Update').click();
         cy.contains('Success');
