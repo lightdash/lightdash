@@ -19,7 +19,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import {
-    IconAlertTriangleFilled,
+    IconAlertTriangle,
     IconPencil,
     IconRotate2,
 } from '@tabler/icons-react';
@@ -117,7 +117,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                 <Stack key={dashboardFilter.id} spacing="xs" w="100%">
                     <Group spacing="xs">
                         <MantineIcon
-                            icon={IconAlertTriangleFilled}
+                            icon={IconAlertTriangle}
                             color="red.6"
                             style={{ color: theme.colors.red[6] }}
                         />
