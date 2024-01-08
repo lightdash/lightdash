@@ -7,7 +7,6 @@ export async function up(knex: Knex): Promise<void> {
     if (!(await knex.schema.hasTable(groupUserAttributes))) {
         await knex.schema.createTable(groupUserAttributes, (table) => {
             table.uuid('group_uuid').notNullable();
-            table.integer('organization_id').notNullable();
             table
                 .foreign('group_uuid')
                 .references('group_uuid')
