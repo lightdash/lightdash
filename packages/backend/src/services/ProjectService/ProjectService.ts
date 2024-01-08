@@ -2904,15 +2904,16 @@ export class ProjectService {
         metricQuery: MetricQuery,
         organizationUuid: string,
     ) {
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-        );
-
         const explore = await this.getExplore(
             user,
             projectUuid,
             exploreName,
             organizationUuid,
+        );
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            explore.warehouse,
         );
 
         const { query } = await this._getCalculateTotalQuery(
