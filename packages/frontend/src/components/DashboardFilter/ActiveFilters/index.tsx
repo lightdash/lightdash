@@ -1,7 +1,9 @@
 import { Group, Skeleton } from '@mantine/core';
 import { FC } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { FieldWithSuggestions } from '../../common/Filters/FiltersProvider';
 import Filter from '../Filter';
+import InvalidFilter from '../InvalidFilter';
 
 interface ActiveFiltersProps {
     isEditMode: boolean;
@@ -52,13 +54,15 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
     return (
         <>
-            {dashboardFilters.dimensions
-                .filter((item) => !!fieldsWithSuggestions[item.target.fieldId])
-                .map((item, index) => (
+            {dashboardFilters.dimensions.map((item, index) => {
+                const field = fieldsWithSuggestions[item.target.fieldId] as
+                    | FieldWithSuggestions
+                    | undefined;
+                return field ? (
                     <Filter
                         key={item.id}
                         isEditMode={isEditMode}
-                        field={fieldsWithSuggestions[item.target.fieldId]}
+                        field={field}
                         filterRule={item}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
@@ -75,16 +79,28 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                             )
                         }
                     />
-                ))}
+                ) : (
+                    <InvalidFilter
+                        key={item.id}
+                        isEditMode={isEditMode}
+                        filterRule={item}
+                        onRemove={() =>
+                            removeDimensionDashboardFilter(index, false)
+                        }
+                    />
+                );
+            })}
 
-            {dashboardTemporaryFilters.dimensions
-                .filter((item) => !!fieldsWithSuggestions[item.target.fieldId])
-                .map((item, index) => (
+            {dashboardTemporaryFilters.dimensions.map((item, index) => {
+                const field = fieldsWithSuggestions[item.target.fieldId] as
+                    | FieldWithSuggestions
+                    | undefined;
+                return field ? (
                     <Filter
                         key={item.id}
                         isTemporary
                         isEditMode={isEditMode}
-                        field={fieldsWithSuggestions[item.target.fieldId]}
+                        field={field}
                         filterRule={item}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
@@ -101,7 +117,17 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                             )
                         }
                     />
-                ))}
+                ) : (
+                    <InvalidFilter
+                        key={item.id}
+                        isEditMode={isEditMode}
+                        filterRule={item}
+                        onRemove={() =>
+                            removeDimensionDashboardFilter(index, false)
+                        }
+                    />
+                );
+            })}
         </>
     );
 };
