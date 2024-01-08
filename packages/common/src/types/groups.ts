@@ -61,6 +61,11 @@ export type GroupWithMembers = Group & {
     members: GroupMember[];
 };
 
+export type UpdateGroupWithMembers = {
+    name?: string;
+    members?: Pick<GroupMember, 'userUuid'>[];
+};
+
 export type ApiGroupMembersResponse = {
     status: 'ok';
     results: GroupMember[];

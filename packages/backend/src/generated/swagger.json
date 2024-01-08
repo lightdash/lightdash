@@ -720,19 +720,31 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Group.name_": {
+            "Pick_GroupMember.userUuid_": {
                 "properties": {
-                    "name": {
+                    "userUuid": {
                         "type": "string",
-                        "description": "A friendly name for the group"
+                        "description": "Unique id for the user",
+                        "format": "uuid"
                     }
                 },
-                "required": ["name"],
+                "required": ["userUuid"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "UpdateGroup": {
-                "$ref": "#/components/schemas/Pick_Group.name_"
+            "UpdateGroupWithMembers": {
+                "properties": {
+                    "members": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_GroupMember.userUuid_"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
             },
             "Organization": {
                 "properties": {
@@ -1106,15 +1118,14 @@
             "UpdateAllowedEmailDomains": {
                 "$ref": "#/components/schemas/Omit_AllowedEmailDomains.organizationUuid_"
             },
-            "Pick_GroupMember.userUuid_": {
+            "Pick_Group.name_": {
                 "properties": {
-                    "userUuid": {
+                    "name": {
                         "type": "string",
-                        "description": "Unique id for the user",
-                        "format": "uuid"
+                        "description": "A friendly name for the group"
                     }
                 },
-                "required": ["userUuid"],
+                "required": ["name"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -5556,7 +5567,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.921.2",
+        "version": "0.922.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5940,7 +5951,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/UpdateGroup"
+                                "$ref": "#/components/schemas/UpdateGroupWithMembers"
                             }
                         }
                     }
