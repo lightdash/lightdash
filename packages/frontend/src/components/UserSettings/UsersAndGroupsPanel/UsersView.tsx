@@ -7,6 +7,7 @@ import {
     Anchor,
     Badge,
     Button,
+    Card,
     Flex,
     Group,
     Modal,
@@ -44,36 +45,88 @@ import { SettingsCard } from '../../common/Settings/SettingsCard';
 import InvitesModal from './InvitesModal';
 import InviteSuccess from './InviteSuccess';
 
+const UserNameDisplay: FC<{
+    user: OrganizationMemberProfile;
+    disabled?: boolean;
+    showInviteLink?: boolean;
+    hasEmail?: boolean;
+    onGetLink?: () => void;
+}> = ({ user, showInviteLink, hasEmail, onGetLink }) => {
+    return (
+        <Flex justify="space-between" align="center">
+            {user.isActive ? (
+                <Stack spacing="xxs">
+                    <Title order={6}>
+                        {user.firstName} {user.lastName}
+                    </Title>
+
+                    {user.email && (
+                        <Badge
+                            variant="filled"
+                            color="gray.2"
+                            radius="xs"
+                            sx={{ textTransform: 'none' }}
+                            px="xxs"
+                        >
+                            <Text fz="xs" fw={400} color="gray.8">
+                                {user.email}
+                            </Text>
+                        </Badge>
+                    )}
+                </Stack>
+            ) : (
+                <Stack spacing="xxs">
+                    {user.email && <Title order={6}>{user.email}</Title>}
+                    <Group spacing="xs">
+                        <Badge
+                            variant="filled"
+                            color="orange.3"
+                            radius="xs"
+                            sx={{ textTransform: 'none' }}
+                            px="xxs"
+                        >
+                            <Text fz="xs" fw={400} color="gray.8">
+                                {!user.isInviteExpired
+                                    ? 'Pending'
+                                    : 'Link expired'}
+                            </Text>
+                        </Badge>
+                        {showInviteLink && (
+                            <Anchor
+                                component="button"
+                                onClick={onGetLink}
+                                size="xs"
+                                fw={500}
+                            >
+                                {hasEmail ? 'Send new invite' : 'Get new link'}
+                            </Anchor>
+                        )}
+                    </Group>
+                </Stack>
+            )}
+        </Flex>
+    );
+};
+
 const UserListItem: FC<{
     disabled: boolean;
     user: OrganizationMemberProfile;
-}> = ({
-    disabled,
-    user: {
-        userUuid,
-        firstName,
-        lastName,
-        email,
-        role,
-        isActive,
-        isInviteExpired,
-    },
-}) => {
+}> = ({ disabled, user }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [showInviteSuccess, setShowInviteSuccess] = useState(true);
     const { mutate, isLoading: isDeleting } =
         useDeleteOrganizationUserMutation();
     const inviteLink = useCreateInviteLinkMutation();
     const { track } = useTracking();
-    const { user, health } = useApp();
-    const updateUser = useUpdateUserMutation(userUuid);
-    const handleDelete = () => mutate(userUuid);
+    const { user: activeUser, health } = useApp();
+    const updateUser = useUpdateUserMutation(user.userUuid);
+    const handleDelete = () => mutate(user.userUuid);
 
     const getNewLink = () => {
         track({
             name: EventName.INVITE_BUTTON_CLICKED,
         });
-        inviteLink.mutate({ email, role });
+        inviteLink.mutate({ email: user.email, role: user.role });
         setShowInviteSuccess(true);
     };
 
@@ -81,65 +134,18 @@ const UserListItem: FC<{
         <>
             <tr>
                 <td width={500}>
-                    <Flex justify="space-between" align="center">
-                        {isActive ? (
-                            <Stack spacing="xxs">
-                                <Title order={6}>
-                                    {firstName} {lastName}
-                                </Title>
-
-                                {email && (
-                                    <Badge
-                                        variant="filled"
-                                        color="gray.2"
-                                        radius="xs"
-                                        sx={{ textTransform: 'none' }}
-                                        px="xxs"
-                                    >
-                                        <Text fz="xs" fw={400} color="gray.8">
-                                            {email}
-                                        </Text>
-                                    </Badge>
-                                )}
-                            </Stack>
-                        ) : (
-                            <Stack spacing="xxs">
-                                {email && <Title order={6}>{email}</Title>}
-                                <Group spacing="xs">
-                                    <Badge
-                                        variant="filled"
-                                        color="orange.3"
-                                        radius="xs"
-                                        sx={{ textTransform: 'none' }}
-                                        px="xxs"
-                                    >
-                                        <Text fz="xs" fw={400} color="gray.8">
-                                            {!isInviteExpired
-                                                ? 'Pending'
-                                                : 'Link expired'}
-                                        </Text>
-                                    </Badge>
-                                    {user.data?.ability?.can(
-                                        'create',
-                                        'InviteLink',
-                                    ) && (
-                                        <Anchor
-                                            component="button"
-                                            onClick={getNewLink}
-                                            size="xs"
-                                            fw={500}
-                                        >
-                                            {health.data?.hasEmailClient
-                                                ? 'Send new invite'
-                                                : 'Get new link'}
-                                        </Anchor>
-                                    )}
-                                </Group>
-                            </Stack>
+                    <UserNameDisplay
+                        disabled={disabled}
+                        user={user}
+                        showInviteLink={activeUser.data?.ability?.can(
+                            'create',
+                            'InviteLink',
                         )}
-                    </Flex>
+                        onGetLink={getNewLink}
+                        hasEmail={health.data?.hasEmailClient}
+                    />
                 </td>
-                {user.data?.ability?.can(
+                {activeUser.data?.ability?.can(
                     'manage',
                     'OrganizationMemberProfile',
                 ) && (
@@ -161,7 +167,7 @@ const UserListItem: FC<{
                                         role: newRole as OrganizationMemberRole,
                                     });
                                 }}
-                                value={role}
+                                value={user.role}
                                 w={200}
                                 itemComponent={({
                                     label,
@@ -217,9 +223,12 @@ const UserListItem: FC<{
                                 }
                             >
                                 <Text pb="md">
-                                    Are you sure you want to delete this user ?
+                                    Are you sure you want to delete this user?
                                 </Text>
-                                <Group spacing="xs" position="right">
+                                <Card withBorder>
+                                    <UserNameDisplay user={user} />
+                                </Card>
+                                <Group spacing="xs" position="right" mt="md">
                                     <Button
                                         disabled={isDeleting}
                                         onClick={() =>
