@@ -26,9 +26,10 @@ import {
     apiKeyPassportStrategy,
     googlePassportStrategy,
     localPassportStrategy,
-    oktaPassportStrategy,
+    isOktaPassportStrategyAvailableToUse,
     azureAdPassportStrategy,
     oneLoginPassportStrategy,
+    OpenIDClientOktaStrategy,
 } from './controllers/authentication';
 import database from './database/database';
 import { errorHandler } from './errors';
@@ -260,8 +261,8 @@ if (googlePassportStrategy) {
     passport.use(googlePassportStrategy);
     refresh.use(googlePassportStrategy);
 }
-if (oktaPassportStrategy) {
-    passport.use('okta', oktaPassportStrategy);
+if (isOktaPassportStrategyAvailableToUse) {
+    passport.use('okta', new OpenIDClientOktaStrategy());
 }
 if (oneLoginPassportStrategy) {
     passport.use('oneLogin', oneLoginPassportStrategy);

@@ -39,6 +39,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
+import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
@@ -51,6 +52,7 @@ import { UserModel } from '../models/UserModel';
 type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
+    groupsModel: GroupsModel;
     sessionModel: SessionModel;
     emailModel: EmailModel;
     openIdIdentityModel: OpenIdIdentityModel;
@@ -66,6 +68,8 @@ export class UserService {
     private readonly inviteLinkModel: InviteLinkModel;
 
     private readonly userModel: UserModel;
+
+    private readonly groupsModel: GroupsModel;
 
     private readonly sessionModel: SessionModel;
 
@@ -92,6 +96,7 @@ export class UserService {
     constructor({
         inviteLinkModel,
         userModel,
+        groupsModel,
         sessionModel,
         emailModel,
         openIdIdentityModel,
@@ -104,6 +109,7 @@ export class UserService {
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
+        this.groupsModel = groupsModel;
         this.sessionModel = sessionModel;
         this.emailModel = emailModel;
         this.openIdIdentityModel = openIdIdentityModel;
@@ -335,6 +341,18 @@ export class UserService {
                     loginProvider: 'google',
                 },
             });
+
+            if (
+                Array.isArray(openIdUser.openId.groups) &&
+                openIdUser.openId.groups.length &&
+                loginUser.organizationUuid
+            )
+                await this.groupsModel.addUserToGroupsIfExist({
+                    userUuid: loginUser.userUuid,
+                    groups: openIdUser.openId.groups,
+                    organizationUuid: loginUser.organizationUuid,
+                });
+
             return loginUser;
         }
 
@@ -356,6 +374,18 @@ export class UserService {
                     loginProvider: 'google',
                 },
             });
+
+            if (
+                Array.isArray(openIdUser.openId.groups) &&
+                openIdUser.openId.groups.length &&
+                sessionUser.organizationUuid
+            )
+                await this.groupsModel.addUserToGroupsIfExist({
+                    userUuid: sessionUser.userUuid,
+                    groups: openIdUser.openId.groups,
+                    organizationUuid: sessionUser.organizationUuid,
+                });
+
             return sessionUser;
         }
 
@@ -365,6 +395,18 @@ export class UserService {
             inviteCode,
         );
         await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
+
+        if (
+            Array.isArray(openIdUser.openId.groups) &&
+            openIdUser.openId.groups.length &&
+            createdUser.organizationUuid
+        )
+            await this.groupsModel.addUserToGroupsIfExist({
+                userUuid: createdUser.userUuid,
+                groups: openIdUser.openId.groups,
+                organizationUuid: createdUser.organizationUuid,
+            });
+
         return createdUser;
     }
 

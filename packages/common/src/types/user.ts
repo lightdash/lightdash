@@ -57,6 +57,7 @@ export interface OpenIdUser {
         email: string;
         firstName: string | undefined;
         lastName: string | undefined;
+        groups?: string[] | undefined;
     };
 }
 

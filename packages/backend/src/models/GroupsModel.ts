@@ -3,7 +3,9 @@ import {
     Group,
     GroupMembership,
     GroupWithMembers,
+    NotExistsError,
     NotFoundError,
+    OpenIdUser,
     ProjectGroupAccess,
     ProjectMemberRole,
     UnexpectedDatabaseError,
@@ -311,5 +313,51 @@ export class GroupsModel {
         const rows = await query;
 
         return rows.length > 0;
+    }
+
+    async addUserToGroupsIfExist({
+        userUuid,
+        groups,
+        organizationUuid,
+    }: {
+        userUuid: string;
+        groups: string[];
+        organizationUuid: string;
+    }) {
+        const organization = await this.database('organizations')
+            .where('organization_uuid', organizationUuid)
+            .first('organization_id');
+        if (!organization) {
+            throw new NotExistsError('Cannot find organization');
+        }
+
+        const existingGroups = await this.database('groups')
+            .whereIn('name', groups)
+            .andWhere('organization_id', organization.organization_id)
+            .select('group_uuid', 'organization_id');
+
+        if (existingGroups.length === 0) {
+            return;
+        }
+
+        const userIdToInsert = (
+            await this.database('users')
+                .where('user_uuid', userUuid)
+                .first('user_id')
+        )?.user_id;
+        if (!userIdToInsert) {
+            throw new NotExistsError('Cannot find user');
+        }
+
+        const insertData = existingGroups.map((group) => ({
+            group_uuid: group.group_uuid,
+            user_id: userIdToInsert,
+            organization_id: organization.organization_id,
+        }));
+
+        await this.database('group_memberships')
+            .insert(insertData)
+            .onConflict()
+            .ignore();
     }
 }
