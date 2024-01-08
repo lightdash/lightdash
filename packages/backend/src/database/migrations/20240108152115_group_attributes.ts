@@ -8,16 +8,15 @@ export async function up(knex: Knex): Promise<void> {
         await knex.schema.createTable(groupUserAttributes, (table) => {
             table.uuid('group_uuid').notNullable();
             table.integer('organization_id').notNullable();
-
             table
-                .foreign(['group_uuid', 'organization_id'])
-                .references(['group_uuid', 'organization_id'])
+                .foreign('group_uuid')
+                .references('group_uuid')
                 .inTable('groups')
                 .onDelete('CASCADE');
             table.uuid('user_attribute_uuid').notNullable();
             table
-                .foreign(['user_attribute_uuid', 'organization_id'])
-                .references(['user_attribute_uuid', 'organization_id'])
+                .foreign('user_attribute_uuid')
+                .references('user_attribute_uuid')
                 .inTable(userAttributesTableName)
                 .onDelete('CASCADE');
             table.string('value').notNullable();
