@@ -29,7 +29,7 @@ export const useOrganizationGroups = (
 ) => {
     const setErrorResponse = useQueryError();
     return useQuery<GroupWithMembers[], ApiError>({
-        queryKey: ['organization_groups', includeMembers, queryOptions],
+        queryKey: ['organization_groups', includeMembers],
         queryFn: () => getOrganizationGroupsQuery(includeMembers),
         onError: (result) => setErrorResponse(result),
         ...queryOptions,
