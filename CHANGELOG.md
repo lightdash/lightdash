@@ -1,3 +1,22 @@
+## [0.925.1](https://github.com/lightdash/lightdash/compare/0.925.0...0.925.1) (2024-01-08)
+
+
+### Bug Fixes
+
+* add tags and warehouse to totals query ([#8496](https://github.com/lightdash/lightdash/issues/8496)) ([e71aced](https://github.com/lightdash/lightdash/commit/e71aced012a335b1d59f7b6a0c5865c50c2fe037))
+
+# [0.925.0](https://github.com/lightdash/lightdash/compare/0.924.6...0.925.0) (2024-01-08)
+
+
+### Bug Fixes
+
+* error when using groups with members ([#8489](https://github.com/lightdash/lightdash/issues/8489)) ([93f052b](https://github.com/lightdash/lightdash/commit/93f052b3230b67f6805df68232a1d733629651b6))
+
+
+### Features
+
+* add user details to delete dialog ([#8484](https://github.com/lightdash/lightdash/issues/8484)) ([f95fd93](https://github.com/lightdash/lightdash/commit/f95fd9305720370a00dd2af7b334cb9ed0903ca4))
+
 ## [0.924.6](https://github.com/lightdash/lightdash/compare/0.924.5...0.924.6) (2024-01-08)
 
 

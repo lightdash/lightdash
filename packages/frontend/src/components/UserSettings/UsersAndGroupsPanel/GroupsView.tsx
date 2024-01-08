@@ -46,7 +46,7 @@ const GroupListItem: FC<{
             </td>
 
             <td>
-                {group.members.length > 0 ? (
+                {group?.members.length > 0 ? (
                     <Group
                         spacing="xxs"
                         maw={400}

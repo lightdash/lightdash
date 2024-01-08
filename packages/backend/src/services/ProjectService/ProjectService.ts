@@ -2904,15 +2904,16 @@ export class ProjectService {
         metricQuery: MetricQuery,
         organizationUuid: string,
     ) {
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-        );
-
         const explore = await this.getExplore(
             user,
             projectUuid,
             exploreName,
             organizationUuid,
+        );
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            explore.warehouse,
         );
 
         const { query } = await this._getCalculateTotalQuery(
@@ -2923,7 +2924,13 @@ export class ProjectService {
             warehouseClient,
         );
 
-        const { rows } = await warehouseClient.runQuery(query, {});
+        const queryTags: RunQueryTags = {
+            organization_uuid: projectUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+        };
+
+        const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
         return { row: rows[0] };
     }
