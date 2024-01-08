@@ -1,4 +1,8 @@
-import { CreateGroup } from '@lightdash/common';
+import {
+    CreateGroup,
+    GroupWithMembers,
+    UpdateGroupWithMembers,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -13,27 +17,53 @@ import {
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
 import React, { FC, useMemo } from 'react';
-import { useGroupCreateMutation } from '../../../hooks/useOrganizationGroups';
+import {
+    useGroupCreateMutation,
+    useGroupUpdateMutation,
+} from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
-const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
+const CreateGroupModal: FC<
+    ModalProps & { isEditing?: boolean; groupToEdit?: GroupWithMembers }
+> = ({ opened, onClose, isEditing, groupToEdit }) => {
     const form = useForm<CreateGroup>({
         initialValues: {
-            name: '',
-            members: [],
+            name: groupToEdit?.name ?? '',
+            members: groupToEdit?.members ?? [],
         },
         validate: {
             name: (value: string) =>
                 value.trim().length ? null : 'Group name is required',
         },
     });
+
     const { user } = useApp();
     const { data: organizationUsers, isLoading: isLoadingUsers } =
         useOrganizationUsers();
 
-    const { mutateAsync, isLoading } = useGroupCreateMutation();
+    const { mutateAsync: mutateAsyncCreateGroup, isLoading: isLoadingCreate } =
+        useGroupCreateMutation();
+
+    const { mutateAsync: mutateAsyncUpdateGroup, isLoading: isLoadingUpdate } =
+        useGroupUpdateMutation();
+
+    const handleSubmitCreate = async (data: CreateGroup) => {
+        await mutateAsyncCreateGroup(data);
+        form.reset();
+        onClose();
+    };
+
+    const handleSubmitUpdate = async (data: UpdateGroupWithMembers) => {
+        mutateAsyncUpdateGroup({
+            name: form.isDirty('name') ? data.name : undefined,
+            members: form.isDirty('members') ? data.members : undefined,
+            uuid: data.uuid,
+        });
+        form.reset();
+        onClose();
+    };
 
     const users = useMemo(() => {
         if (organizationUsers === undefined) return [];
@@ -43,15 +73,11 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
         }));
     }, [organizationUsers]);
 
-    const handleSubmit = async (data: CreateGroup) => {
-        await mutateAsync(data);
-        form.reset();
-        onClose();
-    };
-
     if (user.data?.ability?.cannot('manage', 'Group')) {
         return null;
     }
+
+    const isLoading = isLoadingCreate || isLoadingUpdate;
 
     return (
         <Modal
@@ -60,15 +86,24 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
             title={
                 <Group spacing="xs">
                     <MantineIcon size="lg" icon={IconUsersGroup} />
-                    <Title order={4}>Create group</Title>
+                    <Title order={4}>
+                        {isEditing
+                            ? `Editing ${groupToEdit?.name}`
+                            : `Create group`}
+                    </Title>
                 </Group>
             }
             size="lg"
         >
             <form
-                name="create_group"
+                name="create_edit_group"
                 onSubmit={form.onSubmit((values: CreateGroup) =>
-                    handleSubmit(values),
+                    isEditing && groupToEdit
+                        ? handleSubmitUpdate({
+                              ...values,
+                              uuid: groupToEdit?.uuid,
+                          })
+                        : handleSubmitCreate(values),
                 )}
             >
                 <Stack>
@@ -83,7 +118,6 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
                     <MultiSelect
                         withinPortal
                         searchable
-                        clearable
                         clearSearchOnChange
                         clearSearchOnBlur
                         label="Group members"
@@ -104,11 +138,11 @@ const CreateGroupModal: FC<ModalProps> = ({ opened, onClose }) => {
                     />
 
                     <Button
-                        disabled={isLoading}
+                        disabled={isLoading || !form.isDirty()}
                         type="submit"
                         sx={{ alignSelf: 'end' }}
                     >
-                        Create group
+                        {isEditing ? 'Save' : 'Create group'}
                     </Button>
                 </Stack>
             </form>

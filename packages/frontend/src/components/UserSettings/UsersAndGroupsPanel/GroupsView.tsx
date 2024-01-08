@@ -10,7 +10,12 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconEdit,
+    IconPlus,
+    IconTrash,
+} from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
@@ -27,7 +32,8 @@ const GroupListItem: FC<{
     disabled?: boolean;
     group: GroupWithMembers;
     onDelete: (group: GroupWithMembers) => void;
-}> = ({ disabled, group, onDelete }) => {
+    onEdit: (group: GroupWithMembers) => void;
+}> = ({ disabled, group, onDelete, onEdit }) => {
     return (
         <tr>
             <td width={260}>
@@ -75,6 +81,14 @@ const GroupListItem: FC<{
             </td>
             <td>
                 <Group position="right">
+                    <Button
+                        px="xs"
+                        variant="outline"
+                        onClick={() => onEdit(group)}
+                        disabled={disabled}
+                    >
+                        <MantineIcon icon={IconEdit} />
+                    </Button>
                     <Button
                         px="xs"
                         variant="outline"
@@ -134,7 +148,11 @@ const GroupsView: FC = () => {
     const { classes } = useTableStyles();
     const { user } = useApp();
 
-    const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+    const [showCreateAndEditModal, setShowCreateAndEditModal] = useState(false);
+
+    const [groupToEdit, setGroupToEdit] = useState<
+        GroupWithMembers | undefined
+    >(undefined);
 
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [groupToDelete, setGroupToDelete] = useState<
@@ -163,7 +181,7 @@ const GroupsView: FC = () => {
                 <Button
                     compact
                     leftIcon={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setShowCreateGroupModal(true)}
+                    onClick={() => setShowCreateAndEditModal(true)}
                     sx={{ alignSelf: 'end' }}
                 >
                     Add group
@@ -187,6 +205,10 @@ const GroupsView: FC = () => {
                                     'manage',
                                     'Group',
                                 )}
+                                onEdit={(g) => {
+                                    setGroupToEdit(g);
+                                    setShowCreateAndEditModal(true);
+                                }}
                                 onDelete={(groupForDeletion) => {
                                     setGroupToDelete(groupForDeletion);
                                     setIsDeleteDialogOpen(true);
@@ -196,11 +218,18 @@ const GroupsView: FC = () => {
                     </tbody>
                 </Table>
             </SettingsCard>
-            <CreateGroupModal
-                key={`create-group-modal-${showCreateGroupModal}`}
-                opened={showCreateGroupModal}
-                onClose={() => setShowCreateGroupModal(false)}
-            />
+            {showCreateAndEditModal && (
+                <CreateGroupModal
+                    key={`create-group-modal-${showCreateAndEditModal}`}
+                    opened={showCreateAndEditModal}
+                    onClose={() => {
+                        setShowCreateAndEditModal(false);
+                        setGroupToEdit(undefined);
+                    }}
+                    groupToEdit={groupToEdit}
+                    isEditing={groupToEdit !== undefined}
+                />
+            )}
             <DeleteGroupModal
                 key={`delete-group-modal-${isDeleteDialogOpen}`}
                 opened={isDeleteDialogOpen}

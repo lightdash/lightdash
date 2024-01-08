@@ -3,6 +3,7 @@ import {
     CreateGroup,
     Group,
     GroupWithMembers,
+    UpdateGroupWithMembers,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -61,6 +62,40 @@ export const useGroupCreateMutation = () => {
             onError: (error) => {
                 showToastError({
                     title: `Failed to create group`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
+const updateGroupQuery = async (data: UpdateGroupWithMembers) =>
+    lightdashApi<GroupWithMembers>({
+        url: `/groups/${data.uuid}`,
+        method: 'PATCH',
+        body: JSON.stringify({
+            name: data.name,
+            members: data.members,
+        }),
+    });
+
+export const useGroupUpdateMutation = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+    return useMutation<Group, ApiError, UpdateGroupWithMembers>(
+        (data) => updateGroupQuery(data),
+        {
+            mutationKey: ['update_group'],
+            onSuccess: async (_, updateGroup) => {
+                await queryClient.invalidateQueries(['organization_groups']);
+
+                showToastSuccess({
+                    title: `Success! Group, ${updateGroup.name} was updated.`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to update group`,
                     subtitle: error.error.message,
                 });
             },
