@@ -1,10 +1,13 @@
 import { subject } from '@casl/ability';
-import { Anchor, Button, Group, Text } from '@mantine/core';
+import { Anchor, Button, Divider, Group, Text } from '@mantine/core';
+import { IconUserPlus, IconUsersGroup } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
+import MantineIcon from '../common/MantineIcon';
 import ProjectAccess from './ProjectAccess';
 import ProjectAccessCreation from './ProjectAccessCreation';
+import ProjectGroupAccessModal from './ProjectGroupAccessModal';
 
 interface ProjectUserAccessProps {
     projectUuid: string;
@@ -13,7 +16,8 @@ interface ProjectUserAccessProps {
 const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
     const { user } = useApp();
     const [showProjectAccessCreate, setShowProjectAccessCreate] =
-        useState<boolean>(false);
+        useState(false);
+    const [showGroupAccessModal, setShowGroupAccessModal] = useState(false);
 
     return (
         <>
@@ -29,33 +33,53 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                         docs
                     </Anchor>
                 </Text>
-                <Can
-                    I={'manage'}
-                    this={subject('Project', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid,
-                    })}
-                >
-                    <Button
-                        onClick={() => {
-                            setShowProjectAccessCreate(true);
-                        }}
-                        size={'xs'}
+
+                <div>
+                    <Can
+                        I="manage"
+                        this={subject('Project', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        })}
                     >
-                        Add user
-                    </Button>
-                </Can>
+                        <Button.Group>
+                            <Button
+                                leftIcon={<MantineIcon icon={IconUserPlus} />}
+                                onClick={() => setShowProjectAccessCreate(true)}
+                                size="xs"
+                            >
+                                Add user access
+                            </Button>
+
+                            <Divider orientation="vertical" color="blue.7" />
+
+                            <Button
+                                leftIcon={<MantineIcon icon={IconUsersGroup} />}
+                                onClick={() => setShowGroupAccessModal(true)}
+                                size="xs"
+                            >
+                                Manage group access
+                            </Button>
+                        </Button.Group>
+                    </Can>
+                </div>
             </Group>
 
             <ProjectAccess projectUuid={projectUuid} />
 
             {showProjectAccessCreate && (
                 <ProjectAccessCreation
-                    opened={showProjectAccessCreate}
+                    opened
                     projectUuid={projectUuid}
-                    onClose={() => {
-                        setShowProjectAccessCreate(false);
-                    }}
+                    onClose={() => setShowProjectAccessCreate(false)}
+                />
+            )}
+
+            {showGroupAccessModal && (
+                <ProjectGroupAccessModal
+                    opened
+                    projectUuid={projectUuid}
+                    onClose={() => setShowGroupAccessModal(false)}
                 />
             )}
         </>
