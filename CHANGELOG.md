@@ -1,3 +1,10 @@
+## [0.925.1](https://github.com/lightdash/lightdash/compare/0.925.0...0.925.1) (2024-01-08)
+
+
+### Bug Fixes
+
+* add tags and warehouse to totals query ([#8496](https://github.com/lightdash/lightdash/issues/8496)) ([e71aced](https://github.com/lightdash/lightdash/commit/e71aced012a335b1d59f7b6a0c5865c50c2fe037))
+
 # [0.925.0](https://github.com/lightdash/lightdash/compare/0.924.6...0.925.0) (2024-01-08)
 
 
