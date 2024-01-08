@@ -1,3 +1,24 @@
+## [0.924.6](https://github.com/lightdash/lightdash/compare/0.924.5...0.924.6) (2024-01-08)
+
+
+### Bug Fixes
+
+* show invalid dashboard filters ([#8492](https://github.com/lightdash/lightdash/issues/8492)) ([676c089](https://github.com/lightdash/lightdash/commit/676c089b400e5fe55621753054c07a595d28f680))
+
+## [0.924.5](https://github.com/lightdash/lightdash/compare/0.924.4...0.924.5) (2024-01-05)
+
+
+### Bug Fixes
+
+* only show pie chart context menu if user is authenticated ([#8474](https://github.com/lightdash/lightdash/issues/8474)) ([dbcb3a0](https://github.com/lightdash/lightdash/commit/dbcb3a0f8d4cf70666bbe232f3576161a03e6e88))
+
+## [0.924.4](https://github.com/lightdash/lightdash/compare/0.924.3...0.924.4) (2024-01-05)
+
+
+### Bug Fixes
+
+* spaces in date part names ([#8459](https://github.com/lightdash/lightdash/issues/8459)) ([9723383](https://github.com/lightdash/lightdash/commit/97233830ff9a0a78fdb0cf0994d07f0789bbe062))
+
 ## [0.924.3](https://github.com/lightdash/lightdash/compare/0.924.2...0.924.3) (2024-01-05)
 
 

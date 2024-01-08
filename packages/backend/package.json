@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.924.3",
+    "version": "0.924.6",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -33,8 +33,8 @@
         "@aws-sdk/s3-request-presigner": "^3.272.0",
         "@casl/ability": "^5.4.3",
         "@godaddy/terminus": "^4.12.0",
-        "@lightdash/common": "^0.924.3",
-        "@lightdash/warehouses": "^0.924.3",
+        "@lightdash/common": "^0.924.6",
+        "@lightdash/warehouses": "^0.924.6",
         "@opentelemetry/api": "^1.4.1",
         "@opentelemetry/auto-instrumentations-node": "^0.37.0",
         "@opentelemetry/exporter-metrics-otlp-http": "^0.39.1",
@@ -50,7 +50,7 @@
         "@sentry/node": "^7.37.2",
         "@sentry/tracing": "^7.37.2",
         "@sentry/types": "^7.37.2",
-        "@slack/bolt": "^3.12.2",
+        "@slack/bolt": "^3.15.0",
         "@slack/web-api": "^6.8.1",
         "@tsoa/runtime": "^4.1.3",
         "@types/async": "^3.2.16",
