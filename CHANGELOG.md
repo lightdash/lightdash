@@ -1,3 +1,10 @@
+## [0.924.6](https://github.com/lightdash/lightdash/compare/0.924.5...0.924.6) (2024-01-08)
+
+
+### Bug Fixes
+
+* show invalid dashboard filters ([#8492](https://github.com/lightdash/lightdash/issues/8492)) ([676c089](https://github.com/lightdash/lightdash/commit/676c089b400e5fe55621753054c07a595d28f680))
+
 ## [0.924.5](https://github.com/lightdash/lightdash/compare/0.924.4...0.924.5) (2024-01-05)
 
 
