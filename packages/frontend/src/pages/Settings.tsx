@@ -189,7 +189,7 @@ const Settings: FC = () => {
                                     <RouterNavLink
                                         label={
                                             groupManagementEnabled
-                                                ? 'Users and groups'
+                                                ? 'Users & groups'
                                                 : 'User management'
                                         }
                                         to="/generalSettings/userManagement"
@@ -207,7 +207,11 @@ const Settings: FC = () => {
                                     }),
                                 ) && (
                                     <RouterNavLink
-                                        label="User attributes"
+                                        label={
+                                            groupManagementEnabled
+                                                ? 'User & Group Attributes'
+                                                : 'User attributes'
+                                        }
                                         to="/generalSettings/userAttributes"
                                         exact
                                         icon={

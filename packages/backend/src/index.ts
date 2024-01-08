@@ -129,7 +129,7 @@ app.use(
             maxAge: (lightdashConfig.cookiesMaxAgeHours || 24) * 60 * 60 * 1000, // in ms
             secure: lightdashConfig.secureCookies,
             httpOnly: true,
-            sameSite: 'strict',
+            sameSite: 'lax',
         },
         resave: false,
         saveUninitialized: false,

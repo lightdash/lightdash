@@ -1,3 +1,80 @@
+## [0.924.6](https://github.com/lightdash/lightdash/compare/0.924.5...0.924.6) (2024-01-08)
+
+
+### Bug Fixes
+
+* show invalid dashboard filters ([#8492](https://github.com/lightdash/lightdash/issues/8492)) ([676c089](https://github.com/lightdash/lightdash/commit/676c089b400e5fe55621753054c07a595d28f680))
+
+## [0.924.5](https://github.com/lightdash/lightdash/compare/0.924.4...0.924.5) (2024-01-05)
+
+
+### Bug Fixes
+
+* only show pie chart context menu if user is authenticated ([#8474](https://github.com/lightdash/lightdash/issues/8474)) ([dbcb3a0](https://github.com/lightdash/lightdash/commit/dbcb3a0f8d4cf70666bbe232f3576161a03e6e88))
+
+## [0.924.4](https://github.com/lightdash/lightdash/compare/0.924.3...0.924.4) (2024-01-05)
+
+
+### Bug Fixes
+
+* spaces in date part names ([#8459](https://github.com/lightdash/lightdash/issues/8459)) ([9723383](https://github.com/lightdash/lightdash/commit/97233830ff9a0a78fdb0cf0994d07f0789bbe062))
+
+## [0.924.3](https://github.com/lightdash/lightdash/compare/0.924.2...0.924.3) (2024-01-05)
+
+
+### Bug Fixes
+
+* show SSO authentication error once ([#8486](https://github.com/lightdash/lightdash/issues/8486)) ([57b5709](https://github.com/lightdash/lightdash/commit/57b5709978ce312f449c25629758f2fede17385c))
+
+## [0.924.2](https://github.com/lightdash/lightdash/compare/0.924.1...0.924.2) (2024-01-04)
+
+
+### Bug Fixes
+
+* fix incorrect query key in useOrganizationUsers ([#8483](https://github.com/lightdash/lightdash/issues/8483)) ([27fe563](https://github.com/lightdash/lightdash/commit/27fe563e211693730a2cf1d8c91681fcfad6bf67))
+
+## [0.924.1](https://github.com/lightdash/lightdash/compare/0.924.0...0.924.1) (2024-01-04)
+
+
+### Bug Fixes
+
+* Remedy for disappearing Organisation input issue 8450 ([#8458](https://github.com/lightdash/lightdash/issues/8458)) ([0434c86](https://github.com/lightdash/lightdash/commit/0434c86bedea61296b178255f289f403d72cabd2))
+
+# [0.924.0](https://github.com/lightdash/lightdash/compare/0.923.2...0.924.0) (2024-01-04)
+
+
+### Features
+
+* add placeholder UI to add user attributes to groups ([#8455](https://github.com/lightdash/lightdash/issues/8455)) ([d55c668](https://github.com/lightdash/lightdash/commit/d55c668fd3f29382026fccc3136cbca3d4bcb860))
+* extra large option to export and scheduler ([#8478](https://github.com/lightdash/lightdash/issues/8478)) ([4a363da](https://github.com/lightdash/lightdash/commit/4a363da21132438f7e4c73cf435c65bfc562b89f))
+* viewer can download csv ([#8392](https://github.com/lightdash/lightdash/issues/8392)) ([390a963](https://github.com/lightdash/lightdash/commit/390a96319eb2018ad3478400021ef53e51b1b47e))
+
+
+### Reverts
+
+* "feat: strict same site cookies ([#8374](https://github.com/lightdash/lightdash/issues/8374))" ([#8479](https://github.com/lightdash/lightdash/issues/8479)) ([2c33ce7](https://github.com/lightdash/lightdash/commit/2c33ce76ca6dce25bb07338086776f754cf62c29))
+
+## [0.923.2](https://github.com/lightdash/lightdash/compare/0.923.1...0.923.2) (2024-01-04)
+
+
+### Bug Fixes
+
+* get screenshot from element instead ([#8477](https://github.com/lightdash/lightdash/issues/8477)) ([bc1ff5b](https://github.com/lightdash/lightdash/commit/bc1ff5bb550829e97e68b3de85f9df2f6557efec))
+
+## [0.923.1](https://github.com/lightdash/lightdash/compare/0.923.0...0.923.1) (2024-01-04)
+
+
+### Bug Fixes
+
+* update libcurl3-gnutls on bullseye-backports dependency ([#8469](https://github.com/lightdash/lightdash/issues/8469)) ([475ad20](https://github.com/lightdash/lightdash/commit/475ad207ef71a1f08d691e597a9598969b0a0260))
+
+# [0.923.0](https://github.com/lightdash/lightdash/compare/0.922.0...0.923.0) (2024-01-04)
+
+
+### Features
+
+* multiple values in required attributes ([#8466](https://github.com/lightdash/lightdash/issues/8466)) ([3d32623](https://github.com/lightdash/lightdash/commit/3d3262397b943ad65f8886012530f3fd29528f5f))
+
 # [0.922.0](https://github.com/lightdash/lightdash/compare/0.921.2...0.922.0) (2024-01-03)
 
 

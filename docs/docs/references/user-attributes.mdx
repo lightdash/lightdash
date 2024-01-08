@@ -95,6 +95,38 @@ columns:
 
 If a user without access to this dimension runs a query that contains this dimension, they will get a `Forbidden` error. 
 
+You can add multiple attributes for a single dimension. There are two ways to do this:
+
+1. **Multiple attributes joined with `AND`.** In the example below, only users with `is_admin: "true" AND team_name: "HR"` have access to the `salary` dimension in Lightdash.
+
+```yaml
+columns: 
+  - name: user
+    description: User name
+  - name: salary
+    description: User salary 
+    meta: 
+      dimension: 
+        required_attributes: 
+          is_admin: "true" 
+          team_name: "HR"
+```
+
+2. **Multiple attribute values joined with `OR`.** In the example below, users with `team_name = 'HR' OR team_name = 'C-Suite'` have access to the `salary` dimension in Lightdash. 
+
+```yaml
+columns: 
+  - name: user
+    description: User name
+  - name: salary
+    description: User salary 
+    meta: 
+      dimension: 
+        required_attributes:  
+          team_name: ["HR", "C-Suite"]
+``
+
+
 #### Current limitations 
 
 Lightdash dimensions and custom metrics are protected by this feature, however, 

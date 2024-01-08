@@ -16,8 +16,13 @@ import {
     Stack,
     Text,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
-import { IconPencil, IconRotate2 } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconPencil,
+    IconRotate2,
+} from '@tabler/icons-react';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
@@ -27,6 +32,7 @@ import {
     getFilterOperatorOptions,
 } from '../../../components/common/Filters/FilterInputs';
 import {
+    FieldWithSuggestions,
     FiltersProvider,
     useFiltersContext,
 } from '../../../components/common/Filters/FiltersProvider';
@@ -80,18 +86,16 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     onRevert,
     hasChanged,
 }) => {
+    const theme = useMantineTheme();
     const { fieldsMap } = useFiltersContext();
-    const field = fieldsMap[dashboardFilter.target.fieldId];
+    const field = fieldsMap[dashboardFilter.target.fieldId] as
+        | FieldWithSuggestions
+        | undefined;
     const [isEditing, setIsEditing] = useState(false);
 
     const filterType = useMemo(() => {
         return field ? getFilterTypeFromItem(field) : FilterType.STRING;
     }, [field]);
-
-    const filterSummary = getConditionalRuleLabel(
-        schedulerFilter ?? dashboardFilter,
-        field,
-    );
 
     const isDisabled = useMemo(
         () => Boolean((schedulerFilter ?? dashboardFilter).disabled),
@@ -101,6 +105,36 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     const filterOperatorOptions = useMemo(() => {
         return getFilterOperatorOptions(filterType);
     }, [filterType]);
+
+    if (!field) {
+        // show invalid dashboard filter
+        return (
+            <Group spacing="xs" align="flex-start" noWrap>
+                <ActionIcon size="xs" disabled>
+                    <MantineIcon icon={IconRotate2} />
+                </ActionIcon>
+
+                <Stack key={dashboardFilter.id} spacing="xs" w="100%">
+                    <Group spacing="xs">
+                        <MantineIcon
+                            icon={IconAlertTriangle}
+                            color="red.6"
+                            style={{ color: theme.colors.red[6] }}
+                        />
+                        <Text span fw={500}>
+                            Invalid filter
+                        </Text>
+                        <Text fw={400} span>
+                            <Text span color="gray.6">
+                                Tried to reference field with unknown id:
+                            </Text>
+                            <Text span> {dashboardFilter.target.fieldId}</Text>
+                        </Text>
+                    </Group>
+                </Stack>
+            </Group>
+        );
+    }
 
     return (
         <Group spacing="xs" align="flex-start" noWrap>
@@ -137,7 +171,10 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                     <>
                         {isEditing || hasChanged ? null : (
                             <FilterSummaryLabel
-                                filterSummary={filterSummary}
+                                filterSummary={getConditionalRuleLabel(
+                                    schedulerFilter ?? dashboardFilter,
+                                    field,
+                                )}
                                 isDisabled={isDisabled}
                             />
                         )}

@@ -44,6 +44,9 @@ export const organizationMemberAbilities: Record<
         can('view', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'ExportCsv', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
@@ -55,7 +58,7 @@ export const organizationMemberAbilities: Record<
         can('view', 'UnderlyingData', {
             organizationUuid: member.organizationUuid,
         });
-        can('manage', 'ExportCsv', {
+        can('manage', 'ChangeCsvResults', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Explore', {

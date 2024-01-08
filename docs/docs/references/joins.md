@@ -68,6 +68,7 @@ models:
 ```
 
 Note the following important differences when aliasing models in joins:
+
 1. You must reference the fields in the model using the new alias. Notice that the joins above use `${sender.user_id}
    ` rather than `${users.user_id}`.
 2. Because of the above, any fields in the base model or joined model that reference any field `${users.*}` will 
@@ -229,18 +230,44 @@ models:
 
 Check out our [dimensions](/references/dimensions) and [metrics](/references/metrics) reference docs to see all of the other configurations you can use with your joined fields.
 
-## Hide join tables
+## Hide joined tables
 
 Sometimes, you need to use an intermediate model to join two models together and don't want to show it in the UI.
-You can add a `hidden: true` tag to joins, like this:
-```
+You can add a `hidden: true` tag to joins, like this to hide these intermediate models:
+
+```yaml
 models:
-- name: A
+- name: users
   meta:
   joins:
-   - join: B
-     sql_on: B.a_id = A.a_id
+   - join: map_users_organizations
+     sql_on: users.user_id = map_users_organizations.user_id
      hidden: true
-   - join: C
-     sql_on: C.b_id = B.b_id
+   - join: organizations
+     sql_on: organizations.organization_id = map_users_organizations.organization_id
 ```
+
+### Managing hidden joined tables using tags
+
+Models that are used in joins still need to be compiled in Lightdash. But, you may not want them to appear in the app as a table of their own. We suggest using some labels in your dbt models to help manage these "helper" join tables.
+
+Tag the models that need to compiled in Lightdash with `lightdash` (e.g. `map_users_organizations` in our example above is a helper join table, but we don't want it to appear as a table on its own that can be explored). Then, tag the models that you want users to explore with `lightdash-explore`.
+
+For example:
+
+```yaml
+models:
+
+    users:
+      +tags:
+        - "lightdash"
+        - "lightdash-explore"
+
+    map_users_organizations:
+      +tags:
+        - "lightdash"
+```
+
+When deploying lightdash via the CLI or using GitHub actions, you should use the dbt selector `-s lightdash` to make sure you don't compile unnecessary models.
+
+In the Lightdash app, under the `project settings` --> `tables configuration`, you can filter by `lightdash-explore` so all the intermediary joins are hidden and users have a small and curated list of models then can explore from.

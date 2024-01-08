@@ -33,6 +33,7 @@ type Subject =
     | 'PinnedItems'
     | 'Validation'
     | 'Group'
+    | 'ChangeCsvResults'
     | 'all';
 
 type PossibleAbilities = [

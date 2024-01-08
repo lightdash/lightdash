@@ -13,8 +13,10 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconTrash, IconUserPlus, IconUsersPlus } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useEffect, useState } from 'react';
+import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import {
     useCreateUserAtributesMutation,
@@ -28,11 +30,14 @@ const UserAttributeModal: FC<{
     allUserAttributes: UserAttribute[];
     onClose: () => void;
 }> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
+    const isGroupsFeatureFlagEnabled =
+        useFeatureFlagEnabled('group-management');
     const form = useForm<CreateUserAttribute>({
         initialValues: {
             name: userAttribute?.name || '',
             description: userAttribute?.description,
             users: userAttribute?.users || [],
+            // TODO: add groups
             attributeDefault: userAttribute?.attributeDefault || null,
         },
     });
@@ -99,6 +104,10 @@ const UserAttributeModal: FC<{
     };
 
     const { data: orgUsers } = useOrganizationUsers();
+    const { data: groups } = useOrganizationGroups(undefined, {
+        enabled: !!isGroupsFeatureFlagEnabled,
+    });
+
     return (
         <Modal
             opened={opened}
@@ -116,7 +125,7 @@ const UserAttributeModal: FC<{
                     handleSubmit(values),
                 )}
             >
-                <Stack spacing="md">
+                <Stack spacing="xs">
                     <TextInput
                         name="name"
                         label="Attribute name"
@@ -153,6 +162,7 @@ const UserAttributeModal: FC<{
                             />
                             {checked && (
                                 <TextInput
+                                    size="xs"
                                     name={`attributeDefault`}
                                     placeholder="E.g. US"
                                     required
@@ -162,75 +172,171 @@ const UserAttributeModal: FC<{
                         </Group>
                     </Stack>
                     <Stack>
-                        <Text fw={500}>Assign to users</Text>
+                        <Stack spacing="xs">
+                            <Text fw={500}>Assign to users</Text>
 
-                        {form.values.users?.map((user, index) => {
-                            return (
-                                <Group key={index}>
-                                    <Select
-                                        sx={{ flexGrow: 1 }}
-                                        label={
-                                            index === 0
-                                                ? 'User email'
-                                                : undefined
-                                        }
-                                        name={`users.${index}.userUuid`}
-                                        placeholder="E.g. test@lightdash.com"
-                                        required
-                                        searchable
-                                        {...form.getInputProps(
-                                            `users.${index}.userUuid`,
-                                        )}
-                                        data={
-                                            orgUsers?.map((orgUser) => ({
-                                                value: orgUser.userUuid,
-                                                label: orgUser.email,
-                                            })) || []
-                                        }
-                                    />
+                            {form.values.users?.map((user, index) => {
+                                return (
+                                    <Group key={index}>
+                                        <Select
+                                            size="xs"
+                                            sx={{ flexGrow: 1 }}
+                                            label={
+                                                index === 0
+                                                    ? 'User email'
+                                                    : undefined
+                                            }
+                                            name={`users.${index}.userUuid`}
+                                            placeholder="E.g. test@lightdash.com"
+                                            required
+                                            searchable
+                                            {...form.getInputProps(
+                                                `users.${index}.userUuid`,
+                                            )}
+                                            data={
+                                                orgUsers?.map((orgUser) => ({
+                                                    value: orgUser.userUuid,
+                                                    label: orgUser.email,
+                                                })) || []
+                                            }
+                                        />
 
-                                    <TextInput
-                                        sx={{ flexGrow: 1 }}
-                                        label={
-                                            index === 0 ? 'Value' : undefined
-                                        }
-                                        name={`users.${index}.value`}
-                                        placeholder="E.g. US"
-                                        required
-                                        {...form.getInputProps(
-                                            `users.${index}.value`,
-                                        )}
-                                    />
-                                    <ActionIcon
-                                        mt={index === 0 ? 20 : undefined}
-                                        color="red"
-                                        variant="outline"
-                                        onClick={() => {
-                                            form.setFieldValue(
-                                                'users',
-                                                form.values.users.filter(
-                                                    (_, i) => i !== index,
-                                                ),
-                                            );
-                                        }}
-                                    >
-                                        <MantineIcon icon={IconTrash} />
-                                    </ActionIcon>
-                                </Group>
-                            );
-                        })}
-                        <Button
-                            w={200}
-                            leftIcon={<MantineIcon icon={IconPlus} />}
-                            onClick={() => {
-                                form.setFieldValue('users', [
-                                    ...(form.values.users || []),
-                                    { userUuid: '', value: '' },
-                                ]);
-                            }}
-                        >
-                            Add user
-                        </Button>
+                                        <TextInput
+                                            size="xs"
+                                            sx={{ flexGrow: 1 }}
+                                            label={
+                                                index === 0
+                                                    ? 'Value'
+                                                    : undefined
+                                            }
+                                            name={`users.${index}.value`}
+                                            placeholder="E.g. US"
+                                            required
+                                            {...form.getInputProps(
+                                                `users.${index}.value`,
+                                            )}
+                                        />
+                                        <ActionIcon
+                                            mt={index === 0 ? 20 : undefined}
+                                            color="red"
+                                            variant="outline"
+                                            onClick={() => {
+                                                form.setFieldValue(
+                                                    'users',
+                                                    form.values.users.filter(
+                                                        (_, i) => i !== index,
+                                                    ),
+                                                );
+                                            }}
+                                        >
+                                            <MantineIcon icon={IconTrash} />
+                                        </ActionIcon>
+                                    </Group>
+                                );
+                            })}
+                            <Button
+                                size="xs"
+                                variant="default"
+                                sx={{ alignSelf: 'flex-start' }}
+                                leftIcon={<MantineIcon icon={IconUserPlus} />}
+                                onClick={() => {
+                                    form.setFieldValue('users', [
+                                        ...(form.values.users || []),
+                                        { userUuid: '', value: '' },
+                                    ]);
+                                }}
+                            >
+                                Add user
+                            </Button>
+                        </Stack>
+
+                        {isGroupsFeatureFlagEnabled && (
+                            <Stack spacing="xs">
+                                <Text fw={500}>Assign to groups</Text>
+
+                                {/* TODO: Get from form.values.groups */}
+                                {[].map((user, index) => {
+                                    return (
+                                        <Group key={index}>
+                                            <Select
+                                                size="xs"
+                                                sx={{ flexGrow: 1 }}
+                                                label={
+                                                    index === 0
+                                                        ? 'Group name'
+                                                        : undefined
+                                                }
+                                                name={`groups.${index}.groupUuid`}
+                                                placeholder="E.g. Marketing, Product"
+                                                required
+                                                searchable
+                                                {...form.getInputProps(
+                                                    `groups.${index}.userUuid`,
+                                                )}
+                                                data={
+                                                    groups?.map((orgUser) => ({
+                                                        value: orgUser.uuid,
+                                                        label: orgUser.name,
+                                                    })) || []
+                                                }
+                                            />
+
+                                            <TextInput
+                                                size="xs"
+                                                sx={{ flexGrow: 1 }}
+                                                label={
+                                                    index === 0
+                                                        ? 'Value'
+                                                        : undefined
+                                                }
+                                                name={`groups.${index}.value`}
+                                                placeholder="E.g. US"
+                                                required
+                                                {...form.getInputProps(
+                                                    `groups.${index}.value`,
+                                                )}
+                                            />
+                                            <ActionIcon
+                                                mt={
+                                                    index === 0 ? 20 : undefined
+                                                }
+                                                color="red"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    form.setFieldValue(
+                                                        'groups',
+                                                        // TODO: Get from form.values.groups
+                                                        [].filter(
+                                                            (_, i) =>
+                                                                i !== index,
+                                                        ),
+                                                    );
+                                                }}
+                                            >
+                                                <MantineIcon icon={IconTrash} />
+                                            </ActionIcon>
+                                        </Group>
+                                    );
+                                })}
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    sx={{ alignSelf: 'flex-start' }}
+                                    leftIcon={
+                                        <MantineIcon icon={IconUsersPlus} />
+                                    }
+                                    onClick={() => {
+                                        form.setFieldValue('groups', [
+                                            // TODO: Get from form.values.groups
+                                            ...[],
+                                            { uuid: '', name: '' },
+                                        ]);
+                                    }}
+                                >
+                                    Add group
+                                </Button>
+                            </Stack>
+                        )}
                     </Stack>
 
                     <Group spacing="xs" position="right">

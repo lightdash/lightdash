@@ -135,6 +135,7 @@ const ResultsCard: FC = memo(() => {
 
                                 <Popover.Dropdown>
                                     <ExportSelector
+                                        projectUuid={projectUuid}
                                         rows={rows}
                                         getCsvLink={getCsvLink}
                                         getGsheetLink={getGsheetLink}

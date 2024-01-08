@@ -93,7 +93,7 @@ type DbtColumnLightdashDimension = {
     format?: Format;
     group_label?: string;
     urls?: FieldUrl[];
-    required_attributes?: Record<string, string>;
+    required_attributes?: Record<string, string | string[]>;
 };
 
 type DbtColumnLightdashAdditionalDimension = Omit<
