@@ -17,7 +17,6 @@ export type DbOrganizationMemberUserAttribute = {
 };
 
 export type DbGroupUserAttribute = {
-    group_id: number;
     group_uuid: string;
     user_attribute_uuid: string;
     value: string;
