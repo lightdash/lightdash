@@ -87,7 +87,6 @@ export const useGroupUpdateMutation = () => {
         {
             mutationKey: ['update_group'],
             onSuccess: async (_, updateGroup) => {
-                await queryClient.invalidateQueries(['update_group']);
                 await queryClient.invalidateQueries(['organization_groups']);
 
                 showToastSuccess({
