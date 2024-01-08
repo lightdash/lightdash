@@ -200,12 +200,10 @@ export class GroupsModel {
         }
 
         await this.database.transaction(async (trx) => {
-            let group;
             if (update.name) {
-                group = await trx('groups')
+                await trx('groups')
                     .update({ name: update.name })
-                    .where('group_uuid', groupUuid)
-                    .returning('*');
+                    .where('group_uuid', groupUuid);
             }
             if (update.members !== undefined) {
                 const membersToAdd = differenceBy(
@@ -245,8 +243,7 @@ export class GroupsModel {
                     await trx('group_memberships')
                         .insert(newMembers)
                         .onConflict()
-                        .ignore()
-                        .returning('*');
+                        .ignore();
                 }
                 if (membersToRemove.length > 0) {
                     await trx('group_memberships')
@@ -260,8 +257,7 @@ export class GroupsModel {
                             'users.user_uuid',
                             membersToRemove.map((m) => m.userUuid),
                         )
-                        .del()
-                        .returning('*');
+                        .del();
                 }
             }
         });
