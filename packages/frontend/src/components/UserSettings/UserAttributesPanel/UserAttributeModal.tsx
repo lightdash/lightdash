@@ -37,7 +37,7 @@ const UserAttributeModal: FC<{
             name: userAttribute?.name || '',
             description: userAttribute?.description,
             users: userAttribute?.users || [],
-            // TODO: add groups
+            groups: userAttribute?.groups || [],
             attributeDefault: userAttribute?.attributeDefault || null,
         },
     });
@@ -253,9 +253,7 @@ const UserAttributeModal: FC<{
                         {isGroupsFeatureFlagEnabled && (
                             <Stack spacing="xs">
                                 <Text fw={500}>Assign to groups</Text>
-
-                                {/* TODO: Get from form.values.groups */}
-                                {[].map((user, index) => {
+                                {form.values.groups.map((group, index) => {
                                     return (
                                         <Group key={index}>
                                             <Select
@@ -271,13 +269,15 @@ const UserAttributeModal: FC<{
                                                 required
                                                 searchable
                                                 {...form.getInputProps(
-                                                    `groups.${index}.userUuid`,
+                                                    `groups.${index}.groupUuid`,
                                                 )}
                                                 data={
-                                                    groups?.map((orgUser) => ({
-                                                        value: orgUser.uuid,
-                                                        label: orgUser.name,
-                                                    })) || []
+                                                    groups?.map(
+                                                        (groupInfo) => ({
+                                                            value: groupInfo.uuid,
+                                                            label: groupInfo.name,
+                                                        }),
+                                                    ) || []
                                                 }
                                             />
 
@@ -305,8 +305,7 @@ const UserAttributeModal: FC<{
                                                 onClick={() => {
                                                     form.setFieldValue(
                                                         'groups',
-                                                        // TODO: Get from form.values.groups
-                                                        [].filter(
+                                                        form.values.groups.filter(
                                                             (_, i) =>
                                                                 i !== index,
                                                         ),
@@ -327,9 +326,8 @@ const UserAttributeModal: FC<{
                                     }
                                     onClick={() => {
                                         form.setFieldValue('groups', [
-                                            // TODO: Get from form.values.groups
-                                            ...[],
-                                            { uuid: '', name: '' },
+                                            ...(form.values.groups || []),
+                                            { groupUuid: '', value: '' },
                                         ]);
                                     }}
                                 >

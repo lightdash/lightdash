@@ -720,6 +720,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_GroupWithMembers.uuid_": {
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "description": "The group's UUID"
+                    }
+                },
+                "required": ["uuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Pick_GroupMember.userUuid_": {
                 "properties": {
                     "userUuid": {
@@ -733,18 +744,25 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "UpdateGroupWithMembers": {
-                "properties": {
-                    "members": {
-                        "items": {
-                            "$ref": "#/components/schemas/Pick_GroupMember.userUuid_"
-                        },
-                        "type": "array"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_GroupWithMembers.uuid_"
                     },
-                    "name": {
-                        "type": "string"
+                    {
+                        "properties": {
+                            "members": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Pick_GroupMember.userUuid_"
+                                },
+                                "type": "array"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
                     }
-                },
-                "type": "object"
+                ]
             },
             "Organization": {
                 "properties": {
@@ -1412,10 +1430,10 @@
                     "name": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "projectUuid": {
@@ -1436,8 +1454,8 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
+                    "organizationUuid",
                     "projectUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -2347,10 +2365,10 @@
                     "name": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "description": {
@@ -2380,8 +2398,8 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
+                    "organizationUuid",
                     "projectUuid",
                     "spaceUuid",
                     "pinnedListUuid",
@@ -2433,10 +2451,10 @@
                     "name": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "projectUuid": {
@@ -2457,8 +2475,8 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
+                    "organizationUuid",
                     "projectUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -4679,10 +4697,10 @@
                     "name": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "description": {
@@ -4729,8 +4747,8 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
+                    "organizationUuid",
                     "updatedAt",
                     "projectUuid",
                     "spaceUuid",
@@ -5048,6 +5066,21 @@
             "CreateUserAttributeValue": {
                 "$ref": "#/components/schemas/Omit_UserAttributeValue.email_"
             },
+            "GroupAttributeValue": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "groupUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "groupUuid"],
+                "type": "object"
+            },
+            "CreateGroupAttributeValue": {
+                "$ref": "#/components/schemas/GroupAttributeValue"
+            },
             "CreateUserAttribute": {
                 "allOf": [
                     {
@@ -5055,6 +5088,12 @@
                     },
                     {
                         "properties": {
+                            "groups": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CreateGroupAttributeValue"
+                                },
+                                "type": "array"
+                            },
                             "users": {
                                 "items": {
                                     "$ref": "#/components/schemas/CreateUserAttributeValue"
@@ -5062,7 +5101,7 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["users"],
+                        "required": ["groups", "users"],
                         "type": "object"
                     }
                 ]
@@ -5567,7 +5606,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.922.0",
+        "version": "0.926.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

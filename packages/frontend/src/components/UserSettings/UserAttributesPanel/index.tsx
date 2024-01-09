@@ -62,10 +62,16 @@ const UserListItem: FC<{
                             </Tooltip>
                         )}
                     </Group>
-                    <Text fz="xs" color="gray.6">
-                        {orgUserAttribute.users.length} user
-                        {orgUserAttribute.users.length != 1 ? 's' : ''}
-                    </Text>
+                    <Group spacing="sm">
+                        <Text fz="xs" color="gray.6">
+                            {orgUserAttribute.users.length} user
+                            {orgUserAttribute.users.length > 1 ? 's' : ''}
+                        </Text>
+                        <Text fz="xs" color="gray.6">
+                            {orgUserAttribute.groups.length} group
+                            {orgUserAttribute.groups.length > 1 ? 's' : ''}
+                        </Text>
+                    </Group>
                 </Stack>
             </td>
             <td width="1%">
@@ -159,7 +165,7 @@ const UserAttributesPanel: FC = () => {
                 <Group spacing="two">
                     <Title order={5}>
                         {isGroupsFeatureFlagEnabled
-                            ? 'User and Group attributes'
+                            ? 'User and group attributes'
                             : 'User attributes'}
                     </Title>
                     <Tooltip
