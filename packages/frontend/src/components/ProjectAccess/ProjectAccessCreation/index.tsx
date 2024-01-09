@@ -7,8 +7,8 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Modal, ModalProps, Select, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconUser } from '@tabler/icons-react';
-import React, { FC, useEffect, useState } from 'react';
+import { IconUserPlus } from '@tabler/icons-react';
+import { FC, useEffect, useState } from 'react';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
@@ -96,8 +96,8 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
             keepMounted={false}
             title={
                 <Group spacing="xs">
-                    <MantineIcon size="lg" icon={IconUser} />
-                    <Title order={4}>Add user</Title>
+                    <MantineIcon size="lg" icon={IconUserPlus} />
+                    <Title order={4}>Add user access</Title>
                 </Group>
             }
             size="lg"
