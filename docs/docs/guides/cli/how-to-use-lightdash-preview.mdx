@@ -70,3 +70,54 @@ Once you close or merge your `pull request`, the `preview` project will get dele
 You can see the log on `Github actions` page
 
 ![Github actions stop preview](./assets/github-actions-stop.png)
+
+## How to use the developer credentials in your preview project
+
+When developing in dbt, you typically have a different set of credentials and dataset/schema than when you are running in production.
+Here are two options on how to set them up based on the developer that opened the Pull Request.
+
+### Using profile targets
+
+Update your `DBT_PROFILES` to have 1 target per developer. The target name should be their GitHub username.
+
+```yaml
+jaffle_shop:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      keyfile: keyfile.json
+      project: jaffle-shop
+      dataset: prod
+    katie: # example developer 1, should be GitHub username
+      type: bigquery
+      method: oauth
+      keyfile: keyfile.json
+      project: jaffle-shop
+      dataset: dbt_katie
+    jose: # example developer 2
+      type: bigquery
+      method: oauth
+      keyfile: keyfile.json
+      project: jaffle-shop
+      dataset: dbt_jose
+```
+
+Then, update your GitHub action to use the username as the `--target` flag for the `lightdash start-preview` command.
+
+```yaml
+run:  lightdash start-preview --project-dir "$PROJECT_DIR" --profiles-dir . --name ${GITHUB_REF##*/} --target ${{ github.actor }}
+```
+
+### Using github environments
+
+Setup a [GitHub environment](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) for each developer where the secrets are specifically for them. The environment name should be their GitHub username.
+Then, update your GitHub action to use the username as the environment.
+
+```yml
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    environment: ${{ github.actor }}
+```
