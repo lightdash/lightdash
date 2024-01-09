@@ -28,11 +28,19 @@ const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
     }>();
 
     const userCanManageExplore = user.data?.ability?.can('manage', 'Explore');
+    const userCanManageSavedChart = user.data?.ability?.can(
+        'manage',
+        'SavedChart',
+    );
 
-    if (!tile.properties.savedChartUuid || !userCanManageExplore) return null;
+    const cannotEditChart =
+        !tile.properties.savedChartUuid ||
+        !userCanManageExplore ||
+        !userCanManageSavedChart;
 
     return (
         <LinkMenuItem
+            disabled={cannotEditChart}
             icon={<MantineIcon icon={IconFilePencil} />}
             onClick={() => {
                 if (tile.properties.belongsToDashboard) {

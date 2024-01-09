@@ -896,6 +896,11 @@ export const GenericDashboardChartTile: FC<
                 tile={tile}
                 isLoading
                 title={tile.properties.title || tile.properties.chartName || ''}
+                extraMenuItems={
+                    tile.properties.savedChartUuid && (
+                        <EditChartMenuItem tile={tile} />
+                    )
+                }
                 {...rest}
             />
         );
