@@ -12,6 +12,7 @@ import {
     OrganizationProject,
     PreviewContentMapping,
     Project,
+    ProjectGroupAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectSummary,
@@ -42,6 +43,7 @@ import {
     OrganizationTableName,
 } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
+import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
 import {
     CachedExploresTableName,
@@ -911,6 +913,25 @@ export class ProjectModel {
             `,
             { projectUuid, userUuid },
         );
+    }
+
+    async getProjectGroupAccesses(projectUuid: string) {
+        const projectGroupAccesses = await this.database(
+            ProjectGroupAccessTableName,
+        )
+            .select<ProjectGroupAccess[]>({
+                projectUuid: 'project_uuid',
+                groupUuid: 'group_uuid',
+                role: 'role',
+            })
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${ProjectGroupAccessTableName}.project_id`,
+            )
+            .where('project_uuid', projectUuid);
+
+        return projectGroupAccesses;
     }
 
     async findDbtCloudIntegration(

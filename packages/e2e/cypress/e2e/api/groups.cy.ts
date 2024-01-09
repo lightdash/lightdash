@@ -203,7 +203,7 @@ describe('Groups API', () => {
                     role: 'viewer',
                 },
             }).then((resp) => {
-                expect(resp.status).to.eq(204);
+                expect(resp.status).to.eq(200);
             });
         });
 

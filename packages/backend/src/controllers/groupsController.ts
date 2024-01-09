@@ -1,9 +1,9 @@
 import {
+    ApiCreateProjectGroupAccess,
     ApiErrorPayload,
     ApiGroupMembersResponse,
     ApiGroupResponse,
     ApiSuccessEmpty,
-    UpdateGroup,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
 import {
@@ -199,19 +199,18 @@ export class GroupsController extends Controller {
     async addProjectAccessToGroup(
         @Path() groupUuid: string,
         @Path() projectUuid: string,
-        @Body() groupProjectAccess: Pick<CreateDBProjectGroupAccess, 'role'>,
+        @Body() projectGroupAccess: Pick<CreateDBProjectGroupAccess, 'role'>,
         @Request() req: express.Request,
-    ): Promise<ApiSuccessEmpty> {
-        await groupService.addProjectAccess(
-            req.user!,
+    ): Promise<ApiCreateProjectGroupAccess> {
+        const results = await groupService.addProjectAccess(req.user!, {
             groupUuid,
             projectUuid,
-            groupProjectAccess,
-        );
-        this.setStatus(204);
+            role: projectGroupAccess.role,
+        });
+        this.setStatus(200);
         return {
             status: 'ok',
-            results: undefined,
+            results,
         };
     }
 
@@ -230,12 +229,11 @@ export class GroupsController extends Controller {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        await groupService.removeProjectAccess(
-            req.user!,
+        const removed = await groupService.removeProjectAccess(req.user!, {
             groupUuid,
             projectUuid,
-        );
-        this.setStatus(204);
+        });
+        this.setStatus(removed ? 200 : 204);
         return {
             status: 'ok',
             results: undefined,

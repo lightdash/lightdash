@@ -61,6 +61,7 @@ import {
     ParameterError,
     Project,
     ProjectCatalog,
+    ProjectGroupAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
@@ -2638,6 +2639,28 @@ export class ProjectService {
         }
 
         await this.projectModel.deleteProjectAccess(projectUuid, userUuid);
+    }
+
+    async getProjectGroupAccesses(
+        actor: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectGroupAccess[]> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            actor.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.projectModel.getProjectGroupAccesses(projectUuid);
     }
 
     async upsertDbtCloudIntegration(

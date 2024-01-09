@@ -4,6 +4,7 @@ import {
     GroupMembership,
     GroupWithMembers,
     NotFoundError,
+    ProjectGroupAccess,
     ProjectMemberRole,
     UnexpectedDatabaseError,
     UpdateGroup,
@@ -13,7 +14,10 @@ import { Knex } from 'knex';
 import differenceBy from 'lodash/differenceBy';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationTableName } from '../database/entities/organizations';
-import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
+import {
+    DBProjectGroupAccess,
+    ProjectGroupAccessTableName,
+} from '../database/entities/projectGroupAccess';
 import { ProjectTableName } from '../database/entities/projects';
 
 export class GroupsModel {
@@ -270,12 +274,14 @@ export class GroupsModel {
         return this.getGroupWithMembers(groupUuid, 10000);
     }
 
-    async addProjectAccess(
-        projectUuid: string,
-        groupUuid: string,
-        role: ProjectMemberRole,
-    ): Promise<void> {
-        await this.database.raw(
+    async addProjectAccess({
+        groupUuid,
+        projectUuid,
+        role,
+    }: ProjectGroupAccess): Promise<DBProjectGroupAccess> {
+        const query = this.database.raw<{
+            rows: DBProjectGroupAccess[];
+        }>(
             `
             INSERT INTO ${ProjectGroupAccessTableName} (project_id, group_uuid, organization_id, role)
             SELECT ${ProjectTableName}.project_id, ${GroupTableName}.group_uuid, ${OrganizationTableName}.organization_id, :role
@@ -285,16 +291,36 @@ export class GroupsModel {
             WHERE ${ProjectTableName}.project_uuid = :projectUuid
             AND ${GroupTableName}.group_uuid = :groupUuid
             ON CONFLICT DO NOTHING
+            RETURNING *
             `,
             { projectUuid, groupUuid, role },
         );
+
+        console.log('-----------------');
+        console.log(query.toSQL());
+        console.log('-----------------');
+
+        const result = await query;
+
+        console.log(result.rows);
+
+        if (result.rows.length === 0) {
+            throw new UnexpectedDatabaseError(`Failed to add project access`);
+        }
+
+        const [row] = result.rows;
+
+        return row;
     }
 
-    async removeProjectAccess(
-        projectUuid: string,
-        groupUuid: string,
-    ): Promise<void> {
-        await this.database.raw(
+    async removeProjectAccess({
+        projectUuid,
+        groupUuid,
+    }: Pick<
+        ProjectGroupAccess,
+        'groupUuid' | 'projectUuid'
+    >): Promise<boolean> {
+        const query = this.database.raw(
             `
             DELETE FROM ${ProjectGroupAccessTableName}
             WHERE project_id = (
@@ -303,8 +329,13 @@ export class GroupsModel {
                 WHERE project_uuid = :projectUuid
             )
             AND group_uuid = :groupUuid
+            RETURNING *
             `,
             { projectUuid, groupUuid },
         );
+
+        const result = await query;
+
+        return result.rows.length > 0;
     }
 }

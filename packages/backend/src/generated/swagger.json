@@ -774,6 +774,35 @@
                 ],
                 "type": "string"
             },
+            "ProjectGroupAccess": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/ProjectMemberRole"
+                    },
+                    "groupUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["role", "groupUuid", "projectUuid"],
+                "type": "object"
+            },
+            "ApiCreateProjectGroupAccess": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectGroupAccess"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_CreateDBProjectGroupAccess.role_": {
                 "properties": {
                     "role": {
@@ -2633,6 +2662,23 @@
                     }
                 },
                 "required": ["role"],
+                "type": "object"
+            },
+            "ApiGetProjectGroupAccesses": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectGroupAccess"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "Record_string._type-DimensionType--__": {
@@ -6138,7 +6184,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                    "$ref": "#/components/schemas/ApiCreateProjectGroupAccess"
                                 }
                             }
                         }
@@ -7330,6 +7376,46 @@
                     {
                         "in": "path",
                         "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/groupAccesses": {
+            "get": {
+                "operationId": "GetProjectGroupAccesses",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetProjectGroupAccesses"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List group access for projects",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

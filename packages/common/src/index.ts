@@ -71,6 +71,7 @@ import {
     UpdateAllowedEmailDomains,
 } from './types/organization';
 import { PinnedItems } from './types/pinning';
+import { ProjectGroupAccess } from './types/projectGroupAccess';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -136,6 +137,7 @@ export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
+export * from './types/projectGroupAccess';
 export * from './types/projectMemberProfile';
 export * from './types/projects';
 export * from './types/resourceViewItem';
@@ -528,6 +530,7 @@ type ApiResults =
     | CreatePersonalAccessToken
     | PersonalAccessToken
     | ProjectMemberProfile[]
+    | ProjectGroupAccess
     | SearchResults
     | Space
     | DbtCloudIntegration

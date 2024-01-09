@@ -5,6 +5,7 @@ import {
     GroupMember,
     GroupMembership,
     GroupWithMembers,
+    ProjectGroupAccess,
     ProjectMemberRole,
     SessionUser,
     UpdateGroup,
@@ -143,10 +144,8 @@ export class GroupsService {
 
     async addProjectAccess(
         actor: SessionUser,
-        groupUuid: string,
-        projectUuid: string,
-        groupProjectAccess: Pick<CreateDBProjectGroupAccess, 'role'>,
-    ): Promise<void> {
+        { groupUuid, projectUuid, role }: ProjectGroupAccess,
+    ): Promise<ProjectGroupAccess> {
         const group = await this.groupsModel.getGroup(groupUuid);
 
         if (
@@ -160,18 +159,26 @@ export class GroupsService {
             throw new ForbiddenError();
         }
 
-        await this.groupsModel.addProjectAccess(
+        const groupProjectAccess = await this.groupsModel.addProjectAccess({
             groupUuid,
             projectUuid,
-            groupProjectAccess.role,
-        );
+            role,
+        });
+
+        return {
+            projectUuid,
+            groupUuid: groupProjectAccess.group_uuid,
+            role: groupProjectAccess.role,
+        };
     }
 
     async removeProjectAccess(
         actor: SessionUser,
-        groupUuid: string,
-        projectUuid: string,
-    ): Promise<void> {
+        {
+            groupUuid,
+            projectUuid,
+        }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
+    ) {
         const group = await this.groupsModel.getGroup(groupUuid);
         if (
             actor.ability.cannot(
@@ -184,6 +191,11 @@ export class GroupsService {
             throw new ForbiddenError();
         }
 
-        await this.groupsModel.removeProjectAccess(groupUuid, projectUuid);
+        const removed = await this.groupsModel.removeProjectAccess({
+            groupUuid,
+            projectUuid,
+        });
+
+        return removed;
     }
 }

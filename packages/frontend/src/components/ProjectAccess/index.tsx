@@ -20,7 +20,8 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
         useState(false);
     const [showGroupAccessModal, setShowGroupAccessModal] = useState(false);
 
-    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
+    const groupManagementEnabled =
+        useFeatureFlagEnabled('group-management') || true;
 
     return (
         <>
