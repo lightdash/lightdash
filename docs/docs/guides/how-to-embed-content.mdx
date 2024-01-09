@@ -2,6 +2,7 @@ import EmbedCreateSecret from './assets/embed-create-secret.png';
 import EmbedAddDashboard from './assets/embed-add-dashboard.png';
 import EmbedDeveloper from './assets/embed-developer.png';
 import EmbedPreview from './assets/embed-preview.png';
+import CreateUserAttribute from './assets/create-user-attribute.png';
 
 # How to embed content
 
@@ -43,3 +44,57 @@ To make this easier to integrate, we included some code snippets you can copy an
 <img src={EmbedDeveloper} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### For more information on embed settings, see the [embedding reference doc](../references/embedding.mdx)
+
+## I want to have my embedded dashboard show different values for different users in my app.
+
+Imagine a scenario where I have a dashboard embedded in my application showing an overview of orders. Ideally, when a user looks at this dashboard, they should only see the orders for their shop (not all of the other shops using my application). You can do this with embedded dashboards using user attributes. Here's how to do it:
+
+### Create a user attribute in Lightdash
+
+First, we need to create a [user attribute](#../references/user-attributes.mdx) in Lightdash that we can use to assign our users to a specific shop. I create an attribute called `shop_id` and I set the default value to `all`. 
+
+<img src={CreateUserAttribute} width="516" height="381" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+
+### Filter the tables you use to create your dashboard using the user attribute
+
+We need to filter the access to all of the tables we use in our dashboard using this attribute. For example, in my `Order Summary` dashboard, I use the `orders` and the `shops` tables to build all of the charts. So, in these two tables, I'm going to add a [row-level filter](#../references/user-attributes.mdx#2--column-filtering-with--required-attributes-), like:
+
+```yaml
+version: 2
+models:
+  - name: orders
+    meta:
+      sql_filter: ${lightdash.attributes.shop_id} = 'all' OR ${TABLE}.shop_id = ${lightdash.attributes.shop_id} 
+```
+
+### How default values in user attributes interact with embedding
+
+By default, anyone viewing an embedded dashboard will have the `default` attribute value you've set for your user attributes. 
+
+For example, here I have a user attribute `access_pii_data` with the default value `false`. Anyone viewing my embedded dashboard will also have `access_pii_data = false`.
+
+<img src={UserAttributesDefault} width="447" height="378" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+### How to override default values
+
+You can override the `default` value for a user attribute in your embedded dashboard by specifying the attribute name and value in the `user attributes` section here. 
+
+For example, if I wanted the `access_pii_data` user attribute from above to be `true` (not the default value, `false`) for people viewing my embedded dashboard, then I would add it to the user attributes section in the embed configuration. 
+
+<img src={UserAttributesOverride} width="448" height="130" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### What happens if you don't have a default value set
+
+If you haven't set a `default` value for a user attribute, then you need to set a specific value for the user attribute in the `user attributes` section here. Otherwise, anyone viewing the embedded dashboard will see an error for content usign data that's limited by the user attribute. 
+
+#### How to use external variables in user attributes
+
+See the section on [user attributes in the `Code snippet`](#passing-external-variables-to-user-attributes) below. 
+
+
+## I want to make my embed links more secure
+In here you explain the code snippets and the expiration time
+
+## I want to generate a publicly available dashboard that doesn't expire
+In here you explain the risks about doing this and how to achieve it.
+
