@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { Anchor, Button, Divider, Group, Text } from '@mantine/core';
 import { IconUserPlus, IconUsersGroup } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useState } from 'react';
 import { ProjectGroupAccessModal } from '../../features/projectGroupAccess';
 import { useApp } from '../../providers/AppProvider';
@@ -18,6 +19,8 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
     const [showProjectAccessCreate, setShowProjectAccessCreate] =
         useState(false);
     const [showGroupAccessModal, setShowGroupAccessModal] = useState(false);
+
+    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
 
     return (
         <>
@@ -51,15 +54,28 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                                 Add user access
                             </Button>
 
-                            <Divider orientation="vertical" color="blue.7" />
+                            {groupManagementEnabled && (
+                                <>
+                                    <Divider
+                                        orientation="vertical"
+                                        color="blue.7"
+                                    />
 
-                            <Button
-                                leftIcon={<MantineIcon icon={IconUsersGroup} />}
-                                onClick={() => setShowGroupAccessModal(true)}
-                                size="xs"
-                            >
-                                Manage group access
-                            </Button>
+                                    <Button
+                                        leftIcon={
+                                            <MantineIcon
+                                                icon={IconUsersGroup}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            setShowGroupAccessModal(true)
+                                        }
+                                        size="xs"
+                                    >
+                                        Manage group access
+                                    </Button>
+                                </>
+                            )}
                         </Button.Group>
                     </Can>
                 </div>
