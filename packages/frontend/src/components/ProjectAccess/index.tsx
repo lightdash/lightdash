@@ -2,12 +2,12 @@ import { subject } from '@casl/ability';
 import { Anchor, Button, Divider, Group, Text } from '@mantine/core';
 import { IconUserPlus, IconUsersGroup } from '@tabler/icons-react';
 import { FC, useState } from 'react';
+import { ProjectGroupAccessModal } from '../../features/projectGroupAccess';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import ProjectAccess from './ProjectAccess';
 import ProjectAccessCreation from './ProjectAccessCreation';
-import ProjectGroupAccessModal from './ProjectGroupAccessModal';
 
 interface ProjectUserAccessProps {
     projectUuid: string;

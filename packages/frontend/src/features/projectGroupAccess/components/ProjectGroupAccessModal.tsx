@@ -11,11 +11,11 @@ import {
 } from '@mantine/core';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
-import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
-import { TrackPage } from '../../providers/TrackingProvider';
-import { CategoryName, PageName, PageType } from '../../types/Events';
-import MantineIcon from '../common/MantineIcon';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
+import { TrackPage } from '../../../providers/TrackingProvider';
+import { CategoryName, PageName, PageType } from '../../../types/Events';
 
 interface ProjectGroupAccessModalProps extends ModalProps {
     projectUuid: string;
