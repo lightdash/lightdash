@@ -194,7 +194,7 @@ describe('Groups API', () => {
         });
     });
 
-    describe.only('Group Project access API', () => {
+    describe('Group Project access API', () => {
         it('should add a group access to a project', () => {
             cy.request({
                 url: `api/v1/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
