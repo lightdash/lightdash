@@ -3,6 +3,7 @@ import EmbedAddDashboard from './assets/embed-add-dashboard.png';
 import EmbedDeveloper from './assets/embed-developer.png';
 import EmbedPreview from './assets/embed-preview.png';
 import CreateUserAttribute from './assets/create-user-attribute.png';
+import DashboardEmbedAttribute from './assets/dashboard-embed-attribute.png';
 
 # How to embed content
 
@@ -57,7 +58,7 @@ First, we need to create a [user attribute](#../references/user-attributes.mdx) 
 
 ### Filter the tables used in your dashboard with `sql_filter`
 
-We need to filter the access to all of the tables we use in our dashboard using this attribute. For example, in my `Order Summary` dashboard, I use the `orders` and the `shops` tables to build all of the charts. So, in these two tables, I'm going to add a [row-level filter](#../references/user-attributes#1-row-filtering-with-sql_filter), like:
+We need to filter the access to all of the tables we use in our dashboard using this attribute. For example, in my `Order Summary` dashboard, I use the `orders` and the `shops` tables to build all of the charts. So, in these two tables, I'm going to add a [row-level filter](#../references/user-attributes#1-row-filtering-with-sql_filter) using my `shop_id` attribute, like:
 
 ```yaml
 version: 2
@@ -67,34 +68,40 @@ models:
       sql_filter: ${lightdash.attributes.shop_id} = 'all' OR ${TABLE}.shop_id = ${lightdash.attributes.shop_id} 
 ```
 
-### How default values in user attributes interact with embedding
+### Add the user attribute to your dashboard embed
 
-By default, anyone viewing an embedded dashboard will have the `default` attribute value you've set for your user attributes. 
+Now that we have our user attribute set up and filtering our data properly, we want to head back to our dashboard emedding configuration.
 
-For example, here I have a user attribute `access_pii_data` with the default value `false`. Anyone viewing my embedded dashboard will also have `access_pii_data = false`.
+There are two ways to use user attributes in your embedded dashboard:
 
-<img src={UserAttributesDefault} width="447" height="378" style={{display: "block", margin: "0 auto 20px auto"}}/>
+**Option 1: assign a constant value for your attribute**
 
-### How to override default values
+You can assign your dashboard a single, constant value for your attribute by adding it in the `user attributes` section of your embedded dashboard setup. 
 
-You can override the `default` value for a user attribute in your embedded dashboard by specifying the attribute name and value in the `user attributes` section here. 
+For example, if I wanted the embed link to only show data for `shop_id = Thyme to Shine`, then I would add a user attribute `shop_id` with the value `Thyme to Shine`. 
 
-For example, if I wanted the `access_pii_data` user attribute from above to be `true` (not the default value, `false`) for people viewing my embedded dashboard, then I would add it to the user attributes section in the embed configuration. 
+<img src={DashboardEmbedAttribute} width="399" height="149" style={{display: "block", margin: "0 auto 20px auto"}}/>.
 
-<img src={UserAttributesOverride} width="448" height="130" style={{display: "block", margin: "0 auto 20px auto"}}/>
+**Option 2: assign a variable value for your attribute**
 
-#### What happens if you don't have a default value set
+You can adjust the value of the user attribute based on a variable coming from your app so, for example, the user attribute for `shop_id` in the Lightdash embedded dashboard would change depending on which `shop_id` the user belonged to in my app.
 
-If you haven't set a `default` value for a user attribute, then you need to set a specific value for the user attribute in the `user attributes` section here. Otherwise, anyone viewing the embedded dashboard will see an error for content usign data that's limited by the user attribute. 
+To do this, I would pass Lightdash an external value for `shop_id` in the embed code snippet. This could look something like:
 
-#### How to use external variables in user attributes
+```node
+import jwt from 'jsonwebtoken';
+const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
+const projectUuid = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+const userShopId = await getUserShopIdFromDatabase();
+const data = {
+    content: {
+        type: 'dashboard',
+        dashboardUuid: 'a392ed6d-4c53-4102-89b7-1c57a87df391',
+    },
+    userAttributes: {"shop_id": userShopId},
+};
+const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '1 hour' });
+const url = `https://analytics.lightdash.cloud/embed/${projectUuid}/#${token}`;
+```
 
-See the section on [user attributes in the `Code snippet`](#passing-external-variables-to-user-attributes) below. 
-
-
-## I want to make my embed links more secure
-In here you explain the code snippets and the expiration time
-
-## I want to generate a publicly available dashboard that doesn't expire
-In here you explain the risks about doing this and how to achieve it.
-
+And voila! you now have an embedded dashboard that shows different values for different users in your app.
