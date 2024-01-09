@@ -1,3 +1,10 @@
+# [0.927.0](https://github.com/lightdash/lightdash/compare/0.926.0...0.927.0) (2024-01-09)
+
+
+### Features
+
+* assign group access in projects (UI) ([#8509](https://github.com/lightdash/lightdash/issues/8509)) ([73ac834](https://github.com/lightdash/lightdash/commit/73ac834a8ea2c4be402bab775b234d61f1f3c50d))
+
 # [0.926.0](https://github.com/lightdash/lightdash/compare/0.925.1...0.926.0) (2024-01-09)
 
 
