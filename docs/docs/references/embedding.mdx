@@ -1,5 +1,8 @@
-import UserAttributesDefault from './assets/user-attributes-default.png';
-import UserAttributesOverride from './assets/user-attributes-override.png';
+import EmbedCreateSecret from '../guides/assets/embed-create-secret.png';
+import EmbedAddDashboard from '../guides/assets/embed-add-dashboard.png';
+import EmbedDeveloper from '../guides/assets/embed-developer.png';
+import EmbedPreview from '../guides/assets/embed-preview.png';
+import CreateUserAttribute from '../guides/assets/create-user-attribute.png';
 
 # Embedding
 
@@ -11,15 +14,21 @@ The embed secret is used to generate tokens for embedding dashboards.
 
 This secret is like a password that will help you encrypt the URLs so we know the access is valid.
 
+<img src={EmbedCreateSecret} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+
 You can regenerate the secret by clicking on the `Generate new secret` button.  If you do this, people with an old URL will automatically lose access to any previously shared embed URL. 
 
 ## Allowed dashboards
 
 Only dashboards included in the `allowed dashboards` can be accessed using embed URLs. To embed a dashboard, you need to first add it to the `allowed dashboards` list. 
 
+<img src={EmbedAddDashboard} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 ## Configure 
 
 Configure the embed URL. Then preview your settings and copy it to your clipboard.
+
+<img src={EmbedPreview} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### Dashboard
 
@@ -57,11 +66,13 @@ Clicking `generate & copy url` will generate an embed URL based on the configura
 
 You can embed this one-off URL directly into your application, but you will manually need to update the URL each time the embed URL expires. Alternatively, you can add the [`code snippet`](#code-snippet) to your app to automatically generate embed URLs in your application.  
 
-### Code snippet
+## Code snippet
 
 Although you can generate URLs directly from Lightdash with a long expiration, it is recommended to generate your own JWT embed tokens in your backend with a short expiration using your `secret` to make sure people can't be using embed URLs outside your app. 
 
 To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL.
+
+<img src={EmbedDeveloper} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### User metadata
 
