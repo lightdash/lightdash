@@ -4,6 +4,7 @@ import {
     Box,
     Card,
     Flex,
+    getDefaultZIndex,
     Group,
     LoadingOverlay,
     Menu,
@@ -97,6 +98,31 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             })}
         >
             <LoadingOverlay visible={isLoading ?? false} />
+
+            {isLoading && (
+                <Box
+                    style={{
+                        zIndex: getDefaultZIndex('overlay') + 1,
+                    }}
+                >
+                    <HeaderContainer
+                        $isEditMode={isEditMode}
+                        $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
+                    >
+                        <TitleWrapper>
+                            <TileTitleLink
+                                ref={titleRef}
+                                href={titleHref}
+                                $hovered={titleHovered}
+                                target="_blank"
+                                className="non-draggable"
+                            >
+                                {title}
+                            </TileTitleLink>
+                        </TitleWrapper>
+                    </HeaderContainer>
+                </Box>
+            )}
 
             {!isLoading && (
                 <>

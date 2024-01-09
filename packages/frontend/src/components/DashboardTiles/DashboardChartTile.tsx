@@ -880,16 +880,27 @@ export const GenericDashboardChartTile: FC<
     error,
     ...rest
 }) => {
-    if (isLoading)
+    const { projectUuid } = useParams<{
+        projectUuid: string;
+        dashboardUuid: string;
+    }>();
+
+    if (isLoading) {
         return (
             <TileBase
                 isEditMode={isEditMode}
+                chartName={tile.properties.chartName ?? ''}
+                titleHref={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/`}
+                description={''}
+                belongsToDashboard={tile.properties.belongsToDashboard}
                 tile={tile}
-                isLoading={true}
-                title={''}
+                isLoading
+                title={tile.properties.title || tile.properties.chartName || ''}
                 {...rest}
             />
         );
+    }
+
     if (error !== null || !data)
         return (
             <TileBase
