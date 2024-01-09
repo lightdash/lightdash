@@ -1,5 +1,6 @@
-import { ProjectMemberRole } from '@lightdash/common';
+import { GroupMember, ProjectMemberRole } from '@lightdash/common';
 import {
+    Box,
     Button,
     Checkbox,
     Group,
@@ -7,7 +8,9 @@ import {
     ModalProps,
     Select,
     Stack,
+    Table,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { useListState } from '@mantine/hooks';
 import { IconUsersGroup } from '@tabler/icons-react';
@@ -49,6 +52,7 @@ type ProjectGroupAccessState = {
     projectUuid: string;
     groupUuid: string;
     groupName: string;
+    groupUserMembers: GroupMember[];
     enabled: boolean;
     role: ProjectMemberRole;
 };
@@ -58,7 +62,7 @@ const ProjectGroupAccessModal: FC<ProjectGroupAccessModalProps> = ({
     onClose,
     projectUuid,
 }) => {
-    const { data: groups, isLoading } = useOrganizationGroups();
+    const { data: groups, isLoading } = useOrganizationGroups(5);
     const [
         projectGroupAccess,
         {
@@ -75,6 +79,7 @@ const ProjectGroupAccessModal: FC<ProjectGroupAccessModalProps> = ({
                 projectUuid,
                 groupUuid: group.uuid,
                 groupName: group.name,
+                groupUserMembers: group.members,
                 enabled: false,
                 role: ProjectMemberRole.VIEWER,
             })),
@@ -105,39 +110,114 @@ const ProjectGroupAccessModal: FC<ProjectGroupAccessModalProps> = ({
                     <SuboptimalState title="No groups found..." />
                 ) : (
                     <Stack>
-                        {projectGroupAccess.map((groupAccess, index) => (
-                            <Group key={groupAccess.groupUuid} position="apart">
-                                <Checkbox
-                                    label={groupAccess.groupName}
-                                    checked={groupAccess.enabled}
-                                    onClick={(event) => {
-                                        setProjectGroupAccessItemProp(
-                                            index,
-                                            'enabled',
-                                            event.currentTarget.checked,
-                                        );
-                                    }}
-                                />
+                        <Table>
+                            <tbody>
+                                {projectGroupAccess.map(
+                                    (groupAccess, index) => (
+                                        <Box
+                                            component="tr"
+                                            key={groupAccess.groupUuid}
+                                            bg={
+                                                groupAccess.enabled
+                                                    ? 'blue.0'
+                                                    : 'transparent'
+                                            }
+                                        >
+                                            <td>
+                                                <Checkbox
+                                                    label={
+                                                        groupAccess.groupName
+                                                    }
+                                                    checked={
+                                                        groupAccess.enabled
+                                                    }
+                                                    description={
+                                                        <>
+                                                            <Tooltip
+                                                                withinPortal
+                                                                position="right"
+                                                                disabled={
+                                                                    groupAccess
+                                                                        .groupUserMembers
+                                                                        .length ===
+                                                                    0
+                                                                }
+                                                                label={
+                                                                    <Stack spacing="one">
+                                                                        {groupAccess.groupUserMembers.map(
+                                                                            (
+                                                                                member,
+                                                                            ) => (
+                                                                                <span
+                                                                                    key={
+                                                                                        member.userUuid
+                                                                                    }
+                                                                                >
+                                                                                    {[
+                                                                                        member.firstName,
+                                                                                        member.lastName,
+                                                                                    ].join(
+                                                                                        ' ',
+                                                                                    ) ||
+                                                                                        member.email}
+                                                                                </span>
+                                                                            ),
+                                                                        )}
+                                                                    </Stack>
+                                                                }
+                                                            >
+                                                                <span>
+                                                                    {
+                                                                        groupAccess
+                                                                            .groupUserMembers
+                                                                            .length
+                                                                    }{' '}
+                                                                    members
+                                                                </span>
+                                                            </Tooltip>
+                                                        </>
+                                                    }
+                                                    onClick={(event) => {
+                                                        setProjectGroupAccessItemProp(
+                                                            index,
+                                                            'enabled',
+                                                            event.currentTarget
+                                                                .checked,
+                                                        );
+                                                    }}
+                                                />
+                                            </td>
 
-                                <Select
-                                    withinPortal
-                                    disabled={!groupAccess.enabled}
-                                    data={groupRoles}
-                                    value={groupAccess.role}
-                                    onChange={(
-                                        value: ProjectMemberRole | null,
-                                    ) => {
-                                        if (typeof value !== 'string') return;
+                                            <td style={{ width: '40%' }}>
+                                                <Select
+                                                    withinPortal
+                                                    disabled={
+                                                        !groupAccess.enabled
+                                                    }
+                                                    data={groupRoles}
+                                                    value={groupAccess.role}
+                                                    onChange={(
+                                                        value: ProjectMemberRole | null,
+                                                    ) => {
+                                                        if (
+                                                            typeof value !==
+                                                            'string'
+                                                        )
+                                                            return;
 
-                                        setProjectGroupAccessItemProp(
-                                            index,
-                                            'role',
-                                            value,
-                                        );
-                                    }}
-                                />
-                            </Group>
-                        ))}
+                                                        setProjectGroupAccessItemProp(
+                                                            index,
+                                                            'role',
+                                                            value,
+                                                        );
+                                                    }}
+                                                />
+                                            </td>
+                                        </Box>
+                                    ),
+                                )}
+                            </tbody>
+                        </Table>
 
                         <Button style={{ alignSelf: 'flex-end' }}>Save</Button>
                     </Stack>
