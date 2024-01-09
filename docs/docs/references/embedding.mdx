@@ -37,6 +37,16 @@ Use user attributes to limit access to certain data in the embedded dashboard. Y
 
 To learn about getting your embedded dashboard to show different values for different users in your app, [check out the guide here](../guides/how-to-embed-content.mdx#i-want-to-have-my-embedded-dashboard-show-different-values-for-different-users-in-my-app).
 
+### Interactivity
+
+There are options to enable certain dashboard interactivity features on your embedded dashboard in this section. By default, all interactivity is disabled on an embedded dashboard. 
+
+#### Allow users to change dashboard filters
+
+When disabled, if your dashboard in Lightdash has filters, they will be applied, but won't be shown in the embedded dashboard. 
+
+When enabled, if your dashboard in Lightdash has filters, they will appear in the embedded dashboard like they do in Lightdash. Users interacting with the embedded dashboard will be able to change the value and operator of your filters. They cannot add new filters, remove existing filters, change the field used in the filter, or change the tiles the filter is applied to. 
+
 ### Preview
 
 Clicking on `preview` allows you to preview the configuration for your embedded dashboard. This what people viewing your embedded dashboard will see.
@@ -52,3 +62,4 @@ You can embed this one-off URL directly into your application, but you will manu
 Although you can generate URLs directly from Lightdash with a long expiration, it is recommended to generate your own JWT embed tokens in your backend with a short expiration using your `secret` to make sure people can't be using embed URLs outside your app. 
 
 To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL.
+
