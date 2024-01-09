@@ -144,6 +144,7 @@ const ProjectGroupAccessModal: FC<ProjectGroupAccessModalProps> = ({
                                                                 }
                                                                 label={
                                                                     <Stack spacing="one">
+                                                                        {/* TODO: truncate the list of members if it's too long once we'll have total number of users from the API */}
                                                                         {groupAccess.groupUserMembers.map(
                                                                             (
                                                                                 member,
@@ -166,6 +167,7 @@ const ProjectGroupAccessModal: FC<ProjectGroupAccessModalProps> = ({
                                                                     </Stack>
                                                                 }
                                                             >
+                                                                {/* TODO: members are limited, we should expose total number of users from the API (which we don't ATM)  */}
                                                                 <span>
                                                                     {
                                                                         groupAccess
