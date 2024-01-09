@@ -9,8 +9,9 @@ import {
     Stack,
     Title,
 } from '@mantine/core';
+import { useListState } from '@mantine/hooks';
 import { IconUsersGroup } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { FC, useEffect } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
@@ -44,24 +45,41 @@ const groupRoles = [
     },
 ] as const;
 
+type ProjectGroupAccessState = {
+    projectUuid: string;
+    groupUuid: string;
+    groupName: string;
+    enabled: boolean;
+    role: ProjectMemberRole;
+};
+
 const ProjectGroupAccessModal: FC<ProjectGroupAccessModalProps> = ({
     opened,
     onClose,
-    // projectUuid,
+    projectUuid,
 }) => {
     const { data: groups, isLoading } = useOrganizationGroups();
-    const [enabledGroups, setEnabledGroup] = useState<string[]>([]);
-
-    const handleToggleGroup = useCallback(
-        (uuid: string) => {
-            if (enabledGroups.includes(uuid)) {
-                setEnabledGroup(enabledGroups.filter((u) => u !== uuid));
-            } else {
-                setEnabledGroup([...enabledGroups, uuid]);
-            }
+    const [
+        projectGroupAccess,
+        {
+            setState: setProjectGroupAccessState,
+            setItemProp: setProjectGroupAccessItemProp,
         },
-        [enabledGroups],
-    );
+    ] = useListState<ProjectGroupAccessState>();
+
+    useEffect(() => {
+        if (groups === undefined) return;
+
+        setProjectGroupAccessState(
+            groups.map((group) => ({
+                projectUuid,
+                groupUuid: group.uuid,
+                groupName: group.name,
+                enabled: false,
+                role: ProjectMemberRole.VIEWER,
+            })),
+        );
+    }, [groups, projectUuid, setProjectGroupAccessState]);
 
     return (
         <Modal
@@ -87,23 +105,36 @@ const ProjectGroupAccessModal: FC<ProjectGroupAccessModalProps> = ({
                     <SuboptimalState title="No groups found..." />
                 ) : (
                     <Stack>
-                        {groups.map((group) => (
-                            <Group key={group.uuid} position="apart">
+                        {projectGroupAccess.map((groupAccess, index) => (
+                            <Group key={groupAccess.groupUuid} position="apart">
                                 <Checkbox
-                                    label={group.name}
-                                    checked={enabledGroups.includes(group.uuid)}
-                                    onClick={() =>
-                                        handleToggleGroup(group.uuid)
-                                    }
+                                    label={groupAccess.groupName}
+                                    checked={groupAccess.enabled}
+                                    onClick={(event) => {
+                                        setProjectGroupAccessItemProp(
+                                            index,
+                                            'enabled',
+                                            event.currentTarget.checked,
+                                        );
+                                    }}
                                 />
 
                                 <Select
                                     withinPortal
-                                    disabled={
-                                        !enabledGroups.includes(group.uuid)
-                                    }
+                                    disabled={!groupAccess.enabled}
                                     data={groupRoles}
-                                    defaultValue={ProjectMemberRole.VIEWER}
+                                    value={groupAccess.role}
+                                    onChange={(
+                                        value: ProjectMemberRole | null,
+                                    ) => {
+                                        if (typeof value !== 'string') return;
+
+                                        setProjectGroupAccessItemProp(
+                                            index,
+                                            'role',
+                                            value,
+                                        );
+                                    }}
                                 />
                             </Group>
                         ))}
