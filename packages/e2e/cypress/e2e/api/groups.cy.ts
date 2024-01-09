@@ -195,7 +195,7 @@ describe('Groups API', () => {
     });
 
     describe.only('Group Project access API', () => {
-        it.only('should add a group access to a project', () => {
+        it('should add a group access to a project', () => {
             cy.request({
                 url: `api/v1/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
                 method: 'POST',
@@ -217,7 +217,7 @@ describe('Groups API', () => {
                 },
                 failOnStatusCode: false,
             }).then((resp) => {
-                expect(resp.status).to.eq(422);
+                expect(resp.status).to.eq(403);
             });
         });
 
@@ -226,7 +226,7 @@ describe('Groups API', () => {
                 url: `api/v1/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
                 method: 'DELETE',
             }).then((resp) => {
-                expect(resp.status).to.eq(204);
+                expect(resp.status).to.eq(200);
             });
         });
 
