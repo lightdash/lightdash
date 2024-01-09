@@ -1,3 +1,10 @@
+# [0.926.0](https://github.com/lightdash/lightdash/compare/0.925.1...0.926.0) (2024-01-09)
+
+
+### Features
+
+* add disabled edit tile content option for charts created within dashboard ([#8495](https://github.com/lightdash/lightdash/issues/8495)) ([62c2c7e](https://github.com/lightdash/lightdash/commit/62c2c7ec11b682f8afc6d630bdc39f4a0cefe89d))
+
 ## [0.925.1](https://github.com/lightdash/lightdash/compare/0.925.0...0.925.1) (2024-01-08)
 
 
