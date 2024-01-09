@@ -255,7 +255,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
                 userAttributes: {
-                    country: 'EU',
+                    country: ['EU'],
                 },
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_SQL_FILTER);
@@ -286,7 +286,7 @@ describe('replaceUserAttributes', () => {
     });
 
     it('method should replace sqlFilter with user attribute', async () => {
-        const userAttributes = { test: '1' };
+        const userAttributes = { test: ['1'] };
         const expected = "'1' > 1";
         expect(
             replaceUserAttributes(
@@ -301,7 +301,7 @@ describe('replaceUserAttributes', () => {
     });
 
     it('method should replace sqlFilter with multiple user attributes', async () => {
-        const userAttributes = { test: '1', another: '2' };
+        const userAttributes = { test: ['1'], another: ['2'] };
         const sqlFilter =
             '${dimension} IS NOT NULL OR (${lightdash.attribute.test} > 1 AND ${lightdash.attribute.another} = 2)';
         const expected = "${dimension} IS NOT NULL OR ('1' > 1 AND '2' = 2)";
@@ -311,7 +311,7 @@ describe('replaceUserAttributes', () => {
     });
 
     it('method should replace sqlFilter using short aliases', async () => {
-        const userAttributes = { test: '1', another: '2' };
+        const userAttributes = { test: ['1'], another: ['2'] };
         const expected = "'1' > 1";
         expect(
             replaceUserAttributes('${ld.attribute.test} > 1', userAttributes),
@@ -371,7 +371,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                         is_admin: 'true',
                     },
                 },
-                { is_admin: 'false' },
+                { is_admin: ['false'] },
                 '',
             ),
         ).toThrowError(ForbiddenError);
@@ -385,7 +385,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                     is_admin: 'true',
                 },
             },
-            { is_admin: 'true' },
+            { is_admin: ['true'] },
             '',
         );
 

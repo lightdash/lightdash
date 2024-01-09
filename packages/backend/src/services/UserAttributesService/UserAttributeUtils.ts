@@ -4,7 +4,9 @@ export const hasUserAttribute = (
     userAttributes: UserAttributeValueMap,
     attributeName: string,
     value: string,
-) => userAttributes[attributeName] === value;
+): boolean =>
+    !!userAttributes[attributeName] &&
+    userAttributes[attributeName].includes(value);
 
 export const hasUserAttributes = (
     requiredAttributes: Record<string, string | string[]> | undefined,

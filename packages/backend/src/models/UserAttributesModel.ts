@@ -4,8 +4,11 @@ import {
     UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { GroupTableName } from '../database/entities/groups';
+import { GroupMembershipTableName } from '../database/entities/group_memberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
+    DbGroupUserAttribute,
     DbOrganizationMemberUserAttribute,
     DbUserAttribute,
     GroupUserAttributesTable,
@@ -35,7 +38,15 @@ export class UserAttributesModel {
                 `${UserAttributesTable}.organization_id`,
                 `${OrganizationTableName}.organization_id`,
             )
-            .select<Array<Pick<DbUserAttribute, 'name' | 'attribute_default'>>>(
+            .select<
+                Array<
+                    Pick<
+                        DbUserAttribute,
+                        'name' | 'attribute_default' | 'user_attribute_uuid'
+                    >
+                >
+            >(
+                `${UserAttributesTable}.user_attribute_uuid`,
                 `${UserAttributesTable}.name`,
                 `${UserAttributesTable}.attribute_default`,
             )
@@ -81,14 +92,81 @@ export class UserAttributesModel {
             (acc, row) => ({ ...acc, [row.name]: row.value }),
             {},
         );
-        // combine user values and default values
-        return attributeValues.reduce<UserAttributeValueMap>(
+
+        const groupsValues = await this.database(GroupUserAttributesTable)
+            .leftJoin(
+                GroupTableName,
+                `${GroupUserAttributesTable}.group_uuid`,
+                `${GroupTableName}.group_uuid`,
+            )
+            .leftJoin(
+                GroupMembershipTableName,
+                `${GroupTableName}.group_uuid`,
+                `${GroupMembershipTableName}.group_uuid`,
+            )
+            .leftJoin(
+                OrganizationTableName,
+                `${GroupTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${GroupMembershipTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .leftJoin(
+                UserAttributesTable,
+                `${GroupUserAttributesTable}.user_attribute_uuid`,
+                `${UserAttributesTable}.user_attribute_uuid`,
+            )
+            .select<
+                Array<
+                    Pick<DbUserAttribute, 'name'> &
+                        Pick<DbGroupUserAttribute, 'value'>
+                >
+            >(
+                `${UserAttributesTable}.name`,
+                `${GroupUserAttributesTable}.value`,
+            )
+            .whereIn(
+                `${GroupUserAttributesTable}.user_attribute_uuid`,
+                attributeValues.map((attr) => attr.user_attribute_uuid),
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                filters.organizationUuid,
+            )
+            .where(`${UserTableName}.user_uuid`, filters.userUuid);
+
+        const groupValuesMap = groupsValues.reduce<Record<string, string[]>>(
             (acc, row) => ({
                 ...acc,
-                [row.name]: userValuesMap[row.name] || row.attribute_default,
+                [row.name]: acc[row.name]
+                    ? [...acc[row.name], row.value]
+                    : [row.value],
             }),
             {},
         );
+
+        // combine group, user and default values
+        return attributeValues.reduce<UserAttributeValueMap>((acc, row) => {
+            const userValue: string | undefined = userValuesMap[row.name];
+            const groupValues: string[] = groupValuesMap[row.name] ?? [];
+            let finalValues: string[];
+            if (userValue) {
+                finalValues = [userValue, ...groupValues];
+            } else if (groupValues.length > 0) {
+                finalValues = groupValues;
+            } else if (row.attribute_default) {
+                finalValues = [row.attribute_default];
+            } else {
+                finalValues = [];
+            }
+            return {
+                ...acc,
+                [row.name]: finalValues,
+            };
+        }, {});
     }
 
     async find(filters: {

@@ -20,7 +20,7 @@ export type GroupAttributeValue = {
     value: string;
 };
 
-export type UserAttributeValueMap = Record<string, string | null>;
+export type UserAttributeValueMap = Record<string, string[]>;
 
 export type CreateUserAttributeValue = Omit<UserAttributeValue, 'email'>;
 export type CreateGroupAttributeValue = GroupAttributeValue;
