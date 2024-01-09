@@ -22,6 +22,7 @@ import {
     TableCalculation,
     TableChartConfig,
     toggleArrayValue,
+    updateFieldIdInFilters,
 } from '@lightdash/common';
 import produce from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -886,6 +887,21 @@ function reducer(
                                       }
                                     : sortField,
                         ),
+                        filters: Object.entries(
+                            state.unsavedChartVersion.metricQuery.filters,
+                        ).reduce((acc, [key, value]) => {
+                            if (key === 'metrics') {
+                                updateFieldIdInFilters(
+                                    value,
+                                    action.payload.previousAdditionalMetricName,
+                                    additionalMetricFieldId,
+                                );
+                            }
+                            return {
+                                ...acc,
+                                [key]: value,
+                            };
+                        }, {}),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
