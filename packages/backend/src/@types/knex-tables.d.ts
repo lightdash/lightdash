@@ -152,8 +152,10 @@ import {
     SshKeyPairTableName,
 } from '../database/entities/ssh_key_pairs';
 import {
+    DbGroupUserAttribute,
     DbOrganizationMemberUserAttribute,
     DbUserAttribute,
+    GroupUserAttributesTable,
     OrganizationMemberUserAttributesTable,
     UserAttributesTable,
 } from '../database/entities/userAttributes';
@@ -221,6 +223,7 @@ declare module 'knex/types/tables' {
         [SshKeyPairTableName]: SshKeyPairTable;
         [UserAttributesTable]: DbUserAttribute;
         [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
+        [GroupUserAttributesTable]: DbGroupUserAttribute;
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
     }
 }

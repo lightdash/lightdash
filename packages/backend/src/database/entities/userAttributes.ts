@@ -16,6 +16,14 @@ export type DbOrganizationMemberUserAttribute = {
     value: string;
 };
 
+export type DbGroupUserAttribute = {
+    group_uuid: string;
+    user_attribute_uuid: string;
+    value: string;
+};
+
 export const UserAttributesTable = 'user_attributes';
 export const OrganizationMemberUserAttributesTable =
     'organization_member_user_attributes';
+
+export const GroupUserAttributesTable = 'group_user_attributes';
