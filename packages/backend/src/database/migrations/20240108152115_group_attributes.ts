@@ -6,15 +6,15 @@ const groupUserAttributes = 'group_user_attributes';
 export async function up(knex: Knex): Promise<void> {
     if (!(await knex.schema.hasTable(groupUserAttributes))) {
         await knex.schema.createTable(groupUserAttributes, (table) => {
-            table.uuid('group_uuid').notNullable();
             table
-                .foreign('group_uuid')
+                .uuid('group_uuid')
+                .notNullable()
                 .references('group_uuid')
                 .inTable('groups')
                 .onDelete('CASCADE');
-            table.uuid('user_attribute_uuid').notNullable();
             table
-                .foreign('user_attribute_uuid')
+                .uuid('user_attribute_uuid')
+                .notNullable()
                 .references('user_attribute_uuid')
                 .inTable(userAttributesTableName)
                 .onDelete('CASCADE');
