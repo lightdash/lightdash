@@ -648,6 +648,15 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_GroupWithMembers.uuid_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { uuid: { dataType: 'string', required: true } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_GroupMember.userUuid_': {
         dataType: 'refAlias',
         type: {
@@ -662,16 +671,38 @@ const models: TsoaRoute.Models = {
     UpdateGroupWithMembers: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                members: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'Pick_GroupMember.userUuid_',
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Pick_GroupWithMembers.uuid_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        members: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'Pick_GroupMember.userUuid_',
+                            },
+                        },
+                        name: { dataType: 'string' },
                     },
                 },
-                name: { dataType: 'string' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ProjectMemberRole: {
+        dataType: 'refEnum',
+        enums: ['viewer', 'interactive_viewer', 'editor', 'developer', 'admin'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateDBProjectGroupAccess.role_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                role: { ref: 'ProjectMemberRole', required: true },
             },
             validators: {},
         },
@@ -974,12 +1005,12 @@ const models: TsoaRoute.Models = {
             type: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
+                    role: { ref: 'AllowedEmailDomainsRole', required: true },
                     emailDomains: {
                         dataType: 'array',
                         array: { dataType: 'string' },
                         required: true,
                     },
-                    role: { ref: 'AllowedEmailDomainsRole', required: true },
                     projects: {
                         dataType: 'array',
                         array: {
@@ -1292,8 +1323,8 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
-                    organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
@@ -2041,8 +2072,8 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
-                    organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
                     description: { dataType: 'string' },
                     projectUuid: { dataType: 'string', required: true },
                     spaceUuid: { dataType: 'string', required: true },
@@ -2129,8 +2160,8 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
-                    organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
@@ -2193,11 +2224,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ProjectMemberRole: {
-        dataType: 'refEnum',
-        enums: ['viewer', 'interactive_viewer', 'editor', 'developer', 'admin'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ProjectMemberProfile: {
@@ -4123,8 +4149,8 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
-                    organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
                     description: { dataType: 'string' },
                     updatedAt: { dataType: 'datetime', required: true },
                     projectUuid: { dataType: 'string', required: true },
@@ -5445,6 +5471,116 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new GroupsController();
 
                 const promise = controller.updateGroup.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/groups/:groupUuid/projects/:projectUuid',
+        ...fetchMiddlewares<RequestHandler>(GroupsController),
+        ...fetchMiddlewares<RequestHandler>(
+            GroupsController.prototype.addProjectAccessToGroup,
+        ),
+
+        function GroupsController_addProjectAccessToGroup(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                groupUuid: {
+                    in: 'path',
+                    name: 'groupUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                groupProjectAccess: {
+                    in: 'body',
+                    name: 'groupProjectAccess',
+                    required: true,
+                    ref: 'Pick_CreateDBProjectGroupAccess.role_',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new GroupsController();
+
+                const promise = controller.addProjectAccessToGroup.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v1/groups/:groupUuid/projects/:projectUuid',
+        ...fetchMiddlewares<RequestHandler>(GroupsController),
+        ...fetchMiddlewares<RequestHandler>(
+            GroupsController.prototype.removeProjectAccessFromGroup,
+        ),
+
+        function GroupsController_removeProjectAccessFromGroup(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                groupUuid: {
+                    in: 'path',
+                    name: 'groupUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new GroupsController();
+
+                const promise = controller.removeProjectAccessFromGroup.apply(
                     controller,
                     validatedArgs as any,
                 );

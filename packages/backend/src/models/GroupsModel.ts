@@ -4,12 +4,17 @@ import {
     GroupMembership,
     GroupWithMembers,
     NotFoundError,
+    ProjectMemberRole,
     UnexpectedDatabaseError,
     UpdateGroup,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import differenceBy from 'lodash/differenceBy';
+import { GroupTableName } from '../database/entities/groups';
+import { OrganizationTableName } from '../database/entities/organizations';
+import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
+import { ProjectTableName } from '../database/entities/projects';
 
 export class GroupsModel {
     database: Knex;
@@ -263,5 +268,43 @@ export class GroupsModel {
         });
         // TODO: fix include member count
         return this.getGroupWithMembers(groupUuid, 10000);
+    }
+
+    async addProjectAccess(
+        projectUuid: string,
+        groupUuid: string,
+        role: ProjectMemberRole,
+    ): Promise<void> {
+        await this.database.raw(
+            `
+            INSERT INTO ${ProjectGroupAccessTableName} (project_id, group_uuid, organization_id, role)
+            SELECT ${ProjectTableName}.project_id, ${GroupTableName}.group_uuid, ${OrganizationTableName}.organization_id, :role
+            FROM ${ProjectTableName}
+            INNER JOIN ${OrganizationTableName} ON ${ProjectTableName}.organization_id = ${OrganizationTableName}.organization_id
+            INNER JOIN ${GroupTableName} ON ${OrganizationTableName}.organization_id = ${GroupTableName}.organization_id
+            WHERE ${ProjectTableName}.project_uuid = :projectUuid
+            AND ${GroupTableName}.group_uuid = :groupUuid
+            ON CONFLICT DO NOTHING
+            `,
+            { projectUuid, groupUuid, role },
+        );
+    }
+
+    async removeProjectAccess(
+        projectUuid: string,
+        groupUuid: string,
+    ): Promise<void> {
+        await this.database.raw(
+            `
+            DELETE FROM ${ProjectGroupAccessTableName}
+            WHERE project_id = (
+                SELECT project_id
+                FROM ${ProjectTableName}
+                WHERE project_uuid = :projectUuid
+            )
+            AND group_uuid = :groupUuid
+            `,
+            { projectUuid, groupUuid },
+        );
     }
 }

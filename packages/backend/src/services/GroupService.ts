@@ -5,10 +5,12 @@ import {
     GroupMember,
     GroupMembership,
     GroupWithMembers,
+    ProjectMemberRole,
     SessionUser,
     UpdateGroup,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
+import { CreateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
 
 type GroupServiceDependencies = {
@@ -137,5 +139,51 @@ export class GroupsService {
             throw new ForbiddenError();
         }
         return group.members;
+    }
+
+    async addProjectAccess(
+        actor: SessionUser,
+        groupUuid: string,
+        projectUuid: string,
+        groupProjectAccess: Pick<CreateDBProjectGroupAccess, 'role'>,
+    ): Promise<void> {
+        const group = await this.groupsModel.getGroup(groupUuid);
+
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Group', {
+                    organizationUuid: group.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.groupsModel.addProjectAccess(
+            groupUuid,
+            projectUuid,
+            groupProjectAccess.role,
+        );
+    }
+
+    async removeProjectAccess(
+        actor: SessionUser,
+        groupUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        const group = await this.groupsModel.getGroup(groupUuid);
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Group', {
+                    organizationUuid: group.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.groupsModel.removeProjectAccess(groupUuid, projectUuid);
     }
 }

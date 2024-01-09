@@ -15,6 +15,7 @@ import {
     OperationId,
     Patch,
     Path,
+    Post,
     Put,
     Query,
     Request,
@@ -23,6 +24,10 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import {
+    CreateDBProjectGroupAccess,
+    UpdateDBProjectGroupAccess,
+} from '../database/entities/projectGroupAccess';
 import { groupService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -178,6 +183,62 @@ export class GroupsController extends Controller {
         return {
             status: 'ok',
             results: group,
+        };
+    }
+
+    /**
+     * Add project access to a group
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('{groupUuid}/projects/{projectUuid}')
+    @OperationId('addProjectAccessToGroup')
+    async addProjectAccessToGroup(
+        @Path() groupUuid: string,
+        @Path() projectUuid: string,
+        @Body() groupProjectAccess: Pick<CreateDBProjectGroupAccess, 'role'>,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await groupService.addProjectAccess(
+            req.user!,
+            groupUuid,
+            projectUuid,
+            groupProjectAccess,
+        );
+        this.setStatus(204);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Remove project access from a group
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Delete('{groupUuid}/projects/{projectUuid}')
+    @OperationId('removeProjectAccessFromGroup')
+    async removeProjectAccessFromGroup(
+        @Path() groupUuid: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await groupService.removeProjectAccess(
+            req.user!,
+            groupUuid,
+            projectUuid,
+        );
+        this.setStatus(204);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }
