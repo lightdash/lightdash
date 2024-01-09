@@ -9,7 +9,7 @@ describe('Settings - Invites', () => {
         cy.findByRole('menuitem', { name: 'Organization settings' }).click();
 
         cy.contains('User management').click();
-        cy.contains('button', 'Add user').click();
+        cy.contains('button', 'Add user access').click();
         cy.findByLabelText('Enter user email address *').type(
             'demo+marygreen@lightdash.com',
         );
