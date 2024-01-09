@@ -63,3 +63,28 @@ Although you can generate URLs directly from Lightdash with a long expiration, i
 
 To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL.
 
+#### User metadata
+
+You can pass user metadata (specifically, an external user ID) from your application so that anytime someone views your embedded dashboard and runs queries in Lightdash, these query logs are enriched with this user metadata. Specifcally, this user metadata gets added to the [query tags](/references/usage-analytics.mdx#query-tags) for queries run in Lightdash.
+
+To assign an external ID, you can add this to the embed code snippet like this:
+
+```NodeJS
+import jwt from 'jsonwebtoken';
+const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
+const projectUuid = 'my-project-uuid';
+const data = {
+    # Add this to assign an external ID
+    user: {
+      externalId: 'your user id',
+    },
+    content: {
+      type: 'dashboard',
+      dashboardUuid: 'your dashboard uuid'
+    },
+};
+const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '1 hour' });
+const url = `https://analytics.lightdash.cloud/embed/${projectUuid}/#${token}`;
+```
+
+If you don't assign an external ID in your embed code, then we will automatically generate and an assign an external ID based on the embed token.
