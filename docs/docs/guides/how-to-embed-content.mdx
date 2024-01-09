@@ -55,9 +55,9 @@ First, we need to create a [user attribute](#../references/user-attributes.mdx) 
 
 <img src={CreateUserAttribute} width="516" height="381" style={{display: "block", margin: "0 auto 20px auto"}}/>.
 
-### Filter the tables you use to create your dashboard using the user attribute
+### Filter the tables used in your dashboard with `sql_filter`
 
-We need to filter the access to all of the tables we use in our dashboard using this attribute. For example, in my `Order Summary` dashboard, I use the `orders` and the `shops` tables to build all of the charts. So, in these two tables, I'm going to add a [row-level filter](#../references/user-attributes.mdx#2--column-filtering-with--required-attributes-), like:
+We need to filter the access to all of the tables we use in our dashboard using this attribute. For example, in my `Order Summary` dashboard, I use the `orders` and the `shops` tables to build all of the charts. So, in these two tables, I'm going to add a [row-level filter](#../references/user-attributes#1-row-filtering-with-sql_filter), like:
 
 ```yaml
 version: 2
