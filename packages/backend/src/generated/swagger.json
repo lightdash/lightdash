@@ -4941,11 +4941,29 @@
                 "required": ["value", "email", "userUuid"],
                 "type": "object"
             },
+            "GroupAttributeValue": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "groupUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "groupUuid"],
+                "type": "object"
+            },
             "UserAttribute": {
                 "properties": {
                     "attributeDefault": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "groups": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupAttributeValue"
+                        },
+                        "type": "array"
                     },
                     "users": {
                         "items": {
@@ -4972,6 +4990,7 @@
                 },
                 "required": [
                     "attributeDefault",
+                    "groups",
                     "users",
                     "organizationUuid",
                     "name",
@@ -5048,6 +5067,9 @@
             "CreateUserAttributeValue": {
                 "$ref": "#/components/schemas/Omit_UserAttributeValue.email_"
             },
+            "CreateGroupAttributeValue": {
+                "$ref": "#/components/schemas/GroupAttributeValue"
+            },
             "CreateUserAttribute": {
                 "allOf": [
                     {
@@ -5055,6 +5077,12 @@
                     },
                     {
                         "properties": {
+                            "groups": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CreateGroupAttributeValue"
+                                },
+                                "type": "array"
+                            },
                             "users": {
                                 "items": {
                                     "$ref": "#/components/schemas/CreateUserAttributeValue"
@@ -5062,7 +5090,7 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["users"],
+                        "required": ["groups", "users"],
                         "type": "object"
                     }
                 ]

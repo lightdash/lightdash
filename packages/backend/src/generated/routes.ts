@@ -4358,6 +4358,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GroupAttributeValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: { dataType: 'string', required: true },
+                groupUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UserAttribute: {
         dataType: 'refAlias',
         type: {
@@ -4369,6 +4381,11 @@ const models: TsoaRoute.Models = {
                         { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
+                    required: true,
+                },
+                groups: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'GroupAttributeValue' },
                     required: true,
                 },
                 users: {
@@ -4459,6 +4476,11 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Omit_UserAttributeValue.email_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateGroupAttributeValue: {
+        dataType: 'refAlias',
+        type: { ref: 'GroupAttributeValue', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateUserAttribute: {
         dataType: 'refAlias',
         type: {
@@ -4470,6 +4492,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        groups: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'CreateGroupAttributeValue',
+                            },
+                            required: true,
+                        },
                         users: {
                             dataType: 'array',
                             array: {

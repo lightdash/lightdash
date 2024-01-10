@@ -209,7 +209,7 @@ const Settings: FC = () => {
                                     <RouterNavLink
                                         label={
                                             groupManagementEnabled
-                                                ? 'User & Group Attributes'
+                                                ? 'User & group attributes'
                                                 : 'User attributes'
                                         }
                                         to="/generalSettings/userAttributes"
