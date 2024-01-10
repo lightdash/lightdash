@@ -10,21 +10,21 @@ import {
     UpdateGroupWithMembers,
 } from '@lightdash/common';
 import { GroupsModel } from '../models/GroupsModel';
-import { ProjectService } from './ProjectService/ProjectService';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 
 type GroupServiceDependencies = {
     groupsModel: GroupsModel;
-    projectService: ProjectService;
+    projectModel: ProjectModel;
 };
 
 export class GroupsService {
     private readonly groupsModel: GroupsModel;
 
-    private readonly projectService: ProjectService;
+    private readonly projectModel: ProjectModel;
 
     constructor(deps: GroupServiceDependencies) {
         this.groupsModel = deps.groupsModel;
-        this.projectService = deps.projectService;
+        this.projectModel = deps.projectModel;
     }
 
     async addGroupMember(
@@ -149,10 +149,7 @@ export class GroupsService {
         { groupUuid, projectUuid, role }: ProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
         const group = await this.groupsModel.getGroup(groupUuid);
-        const project = await this.projectService.getProject(
-            projectUuid,
-            actor,
-        );
+        const project = await this.projectModel.get(projectUuid);
 
         if (
             actor.ability.cannot(
@@ -201,10 +198,7 @@ export class GroupsService {
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
     ) {
         const group = await this.groupsModel.getGroup(groupUuid);
-        const project = await this.projectService.getProject(
-            projectUuid,
-            actor,
-        );
+        const project = await this.projectModel.get(projectUuid);
 
         if (
             actor.ability.cannot(
