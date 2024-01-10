@@ -283,26 +283,20 @@ export class GroupsModel {
             rows: DBProjectGroupAccess[];
         }>(
             `
-            INSERT INTO ${ProjectGroupAccessTableName} (project_id, group_uuid, organization_id, role)
-            SELECT ${ProjectTableName}.project_id, ${GroupTableName}.group_uuid, ${OrganizationTableName}.organization_id, :role
+            INSERT INTO ${ProjectGroupAccessTableName} (project_id, group_uuid, role)
+            SELECT ${ProjectTableName}.project_id, ${GroupTableName}.group_uuid, :role
             FROM ${ProjectTableName}
-            INNER JOIN ${OrganizationTableName} ON ${ProjectTableName}.organization_id = ${OrganizationTableName}.organization_id
-            INNER JOIN ${GroupTableName} ON ${OrganizationTableName}.organization_id = ${GroupTableName}.organization_id
+            INNER JOIN ${GroupTableName} ON ${ProjectTableName}.organization_id = ${GroupTableName}.organization_id
             WHERE ${ProjectTableName}.project_uuid = :projectUuid
             AND ${GroupTableName}.group_uuid = :groupUuid
+            AND ${ProjectTableName}.organization_id = ${GroupTableName}.organization_id
             ON CONFLICT DO NOTHING
             RETURNING *
             `,
             { projectUuid, groupUuid, role },
         );
 
-        console.log('-----------------');
-        console.log(query.toSQL());
-        console.log('-----------------');
-
         const result = await query;
-
-        console.log(result.rows);
 
         if (result.rows.length === 0) {
             throw new UnexpectedDatabaseError(`Failed to add project access`);
