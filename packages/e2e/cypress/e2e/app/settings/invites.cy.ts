@@ -47,6 +47,7 @@ describe('Settings - Invites', () => {
         cy.contains('User management').click();
         cy.get('table')
             .contains('tr', 'demo+marygreen@lightdash.com')
+            .scrollIntoView()
             .find('.tabler-icon-trash')
             .click({ force: true });
         cy.findByText('Are you sure you want to delete this user?')
