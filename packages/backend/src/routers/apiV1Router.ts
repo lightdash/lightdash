@@ -3,6 +3,7 @@ import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     getSuccessURLWithReturnTo,
+    initiateOktaOpenIdLogin,
     redirectOIDC,
     storeOIDCRedirect,
 } from '../controllers/authentication';
@@ -63,9 +64,7 @@ apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {
 apiV1Router.get(
     lightdashConfig.auth.okta.loginPath,
     storeOIDCRedirect,
-    passport.authenticate('okta', {
-        scope: ['openid', 'profile', 'email'],
-    }),
+    initiateOktaOpenIdLogin,
 );
 
 apiV1Router.get(lightdashConfig.auth.okta.callbackPath, (req, res, next) =>

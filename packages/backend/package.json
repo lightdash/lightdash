@@ -87,6 +87,7 @@
         "node-fetch": "^2.6.1",
         "nodemailer": "^6.9.5",
         "nodemailer-express-handlebars": "^6.1.0",
+        "openid-client": "^5.6.4",
         "passport": "^0.6.0",
         "passport-google-oauth20": "^2.0.0",
         "passport-google-oidc": "^0.1.0",

@@ -1,6 +1,7 @@
 /// <reference path="../@types/passport-openidconnect.d.ts" />
 /// <reference path="../@types/express-session.d.ts" />
 import {
+    ArgumentsOf,
     AuthorizationError,
     isOpenIdUser,
     isSessionUser,
@@ -11,6 +12,8 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { Request, RequestHandler } from 'express';
+import { generators, Issuer, UserinfoResponse } from 'openid-client';
+import type { Profile as PassportProfile } from 'passport';
 import passport from 'passport';
 import {
     GoogleCallbackParameters,
@@ -24,6 +27,7 @@ import {
     Strategy as OpenIDConnectStrategy,
     VerifyFunctionWithRequest,
 } from 'passport-openidconnect';
+import { Strategy } from 'passport-strategy';
 import path from 'path';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -71,6 +75,195 @@ export const getOpenIdUserFromRequest = ({
         return user;
     }
     return undefined;
+};
+
+const createOpenIdUserFromUserInfo = (
+    userInfo: UserinfoResponse,
+    issuer: string,
+    issuerType: OpenIdIdentityIssuerType,
+    fail: OpenIDClientOktaStrategy['fail'],
+) => {
+    if (!userInfo.email || !userInfo.sub) {
+        return fail(
+            {
+                message: 'Could not parse authentication token',
+            },
+            401,
+        );
+    }
+
+    const displayName = userInfo.name || '';
+    const [fallbackFirstName, fallbackLastName] = displayName.split(' ');
+    const firstName = userInfo.given_name || fallbackFirstName;
+    const lastName = userInfo.family_name || fallbackLastName;
+
+    const openIdUser: OpenIdUser = {
+        openId: {
+            issuer: issuer || '',
+            email: userInfo.email,
+            subject: userInfo.sub,
+            firstName,
+            lastName,
+            issuerType: issuerType || '',
+        },
+    };
+
+    if (userInfo?.groups && Array.isArray(userInfo.groups)) {
+        openIdUser.openId.groups = userInfo.groups;
+    }
+
+    return openIdUser;
+};
+
+const createOpenIdUserFromProfile = (
+    profile: PassportProfile,
+    issuer: string,
+    issuerType: OpenIdIdentityIssuerType,
+    done: ArgumentsOf<VerifyFunctionWithRequest>['3'],
+) => {
+    const email = profile.emails?.[0]?.value;
+    const subject = profile.id;
+    if (!(email && subject)) {
+        return done(null, false, {
+            message: 'Could not parse authentication token',
+        });
+    }
+
+    const displayName = profile.displayName || '';
+    const [fallbackFirstName, fallbackLastName] = displayName.split(' ');
+    const firstName = profile.name?.givenName || fallbackFirstName;
+    const lastName = profile.name?.familyName || fallbackLastName;
+
+    const openIdUser: OpenIdUser = {
+        openId: {
+            issuer: issuer || '',
+            email,
+            subject,
+            firstName,
+            lastName,
+            issuerType: issuerType || '',
+        },
+    };
+
+    return openIdUser;
+};
+
+const setupClient = async () => {
+    const oktaIssuer = await Issuer.discover(
+        `https://${lightdashConfig.auth.okta.oktaDomain}/oauth2/default`,
+    );
+
+    const redirectUri = new URL(
+        `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
+        lightdashConfig.siteUrl,
+    ).href;
+
+    const client = new oktaIssuer.Client({
+        client_id: lightdashConfig.auth.okta.oauth2ClientId ?? '',
+        client_secret: lightdashConfig.auth.okta.oauth2ClientSecret,
+        redirect_uris: [redirectUri],
+        response_types: ['code'],
+    });
+
+    return client;
+};
+
+export class OpenIDClientOktaStrategy extends Strategy {
+    async authenticate(req: Request) {
+        try {
+            const client = await setupClient();
+
+            const redirectUri = new URL(
+                `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
+                lightdashConfig.siteUrl,
+            ).href;
+
+            const params = client.callbackParams(req);
+            const tokenSet = await client.callback(redirectUri, params, {
+                code_verifier: req.session.oauth?.codeVerifier,
+                state: req.session.oauth?.state,
+            });
+
+            const userInfo = tokenSet.access_token
+                ? await client.userinfo(tokenSet.access_token)
+                : undefined;
+
+            if (!userInfo) return this.fail(401);
+
+            try {
+                const { inviteCode } = req.session.oauth || {};
+                req.session.oauth = {};
+
+                const openIdUser = createOpenIdUserFromUserInfo(
+                    userInfo,
+                    tokenSet.claims().iss,
+                    OpenIdIdentityIssuerType.OKTA,
+                    this.fail,
+                );
+
+                if (openIdUser) {
+                    const user = await userService.loginWithOpenId(
+                        openIdUser,
+                        req.user,
+                        inviteCode,
+                    );
+                    return this.success(user);
+                }
+
+                return this.fail(
+                    { message: 'Unexpected error processing user information' },
+                    401,
+                );
+            } catch (e) {
+                if (e instanceof LightdashError) {
+                    return this.fail({ message: e.message }, 401);
+                }
+                Logger.warn(`Unexpected error while authorizing user: ${e}`);
+                return this.error(e);
+            }
+        } catch (err) {
+            return this.error(err);
+        }
+        return this.fail(401);
+    }
+}
+
+export const initiateOktaOpenIdLogin: RequestHandler = async (
+    req,
+    res,
+    next,
+) => {
+    try {
+        const client = await setupClient();
+
+        const redirectUri = new URL(
+            `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
+            lightdashConfig.siteUrl,
+        ).href;
+
+        const state = generators.state();
+        const codeVerifier = generators.codeVerifier();
+        const codeChallenge = generators.codeChallenge(codeVerifier);
+
+        const authorizationUrl = client.authorizationUrl({
+            redirect_uri: redirectUri,
+            response_type: 'code',
+            scope: 'openid profile email',
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256',
+            state,
+        });
+
+        req.session.oauth = {
+            ...(req.session.oauth ?? {}),
+            codeVerifier,
+            state,
+        };
+
+        return res.redirect(authorizationUrl);
+    } catch (e) {
+        return next(e);
+    }
 };
 
 export const generateOktaUrl = (apiUrlPath: string): string => {
@@ -242,32 +435,25 @@ const genericOidcHandler =
         try {
             const { inviteCode } = req.session.oauth || {};
             req.session.oauth = {};
-            const [{ value: email }] = profile.emails;
-            const { id: subject } = profile;
-            if (!(email && subject)) {
-                return done(null, false, {
-                    message: 'Could not parse authentication token',
-                });
-            }
-            const [fallbackFirstName, fallbackLastName] = (
-                profile.displayName || ''
-            ).split(' ');
-            const openIdUser: OpenIdUser = {
-                openId: {
-                    issuer,
-                    email,
-                    subject,
-                    firstName: profile.name?.givenName || fallbackFirstName,
-                    lastName: profile.name?.familyName || fallbackLastName,
-                    issuerType,
-                },
-            };
-            const user = await userService.loginWithOpenId(
-                openIdUser,
-                req.user,
-                inviteCode,
+
+            const openIdUser = createOpenIdUserFromProfile(
+                profile,
+                issuer,
+                issuerType,
+                done,
             );
-            return done(null, user);
+
+            if (openIdUser) {
+                const user = await userService.loginWithOpenId(
+                    openIdUser,
+                    req.user,
+                    inviteCode,
+                );
+                return done(null, user);
+            }
+            return done(null, false, {
+                message: 'Unexpected error processing user information',
+            });
         } catch (e) {
             if (e instanceof LightdashError) {
                 return done(null, false, { message: e.message });
@@ -278,29 +464,13 @@ const genericOidcHandler =
             });
         }
     };
-export const oktaPassportStrategy = !(
+
+export const isOktaPassportStrategyAvailableToUse = !!(
     lightdashConfig.auth.okta.oauth2ClientId &&
     lightdashConfig.auth.okta.oauth2ClientSecret &&
     lightdashConfig.auth.okta.oauth2Issuer &&
     lightdashConfig.auth.okta.oktaDomain
-)
-    ? undefined
-    : new OpenIDConnectStrategy(
-          {
-              clientID: lightdashConfig.auth.okta.oauth2ClientId,
-              clientSecret: lightdashConfig.auth.okta.oauth2ClientSecret,
-              issuer: lightdashConfig.auth.okta.oauth2Issuer,
-              callbackURL: new URL(
-                  `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
-                  lightdashConfig.siteUrl,
-              ).href,
-              authorizationURL: generateOktaUrl('/authorize'),
-              tokenURL: generateOktaUrl('/token'),
-              userInfoURL: generateOktaUrl('/userinfo'),
-              passReqToCallback: true,
-          },
-          genericOidcHandler(OpenIdIdentityIssuerType.OKTA),
-      );
+);
 
 export const azureAdPassportStrategy = !(
     lightdashConfig.auth.azuread.oauth2ClientId &&

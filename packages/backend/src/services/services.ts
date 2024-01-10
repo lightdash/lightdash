@@ -55,6 +55,7 @@ const encryptionService = new EncryptionService({ lightdashConfig });
 export const userService = new UserService({
     inviteLinkModel,
     userModel,
+    groupsModel,
     sessionModel,
     emailModel,
     openIdIdentityModel,
