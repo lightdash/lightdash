@@ -136,7 +136,12 @@ const UserAttributeModal: FC<{
                     {userAttribute ? 'Update' : 'Add'} user attribute
                 </Title>
             }
+            yOffset={65}
             size="lg"
+            styles={(theme) => ({
+                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                body: { padding: 0 },
+            })}
         >
             <form
                 name="add_user_attribute"
@@ -144,7 +149,7 @@ const UserAttributeModal: FC<{
                     handleSubmit(values),
                 )}
             >
-                <Stack spacing="xs">
+                <Stack spacing="xs" p="md">
                     <TextInput
                         name="name"
                         label="Attribute name"
@@ -365,21 +370,31 @@ const UserAttributeModal: FC<{
                             </Stack>
                         )}
                     </Stack>
-
-                    <Group spacing="xs" position="right">
-                        <Button
-                            onClick={() => {
-                                handleClose();
-                            }}
-                            variant="outline"
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit">
-                            {userAttribute ? 'Update' : 'Add'}
-                        </Button>
-                    </Group>
                 </Stack>
+                <Group
+                    spacing="xs"
+                    position="right"
+                    sx={(theme) => ({
+                        position: 'sticky',
+                        backgroundColor: 'white',
+                        borderTop: `1px solid ${theme.colors.gray[4]}`,
+                        bottom: 0,
+                        zIndex: 2,
+                        padding: theme.spacing.md,
+                    })}
+                >
+                    <Button
+                        onClick={() => {
+                            handleClose();
+                        }}
+                        variant="outline"
+                    >
+                        Cancel
+                    </Button>
+                    <Button type="submit">
+                        {userAttribute ? 'Update' : 'Add'}
+                    </Button>
+                </Group>
             </form>
         </Modal>
     );
