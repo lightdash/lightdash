@@ -2,6 +2,7 @@ import {
     SEED_GROUP,
     SEED_ORG_1_ADMIN,
     SEED_ORG_2_ADMIN,
+    SEED_PROJECT,
 } from '@lightdash/common';
 
 describe('Groups API', () => {
@@ -189,6 +190,54 @@ describe('Groups API', () => {
                 failOnStatusCode: false,
             }).then((response2) => {
                 expect(response2.status).to.eq(500);
+            });
+        });
+    });
+
+    describe('Group Project access API', () => {
+        it('should add a group access to a project', () => {
+            cy.request({
+                url: `api/v1/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
+                method: 'POST',
+                body: {
+                    role: 'viewer',
+                },
+            }).then((resp) => {
+                expect(resp.status).to.eq(200);
+            });
+        });
+
+        it('should not add a group access to a project for another organization', () => {
+            cy.anotherLogin();
+            cy.request({
+                url: `api/v1/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
+                method: 'POST',
+                body: {
+                    role: 'viewer',
+                },
+                failOnStatusCode: false,
+            }).then((resp) => {
+                expect(resp.status).to.eq(403);
+            });
+        });
+
+        it('should remove a group access from a project', () => {
+            cy.request({
+                url: `api/v1/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
+                method: 'DELETE',
+            }).then((resp) => {
+                expect(resp.status).to.eq(200);
+            });
+        });
+
+        it('should not remove a group access from a project for another organization', () => {
+            cy.anotherLogin();
+            cy.request({
+                url: `api/v1/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
+                method: 'DELETE',
+                failOnStatusCode: false,
+            }).then((resp) => {
+                expect(resp.status).to.eq(403);
             });
         });
     });

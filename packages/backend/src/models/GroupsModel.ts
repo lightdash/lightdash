@@ -4,12 +4,21 @@ import {
     GroupMembership,
     GroupWithMembers,
     NotFoundError,
+    ProjectGroupAccess,
+    ProjectMemberRole,
     UnexpectedDatabaseError,
     UpdateGroup,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import differenceBy from 'lodash/differenceBy';
+import { GroupTableName } from '../database/entities/groups';
+import { OrganizationTableName } from '../database/entities/organizations';
+import {
+    DBProjectGroupAccess,
+    ProjectGroupAccessTableName,
+} from '../database/entities/projectGroupAccess';
+import { ProjectTableName } from '../database/entities/projects';
 
 export class GroupsModel {
     database: Knex;
@@ -263,5 +272,44 @@ export class GroupsModel {
         });
         // TODO: fix include member count
         return this.getGroupWithMembers(groupUuid, 10000);
+    }
+
+    async addProjectAccess({
+        groupUuid,
+        projectUuid,
+        role,
+    }: ProjectGroupAccess): Promise<DBProjectGroupAccess> {
+        const query = this.database(ProjectGroupAccessTableName)
+            .insert({ group_uuid: groupUuid, project_uuid: projectUuid, role })
+            .onConflict()
+            .ignore()
+            .returning('*');
+
+        const rows = await query;
+
+        if (rows.length === 0) {
+            throw new UnexpectedDatabaseError(`Failed to add project access`);
+        }
+
+        const [row] = rows;
+        return row;
+    }
+
+    async removeProjectAccess({
+        projectUuid,
+        groupUuid,
+    }: Pick<
+        ProjectGroupAccess,
+        'groupUuid' | 'projectUuid'
+    >): Promise<boolean> {
+        const query = this.database(ProjectGroupAccessTableName)
+            .delete()
+            .where('project_uuid', projectUuid)
+            .andWhere('group_uuid', groupUuid)
+            .returning('*');
+
+        const rows = await query;
+
+        return rows.length > 0;
     }
 }

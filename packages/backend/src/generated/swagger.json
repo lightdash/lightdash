@@ -746,6 +746,55 @@
                 },
                 "type": "object"
             },
+            "ProjectMemberRole": {
+                "enum": [
+                    "viewer",
+                    "interactive_viewer",
+                    "editor",
+                    "developer",
+                    "admin"
+                ],
+                "type": "string"
+            },
+            "ProjectGroupAccess": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/ProjectMemberRole"
+                    },
+                    "groupUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["role", "groupUuid", "projectUuid"],
+                "type": "object"
+            },
+            "ApiCreateProjectGroupAccess": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectGroupAccess"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_CreateDBProjectGroupAccess.role_": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/ProjectMemberRole"
+                    }
+                },
+                "required": ["role"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Organization": {
                 "properties": {
                     "defaultProjectUuid": {
@@ -1082,14 +1131,14 @@
             },
             "Pick_AllowedEmailDomains.Exclude_keyofAllowedEmailDomains.organizationUuid__": {
                 "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/AllowedEmailDomainsRole"
+                    },
                     "emailDomains": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "role": {
-                        "$ref": "#/components/schemas/AllowedEmailDomainsRole"
                     },
                     "projects": {
                         "items": {
@@ -1107,7 +1156,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["emailDomains", "role", "projects"],
+                "required": ["role", "emailDomains", "projects"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -2511,16 +2560,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ProjectMemberRole": {
-                "enum": [
-                    "viewer",
-                    "interactive_viewer",
-                    "editor",
-                    "developer",
-                    "admin"
-                ],
-                "type": "string"
-            },
             "ProjectMemberProfile": {
                 "properties": {
                     "lastName": {
@@ -2605,6 +2644,23 @@
                     }
                 },
                 "required": ["role"],
+                "type": "object"
+            },
+            "ApiGetProjectGroupAccesses": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectGroupAccess"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "Record_string._type-DimensionType--__": {
@@ -5595,7 +5651,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.927.0",
+        "version": "0.927.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -6117,6 +6173,110 @@
                         "description": "the UUID for the group to view the members of",
                         "in": "path",
                         "name": "groupUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/groups/{groupUuid}/projects/{projectUuid}": {
+            "post": {
+                "operationId": "addProjectAccessToGroup",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateProjectGroupAccess"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Add project access to a group",
+                "tags": ["User Groups"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "groupUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Pick_CreateDBProjectGroupAccess.role_"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "removeProjectAccessFromGroup",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove project access from a group",
+                "tags": ["User Groups"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "groupUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -7222,6 +7382,46 @@
                     {
                         "in": "path",
                         "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/groupAccesses": {
+            "get": {
+                "operationId": "GetProjectGroupAccesses",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetProjectGroupAccesses"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List group access for projects",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

@@ -2,6 +2,7 @@ import {
     ApiCalculateTotalResponse,
     ApiChartSummaryListResponse,
     ApiErrorPayload,
+    ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
     ApiProjectAccessListResponse,
     ApiProjectResponse,
@@ -234,6 +235,28 @@ export class ProjectController extends Controller {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * List group access for projects
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/groupAccesses')
+    @OperationId('GetProjectGroupAccesses')
+    async getProjectGroupAccesses(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetProjectGroupAccesses> {
+        this.setStatus(200);
+        const results = await projectService.getProjectGroupAccesses(
+            req.user!,
+            projectUuid,
+        );
+        return {
+            status: 'ok',
+            results,
         };
     }
 

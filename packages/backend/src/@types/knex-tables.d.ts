@@ -138,6 +138,10 @@ import {
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
 import {
+    ProjectGroupAccessTable,
+    ProjectGroupAccessTableName,
+} from '../database/entities/projectGroupAccess';
+import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
     SchedulerLogTable,
@@ -200,6 +204,7 @@ declare module 'knex/types/tables' {
         [JobStepsTableName]: JobStepsTable;
         [PersonalAccessTokenTableName]: PersonalAccessTokenTable;
         [ProjectMembershipsTableName]: ProjectMembershipsTable;
+        [ProjectGroupAccessTableName]: ProjectGroupAccessTable;
         [DbtCloudIntegrationsTableName]: DbtCloudIntegrationsTable;
         [ShareTableName]: ShareTable;
         [SpaceShareTableName]: SpaceShareTable;

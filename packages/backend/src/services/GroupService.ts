@@ -5,21 +5,26 @@ import {
     GroupMember,
     GroupMembership,
     GroupWithMembers,
+    ProjectGroupAccess,
     SessionUser,
-    UpdateGroup,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
 import { GroupsModel } from '../models/GroupsModel';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 
 type GroupServiceDependencies = {
     groupsModel: GroupsModel;
+    projectModel: ProjectModel;
 };
 
 export class GroupsService {
     private readonly groupsModel: GroupsModel;
 
+    private readonly projectModel: ProjectModel;
+
     constructor(deps: GroupServiceDependencies) {
         this.groupsModel = deps.groupsModel;
+        this.projectModel = deps.projectModel;
     }
 
     async addGroupMember(
@@ -137,5 +142,95 @@ export class GroupsService {
             throw new ForbiddenError();
         }
         return group.members;
+    }
+
+    async addProjectAccess(
+        actor: SessionUser,
+        { groupUuid, projectUuid, role }: ProjectGroupAccess,
+    ): Promise<ProjectGroupAccess> {
+        const group = await this.groupsModel.getGroup(groupUuid);
+        const project = await this.projectModel.get(projectUuid);
+
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Group', {
+                    organizationUuid: group.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (project.organizationUuid !== group.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const groupProjectAccess = await this.groupsModel.addProjectAccess({
+            groupUuid,
+            projectUuid,
+            role,
+        });
+
+        return {
+            projectUuid,
+            groupUuid: groupProjectAccess.group_uuid,
+            role: groupProjectAccess.role,
+        };
+    }
+
+    async removeProjectAccess(
+        actor: SessionUser,
+        {
+            groupUuid,
+            projectUuid,
+        }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
+    ) {
+        const group = await this.groupsModel.getGroup(groupUuid);
+        const project = await this.projectModel.get(projectUuid);
+
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Group', {
+                    organizationUuid: group.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (project.organizationUuid !== group.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const removed = await this.groupsModel.removeProjectAccess({
+            groupUuid,
+            projectUuid,
+        });
+
+        return removed;
     }
 }
