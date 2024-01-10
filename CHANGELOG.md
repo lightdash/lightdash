@@ -1,3 +1,10 @@
+## [0.927.3](https://github.com/lightdash/lightdash/compare/0.927.2...0.927.3) (2024-01-10)
+
+
+### Bug Fixes
+
+* undefined group name in update toast ([#8528](https://github.com/lightdash/lightdash/issues/8528)) ([023df30](https://github.com/lightdash/lightdash/commit/023df3064b92c532b1d76aeadf927bbd4b3e606f))
+
 ## [0.927.2](https://github.com/lightdash/lightdash/compare/0.927.1...0.927.2) (2024-01-10)
 
 
