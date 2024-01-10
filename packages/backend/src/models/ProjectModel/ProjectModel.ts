@@ -924,11 +924,6 @@ export class ProjectModel {
                 groupUuid: 'group_uuid',
                 role: 'role',
             })
-            .leftJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${ProjectGroupAccessTableName}.project_id`,
-            )
             .where('project_uuid', projectUuid);
 
         return projectGroupAccesses;

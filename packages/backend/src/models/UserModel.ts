@@ -3,7 +3,6 @@ import {
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
-    getPasswordSchema,
     getUserAbilityBuilder,
     isOpenIdUser,
     LightdashMode,
@@ -58,6 +57,7 @@ export type DbUserDetails = {
     organization_uuid?: string;
     organization_name?: string;
     organization_created_at?: Date;
+    organization_id: number;
     is_setup_complete: boolean;
     role?: OrganizationMemberRole;
     is_active: boolean;
@@ -338,6 +338,32 @@ export class UserModel {
         }));
     }
 
+    private async getUserGroupProjectRoles(
+        userId: number,
+        organizationId: number,
+    ): Promise<Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[]> {
+        // Remember: primary key for an organization is organization_id,user_id - not user_id alone
+        const query = this.database('group_memberships')
+            .innerJoin(
+                'project_group_access',
+                'project_group_access.group_uuid',
+                'group_memberships.group_uuid',
+            )
+            .innerJoin(
+                'projects',
+                'projects.project_uuid',
+                'project_group_access.project_uuid',
+            )
+            .where('group_memberships.organization_id', organizationId)
+            .andWhere('group_memberships.user_id', userId)
+            .select('projects.project_uuid', 'project_group_access.role');
+        const projectMemberships = await query;
+        return projectMemberships.map((membership) => ({
+            projectUuid: membership.project_uuid,
+            role: membership.role,
+        }));
+    }
+
     async findSessionUserByOpenId(
         issuer: string,
         subject: string,
@@ -359,10 +385,14 @@ export class UserModel {
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(user.user_id);
-        const abilityBuilder = getUserAbilityBuilder(
-            lightdashUser,
-            projectRoles,
+        const groupProjectRoles = await this.getUserGroupProjectRoles(
+            user.user_id,
+            user.organization_id,
         );
+        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
+            ...projectRoles,
+            ...groupProjectRoles,
+        ]);
 
         return {
             userId: user.user_id,
@@ -498,10 +528,14 @@ export class UserModel {
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(user.user_id);
-        const abilityBuilder = getUserAbilityBuilder(
-            lightdashUser,
-            projectRoles,
+        const groupProjectRoles = await this.getUserGroupProjectRoles(
+            user.user_id,
+            user.organization_id,
         );
+        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
+            ...projectRoles,
+            ...groupProjectRoles,
+        ]);
         return {
             ...lightdashUser,
             userId: user.user_id,
@@ -519,10 +553,14 @@ export class UserModel {
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(user.user_id);
-        const abilityBuilder = getUserAbilityBuilder(
-            lightdashUser,
-            projectRoles,
+        const groupProjectRoles = await this.getUserGroupProjectRoles(
+            user.user_id,
+            user.organization_id,
         );
+        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
+            ...projectRoles,
+            ...groupProjectRoles,
+        ]);
 
         return {
             ...lightdashUser,
@@ -586,10 +624,14 @@ export class UserModel {
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(row);
         const projectRoles = await this.getUserProjectRoles(row.user_id);
-        const abilityBuilder = getUserAbilityBuilder(
-            lightdashUser,
-            projectRoles,
+        const groupProjectRoles = await this.getUserGroupProjectRoles(
+            row.user_id,
+            row.organization_id,
         );
+        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
+            ...projectRoles,
+            ...groupProjectRoles,
+        ]);
         return {
             user: {
                 ...mapDbUserDetailsToLightdashUser(row),

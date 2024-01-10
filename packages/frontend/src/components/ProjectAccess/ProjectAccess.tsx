@@ -5,7 +5,7 @@ import {
     ProjectMemberRole,
 } from '@lightdash/common';
 import { Paper, Table } from '@mantine/core';
-import React, { FC, useMemo } from 'react';
+import { FC, useMemo } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -16,6 +16,7 @@ import {
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
 import LoadingState from '../common/LoadingState';
+import ProjectAccessCreation from './ProjectAccessCreation';
 import ProjectAccessRow from './ProjectAccessRow';
 
 const relevantOrgRolesForProjectRole: Record<
@@ -43,11 +44,19 @@ const relevantOrgRolesForProjectRole: Record<
 
 interface ProjectAccessProps {
     projectUuid: string;
+    isAddingProjectAccess: boolean;
+    onAddProjectAccessClose: () => void;
 }
 
-const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
+const ProjectAccess: FC<ProjectAccessProps> = ({
+    projectUuid,
+    isAddingProjectAccess,
+    onAddProjectAccessClose,
+}) => {
     const { user } = useApp();
+
     const { cx, classes } = useTableStyles();
+
     const ability = useAbilityContext();
     const { mutate: revokeAccess } =
         useRevokeProjectAccessMutation(projectUuid);
@@ -90,55 +99,69 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         return <LoadingState title="Loading user access" />;
     }
     return (
-        <Paper withBorder sx={{ overflow: 'hidden' }}>
-            <Table className={cx(classes.root, classes.alignLastTdRight)}>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {projectAccess?.map((projectMember) => (
-                        <ProjectAccessRow
-                            key={projectMember.email}
-                            user={projectMember}
-                            onUpdate={
-                                canManageProjectAccess
-                                    ? (newRole) =>
-                                          updateAccess({
-                                              userUuid: projectMember.userUuid,
-                                              role: newRole,
-                                          })
-                                    : undefined
-                            }
-                            onDelete={
-                                canManageProjectAccess
-                                    ? () => revokeAccess(projectMember.userUuid)
-                                    : undefined
-                            }
-                            relevantOrgRole={
-                                overlapPermissions.find(
-                                    ({ email, role }) =>
-                                        email === projectMember.email &&
-                                        relevantOrgRolesForProjectRole[
-                                            projectMember.role
-                                        ].includes(role),
-                                )?.role
-                            }
-                        />
-                    ))}
-                    {inheritedPermissions?.map((orgUser) => (
-                        <ProjectAccessRow
-                            key={orgUser.email}
-                            user={orgUser}
-                            roleTooltip={`This user inherits the organization role: ${orgUser.role}`}
-                        />
-                    ))}
-                </tbody>
-            </Table>
-        </Paper>
+        <>
+            <Paper withBorder sx={{ overflow: 'hidden' }}>
+                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {projectAccess?.map((projectMember) => (
+                            <ProjectAccessRow
+                                key={projectMember.email}
+                                user={projectMember}
+                                onUpdate={
+                                    canManageProjectAccess
+                                        ? (newRole) =>
+                                              updateAccess({
+                                                  userUuid:
+                                                      projectMember.userUuid,
+                                                  role: newRole,
+                                              })
+                                        : undefined
+                                }
+                                onDelete={
+                                    canManageProjectAccess
+                                        ? () =>
+                                              revokeAccess(
+                                                  projectMember.userUuid,
+                                              )
+                                        : undefined
+                                }
+                                relevantOrgRole={
+                                    overlapPermissions.find(
+                                        ({ email, role }) =>
+                                            email === projectMember.email &&
+                                            relevantOrgRolesForProjectRole[
+                                                projectMember.role
+                                            ].includes(role),
+                                    )?.role
+                                }
+                            />
+                        ))}
+                        {inheritedPermissions?.map((orgUser) => (
+                            <ProjectAccessRow
+                                key={orgUser.email}
+                                user={orgUser}
+                                roleTooltip={`This user inherits the organization role: ${orgUser.role}`}
+                            />
+                        ))}
+                    </tbody>
+                </Table>
+            </Paper>
+
+            {isAddingProjectAccess && (
+                <ProjectAccessCreation
+                    opened
+                    projectUuid={projectUuid}
+                    onClose={() => onAddProjectAccessClose()}
+                />
+            )}
+        </>
     );
 };
 

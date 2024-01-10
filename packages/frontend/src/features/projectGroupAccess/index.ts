@@ -1,1 +1,1 @@
-export { default as ProjectGroupAccessModal } from './components/ProjectGroupAccessModal';
+export { default as ProjectGroupAccess } from './components/ProjectGroupAccess';
