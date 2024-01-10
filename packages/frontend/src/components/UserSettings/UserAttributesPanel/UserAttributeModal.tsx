@@ -74,8 +74,6 @@ const UserAttributeModal: FC<{
                 return null;
             },
             groups: (value: { groupUuid: string; value: string }[]) => {
-                console.log(value);
-
                 if (
                     value.reduceRight(
                         (acc, group, index) =>
