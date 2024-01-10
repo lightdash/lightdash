@@ -1,3 +1,10 @@
+# [0.928.0](https://github.com/lightdash/lightdash/compare/0.927.3...0.928.0) (2024-01-10)
+
+
+### Features
+
+* project group access endpoints ([#8515](https://github.com/lightdash/lightdash/issues/8515)) ([9ad0240](https://github.com/lightdash/lightdash/commit/9ad02400095b491af786760dbb189ba7afa2ae3e))
+
 ## [0.927.3](https://github.com/lightdash/lightdash/compare/0.927.2...0.927.3) (2024-01-10)
 
 
