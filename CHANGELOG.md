@@ -1,3 +1,10 @@
+## [0.927.1](https://github.com/lightdash/lightdash/compare/0.927.0...0.927.1) (2024-01-10)
+
+
+### Bug Fixes
+
+* update groups validation error ([#8523](https://github.com/lightdash/lightdash/issues/8523)) ([c4ea2cc](https://github.com/lightdash/lightdash/commit/c4ea2cc4bbc2d52ed83699aafc6e76f9b3f50baf))
+
 # [0.927.0](https://github.com/lightdash/lightdash/compare/0.926.0...0.927.0) (2024-01-09)
 
 
