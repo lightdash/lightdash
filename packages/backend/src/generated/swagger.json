@@ -5642,10 +5642,14 @@
     "info": {
         "title": "Lightdash API",
 <<<<<<< HEAD
+<<<<<<< HEAD
         "version": "0.927.0",
 =======
         "version": "0.926.0",
 >>>>>>> 702e85f0e (feat: project group access backend)
+=======
+        "version": "0.927.0",
+>>>>>>> 2e22a123d (rebase and generate api)
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
