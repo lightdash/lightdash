@@ -176,6 +176,7 @@ module.exports = {
                     label: 'Filters',
                 },
                 'references/roles',
+                'references/groups',
                 'references/user-attributes',
                 'references/embedding',
                 'references/sql-variables',
