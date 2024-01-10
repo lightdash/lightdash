@@ -325,10 +325,10 @@ const UserAttributeModal: FC<{
                                         <MantineIcon icon={IconUsersPlus} />
                                     }
                                     onClick={() => {
-                                        form.setFieldValue('groups', [
-                                            ...(form.values.groups || []),
-                                            { groupUuid: '', value: '' },
-                                        ]);
+                                        form.insertListItem('groups', {
+                                            groupUuid: '',
+                                            value: '',
+                                        });
                                     }}
                                 >
                                     Add group

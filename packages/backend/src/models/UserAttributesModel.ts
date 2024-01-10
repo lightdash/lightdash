@@ -112,11 +112,6 @@ export class UserAttributesModel {
                 `users.user_id`,
             )
             .leftJoin(
-                `groups`,
-                `${GroupUserAttributesTable}.group_uuid`,
-                `groups.group_uuid`,
-            )
-            .leftJoin(
                 `emails`,
                 `${OrganizationMemberUserAttributesTable}.user_id`,
                 `emails.user_id`,
@@ -258,17 +253,13 @@ export class UserAttributesModel {
         userAttributeUuid: string,
         groups: { groupUuid: string; value: string }[],
     ): Promise<void> {
-        const promises = groups.map(async (groupAttr) => {
-            const [group] = await trx(`groups`)
-                .where(`group_uuid`, groupAttr.groupUuid)
-                .select('group_uuid');
-
-            return trx(GroupUserAttributesTable).insert({
-                group_uuid: group.group_uuid,
+        const promises = groups.map(async (groupAttr) =>
+            trx(GroupUserAttributesTable).insert({
+                group_uuid: groupAttr.groupUuid,
                 user_attribute_uuid: userAttributeUuid,
                 value: groupAttr.value,
-            });
-        });
+            }),
+        );
 
         await Promise.all(promises);
     }

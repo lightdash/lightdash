@@ -38,7 +38,8 @@ import UserAttributeModal from './UserAttributeModal';
 const UserListItem: FC<{
     orgUserAttribute: UserAttribute;
     onEdit: () => void;
-}> = ({ orgUserAttribute, onEdit }) => {
+    isGroupsFeatureFlagEnabled?: boolean;
+}> = ({ orgUserAttribute, onEdit, isGroupsFeatureFlagEnabled }) => {
     const [isDeleteDialogOpen, deleteDialog] = useDisclosure(false);
     const { mutate: deleteUserAttribute } = useUserAttributesDeleteMutation();
 
@@ -67,10 +68,12 @@ const UserListItem: FC<{
                             {orgUserAttribute.users.length} user
                             {orgUserAttribute.users.length > 1 ? 's' : ''}
                         </Text>
-                        <Text fz="xs" color="gray.6">
-                            {orgUserAttribute.groups.length} group
-                            {orgUserAttribute.groups.length > 1 ? 's' : ''}
-                        </Text>
+                        {isGroupsFeatureFlagEnabled && (
+                            <Text fz="xs" color="gray.6">
+                                {orgUserAttribute.groups.length} group
+                                {orgUserAttribute.groups.length > 1 ? 's' : ''}
+                            </Text>
+                        )}
                     </Group>
                 </Stack>
             </td>
@@ -231,6 +234,9 @@ const UserAttributesPanel: FC = () => {
                                     orgUserAttribute={orgUserAttribute}
                                     onEdit={() =>
                                         setEditAttribute(orgUserAttribute)
+                                    }
+                                    isGroupsFeatureFlagEnabled={
+                                        isGroupsFeatureFlagEnabled
                                     }
                                 />
                             ))}

@@ -44,7 +44,7 @@ describe('Attributes API', () => {
             },
         );
     });
-    it.only('creates an empty attribute and updates with users and groups', () => {
+    it('creates an empty attribute and updates with users and groups', () => {
         const name = `example_attribute${Math.random()}`;
         const newName = `example_attribute${Math.random()}`;
 
