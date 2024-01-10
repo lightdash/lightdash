@@ -108,7 +108,8 @@ export const replaceUserAttributes = (
 
     return sqlAttributes.reduce<string>((acc, sqlAttribute) => {
         const attribute = sqlAttribute.replace(userAttributeRegex, '$1');
-        const userValue: string | null | undefined = userAttributes[attribute];
+        const userValue: string | null | undefined =
+            userAttributes[attribute]?.[0]; // Pick first value, where user value takes precedence over group values
 
         if (userValue === undefined) {
             throw new ForbiddenError(
