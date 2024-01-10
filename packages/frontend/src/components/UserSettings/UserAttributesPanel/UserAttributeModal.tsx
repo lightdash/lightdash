@@ -40,6 +40,59 @@ const UserAttributeModal: FC<{
             groups: userAttribute?.groups || [],
             attributeDefault: userAttribute?.attributeDefault || null,
         },
+        validate: {
+            name: (value: string) => {
+                if (!/^[a-z_][a-z0-9_]*$/.test(value)) {
+                    return `Invalid attribute name. Attribute name must contain only lowercase characters, '_' or numbers and it can't start with a number`;
+                }
+                if (
+                    allUserAttributes.some(
+                        (attr) =>
+                            attr.name === value &&
+                            attr.uuid !== userAttribute?.uuid,
+                    )
+                ) {
+                    return `Attribute with the same name already exists`;
+                }
+                return null;
+            },
+            users: (value: { userUuid: string; value: string }[]) => {
+                if (
+                    value.reduceRight(
+                        (acc, user, index) =>
+                            acc ||
+                            value.some(
+                                (otherUser, otherIndex) =>
+                                    index !== otherIndex &&
+                                    user.userUuid === otherUser.userUuid,
+                            ),
+                        false,
+                    )
+                ) {
+                    return `Duplicated users`;
+                }
+                return null;
+            },
+            groups: (value: { groupUuid: string; value: string }[]) => {
+                console.log(value);
+
+                if (
+                    value.reduceRight(
+                        (acc, group, index) =>
+                            acc ||
+                            value.some(
+                                (otherGroup, otherIndex) =>
+                                    index !== otherIndex &&
+                                    group.groupUuid === otherGroup.groupUuid,
+                            ),
+                        false,
+                    )
+                ) {
+                    return `Duplicated groups`;
+                }
+                return null;
+            },
+        },
     });
     const [inputError, setInputError] = useState<string | undefined>();
     const { mutate: createUserAttribute } = useCreateUserAtributesMutation();
@@ -63,38 +116,6 @@ const UserAttributeModal: FC<{
         if (onClose) onClose();
     };
     const handleSubmit = async (data: CreateUserAttribute) => {
-        // Input validation
-        if (!/^[a-z_][a-z0-9_]*$/.test(data.name)) {
-            setInputError(
-                `Invalid attribute name. Attribute name must contain only lowercase characters, '_' or numbers and it can't start with a number`,
-            );
-            return;
-        }
-        if (
-            allUserAttributes.some(
-                (attr) =>
-                    attr.name === data.name &&
-                    attr.uuid !== userAttribute?.uuid,
-            )
-        ) {
-            setInputError(`Attribute with the same name already exists`);
-            return;
-        }
-
-        const duplicatedUsers = data.users?.reduceRight(
-            (acc, user, index) =>
-                acc ||
-                data.users?.some(
-                    (otherUser, otherIndex) =>
-                        index !== otherIndex &&
-                        user.userUuid === otherUser.userUuid,
-                ),
-            false,
-        );
-        if (duplicatedUsers) {
-            setInputError(`Duplicated users`);
-            return;
-        }
         if (userAttribute?.uuid) {
             await updateUserAttribute(data);
         } else {
@@ -174,6 +195,11 @@ const UserAttributeModal: FC<{
                     <Stack>
                         <Stack spacing="xs">
                             <Text fw={500}>Assign to users</Text>
+                            {!form.isValid('users') && (
+                                <Text color="red" size="xs">
+                                    {form.errors.users}
+                                </Text>
+                            )}
 
                             {form.values.users?.map((user, index) => {
                                 return (
@@ -253,6 +279,11 @@ const UserAttributeModal: FC<{
                         {isGroupsFeatureFlagEnabled && (
                             <Stack spacing="xs">
                                 <Text fw={500}>Assign to groups</Text>
+                                {!form.isValid('groups') && (
+                                    <Text color="red" size="xs">
+                                        {form.errors.groups}
+                                    </Text>
+                                )}
                                 {form.values.groups.map((group, index) => {
                                     return (
                                         <Group key={index}>
