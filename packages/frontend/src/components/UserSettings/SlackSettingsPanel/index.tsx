@@ -3,18 +3,24 @@ import {
     Alert,
     Anchor,
     Avatar,
+    Box,
     Button,
     Flex,
     Group,
     Loader,
+    Select,
     Stack,
     Text,
     Title,
 } from '@mantine/core';
-import { IconAlertCircle, IconTrash } from '@tabler/icons-react';
+import { IconAlertCircle, IconCheck, IconTrash } from '@tabler/icons-react';
 import intersection from 'lodash/intersection';
 import { FC } from 'react';
-import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
+import {
+    useDeleteSlack,
+    useGetSlack,
+    useSlackChannels,
+} from '../../../hooks/slack/useSlack';
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
@@ -27,6 +33,11 @@ export const hasRequiredScopes = (slackSettings: SlackSettings) => {
 };
 const SlackSettingsPanel: FC = () => {
     const { data, isError, isLoading } = useGetSlack();
+    const isValidSlack = data?.slackTeamName !== undefined && !isError;
+    const { data: slackChannels, isLoading: isLoadingSlackChannels } =
+        useSlackChannels({
+            enabled: isValidSlack,
+        });
     const { mutate: deleteSlack } = useDeleteSlack();
 
     const installUrl = `/api/v1/slack/install/`;
@@ -35,39 +46,79 @@ const SlackSettingsPanel: FC = () => {
         return <Loader />;
     }
 
-    const isValidSlack = data?.slackTeamName !== undefined && !isError;
     return (
         <SettingsGridCard>
-            <div>
+            <Box>
                 <Stack spacing="lg">
                     <Group spacing="sm">
                         <Avatar src={slackSvg} size="sm" />
-                        <Title order={4}>Slack integration</Title>
+                        <Title order={4}>Slack</Title>
                     </Group>
 
                     <Stack spacing="xs">
                         {isValidSlack && (
-                            <Text color="dimmed">
-                                Added to the{' '}
-                                <Text span fw={500} color="black">
-                                    {data.slackTeamName}
-                                </Text>{' '}
-                                Slack workspace.
-                            </Text>
+                            <Stack spacing="xs">
+                                <Alert
+                                    p="xs"
+                                    icon={<MantineIcon icon={IconCheck} />}
+                                    title={
+                                        <Text fw={500}>
+                                            Added to the Slack workspace:{' '}
+                                            <Text span fw={500} color="black">
+                                                {data.slackTeamName}
+                                            </Text>
+                                        </Text>
+                                    }
+                                    color="green"
+                                    styles={{
+                                        wrapper: {
+                                            alignItems: 'center',
+                                        },
+                                        title: {
+                                            marginBottom: 0,
+                                        },
+                                        icon: {
+                                            marginRight: 0,
+                                        },
+                                    }}
+                                >
+                                    <></>
+                                </Alert>
+                            </Stack>
                         )}
 
                         <Text color="dimmed">
                             Sharing in Slack allows you to unfurl Lightdash URLs
-                            in your workspace.{' '}
+                            and schedule deliveries to specific people or
+                            channels within your Slack workspace.
                             <Anchor href="https://docs.lightdash.com/guides/sharing-in-slack">
                                 View docs
                             </Anchor>
                         </Text>
+
+                        <Stack spacing="xs">
+                            <Select
+                                label="Select a channel to send delivery error notifications to"
+                                disabled={isLoadingSlackChannels}
+                                size="xs"
+                                placeholder="Select a channel"
+                                data={
+                                    slackChannels?.map((channel) => ({
+                                        value: channel.id,
+                                        label: channel.name,
+                                    })) ?? []
+                                }
+                                onChange={(value) => {
+                                    // eslint-disable-next-line no-console
+                                    console.log(value);
+                                }}
+                            />
+                        </Stack>
                     </Stack>
                 </Stack>
-            </div>
+            </Box>
 
-            <div>
+            <Box>
                 {isValidSlack ? (
                     <Stack align="end">
                         <Group>
@@ -111,7 +162,7 @@ const SlackSettingsPanel: FC = () => {
                         </Button>
                     </Flex>
                 )}
-            </div>
+            </Box>
         </SettingsGridCard>
     );
 };

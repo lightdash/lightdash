@@ -1,7 +1,12 @@
-import { ApiError, SlackSettings } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { lightdashApi } from '../api';
-import useToaster from './toaster/useToaster';
+import { ApiError, SlackChannel, SlackSettings } from '@lightdash/common';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    UseQueryOptions,
+} from 'react-query';
+import { lightdashApi } from '../../api';
+import useToaster from '../toaster/useToaster';
 
 const getSlack = async () =>
     lightdashApi<SlackSettings>({
@@ -43,3 +48,19 @@ export const useDeleteSlack = () => {
         },
     });
 };
+
+const getSlackChannels = async () =>
+    lightdashApi<SlackChannel[]>({
+        url: `/slack/channels`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useSlackChannels = (
+    useQueryOptions?: UseQueryOptions<SlackChannel[], ApiError>,
+) =>
+    useQuery<SlackChannel[], ApiError>({
+        queryKey: ['slack_channels'],
+        queryFn: getSlackChannels,
+        ...useQueryOptions,
+    });
