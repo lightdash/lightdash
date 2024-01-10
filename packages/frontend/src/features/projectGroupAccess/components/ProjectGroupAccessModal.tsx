@@ -20,11 +20,6 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { TrackPage } from '../../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
-import {
-    useAddProjectGroupAccessMutation,
-    useProjectGroupAccesses,
-    useRemoveProjectGroupAccessMutation,
-} from '../hooks/useProjectGroupAccess';
 
 interface ProjectGroupAccessModalProps extends ModalProps {
     projectUuid: string;
@@ -75,45 +70,6 @@ const ProjectGroupAccessModal: FC<ProjectGroupAccessModalProps> = ({
             setItemProp: setProjectGroupAccessItemProp,
         },
     ] = useListState<ProjectGroupAccessState>();
-
-    const { data: projectAccesses, refetch: refetchProjectAccesses } =
-        useProjectGroupAccesses(projectUuid);
-    const { mutateAsync: addProjectGroupAccess } =
-        useAddProjectGroupAccessMutation();
-    const { mutateAsync: removeProjectGroupAccess } =
-        useRemoveProjectGroupAccessMutation();
-    useEffect(() => {
-        async function demo() {
-            if (groups === undefined) return;
-
-            const { data } = await refetchProjectAccesses();
-            console.log('initial project accesses', { data, projectAccesses });
-
-            const accessResponse = await addProjectGroupAccess({
-                projectUuid,
-                groupUuid: groups[0].uuid,
-                role: ProjectMemberRole.DEVELOPER,
-            });
-            console.log(
-                'response from adding project accesses',
-                accessResponse,
-            );
-
-            const { data: data2 } = await refetchProjectAccesses();
-            console.log('after adding project accesses', data2);
-
-            await removeProjectGroupAccess({
-                projectUuid,
-                groupUuid: groups[0].uuid,
-            });
-
-            const { data: data3 } = await refetchProjectAccesses();
-            console.log('after removing project accesses', data3);
-        }
-
-        demo();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [groups]);
 
     useEffect(() => {
         if (groups === undefined) return;
