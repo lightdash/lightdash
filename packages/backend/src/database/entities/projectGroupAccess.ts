@@ -4,14 +4,14 @@ import { Knex } from 'knex';
 export const ProjectGroupAccessTableName = 'project_group_access';
 
 export type DBProjectGroupAccess = {
-    project_id: number;
+    project_uuid: string;
     group_uuid: string;
     role: ProjectMemberRole;
 };
 
 export type CreateDBProjectGroupAccess = Pick<
     DBProjectGroupAccess,
-    'project_id' | 'group_uuid' | 'role'
+    'project_uuid' | 'group_uuid' | 'role'
 >;
 
 export type UpdateDBProjectGroupAccess = Pick<DBProjectGroupAccess, 'role'>;

@@ -11,9 +11,9 @@ export async function up(knex: Knex): Promise<void> {
             PROJECT_GROUP_ACCESS_TABLE_NAME,
             (table) => {
                 table
-                    .integer('project_id')
+                    .uuid('project_uuid')
                     .notNullable()
-                    .references('project_id')
+                    .references('project_uuid')
                     .inTable(PROJECTS_TABLE_NAME)
                     .onDelete('CASCADE');
                 table
@@ -24,12 +24,12 @@ export async function up(knex: Knex): Promise<void> {
                     .onDelete('CASCADE');
                 table
                     .text('role')
+                    .notNullable()
                     .references('role')
                     .inTable(PROJECT_MEMBERSHIP_ROLES_TABLE_NAME)
-                    .notNullable()
                     .onDelete('RESTRICT')
                     .defaultTo('viewer');
-                table.unique(['project_id', 'group_uuid']);
+                table.unique(['project_uuid', 'group_uuid']);
             },
         );
     }
