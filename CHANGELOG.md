@@ -1,3 +1,11 @@
+# [0.930.0](https://github.com/lightdash/lightdash/compare/0.929.0...0.930.0) (2024-01-10)
+
+
+### Features
+
+* project group access frontend ([#8527](https://github.com/lightdash/lightdash/issues/8527)) ([726b08e](https://github.com/lightdash/lightdash/commit/726b08e2d79adb4cdf554199c2a7699d8ba694ed))
+* sync groups from okta claims ([#8508](https://github.com/lightdash/lightdash/issues/8508)) ([cd184aa](https://github.com/lightdash/lightdash/commit/cd184aadd8c8d814fef7bba9803164b95fab52b5))
+
 # [0.929.0](https://github.com/lightdash/lightdash/compare/0.928.0...0.929.0) (2024-01-10)
 
 
