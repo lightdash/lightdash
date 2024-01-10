@@ -351,8 +351,8 @@ export class UserModel {
             )
             .innerJoin(
                 'projects',
-                'projects.project_id',
-                'project_group_access.project_id',
+                'projects.project_uuid',
+                'project_group_access.project_uuid',
             )
             .where('group_memberships.organization_id', organizationId)
             .andWhere('group_memberships.user_id', userId)
