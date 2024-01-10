@@ -43,6 +43,10 @@ export type OrganizationMemberProfileWithGroups = OrganizationMemberProfile & {
     groups: Pick<Group, 'name' | 'uuid'>[];
 };
 
+export const isOrganizationMemberProfileWithGroups = (
+    obj: OrganizationMemberProfile | OrganizationMemberProfileWithGroups,
+): obj is OrganizationMemberProfileWithGroups => 'groups' in obj;
+
 export type OrganizationMemberProfileUpdate = {
     role: OrganizationMemberRole;
 };

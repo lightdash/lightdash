@@ -1,6 +1,8 @@
 import {
     getRoleDescription,
+    isOrganizationMemberProfileWithGroups,
     OrganizationMemberProfile,
+    OrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
 } from '@lightdash/common';
 import {
@@ -10,6 +12,8 @@ import {
     Card,
     Flex,
     Group,
+    HoverCard,
+    List,
     Modal,
     Paper,
     Select,
@@ -28,6 +32,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -110,8 +115,9 @@ const UserNameDisplay: FC<{
 
 const UserListItem: FC<{
     disabled: boolean;
-    user: OrganizationMemberProfile;
-}> = ({ disabled, user }) => {
+    user: OrganizationMemberProfile | OrganizationMemberProfileWithGroups;
+    groupManagementEnabled?: boolean;
+}> = ({ disabled, user, groupManagementEnabled }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [showInviteSuccess, setShowInviteSuccess] = useState(true);
     const { mutate, isLoading: isDeleting } =
@@ -133,7 +139,7 @@ const UserListItem: FC<{
     return (
         <>
             <tr>
-                <td width={500}>
+                <td width={300}>
                     <UserNameDisplay
                         disabled={disabled}
                         user={user}
@@ -192,6 +198,49 @@ const UserListItem: FC<{
                                 )}
                             />
                         </td>
+                        {groupManagementEnabled && (
+                            <td>
+                                {isOrganizationMemberProfileWithGroups(
+                                    user,
+                                ) && (
+                                    <HoverCard
+                                        shadow="sm"
+                                        disabled={user.groups.length < 1}
+                                    >
+                                        <HoverCard.Target>
+                                            <Text color="gray">{`${
+                                                user.groups.length
+                                            } group${
+                                                user.groups.length !== 1
+                                                    ? 's'
+                                                    : ''
+                                            }`}</Text>
+                                        </HoverCard.Target>
+                                        <HoverCard.Dropdown p="sm">
+                                            <Text
+                                                fz="xs"
+                                                fw={600}
+                                                color="gray.6"
+                                            >
+                                                User groups:
+                                            </Text>
+                                            <List
+                                                size="xs"
+                                                ml="xs"
+                                                mt="xs"
+                                                fz="xs"
+                                            >
+                                                {user.groups.map((group) => (
+                                                    <List.Item key={group.name}>
+                                                        {group.name}
+                                                    </List.Item>
+                                                ))}
+                                            </List>
+                                        </HoverCard.Dropdown>
+                                    </HoverCard>
+                                )}
+                            </td>
+                        )}
                         <td>
                             <Group position="right">
                                 <Button
@@ -275,10 +324,13 @@ const UsersView: FC = () => {
     const { user } = useApp();
     const { classes } = useTableStyles();
 
+    // TODO: this is a feature flag while we are building groups.
+    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
+
     const [search, setSearch] = useState('');
 
     const { data: organizationUsers, isLoading: isLoadingUsers } =
-        useOrganizationUsers(search);
+        useOrganizationUsers({ searchInput: search, includeGroups: 1000 });
 
     if (isLoadingUsers) {
         return <LoadingState title="Loading users" />;
@@ -326,6 +378,7 @@ const UsersView: FC = () => {
                             ) && (
                                 <>
                                     <th>Role</th>
+                                    {groupManagementEnabled && <th>Groups</th>}
                                     <th></th>
                                 </>
                             )}
@@ -337,6 +390,9 @@ const UsersView: FC = () => {
                                 <UserListItem
                                     key={orgUser.email}
                                     user={orgUser}
+                                    groupManagementEnabled={
+                                        groupManagementEnabled
+                                    }
                                     disabled={
                                         user.data?.userUuid ===
                                             orgUser.userUuid ||

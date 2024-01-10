@@ -2,6 +2,7 @@ import {
     ApiError,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
+    OrganizationMemberProfileWithGroups,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
@@ -10,9 +11,13 @@ import { useApp } from '../providers/AppProvider';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
-const getOrganizationUsersQuery = async () =>
-    lightdashApi<OrganizationMemberProfile[]>({
-        url: `/org/users`,
+const getOrganizationUsersQuery = async (includeGroups?: number) =>
+    lightdashApi<
+        OrganizationMemberProfile[] | OrganizationMemberProfileWithGroups[]
+    >({
+        url: `/org/users${
+            includeGroups ? `?includeGroups=${includeGroups}` : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
@@ -31,20 +36,23 @@ const updateUser = async (id: string, data: OrganizationMemberProfileUpdate) =>
         body: JSON.stringify(data),
     });
 
-export const useOrganizationUsers = (searchInput?: string) => {
+export const useOrganizationUsers = (params?: {
+    searchInput?: string;
+    includeGroups?: number;
+}) => {
     const setErrorResponse = useQueryError();
     return useQuery<OrganizationMemberProfile[], ApiError>({
         queryKey: ['organization_users'],
-        queryFn: getOrganizationUsersQuery,
+        queryFn: () => getOrganizationUsersQuery(params?.includeGroups),
         onError: (result) => setErrorResponse(result),
         select: (data) => {
-            if (searchInput) {
+            if (params?.searchInput) {
                 return new Fuse(Object.values(data), {
                     keys: ['firstName', 'lastName', 'email', 'role'],
                     ignoreLocation: true,
                     threshold: 0.3,
                 })
-                    .search(searchInput)
+                    .search(params.searchInput)
                     .map((result) => result.item);
             }
             return data;
