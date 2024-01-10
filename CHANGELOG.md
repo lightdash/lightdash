@@ -1,3 +1,10 @@
+# [0.929.0](https://github.com/lightdash/lightdash/compare/0.928.0...0.929.0) (2024-01-10)
+
+
+### Features
+
+* apply group attributes to row and column filtering ([#8517](https://github.com/lightdash/lightdash/issues/8517)) ([b3d3a15](https://github.com/lightdash/lightdash/commit/b3d3a15c353be1f07badfef81e0f1415e4539b39))
+
 # [0.928.0](https://github.com/lightdash/lightdash/compare/0.927.3...0.928.0) (2024-01-10)
 
 
