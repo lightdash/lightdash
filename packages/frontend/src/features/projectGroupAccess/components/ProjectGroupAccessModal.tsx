@@ -179,7 +179,7 @@ const ProjectGroupAccessModal: FC<ProjectGroupAccessModalProps> = ({
                                                             </Tooltip>
                                                         </>
                                                     }
-                                                    onChange={(event) => {
+                                                    onClick={(event) => {
                                                         setProjectGroupAccessItemProp(
                                                             index,
                                                             'enabled',
