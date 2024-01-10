@@ -90,11 +90,10 @@ export const useGroupUpdateMutation = () => {
         UpdateGroupWithMembers & { uuid: string }
     >((data) => updateGroupQuery(data), {
         mutationKey: ['update_group'],
-        onSuccess: async (_, updateGroup) => {
+        onSuccess: async (group) => {
             await queryClient.invalidateQueries(['organization_groups']);
-
             showToastSuccess({
-                title: `Success! Group, ${updateGroup.name} was updated.`,
+                title: `Success! Group '${group.name}' was updated.`,
             });
         },
         onError: (error) => {
@@ -125,7 +124,7 @@ export const useGroupDeleteMutation = () => {
                 await queryClient.invalidateQueries(['organization_groups']);
 
                 showToastSuccess({
-                    title: `Success! Group ${deletedGroup.name} was deleted.`,
+                    title: `Success! Group '${deletedGroup.name}' was deleted.`,
                 });
             },
             onError: (error) => {
