@@ -55,7 +55,9 @@ const CreateGroupModal: FC<
         onClose();
     };
 
-    const handleSubmitUpdate = async (data: UpdateGroupWithMembers) => {
+    const handleSubmitUpdate = async (
+        data: UpdateGroupWithMembers & { uuid: string },
+    ) => {
         mutateAsyncUpdateGroup({
             name: form.isDirty('name') ? data.name : undefined,
             members: form.isDirty('members') ? data.members : undefined,
