@@ -204,6 +204,11 @@ describe('Groups API', () => {
                 },
             }).then((resp) => {
                 expect(resp.status).to.eq(200);
+                expect(resp.body.results).to.deep.eq({
+                    groupUuid: SEED_GROUP.groupUuid,
+                    projectUuid: SEED_PROJECT.project_uuid,
+                    role: 'viewer',
+                });
             });
         });
 
@@ -214,6 +219,37 @@ describe('Groups API', () => {
                 method: 'POST',
                 body: {
                     role: 'viewer',
+                },
+                failOnStatusCode: false,
+            }).then((resp) => {
+                expect(resp.status).to.eq(403);
+            });
+        });
+
+        it('should update a group access to a project', () => {
+            cy.request({
+                url: `api/v1/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
+                method: 'PATCH',
+                body: {
+                    role: 'editor',
+                },
+            }).then((resp) => {
+                expect(resp.status).to.eq(200);
+                expect(resp.body.results).to.deep.eq({
+                    groupUuid: SEED_GROUP.groupUuid,
+                    projectUuid: SEED_PROJECT.project_uuid,
+                    role: 'editor',
+                });
+            });
+        });
+
+        it('should not update a group access to a project for another organization', () => {
+            cy.anotherLogin();
+            cy.request({
+                url: `api/v1/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
+                method: 'PATCH',
+                body: {
+                    role: 'editor',
                 },
                 failOnStatusCode: false,
             }).then((resp) => {

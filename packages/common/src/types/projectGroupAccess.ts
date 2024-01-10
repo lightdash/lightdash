@@ -19,3 +19,8 @@ export type ApiCreateProjectGroupAccess = {
     status: 'ok';
     results: ProjectGroupAccess;
 };
+
+export type ApiUpdateProjectGroupAccess = {
+    status: 'ok';
+    results: ProjectGroupAccess;
+};

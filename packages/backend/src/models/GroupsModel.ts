@@ -11,6 +11,7 @@ import {
     UnexpectedDatabaseError,
     UpdateGroup,
     UpdateGroupWithMembers,
+    UpdateProjectGroupAccess,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import differenceBy from 'lodash/differenceBy';
@@ -19,6 +20,7 @@ import { OrganizationTableName } from '../database/entities/organizations';
 import {
     DBProjectGroupAccess,
     ProjectGroupAccessTableName,
+    UpdateDBProjectGroupAccess,
 } from '../database/entities/projectGroupAccess';
 import { ProjectTableName } from '../database/entities/projects';
 
@@ -313,6 +315,31 @@ export class GroupsModel {
         const rows = await query;
 
         return rows.length > 0;
+    }
+
+    async updateProjectAccess(
+        {
+            projectUuid,
+            groupUuid,
+        }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
+        updateAttributes: UpdateDBProjectGroupAccess,
+    ): Promise<DBProjectGroupAccess> {
+        const query = this.database(ProjectGroupAccessTableName)
+            .update(updateAttributes)
+            .where('project_uuid', projectUuid)
+            .andWhere('group_uuid', groupUuid)
+            .returning('*');
+
+        const rows = await query;
+
+        if (rows.length === 0) {
+            throw new UnexpectedDatabaseError(
+                `Failed to update project access`,
+            );
+        }
+
+        const [row] = rows;
+        return row;
     }
 
     async addUserToGroupsIfExist({
