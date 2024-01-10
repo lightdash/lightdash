@@ -21,7 +21,7 @@ export type CreateGroup = Pick<Group, 'name'> & {
     members?: Pick<GroupMember, 'userUuid'>[];
 };
 
-export type UpdateGroup = Pick<Group, 'name' | 'uuid'>;
+export type UpdateGroup = Pick<Group, 'name'>;
 
 /**
  * A summary for a Lightdash user within a group
@@ -61,7 +61,7 @@ export type GroupWithMembers = Group & {
     members: GroupMember[];
 };
 
-export type UpdateGroupWithMembers = Pick<GroupWithMembers, 'uuid'> & {
+export type UpdateGroupWithMembers = {
     name?: string;
     members?: Pick<GroupMember, 'userUuid'>[];
 };

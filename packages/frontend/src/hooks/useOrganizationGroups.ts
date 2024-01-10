@@ -69,7 +69,9 @@ export const useGroupCreateMutation = () => {
     );
 };
 
-const updateGroupQuery = async (data: UpdateGroupWithMembers) =>
+const updateGroupQuery = async (
+    data: UpdateGroupWithMembers & { uuid: string },
+) =>
     lightdashApi<GroupWithMembers>({
         url: `/groups/${data.uuid}`,
         method: 'PATCH',
@@ -82,25 +84,26 @@ const updateGroupQuery = async (data: UpdateGroupWithMembers) =>
 export const useGroupUpdateMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<Group, ApiError, UpdateGroupWithMembers>(
-        (data) => updateGroupQuery(data),
-        {
-            mutationKey: ['update_group'],
-            onSuccess: async (_, updateGroup) => {
-                await queryClient.invalidateQueries(['organization_groups']);
+    return useMutation<
+        Group,
+        ApiError,
+        UpdateGroupWithMembers & { uuid: string }
+    >((data) => updateGroupQuery(data), {
+        mutationKey: ['update_group'],
+        onSuccess: async (_, updateGroup) => {
+            await queryClient.invalidateQueries(['organization_groups']);
 
-                showToastSuccess({
-                    title: `Success! Group, ${updateGroup.name} was updated.`,
-                });
-            },
-            onError: (error) => {
-                showToastError({
-                    title: `Failed to update group`,
-                    subtitle: error.error.message,
-                });
-            },
+            showToastSuccess({
+                title: `Success! Group, ${updateGroup.name} was updated.`,
+            });
         },
-    );
+        onError: (error) => {
+            showToastError({
+                title: `Failed to update group`,
+                subtitle: error.error.message,
+            });
+        },
+    });
 };
 
 const deleteGroupQuery = async (data: Group) =>
