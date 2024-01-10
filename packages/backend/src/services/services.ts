@@ -186,6 +186,7 @@ export const validationService = new ValidationService({
 
 export const groupService = new GroupsService({
     groupsModel,
+    projectService,
 });
 
 export const sshKeyPairService = new SshKeyPairService({

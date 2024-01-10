@@ -6,23 +6,25 @@ import {
     GroupMembership,
     GroupWithMembers,
     ProjectGroupAccess,
-    ProjectMemberRole,
     SessionUser,
-    UpdateGroup,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
-import { CreateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
+import { ProjectService } from './ProjectService/ProjectService';
 
 type GroupServiceDependencies = {
     groupsModel: GroupsModel;
+    projectService: ProjectService;
 };
 
 export class GroupsService {
     private readonly groupsModel: GroupsModel;
 
+    private readonly projectService: ProjectService;
+
     constructor(deps: GroupServiceDependencies) {
         this.groupsModel = deps.groupsModel;
+        this.projectService = deps.projectService;
     }
 
     async addGroupMember(
@@ -147,6 +149,10 @@ export class GroupsService {
         { groupUuid, projectUuid, role }: ProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
         const group = await this.groupsModel.getGroup(groupUuid);
+        const project = await this.projectService.getProject(
+            projectUuid,
+            actor,
+        );
 
         if (
             actor.ability.cannot(
@@ -156,6 +162,21 @@ export class GroupsService {
                 }),
             )
         ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (project.organizationUuid !== group.organizationUuid) {
             throw new ForbiddenError();
         }
 
@@ -180,6 +201,11 @@ export class GroupsService {
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
     ) {
         const group = await this.groupsModel.getGroup(groupUuid);
+        const project = await this.projectService.getProject(
+            projectUuid,
+            actor,
+        );
+
         if (
             actor.ability.cannot(
                 'update',
@@ -188,6 +214,21 @@ export class GroupsService {
                 }),
             )
         ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (project.organizationUuid !== group.organizationUuid) {
             throw new ForbiddenError();
         }
 

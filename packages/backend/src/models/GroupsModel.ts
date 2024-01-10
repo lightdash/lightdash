@@ -279,31 +279,19 @@ export class GroupsModel {
         projectUuid,
         role,
     }: ProjectGroupAccess): Promise<DBProjectGroupAccess> {
-        const query = this.database.raw<{
-            rows: DBProjectGroupAccess[];
-        }>(
-            `
-            INSERT INTO ${ProjectGroupAccessTableName} (project_id, group_uuid, role)
-            SELECT ${ProjectTableName}.project_id, ${GroupTableName}.group_uuid, :role
-            FROM ${ProjectTableName}
-            INNER JOIN ${GroupTableName} ON ${ProjectTableName}.organization_id = ${GroupTableName}.organization_id
-            WHERE ${ProjectTableName}.project_uuid = :projectUuid
-            AND ${GroupTableName}.group_uuid = :groupUuid
-            AND ${ProjectTableName}.organization_id = ${GroupTableName}.organization_id
-            ON CONFLICT DO NOTHING
-            RETURNING *
-            `,
-            { projectUuid, groupUuid, role },
-        );
+        const query = this.database(ProjectGroupAccessTableName)
+            .insert({ group_uuid: groupUuid, project_uuid: projectUuid, role })
+            .onConflict()
+            .ignore()
+            .returning('*');
 
-        const result = await query;
+        const rows = await query;
 
-        if (result.rows.length === 0) {
+        if (rows.length === 0) {
             throw new UnexpectedDatabaseError(`Failed to add project access`);
         }
 
-        const [row] = result.rows;
-
+        const [row] = rows;
         return row;
     }
 
@@ -314,22 +302,14 @@ export class GroupsModel {
         ProjectGroupAccess,
         'groupUuid' | 'projectUuid'
     >): Promise<boolean> {
-        const query = this.database.raw(
-            `
-            DELETE FROM ${ProjectGroupAccessTableName}
-            WHERE project_id = (
-                SELECT project_id
-                FROM ${ProjectTableName}
-                WHERE project_uuid = :projectUuid
-            )
-            AND group_uuid = :groupUuid
-            RETURNING *
-            `,
-            { projectUuid, groupUuid },
-        );
+        const query = this.database(ProjectGroupAccessTableName)
+            .delete()
+            .where('project_uuid', projectUuid)
+            .andWhere('group_uuid', groupUuid)
+            .returning('*');
 
-        const result = await query;
+        const rows = await query;
 
-        return result.rows.length > 0;
+        return rows.length > 0;
     }
 }
