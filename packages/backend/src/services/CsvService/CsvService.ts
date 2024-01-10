@@ -203,6 +203,12 @@ export class CsvService {
         return fileId;
     }
 
+    static isValidCsvFileId(fileId: string): boolean {
+        return /^csv-(incomplete_results-)?[a-z0-9_]+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.csv$/.test(
+            fileId,
+        );
+    }
+
     static async writeRowsToFile(
         rows: Record<string, any>[],
         onlyRaw: boolean,

@@ -19,7 +19,14 @@ import {
 } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconLayoutDashboard, IconTable, IconX } from '@tabler/icons-react';
-import { createRef, FC, forwardRef, RefObject, useMemo } from 'react';
+import {
+    createRef,
+    FC,
+    forwardRef,
+    ReactNode,
+    RefObject,
+    useMemo,
+} from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
@@ -67,14 +74,6 @@ const getErrorName = (validationError: ValidationResponse) => {
         return validationError.name ?? 'Table';
 };
 
-const handleOnValidationErrorClick = (
-    projectUuid: string,
-    validationError: ValidationResponse,
-) => {
-    const link = getLinkToResource(validationError, projectUuid);
-    if (link) window.open(link, '_blank');
-};
-
 const getViews = (
     validationError:
         | ValidationErrorChartResponse
@@ -83,6 +82,31 @@ const getViews = (
     if ('chartViews' in validationError) return validationError.chartViews;
     if ('dashboardViews' in validationError)
         return validationError.dashboardViews;
+};
+
+const AnchorToResource: FC<{
+    validationError: ValidationResponse;
+    projectUuid: string;
+    children: ReactNode;
+}> = ({ validationError, projectUuid, children }) => {
+    return (
+        <Anchor
+            href={getLinkToResource(validationError, projectUuid)}
+            target="_blank"
+            sx={{
+                color: 'unset',
+                ':hover': {
+                    color: 'unset',
+                    textDecoration: 'none',
+                },
+            }}
+            onClick={(e) => {
+                e.stopPropagation();
+            }}
+        >
+            {children}
+        </Anchor>
+    );
 };
 
 const TableValidationItem = forwardRef<
@@ -97,26 +121,11 @@ const TableValidationItem = forwardRef<
     const { hovered, ref: isHoveredRef } = useHover<HTMLTableRowElement>();
 
     return (
-        <tr
-            ref={mergeRefs(ref, isHoveredRef)}
-            onClick={() =>
-                handleOnValidationErrorClick(projectUuid, validationError)
-            }
-        >
+        <tr ref={mergeRefs(ref, isHoveredRef)}>
             <td>
-                <Anchor
-                    href={getLinkToResource(validationError, projectUuid)}
-                    target="_blank"
-                    sx={{
-                        color: 'unset',
-                        ':hover': {
-                            color: 'unset',
-                            textDecoration: 'none',
-                        },
-                    }}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                    }}
+                <AnchorToResource
+                    validationError={validationError}
+                    projectUuid={projectUuid}
                 >
                     <Flex gap="sm" align="center">
                         <Icon validationError={validationError} />
@@ -163,10 +172,15 @@ const TableValidationItem = forwardRef<
                                 )}
                         </Stack>
                     </Flex>
-                </Anchor>
+                </AnchorToResource>
             </td>
             <td>
-                <ErrorMessage validationError={validationError} />
+                <AnchorToResource
+                    validationError={validationError}
+                    projectUuid={projectUuid}
+                >
+                    <ErrorMessage validationError={validationError} />
+                </AnchorToResource>
             </td>
             <td>
                 <Tooltip label="Dismiss error" position="top">

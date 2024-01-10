@@ -229,12 +229,12 @@ projectRouter.get(
         try {
             const { fileId } = req.params;
 
-            if (!fileId.startsWith('csv-') || !fileId.endsWith('.csv')) {
+            if (!CsvService.isValidCsvFileId(fileId)) {
                 throw new NotFoundError(`CSV file not found ${fileId}`);
             }
-            const sanitizedFileId = fileId.replace('..', '');
-
+            const sanitizedFileId = path.normalize(fileId);
             const filePath = path.join('/tmp', sanitizedFileId);
+
             if (!fs.existsSync(filePath)) {
                 const error = `This file ${fileId} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage`;
                 throw new NotFoundError(error);

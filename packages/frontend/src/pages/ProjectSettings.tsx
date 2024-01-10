@@ -103,9 +103,7 @@ const ProjectSettings: FC = () => {
                         <SettingsValidator projectUuid={projectUuid} />
                     </Route>
 
-                    <Redirect
-                        to={`/generalSettings/projectManagement/${projectUuid}/settings`}
-                    />
+                    <Redirect to={`/generalSettings/`} />
                 </Switch>
             </Stack>
         </>
