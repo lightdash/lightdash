@@ -42,7 +42,7 @@ export const useOrganizationUsers = (params?: {
 }) => {
     const setErrorResponse = useQueryError();
     return useQuery<OrganizationMemberProfile[], ApiError>({
-        queryKey: ['organization_users'],
+        queryKey: ['organization_users', params?.includeGroups],
         queryFn: () => getOrganizationUsersQuery(params?.includeGroups),
         onError: (result) => setErrorResponse(result),
         select: (data) => {
