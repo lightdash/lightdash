@@ -2,12 +2,14 @@ import EmbedCreateSecret from './assets/embed-create-secret.png';
 import EmbedAddDashboard from './assets/embed-add-dashboard.png';
 import EmbedDeveloper from './assets/embed-developer.png';
 import EmbedPreview from './assets/embed-preview.png';
+import CreateUserAttribute from './assets/create-user-attribute.png';
+import DashboardEmbedAttribute from './assets/dashboard-embed-attribute.png';
 
 # How to embed content
 
-Lightdash allow you to embed some of your dashboards using expirable URLs and tokens (embed URLs from now on). Embedding is a paid-per-usage feature. To get embedding enabled on your instance, contact the Lightdash team. 
+Lightdash allow you to embed some of your dashboards using expirable URLs and tokens (embed URLs from now on). Embedding is only available with a commercial Lightdash license, [get in touch](https://lightdash.typeform.com/to/BujU5wg5) to have this enabled in your account.
 
-## How to embed dashboards 
+## Quick start to embed dashboards 
 
 ### Create an embed secret
 
@@ -42,4 +44,68 @@ To make this easier to integrate, we included some code snippets you can copy an
 
 <img src={EmbedDeveloper} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### For more information on embed settings, see the [embedding reference doc](../references/embedding.mdx)
+:::info
+
+For more information on embed settings, see the [embedding reference doc](../references/embedding.mdx)
+
+:::
+
+## I want to have my embedded dashboard show different values for different users in my app.
+
+Imagine a scenario where I have a dashboard embedded in my application showing an overview of orders. Ideally, when a user looks at this dashboard, they should only see the orders for their shop (not all of the other shops using my application). You can do this with embedded dashboards using user attributes. Here's how to do it:
+
+### Create a user attribute in Lightdash
+
+First, we need to create a [user attribute](../references/user-attributes.mdx) in Lightdash that we can use to assign our users to a specific shop. I create an attribute called `shop_id` and I set the default value to `all`. 
+
+<img src={CreateUserAttribute} width="516" height="381" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+
+### Filter the tables used in your dashboard with `sql_filter`
+
+We need to filter the access to all of the tables we use in our dashboard using this attribute. For example, in my `Order Summary` dashboard, I use the `orders` and the `shops` tables to build all of the charts. So, in these two tables, I'm going to add a [row-level filter](#../references/user-attributes#1-row-filtering-with-sql_filter) using my `shop_id` attribute, like:
+
+```yaml
+version: 2
+models:
+  - name: orders
+    meta:
+      sql_filter: ${lightdash.attributes.shop_id} = 'all' OR ${TABLE}.shop_id = ${lightdash.attributes.shop_id} 
+```
+
+### Add the user attribute to your dashboard embed
+
+Now that we have our user attribute set up and filtering our data properly, we want to head back to our dashboard emedding configuration.
+
+There are two ways to use user attributes in your embedded dashboard:
+
+**Option 1: assign a constant value for your attribute**
+
+You can assign your dashboard a single, constant value for your attribute by adding it in the `user attributes` section of your embedded dashboard setup. 
+
+For example, if I wanted the embed link to only show data for `shop_id = Thyme to Shine`, then I would add a user attribute `shop_id` with the value `Thyme to Shine`. 
+
+<img src={DashboardEmbedAttribute} width="399" height="149" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+
+**Option 2: assign a variable value for your attribute**
+
+You can adjust the value of the user attribute based on a variable coming from your app so, for example, the user attribute for `shop_id` in the Lightdash embedded dashboard would change depending on which `shop_id` the user belonged to in my app.
+
+To do this, I would pass Lightdash an external value for `shop_id` in the embed code snippet. This could look something like:
+
+```node
+import jwt from 'jsonwebtoken';
+const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
+const projectUuid = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+const userShopId = await getUserShopIdFromDatabase();
+const data = {
+    content: {
+        type: 'dashboard',
+        dashboardUuid: 'a392ed6d-4c53-4102-89b7-1c57a87df391',
+    },
+    userAttributes: {"shop_id": userShopId},
+};
+const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '1 hour' });
+const url = `https://analytics.lightdash.cloud/embed/${projectUuid}/#${token}`;
+```
+
+And voila! you now have an embedded dashboard that shows different values for different users in your app.
