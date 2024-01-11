@@ -1,3 +1,10 @@
+# [0.935.0](https://github.com/lightdash/lightdash/compare/0.934.0...0.935.0) (2024-01-11)
+
+
+### Features
+
+* show group info in users list ([#8538](https://github.com/lightdash/lightdash/issues/8538)) ([5a37fab](https://github.com/lightdash/lightdash/commit/5a37fabf9365106c98f56eaa786b751c04f0b9da))
+
 # [0.934.0](https://github.com/lightdash/lightdash/compare/0.933.0...0.934.0) (2024-01-11)
 
 
