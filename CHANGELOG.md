@@ -1,3 +1,11 @@
+## [0.935.1](https://github.com/lightdash/lightdash/compare/0.935.0...0.935.1) (2024-01-11)
+
+
+### Bug Fixes
+
+* fix critical vulnerabilities ([#8532](https://github.com/lightdash/lightdash/issues/8532)) ([6e6e4f2](https://github.com/lightdash/lightdash/commit/6e6e4f2724a7e3739d4b24cda081358d3cfea498))
+* use pathname on sso redirection ([#8554](https://github.com/lightdash/lightdash/issues/8554)) ([9ba3b38](https://github.com/lightdash/lightdash/commit/9ba3b38b23d9f8d9940c903ef58ab0329c764fc0))
+
 # [0.935.0](https://github.com/lightdash/lightdash/compare/0.934.0...0.935.0) (2024-01-11)
 
 
