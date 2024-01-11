@@ -39,6 +39,8 @@ const BigNumberConfigTabs = memo(() => {
         setBigNumberLabel,
         bigNumberStyle,
         setBigNumberStyle,
+        bigNumberComparisonStyle,
+        setBigNumberComparisonStyle,
         showStyle,
         selectedField: selectedFieldId,
         setSelectedField,
@@ -106,8 +108,12 @@ const BigNumberConfigTabs = memo(() => {
                             onChange={(newValue) => {
                                 if (!newValue) {
                                     setBigNumberStyle(undefined);
+                                    setBigNumberComparisonStyle(undefined);
                                 } else {
                                     setBigNumberStyle(
+                                        newValue as CompactOrAlias,
+                                    );
+                                    setBigNumberComparisonStyle(
                                         newValue as CompactOrAlias,
                                     );
                                 }
@@ -168,6 +174,25 @@ const BigNumberConfigTabs = memo(() => {
                                     setComparisonLabel(e.currentTarget.value)
                                 }
                             />
+
+                            {showStyle && (
+                                <Select
+                                    label="Format"
+                                    data={StyleOptions}
+                                    value={bigNumberComparisonStyle ?? ''}
+                                    onChange={(newValue) => {
+                                        if (!newValue) {
+                                            setBigNumberComparisonStyle(
+                                                undefined,
+                                            );
+                                        } else {
+                                            setBigNumberComparisonStyle(
+                                                newValue as CompactOrAlias,
+                                            );
+                                        }
+                                    }}
+                                />
+                            )}
                         </>
                     ) : null}
                 </Stack>
