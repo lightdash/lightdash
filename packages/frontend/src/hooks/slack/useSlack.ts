@@ -64,3 +64,33 @@ export const useSlackChannels = (
         queryFn: getSlackChannels,
         ...useQueryOptions,
     });
+
+const updateSlackNotificationChannel = async (channelId: string) =>
+    lightdashApi<undefined>({
+        url: `/slack/notification-channel`,
+        method: 'PUT',
+        body: JSON.stringify({ channelId }),
+    });
+
+export const useUpdateSlackNotificationChannelMutation = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+    return useMutation<undefined, ApiError, { channelId: string }>(
+        ({ channelId }) => updateSlackNotificationChannel(channelId),
+        {
+            onSuccess: async () => {
+                await queryClient.invalidateQueries('slack');
+
+                showToastSuccess({
+                    title: `Success! Slack notification channel updated`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to update Slack notification channel`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
