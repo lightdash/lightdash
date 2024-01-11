@@ -125,12 +125,12 @@ import {
 import {
     EmailOneTimePasscodesTableName,
     EmailOneTimePasscodeTable,
-} from '../database/entities/email_one_time_passcodes';
-import { GroupTable, GroupTableName } from '../database/entities/groups';
+} from '../database/entities/emailOneTimePasscodes';
 import {
     GroupMembershipTable,
     GroupMembershipTableName,
-} from '../database/entities/group_memberships';
+} from '../database/entities/groupMemberships';
+import { GroupTable, GroupTableName } from '../database/entities/groups';
 import {
     OrganizationAllowedEmailDomainProjectsTable,
     OrganizationAllowedEmailDomainProjectsTableName,
@@ -154,7 +154,7 @@ import {
 import {
     SshKeyPairTable,
     SshKeyPairTableName,
-} from '../database/entities/ssh_key_pairs';
+} from '../database/entities/sshKeyPairs';
 import {
     DbGroupUserAttribute,
     DbOrganizationMemberUserAttribute,
