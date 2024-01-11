@@ -1,3 +1,10 @@
+## [0.935.2](https://github.com/lightdash/lightdash/compare/0.935.1...0.935.2) (2024-01-11)
+
+
+### Bug Fixes
+
+* update users when groups change ([#8556](https://github.com/lightdash/lightdash/issues/8556)) ([55eb91f](https://github.com/lightdash/lightdash/commit/55eb91fa97596ff17a08c35c66c7d53d7850d106))
+
 ## [0.935.1](https://github.com/lightdash/lightdash/compare/0.935.0...0.935.1) (2024-01-11)
 
 
