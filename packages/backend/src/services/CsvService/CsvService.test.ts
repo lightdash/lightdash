@@ -213,4 +213,38 @@ $4.00,value_4,2020-03-16
             `csv-incomplete_results-payment-`,
         );
     });
+
+    it('isValidCsvFileId', async () => {
+        const time = moment('2023-09-07 12:13:45.123');
+        const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
+
+        const validNames = [
+            `csv-payment-${timestamp}.csv`,
+            `csv-mytable-${timestamp}.csv`,
+            `csv-my_table-${timestamp}.csv`,
+            `csv-table_-${timestamp}.csv`,
+            `csv-this_is_a_chart_title-${timestamp}.csv`,
+            `csv-another_table_for_testing_-${timestamp}.csv`,
+            `csv-weird_chars_-${timestamp}.csv`,
+            `csv-incomplete_results-payment-${timestamp}.csv`,
+        ];
+
+        const invalidNames = [
+            `without_prefix-${timestamp}.csv`,
+            `csv-without_suffix-${timestamp}`,
+            `csv-no_timestamp.csv`,
+            `csv-with space-${timestamp}.csv`,
+            `csv-UPPERCASED-${timestamp}.csv`,
+        ];
+        validNames.forEach((name) => {
+            expect(name + CsvService.isValidCsvFileId(name)).toEqual(
+                name + true,
+            );
+        });
+        invalidNames.forEach((name) => {
+            expect(name + CsvService.isValidCsvFileId(name)).toEqual(
+                name + false,
+            );
+        });
+    });
 });

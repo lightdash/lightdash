@@ -57,7 +57,7 @@ const SettingsMenu: FC = () => {
                     <Menu.Item
                         component={Link}
                         icon={<MantineIcon icon={IconDatabase} />}
-                        to={`/generalSettings/projectManagement/${activeProjectUuid}`}
+                        to={`/generalSettings/projectManagement/${activeProjectUuid}/settings`}
                     >
                         Project settings
                     </Menu.Item>

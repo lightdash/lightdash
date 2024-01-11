@@ -304,6 +304,25 @@ export class UnfurlService {
         return unfurlImage.imageUrl;
     }
 
+    static isValidImageFileId(imageId: string): boolean {
+        // Checks if the image follows one of the following formats:
+        // slack-image-${nanoid()}.png
+        // slack-image_${snakeCaseName(name)}_${nanoid()}.png
+        // slack-image-notification-${nanoid()}.png
+
+        const imageRegex = /slack-image-[a-zA-Z0-9_-]{21}.png/;
+        const imageWithNameRegex =
+            /slack-image_[a-z0-9_-]+_[a-zA-Z0-9_-]{21}.png/;
+        const imageNotificationRegex =
+            /slack-image-notification-[a-zA-Z0-9_-]{21}.png/;
+
+        return (
+            imageRegex.test(imageId) ||
+            imageWithNameRegex.test(imageId) ||
+            imageNotificationRegex.test(imageId)
+        );
+    }
+
     private async saveScreenshot({
         imageId,
         cookie,

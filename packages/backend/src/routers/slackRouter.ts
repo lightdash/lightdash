@@ -15,6 +15,7 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { slackAuthenticationModel } from '../models/models';
+import { UnfurlService } from '../services/UnfurlService/UnfurlService';
 
 export const slackRouter = express.Router({ mergeParams: true });
 
@@ -59,15 +60,12 @@ slackRouter.get(
     async (req, res, next) => {
         try {
             const { imageId } = req.params;
-            if (
-                !imageId.startsWith('slack-image') ||
-                !imageId.endsWith('.png')
-            ) {
+            if (!UnfurlService.isValidImageFileId(imageId)) {
                 throw new NotFoundError(
                     `Slack image not found ${req.params.imageId}`,
                 );
             }
-            const sanitizedImageId = imageId.replace('..', '');
+            const sanitizedImageId = path.normalize(imageId);
 
             const filePath = path.join('/tmp', sanitizedImageId);
             if (!fs.existsSync(filePath)) {
