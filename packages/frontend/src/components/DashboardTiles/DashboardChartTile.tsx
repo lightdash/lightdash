@@ -884,6 +884,8 @@ export const GenericDashboardChartTile: FC<
         projectUuid: string;
         dashboardUuid: string;
     }>();
+    const { user } = useApp();
+    const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
 
     if (isLoading) {
         return (
@@ -897,6 +899,7 @@ export const GenericDashboardChartTile: FC<
                 isLoading
                 title={tile.properties.title || tile.properties.chartName || ''}
                 extraMenuItems={
+                    userCanManageChart &&
                     tile.properties.savedChartUuid && (
                         <EditChartMenuItem tile={tile} />
                     )
