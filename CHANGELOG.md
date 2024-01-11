@@ -1,3 +1,10 @@
+## [0.936.1](https://github.com/lightdash/lightdash/compare/0.936.0...0.936.1) (2024-01-11)
+
+
+### Bug Fixes
+
+* project group access list does not exclude already assigned groups ([#8561](https://github.com/lightdash/lightdash/issues/8561)) ([e6371a1](https://github.com/lightdash/lightdash/commit/e6371a13a7f5ee67cc80b569ef2424f7e14c442f))
+
 # [0.936.0](https://github.com/lightdash/lightdash/compare/0.935.2...0.936.0) (2024-01-11)
 
 
