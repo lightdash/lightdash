@@ -1,3 +1,10 @@
+# [0.931.0](https://github.com/lightdash/lightdash/compare/0.930.0...0.931.0) (2024-01-11)
+
+
+### Features
+
+* allow chart edit when loading in dashboard ([#8519](https://github.com/lightdash/lightdash/issues/8519)) ([90d5878](https://github.com/lightdash/lightdash/commit/90d58785dcb39b7141679a115b1363b60bad9819))
+
 # [0.930.0](https://github.com/lightdash/lightdash/compare/0.929.0...0.930.0) (2024-01-10)
 
 
