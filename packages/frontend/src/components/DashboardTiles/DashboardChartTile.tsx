@@ -899,6 +899,7 @@ export const GenericDashboardChartTile: FC<
                 isLoading
                 title={tile.properties.title || tile.properties.chartName || ''}
                 extraMenuItems={
+                    !minimal &&
                     userCanManageChart &&
                     tile.properties.savedChartUuid && (
                         <EditChartMenuItem tile={tile} />
