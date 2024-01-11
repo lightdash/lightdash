@@ -1,3 +1,10 @@
+# [0.934.0](https://github.com/lightdash/lightdash/compare/0.933.0...0.934.0) (2024-01-11)
+
+
+### Features
+
+* project group access list delete ([#8547](https://github.com/lightdash/lightdash/issues/8547)) ([61688f7](https://github.com/lightdash/lightdash/commit/61688f79965e402927f0188e3cdeec603eddad6c))
+
 # [0.933.0](https://github.com/lightdash/lightdash/compare/0.932.0...0.933.0) (2024-01-11)
 
 
