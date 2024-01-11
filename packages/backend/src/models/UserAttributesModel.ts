@@ -4,8 +4,8 @@ import {
     UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
-import { GroupMembershipTableName } from '../database/entities/group_memberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     DbGroupUserAttribute,

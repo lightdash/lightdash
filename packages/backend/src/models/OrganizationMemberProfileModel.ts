@@ -7,8 +7,8 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { EmailTableName } from '../database/entities/emails';
+import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
-import { GroupMembershipTableName } from '../database/entities/group_memberships';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import {
     DbOrganizationMembership,

@@ -1,8 +1,8 @@
 import { EmailStatus, NotFoundError } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
+import { DbEmailOneTimePasscode } from '../database/entities/emailOneTimePasscodes';
 import { DbEmail, DbEmailIn, DbEmailRemove } from '../database/entities/emails';
-import { DbEmailOneTimePasscode } from '../database/entities/email_one_time_passcodes';
 
 type DbEmailStatus = Pick<DbEmail, 'email' | 'is_verified'> &
     Partial<DbEmailOneTimePasscode>;
