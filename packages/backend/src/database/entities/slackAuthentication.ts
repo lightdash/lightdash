@@ -8,4 +8,5 @@ export type DbSlackAuthTokens = {
     slack_team_id: string;
     created_by_user_id: number;
     created_at: Date;
+    notification_channel: string | null;
 };
