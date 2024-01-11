@@ -880,16 +880,36 @@ export const GenericDashboardChartTile: FC<
     error,
     ...rest
 }) => {
-    if (isLoading)
+    const { projectUuid } = useParams<{
+        projectUuid: string;
+        dashboardUuid: string;
+    }>();
+    const { user } = useApp();
+    const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
+
+    if (isLoading) {
         return (
             <TileBase
                 isEditMode={isEditMode}
+                chartName={tile.properties.chartName ?? ''}
+                titleHref={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/`}
+                description={''}
+                belongsToDashboard={tile.properties.belongsToDashboard}
                 tile={tile}
-                isLoading={true}
-                title={''}
+                isLoading
+                title={tile.properties.title || tile.properties.chartName || ''}
+                extraMenuItems={
+                    !minimal &&
+                    userCanManageChart &&
+                    tile.properties.savedChartUuid && (
+                        <EditChartMenuItem tile={tile} />
+                    )
+                }
                 {...rest}
             />
         );
+    }
+
     if (error !== null || !data)
         return (
             <TileBase
