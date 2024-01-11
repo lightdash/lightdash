@@ -8014,7 +8014,14 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        channelId: { dataType: 'string', required: true },
+                        channelId: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                     },
                 },
             };

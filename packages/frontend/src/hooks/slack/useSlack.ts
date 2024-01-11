@@ -65,7 +65,7 @@ export const useSlackChannels = (
         ...useQueryOptions,
     });
 
-const updateSlackNotificationChannel = async (channelId: string) =>
+const updateSlackNotificationChannel = async (channelId: string | null) =>
     lightdashApi<undefined>({
         url: `/slack/notification-channel`,
         method: 'PUT',
@@ -75,7 +75,7 @@ const updateSlackNotificationChannel = async (channelId: string) =>
 export const useUpdateSlackNotificationChannelMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, { channelId: string }>(
+    return useMutation<undefined, ApiError, { channelId: string | null }>(
         ({ channelId }) => updateSlackNotificationChannel(channelId),
         {
             onSuccess: async () => {

@@ -222,7 +222,7 @@ export class SlackClient {
 
     async updateNotificationChannel(
         organizationUuid: string,
-        channelId: string,
+        channelId: string | null,
     ) {
         if (this.slackApp === undefined) {
             throw new Error('Slack app is not configured');
@@ -244,20 +244,22 @@ export class SlackClient {
             channelId,
         );
 
-        await this.slackApp.client.chat
-            .postMessage({
-                token: installation?.token,
-                channel: channelId,
-                text: 'This channel will now receive notifications when scheduled jobs fail',
-            })
-            .catch((e: any) => {
-                Logger.error(
-                    `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${JSON.stringify(
-                        e,
-                    )}`,
-                );
-                throw e;
-            });
+        if (channelId) {
+            await this.slackApp.client.chat
+                .postMessage({
+                    token: installation?.token,
+                    channel: channelId,
+                    text: 'This channel will now receive notifications when scheduled jobs fail',
+                })
+                .catch((e: any) => {
+                    Logger.error(
+                        `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${JSON.stringify(
+                            e,
+                        )}`,
+                    );
+                    throw e;
+                });
+        }
     }
 
     async getNotificationChannel(

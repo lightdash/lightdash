@@ -8602,7 +8602,8 @@
                             "schema": {
                                 "properties": {
                                     "channelId": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "nullable": true
                                     }
                                 },
                                 "required": ["channelId"],

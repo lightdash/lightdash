@@ -143,7 +143,7 @@ export class SlackAuthenticationModel {
 
     async updateNotificationChannelFromOrganizationUuid(
         organizationUuid: string,
-        notificationChannel: string,
+        notificationChannel: string | null,
     ) {
         const organizationId = await this.getOrganizationId(organizationUuid);
 

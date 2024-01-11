@@ -55,7 +55,7 @@ export class SlackController extends Controller {
     @OperationId('UpdateNotificationChannel')
     async updateNotificationChannel(
         @Request() req: express.Request,
-        @Body() body: { channelId: string },
+        @Body() body: { channelId: string | null },
     ): Promise<ApiSlackNotificationChannelResponse> {
         this.setStatus(200);
         const organizationUuid = req.user?.organizationUuid;
