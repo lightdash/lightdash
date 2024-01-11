@@ -4,6 +4,7 @@ export type SlackSettings = {
     createdAt: Date;
     token?: string;
     scopes: string[];
+    notificationChannel: string | undefined;
 };
 
 export const slackRequiredScopes = [
