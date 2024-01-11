@@ -1282,6 +1282,11 @@ export class ProjectModel {
                 'saved_queries_version_table_calculations',
                 ['saved_queries_version_table_calculation_id'],
             );
+            await copyChartVersionContent(
+                'saved_queries_version_custom_dimensions',
+                ['saved_queries_version_custom_dimension_id'],
+                { custom_range: (value: any) => JSON.stringify(value) },
+            );
             await copyChartVersionContent('saved_queries_version_sorts', [
                 'saved_queries_version_sort_id',
             ]);
