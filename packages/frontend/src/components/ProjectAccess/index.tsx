@@ -39,7 +39,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
             </Group>
 
             <Tabs defaultValue="users">
-                <Group w="100%" mb="lg">
+                <Stack>
                     {groupManagementEnabled && (
                         <Tabs.List>
                             <Tabs.Tab
@@ -62,64 +62,72 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                         </Tabs.List>
                     )}
 
-                    <Tabs.Panel value="users" style={{ marginLeft: 'auto' }}>
-                        <Can
-                            I="manage"
-                            this={subject('Project', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <Button
-                                leftIcon={<MantineIcon icon={IconPlus} />}
-                                onClick={() => setShowProjectAccessAdd(true)}
-                                size="xs"
+                    <Tabs.Panel value="users">
+                        <Stack>
+                            <Can
+                                I="manage"
+                                this={subject('Project', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
                             >
-                                Add user access
-                            </Button>
-                        </Can>
-                    </Tabs.Panel>
+                                <Button
+                                    style={{ alignSelf: 'flex-end' }}
+                                    leftIcon={<MantineIcon icon={IconPlus} />}
+                                    onClick={() =>
+                                        setShowProjectAccessAdd(true)
+                                    }
+                                    size="xs"
+                                >
+                                    Add user access
+                                </Button>
+                            </Can>
 
-                    <Tabs.Panel value="groups" style={{ marginLeft: 'auto' }}>
-                        <Can
-                            I="manage"
-                            this={subject('Project', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <Button
-                                leftIcon={<MantineIcon icon={IconPlus} />}
-                                onClick={() =>
-                                    setShowProjectGroupAccessAdd(true)
+                            <ProjectAccess
+                                projectUuid={projectUuid}
+                                isAddingProjectAccess={showProjectAccessAdd}
+                                onAddProjectAccessClose={() =>
+                                    setShowProjectAccessAdd(false)
                                 }
-                                size="xs"
-                            >
-                                Add group access
-                            </Button>
-                        </Can>
+                            />
+                        </Stack>
                     </Tabs.Panel>
-                </Group>
 
-                <Tabs.Panel value="users">
-                    <ProjectAccess
-                        projectUuid={projectUuid}
-                        isAddingProjectAccess={showProjectAccessAdd}
-                        onAddProjectAccessClose={() =>
-                            setShowProjectAccessAdd(false)
-                        }
-                    />
-                </Tabs.Panel>
+                    <Tabs.Panel value="groups">
+                        <Stack>
+                            <Can
+                                I="manage"
+                                this={subject('Project', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                <Button
+                                    style={{ alignSelf: 'flex-end' }}
+                                    leftIcon={<MantineIcon icon={IconPlus} />}
+                                    onClick={() =>
+                                        setShowProjectGroupAccessAdd(true)
+                                    }
+                                    size="xs"
+                                >
+                                    Add group access
+                                </Button>
+                            </Can>
 
-                <Tabs.Panel value="groups">
-                    <ProjectGroupAccess
-                        projectUuid={projectUuid}
-                        isAddingProjectGroupAccess={showProjectGroupAccessAdd}
-                        onAddProjectGroupAccessClose={() =>
-                            setShowProjectGroupAccessAdd(false)
-                        }
-                    />
-                </Tabs.Panel>
+                            <ProjectGroupAccess
+                                projectUuid={projectUuid}
+                                isAddingProjectGroupAccess={
+                                    showProjectGroupAccessAdd
+                                }
+                                onAddProjectGroupAccessClose={() =>
+                                    setShowProjectGroupAccessAdd(false)
+                                }
+                            />
+                        </Stack>
+                    </Tabs.Panel>
+                </Stack>
             </Tabs>
         </Stack>
     );

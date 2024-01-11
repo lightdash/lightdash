@@ -1,17 +1,14 @@
-import { Box, Button, Paper, Table } from '@mantine/core';
+import { Box, Paper, Table } from '@mantine/core';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { TrackPage } from '../../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
-import {
-    useProjectGroupAccessList,
-    useRemoveProjectGroupAccessMutation,
-} from '../hooks/useProjectGroupAccess';
+import { useProjectGroupAccessList } from '../hooks/useProjectGroupAccess';
 import AddProjectGroupAccessModal from './AddProjectGroupAccessModal';
+import ProjectGroupAccessItem from './ProjectGroupAccessItem';
 
 interface ProjectGroupAccessProps {
     projectUuid: string;
@@ -26,8 +23,6 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
 }) => {
     const { cx, classes } = useTableStyles();
 
-    const { showToastSuccess } = useToaster();
-
     const { data: groups, isLoading: isLoadingGroups } =
         useOrganizationGroups(5);
 
@@ -35,14 +30,6 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
         data: projectGroupAccessList,
         isLoading: isLoadingProjectGroupAccessList,
     } = useProjectGroupAccessList(projectUuid);
-
-    const { mutateAsync: removeProjectGroupAccess } =
-        useRemoveProjectGroupAccessMutation();
-
-    const handleRemoveProjectGroupAccess = async (groupUuid: string) => {
-        await removeProjectGroupAccess({ projectUuid, groupUuid });
-        showToastSuccess({ title: 'Group access removed' });
-    };
 
     return (
         <TrackPage
@@ -86,24 +73,16 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
                                     );
 
                                     return (
-                                        <tr key={projectGroupAccess.groupUuid}>
-                                            <td>{group?.name}</td>
-                                            <td>{projectGroupAccess.role}</td>
-                                            <td>
-                                                <Button
-                                                    size="xs"
-                                                    variant="outline"
-                                                    color="red"
-                                                    onClick={() =>
-                                                        handleRemoveProjectGroupAccess(
-                                                            projectGroupAccess.groupUuid,
-                                                        )
-                                                    }
-                                                >
-                                                    Remove access
-                                                </Button>
-                                            </td>
-                                        </tr>
+                                        group && (
+                                            <ProjectGroupAccessItem
+                                                key={
+                                                    projectGroupAccess.groupUuid
+                                                }
+                                                access={projectGroupAccess}
+                                                group={group}
+                                                projectUuid={projectUuid}
+                                            />
+                                        )
                                     );
                                 },
                             )}

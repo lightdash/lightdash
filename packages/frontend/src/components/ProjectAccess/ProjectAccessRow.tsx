@@ -4,6 +4,7 @@ import {
     ProjectMemberRole,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Badge,
     Button,
     Group,
@@ -90,15 +91,13 @@ const ProjectAccessRow: FC<{
                 </td>
                 <td width="1%">
                     {onDelete && (
-                        <Button
+                        <ActionIcon
                             variant="outline"
-                            size="xs"
                             color="red"
-                            px="xs"
                             onClick={() => setIsDeleteDialogOpen(true)}
                         >
                             <MantineIcon icon={IconTrash} />
-                        </Button>
+                        </ActionIcon>
                     )}
                 </td>
             </tr>
