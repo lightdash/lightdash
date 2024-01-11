@@ -1,3 +1,10 @@
+# [0.932.0](https://github.com/lightdash/lightdash/compare/0.931.0...0.932.0) (2024-01-11)
+
+
+### Features
+
+* improve attributes dialog UI ([#8539](https://github.com/lightdash/lightdash/issues/8539)) ([d8455b4](https://github.com/lightdash/lightdash/commit/d8455b4ebbff3ea87fa52280c4248dfe9494a304))
+
 # [0.931.0](https://github.com/lightdash/lightdash/compare/0.930.0...0.931.0) (2024-01-11)
 
 
