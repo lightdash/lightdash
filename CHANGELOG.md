@@ -1,3 +1,10 @@
+# [0.933.0](https://github.com/lightdash/lightdash/compare/0.932.0...0.933.0) (2024-01-11)
+
+
+### Features
+
+* project group access update backend ([#8544](https://github.com/lightdash/lightdash/issues/8544)) ([a87f69c](https://github.com/lightdash/lightdash/commit/a87f69c50c909337de52801a2472b645b0a8f79c))
+
 # [0.932.0](https://github.com/lightdash/lightdash/compare/0.931.0...0.932.0) (2024-01-11)
 
 
