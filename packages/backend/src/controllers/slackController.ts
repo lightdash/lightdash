@@ -1,13 +1,16 @@
 import {
     ApiErrorPayload,
     ApiSlackChannelsResponse,
+    ApiSlackNotificationChannelResponse,
     ForbiddenError,
 } from '@lightdash/common';
 import {
+    Body,
     Controller,
     Get,
     Middlewares,
     OperationId,
+    Put,
     Request,
     Response,
     Route,
@@ -39,6 +42,30 @@ export class SlackController extends Controller {
         return {
             status: 'ok',
             results: await slackClient.getChannels(organizationUuid),
+        };
+    }
+
+    /**
+     * Update slack notification channel to send notifications to scheduled jobs fail
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('/notification-channel')
+    @OperationId('UpdateNotificationChannel')
+    async updateNotificationChannel(
+        @Request() req: express.Request,
+        @Body() body: { channelId: string },
+    ): Promise<ApiSlackNotificationChannelResponse> {
+        this.setStatus(200);
+        const organizationUuid = req.user?.organizationUuid;
+        if (!organizationUuid) throw new ForbiddenError();
+        return {
+            status: 'ok',
+            results: await slackClient.updateNotificationChannel(
+                organizationUuid,
+                body.channelId,
+            ),
         };
     }
 }
