@@ -70,8 +70,6 @@ models:
         meta:
           dimension:
             type: string
-            required_attributes:
-              is_admin: "true"
       - name: phone
         description: ""
         meta:
