@@ -5,7 +5,7 @@ import { FC, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useRemoveProjectGroupAccessMutation } from '../hooks/useProjectGroupAccess';
-import RemoveProjectGroupAccessModal from './RemoveProjectGroupAccessModal';
+import RevokeProjectGroupAccessModal from './RevokeProjectGroupAccessModal';
 
 type ProjectGroupAccessItemProps = {
     projectUuid: string;
@@ -51,7 +51,7 @@ const ProjectGroupAccessItem: FC<ProjectGroupAccessItemProps> = ({
             </tr>
 
             {isDeleteDialogOpen && (
-                <RemoveProjectGroupAccessModal
+                <RevokeProjectGroupAccessModal
                     group={group}
                     onDelete={() =>
                         handleRemoveProjectGroupAccess(access.groupUuid)

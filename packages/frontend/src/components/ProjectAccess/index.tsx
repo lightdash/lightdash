@@ -20,8 +20,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
     const [showProjectGroupAccessAdd, setShowProjectGroupAccessAdd] =
         useState(false);
 
-    const groupManagementEnabled =
-        useFeatureFlagEnabled('group-management') || true;
+    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
 
     return (
         <Stack>

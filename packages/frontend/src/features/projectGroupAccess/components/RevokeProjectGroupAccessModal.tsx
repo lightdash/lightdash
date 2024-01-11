@@ -4,13 +4,13 @@ import { IconKey } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
-type RemoveProjectGroupAccessModalProps = {
+type RevokeProjectGroupAccessModalProps = {
     group: GroupWithMembers;
     onDelete: () => void;
     onClose: () => void;
 };
 
-const RemoveProjectGroupAccessModal: FC<RemoveProjectGroupAccessModalProps> = ({
+const RevokeProjectGroupAccessModal: FC<RevokeProjectGroupAccessModalProps> = ({
     group,
     onDelete,
     onClose,
@@ -37,11 +37,11 @@ const RemoveProjectGroupAccessModal: FC<RemoveProjectGroupAccessModalProps> = ({
                 </Button>
 
                 <Button color="red" onClick={onDelete}>
-                    Delete
+                    Revoke
                 </Button>
             </Group>
         </Modal>
     );
 };
 
-export default RemoveProjectGroupAccessModal;
+export default RevokeProjectGroupAccessModal;
