@@ -351,13 +351,13 @@ export const getSuccessURLWithReturnTo = (req: Request): string => {
 export const redirectOIDC: RequestHandler = (req, res) => {
     // Workaround for https://github.com/jaredhanson/passport/pull/941
     const queryReturn = req.query.returnTo;
-    if (
-        queryReturn &&
-        typeof queryReturn === 'string' &&
-        new URL(queryReturn, lightdashConfig.siteUrl).host ===
-            new URL(lightdashConfig.siteUrl).host
-    ) {
-        const returnUrl = new URL(queryReturn);
+
+    const returnUrl =
+        queryReturn && typeof queryReturn === 'string'
+            ? new URL(queryReturn, lightdashConfig.siteUrl)
+            : undefined;
+
+    if (returnUrl && returnUrl.host === new URL(lightdashConfig.siteUrl).host) {
         const redirectUrl = `${returnUrl.pathname}${returnUrl.search}`;
         return res.redirect(redirectUrl);
     }
