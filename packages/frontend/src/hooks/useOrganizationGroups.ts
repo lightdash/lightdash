@@ -52,8 +52,8 @@ export const useGroupCreateMutation = () => {
         {
             mutationKey: ['create_group'],
             onSuccess: async (_) => {
-                await queryClient.invalidateQueries(['create_group']);
                 await queryClient.invalidateQueries(['organization_groups']);
+                await queryClient.invalidateQueries(['organization_users']);
 
                 showToastSuccess({
                     title: `Success! Group was created.`,
@@ -92,6 +92,7 @@ export const useGroupUpdateMutation = () => {
         mutationKey: ['update_group'],
         onSuccess: async (group) => {
             await queryClient.invalidateQueries(['organization_groups']);
+            await queryClient.invalidateQueries(['organization_users']);
             showToastSuccess({
                 title: `Success! Group '${group.name}' was updated.`,
             });
@@ -120,8 +121,8 @@ export const useGroupDeleteMutation = () => {
         {
             mutationKey: ['delete_group'],
             onSuccess: async (_, deletedGroup) => {
-                await queryClient.invalidateQueries(['delete_group']);
                 await queryClient.invalidateQueries(['organization_groups']);
+                await queryClient.invalidateQueries(['organization_users']);
 
                 showToastSuccess({
                     title: `Success! Group '${deletedGroup.name}' was deleted.`,
