@@ -30,7 +30,7 @@ export type SavedChartSearchResult = Pick<
 };
 export type TableSearchResult = Pick<
     Table,
-    'name' | 'label' | 'description'
+    'name' | 'label' | 'description' | 'requiredAttributes'
 > & {
     explore: string;
     exploreLabel: string;
@@ -56,6 +56,7 @@ export type FieldSearchResult = Pick<
     | 'tableLabel'
 > & {
     requiredAttributes?: Record<string, string | string[]>;
+    tablesRequiredAttributes: Record<string, Table['requiredAttributes']>;
     explore: string;
     exploreLabel: string;
 };
