@@ -1,3 +1,10 @@
+# [0.936.0](https://github.com/lightdash/lightdash/compare/0.935.2...0.936.0) (2024-01-11)
+
+
+### Features
+
+* project group access edit frontend ([#8558](https://github.com/lightdash/lightdash/issues/8558)) ([2745bab](https://github.com/lightdash/lightdash/commit/2745babccf3d8a12edb42ada4704131fef1c7d67))
+
 ## [0.935.2](https://github.com/lightdash/lightdash/compare/0.935.1...0.935.2) (2024-01-11)
 
 
