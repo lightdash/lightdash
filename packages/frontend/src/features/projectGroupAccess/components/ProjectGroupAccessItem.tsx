@@ -16,13 +16,11 @@ import EditProjectGroupAccessModal from './EditProjectGroupAccessModal';
 import RevokeProjectGroupAccessModal from './RevokeProjectGroupAccessModal';
 
 type ProjectGroupAccessItemProps = {
-    projectUuid: string;
     group: GroupWithMembers;
     access: ProjectGroupAccess;
 };
 
 const ProjectGroupAccessItem: FC<ProjectGroupAccessItemProps> = ({
-    projectUuid,
     group,
     access,
 }) => {
@@ -42,11 +40,16 @@ const ProjectGroupAccessItem: FC<ProjectGroupAccessItemProps> = ({
     ) => {
         await updateProjectGroupAccess(updatedAccess);
         showToastSuccess({ title: 'Group access updated' });
+        setIsEditDialogOpen(false);
     };
 
-    const handleRemoveProjectGroupAccess = async (groupUuid: string) => {
-        await removeProjectGroupAccess({ projectUuid, groupUuid });
+    const handleRemoveProjectGroupAccess = async () => {
+        await removeProjectGroupAccess({
+            projectUuid: access.projectUuid,
+            groupUuid: access.groupUuid,
+        });
         showToastSuccess({ title: 'Group access removed' });
+        setIsDeleteDialogOpen(false);
     };
 
     return (
@@ -91,9 +94,7 @@ const ProjectGroupAccessItem: FC<ProjectGroupAccessItemProps> = ({
             {isDeleteDialogOpen && (
                 <RevokeProjectGroupAccessModal
                     group={group}
-                    onDelete={() =>
-                        handleRemoveProjectGroupAccess(access.groupUuid)
-                    }
+                    onDelete={() => handleRemoveProjectGroupAccess()}
                     onClose={() => setIsDeleteDialogOpen(false)}
                 />
             )}

@@ -1,12 +1,17 @@
+import { CreateProjectGroupAccess } from '@lightdash/common';
 import { Box, Paper, Table } from '@mantine/core';
 import { IconUsersGroup } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useMemo } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { TrackPage } from '../../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
-import { useProjectGroupAccessList } from '../hooks/useProjectGroupAccess';
+import {
+    useAddProjectGroupAccessMutation,
+    useProjectGroupAccessList,
+} from '../hooks/useProjectGroupAccess';
 import AddProjectGroupAccessModal from './AddProjectGroupAccessModal';
 import ProjectGroupAccessItem from './ProjectGroupAccessItem';
 
@@ -23,13 +28,36 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
 }) => {
     const { cx, classes } = useTableStyles();
 
+    const { showToastSuccess } = useToaster();
+
     const { data: groups, isLoading: isLoadingGroups } =
         useOrganizationGroups(5);
+
+    const { mutateAsync: addProjectGroupAccess, isLoading: isSubmitting } =
+        useAddProjectGroupAccessMutation();
+
+    const handleAddProjectGroupAccess = async (
+        formData: CreateProjectGroupAccess,
+    ) => {
+        await addProjectGroupAccess(formData);
+        showToastSuccess({ title: 'Group access added' });
+        onAddProjectGroupAccessClose();
+    };
 
     const {
         data: projectGroupAccessList,
         isLoading: isLoadingProjectGroupAccessList,
     } = useProjectGroupAccessList(projectUuid);
+
+    const availableGroups = useMemo(() => {
+        if (!groups || !projectGroupAccessList) return [];
+
+        return groups.filter((group) => {
+            return !projectGroupAccessList?.find((access) => {
+                return access.groupUuid === group.uuid;
+            });
+        });
+    }, [groups, projectGroupAccessList]);
 
     return (
         <TrackPage
@@ -80,7 +108,6 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
                                                 }
                                                 access={projectGroupAccess}
                                                 group={group}
-                                                projectUuid={projectUuid}
                                             />
                                         )
                                     );
@@ -91,10 +118,13 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
                 </Paper>
             )}
 
-            {isAddingProjectGroupAccess && (
+            {availableGroups && isAddingProjectGroupAccess && (
                 <AddProjectGroupAccessModal
                     projectUuid={projectUuid}
-                    opened
+                    totalNumberOfGroups={groups?.length || 0}
+                    availableGroups={availableGroups}
+                    isSubmitting={isSubmitting}
+                    onSubmit={handleAddProjectGroupAccess}
                     onClose={() => onAddProjectGroupAccessClose()}
                 />
             )}

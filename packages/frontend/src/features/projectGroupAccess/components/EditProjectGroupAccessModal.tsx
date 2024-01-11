@@ -36,9 +36,8 @@ const EditProjectGroupAccessModal: FC<EditProjectGroupAccessModalProps> = ({
         },
     });
 
-    const handleSubmit = async (formData: UpdateProjectGroupAccess) => {
+    const handleSubmit = (formData: UpdateProjectGroupAccess) => {
         onUpdate(formData);
-        onClose();
     };
 
     return (
