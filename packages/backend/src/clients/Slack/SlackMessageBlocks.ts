@@ -309,3 +309,32 @@ export const getUnfurlBlocks = (
                   }),
     },
 });
+
+export const getNotificationChannelErrorBlocks = (
+    schedulerName: string,
+    error: any,
+): KnownBlock[] =>
+    getBlocks([
+        {
+            type: 'header',
+            text: {
+                type: 'plain_text',
+                text: `❌ Error sending Scheduled Delivery: "${schedulerName}"`,
+            },
+        },
+        {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `*Details:*`,
+            },
+        },
+        {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                // eslint-disable-next-line no-useless-concat
+                text: '```' + `${error}` + '```',
+            },
+        },
+    ]);
