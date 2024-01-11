@@ -26,6 +26,7 @@ export const isFilterEnabled = (
         case FilterOperator.NOT_NULL:
             return true;
         case FilterOperator.EQUALS:
+        case FilterOperator.EQUALS_ONLY:
         case FilterOperator.NOT_EQUALS:
         case FilterOperator.LESS_THAN:
         case FilterOperator.GREATER_THAN:
