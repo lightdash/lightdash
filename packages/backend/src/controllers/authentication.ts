@@ -340,24 +340,26 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
 export const getSuccessURLWithReturnTo = (req: Request): string => {
     const url = new URL('/api/v1/oauth/success', lightdashConfig.siteUrl);
     if (req.session.oauth?.returnTo) {
-        url.searchParams.set('returnTo', req.session.oauth.returnTo);
+        url.searchParams.set(
+            'returnTo',
+            decodeURIComponent(req.session.oauth.returnTo),
+        );
     }
     return url.href;
 };
 
 export const redirectOIDC: RequestHandler = (req, res) => {
     // Workaround for https://github.com/jaredhanson/passport/pull/941
-    const queryReturn =
-        typeof req.query.returnTo === 'string'
-            ? decodeURIComponent(req.query.returnTo.toString())
-            : undefined;
-
+    const queryReturn = req.query.returnTo;
     if (
         queryReturn &&
+        typeof queryReturn === 'string' &&
         new URL(queryReturn, lightdashConfig.siteUrl).host ===
             new URL(lightdashConfig.siteUrl).host
     ) {
-        return res.redirect(queryReturn);
+        const returnUrl = new URL(queryReturn);
+        const redirectUrl = `${returnUrl.pathname}${returnUrl.search}`;
+        return res.redirect(redirectUrl);
     }
     return res.redirect('/');
 };
