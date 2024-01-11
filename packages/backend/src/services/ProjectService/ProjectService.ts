@@ -122,8 +122,9 @@ import {
 } from '../../utils';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 import {
+    doesExploreMatchRequiredAttributes,
     exploreHasFilteredAttribute,
-    filterDimensionsFromExplore,
+    getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 
 type RunQueryTags = {
@@ -2119,36 +2120,59 @@ export class ProjectService {
         if (!explores) {
             return [];
         }
-        const allExploreSummaries = explores.map<SummaryExplore>((explore) => {
-            if (isExploreError(explore)) {
-                return {
-                    name: explore.name,
-                    label: explore.label,
-                    tags: explore.tags,
-                    groupLabel: explore.groupLabel,
-                    errors: explore.errors,
-                    databaseName:
-                        explore.baseTable &&
-                        explore.tables?.[explore.baseTable]?.database,
-                    schemaName:
-                        explore.baseTable &&
-                        explore.tables?.[explore.baseTable]?.schema,
-                    description:
-                        explore.baseTable &&
-                        explore.tables?.[explore.baseTable]?.description,
-                };
-            }
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
 
-            return {
-                name: explore.name,
-                label: explore.label,
-                tags: explore.tags,
-                groupLabel: explore.groupLabel,
-                databaseName: explore.tables[explore.baseTable].database,
-                schemaName: explore.tables[explore.baseTable].schema,
-                description: explore.tables[explore.baseTable].description,
-            };
-        });
+        const allExploreSummaries = explores.reduce<SummaryExplore[]>(
+            (acc, explore) => {
+                if (isExploreError(explore)) {
+                    return [
+                        ...acc,
+                        {
+                            name: explore.name,
+                            label: explore.label,
+                            tags: explore.tags,
+                            groupLabel: explore.groupLabel,
+                            errors: explore.errors,
+                            databaseName:
+                                explore.baseTable &&
+                                explore.tables?.[explore.baseTable]?.database,
+                            schemaName:
+                                explore.baseTable &&
+                                explore.tables?.[explore.baseTable]?.schema,
+                            description:
+                                explore.baseTable &&
+                                explore.tables?.[explore.baseTable]
+                                    ?.description,
+                        },
+                    ];
+                }
+                if (
+                    doesExploreMatchRequiredAttributes(explore, userAttributes)
+                ) {
+                    return [
+                        ...acc,
+                        {
+                            name: explore.name,
+                            label: explore.label,
+                            tags: explore.tags,
+                            groupLabel: explore.groupLabel,
+                            databaseName:
+                                explore.tables[explore.baseTable].database,
+                            schemaName:
+                                explore.tables[explore.baseTable].schema,
+                            description:
+                                explore.tables[explore.baseTable].description,
+                        },
+                    ];
+                }
+                return acc;
+            },
+            [],
+        );
 
         if (filtered) {
             const {
@@ -2230,13 +2254,9 @@ export class ProjectService {
                         );
 
                     return wrapOtelSpan(
-                        'ProjectService.getExplore.filterDimensionsFromExplore',
+                        'ProjectService.getExplore.getFilteredExplore',
                         {},
-                        async () =>
-                            filterDimensionsFromExplore(
-                                explore,
-                                userAttributes,
-                            ),
+                        async () => getFilteredExplore(explore, userAttributes),
                     );
                 },
             );
