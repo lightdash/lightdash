@@ -4,6 +4,7 @@ import {
     ApiGroupMembersResponse,
     ApiGroupResponse,
     ApiSuccessEmpty,
+    ApiUpdateProjectGroupAccess,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
 import {
@@ -207,6 +208,35 @@ export class GroupsController extends Controller {
             projectUuid,
             role: projectGroupAccess.role,
         });
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Update project access for a group
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Patch('{groupUuid}/projects/{projectUuid}')
+    @OperationId('updateProjectAccessForGroup')
+    async updateProjectAccessForGroup(
+        @Path() groupUuid: string,
+        @Path() projectUuid: string,
+        @Body()
+        projectGroupAccess: UpdateDBProjectGroupAccess,
+        @Request() req: express.Request,
+    ): Promise<ApiUpdateProjectGroupAccess> {
+        const results = await groupService.updateProjectAccess(
+            req.user!,
+            { groupUuid, projectUuid },
+            projectGroupAccess,
+        );
         this.setStatus(200);
         return {
             status: 'ok',

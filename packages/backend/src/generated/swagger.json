@@ -795,6 +795,33 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "ApiUpdateProjectGroupAccess": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectGroupAccess"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_DBProjectGroupAccess.role_": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/ProjectMemberRole"
+                    }
+                },
+                "required": ["role"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "UpdateDBProjectGroupAccess": {
+                "$ref": "#/components/schemas/Pick_DBProjectGroupAccess.role_"
+            },
             "Organization": {
                 "properties": {
                     "defaultProjectUuid": {
@@ -5651,7 +5678,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.927.1",
+        "version": "0.930.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -6233,6 +6260,62 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/Pick_CreateDBProjectGroupAccess.role_"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "updateProjectAccessForGroup",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpdateProjectGroupAccess"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update project access for a group",
+                "tags": ["User Groups"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "groupUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDBProjectGroupAccess"
                             }
                         }
                     }

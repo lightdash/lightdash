@@ -8,7 +8,9 @@ import {
     ProjectGroupAccess,
     SessionUser,
     UpdateGroupWithMembers,
+    UpdateProjectGroupAccess,
 } from '@lightdash/common';
+import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 
@@ -232,5 +234,54 @@ export class GroupsService {
         });
 
         return removed;
+    }
+
+    async updateProjectAccess(
+        actor: SessionUser,
+        {
+            groupUuid,
+            projectUuid,
+        }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
+        updateAttributes: UpdateDBProjectGroupAccess,
+    ): Promise<ProjectGroupAccess> {
+        const group = await this.groupsModel.getGroup(groupUuid);
+        const project = await this.projectModel.get(projectUuid);
+
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Group', {
+                    organizationUuid: group.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (project.organizationUuid !== group.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const updated = await this.groupsModel.updateProjectAccess(
+            { groupUuid, projectUuid },
+            updateAttributes,
+        );
+
+        return {
+            projectUuid: updated.project_uuid,
+            groupUuid: updated.group_uuid,
+            role: updated.role,
+        };
     }
 }
