@@ -53,12 +53,12 @@ const AddProjectGroupAccessModal: FC<AddProjectGroupAccessModalProps> = ({
             size="lg"
         >
             <TrackPage
-                name={PageName.PROJECT_ADD_USER}
+                name={PageName.PROJECT_ADD_GROUP_ACCESS}
                 type={PageType.MODAL}
                 category={CategoryName.SETTINGS}
             >
                 <form
-                    name="add_user_to_project"
+                    name="add_project_group_access"
                     onSubmit={form.onSubmit(handleSubmit)}
                 >
                     <Group align="flex-end" spacing="xs">

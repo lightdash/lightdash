@@ -2,6 +2,7 @@ import {
     CreateProjectGroupAccess,
     DeleteProjectGroupAccess,
     ProjectGroupAccess,
+    UpdateProjectGroupAccess,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 
@@ -21,6 +22,18 @@ export function addProjectGroupAccess({
     return lightdashApi<ProjectGroupAccess>({
         url: `/groups/${groupUuid}/projects/${projectUuid}`,
         method: 'POST',
+        body: JSON.stringify({ role }),
+    });
+}
+
+export function updateProjectGroupAccess({
+    groupUuid,
+    projectUuid,
+    role,
+}: UpdateProjectGroupAccess) {
+    return lightdashApi<ProjectGroupAccess>({
+        url: `/groups/${groupUuid}/projects/${projectUuid}`,
+        method: 'PATCH',
         body: JSON.stringify({ role }),
     });
 }
