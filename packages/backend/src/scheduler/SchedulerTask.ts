@@ -23,7 +23,6 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isTableChartConfig,
-    LightdashMode,
     LightdashPage,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
@@ -56,6 +55,7 @@ import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
     getDashboardCsvResultsBlocks,
+    getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -167,27 +167,42 @@ export const getNotificationPageData = async (
 
     switch (format) {
         case SchedulerFormat.IMAGE:
-            const imageId = `slack-image-notification-${nanoid()}`;
-            const imageOptions = isSchedulerImageOptions(scheduler.options)
-                ? scheduler.options
-                : undefined;
-            const unfurlImage = await unfurlService.unfurlImage({
-                url: minimalUrl,
-                lightdashPage: pageType,
-                imageId,
-                authUserUuid: userUuid,
-                withPdf: imageOptions?.withPdf,
-                gridWidth:
-                    isDashboardScheduler(scheduler) &&
-                    scheduler.customViewportWidth
-                        ? scheduler.customViewportWidth
-                        : undefined,
-            });
-            if (unfurlImage.imageUrl === undefined) {
-                throw new Error('Unable to unfurl image');
+            try {
+                const imageId = `slack-image-notification-${nanoid()}`;
+                const imageOptions = isSchedulerImageOptions(scheduler.options)
+                    ? scheduler.options
+                    : undefined;
+                const unfurlImage = await unfurlService.unfurlImage({
+                    url: minimalUrl,
+                    lightdashPage: pageType,
+                    imageId,
+                    authUserUuid: userUuid,
+                    withPdf: imageOptions?.withPdf,
+                    gridWidth:
+                        isDashboardScheduler(scheduler) &&
+                        scheduler.customViewportWidth
+                            ? scheduler.customViewportWidth
+                            : undefined,
+                });
+                if (unfurlImage.imageUrl === undefined) {
+                    throw new Error('Unable to unfurl image');
+                }
+                pdfFile = unfurlImage.pdfPath;
+                imageUrl = unfurlImage.imageUrl;
+            } catch (error) {
+                if (slackClient.isEnabled) {
+                    await slackClient.postMessageToNotificationChannel({
+                        organizationUuid,
+                        text: `Error sending Scheduled Delivery: ${scheduler.name}`,
+                        blocks: getNotificationChannelErrorBlocks(
+                            scheduler.name,
+                            error,
+                        ),
+                    });
+                }
+
+                throw error;
             }
-            pdfFile = unfurlImage.pdfPath;
-            imageUrl = unfurlImage.imageUrl;
             break;
         case SchedulerFormat.GSHEETS:
             // We don't generate CSV files for Google sheets on handleNotification task,
@@ -251,6 +266,17 @@ export const getNotificationPageData = async (
                 }
             } catch (e) {
                 Logger.error(`Unable to download CSV on scheduled task: ${e}`);
+
+                if (slackClient.isEnabled) {
+                    await slackClient.postMessageToNotificationChannel({
+                        organizationUuid,
+                        text: `Error sending Scheduled Delivery: ${scheduler.name}`,
+                        blocks: getNotificationChannelErrorBlocks(
+                            scheduler.name,
+                            e,
+                        ),
+                    });
+                }
 
                 analytics.track({
                     event: 'download_results.error',
