@@ -1,7 +1,7 @@
 # -----------------------------
 # Stage 0: install dependencies
 # -----------------------------
-FROM node:20-bullseye AS base
+FROM node:20-bookworm AS base
 WORKDIR /usr/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,13 +16,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     unzip \
     wget \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install security updates
-RUN echo "deb http://deb.debian.org/debian bullseye-backports main" >> /etc/apt/sources.list.d/backports.list
-RUN apt-get update && apt-get -t bullseye-backports install -y \
-    libcurl3-gnutls=7.88.* \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

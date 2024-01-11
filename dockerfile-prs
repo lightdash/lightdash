@@ -1,7 +1,7 @@
 # -----------------------------
 # Stage 0: install dependencies
 # -----------------------------
-FROM node:20-bullseye AS base
+FROM node:20-bookworm AS base
 WORKDIR /usr/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
