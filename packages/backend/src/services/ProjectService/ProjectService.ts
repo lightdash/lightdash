@@ -2202,7 +2202,13 @@ export class ProjectService {
                         );
                     }
 
-                    if (!exploreHasFilteredAttribute(explore)) {
+                    const shouldFilterExplore = await wrapOtelSpan(
+                        'ProjectService.getExplore.shouldFilterExplore',
+                        {},
+                        async () => exploreHasFilteredAttribute(explore),
+                    );
+
+                    if (!shouldFilterExplore) {
                         return explore;
                     }
                     const userAttributes =
@@ -2213,7 +2219,15 @@ export class ProjectService {
                             },
                         );
 
-                    return filterDimensionsFromExplore(explore, userAttributes);
+                    return wrapOtelSpan(
+                        'ProjectService.getExplore.filterDimensionsFromExplore',
+                        {},
+                        async () =>
+                            filterDimensionsFromExplore(
+                                explore,
+                                userAttributes,
+                            ),
+                    );
                 },
             );
         } finally {
