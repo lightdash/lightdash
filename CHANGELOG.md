@@ -1,3 +1,11 @@
+## [0.936.2](https://github.com/lightdash/lightdash/compare/0.936.1...0.936.2) (2024-01-12)
+
+
+### Bug Fixes
+
+* copy custom dimensions on preview ([#8566](https://github.com/lightdash/lightdash/issues/8566)) ([ccaa97d](https://github.com/lightdash/lightdash/commit/ccaa97daad8f48e70739b639356eb0f5f37f3e8d))
+* upgrade docker bookworm ([#8559](https://github.com/lightdash/lightdash/issues/8559)) ([fa1bab7](https://github.com/lightdash/lightdash/commit/fa1bab78057754bea5f393ba9290608934ddead4))
+
 ## [0.936.1](https://github.com/lightdash/lightdash/compare/0.936.0...0.936.1) (2024-01-11)
 
 
