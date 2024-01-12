@@ -102,7 +102,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     }, [onAction]);
 
     const handleCreateSpace = useCallback(
-        (space: Space | undefined) => {
+        (space: Space | null) => {
             if (!space) return;
             if (action.type !== ResourceViewItemAction.CREATE_SPACE) return;
 

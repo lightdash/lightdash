@@ -57,7 +57,7 @@ export const deploy = async (
         }
     }
 
-    await lightdashApi<undefined>({
+    await lightdashApi<null>({
         method: 'PUT',
         url: `/api/v1/projects/${options.projectUuid}/explores`,
         body: JSON.stringify(explores),

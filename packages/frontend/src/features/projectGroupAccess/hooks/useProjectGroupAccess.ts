@@ -63,7 +63,7 @@ export function useUpdateProjectGroupAccessMutation() {
 export function useRemoveProjectGroupAccessMutation() {
     const queryClient = useQueryClient();
 
-    return useMutation<undefined, LightdashError, DeleteProjectGroupAccess>({
+    return useMutation<null, LightdashError, DeleteProjectGroupAccess>({
         mutationFn: ({ groupUuid, projectUuid }) =>
             removeProjectGroupAccess({ groupUuid, projectUuid }),
         onSuccess: (_data, { projectUuid }) => {

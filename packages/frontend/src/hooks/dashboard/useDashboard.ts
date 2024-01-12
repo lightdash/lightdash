@@ -51,7 +51,7 @@ const updateDashboard = async (id: string, data: UpdateDashboard) =>
     });
 
 const deleteDashboard = async (id: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/dashboards/${id}`,
         method: 'DELETE',
         body: undefined,
@@ -356,7 +356,7 @@ export const useDuplicateDashboardMutation = (
 export const useDashboardDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteDashboard, {
+    return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['dashboards']);
             await queryClient.invalidateQueries(['space']);

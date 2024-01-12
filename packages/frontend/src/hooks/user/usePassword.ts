@@ -24,21 +24,17 @@ type UserPasswordUpdate = {
     newPassword: string;
 };
 
-const updateUserPasswordQuery = async (data: UserPasswordUpdate) =>
-    lightdashApi<undefined>({
+const updateUserPasswordQuery = (data: UserPasswordUpdate) =>
+    lightdashApi<null>({
         url: `/user/password`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
 export const useUserUpdatePasswordMutation = (
-    useMutationOptions?: UseMutationOptions<
-        undefined,
-        ApiError,
-        UserPasswordUpdate
-    >,
+    useMutationOptions?: UseMutationOptions<null, ApiError, UserPasswordUpdate>,
 ) => {
-    return useMutation<undefined, ApiError, UserPasswordUpdate>(
+    return useMutation<null, ApiError, UserPasswordUpdate>(
         updateUserPasswordQuery,
         {
             mutationKey: ['user_password_update'],

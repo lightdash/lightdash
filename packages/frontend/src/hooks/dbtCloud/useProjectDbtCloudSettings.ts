@@ -44,7 +44,7 @@ const post = async (projectUuid: string, data: CreateDbtCloudIntegration) =>
     });
 
 const deleteDbtProject = async (projectUuid: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/projects/${projectUuid}/integrations/dbt-cloud/settings`,
         method: 'DELETE',
         body: undefined,
@@ -58,7 +58,7 @@ export const useProjectDbtCloudDeleteMutation = (projectUuid: string) => {
             'Must use useProjectDbtCloudDeleteMutation hook under react-router path with projectUuid available',
         );
     }
-    return useMutation<undefined, ApiError, undefined>(
+    return useMutation<null, ApiError, undefined>(
         () => deleteDbtProject(projectUuid),
         {
             onSuccess: async () => {

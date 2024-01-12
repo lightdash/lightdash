@@ -77,7 +77,7 @@ const updateMultipleDashboard = async (
     projectUuid: string,
     data: UpdateMultipleDashboards[],
 ) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/projects/${projectUuid}/dashboards`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -86,7 +86,7 @@ const updateMultipleDashboard = async (
 export const useUpdateMultipleDashboard = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, UpdateMultipleDashboards[]>(
+    return useMutation<null, ApiError, UpdateMultipleDashboards[]>(
         (data) => updateMultipleDashboard(projectUuid, data),
         {
             mutationKey: ['dashboard_update_multiple'],

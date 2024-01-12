@@ -23,14 +23,14 @@ const getOrganizationUsersQuery = async (includeGroups?: number) =>
     });
 
 const deleteUserQuery = async (id: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/user/${id}`,
         method: 'DELETE',
         body: undefined,
     });
 
 const updateUser = async (id: string, data: OrganizationMemberProfileUpdate) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/users/${id}`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -63,7 +63,7 @@ export const useOrganizationUsers = (params?: {
 export const useDeleteOrganizationUserMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteUserQuery, {
+    return useMutation<null, ApiError, string>(deleteUserQuery, {
         mutationKey: ['organization_users_delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['organization_users']);
@@ -84,7 +84,7 @@ export const useUpdateUserMutation = (userUuid: string) => {
     const queryClient = useQueryClient();
     const { user } = useApp();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, OrganizationMemberProfileUpdate>(
+    return useMutation<null, ApiError, OrganizationMemberProfileUpdate>(
         (data) => {
             if (userUuid) {
                 return updateUser(userUuid, data);

@@ -52,7 +52,7 @@ export const useDefaultProject = (useQueryOptions?: {
 };
 
 const deleteProjectQuery = async (id: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/projects/${id}`,
         method: 'DELETE',
         body: undefined,
@@ -61,7 +61,7 @@ const deleteProjectQuery = async (id: string) =>
 export const useDeleteProjectMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteProjectQuery, {
+    return useMutation<null, ApiError, string>(deleteProjectQuery, {
         mutationKey: ['organization_project_delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['projects']);

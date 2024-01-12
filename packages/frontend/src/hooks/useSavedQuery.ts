@@ -51,7 +51,7 @@ const duplicateSavedQuery = async (
     });
 
 export const deleteSavedQuery = async (id: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/saved/${id}`,
         method: 'DELETE',
         body: undefined,
@@ -148,8 +148,8 @@ export const useChartVersion = (chartUuid: string, versionUuid?: string) =>
 const rollbackChartQuery = async (
     chartUuid: string,
     versionUuid: string,
-): Promise<undefined> =>
-    lightdashApi<undefined>({
+): Promise<null> =>
+    lightdashApi<null>({
         url: `/saved/${chartUuid}/rollback/${versionUuid}`,
         method: 'POST',
         body: undefined,
@@ -157,12 +157,12 @@ const rollbackChartQuery = async (
 export const useChartVersionRollbackMutation = (
     chartUuid: string,
     useMutationOptions?: Omit<
-        UseMutationOptions<undefined, ApiError, string, unknown>,
+        UseMutationOptions<null, ApiError, string, unknown>,
         'mutationFn'
     >,
 ) => {
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(
+    return useMutation<null, ApiError, string>(
         (versionUuid: string) => rollbackChartQuery(chartUuid, versionUuid),
         {
             mutationKey: ['saved_query_rollback'],
@@ -186,10 +186,9 @@ export const useChartVersionRollbackMutation = (
 export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(
+    return useMutation<null, ApiError, string>(
         async (data) => {
-            await queryClient.removeQueries(['savedChartResults', data]);
-
+            queryClient.removeQueries(['savedChartResults', data]);
             return deleteSavedQuery(data);
         },
         {

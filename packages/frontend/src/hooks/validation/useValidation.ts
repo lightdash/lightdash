@@ -145,8 +145,8 @@ export const useValidationNotificationChecker = (): [boolean, () => void] => {
 const deleteValidation = async (
     projectUuid: string,
     validationId: number,
-): Promise<undefined> =>
-    lightdashApi<undefined>({
+): Promise<null> =>
+    lightdashApi<null>({
         url: `/projects/${projectUuid}/validate/${validationId}`,
         method: 'DELETE',
         body: undefined,
@@ -155,7 +155,7 @@ const deleteValidation = async (
 export const useDeleteValidation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
-    return useMutation<undefined, ApiError, number>(
+    return useMutation<null, ApiError, number>(
         (validationId) => deleteValidation(projectUuid, validationId),
         {
             mutationKey: ['delete_validation', projectUuid],

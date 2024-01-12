@@ -23,7 +23,7 @@ export const useGetSlack = () =>
     });
 
 const deleteSlack = async () =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/slack/`,
         method: 'DELETE',
         body: undefined,
@@ -32,7 +32,7 @@ const deleteSlack = async () =>
 export const useDeleteSlack = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, undefined>(deleteSlack, {
+    return useMutation<null, ApiError, undefined>(deleteSlack, {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['slack']);
 
@@ -66,7 +66,7 @@ export const useSlackChannels = (
     });
 
 const updateSlackNotificationChannel = async (channelId: string | null) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/slack/notification-channel`,
         method: 'PUT',
         body: JSON.stringify({ channelId }),
@@ -75,7 +75,7 @@ const updateSlackNotificationChannel = async (channelId: string | null) =>
 export const useUpdateSlackNotificationChannelMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, { channelId: string | null }>(
+    return useMutation<null, ApiError, { channelId: string | null }>(
         ({ channelId }) => updateSlackNotificationChannel(channelId),
         {
             onSuccess: async () => {
