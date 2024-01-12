@@ -23,6 +23,8 @@ import {
     DashboardBasicDetails,
     DashboardFilters,
     DateGranularity,
+    DbtExposure,
+    DbtExposureType,
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
@@ -70,6 +72,7 @@ import {
     ResultRow,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
+    snakeCaseName,
     SortField,
     SpaceQuery,
     SpaceSummary,
@@ -87,6 +90,7 @@ import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
+import { uniq } from 'lodash';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
@@ -3082,7 +3086,6 @@ export class ProjectService {
 
     async calculateTotalFromQuery(
         user: SessionUser,
-
         projectUuid: string,
         data: CalculateTotalFromQuery,
     ) {
@@ -3109,5 +3112,70 @@ export class ProjectService {
             organizationUuid,
         );
         return results.row;
+    }
+
+    async getDbtExposures(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Record<string, DbtExposure>> {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        if (user.ability.cannot('manage', subject('Project', projectSummary))) {
+            throw new ForbiddenError();
+        }
+
+        const explores = await this.projectModel.getExploresFromCache(
+            projectUuid,
+        );
+
+        if (!explores) {
+            throw new NotFoundError('No explores found');
+        }
+
+        const charts = await this.savedChartModel.findInfoForDbtExposures(
+            projectUuid,
+        );
+
+        const chartExposures = charts.reduce<DbtExposure[]>((acc, chart) => {
+            acc.push({
+                name: `ld_chart_${snakeCaseName(chart.uuid)}`,
+                type: DbtExposureType.ANALYSIS,
+                owner: {
+                    name: `${chart.firstName} ${chart.lastName}`,
+                    email: '', // omit for now to avoid heavier query
+                },
+                label: chart.name,
+                description: chart.description,
+                url: `${lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
+                dependsOn: Object.keys(
+                    explores.find(({ name }) => name === chart.tableName)
+                        ?.tables || {},
+                ).map((tableName) => `ref('${tableName}')`),
+                tags: ['lightdash', 'chart'],
+            });
+            return acc;
+        }, []);
+
+        const projectExposure: DbtExposure = {
+            name: `ld_project_${snakeCaseName(projectSummary.projectUuid)}`,
+            type: DbtExposureType.APPLICATION,
+            owner: {
+                name: `${user.firstName} ${user.lastName}`,
+                email: user.email || '',
+            },
+            label: `Lightdash - ${projectSummary.name}`,
+            description: 'Lightdash project',
+            url: `${lightdashConfig.siteUrl}/projects/${projectUuid}/home`,
+            dependsOn: uniq(
+                chartExposures.map(({ dependsOn }) => dependsOn).flat(),
+            ),
+            tags: ['lightdash', 'project'],
+        };
+
+        return [projectExposure, ...chartExposures].reduce<
+            Record<string, DbtExposure>
+        >((acc, exposure) => {
+            acc[exposure.name] = exposure;
+            return acc;
+        }, {});
     }
 }

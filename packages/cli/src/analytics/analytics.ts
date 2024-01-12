@@ -40,6 +40,18 @@ type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 - install.started
 - install.completed
 */
+type CliGenerateExposuresStarted = BaseTrack & {
+    event: 'generate_exposures.started';
+};
+type CliGenerateExposuresCompleted = BaseTrack & {
+    event: 'generate_exposures.completed';
+    properties: {
+        countExposures: number;
+    };
+};
+type CliGenerateExposuresError = BaseTrack & {
+    event: 'generate_exposures.error';
+};
 
 type CliGenerateStarted = BaseTrack & {
     event: 'generate.started';
@@ -216,6 +228,9 @@ type Track =
     | CliCreateError
     | CliStartStopPreview
     | CliStopPreviewMissing
+    | CliGenerateExposuresStarted
+    | CliGenerateExposuresCompleted
+    | CliGenerateExposuresError
     | CliLogin;
 
 export class LightdashAnalytics {
