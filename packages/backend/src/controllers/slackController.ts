@@ -19,7 +19,11 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { slackClient } from '../clients/clients';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 
 @Route('/api/v1/slack')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -49,7 +53,11 @@ export class SlackController extends Controller {
      * Update slack notification channel to send notifications to scheduled jobs fail
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Put('/notification-channel')
     @OperationId('UpdateNotificationChannel')
