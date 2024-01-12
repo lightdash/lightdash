@@ -27,7 +27,7 @@ const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
         body: JSON.stringify(data),
     });
 
-const ProfilePanel: FC<React.PropsWithChildren> = () => {
+const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
     const { user, health } = useApp();
     const { showToastSuccess, showToastError } = useToaster();

@@ -64,7 +64,7 @@ const loadMonaco = (monaco: Monaco, schemas: Schema[]) => {
     });
 };
 
-const CustomVisConfigTabs: React.FC<React.PropsWithChildren> = memo(() => {
+const CustomVisConfigTabs: React.FC = memo(() => {
     const { chartConfig, setChartConfig, rows, fields } =
         useCustomVisualizationContext();
     const [isLoading, setIsLoading] = useState(true);

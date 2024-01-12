@@ -8,7 +8,7 @@ type Props = Pick<
     'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > & { tile: DashboardLoomTile };
 
-const LoomTile: FC<React.PropsWithChildren<Props>> = (props) => {
+const LoomTile: FC<Props> = (props) => {
     const {
         tile: {
             properties: { title, url },

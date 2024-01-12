@@ -10,33 +10,31 @@ type Props = {
     getCsvLink: () => Promise<string>;
 };
 
-const DownloadCsvButton: FC<React.PropsWithChildren<Props>> = memo(
-    ({ disabled, getCsvLink }) => {
-        const { showToastError } = useToaster();
+const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
+    const { showToastError } = useToaster();
 
-        return (
-            <Button
-                data-testid="export-csv-button"
-                {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                disabled={disabled}
-                px="xs"
-                onClick={() => {
-                    getCsvLink()
-                        .then((url) => {
-                            window.location.href = url;
-                        })
-                        .catch((error) => {
-                            showToastError({
-                                title: `Unable to schedule download CSV`,
-                                subtitle: error?.error?.message,
-                            });
+    return (
+        <Button
+            data-testid="export-csv-button"
+            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+            disabled={disabled}
+            px="xs"
+            onClick={() => {
+                getCsvLink()
+                    .then((url) => {
+                        window.location.href = url;
+                    })
+                    .catch((error) => {
+                        showToastError({
+                            title: `Unable to schedule download CSV`,
+                            subtitle: error?.error?.message,
                         });
-                }}
-            >
-                <MantineIcon icon={IconShare2} color="gray" />
-            </Button>
-        );
-    },
-);
+                    });
+            }}
+        >
+            <MantineIcon icon={IconShare2} color="gray" />
+        </Button>
+    );
+});
 
 export default DownloadCsvButton;

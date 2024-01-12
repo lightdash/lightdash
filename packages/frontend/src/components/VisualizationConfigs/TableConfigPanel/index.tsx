@@ -10,7 +10,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 
 import TableConfigTabs from './TableConfigTabs';
 
-const TableConfigPanel: React.FC<React.PropsWithChildren> = () => {
+const TableConfigPanel: React.FC = () => {
     const { resultsData } = useVisualizationContext();
     const disabled = !resultsData;
 

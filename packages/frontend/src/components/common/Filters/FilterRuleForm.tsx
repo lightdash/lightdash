@@ -24,7 +24,7 @@ type Props = {
     onConvertToGroup?: () => void;
 };
 
-const FilterRuleForm: FC<React.PropsWithChildren<Props>> = ({
+const FilterRuleForm: FC<Props> = ({
     fields,
     filterRule,
     isEditMode,

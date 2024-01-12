@@ -10,9 +10,7 @@ import {
 } from '../../../utils/fieldValidators';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
-const GithubForm: FC<React.PropsWithChildren<{ disabled: boolean }>> = ({
-    disabled,
-}) => {
+const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const { register } = useFormContext();
 

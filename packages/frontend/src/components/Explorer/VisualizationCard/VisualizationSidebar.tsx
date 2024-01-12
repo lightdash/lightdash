@@ -14,17 +14,15 @@ import PieChartConfigTabs from '../../VisualizationConfigs/PieChartConfig/PieCha
 import TableConfigTabs from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 
-const VisualizationSidebar: FC<
-    React.PropsWithChildren<{
-        chartType: ChartType;
-        savedChart?: SavedChart;
-        isProjectPreview?: boolean;
-        isEditingDashboardChart?: boolean;
-        isOpen: boolean;
-        onClose: () => void;
-        onOpen: () => void;
-    }>
-> = memo(
+const VisualizationSidebar: FC<{
+    chartType: ChartType;
+    savedChart?: SavedChart;
+    isProjectPreview?: boolean;
+    isEditingDashboardChart?: boolean;
+    isOpen: boolean;
+    onClose: () => void;
+    onOpen: () => void;
+}> = memo(
     ({
         chartType,
         savedChart,

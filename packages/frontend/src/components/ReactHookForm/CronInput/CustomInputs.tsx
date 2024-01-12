@@ -3,20 +3,18 @@ import cronstrue from 'cronstrue';
 import React, { FC, useMemo } from 'react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 
-const CustomInputs: FC<
-    React.PropsWithChildren<{
-        name: string;
-        disabled?: boolean;
-        cronExpression: string;
-        // These two error types are from the two form handlers.
-        // We should be removing one of them.
-        error?: string;
-        errors?: {
-            [x: string]: any;
-        };
-        onChange: (value: string) => void;
-    }>
-> = ({ name, disabled, cronExpression, error, errors, onChange }) => {
+const CustomInputs: FC<{
+    name: string;
+    disabled?: boolean;
+    cronExpression: string;
+    // These two error types are from the two form handlers.
+    // We should be removing one of them.
+    error?: string;
+    errors?: {
+        [x: string]: any;
+    };
+    onChange: (value: string) => void;
+}> = ({ name, disabled, cronExpression, error, errors, onChange }) => {
     const cronHelperText = useMemo(() => {
         const validationError =
             isInvalidCronExpression('Cron expression')(cronExpression);

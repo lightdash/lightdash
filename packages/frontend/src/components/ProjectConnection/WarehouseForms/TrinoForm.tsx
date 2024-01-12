@@ -16,11 +16,7 @@ import FormCollapseButton from '../FormCollapseButton';
 import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
-export const TrinoSchemaInput: FC<
-    React.PropsWithChildren<{
-        disabled: boolean;
-    }>
-> = ({ disabled }) => {
+export const TrinoSchemaInput: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { register } = useFormContext();
 
     return (
@@ -38,11 +34,7 @@ export const TrinoSchemaInput: FC<
     );
 };
 
-const TrinoForm: FC<
-    React.PropsWithChildren<{
-        disabled: boolean;
-    }>
-> = ({ disabled }) => {
+const TrinoForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =

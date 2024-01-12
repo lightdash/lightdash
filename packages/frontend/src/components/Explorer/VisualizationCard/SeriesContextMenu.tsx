@@ -22,13 +22,11 @@ import {
 } from '../../MetricQueryData/MetricQueryDataProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 
-export const SeriesContextMenu: FC<
-    React.PropsWithChildren<{
-        echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
-        dimensions: string[] | undefined;
-        series: EChartSeries[] | undefined;
-    }>
-> = memo(({ echartSeriesClickEvent, dimensions, series }) => {
+export const SeriesContextMenu: FC<{
+    echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
+    dimensions: string[] | undefined;
+    series: EChartSeries[] | undefined;
+}> = memo(({ echartSeriesClickEvent, dimensions, series }) => {
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();

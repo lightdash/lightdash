@@ -31,7 +31,7 @@ type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
 };
 
-const FieldLayoutOptions: FC<React.PropsWithChildren<Props>> = ({ items }) => {
+const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
 

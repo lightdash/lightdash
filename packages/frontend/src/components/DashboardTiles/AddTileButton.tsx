@@ -19,10 +19,7 @@ type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
 } & Pick<ButtonProps, 'disabled'>;
 
-const AddTileButton: FC<React.PropsWithChildren<Props>> = ({
-    onAddTiles,
-    disabled,
-}) => {
+const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);

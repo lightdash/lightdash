@@ -39,7 +39,7 @@ interface IconBoxProps extends MantineIconProps {
     icon: TablerIconType | StyledComponent<'svg', any, {}, never>;
 }
 
-export const IconBox: FC<React.PropsWithChildren<IconBoxProps>> = ({
+export const IconBox: FC<IconBoxProps> = ({
     color,
     icon,
     size = 'lg',
@@ -97,9 +97,9 @@ export const getChartIcon = (chartType: ChartKind | undefined) => {
     }
 };
 
-export const ChartIcon: FC<
-    React.PropsWithChildren<{ chartType: ChartKind | undefined }>
-> = ({ chartType }) => (
+export const ChartIcon: FC<{ chartType: ChartKind | undefined }> = ({
+    chartType,
+}) => (
     <IconBox
         icon={getChartIcon(chartType)}
         color="blue.8"
@@ -109,9 +109,7 @@ export const ChartIcon: FC<
     />
 );
 
-export const ResourceIcon: FC<React.PropsWithChildren<ResourceIconProps>> = ({
-    item,
-}) => {
+export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
             return <IconBox icon={IconLayoutDashboard} color="green.8" />;
@@ -133,9 +131,7 @@ const COMMON_ICON_PROPS = {
     fillOpacity: 0.1,
 };
 
-export const ResourceTypeIcon: FC<
-    React.PropsWithChildren<ResourceTypeIconProps>
-> = ({ type }) => {
+export const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
     switch (type) {
         case ResourceViewItemType.DASHBOARD:
             return (
@@ -172,7 +168,6 @@ export const ResourceTypeIcon: FC<
 export const ResourceIndicator: FC<
     React.PropsWithChildren<
         {
-            children: ReactNode;
             tooltipLabel: ReactNode;
             iconProps: MantineIconProps;
             tooltipProps: Partial<TooltipProps>;

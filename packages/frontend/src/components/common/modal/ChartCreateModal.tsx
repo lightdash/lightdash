@@ -44,7 +44,7 @@ interface ChartCreateModalFormValues {
     newSpaceName: string | null;
 }
 
-const ChartCreateModal: FC<React.PropsWithChildren<ChartCreateModalProps>> = ({
+const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
     isOpen,
     onClose,

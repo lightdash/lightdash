@@ -16,7 +16,7 @@ interface Props {
     projectUuid: string;
 }
 
-const BrowseMenu: FC<React.PropsWithChildren<Props>> = ({ projectUuid }) => {
+const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     const { data: spaces, isInitialLoading } = useSpaceSummaries(projectUuid);
 
     return (

@@ -18,7 +18,7 @@ import { useApp } from '../providers/AppProvider';
 
 type RecoverPasswordForm = { email: string };
 
-export const PasswordRecoveryForm: FC<React.PropsWithChildren> = () => {
+export const PasswordRecoveryForm: FC = () => {
     const { health } = useApp();
     const form = useForm<RecoverPasswordForm>({
         initialValues: {

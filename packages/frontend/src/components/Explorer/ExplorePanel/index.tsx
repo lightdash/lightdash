@@ -23,75 +23,72 @@ interface ExplorePanelProps {
     onBack?: () => void;
 }
 
-const ExplorePanel: FC<React.PropsWithChildren<ExplorePanelProps>> = memo(
-    ({ onBack }) => {
-        const activeTableName = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.tableName,
-        );
-        const additionalMetrics = useExplorerContext(
-            (context) =>
-                context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-        );
-        const customDimensions = useExplorerContext(
-            (context) =>
-                context.state.unsavedChartVersion.metricQuery.customDimensions,
-        );
-        const activeFields = useExplorerContext(
-            (context) => context.state.activeFields,
-        );
-        const toggleActiveField = useExplorerContext(
-            (context) => context.actions.toggleActiveField,
-        );
-        const { data, status } = useExplore(activeTableName);
+const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
+    const activeTableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
+    const activeFields = useExplorerContext(
+        (context) => context.state.activeFields,
+    );
+    const toggleActiveField = useExplorerContext(
+        (context) => context.actions.toggleActiveField,
+    );
+    const { data, status } = useExplore(activeTableName);
 
-        if (status === 'loading') {
-            return <LoadingSkeleton />;
-        }
+    if (status === 'loading') {
+        return <LoadingSkeleton />;
+    }
 
-        if (!data) return null;
+    if (!data) return null;
 
-        if (status === 'error') {
-            if (onBack) onBack();
-            return null;
-        }
+    if (status === 'error') {
+        if (onBack) onBack();
+        return null;
+    }
 
-        return (
-            <>
-                <PageBreadcrumbs
-                    size="md"
-                    items={[
-                        ...(onBack
-                            ? [
-                                  {
-                                      title: 'Tables',
-                                      onClick: onBack,
-                                  },
-                              ]
-                            : []),
-                        {
-                            title: data.label,
-                            active: true,
-                            tooltipProps: {
-                                withinPortal: true,
-                                disabled:
-                                    !data.tables[data.baseTable].description,
-                                label: data.tables[data.baseTable].description,
-                                position: 'right',
-                            },
+    return (
+        <>
+            <PageBreadcrumbs
+                size="md"
+                items={[
+                    ...(onBack
+                        ? [
+                              {
+                                  title: 'Tables',
+                                  onClick: onBack,
+                              },
+                          ]
+                        : []),
+                    {
+                        title: data.label,
+                        active: true,
+                        tooltipProps: {
+                            withinPortal: true,
+                            disabled: !data.tables[data.baseTable].description,
+                            label: data.tables[data.baseTable].description,
+                            position: 'right',
                         },
-                    ]}
-                />
+                    },
+                ]}
+            />
 
-                <ExploreTree
-                    explore={data}
-                    additionalMetrics={additionalMetrics || []}
-                    selectedNodes={activeFields}
-                    onSelectedFieldChange={toggleActiveField}
-                    customDimensions={customDimensions}
-                />
-            </>
-        );
-    },
-);
+            <ExploreTree
+                explore={data}
+                additionalMetrics={additionalMetrics || []}
+                selectedNodes={activeFields}
+                onSelectedFieldChange={toggleActiveField}
+                customDimensions={customDimensions}
+            />
+        </>
+    );
+});
 
 export default ExplorePanel;

@@ -23,16 +23,14 @@ import WeeklyInputs from './WeeklyInputs';
 // both in react-hook-form forms as well as mantine forms. If/when
 // we move away from one of them, this should get simplified.
 export const CronInternalInputs: FC<
-    React.PropsWithChildren<
-        {
-            disabled: boolean | undefined;
-            error?: string;
-            errors?: {
-                [x: string]: any;
-            };
-            onBlur?: () => void;
-        } & Omit<ControllerRenderProps<FieldValues, string>, 'ref' | 'onBlur'>
-    >
+    {
+        disabled: boolean | undefined;
+        error?: string;
+        errors?: {
+            [x: string]: any;
+        };
+        onBlur?: () => void;
+    } & Omit<ControllerRenderProps<FieldValues, string>, 'ref' | 'onBlur'>
 > = ({ value, disabled, onChange, name, error, errors }) => {
     const [frequency, setFrequency] = useState<Frequency>(
         mapCronExpressionToFrequency(value),
@@ -85,9 +83,7 @@ export const CronInternalInputs: FC<
 };
 
 const CronInput: FC<
-    React.PropsWithChildren<
-        Pick<InputWrapperProps, 'disabled' | 'rules' | 'name' | 'defaultValue'>
-    >
+    Pick<InputWrapperProps, 'disabled' | 'rules' | 'name' | 'defaultValue'>
 > = ({ name, rules, defaultValue, disabled }) => {
     const {
         control,

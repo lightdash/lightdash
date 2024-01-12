@@ -23,9 +23,12 @@ type DrillDownMenuItemProps = Partial<DrillDownConfig> & {
     };
 };
 
-const DrillDownMenuItem: FC<
-    React.PropsWithChildren<DrillDownMenuItemProps>
-> = ({ item, fieldValues, pivotReference, trackingData }) => {
+const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
+    item,
+    fieldValues,
+    pivotReference,
+    trackingData,
+}) => {
     const { explore, metricQuery, openDrillDownModal } =
         useMetricQueryDataContext();
     const { track } = useTracking();

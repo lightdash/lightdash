@@ -16,7 +16,7 @@ interface Props {
     canRedirectToSqlRunner: boolean | undefined;
 }
 
-const MetricFlowSqlCard: FC<React.PropsWithChildren<Props>> = ({
+const MetricFlowSqlCard: FC<Props> = ({
     projectUuid,
     status,
     sql,

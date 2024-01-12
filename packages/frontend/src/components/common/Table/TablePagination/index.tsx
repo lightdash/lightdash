@@ -10,15 +10,13 @@ interface ResultCountProps {
     count: number;
 }
 
-export const ResultCount: FC<React.PropsWithChildren<ResultCountProps>> = ({
-    count,
-}) => (
+export const ResultCount: FC<ResultCountProps> = ({ count }) => (
     <Text style={{ marginLeft: 'auto' }} fz="xs">
         {count === 0 ? null : count === 1 ? '1 result' : `${count} results`}
     </Text>
 );
 
-const TablePagination: FC<React.PropsWithChildren> = () => {
+const TablePagination: FC = () => {
     const { table, data, pagination } = useTableContext();
 
     return (

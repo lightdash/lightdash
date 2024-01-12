@@ -27,7 +27,7 @@ type Props = {
     node: Node;
 };
 
-const TreeSingleNode: FC<React.PropsWithChildren<Props>> = ({ node }) => {
+const TreeSingleNode: FC<Props> = ({ node }) => {
     const {
         itemsMap,
         selectedItems,

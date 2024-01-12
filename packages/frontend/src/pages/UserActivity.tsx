@@ -46,9 +46,10 @@ const VisualizationCard = ({
     );
 };
 
-const BigNumberVis: FC<
-    React.PropsWithChildren<{ value: number | string; label: string }>
-> = ({ value, label }) => {
+const BigNumberVis: FC<{ value: number | string; label: string }> = ({
+    value,
+    label,
+}) => {
     return (
         <Stack h="100%" justify="center" spacing={0}>
             <Title order={1} size={56} fw={500}>
@@ -172,7 +173,7 @@ const chartWeeklyAverageQueries = (
     ],
 });
 
-const UserActivity: FC<React.PropsWithChildren> = () => {
+const UserActivity: FC = () => {
     const params = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(params.projectUuid);
     const { user: sessionUser } = useApp();

@@ -23,9 +23,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 
-export const SyncModalView: FC<
-    React.PropsWithChildren<{ chartUuid: string }>
-> = ({ chartUuid }) => {
+export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { data } = useChartSchedulers(chartUuid);
     const { setAction, setCurrentSchedulerUuid } = useSyncModal();
     const googleSheetsSyncs = data?.filter(

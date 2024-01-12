@@ -7,9 +7,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateShareMutation } from '../../../hooks/useShare';
 import MantineIcon from '../MantineIcon';
 
-const ShareShortLinkButton: FC<
-    React.PropsWithChildren<{ disabled?: boolean }>
-> = ({ disabled }) => {
+const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
     const clipboard = useClipboard({ timeout: 500 });
     const { showToastSuccess } = useToaster();
 

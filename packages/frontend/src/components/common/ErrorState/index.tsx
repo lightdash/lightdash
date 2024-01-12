@@ -16,12 +16,10 @@ const StyledSuboptimalState = styled(SuboptimalState)<{
     ${({ $hasMarginTop }) => $hasMarginTop && 'margin-top: 20px;'}
 `;
 
-const ErrorState: FC<
-    React.PropsWithChildren<{
-        error?: LightdashError | null;
-        hasMarginTop?: boolean;
-    }>
-> = ({ error, hasMarginTop = true }) => {
+const ErrorState: FC<{
+    error?: LightdashError | null;
+    hasMarginTop?: boolean;
+}> = ({ error, hasMarginTop = true }) => {
     const props = useMemo<ComponentProps<typeof SuboptimalState>>(() => {
         if (!error) {
             return DEFAULT_ERROR_PROPS;

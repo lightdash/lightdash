@@ -10,7 +10,7 @@ type Props = {
     onChange: (value: FilterRule[]) => void;
 };
 
-const SimplifiedFilterGroupForm: FC<React.PropsWithChildren<Props>> = ({
+const SimplifiedFilterGroupForm: FC<Props> = ({
     isEditMode,
     fields,
     filterRules,

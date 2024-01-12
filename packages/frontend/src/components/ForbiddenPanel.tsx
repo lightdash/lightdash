@@ -10,9 +10,7 @@ const ForbiddenPanelWrapper = styled.div`
     margin-top: 30vh;
 `;
 
-const ForbiddenPanel: FC<React.PropsWithChildren<{ subject?: string }>> = ({
-    subject,
-}) => {
+const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
     return (
         <ForbiddenPanelWrapper>
             <SuboptimalState

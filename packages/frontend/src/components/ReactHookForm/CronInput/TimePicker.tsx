@@ -10,13 +10,11 @@ const getTimePickerValue = (hours: number, minutes: number) => {
     return dayjs(date).format('HH:mm');
 };
 
-const TimePicker: FC<
-    React.PropsWithChildren<{
-        disabled?: boolean;
-        cronExpression: string;
-        onChange: (value: { hours: number; minutes: number }) => void;
-    }>
-> = ({ disabled, cronExpression, onChange }) => {
+const TimePicker: FC<{
+    disabled?: boolean;
+    cronExpression: string;
+    onChange: (value: { hours: number; minutes: number }) => void;
+}> = ({ disabled, cronExpression, onChange }) => {
     const { minutes, hours } = parseCronExpression(cronExpression);
 
     const handleChange = (timeString: string) => {

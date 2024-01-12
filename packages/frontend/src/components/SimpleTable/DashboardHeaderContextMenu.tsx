@@ -22,10 +22,7 @@ type Props = {
     tileUuid: string;
 };
 
-const ColumnHeaderSortMenuOptions: FC<React.PropsWithChildren<Props>> = ({
-    item,
-    tileUuid,
-}) => {
+const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
     const itemFieldId = getItemId(item);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const setChartSort = useDashboardContext((c) => c.setChartSort);
@@ -91,9 +88,10 @@ const ColumnHeaderSortMenuOptions: FC<React.PropsWithChildren<Props>> = ({
     );
 };
 
-const DashboardHeaderContextMenu: FC<
-    React.PropsWithChildren<HeaderProps & { tileUuid: string }>
-> = ({ header, tileUuid }) => {
+const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
+    header,
+    tileUuid,
+}) => {
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
     const chartSort = useDashboardContext((c) => c.chartSort);

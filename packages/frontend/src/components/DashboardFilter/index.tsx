@@ -18,9 +18,7 @@ interface Props {
     isEditMode: boolean;
 }
 
-const DashboardFilter: FC<React.PropsWithChildren<Props>> = ({
-    isEditMode,
-}) => {
+const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [openPopoverId, setPopoverId] = useState<string>();

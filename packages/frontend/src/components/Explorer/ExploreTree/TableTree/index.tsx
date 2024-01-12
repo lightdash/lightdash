@@ -93,7 +93,7 @@ const themeOverride = getMantineThemeOverride({
     },
 });
 
-const TableTree: FC<React.PropsWithChildren<Props>> = ({
+const TableTree: FC<Props> = ({
     isOpenByDefault,
     showTableLabel,
     table,

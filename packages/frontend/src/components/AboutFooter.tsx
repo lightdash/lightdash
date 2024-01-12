@@ -28,9 +28,10 @@ import { PAGE_CONTENT_WIDTH } from './common/Page/Page';
 export const FOOTER_HEIGHT = 80;
 export const FOOTER_MARGIN: MantineSize = 'lg';
 
-const AboutFooter: FC<
-    React.PropsWithChildren<{ minimal?: boolean; maxWidth?: number }>
-> = ({ minimal, maxWidth = PAGE_CONTENT_WIDTH }) => {
+const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
+    minimal,
+    maxWidth = PAGE_CONTENT_WIDTH,
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const { health: healthState } = useApp();
     const showUpdateBadge =

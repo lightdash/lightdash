@@ -21,7 +21,7 @@ import {
 } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 
-const MobileHome: FC<React.PropsWithChildren> = () => {
+const MobileHome: FC = () => {
     const params = useParams<{ projectUuid: string }>();
     const selectedProjectUuid = params.projectUuid;
     const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);

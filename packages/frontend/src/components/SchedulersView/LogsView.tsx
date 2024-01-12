@@ -48,7 +48,7 @@ interface LogsProps
     projectUuid: string;
 }
 
-const Logs: FC<React.PropsWithChildren<LogsProps>> = ({
+const Logs: FC<LogsProps> = ({
     projectUuid,
     schedulers,
     logs,

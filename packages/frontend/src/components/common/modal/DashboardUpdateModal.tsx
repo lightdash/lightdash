@@ -22,9 +22,11 @@ interface DashboardUpdateModalProps extends ModalProps {
 
 type FormState = Pick<Dashboard, 'name' | 'description'>;
 
-const DashboardUpdateModal: FC<
-    React.PropsWithChildren<DashboardUpdateModalProps>
-> = ({ uuid, onConfirm, ...modalProps }) => {
+const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
+    uuid,
+    onConfirm,
+    ...modalProps
+}) => {
     const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
     const { mutateAsync, isLoading: isUpdating } = useUpdateDashboard(uuid);
 

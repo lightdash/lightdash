@@ -208,12 +208,10 @@ const TableValidationItem = forwardRef<
     );
 });
 
-export const ValidatorTable: FC<
-    React.PropsWithChildren<{
-        data: ValidationResponse[];
-        projectUuid: string;
-    }>
-> = ({ data, projectUuid }) => {
+export const ValidatorTable: FC<{
+    data: ValidationResponse[];
+    projectUuid: string;
+}> = ({ data, projectUuid }) => {
     const { cx, classes } = useTableStyles();
     const { colors } = useMantineTheme();
 

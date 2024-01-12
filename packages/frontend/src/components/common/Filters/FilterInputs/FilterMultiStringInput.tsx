@@ -12,7 +12,7 @@ type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     onChange: (values: string[]) => void;
 };
 
-const FilterMultiStringInput: FC<React.PropsWithChildren<Props>> = ({
+const FilterMultiStringInput: FC<Props> = ({
     values,
     field,
     disabled,

@@ -12,7 +12,7 @@ interface ActiveFiltersProps {
     onPopoverClose: () => void;
 }
 
-const ActiveFilters: FC<React.PropsWithChildren<ActiveFiltersProps>> = ({
+const ActiveFilters: FC<ActiveFiltersProps> = ({
     isEditMode,
     openPopoverId,
     onPopoverOpen,

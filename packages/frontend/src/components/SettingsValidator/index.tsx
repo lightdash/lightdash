@@ -18,9 +18,9 @@ import { ValidatorTable } from './ValidatorTable';
 
 const MIN_ROWS_TO_ENABLE_SCROLLING = 6;
 
-export const SettingsValidator: FC<
-    React.PropsWithChildren<{ projectUuid: string }>
-> = ({ projectUuid }) => {
+export const SettingsValidator: FC<{ projectUuid: string }> = ({
+    projectUuid,
+}) => {
     const theme = useMantineTheme();
     const [isValidating, setIsValidating] = useState(false);
 

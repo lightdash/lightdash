@@ -22,13 +22,11 @@ import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
-const VerificationSuccess: FC<
-    React.PropsWithChildren<{
-        isOpen: boolean;
-        onClose: () => void;
-        onContinue: () => void;
-    }>
-> = ({ isOpen, onClose, onContinue }) => {
+const VerificationSuccess: FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onContinue: () => void;
+}> = ({ isOpen, onClose, onContinue }) => {
     const theme = useMantineTheme();
     return (
         <Modal
@@ -53,7 +51,7 @@ const VerificationSuccess: FC<
     );
 };
 
-const VerifyEmailPage: FC<React.PropsWithChildren> = () => {
+const VerifyEmailPage: FC = () => {
     const { health } = useApp();
     const { data, isInitialLoading: statusLoading } = useEmailStatus();
     const { show: showIntercom } = useIntercom();

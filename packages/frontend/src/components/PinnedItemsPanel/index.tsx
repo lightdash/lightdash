@@ -12,10 +12,7 @@ interface Props {
     isEnabled: boolean;
 }
 
-const PinnedItemsPanel: FC<React.PropsWithChildren<Props>> = ({
-    pinnedItems,
-    isEnabled,
-}) => {
+const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
     const { userCanManage } = usePinnedItemsContext();
 
     return pinnedItems && pinnedItems.length > 0 ? (

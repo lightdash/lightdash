@@ -24,9 +24,14 @@ export type PieChartContextMenuProps = {
     rows?: ResultRow[];
 } & Pick<MenuProps, 'position' | 'opened' | 'onOpen' | 'onClose'>;
 
-const PieChartContextMenu: FC<
-    React.PropsWithChildren<PieChartContextMenuProps>
-> = ({ menuPosition, value, rows, opened, onOpen, onClose }) => {
+const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
+    menuPosition,
+    value,
+    rows,
+    opened,
+    onOpen,
+    onClose,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { data: project } = useProject(projectUuid);

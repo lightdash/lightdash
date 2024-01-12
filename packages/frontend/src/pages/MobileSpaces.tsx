@@ -20,7 +20,7 @@ import { useProject } from '../hooks/useProject';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
-const MobileSpaces: FC<React.PropsWithChildren> = () => {
+const MobileSpaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [], isInitialLoading: spaceIsLoading } =
         useSpaceSummaries(projectUuid, true);

@@ -79,7 +79,7 @@ const SpaceTypeLabels = {
     [SpaceType.AdminContentView]: 'Admin content view',
 };
 
-const SavedChartsHeader: FC<React.PropsWithChildren> = () => {
+const SavedChartsHeader: FC = () => {
     const { search } = useLocation();
     const { projectUuid } = useParams<{
         projectUuid: string;

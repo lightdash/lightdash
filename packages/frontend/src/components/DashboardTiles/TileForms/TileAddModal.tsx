@@ -23,7 +23,7 @@ type AddProps = ModalProps & {
     onConfirm: (tile: Tile) => void;
 };
 
-export const TileAddModal: FC<React.PropsWithChildren<AddProps>> = ({
+export const TileAddModal: FC<AddProps> = ({
     type,
     onClose,
     onConfirm,

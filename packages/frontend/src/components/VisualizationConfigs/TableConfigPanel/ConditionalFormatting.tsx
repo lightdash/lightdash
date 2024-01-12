@@ -57,9 +57,7 @@ const ConditionalFormattingRuleLabels = {
     [ConditionalFormattingConfigType.Range]: 'Color range',
 };
 
-const ConditionalFormatting: FC<
-    React.PropsWithChildren<ConditionalFormattingProps>
-> = ({
+const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     isDefaultOpen = true,
     colorPalette,
     index: configIndex,

@@ -38,9 +38,7 @@ interface ConditionalFormattingRuleProps {
     onRemoveRule: () => void;
 }
 
-const ConditionalFormattingRule: FC<
-    React.PropsWithChildren<ConditionalFormattingRuleProps>
-> = ({
+const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     isDefaultOpen = true,
     ruleIndex,
     rule,

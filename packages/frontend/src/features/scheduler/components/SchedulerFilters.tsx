@@ -45,11 +45,9 @@ import { useProject } from '../../../hooks/useProject';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 
 const FilterSummaryLabel: FC<
-    React.PropsWithChildren<
-        { filterSummary: ReturnType<typeof getConditionalRuleLabel> } & Record<
-            'isDisabled',
-            boolean
-        >
+    { filterSummary: ReturnType<typeof getConditionalRuleLabel> } & Record<
+        'isDisabled',
+        boolean
     >
 > = ({ filterSummary, isDisabled }) => {
     if (isDisabled) {
@@ -81,7 +79,7 @@ type SchedulerFilterItemProps = {
     hasChanged: boolean;
 };
 
-const FilterItem: FC<React.PropsWithChildren<SchedulerFilterItemProps>> = ({
+const FilterItem: FC<SchedulerFilterItemProps> = ({
     dashboardFilter,
     schedulerFilter,
     onChange,
@@ -300,7 +298,7 @@ type SchedulerFiltersProps = {
     schedulerFilters: SchedulerFilterRule[] | undefined;
 };
 
-const SchedulerFilters: FC<React.PropsWithChildren<SchedulerFiltersProps>> = ({
+const SchedulerFilters: FC<SchedulerFiltersProps> = ({
     dashboard,
     schedulerFilters,
     onChange,

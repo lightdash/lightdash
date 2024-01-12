@@ -15,10 +15,7 @@ interface FieldLabelProps {
     hideTableName?: boolean;
 }
 
-const FieldLabel: FC<React.PropsWithChildren<FieldLabelProps>> = ({
-    item,
-    hideTableName = false,
-}) => {
+const FieldLabel: FC<FieldLabelProps> = ({ item, hideTableName = false }) => {
     return (
         <Text span>
             {!hideTableName && isField(item) ? `${item.tableLabel} ` : ''}

@@ -43,7 +43,7 @@ type DraggableItemProps = Pick<ResourceViewGridProps, 'onAction'> & {
     hasReorder: boolean;
 };
 
-const DraggableItem: FC<React.PropsWithChildren<DraggableItemProps>> = ({
+const DraggableItem: FC<DraggableItemProps> = ({
     item,
     index,
     onAction,
@@ -122,7 +122,7 @@ const DraggableItem: FC<React.PropsWithChildren<DraggableItemProps>> = ({
     );
 };
 
-const ResourceViewGrid: FC<React.PropsWithChildren<ResourceViewGridProps>> = ({
+const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     items,
     groups = [
         [

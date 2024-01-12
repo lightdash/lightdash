@@ -13,7 +13,7 @@ import useHealth from '../../hooks/health/useHealth';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 
-const HelpMenu: FC<React.PropsWithChildren> = () => {
+const HelpMenu: FC = () => {
     const health = useHealth();
     const isCloudCustomer = health.data?.mode === LightdashMode.CLOUD_BETA;
 

@@ -7,7 +7,7 @@ import React from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
-const PieChartDisplayConfig: React.FC<React.PropsWithChildren> = () => {
+const PieChartDisplayConfig: React.FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isPieVisualizationConfig(visualizationConfig)) return null;

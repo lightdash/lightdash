@@ -97,9 +97,7 @@ type GroupedSeriesConfigurationProps = {
     series: Series[];
 };
 
-const GroupedSeriesConfiguration: FC<
-    React.PropsWithChildren<GroupedSeriesConfigurationProps>
-> = ({
+const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     layout,
     seriesGroup,
     item,

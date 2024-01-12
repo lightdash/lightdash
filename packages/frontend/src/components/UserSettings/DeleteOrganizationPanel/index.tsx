@@ -5,7 +5,7 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
 import { OrganizationDeleteModal } from './DeleteOrganizationModal';
 
-export const DeleteOrganizationPanel: FC<React.PropsWithChildren> = () => {
+export const DeleteOrganizationPanel: FC = () => {
     const { isInitialLoading: isOrganizationLoading, data: organization } =
         useOrganization();
 

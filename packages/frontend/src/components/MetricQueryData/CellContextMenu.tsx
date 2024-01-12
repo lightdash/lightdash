@@ -8,9 +8,7 @@ import MantineIcon from '../common/MantineIcon';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 
-const CellContextMenu: FC<
-    React.PropsWithChildren<Pick<CellContextMenuProps, 'cell'>>
-> = ({ cell }) => {
+const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const clipboard = useClipboard({ timeout: 2000 });
     const { showToastSuccess } = useToaster();
 

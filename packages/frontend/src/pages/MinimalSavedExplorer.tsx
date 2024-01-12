@@ -24,7 +24,7 @@ const themeOverride: MantineThemeOverride = {
         },
     }),
 };
-const MinimalExplorer: FC<React.PropsWithChildren> = () => {
+const MinimalExplorer: FC = () => {
     const { health } = useApp();
 
     const queryResults = useExplorerContext(
@@ -66,7 +66,7 @@ const MinimalExplorer: FC<React.PropsWithChildren> = () => {
     );
 };
 
-const MinimalSavedExplorer: FC<React.PropsWithChildren> = () => {
+const MinimalSavedExplorer: FC = () => {
     const { savedQueryUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;

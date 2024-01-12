@@ -26,7 +26,7 @@ type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     onChange: (values: string[]) => void;
 };
 
-const FilterStringAutoComplete: FC<React.PropsWithChildren<Props>> = ({
+const FilterStringAutoComplete: FC<Props> = ({
     filterId,
     values,
     field,

@@ -21,10 +21,7 @@ type Props = {
     sort: SortField | undefined;
 };
 
-const ColumnHeaderSortMenuOptions: FC<React.PropsWithChildren<Props>> = ({
-    item,
-    sort,
-}) => {
+const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
     const itemFieldId = getItemId(item);
     const hasSort = !!sort;
     const selectedSortDirection = sort

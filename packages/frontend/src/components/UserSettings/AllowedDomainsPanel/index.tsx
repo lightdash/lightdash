@@ -76,7 +76,7 @@ const projectRoleOptions: Array<{
     },
 ];
 
-const AllowedDomainsPanel: FC<React.PropsWithChildren> = () => {
+const AllowedDomainsPanel: FC = () => {
     const form = useForm({
         initialValues: {
             emailDomains: [] as string[],

@@ -8,9 +8,7 @@ import {
 } from '../../../utils/fieldValidators';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
-const AzureDevOpsForm: FC<React.PropsWithChildren<{ disabled: boolean }>> = ({
-    disabled,
-}) => {
+const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.AZURE_DEVOPS;

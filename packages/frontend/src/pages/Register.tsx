@@ -34,7 +34,7 @@ const registerQuery = async (data: CreateUserArgs) =>
         body: JSON.stringify(data),
     });
 
-const Register: FC<React.PropsWithChildren> = () => {
+const Register: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const { showToastError } = useToaster();

@@ -9,7 +9,7 @@ type Props = React.AnchorHTMLAttributes<HTMLAnchorElement> &
         tooltipProps?: Partial<TooltipProps>;
     };
 
-const DocumentationHelpButton: FC<React.PropsWithChildren<Props>> = ({
+const DocumentationHelpButton: FC<Props> = ({
     iconProps,
     tooltipProps,
     ...anchorProps

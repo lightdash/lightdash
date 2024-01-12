@@ -24,7 +24,7 @@ type ExploreTreeProps = {
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
 
-const ExploreTree: FC<React.PropsWithChildren<ExploreTreeProps>> = ({
+const ExploreTree: FC<ExploreTreeProps> = ({
     explore,
     additionalMetrics,
     selectedNodes,

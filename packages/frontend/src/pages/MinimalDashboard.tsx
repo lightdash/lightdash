@@ -23,7 +23,7 @@ import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const MinimalDashboard: FC<React.PropsWithChildren> = () => {
+const MinimalDashboard: FC = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const schedulerUuid = useSearchParams('schedulerUuid');
     const sendNowchedulerFilters = useSearchParams('sendNowchedulerFilters');

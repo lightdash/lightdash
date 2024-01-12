@@ -111,9 +111,10 @@ type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
 };
-const ChartDownloadOptions: React.FC<
-    React.PropsWithChildren<DownloadOptions>
-> = ({ chartRef, chartType }) => {
+const ChartDownloadOptions: React.FC<DownloadOptions> = ({
+    chartRef,
+    chartType,
+}) => {
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
     const isTable = chartType === ChartType.TABLE;
     const onDownload = useCallback(async () => {

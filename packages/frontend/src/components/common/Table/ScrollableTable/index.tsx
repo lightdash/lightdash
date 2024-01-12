@@ -9,9 +9,7 @@ interface ScrollableTableProps {
     minimal?: boolean;
 }
 
-const ScrollableTable: FC<React.PropsWithChildren<ScrollableTableProps>> = ({
-    minimal = true,
-}) => {
+const ScrollableTable: FC<ScrollableTableProps> = ({ minimal = true }) => {
     const { footer } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
 

@@ -46,7 +46,7 @@ const defaultMetricQuery: MetricQuery = {
     additionalMetrics: [],
 };
 
-const UnderlyingDataModalContent: FC<React.PropsWithChildren<Props>> = () => {
+const UnderlyingDataModalContent: FC<Props> = () => {
     const modalContentElementSize = useElementSize();
 
     const modalHeaderElementSize = useElementSize();

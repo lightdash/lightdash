@@ -8,10 +8,7 @@ type Props = {
     onSelect: (node: ProjectCatalogTreeNode) => void;
 };
 
-const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
-    nodes,
-    onSelect,
-}) => {
+const CatalogTree: FC<Props> = ({ nodes, onSelect }) => {
     return (
         <>
             {nodes.map((node) => (

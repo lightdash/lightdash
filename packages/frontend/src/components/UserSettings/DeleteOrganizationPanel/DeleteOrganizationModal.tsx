@@ -15,7 +15,7 @@ import { useDeleteOrganizationMutation } from '../../../hooks/organization/useOr
 import MantineIcon from '../../common/MantineIcon';
 
 export const OrganizationDeleteModal: FC<
-    React.PropsWithChildren<Pick<ModalProps, 'opened' | 'onClose'>>
+    Pick<ModalProps, 'opened' | 'onClose'>
 > = ({ opened, onClose }) => {
     const { isInitialLoading, data: organization } = useOrganization();
     const { mutateAsync, isLoading: isDeleting } =

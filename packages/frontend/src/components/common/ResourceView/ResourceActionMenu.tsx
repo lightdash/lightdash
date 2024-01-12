@@ -50,9 +50,13 @@ const SpaceTypeLabels = {
     [SpaceType.AdminContentView]: 'Admin content view',
 };
 
-const ResourceViewActionMenu: FC<
-    React.PropsWithChildren<ResourceViewActionMenuProps>
-> = ({ item, isOpen, onOpen, onClose, onAction }) => {
+const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
+    item,
+    isOpen,
+    onOpen,
+    onClose,
+    onAction,
+}) => {
     const { user } = useApp();
     const location = useLocation();
     const { projectUuid } = useParams<{ projectUuid: string }>();

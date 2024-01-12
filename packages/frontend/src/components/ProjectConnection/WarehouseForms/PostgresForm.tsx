@@ -24,11 +24,9 @@ import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 import { useCreateSshKeyPair } from './sshHooks';
 
-export const PostgresSchemaInput: FC<
-    React.PropsWithChildren<{
-        disabled: boolean;
-    }>
-> = ({ disabled }) => {
+export const PostgresSchemaInput: FC<{ disabled: boolean }> = ({
+    disabled,
+}) => {
     const { register } = useFormContext();
 
     return (
@@ -46,11 +44,7 @@ export const PostgresSchemaInput: FC<
     );
 };
 
-const PostgresForm: FC<
-    React.PropsWithChildren<{
-        disabled: boolean;
-    }>
-> = ({ disabled }) => {
+const PostgresForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =

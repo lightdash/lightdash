@@ -21,9 +21,11 @@ interface SelectConnectMethodProps {
     onSelect: (method: ConnectMethod) => void;
 }
 
-const SelectConnectMethod: FC<
-    React.PropsWithChildren<SelectConnectMethodProps>
-> = ({ isCreatingFirstProject, onSelect, onBack }) => {
+const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
+    isCreatingFirstProject,
+    onSelect,
+    onBack,
+}) => {
     const { track } = useTracking();
 
     return (

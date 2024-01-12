@@ -20,7 +20,7 @@ type SimpleTableProps = {
     minimal?: boolean;
 };
 
-const SimpleTable: FC<React.PropsWithChildren<SimpleTableProps>> = ({
+const SimpleTable: FC<SimpleTableProps> = ({
     isDashboard,
     tileUuid,
     className,

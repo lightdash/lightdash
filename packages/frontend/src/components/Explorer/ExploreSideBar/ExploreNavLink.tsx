@@ -23,9 +23,11 @@ type ExploreNavLinkProps = {
     onClick: () => void;
 };
 
-const ExploreNavLink: React.FC<
-    React.PropsWithChildren<ExploreNavLinkProps>
-> = ({ explore, query, onClick }: ExploreNavLinkProps) => {
+const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
+    explore,
+    query,
+    onClick,
+}: ExploreNavLinkProps) => {
     const { ref, hovered } = useHover<HTMLButtonElement>();
 
     if ('errors' in explore) {

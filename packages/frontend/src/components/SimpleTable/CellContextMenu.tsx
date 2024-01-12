@@ -23,9 +23,7 @@ import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
-const CellContextMenu: FC<
-    React.PropsWithChildren<Pick<CellContextMenuProps, 'cell'>>
-> = ({ cell }) => {
+const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
     const { showToastSuccess } = useToaster();

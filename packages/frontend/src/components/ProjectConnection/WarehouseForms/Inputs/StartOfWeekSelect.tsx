@@ -12,9 +12,7 @@ const daysOfWeekOptions = [
     'Sunday',
 ].map((x, index) => ({ value: index.toString(), label: x }));
 
-const StartOfWeekSelect: FC<React.PropsWithChildren<{ disabled: boolean }>> = ({
-    disabled,
-}) => {
+const StartOfWeekSelect: FC<{ disabled: boolean }> = ({ disabled }) => {
     return (
         <Controller
             name="warehouse.startOfWeek"

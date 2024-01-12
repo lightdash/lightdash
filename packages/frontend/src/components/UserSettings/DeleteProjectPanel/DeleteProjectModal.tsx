@@ -16,12 +16,10 @@ import { useDeleteProjectMutation } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
 
 export const ProjectDeleteModal: FC<
-    React.PropsWithChildren<
-        Pick<ModalProps, 'opened' | 'onClose'> & {
-            projectUuid: string;
-            isCurrentProject: boolean;
-        }
-    >
+    Pick<ModalProps, 'opened' | 'onClose'> & {
+        projectUuid: string;
+        isCurrentProject: boolean;
+    }
 > = ({ opened, onClose, projectUuid, isCurrentProject }) => {
     const { isInitialLoading, data: project } = useProject(projectUuid);
     const { mutateAsync, isLoading: isDeleting } = useDeleteProjectMutation();

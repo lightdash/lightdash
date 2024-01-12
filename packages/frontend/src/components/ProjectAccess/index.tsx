@@ -13,9 +13,7 @@ interface ProjectUserAccessProps {
     projectUuid: string;
 }
 
-const ProjectUserAccess: FC<
-    React.PropsWithChildren<ProjectUserAccessProps>
-> = ({ projectUuid }) => {
+const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
     const { user } = useApp();
 
     const [showProjectAccessAdd, setShowProjectAccessAdd] = useState(false);

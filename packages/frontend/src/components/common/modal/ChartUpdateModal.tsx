@@ -20,7 +20,7 @@ interface ChartUpdateModalProps extends ModalProps {
 
 type FormState = Pick<SavedChart, 'name' | 'description'>;
 
-const ChartUpdateModal: FC<React.PropsWithChildren<ChartUpdateModalProps>> = ({
+const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     uuid,
     onConfirm,
     ...modalProps

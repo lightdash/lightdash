@@ -22,7 +22,7 @@ enum Units {
 
 const units = Object.values(Units);
 
-const GridPanel: FC<React.PropsWithChildren> = () => {
+const GridPanel: FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;

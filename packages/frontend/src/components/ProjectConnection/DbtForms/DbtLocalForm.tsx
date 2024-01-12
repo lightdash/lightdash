@@ -3,7 +3,7 @@ import { IconExclamationCircle, IconInfoCircle } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 
-const DbtLocalForm: FC<React.PropsWithChildren> = () => (
+const DbtLocalForm: FC = () => (
     <Stack>
         <Alert
             color="orange"

@@ -12,11 +12,7 @@ interface Props {
     error: ReturnType<typeof useQuery<any, ApiError>>['error'];
 }
 
-const MetricFlowSqlCode: FC<React.PropsWithChildren<Props>> = ({
-    status,
-    sql,
-    error,
-}) => {
+const MetricFlowSqlCode: FC<Props> = ({ status, sql, error }) => {
     if (status === 'loading') {
         return (
             <EmptyState title="Loading sql">

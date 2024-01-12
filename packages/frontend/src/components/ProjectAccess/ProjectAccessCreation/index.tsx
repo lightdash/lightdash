@@ -26,9 +26,11 @@ interface ProjectAccessCreationProps extends ModalProps {
     projectUuid: string;
 }
 
-const ProjectAccessCreation: FC<
-    React.PropsWithChildren<ProjectAccessCreationProps>
-> = ({ opened, onClose, projectUuid }) => {
+const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
+    opened,
+    onClose,
+    projectUuid,
+}) => {
     const { track } = useTracking();
     const { data: organizationUsers } = useOrganizationUsers();
     const { mutateAsync: createMutation, isLoading } =

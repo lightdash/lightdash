@@ -13,9 +13,11 @@ interface ConnectManuallyStep2Props {
     onBack: () => void;
 }
 
-const ConnectManuallyStep2: FC<
-    React.PropsWithChildren<ConnectManuallyStep2Props>
-> = ({ isCreatingFirstProject, selectedWarehouse, onBack }) => {
+const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
+    isCreatingFirstProject,
+    selectedWarehouse,
+    onBack,
+}) => {
     return (
         <>
             <Stack align="left">

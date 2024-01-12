@@ -16,9 +16,7 @@ import { EventName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
 import LimitButton from './LimitButton';
 
-export const RefreshButton: FC<
-    React.PropsWithChildren<{ size?: MantineSize }>
-> = memo(({ size }) => {
+export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const os = useOs();
     const limit = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.limit,

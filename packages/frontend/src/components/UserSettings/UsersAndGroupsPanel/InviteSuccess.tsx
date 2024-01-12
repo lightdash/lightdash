@@ -14,13 +14,11 @@ import { useToggle } from 'react-use';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
-const InviteSuccess: FC<
-    React.PropsWithChildren<{
-        invite: InviteLink;
-        hasMarginTop?: boolean;
-        onClose?: () => void;
-    }>
-> = ({ invite, hasMarginTop, onClose }) => {
+const InviteSuccess: FC<{
+    invite: InviteLink;
+    hasMarginTop?: boolean;
+    onClose?: () => void;
+}> = ({ invite, hasMarginTop, onClose }) => {
     const { health } = useApp();
     const [show, toggle] = useToggle(true);
 

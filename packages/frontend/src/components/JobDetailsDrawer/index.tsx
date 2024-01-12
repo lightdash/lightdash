@@ -79,7 +79,7 @@ const jobStepDuration = (jobStep: JobStep): string | null => {
 };
 
 type DrawerIconProps = { job: Job };
-const DrawerIcon: FC<React.PropsWithChildren<DrawerIconProps>> = ({ job }) => {
+const DrawerIcon: FC<DrawerIconProps> = ({ job }) => {
     switch (job.jobStatus) {
         case JobStatusType.ERROR:
             return <MantineIcon icon={IconAlertTriangle} size="xl" />;
@@ -95,7 +95,7 @@ const DrawerIcon: FC<React.PropsWithChildren<DrawerIconProps>> = ({ job }) => {
 };
 
 type StepIconProps = { step: JobStep };
-const StepIcon: FC<React.PropsWithChildren<StepIconProps>> = ({ step }) => {
+const StepIcon: FC<StepIconProps> = ({ step }) => {
     const theme = useMantineTheme();
 
     switch (step.stepStatus) {
@@ -127,7 +127,7 @@ const StepIcon: FC<React.PropsWithChildren<StepIconProps>> = ({ step }) => {
     }
 };
 
-const JobDetailsDrawer: FC<React.PropsWithChildren> = () => {
+const JobDetailsDrawer: FC = () => {
     const theme = useMantineTheme();
     const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useActiveJob();
 

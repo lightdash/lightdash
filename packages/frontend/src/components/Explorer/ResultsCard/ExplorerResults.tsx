@@ -94,7 +94,7 @@ export const ExplorerResults = memo(() => {
         [isEditMode, itemsMap],
     );
 
-    const IdleState: FC<React.PropsWithChildren> = useCallback(() => {
+    const IdleState: FC = useCallback(() => {
         const description =
             dimensions.length <= 0 ? (
                 <>

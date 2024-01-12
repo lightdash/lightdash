@@ -6,10 +6,7 @@ interface Props extends Omit<InputWrapperProps, 'render'> {
     switchProps?: React.ComponentProps<typeof Switch>;
 }
 
-const BooleanSwitch: FC<React.PropsWithChildren<Props>> = ({
-    switchProps,
-    ...rest
-}) => (
+const BooleanSwitch: FC<Props> = ({ switchProps, ...rest }) => (
     <InputWrapper
         {...rest}
         render={(props, { field }) => (

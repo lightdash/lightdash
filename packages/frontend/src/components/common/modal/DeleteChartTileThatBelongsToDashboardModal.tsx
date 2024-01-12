@@ -16,9 +16,11 @@ interface Props extends ModalProps {
     onConfirm: () => void;
 }
 
-const DeleteChartTileThatBelongsToDashboardModal: FC<
-    React.PropsWithChildren<Props>
-> = ({ name, onConfirm, ...modalProps }) => (
+const DeleteChartTileThatBelongsToDashboardModal: FC<Props> = ({
+    name,
+    onConfirm,
+    ...modalProps
+}) => (
     <Modal
         size="md"
         title={

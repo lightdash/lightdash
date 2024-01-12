@@ -18,14 +18,12 @@ import {
 } from '../../../hooks/useAccessToken';
 import MantineIcon from '../../common/MantineIcon';
 
-const TokenItem: FC<
-    React.PropsWithChildren<{
-        token: ApiPersonalAccessTokenResponse;
-        setTokenToDelete: Dispatch<
-            SetStateAction<ApiPersonalAccessTokenResponse | undefined>
-        >;
-    }>
-> = ({ token, setTokenToDelete }) => {
+const TokenItem: FC<{
+    token: ApiPersonalAccessTokenResponse;
+    setTokenToDelete: Dispatch<
+        SetStateAction<ApiPersonalAccessTokenResponse | undefined>
+    >;
+}> = ({ token, setTokenToDelete }) => {
     const { description, expiresAt } = token;
 
     return (

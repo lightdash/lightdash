@@ -10,7 +10,7 @@ import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/Vis
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import BigNumberConfigTabs from './BigNumberConfigTabs';
 
-const BigNumberConfig: React.FC<React.PropsWithChildren> = () => {
+const BigNumberConfig: React.FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isBigNumberVisualizationConfig(visualizationConfig)) return null;

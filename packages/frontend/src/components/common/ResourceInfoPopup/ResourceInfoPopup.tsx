@@ -11,7 +11,7 @@ type Props = {
     projectUuid: string;
 };
 
-export const ResourceInfoPopup: FC<React.PropsWithChildren<Props>> = ({
+export const ResourceInfoPopup: FC<Props> = ({
     resourceUuid,
     description,
     projectUuid,

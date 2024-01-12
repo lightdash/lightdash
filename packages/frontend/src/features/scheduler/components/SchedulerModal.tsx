@@ -5,13 +5,11 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import SchedulerModalContent from './SchedulerModalContent';
 
 const SchedulersModal: FC<
-    React.PropsWithChildren<
-        Omit<React.ComponentProps<typeof SchedulerModalContent>, 'onClose'> & {
-            name: string;
-            onClose?: () => void;
-            isOpen?: boolean;
-        }
-    >
+    Omit<React.ComponentProps<typeof SchedulerModalContent>, 'onClose'> & {
+        name: string;
+        onClose?: () => void;
+        isOpen?: boolean;
+    }
 > = ({
     resourceUuid,
     schedulersQuery,

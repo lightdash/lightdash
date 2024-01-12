@@ -4,9 +4,7 @@ import { FC } from 'react';
 import { Controller } from 'react-hook-form';
 import MantineIcon from '../../common/MantineIcon';
 
-const DbtNoneForm: FC<React.PropsWithChildren<{ disabled: boolean }>> = ({
-    disabled,
-}) => (
+const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
     <Stack>
         <Alert
             color="orange"

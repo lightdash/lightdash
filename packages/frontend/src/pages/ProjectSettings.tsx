@@ -14,7 +14,7 @@ import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
 import { useProject } from '../hooks/useProject';
 
-const ProjectSettings: FC<React.PropsWithChildren> = () => {
+const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();

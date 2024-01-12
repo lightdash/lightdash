@@ -7,7 +7,7 @@ interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
 }
 
 // FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7
-const FilterNumberInput: FC<React.PropsWithChildren<Props>> = ({
+const FilterNumberInput: FC<Props> = ({
     value,
     disabled,
     placeholder,

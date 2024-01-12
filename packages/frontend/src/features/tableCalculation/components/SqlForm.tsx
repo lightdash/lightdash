@@ -41,10 +41,7 @@ const SqlEditor = styled(AceEditor)<
               `}
 `;
 
-export const SqlForm: FC<React.PropsWithChildren<Props>> = ({
-    form,
-    isFullScreen,
-}) => {
+export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
     const theme = useMantineTheme();
     const { setAceEditor } = useExplorerAceEditorCompleter();
     return (

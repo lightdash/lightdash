@@ -3,12 +3,10 @@ import { FC } from 'react';
 import { UpdatedInfoLabel } from '.';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
-export const UpdatedInfo: FC<
-    React.PropsWithChildren<{
-        updatedAt: Date;
-        user: Partial<SessionUser> | undefined;
-    }>
-> = ({ updatedAt, user }) => {
+export const UpdatedInfo: FC<{
+    updatedAt: Date;
+    user: Partial<SessionUser> | undefined;
+}> = ({ updatedAt, user }) => {
     const timeAgo = useTimeAgo(updatedAt);
 
     return (

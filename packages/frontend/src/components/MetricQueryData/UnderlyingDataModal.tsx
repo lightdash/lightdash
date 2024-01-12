@@ -3,7 +3,7 @@ import { FC } from 'react';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 import UnderlyingDataModalContent from './UnderlyingDataModalContent';
 
-const UnderlyingDataModal: FC<React.PropsWithChildren> = () => {
+const UnderlyingDataModal: FC = () => {
     const { isUnderlyingDataModalOpen, closeUnderlyingDataModal } =
         useMetricQueryDataContext();
 

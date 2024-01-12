@@ -7,7 +7,7 @@ import { EventName } from '../types/Events';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from './common/CollapsableCard';
 import MantineIcon from './common/MantineIcon';
 
-const AddColumnButton: FC<React.PropsWithChildren> = memo(() => {
+const AddColumnButton: FC = memo(() => {
     const [opened, setOpened] = useState<boolean>(false);
     const { track } = useTracking();
     return (

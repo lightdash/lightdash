@@ -20,7 +20,7 @@ type Props = {
     missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
 };
-const TableTreeSections: FC<React.PropsWithChildren<Props>> = ({
+const TableTreeSections: FC<Props> = ({
     searchQuery,
     table,
     additionalMetrics,

@@ -65,7 +65,7 @@ const formatCurrencyOptions = currencies.map((c) => {
     };
 });
 
-export const FormatForm: FC<React.PropsWithChildren<Props>> = ({ form }) => {
+export const FormatForm: FC<Props> = ({ form }) => {
     const formatType = form.values.format.type;
 
     return (

@@ -151,7 +151,7 @@ const drillDownExploreUrl = ({
     return `${pathname}?${search}`;
 };
 
-export const DrillDownModal: FC<React.PropsWithChildren> = () => {
+export const DrillDownModal: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const [selectedDimension, setSelectedDimension] =

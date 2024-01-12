@@ -19,7 +19,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
-const MobileSpace: FC<React.PropsWithChildren> = () => {
+const MobileSpace: FC = () => {
     const { projectUuid, spaceUuid } = useParams<{
         projectUuid: string;
         spaceUuid: string;

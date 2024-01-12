@@ -10,10 +10,7 @@ type Props = {
     dateDimension: Pick<CompiledDimension, 'label' | 'name'>;
 };
 
-export const DateZoomInfoOnTile: FC<React.PropsWithChildren<Props>> = ({
-    chartUuid,
-    dateDimension,
-}) => {
+export const DateZoomInfoOnTile: FC<Props> = ({ chartUuid, dateDimension }) => {
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );

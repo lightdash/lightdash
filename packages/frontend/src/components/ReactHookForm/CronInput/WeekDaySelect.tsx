@@ -37,13 +37,11 @@ const Options: Array<Option> = [
     },
 ];
 
-const WeekDaySelect: FC<
-    React.PropsWithChildren<{
-        disabled?: boolean;
-        value: number;
-        onChange: (value: number) => void;
-    }>
-> = ({ disabled, value, onChange }) => {
+const WeekDaySelect: FC<{
+    disabled?: boolean;
+    value: number;
+    onChange: (value: number) => void;
+}> = ({ disabled, value, onChange }) => {
     return (
         <Select
             data={Options}

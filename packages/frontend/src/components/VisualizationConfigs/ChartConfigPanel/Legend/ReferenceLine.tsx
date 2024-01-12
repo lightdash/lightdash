@@ -67,9 +67,12 @@ type ReferenceLineValueProps = {
     onChange: (value: string) => void;
 };
 
-const ReferenceLineValue: FC<
-    React.PropsWithChildren<ReferenceLineValueProps>
-> = ({ field, value, startOfWeek, onChange }) => {
+const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
+    field,
+    value,
+    startOfWeek,
+    onChange,
+}) => {
     if (isCustomDimension(field)) return <></>;
     if (isDateItem(field)) {
         if (isDimension(field) && field.timeInterval) {
@@ -158,7 +161,7 @@ const ReferenceLineValue: FC<
     );
 };
 
-export const ReferenceLine: FC<React.PropsWithChildren<Props>> = ({
+export const ReferenceLine: FC<Props> = ({
     index,
     items,
     referenceLine,

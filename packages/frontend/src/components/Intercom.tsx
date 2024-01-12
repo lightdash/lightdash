@@ -6,7 +6,7 @@ import { useApp } from '../providers/AppProvider';
 
 const LOCATIONS_WITH_INTERCOM = ['/welcome', '/register', '/login', '/invite'];
 
-export const Intercom: React.FC<React.PropsWithChildren> = () => {
+export const Intercom: React.FC = () => {
     const { user, health } = useApp();
     const { update } = useIntercom();
     const { pathname } = useLocation();

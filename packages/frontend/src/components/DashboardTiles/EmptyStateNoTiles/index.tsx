@@ -22,9 +22,10 @@ interface SavedChartsAvailableProps {
     isEditMode: boolean;
 }
 
-const EmptyStateNoTiles: FC<
-    React.PropsWithChildren<SavedChartsAvailableProps>
-> = ({ onAddTiles, isEditMode }) => {
+const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
+    onAddTiles,
+    isEditMode,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const savedChartsRequest = useChartSummaries(projectUuid);

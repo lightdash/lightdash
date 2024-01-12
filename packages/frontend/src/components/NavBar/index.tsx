@@ -43,13 +43,11 @@ const PreviewBanner = () => (
     </Center>
 );
 
-const DashboardExplorerBanner: FC<
-    React.PropsWithChildren<{
-        dashboardName: string;
-        projectUuid: string;
-        dashboardUuid: string;
-    }>
-> = ({ dashboardName, projectUuid, dashboardUuid }) => {
+const DashboardExplorerBanner: FC<{
+    dashboardName: string;
+    projectUuid: string;
+    dashboardUuid: string;
+}> = ({ dashboardName, projectUuid, dashboardUuid }) => {
     const history = useHistory();
     const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;

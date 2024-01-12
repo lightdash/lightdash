@@ -11,10 +11,7 @@ interface Props {
     projectUuid: string;
 }
 
-const LandingPanel: FC<React.PropsWithChildren<Props>> = ({
-    userName,
-    projectUuid,
-}) => {
+const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
     const { user } = useApp();
     return (
         <Group position="apart" my="xl">

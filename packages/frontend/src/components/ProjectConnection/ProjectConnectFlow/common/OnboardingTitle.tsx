@@ -15,9 +15,9 @@ interface OnboardingConnectTitleProps {
     isCreatingFirstProject: boolean;
 }
 
-export const OnboardingConnectTitle: FC<
-    React.PropsWithChildren<OnboardingConnectTitleProps>
-> = ({ isCreatingFirstProject }) => {
+export const OnboardingConnectTitle: FC<OnboardingConnectTitleProps> = ({
+    isCreatingFirstProject,
+}) => {
     return (
         <OnboardingTitle>
             {isCreatingFirstProject

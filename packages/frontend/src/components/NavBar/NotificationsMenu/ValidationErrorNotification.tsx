@@ -6,12 +6,10 @@ import { Link } from 'react-router-dom';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import LargeMenuItem from '../../common/LargeMenuItem';
 
-const ValidationErrorNotificationDescription: FC<
-    React.PropsWithChildren<{
-        lastValidatedAt: Date;
-        numberOfErrors: number;
-    }>
-> = ({ lastValidatedAt, numberOfErrors }) => {
+const ValidationErrorNotificationDescription: FC<{
+    lastValidatedAt: Date;
+    numberOfErrors: number;
+}> = ({ lastValidatedAt, numberOfErrors }) => {
     const validationTimeAgo = useTimeAgo(lastValidatedAt);
 
     return (
@@ -22,12 +20,10 @@ const ValidationErrorNotificationDescription: FC<
     );
 };
 
-export const ValidationErrorNotification: FC<
-    React.PropsWithChildren<{
-        projectUuid: string;
-        validationData: ValidationResponse[];
-    }>
-> = ({ projectUuid, validationData }) => (
+export const ValidationErrorNotification: FC<{
+    projectUuid: string;
+    validationData: ValidationResponse[];
+}> = ({ projectUuid, validationData }) => (
     <LargeMenuItem
         component={Link}
         to={`/generalSettings/projectManagement/${projectUuid}/validator`}

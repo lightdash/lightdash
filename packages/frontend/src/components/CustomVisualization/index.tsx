@@ -81,9 +81,7 @@ type CustomVisualizationProps = {
     'data-testid'?: string;
 };
 
-const CustomVisualization: FC<
-    React.PropsWithChildren<CustomVisualizationProps>
-> = (props) => {
+const CustomVisualization: FC<CustomVisualizationProps> = (props) => {
     const { chartConfig, rows } = useCustomVisualizationContext();
 
     const [config, error] = useMemo(() => {

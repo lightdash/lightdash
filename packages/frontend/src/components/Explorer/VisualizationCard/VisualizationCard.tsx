@@ -31,12 +31,10 @@ export type EchartsClickEvent = {
     series: EChartSeries[];
 };
 
-const VisualizationCard: FC<
-    React.PropsWithChildren<{
-        projectUuid?: string;
-        isProjectPreview?: boolean;
-    }>
-> = memo(({ projectUuid: fallBackUUid, isProjectPreview }) => {
+const VisualizationCard: FC<{
+    projectUuid?: string;
+    isProjectPreview?: boolean;
+}> = memo(({ projectUuid: fallBackUUid, isProjectPreview }) => {
     const { health } = useApp();
     const { data: org } = useOrganization();
 

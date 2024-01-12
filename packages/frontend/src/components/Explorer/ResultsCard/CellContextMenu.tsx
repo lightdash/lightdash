@@ -28,12 +28,10 @@ import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryData
 import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<
-    React.PropsWithChildren<
-        Pick<CellContextMenuProps, 'cell' | 'isEditMode'> & {
-            itemsMap: Record<string, Field | TableCalculation>;
-            onExpand: (name: string, data: object) => void;
-        }
-    >
+    Pick<CellContextMenuProps, 'cell' | 'isEditMode'> & {
+        itemsMap: Record<string, Field | TableCalculation>;
+        onExpand: (name: string, data: object) => void;
+    }
 > = ({ cell, isEditMode, itemsMap, onExpand }) => {
     const { addFilter } = useFilters();
     const { openUnderlyingDataModal, metricQuery } =

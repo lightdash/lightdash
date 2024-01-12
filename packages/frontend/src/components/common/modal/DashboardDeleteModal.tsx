@@ -22,9 +22,11 @@ interface DashboardDeleteModalProps extends ModalProps {
     onConfirm?: () => void;
 }
 
-const DashboardDeleteModal: FC<
-    React.PropsWithChildren<DashboardDeleteModalProps>
-> = ({ uuid, onConfirm, ...modalProps }) => {
+const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
+    uuid,
+    onConfirm,
+    ...modalProps
+}) => {
     const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
     const { mutateAsync: deleteDashboard, isLoading: isDeleting } =
         useDashboardDeleteMutation();

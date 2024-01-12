@@ -12,9 +12,7 @@ import { SettingsCard } from '../common/Settings/SettingsCard';
 import Logs from './LogsView';
 import Schedulers from './SchedulersView';
 
-const SchedulersView: FC<React.PropsWithChildren<{ projectUuid: string }>> = ({
-    projectUuid,
-}) => {
+const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data, isInitialLoading } = useSchedulerLogs(projectUuid);
     const tableTabStyles = useTableTabStyles();
     const queryClient = useQueryClient();

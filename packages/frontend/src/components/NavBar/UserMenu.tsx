@@ -9,7 +9,7 @@ import { useApp } from '../../providers/AppProvider';
 import { UserAvatar } from '../Avatar';
 import MantineIcon from '../common/MantineIcon';
 
-const UserMenu: FC<React.PropsWithChildren> = () => {
+const UserMenu: FC = () => {
     const { user } = useApp();
     const { mutate: logout } = useLogoutMutation({
         onSuccess: () => {

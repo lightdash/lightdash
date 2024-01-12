@@ -5,9 +5,10 @@ import InputWrapper, { InputWrapperProps } from './InputWrapper';
 type FieldProps = {
     rightElement?: React.ReactNode;
 };
-const Input: FC<
-    React.PropsWithChildren<Omit<InputWrapperProps, 'render'> & FieldProps>
-> = ({ rightElement, ...rest }) => (
+const Input: FC<Omit<InputWrapperProps, 'render'> & FieldProps> = ({
+    rightElement,
+    ...rest
+}) => (
     <InputWrapper
         {...rest}
         render={(props, { field }) => (

@@ -13,7 +13,7 @@ export interface LinkButtonProps extends ButtonProps {
     onClick?: (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void;
 }
 
-const LinkButton: FC<React.PropsWithChildren<LinkButtonProps>> = ({
+const LinkButton: FC<LinkButtonProps> = ({
     href,
     target,
     trackingEvent,

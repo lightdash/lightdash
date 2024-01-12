@@ -21,9 +21,11 @@ type SchedulersListItemProps = {
     onDelete: (schedulerUuid: string) => void;
 };
 
-const SchedulersListItem: FC<
-    React.PropsWithChildren<SchedulersListItemProps>
-> = ({ scheduler, onEdit, onDelete }) => {
+const SchedulersListItem: FC<SchedulersListItemProps> = ({
+    scheduler,
+    onEdit,
+    onDelete,
+}) => {
     return (
         <Paper p="sm" mb="xs" withBorder sx={{ overflow: 'hidden' }}>
             <Group noWrap position="apart">

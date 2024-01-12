@@ -36,9 +36,7 @@ const schema = z.object({
     }),
 });
 
-const DbtCloudSettings: FC<React.PropsWithChildren<DbtCloudSettingsProps>> = ({
-    projectUuid,
-}) => {
+const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
     const form = useForm<CreateDbtCloudIntegration>({
         validate: zodResolver(schema),
         initialValues: {

@@ -40,7 +40,7 @@ import SqlRunner from './pages/SqlRunner';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 
-const Routes: FC<React.PropsWithChildren> = () => {
+const Routes: FC = () => {
     return (
         <Switch>
             <PrivateRoute path="/minimal">

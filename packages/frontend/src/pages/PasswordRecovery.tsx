@@ -8,7 +8,7 @@ import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 
-const PasswordRecovery: FC<React.PropsWithChildren> = () => {
+const PasswordRecovery: FC = () => {
     const { health } = useApp();
 
     if (health.isInitialLoading) {

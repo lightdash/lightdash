@@ -30,9 +30,7 @@ interface ConnectSuccessProps {
     projectUuid: string;
 }
 
-const ConnectSuccess: FC<React.PropsWithChildren<ConnectSuccessProps>> = ({
-    projectUuid,
-}) => {
+const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
     const { classes } = useStyles();
 
     return (

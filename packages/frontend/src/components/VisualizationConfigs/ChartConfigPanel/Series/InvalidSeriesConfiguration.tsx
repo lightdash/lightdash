@@ -1,9 +1,7 @@
 import { Stack, Text } from '@mantine/core';
 import React, { FC } from 'react';
 
-const InvalidSeriesConfiguration: FC<
-    React.PropsWithChildren<{ itemId: string }>
-> = ({ itemId }) => {
+const InvalidSeriesConfiguration: FC<{ itemId: string }> = ({ itemId }) => {
     return (
         <Stack>
             <Text color="gray.6">

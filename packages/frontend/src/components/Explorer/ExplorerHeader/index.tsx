@@ -11,7 +11,7 @@ import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
 
-const ExplorerHeader: FC<React.PropsWithChildren> = memo(() => {
+const ExplorerHeader: FC = memo(() => {
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );

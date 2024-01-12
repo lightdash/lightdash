@@ -39,7 +39,7 @@ const isIssuerTypeAvailable = (
     }
 };
 
-const SocialLoginsPanel: FC<React.PropsWithChildren> = () => {
+const SocialLoginsPanel: FC = () => {
     const { data: health } = useHealth();
     const { data: userSocialLogins } = useOpenIdentities();
     const deleteMutation = useDeleteOpenIdentityMutation();

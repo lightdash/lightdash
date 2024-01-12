@@ -49,10 +49,7 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ),
 );
 
-const AddChartTilesModal: FC<React.PropsWithChildren<Props>> = ({
-    onAddTiles,
-    onClose,
-}) => {
+const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedCharts, isInitialLoading } =
         useChartSummaries(projectUuid);

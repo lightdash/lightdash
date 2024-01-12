@@ -20,9 +20,10 @@ interface Props {
     projectUuid: string;
 }
 
-export const MostPopularAndRecentlyUpdatedPanel: FC<
-    React.PropsWithChildren<Props>
-> = ({ data, projectUuid }) => {
+export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
+    data,
+    projectUuid,
+}) => {
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const history = useHistory();
     const { user, health } = useApp();

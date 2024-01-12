@@ -14,7 +14,7 @@ interface Props
     firstDayOfWeek: DayOfWeek;
 }
 
-const FilterDateTimeRangePicker: FC<React.PropsWithChildren<Props>> = ({
+const FilterDateTimeRangePicker: FC<Props> = ({
     value,
     disabled,
     firstDayOfWeek,

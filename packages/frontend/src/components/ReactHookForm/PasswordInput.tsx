@@ -4,9 +4,7 @@ import { FC, useState } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
-const PasswordInput: FC<
-    React.PropsWithChildren<Omit<InputWrapperProps, 'render'>>
-> = (props) => {
+const PasswordInput: FC<Omit<InputWrapperProps, 'render'>> = (props) => {
     const [showPassword, setShowPassword] = useState<boolean>(false);
     return (
         <InputWrapper

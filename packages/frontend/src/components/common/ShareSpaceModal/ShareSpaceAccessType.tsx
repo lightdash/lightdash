@@ -36,9 +36,12 @@ const SelectItem = forwardRef<HTMLDivElement, AccessOption>(
     ),
 );
 
-export const ShareSpaceAccessType: FC<
-    React.PropsWithChildren<ShareSpaceAccessTypeProps>
-> = ({ space, projectUuid, selectedAccess, setSelectedAccess }) => {
+export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
+    space,
+    projectUuid,
+    selectedAccess,
+    setSelectedAccess,
+}) => {
     const { data: project } = useProject(projectUuid);
 
     const { mutate: spaceMutation } = useUpdateMutation(

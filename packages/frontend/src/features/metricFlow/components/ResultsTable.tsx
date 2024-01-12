@@ -9,9 +9,7 @@ import { TableColumn } from '../../../components/common/Table/types';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 
-const ResultsErrorState: FC<React.PropsWithChildren<{ error: string }>> = ({
-    error,
-}) => (
+const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
             <SuboptimalState icon={IconAlertCircle} description={error} />
@@ -19,14 +17,12 @@ const ResultsErrorState: FC<React.PropsWithChildren<{ error: string }>> = ({
     </TrackSection>
 );
 
-const MetricFlowResultsTable: FC<
-    React.PropsWithChildren<{
-        columns: TableColumn[];
-        resultsData: Pick<ApiQueryResults, 'rows'> | undefined;
-        status: ReturnType<typeof useQuery>['status'];
-        error: ReturnType<typeof useQuery<any, ApiError>>['error'];
-    }>
-> = ({ columns, resultsData, status, error }) => {
+const MetricFlowResultsTable: FC<{
+    columns: TableColumn[];
+    resultsData: Pick<ApiQueryResults, 'rows'> | undefined;
+    status: ReturnType<typeof useQuery>['status'];
+    error: ReturnType<typeof useQuery<any, ApiError>>['error'];
+}> = ({ columns, resultsData, status, error }) => {
     if (error) {
         return <ResultsErrorState error={error.error.message} />;
     }

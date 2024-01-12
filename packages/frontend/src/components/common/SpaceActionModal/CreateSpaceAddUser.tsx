@@ -23,9 +23,10 @@ interface CreateSpaceAddUserProps {
     form?: UseFormReturnType<Space>;
 }
 
-export const CreateSpaceAddUser: FC<
-    React.PropsWithChildren<CreateSpaceAddUserProps>
-> = ({ projectUuid, form }) => {
+export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
+    projectUuid,
+    form,
+}) => {
     const {
         user: { data: sessionUser },
     } = useApp();

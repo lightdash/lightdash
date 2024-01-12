@@ -51,7 +51,7 @@ export interface TagInputProps
     onChange?(value: string[]): void;
 
     /** Component used to render values */
-    valueComponent?: React.FC<React.PropsWithChildren<any>>;
+    valueComponent?: React.FC<any>;
 
     /** Allow to clear item */
     clearable?: boolean;

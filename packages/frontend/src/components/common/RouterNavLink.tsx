@@ -9,9 +9,7 @@ import {
 type RouterNavLinkProps = Omit<NavLinkProps, 'component' | 'active'> &
     Omit<ReactRouterNavLinkProps, 'component'>;
 
-const RouterNavLink: FC<React.PropsWithChildren<RouterNavLinkProps>> = (
-    props,
-) => {
+const RouterNavLink: FC<RouterNavLinkProps> = (props) => {
     const match = useRouteMatch(props.to.toString());
 
     return (

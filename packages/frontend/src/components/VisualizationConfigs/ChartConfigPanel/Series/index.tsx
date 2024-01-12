@@ -40,7 +40,7 @@ type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
 };
 
-const SeriesTab: FC<React.PropsWithChildren<Props>> = ({ items }) => {
+const SeriesTab: FC<Props> = ({ items }) => {
     const { visualizationConfig, colorPalette } = useVisualizationContext();
 
     const isCartesianChart =

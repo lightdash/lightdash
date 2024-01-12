@@ -42,9 +42,12 @@ interface AddTilesToDashboardModalProps {
     onClose?: () => void;
 }
 
-const AddTilesToDashboardModal: FC<
-    React.PropsWithChildren<AddTilesToDashboardModalProps>
-> = ({ isOpen, projectUuid, savedChartUuid, onClose }) => {
+const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
+    isOpen,
+    projectUuid,
+    savedChartUuid,
+    onClose,
+}) => {
     const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] =
         useState<boolean>(false);

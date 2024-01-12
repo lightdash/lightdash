@@ -7,7 +7,7 @@ import GridPanel from './Grid';
 import LegendPanel from './Legend';
 import SeriesTab from './Series';
 
-const ChartConfigTabs: FC<React.PropsWithChildren> = memo(() => {
+const ChartConfigTabs: FC = memo(() => {
     const { itemsMap } = useVisualizationContext();
 
     const items = useMemo(() => Object.values(itemsMap || {}), [itemsMap]);

@@ -23,9 +23,11 @@ interface ResourceViewGridChartItemProps
     dragIcon: ReactNode;
 }
 
-const ResourceViewGridChartItem: FC<
-    React.PropsWithChildren<ResourceViewGridChartItemProps>
-> = ({ item, onAction, dragIcon }) => {
+const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
+    item,
+    onAction,
+    dragIcon,
+}) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
     const theme = useMantineTheme();

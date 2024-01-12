@@ -44,7 +44,7 @@ import { TrackPage } from './providers/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
 
-const MobileNavBar: FC<React.PropsWithChildren> = () => {
+const MobileNavBar: FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const toggleMenu = useCallback(
         () => setIsMenuOpen((prevValue) => !prevValue),
@@ -149,7 +149,7 @@ const routesNotSupportedInMobile = [
     '/projects/:projectUuid/user-activity',
 ];
 
-const MobileRoutes: FC<React.PropsWithChildren> = () => {
+const MobileRoutes: FC = () => {
     return (
         <Switch>
             <Route path="/login">

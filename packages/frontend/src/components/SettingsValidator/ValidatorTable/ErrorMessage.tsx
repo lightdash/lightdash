@@ -6,11 +6,9 @@ import {
     ValidationResponse,
 } from '@lightdash/common';
 import { Mark, Stack, Text } from '@mantine/core';
-import { FC, ReactNode } from 'react';
+import { FC } from 'react';
 
-const CustomMark: FC<React.PropsWithChildren<{ children: ReactNode }>> = ({
-    children,
-}) => (
+const CustomMark: FC<React.PropsWithChildren> = ({ children }) => (
     <Mark
         color="gray"
         px={2}
@@ -25,11 +23,9 @@ const CustomMark: FC<React.PropsWithChildren<{ children: ReactNode }>> = ({
     </Mark>
 );
 
-const ErrorMessageByType: FC<
-    React.PropsWithChildren<{
-        validationError: ValidationResponse;
-    }>
-> = ({ validationError }) => {
+const ErrorMessageByType: FC<{
+    validationError: ValidationResponse;
+}> = ({ validationError }) => {
     if (isChartValidationError(validationError)) {
         return (
             <Text>
@@ -64,9 +60,9 @@ const ErrorMessageByType: FC<
     return null;
 };
 
-export const ErrorMessage: FC<
-    React.PropsWithChildren<{ validationError: ValidationResponse }>
-> = ({ validationError }) => {
+export const ErrorMessage: FC<{ validationError: ValidationResponse }> = ({
+    validationError,
+}) => {
     return (
         <Stack spacing={4}>
             <Text fw={600} color="red.6" fz={11}>

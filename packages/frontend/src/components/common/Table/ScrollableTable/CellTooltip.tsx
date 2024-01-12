@@ -5,10 +5,7 @@ type CellTooltipProps = Omit<TooltipProps, 'children'> & {
     elementBounds: DOMRect;
 };
 
-const CellTooltip: FC<React.PropsWithChildren<CellTooltipProps>> = ({
-    elementBounds,
-    ...rest
-}) => (
+const CellTooltip: FC<CellTooltipProps> = ({ elementBounds, ...rest }) => (
     <Portal>
         <Tooltip {...rest} opened>
             <div
