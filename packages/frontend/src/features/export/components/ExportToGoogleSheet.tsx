@@ -55,6 +55,7 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
                     }
                     disabled={isExporting || disabled}
                     onClick={() => setIsGoogleAuthQueryEnabled(true)}
+                    closeMenuOnClick={false}
                 >
                     Export Google Sheets
                 </Menu.Item>

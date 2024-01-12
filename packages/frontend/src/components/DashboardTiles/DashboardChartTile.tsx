@@ -148,7 +148,7 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
     return (
         <ExportToGoogleSheet
             getGsheetLink={getGsheetLink}
-            asMenuItem={true}
+            asMenuItem
             disabled={disabled}
         />
     );
