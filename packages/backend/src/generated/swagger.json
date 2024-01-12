@@ -656,6 +656,12 @@
                     },
                     {
                         "properties": {
+                            "memberUuids": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "members": {
                                 "items": {
                                     "$ref": "#/components/schemas/GroupMember"
@@ -664,7 +670,7 @@
                                 "description": "A list of the group's members."
                             }
                         },
-                        "required": ["members"],
+                        "required": ["memberUuids", "members"],
                         "type": "object"
                     }
                 ],
@@ -5695,7 +5701,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.937.0",
+        "version": "0.942.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

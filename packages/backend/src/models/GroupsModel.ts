@@ -5,24 +5,21 @@ import {
     GroupWithMembers,
     NotExistsError,
     NotFoundError,
-    OpenIdUser,
     ProjectGroupAccess,
-    ProjectMemberRole,
     UnexpectedDatabaseError,
-    UpdateGroup,
     UpdateGroupWithMembers,
-    UpdateProjectGroupAccess,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import differenceBy from 'lodash/differenceBy';
-import { GroupTableName } from '../database/entities/groups';
+import { EmailTableName } from '../database/entities/emails';
+import { GroupMembershipTableName } from '../database/entities/group_memberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     DBProjectGroupAccess,
     ProjectGroupAccessTableName,
     UpdateDBProjectGroupAccess,
 } from '../database/entities/projectGroupAccess';
-import { ProjectTableName } from '../database/entities/projects';
+import { UserTableName } from '../database/entities/users';
 
 export class GroupsModel {
     database: Knex;
@@ -106,58 +103,63 @@ export class GroupsModel {
         includeMembers?: number,
         offset?: number,
     ): Promise<GroupWithMembers> {
-        const rows = await this.database('groups')
-            .with('members', (query) => {
-                let memberQuery = query
-                    .from('group_memberships')
-                    .innerJoin(
-                        'users',
-                        'group_memberships.user_id',
-                        'users.user_id',
-                    )
-                    .innerJoin('emails', 'users.user_id', 'emails.user_id')
-                    .where('group_memberships.group_uuid', groupUuid)
-                    .andWhere('emails.is_primary', true);
+        const group = await this.getGroup(groupUuid);
 
-                if (includeMembers !== undefined) {
-                    memberQuery = memberQuery.limit(includeMembers);
-                }
-
-                if (offset !== undefined) {
-                    memberQuery = memberQuery.offset(offset);
-                }
-
-                return memberQuery.select(
-                    'group_memberships.group_uuid',
-                    'users.user_uuid',
-                    'users.first_name',
-                    'users.last_name',
-                    'emails.email',
-                );
-            })
+        const membersQuery = this.database
+            .from(GroupMembershipTableName)
             .innerJoin(
-                'organizations',
-                'groups.organization_id',
-                'organizations.organization_id',
+                UserTableName,
+                `${GroupMembershipTableName}.user_id`,
+                `${UserTableName}.user_id`,
             )
-            .leftJoin('members', 'groups.group_uuid', 'members.group_uuid')
-            .where('groups.group_uuid', groupUuid)
-            .select();
+            .innerJoin(
+                EmailTableName,
+                `${UserTableName}.user_id`,
+                `${EmailTableName}.user_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${GroupMembershipTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .where(`${GroupMembershipTableName}.group_uuid`, groupUuid)
+            .andWhere(`${EmailTableName}.is_primary`, true);
 
-        if (rows.length === 0) {
-            throw new NotFoundError(`No group found`);
+        const memberProfilesQuery = membersQuery.clone();
+
+        if (includeMembers !== undefined) {
+            memberProfilesQuery.limit(includeMembers);
         }
+
+        if (offset !== undefined) {
+            memberProfilesQuery.offset(offset);
+        }
+
+        const memberProfiles = await memberProfilesQuery.select(
+            `${UserTableName}.user_uuid`,
+            `${UserTableName}.first_name`,
+            `${UserTableName}.last_name`,
+            `${EmailTableName}.email`,
+        );
+
+        const memberUuids = await membersQuery.select(
+            this.database.raw(
+                `ARRAY_AGG(${UserTableName}.user_uuid) as member_uuids`,
+            ),
+        );
+
         return {
-            uuid: rows[0].group_uuid,
-            name: rows[0].name,
-            createdAt: rows[0].created_at,
-            organizationUuid: rows[0].organization_uuid,
-            members: (rows[0].user_uuid ? rows : []).map((row) => ({
+            uuid: group.uuid,
+            name: group.name,
+            createdAt: group.createdAt,
+            organizationUuid: group.organizationUuid,
+            members: memberProfiles.map((row) => ({
                 userUuid: row.user_uuid,
                 email: row.email,
                 firstName: row.first_name,
                 lastName: row.last_name,
             })),
+            memberUuids: memberUuids?.[0]?.member_uuids ?? [],
         };
     }
 

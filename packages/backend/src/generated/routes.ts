@@ -592,6 +592,11 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        memberUuids: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
                         members: {
                             dataType: 'array',
                             array: { dataType: 'refAlias', ref: 'GroupMember' },
