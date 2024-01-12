@@ -1,3 +1,10 @@
+## [0.936.3](https://github.com/lightdash/lightdash/compare/0.936.2...0.936.3) (2024-01-12)
+
+
+### Bug Fixes
+
+* get correct regex for chart-and-results endpoint ([#8569](https://github.com/lightdash/lightdash/issues/8569)) ([87c3012](https://github.com/lightdash/lightdash/commit/87c30121bb8f7c16050f0e4b1fc6a8b5437d2009))
+
 ## [0.936.2](https://github.com/lightdash/lightdash/compare/0.936.1...0.936.2) (2024-01-12)
 
 
