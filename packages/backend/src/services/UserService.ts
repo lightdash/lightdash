@@ -153,6 +153,7 @@ export class UserService {
         ) {
             throw new ForbiddenError('Password credentials are not allowed');
         }
+
         const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
         const userEmail = isOpenIdUser(activateUser)
             ? activateUser.openId.email
@@ -328,6 +329,24 @@ export class UserService {
 
         // Identity already exists. Update the identity attributes and login the user
         if (loginUser) {
+            if (inviteCode) {
+                const inviteLink = await this.inviteLinkModel.getByCode(
+                    inviteCode,
+                );
+                if (
+                    loginUser.email &&
+                    inviteLink.email.toLowerCase() !==
+                        loginUser.email.toLowerCase()
+                ) {
+                    Logger.error(
+                        `User accepted invite with wrong email ${loginUser.email} when the invited email was ${inviteLink.email}`,
+                    );
+                    throw new AuthorizationError(
+                        `Provided email ${loginUser.email} does not match the invited email.`,
+                    );
+                }
+            }
+
             await this.openIdIdentityModel.updateIdentityByOpenId({
                 ...openIdUser.openId,
                 refreshToken,
