@@ -250,9 +250,9 @@ export class SlackClient {
                 .postMessage({
                     token: installation?.token,
                     channel: channelId,
-                    text: `This channel will now receive notifications when scheduled jobs fail. This was configured in Lightdash${
+                    text: `This channel will now receive notifications for failed scheduled delivery jobs in Lightdash. Configuration completed${
                         userFullName.trim().length ? ` by ${userFullName}` : ''
-                    }.}`,
+                    }. Stay informed on your job status here.`,
                 })
                 .catch((e: any) => {
                     Logger.error(
