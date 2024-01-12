@@ -149,9 +149,16 @@ const createOpenIdUserFromProfile = (
 };
 
 const setupClient = async () => {
-    const oktaIssuer = await Issuer.discover(
-        `https://${lightdashConfig.auth.okta.oktaDomain}/oauth2/default`,
-    );
+    const { okta } = lightdashConfig.auth;
+
+    const oktaIssuerUri = new URL(
+        okta.authorizationServerId
+            ? `/oauth2/${okta.authorizationServerId}`
+            : '',
+        `https://${okta.oktaDomain}`,
+    ).href;
+
+    const oktaIssuer = await Issuer.discover(oktaIssuerUri);
 
     const redirectUri = new URL(
         `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
@@ -159,8 +166,8 @@ const setupClient = async () => {
     ).href;
 
     const client = new oktaIssuer.Client({
-        client_id: lightdashConfig.auth.okta.oauth2ClientId ?? '',
-        client_secret: lightdashConfig.auth.okta.oauth2ClientSecret,
+        client_id: okta.oauth2ClientId ?? '',
+        client_secret: okta.oauth2ClientSecret,
         redirect_uris: [redirectUri],
         response_types: ['code'],
     });
@@ -264,19 +271,6 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
     } catch (e) {
         return next(e);
     }
-};
-
-export const generateOktaUrl = (apiUrlPath: string): string => {
-    const fullPath = path.posix.join(
-        path.posix.sep,
-        'oauth2',
-        lightdashConfig.auth.okta.authorizationServerId || '', // empty string will be skipped
-        'v1',
-        apiUrlPath,
-    );
-
-    return new URL(fullPath, `https://${lightdashConfig.auth.okta.oktaDomain}`)
-        .href;
 };
 
 export const localPassportStrategy = new LocalStrategy(
