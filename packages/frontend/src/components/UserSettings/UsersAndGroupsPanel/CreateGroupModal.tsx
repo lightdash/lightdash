@@ -40,7 +40,7 @@ const CreateGroupModal: FC<
     });
 
     const { user } = useApp();
-    const { data: organizationUsers, isLoading: isLoadingUsers } =
+    const { data: organizationUsers, isInitialLoading: isLoadingUsers } =
         useOrganizationUsers();
 
     const { mutateAsync: mutateAsyncCreateGroup, isLoading: isLoadingCreate } =

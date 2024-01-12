@@ -99,13 +99,11 @@ const VerifyEmailPage: FC<React.PropsWithChildren> = () => {
     );
 };
 
-export const VerifyEmailModal: FC<
-    React.PropsWithChildren<{
-        opened: boolean;
-        onClose: () => void;
-        isLoading: boolean;
-    }>
-> = ({ opened, onClose, isLoading }) => {
+export const VerifyEmailModal: FC<{
+    opened: boolean;
+    onClose: () => void;
+    isLoading: boolean;
+}> = ({ opened, onClose, isLoading }) => {
     return (
         <Modal opened={opened} onClose={onClose}>
             <Box my="md">

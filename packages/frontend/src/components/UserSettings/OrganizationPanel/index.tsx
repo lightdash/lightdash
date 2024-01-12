@@ -4,7 +4,7 @@ import { FC, useEffect } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 
-const OrganizationPanel: FC<React.PropsWithChildren> = () => {
+const OrganizationPanel: FC = () => {
     const { isInitialLoading: isOrganizationLoading, data } = useOrganization();
     const {
         isLoading: isOrganizationUpdateLoading,

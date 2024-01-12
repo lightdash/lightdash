@@ -14,18 +14,16 @@ import {
 import { TableColumn } from '../common/Table/types';
 import CellContextMenu from './CellContextMenu';
 
-const UnderlyingDataResultsTable: FC<
-    React.PropsWithChildren<{
-        fieldsMap: Record<string, Field>;
-        resultsData: ApiQueryResults | undefined;
-        isLoading: boolean;
-        hasJoins?: boolean;
-        sortByUnderlyingValues: (
-            columnA: TableColumn,
-            columnB: TableColumn,
-        ) => number;
-    }>
-> = ({
+const UnderlyingDataResultsTable: FC<{
+    fieldsMap: Record<string, Field>;
+    resultsData: ApiQueryResults | undefined;
+    isLoading: boolean;
+    hasJoins?: boolean;
+    sortByUnderlyingValues: (
+        columnA: TableColumn,
+        columnB: TableColumn,
+    ) => number;
+}> = ({
     fieldsMap,
     resultsData,
     isLoading,

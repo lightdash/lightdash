@@ -64,18 +64,15 @@ const AddTilesToDashboardModal: FC<
             },
             true, // includePrivateSpaces
         );
-    const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
-        projectUuid,
-        true,
-        {
+    const { data: spaces, isInitialLoading: isLoadingSpaces } =
+        useSpaceSummaries(projectUuid, true, {
             staleTime: 0,
             onSuccess: (data) => {
                 if (data.length === 0) {
                     setIsCreatingNewSpace(true);
                 }
             },
-        },
-    );
+        });
     const currentSpace = spaces?.find((s) => s.uuid === savedChart?.spaceUuid);
 
     const form = useForm({

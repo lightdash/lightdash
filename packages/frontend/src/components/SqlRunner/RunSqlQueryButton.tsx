@@ -12,12 +12,10 @@ import { IconPlayerPlay } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
-const RunSqlQueryButton: FC<
-    React.PropsWithChildren<{
-        isLoading: boolean;
-        onSubmit: () => void;
-    }>
-> = ({ onSubmit, isLoading }) => {
+const RunSqlQueryButton: FC<{
+    isLoading: boolean;
+    onSubmit: () => void;
+}> = ({ onSubmit, isLoading }) => {
     const os = useOs();
     return (
         <Tooltip
