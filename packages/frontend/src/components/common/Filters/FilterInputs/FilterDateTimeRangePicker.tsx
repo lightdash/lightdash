@@ -31,19 +31,17 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 withSeconds
                 disabled={disabled}
                 placeholder="Start date"
-                maxDate={
-                    date2 ? dayjs(date2).subtract(1, 'day').toDate() : undefined
-                }
+                maxDate={date2 ? dayjs(date2).toDate() : undefined}
                 firstDayOfWeek={firstDayOfWeek}
                 {...rest}
                 value={date1}
                 onChange={(newDate) => {
                     setDate1(newDate);
-
                     if (newDate && date2) {
                         onChange([newDate, date2]);
                     }
                 }}
+                error={date1 && date2 && date1 > date2}
             />
 
             <Text color="dimmed" sx={{ whiteSpace: 'nowrap' }} size="xs">
@@ -55,9 +53,7 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 withSeconds
                 disabled={disabled}
                 placeholder="End date"
-                minDate={
-                    date1 ? dayjs(date1).add(1, 'day').toDate() : undefined
-                }
+                minDate={date1 ? dayjs(date1).toDate() : undefined}
                 firstDayOfWeek={firstDayOfWeek}
                 {...rest}
                 value={date2}
@@ -68,6 +64,7 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                         onChange([date1, newDate]);
                     }
                 }}
+                error={date1 && date2 && date1 > date2}
             />
         </Flex>
     );
