@@ -1,3 +1,10 @@
+# [0.937.0](https://github.com/lightdash/lightdash/compare/0.936.3...0.937.0) (2024-01-12)
+
+
+### Features
+
+* alert on scheduled delivery error to slack notification channel ([#8560](https://github.com/lightdash/lightdash/issues/8560)) ([854af63](https://github.com/lightdash/lightdash/commit/854af6355abdbee5c7286aee2c1e81b49044dc6a))
+
 ## [0.936.3](https://github.com/lightdash/lightdash/compare/0.936.2...0.936.3) (2024-01-12)
 
 
