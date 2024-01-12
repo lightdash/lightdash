@@ -150,9 +150,9 @@ const createOpenIdUserFromProfile = (
 
 const setupClient = async () => {
     const oktaIssuer = await Issuer.discover(
-        `https://${lightdashConfig.auth.okta.oktaDomain}/oauth2${
+        `${lightdashConfig.auth.okta.oauth2Issuer}${
             lightdashConfig.auth.okta.authorizationServerId
-                ? `/${lightdashConfig.auth.okta.authorizationServerId}`
+                ? `/oauth2/${lightdashConfig.auth.okta.authorizationServerId}`
                 : ''
         }`,
     );
