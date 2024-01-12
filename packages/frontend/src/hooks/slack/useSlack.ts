@@ -4,7 +4,7 @@ import {
     useQuery,
     useQueryClient,
     UseQueryOptions,
-} from 'react-query';
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -34,7 +34,7 @@ export const useDeleteSlack = () => {
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, undefined>(deleteSlack, {
         onSuccess: async () => {
-            await queryClient.invalidateQueries('slack');
+            await queryClient.invalidateQueries(['slack']);
 
             showToastSuccess({
                 title: `Deleted! Slack integration was deleted`,
@@ -79,7 +79,7 @@ export const useUpdateSlackNotificationChannelMutation = () => {
         ({ channelId }) => updateSlackNotificationChannel(channelId),
         {
             onSuccess: async () => {
-                await queryClient.invalidateQueries('slack');
+                await queryClient.invalidateQueries(['slack']);
 
                 showToastSuccess({
                     title: `Success! Slack notification channel updated`,
