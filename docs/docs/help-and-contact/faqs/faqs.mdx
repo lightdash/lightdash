@@ -1,0 +1,39 @@
+import LowerTotal from './assets/lower-total.png';
+
+# FAQs
+
+## Why don't my totals match what's in my table?
+
+The column [totals](../../guides/visualizing-your-results.mdx#totals) in your results and table visualizations are calculated using the underlying data from your table, not just using the values that are visible in the table. Sometimes, this means that the totals you see might be different to what you were expecting if you just tried to calculate them using the data visible in your table. 
+
+### Why are my totals lower?
+
+When using the `count distinct` metric type, you can sometimes get totals that are smaller than if you summed all the values in the table. 
+
+For example, if I'm counting the distinct number of devices that viewed pages on our website each month (`Anonymous device count`), it would look something like this:
+
+<img src={LowerTotal} width="745" height="286" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+
+If you manually add each row in the `Anonymous device count` column, the value you get is much higher than the total shown in the table. This is because the same device can view pages on our website across many months. So, when you add up the values in the table, you'll be counting some devices more than once. 
+
+Lightdash uses a SQL query to calculate the **_distinct_** number of devices across all of the months so we avoid double-counting devices. 
+
+### Why are my totals higher? 
+
+There are two reasons why this could be happening:
+
+1. **You've set a row limit in your query that's truncating the results.** If the number of possible results from your query is larger than the row limit you've set, Lightdash will calculate the totals using all of the results (including the rows that have been removed from your table because of the limit).
+
+2. **You're using metric or table calculation filters.** When you use metric or table calculation filters, the totals are calculated **before** the filters are applied.
+
+### How do I calculate totals based on what's shown in my table? 
+
+If you want to calculate totals based on just the values shown in your table, you can create a new column using a `table calculation` to do this. 
+
+Here's the table calculation you'll need to use to do this:
+
+```sql
+SUM(${my_table_name.my_metric_name}) OVER()
+```
+
+Note that this calculation isn't a "true" total when you're using metrics types that are `count_distinct`!
