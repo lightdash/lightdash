@@ -1,3 +1,10 @@
+## [0.937.1](https://github.com/lightdash/lightdash/compare/0.937.0...0.937.1) (2024-01-12)
+
+
+### Bug Fixes
+
+* only append authorizationServerId if exists ([#8568](https://github.com/lightdash/lightdash/issues/8568)) ([3de4c5b](https://github.com/lightdash/lightdash/commit/3de4c5b0baa8ed4c955d6d5200b4c523a59deaac))
+
 # [0.937.0](https://github.com/lightdash/lightdash/compare/0.936.3...0.937.0) (2024-01-12)
 
 
