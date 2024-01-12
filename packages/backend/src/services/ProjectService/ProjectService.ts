@@ -103,6 +103,7 @@ import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -144,6 +145,7 @@ type ProjectServiceDependencies = {
     userAttributesModel: UserAttributesModel;
     s3CacheClient: S3CacheClient;
     analyticsModel: AnalyticsModel;
+    dashboardModel: DashboardModel;
 };
 
 export class ProjectService {
@@ -169,6 +171,8 @@ export class ProjectService {
 
     analyticsModel: AnalyticsModel;
 
+    dashboardModel: DashboardModel;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -180,6 +184,7 @@ export class ProjectService {
         userAttributesModel,
         s3CacheClient,
         analyticsModel,
+        dashboardModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -192,6 +197,7 @@ export class ProjectService {
         this.userAttributesModel = userAttributesModel;
         this.s3CacheClient = s3CacheClient;
         this.analyticsModel = analyticsModel;
+        this.dashboardModel = dashboardModel;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -3155,6 +3161,44 @@ export class ProjectService {
             return acc;
         }, []);
 
+        const dashboards = await this.dashboardModel.findInfoForDbtExposures(
+            projectUuid,
+        );
+
+        const dashboardExposures = dashboards.reduce<DbtExposure[]>(
+            (acc, dashboard) => {
+                acc.push({
+                    name: `ld_dashboard_${snakeCaseName(dashboard.uuid)}`,
+                    type: DbtExposureType.DASHBOARD,
+                    owner: {
+                        name: `${dashboard.firstName} ${dashboard.lastName}`,
+                        email: '', // omit for now to avoid heavier query
+                    },
+                    label: dashboard.name,
+                    description: dashboard.description,
+                    url: `${lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboard.uuid}/view`,
+                    dependsOn: uniq(
+                        dashboard.chartUuids
+                            .map((chartUuid) => {
+                                const chartExposureId = `ld_chart_${snakeCaseName(
+                                    chartUuid,
+                                )}`;
+                                const chartExposure = chartExposures.find(
+                                    ({ name }) => name === chartExposureId,
+                                );
+                                return chartExposure
+                                    ? chartExposure.dependsOn
+                                    : [];
+                            })
+                            .flat(),
+                    ),
+                    tags: ['lightdash', 'dashboard'],
+                });
+                return acc;
+            },
+            [],
+        );
+
         const projectExposure: DbtExposure = {
             name: `ld_project_${snakeCaseName(projectSummary.projectUuid)}`,
             type: DbtExposureType.APPLICATION,
@@ -3171,9 +3215,11 @@ export class ProjectService {
             tags: ['lightdash', 'project'],
         };
 
-        return [projectExposure, ...chartExposures].reduce<
-            Record<string, DbtExposure>
-        >((acc, exposure) => {
+        return [
+            projectExposure,
+            ...chartExposures,
+            ...dashboardExposures,
+        ].reduce<Record<string, DbtExposure>>((acc, exposure) => {
             acc[exposure.name] = exposure;
             return acc;
         }, {});
