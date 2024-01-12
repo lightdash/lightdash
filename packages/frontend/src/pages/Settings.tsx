@@ -520,7 +520,10 @@ const Settings: FC = () => {
 
                 {health.hasSlack && user.ability.can('manage', 'Organization') && (
                     <Route exact path="/generalSettings/integrations/slack">
-                        <SlackSettingsPanel />
+                        <Stack>
+                            <Title order={4}>Integrations</Title>
+                            <SlackSettingsPanel />
+                        </Stack>
                     </Route>
                 )}
 

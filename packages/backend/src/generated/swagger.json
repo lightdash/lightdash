@@ -4669,6 +4669,18 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSlackNotificationChannelResponse": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_": {
                 "properties": {
                     "name": {
@@ -8552,6 +8564,54 @@
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/slack/notification-channel": {
+            "put": {
+                "operationId": "UpdateNotificationChannel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSlackNotificationChannelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update slack notification channel to send notifications to scheduled jobs fail",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "channelId": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["channelId"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}": {

@@ -44,8 +44,7 @@ import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput'
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
-import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
-import { useGetSlack } from '../../../hooks/useSlack';
+import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';

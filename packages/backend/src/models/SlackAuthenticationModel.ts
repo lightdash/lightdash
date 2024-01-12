@@ -121,6 +121,7 @@ export class SlackAuthenticationModel {
             organizationUuid: row.organization_uuid,
             token: row.installation?.bot?.token,
             scopes: row.installation?.bot?.scopes || [],
+            notificationChannel: row.notification_channel ?? undefined,
         };
     }
 
@@ -137,6 +138,17 @@ export class SlackAuthenticationModel {
 
         await this.database(SlackAuthTokensTable)
             .delete()
+            .where('organization_id', organizationId);
+    }
+
+    async updateNotificationChannelFromOrganizationUuid(
+        organizationUuid: string,
+        notificationChannel: string | null,
+    ) {
+        const organizationId = await this.getOrganizationId(organizationUuid);
+
+        await this.database(SlackAuthTokensTable)
+            .update({ notification_channel: notificationChannel })
             .where('organization_id', organizationId);
     }
 }

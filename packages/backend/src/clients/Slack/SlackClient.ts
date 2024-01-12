@@ -1,4 +1,4 @@
-import { SlackChannel } from '@lightdash/common';
+import { SlackChannel, SlackSettings } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, Block, LogLevel } from '@slack/bolt';
 import { ConversationsListResponse, UsersListResponse } from '@slack/web-api';
@@ -214,9 +214,89 @@ export class SlackClient {
             })
             .catch((e: any) => {
                 Logger.error(
-                    `Unable to postmessage on slack : ${JSON.stringify(e)}`,
+                    `Unable to post message on Slack: ${JSON.stringify(e)}`,
                 );
                 throw e;
             });
+    }
+
+    async updateNotificationChannel(
+        userFullName: string,
+        organizationUuid: string,
+        channelId: string | null,
+    ) {
+        if (this.slackApp === undefined) {
+            throw new Error('Slack app is not configured');
+        }
+
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (installation === undefined) {
+            throw new Error(
+                `Unable to find slack installation for organization ${organizationUuid}`,
+            );
+        }
+
+        await this.slackAuthenticationModel.updateNotificationChannelFromOrganizationUuid(
+            organizationUuid,
+            channelId,
+        );
+
+        if (channelId) {
+            await this.slackApp.client.chat
+                .postMessage({
+                    token: installation?.token,
+                    channel: channelId,
+                    text: `This channel will now receive notifications for failed scheduled delivery jobs in Lightdash. Configuration completed${
+                        userFullName.trim().length ? ` by ${userFullName}` : ''
+                    }. Stay informed on your job status here.`,
+                })
+                .catch((e: any) => {
+                    Logger.error(
+                        `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${JSON.stringify(
+                            e,
+                        )}`,
+                    );
+                    throw e;
+                });
+        }
+    }
+
+    async getNotificationChannel(
+        organizationUuid: string,
+    ): Promise<SlackSettings['notificationChannel']> {
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        return installation?.notificationChannel;
+    }
+
+    async postMessageToNotificationChannel({
+        organizationUuid,
+        text,
+        blocks,
+    }: {
+        organizationUuid: string;
+        text: string;
+        blocks?: Block[];
+    }): Promise<void> {
+        const channelId = await this.getNotificationChannel(organizationUuid);
+        if (!channelId) {
+            Logger.warn(
+                `Unable to send slack notification for organization ${organizationUuid}. No notification channel set.`,
+            );
+            return;
+        }
+        await this.postMessage({
+            organizationUuid,
+            text,
+            channel: channelId,
+            blocks,
+        });
     }
 }

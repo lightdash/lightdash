@@ -8,7 +8,7 @@ import {
 import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useSlackChannels } from '../../hooks/slack/useSlackChannels';
+import { useSlackChannels } from '../../hooks/slack/useSlack';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import {

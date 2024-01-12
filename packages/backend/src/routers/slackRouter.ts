@@ -43,6 +43,7 @@ slackRouter.get(
                 slackTeamName: slackAuth.slackTeamName,
                 createdAt: slackAuth.createdAt,
                 scopes: slackAuth.scopes,
+                notificationChannel: slackAuth.notificationChannel,
             };
             res.json({
                 status: 'ok',
