@@ -31,9 +31,7 @@ frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media
 
 ## Managing user attributes
 
-
 ### Creating user attributes
-
 
 User attributes can be created by navigating to **Organization Settings** > **User Attributes** and clicking on the 
 **Add attribute** button. This will create a new user attribute but it will not be assigned to any user.
@@ -42,12 +40,6 @@ User attributes can be created by navigating to **Organization Settings** > **Us
 
 User attributes can be assigned to users or [groups](/references/groups.mdx) by navigating to **Organization Settings** > **User Attributes** and 
 clicking on the user attribute you'd like to assign. Select a user by email address, or a group by group name and set their value.
-
-:::info
-
-If a user is assigned a value for an attribute and they also belong to a group that's been assigned a different value for the same attribute, the value for the user will take precedence over the value for the group.
-
-:::
 
 ### Setting a default value for your user attribute
 
@@ -67,7 +59,7 @@ When referencing user attributes in SQL you can use the following [SQL variables
   - (optional) `ld` as an alias for `lightdash`
   - (optional) `attribute` or `attr` as an alias for `attributes`
 
-### 1. Row filtering with `sql_filter`
+### Row filtering with `sql_filter`
 
 You can use user attributes to filter the rows returned by a query. This is useful if you want to restrict the data 
 based on the user's attributes. To reference a user attribute in your sql, use the special lightdash reference 
@@ -81,7 +73,7 @@ models:
       sql_filter: ${TABLE}.sales_region = ${lightdash.attributes.sales_region}
 ```
 
-### 2. Column filtering with `required_attributes`
+### Column filtering with `required_attributes`
 
 You can use `user attributes` to limit some dimensions to some users. 
 
@@ -130,8 +122,7 @@ columns:
       dimension: 
         required_attributes:  
           team_name: ["HR", "C-Suite"]
-``
-
+```
 
 #### Current limitations 
 
@@ -147,7 +138,7 @@ Scheduler deliveries will run against the user who created the scheduled deliver
 
 :::
 
-### 3. Filtering joins with `sql_on`
+### Filtering joins with `sql_on`
 
 If you're joining a table, you can also customise the rows that are returned 
 
@@ -167,8 +158,56 @@ models:
             AND ${joined}.sales_region = ${lightdash.attributes.sales_region}
 ```
 
-# Demo: filtering a chart based on user attributes
+## Demo: filtering a chart based on user attributes
 
 The following video gives you a full demo for how to use user attributes to filter chart results.
 
 <iframe width="100%" height="315" src="https://www.youtube.com/embed/t6QS0rr0PDQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+## How user and group attribute values interact
+
+Users can be assigned attributes, but you can also assign groups attributes. So, if a user is assigned an attribute value, but they're also part of a group that's been assigned a value for the same attribute, what happens?
+
+### Column filtering
+
+If the required attributes match **_any_** of the user's group or user attribute values, then the user has access to the column.
+
+For example, if a user is part of a group with the attribute value `kiwi`, another group with the attribute value `orange`, and they've also been assigned as a user to the attribute value `coconut`.
+
+```yaml
+columns: 
+  - name: tropical_fruits_column 
+    meta: 
+      dimension: 
+        required_attributes:  
+          fruits: "coconut"
+```
+
+In this example, the `tropical_fruits_column` will be visible to them because `coconut` is listed in their attribute values `['kiwi','orange', 'coconut']`.
+
+### Row filtering
+
+If the user has group and user attribute values assigned, the user attribute values take precedence over group attribute values. If there are multiple group attribute values, there is no prioritization over which value will be used. 
+
+Let's walk through an example:
+
+```yaml
+models:
+  - name: my_model
+    meta:
+      sql_filter: ${TABLE}.fruit = ${lightdash.attributes.fruit}
+```
+
+**Scenario 1**:
+- The default attribute value is `banana`.
+- The user's been assigned the value `coconut`
+- They also have group values assigned of `kiwi` and `orange` 
+
+The `${lightdash.attributes.fruit}` reference will equal `coconut`. User attribute values take precedence over group attribute values.
+
+**Scenario 2**:
+- The default attribute value is `banana`.
+- The user's been assigned no value.
+- They also have group values assigned of `kiwi` and `orange` 
+
+The `${lightdash.attributes.fruit}` reference will equal either `kiwi` or `orange. The order of multiple group attribute values is not defined. 
