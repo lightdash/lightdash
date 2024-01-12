@@ -59,7 +59,6 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 value={date2}
                 onChange={(newDate) => {
                     setDate2(newDate);
-
                     if (newDate && date1) {
                         onChange([date1, newDate]);
                     }
