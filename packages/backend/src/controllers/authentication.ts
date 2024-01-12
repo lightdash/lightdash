@@ -149,13 +149,13 @@ const createOpenIdUserFromProfile = (
 };
 
 const setupClient = async () => {
-    const oktaIssuer = await Issuer.discover(
-        `${lightdashConfig.auth.okta.oauth2Issuer}${
-            lightdashConfig.auth.okta.authorizationServerId
-                ? `/oauth2/${lightdashConfig.auth.okta.authorizationServerId}`
-                : ''
-        }`,
-    );
+    const issuer = lightdashConfig.auth.okta.oauth2Issuer;
+    const authorizationServerPath = lightdashConfig.auth.okta
+        .authorizationServerId
+        ? `/oauth2/${lightdashConfig.auth.okta.authorizationServerId}`
+        : '';
+    const issuerUrl = new URL(authorizationServerPath, issuer);
+    const oktaIssuer = await Issuer.discover(issuerUrl.href);
 
     const redirectUri = new URL(
         `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
