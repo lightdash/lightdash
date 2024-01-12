@@ -160,3 +160,19 @@ exposures:
       - ref('orders')
       - ref('payments')
       - ref('customers')
+  - name: ld_dashboard_a2a53dfe_2743_4bb6_b636_2b94a470a3da
+    type: dashboard
+    owner:
+      name: David Attenborough
+      email: ""
+    label: Jaffle dashboard
+    description: n/a
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/a2a53dfe-2743-4bb6-b636-2b94a470a3da/view
+    tags:
+      - lightdash
+      - dashboard
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')

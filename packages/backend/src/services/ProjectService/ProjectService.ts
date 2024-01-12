@@ -3150,7 +3150,7 @@ export class ProjectService {
                     email: '', // omit for now to avoid heavier query
                 },
                 label: chart.name,
-                description: chart.description,
+                description: chart.description ?? '',
                 url: `${lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 dependsOn: Object.keys(
                     explores.find(({ name }) => name === chart.tableName)
@@ -3175,7 +3175,7 @@ export class ProjectService {
                         email: '', // omit for now to avoid heavier query
                     },
                     label: dashboard.name,
-                    description: dashboard.description,
+                    description: dashboard.description ?? '',
                     url: `${lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboard.uuid}/view`,
                     dependsOn: uniq(
                         dashboard.chartUuids
