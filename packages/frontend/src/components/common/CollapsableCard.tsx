@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { FC, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import MantineIcon from './MantineIcon';
 
 export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
@@ -54,7 +55,11 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     minHeight = 300,
 }) => {
     const handleToggle = useCallback(
-        (value: boolean) => onToggle?.(value),
+        (value: boolean) => {
+            if (onToggle) {
+                flushSync(() => onToggle?.(value));
+            }
+        },
         [onToggle],
     );
 

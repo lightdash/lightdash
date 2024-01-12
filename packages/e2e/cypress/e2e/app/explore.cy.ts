@@ -7,7 +7,6 @@ describe('Explore', () => {
 
     it('Should query orders', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
-        cy.findByTestId('page-spinner').should('not.exist');
 
         cy.findByText('Orders').click();
         cy.findByText('Customers').click();
@@ -43,7 +42,6 @@ describe('Explore', () => {
 
     it('Should save chart', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
-        cy.findByTestId('page-spinner').should('not.exist');
 
         cy.findByText('Orders').click();
         cy.findByText('Customers').click();
@@ -77,8 +75,6 @@ describe('Explore', () => {
     it('Should change chart config type', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
-        cy.findByTestId('page-spinner').should('not.exist');
-
         // choose table and select fields
         cy.findByText('Orders').click();
         cy.findByText('Customers').click();
@@ -93,9 +89,10 @@ describe('Explore', () => {
         cy.get('button').contains('Run query').click();
 
         // open chart
+        cy.findByTestId('Charts-card-expand').click();
 
         // wait for the chart to finish loading
-        cy.contains('Loading chart').should('not.exist');
+        cy.findByText('Loading chart').should('not.exist');
 
         // open chart menu and change chart types
         cy.findByText('Configure').click();
@@ -126,7 +123,6 @@ describe('Explore', () => {
 
     it('Should change chart config layout', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
-        cy.findByTestId('page-spinner').should('not.exist');
 
         cy.findByText('Orders').click();
         cy.findByText('Customers').click();
@@ -135,6 +131,8 @@ describe('Explore', () => {
 
         // run query
         cy.get('button').contains('Run query').click();
+
+        cy.findByTestId('Charts-card-expand').click();
 
         cy.get('g').children('text').should('have.length.lessThan', 30); // without labels
 
@@ -205,6 +203,9 @@ describe('Explore', () => {
                     // run query
                     cy.get('button').contains('Run query').click();
 
+                    // open chart
+                    cy.findByTestId('Charts-card-expand').click();
+
                     // wait for the chart to finish loading
                     cy.findByText('Loading chart').should('not.exist');
 
@@ -245,6 +246,9 @@ describe('Explore', () => {
 
                     // run query
                     cy.get('button').contains('Run query').click();
+
+                    // open chart
+                    cy.findByTestId('Charts-card-expand').click();
 
                     // wait for the chart to finish loading
                     cy.findByText('Loading chart').should('not.exist');
