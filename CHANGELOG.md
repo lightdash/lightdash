@@ -1,3 +1,10 @@
+## [0.937.2](https://github.com/lightdash/lightdash/compare/0.937.1...0.937.2) (2024-01-12)
+
+
+### Bug Fixes
+
+* invite wrong email ([#8574](https://github.com/lightdash/lightdash/issues/8574)) ([19365b8](https://github.com/lightdash/lightdash/commit/19365b8aca971affd8907d337c14fce893c0d381))
+
 ## [0.937.1](https://github.com/lightdash/lightdash/compare/0.937.0...0.937.1) (2024-01-12)
 
 
