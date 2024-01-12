@@ -200,7 +200,7 @@ export const useSendNowScheduler = () => {
 
                 queryClient.cancelQueries(['jobStatus', sendNowData?.jobId]);
             },
-            enabled: sendNowData && sendNowData?.jobId !== undefined,
+            enabled: Boolean(sendNowData && sendNowData?.jobId !== undefined),
         },
     );
 
