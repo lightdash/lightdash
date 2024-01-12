@@ -175,9 +175,9 @@ const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
     };
 };
 
-export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const UpdateProjectConnection: FC<{
+    projectUuid: string;
+}> = ({ projectUuid }) => {
     const { user, health } = useApp();
     const ability = useAbilityContext();
     const { data } = useProject(projectUuid);

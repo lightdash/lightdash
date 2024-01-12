@@ -35,13 +35,7 @@ type VisualizationConfigPieProps =
         colorPalette: string[];
     };
 
-const VisualizationPieConfig: FC<
-    VisualizationConfigPieProps & {
-        children: (props: {
-            visualizationConfig: VisualizationConfigPie;
-        }) => JSX.Element;
-    }
-> = ({
+const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     resultsData,
     initialChartConfig,
     onChartConfigChange,

@@ -20,13 +20,7 @@ export const isCustomVisualizationConfig = (
 type VisualizationCustomConfigProps =
     VisualizationConfigCommon<VisualizationConfigCustom>;
 
-const VisualizationCustomConfig: FC<
-    VisualizationCustomConfigProps & {
-        children: (props: {
-            visualizationConfig: VisualizationConfigCustom;
-        }) => JSX.Element;
-    }
-> = ({
+const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
     children,
     // TODO: placeholder
     // initialChartConfig,

@@ -28,13 +28,7 @@ type VisualizationTableConfigProps =
         invalidateCache: boolean | undefined;
     };
 
-const VisualizationTableConfig: FC<
-    VisualizationTableConfigProps & {
-        children: (props: {
-            visualizationConfig: VisualizationConfigTable;
-        }) => JSX.Element;
-    }
-> = ({
+const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     itemsMap,
     resultsData,
     columnOrder,

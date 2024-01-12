@@ -31,13 +31,7 @@ type VisualizationCartesianConfigProps =
         >;
     };
 
-const VisualizationCartesianConfig: FC<
-    VisualizationCartesianConfigProps & {
-        children: (props: {
-            visualizationConfig: VisualizationConfigCartesian;
-        }) => JSX.Element;
-    }
-> = ({
+const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     itemsMap,
     resultsData,
     validPivotDimensions,

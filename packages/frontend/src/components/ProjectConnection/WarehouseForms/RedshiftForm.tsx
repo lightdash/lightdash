@@ -25,9 +25,9 @@ import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 import { useCreateSshKeyPair } from './sshHooks';
 
-export const RedshiftSchemaInput: FC<{ disabled: boolean }> = ({
-    disabled,
-}) => {
+export const RedshiftSchemaInput: FC<{
+    disabled: boolean;
+}> = ({ disabled }) => {
     const { register } = useFormContext();
     return (
         <TextInput
@@ -44,7 +44,9 @@ export const RedshiftSchemaInput: FC<{ disabled: boolean }> = ({
     );
 };
 
-const RedshiftForm: FC<{ disabled: boolean }> = ({ disabled }) => {
+const RedshiftForm: FC<{
+    disabled: boolean;
+}> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
