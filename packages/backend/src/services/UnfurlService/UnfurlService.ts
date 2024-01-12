@@ -413,7 +413,11 @@ export class UnfurlService {
 
                     await page.on('response', (response) => {
                         const responseUrl = response.url();
-                        if (responseUrl.match(/\/saved\/[a-f0-9-]+\/results/)) {
+                        const regexUrlToMatch =
+                            lightdashPage === LightdashPage.EXPLORE
+                                ? /\/saved\/[a-f0-9-]+\/results/
+                                : /\/saved\/[a-f0-9-]+\/chart-and-results/; // NOTE: Chart endpoint in Dashboards is different
+                        if (responseUrl.match(regexUrlToMatch)) {
                             chartRequests += 1;
                             response.buffer().then(
                                 (buffer) => {
