@@ -71,6 +71,7 @@ export class SlackController extends Controller {
         return {
             status: 'ok',
             results: await slackClient.updateNotificationChannel(
+                `${req.user?.firstName} ${req.user?.lastName}`,
                 organizationUuid,
                 body.channelId,
             ),

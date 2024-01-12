@@ -221,6 +221,7 @@ export class SlackClient {
     }
 
     async updateNotificationChannel(
+        userFullName: string,
         organizationUuid: string,
         channelId: string | null,
     ) {
@@ -249,7 +250,9 @@ export class SlackClient {
                 .postMessage({
                     token: installation?.token,
                     channel: channelId,
-                    text: 'This channel will now receive notifications when scheduled jobs fail',
+                    text: `This channel will now receive notifications when scheduled jobs fail. This was configured in Lightdash${
+                        userFullName.trim().length ? ` by ${userFullName}` : ''
+                    }.}`,
                 })
                 .catch((e: any) => {
                     Logger.error(
