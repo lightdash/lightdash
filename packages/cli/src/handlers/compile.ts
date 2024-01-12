@@ -23,7 +23,7 @@ import {
 import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { dbtCompile, DbtCompileOptions } from './dbt/compile';
+import { dbtCompile, DbtCompileOptions, dbtList } from './dbt/compile';
 import { getDbtVersion, isSupportedDbtVersion } from './dbt/getDbtVersion';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
@@ -70,8 +70,12 @@ export const compile = async (options: CompileHandlerOptions) => {
 
     // Skipping assumes manifest.json already exists.
     let compiledModelIds: string[] | undefined;
-    if (!options.skipDbtCompile) {
-        compiledModelIds = await dbtCompile(options);
+    if (options.useDbtList) {
+        compiledModelIds = await dbtList(options);
+    } else if (!options.skipDbtCompile) {
+        await dbtCompile(options);
+    } else {
+        GlobalState.debug('> Skipping dbt compile');
     }
 
     const absoluteProjectPath = path.resolve(options.projectDir);
@@ -129,9 +133,12 @@ ${errors.join('')}`),
     // Skipping assumes yml has the field types.
     let catalog: WarehouseCatalog = {};
     if (!options.skipWarehouseCatalog) {
+        GlobalState.debug('> Fetching warehouse catalog');
         catalog = await warehouseClient.getCatalog(
             getSchemaStructureFromDbtModels(validModels),
         );
+    } else {
+        GlobalState.debug('> Skipping warehouse catalog');
     }
 
     const validModelsWithTypes = attachTypesToModels(

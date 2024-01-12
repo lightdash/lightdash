@@ -19,6 +19,7 @@ export type DbtCompileOptions = {
     fullRefresh: boolean | undefined;
     skipDbtCompile: boolean | undefined;
     skipWarehouseCatalog: boolean | undefined;
+    useDbtList: boolean | undefined;
 };
 
 const dbtCompileArgs = [
@@ -55,7 +56,19 @@ const optionsToArgs = (options: DbtCompileOptions): string[] =>
         }
         return acc;
     }, []);
-export const dbtCompile = async (
+export const dbtCompile = async (options: DbtCompileOptions) => {
+    try {
+        const args = optionsToArgs(options);
+        GlobalState.debug(`> Running: dbt compile ${args.join(' ')}`);
+        const { stdout, stderr } = await execa('dbt', ['compile', ...args]);
+        console.error(stdout);
+        console.error(stderr);
+    } catch (e: any) {
+        throw new ParseError(`Failed to run dbt compile:\n  ${e.message}`);
+    }
+};
+
+export const dbtList = async (
     options: DbtCompileOptions,
 ): Promise<string[]> => {
     try {

@@ -332,6 +332,11 @@ program
         'Skip fetch warehouse catalog and use types in yml',
         false,
     )
+    .option(
+        '--use-dbt-list',
+        'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
+        false,
+    )
     .action(previewHandler);
 
 program
@@ -386,6 +391,11 @@ program
     .option(
         '--skip-warehouse-catalog',
         'Skip fetch warehouse catalog and use types in yml',
+        false,
+    )
+    .option(
+        '--use-dbt-list',
+        'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         false,
     )
     .action(startPreviewHandler);
@@ -457,6 +467,11 @@ program
         'Skip fetch warehouse catalog and use types in yml',
         false,
     )
+    .option(
+        '--use-dbt-list',
+        'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
+        false,
+    )
     .action(deployHandler);
 
 program
@@ -520,6 +535,11 @@ program
     .option(
         '--skip-warehouse-catalog',
         'Skip fetch warehouse catalog and use types in yml',
+        false,
+    )
+    .option(
+        '--use-dbt-list',
+        'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         false,
     )
     .action(validateHandler);
