@@ -27,10 +27,16 @@ describe('Login', () => {
         cy.findByPlaceholderText('Your email address').type('test-email');
         cy.findByPlaceholderText('Your password').type('test-password');
         cy.get('[data-cy="signin-button"]').click();
-        cy.findByText('Your email address is not valid').should('be.visible');
+        cy.findByText('Email address is not valid').should('be.visible');
         cy.findByPlaceholderText('Your email address').type('test@emaill.com');
         cy.findByPlaceholderText('Your password').type('test-password');
         cy.get('[data-cy="signin-button"]').click();
         cy.findByText('Email and password not recognized').should('be.visible');
+        cy.findByPlaceholderText('Your email address').type('test@email.com ');
+        cy.findByPlaceholderText('Your password').type('test-password');
+        cy.get('[data-cy="signin-button"]').click();
+        cy.findByText('Email address must not contain whitespaces').should(
+            'be.visible',
+        );
     });
 });
