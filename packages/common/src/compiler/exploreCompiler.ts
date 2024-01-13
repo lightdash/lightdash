@@ -123,7 +123,7 @@ export class ExploreCompiler {
                     join.sqlOn,
                     join.table,
                 ).reduce<string[]>((acc, reference) => {
-                    if (reference.refTable === join.table) {
+                    if (reference.refTable === joinTableName) {
                         acc.push(reference.refName);
                     }
                     return acc;
