@@ -840,7 +840,6 @@ export const buildQuery = ({
             ...(customDimensionSql?.ctes || []),
             `${cteName} AS (\n${cteSql}\n)`,
         ];
-        const cte = `WITH ${ctes.join(',\n')}`;
         const tableCalculationSelects =
             compiledMetricQuery.compiledTableCalculations.map(
                 (tableCalculation) => {
@@ -856,9 +855,20 @@ export const buildQuery = ({
             ? `WHERE ${whereMetricFilters}`
             : '';
         const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join('\n');
-        const finalQuery = tableCalculationFilters
-            ? `SELECT * FROM (${secondQuery}) query_result WHERE ${tableCalculationFilters}`
-            : secondQuery;
+
+        let finalQuery = secondQuery;
+
+        if (tableCalculationFilters) {
+            const queryResultCteName = 'table_calculations';
+            ctes.push(`${queryResultCteName} AS (\n${secondQuery}\n)`);
+
+            finalQuery = `SELECT * FROM ${queryResultCteName}`;
+
+            if (tableCalculationFilters)
+                finalQuery += ` WHERE ${tableCalculationFilters}`;
+        }
+
+        const cte = `WITH ${ctes.join(',\n')}`;
 
         return {
             query: [cte, finalQuery, sqlOrderBy, sqlLimit].join('\n'),
