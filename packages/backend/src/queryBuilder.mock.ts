@@ -1003,6 +1003,45 @@ export const METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS = {
     },
 };
 
+export const METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER: CompiledMetricQuery = {
+    exploreName: 'table1',
+    dimensions: ['table1_dim1'],
+    metrics: ['table1_metric1'],
+    filters: {
+        tableCalculations: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'calc3',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                },
+            ],
+        },
+    },
+    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    limit: 10,
+    tableCalculations: [
+        {
+            name: 'calc3',
+            displayName: '',
+            sql: '${table1.dim1} + ${table1.metric1}',
+        },
+    ],
+    compiledTableCalculations: [
+        {
+            name: 'calc3',
+            displayName: '',
+            sql: '${table1.dim1} + ${table1.metric1}',
+            compiledSql: 'table1_dim1 + table1_metric1',
+        },
+    ],
+    compiledAdditionalMetrics: [],
+};
+
 export const COMPILED_DIMENSION: CompiledDimension = {
     type: DimensionType.NUMBER,
     name: 'dim1',
@@ -1244,5 +1283,27 @@ WHERE ((
 ) OR (
   ("table1_metric1") IN (1)
 )))
+ORDER BY "table1_metric1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL = `WITH metrics AS (
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+
+GROUP BY 1
+),
+table_calculations AS (
+SELECT
+  *,
+  table1_dim1 + table1_metric1 AS "calc3"
+FROM metrics
+
+)
+SELECT * FROM table_calculations WHERE ((
+  1=1
+))
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;

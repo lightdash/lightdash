@@ -857,7 +857,6 @@ export const buildQuery = ({
         const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join('\n');
 
         let finalQuery = secondQuery;
-
         if (tableCalculationFilters) {
             const queryResultCteName = 'table_calculations';
             ctes.push(`${queryResultCteName} AS (\n${secondQuery}\n)`);
@@ -867,7 +866,6 @@ export const buildQuery = ({
             if (tableCalculationFilters)
                 finalQuery += ` WHERE ${tableCalculationFilters}`;
         }
-
         const cte = `WITH ${ctes.join(',\n')}`;
 
         return {

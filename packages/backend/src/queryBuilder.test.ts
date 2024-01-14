@@ -46,6 +46,8 @@ import {
     METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
     METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL,
     METRIC_QUERY_WITH_SQL_FILTER,
+    METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
+    METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
     warehouseClientMock,
@@ -234,6 +236,16 @@ describe('Query builder', () => {
                 warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL);
+    });
+
+    test('Should build query with cte in table calculations filter', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL);
     });
 
     test('Should throw error if user attributes are missing', () => {
