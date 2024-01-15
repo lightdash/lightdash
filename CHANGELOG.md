@@ -1,3 +1,10 @@
+## [0.939.2](https://github.com/lightdash/lightdash/compare/0.939.1...0.939.2) (2024-01-15)
+
+
+### Bug Fixes
+
+* filter between two times in the same day ([#8546](https://github.com/lightdash/lightdash/issues/8546)) ([6e2440c](https://github.com/lightdash/lightdash/commit/6e2440ca4639142d33b877b9ab8663b5883ed601))
+
 ## [0.939.1](https://github.com/lightdash/lightdash/compare/0.939.0...0.939.1) (2024-01-15)
 
 
