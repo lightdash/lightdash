@@ -1,3 +1,10 @@
+# [0.941.0](https://github.com/lightdash/lightdash/compare/0.940.0...0.941.0) (2024-01-15)
+
+
+### Features
+
+* parameterize the output path of `genearte-exposures` ([#8595](https://github.com/lightdash/lightdash/issues/8595)) ([935ba35](https://github.com/lightdash/lightdash/commit/935ba3547ff9232b50c5c6f8cd8bfc6920e608e3))
+
 # [0.940.0](https://github.com/lightdash/lightdash/compare/0.939.2...0.940.0) (2024-01-15)
 
 
