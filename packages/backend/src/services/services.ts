@@ -88,6 +88,7 @@ export const projectService = new ProjectService({
     userAttributesModel,
     s3CacheClient,
     analyticsModel,
+    dashboardModel,
 });
 
 export const shareService = new ShareService({

@@ -8,6 +8,7 @@ import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
 import { deployHandler } from './handlers/deploy';
 import { generateHandler } from './handlers/generate';
+import { generateExposuresHandler } from './handlers/generateExposures';
 import { login } from './handlers/login';
 import {
     previewHandler,
@@ -575,6 +576,30 @@ ${styles.bold('Examples:')}
     .option('--verbose', undefined, false)
 
     .action(generateHandler);
+
+program
+    .command('generate-exposures')
+    .description(
+        '[Experimental command] Generates a .yml file for Lightdash exposures',
+    )
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'generate-exposures',
+        )} ${styles.secondary(
+            '-- generates .yml file for all lightdash exposures',
+        )}
+`,
+    )
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
+    .option('--verbose', undefined, false)
+    .action(generateExposuresHandler);
 
 const errorHandler = (err: Error) => {
     console.error(styles.error(err.message || 'Error had no message'));

@@ -56,6 +56,7 @@ import { SlackSettings } from './types/slackSettings';
 
 import { Email } from './types/api/email';
 import { ApiSuccessEmpty } from './types/api/success';
+import { DbtExposure } from './types/dbt';
 import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
 import { DashboardFilters } from './types/filter';
@@ -567,6 +568,7 @@ type ApiResults =
     | ApiSshKeyPairResponse['results']
     | MostPopularAndRecentlyUpdated
     | ApiCalculateTotalResponse['results']
+    | Record<string, DbtExposure>
     | ApiSuccessEmpty;
 
 export type ApiResponse = {

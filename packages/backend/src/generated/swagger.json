@@ -2831,6 +2831,11 @@
                 "required": ["explore", "metricQuery"],
                 "type": "object"
             },
+            "Record_string.DbtExposure_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "CacheMetadata": {
                 "properties": {
                     "cacheHit": {
@@ -5690,7 +5695,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.930.0",
+        "version": "0.937.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

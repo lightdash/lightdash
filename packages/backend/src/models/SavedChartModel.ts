@@ -12,6 +12,7 @@ import {
     getChartType,
     getCustomDimensionId,
     isFormat,
+    LightdashUser,
     NotFoundError,
     Organization,
     Project,
@@ -1001,5 +1002,64 @@ export class SavedChartModel {
             throw new NotFoundError('Saved queries not found');
         }
         return charts;
+    }
+
+    async findInfoForDbtExposures(
+        projectUuid: string,
+    ): Promise<
+        Array<
+            Pick<SavedChart, 'uuid' | 'name' | 'description' | 'tableName'> &
+                Pick<LightdashUser, 'firstName' | 'lastName'>
+        >
+    > {
+        const getLatestQueryVersionSubQuery = this.database(
+            'saved_queries_versions',
+        )
+            .select('saved_query_id', 'explore_name', 'updated_by_user_uuid')
+            .max('created_at as latest')
+            .groupBy('saved_query_id', 'explore_name', 'updated_by_user_uuid');
+
+        return this.database('saved_queries')
+            .select({
+                uuid: 'saved_queries.saved_query_uuid',
+                name: 'saved_queries.name',
+                description: 'saved_queries.description',
+                tableName: 'latest_saved_query.explore_name',
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+            })
+            .innerJoin(
+                getLatestQueryVersionSubQuery.as('latest_saved_query'),
+                function latestSavedQueryJoin() {
+                    this.on(
+                        `${SavedChartsTableName}.saved_query_id`,
+                        '=',
+                        'latest_saved_query.saved_query_id',
+                    );
+                },
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
+            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                UserTableName,
+                `latest_saved_query.updated_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where('projects.project_uuid', projectUuid);
     }
 }
