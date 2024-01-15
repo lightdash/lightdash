@@ -106,6 +106,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         return (
                             <FilterMonthAndYearPicker
                                 disabled={disabled}
+                                // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                                // @ts-ignore
                                 placeholder={placeholder}
                                 popoverProps={popoverProps}
                                 value={
@@ -133,6 +135,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         return (
                             <FilterYearPicker
                                 disabled={disabled}
+                                // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                                // @ts-ignore
                                 placeholder={placeholder}
                                 popoverProps={popoverProps}
                                 value={
@@ -168,6 +172,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 return (
                     <FilterDateTimePicker
                         disabled={disabled}
+                        // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                        // @ts-ignore
                         placeholder={placeholder}
                         withSeconds
                         // FIXME: mantine v7

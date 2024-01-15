@@ -45,7 +45,7 @@ const convertRowsToSeries = (rows: ResultRow[]) => {
     });
 };
 
-export const CustomVisualizationProvider: FC<React.PropsWithChildren> = ({
+export const CustomVisualizationProvider: FC<React.PropsWithChildren<{}>> = ({
     children,
 }) => {
     const rows = useExplorerContext(

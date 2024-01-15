@@ -1,7 +1,7 @@
 import { Flex } from '@mantine/core';
 import { FC } from 'react';
 
-const OnboardingWrapper: FC<React.PropsWithChildren> = ({ children }) => {
+const OnboardingWrapper: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     return (
         <Flex
             pos="relative"

@@ -8,7 +8,7 @@ import {
 import { Mark, Stack, Text } from '@mantine/core';
 import { FC } from 'react';
 
-const CustomMark: FC<React.PropsWithChildren> = ({ children }) => (
+const CustomMark: FC<React.PropsWithChildren<{}>> = ({ children }) => (
     <Mark
         color="gray"
         px={2}

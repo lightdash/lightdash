@@ -20,8 +20,8 @@
         "react-dom": "^18.2.0"
     },
     "resolutions": {
-        "@types/react": "^18.2.0",
-        "@types/react-dom": "^18.2.0"
+        "@types/react": "^18.2.48",
+        "@types/react-dom": "^18.2.18"
     },
     "dependencies": {
         "@casl/ability": "^5.4.4",
@@ -95,7 +95,7 @@
         "@testing-library/user-event": "^14.4.3",
         "@types/canvas-confetti": "^1.6.0",
         "@types/lodash": "^4.14.202",
-        "@types/react": "18.2.42",
+        "@types/react": "^18.2.48",
         "@types/react-beautiful-dnd": "^13.1.2",
         "@types/react-copy-to-clipboard": "^5.0.2",
         "@types/react-dom": "^18.2.18",

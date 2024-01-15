@@ -72,7 +72,7 @@ type Props = {
     customDimensions?: CustomDimension[];
 };
 
-const EmptyWrapper: FC<React.PropsWithChildren> = ({ children }) => (
+const EmptyWrapper: FC<React.PropsWithChildren<{}>> = ({ children }) => (
     <>{children}</>
 );
 

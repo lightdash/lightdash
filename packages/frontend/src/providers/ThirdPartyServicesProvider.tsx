@@ -5,7 +5,7 @@ import { Intercom } from '../components/Intercom';
 import useSentry from '../hooks/thirdPartyServices/useSentry';
 import { useApp } from './AppProvider';
 
-const PosthogIdentified: FC<React.PropsWithChildren> = ({ children }) => {
+const PosthogIdentified: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     const { user } = useApp();
     const posthog = usePostHog();
     if (user.data) {
@@ -29,7 +29,7 @@ const PosthogIdentified: FC<React.PropsWithChildren> = ({ children }) => {
     return <>{children}</>;
 };
 
-const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren> = ({
+const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
     children,
 }) => {
     const { health, user } = useApp();

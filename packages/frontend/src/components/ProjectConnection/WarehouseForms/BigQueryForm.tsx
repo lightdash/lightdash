@@ -110,6 +110,8 @@ const BigQueryForm: FC<{
                         <FileInput
                             {...field}
                             label="Key File"
+                            // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                            // @ts-ignore
                             placeholder={
                                 !requireSecrets
                                     ? '**************'
