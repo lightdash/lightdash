@@ -10,6 +10,7 @@ import { s3CacheClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import {
     analyticsModel,
+    dashboardModel,
     jobModel,
     onboardingModel,
     projectModel,
@@ -93,6 +94,7 @@ jest.mock('../../models/models', () => ({
         getAttributeValuesForOrgMember: jest.fn(async () => ({})),
     },
     analyticsModel: {},
+    dashboardModel: {},
 }));
 
 describe('ProjectService', () => {
@@ -110,6 +112,7 @@ describe('ProjectService', () => {
         userAttributesModel,
         s3CacheClient,
         analyticsModel,
+        dashboardModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
