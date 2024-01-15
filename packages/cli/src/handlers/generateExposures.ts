@@ -11,6 +11,7 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 type GenerateExposuresHandlerOptions = {
     projectDir: string;
     verbose: boolean;
+    output?: string;
 };
 
 export const generateExposuresHandler = async (
@@ -53,10 +54,9 @@ export const generateExposuresHandler = async (
             styles.info(`Found ${Object.keys(exposures).length} exposures`),
         );
 
-        const outputFilePath = path.join(
-            absoluteProjectPath,
-            `/models/lightdash_exposures.yml`,
-        );
+        const outputFilePath =
+            options.output ||
+            path.join(absoluteProjectPath, 'models', 'lightdash_exposures.yml');
         const updatedYml = {
             version: 2 as const,
             exposures: Object.values(exposures).map(
