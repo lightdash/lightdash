@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ActivateUser,
+    ArgumentsOf,
     AuthorizationError,
     CompleteUserArgs,
     CreateInviteLink,
@@ -316,6 +317,35 @@ export class UserService {
         });
     }
 
+    private async tryAddUserToGroups(
+        ...data: ArgumentsOf<GroupsModel['addUserToGroupsIfExist']>
+    ) {
+        const updatedGroups = await this.groupsModel.addUserToGroupsIfExist(
+            ...data,
+        );
+        if (updatedGroups) {
+            await Promise.all(
+                updatedGroups.map(async (groupUuid) => {
+                    const updatedGroup =
+                        await this.groupsModel.getGroupWithMembers(groupUuid);
+                    analytics.track({
+                        event: 'group.updated',
+                        userId: data[0].userUuid,
+                        properties: {
+                            viaSso: true,
+                            organizationId: updatedGroup.organizationUuid,
+                            groupId: updatedGroup.uuid,
+                            name: updatedGroup.name,
+                            userMembers: updatedGroup.members.map(
+                                (member) => member.userUuid,
+                            ),
+                        },
+                    });
+                }),
+            );
+        }
+    }
+
     async loginWithOpenId(
         openIdUser: OpenIdUser,
         sessionUser: SessionUser | undefined,
@@ -366,7 +396,7 @@ export class UserService {
                 openIdUser.openId.groups.length &&
                 loginUser.organizationUuid
             )
-                await this.groupsModel.addUserToGroupsIfExist({
+                await this.tryAddUserToGroups({
                     userUuid: loginUser.userUuid,
                     groups: openIdUser.openId.groups,
                     organizationUuid: loginUser.organizationUuid,
@@ -399,7 +429,7 @@ export class UserService {
                 openIdUser.openId.groups.length &&
                 sessionUser.organizationUuid
             )
-                await this.groupsModel.addUserToGroupsIfExist({
+                await this.tryAddUserToGroups({
                     userUuid: sessionUser.userUuid,
                     groups: openIdUser.openId.groups,
                     organizationUuid: sessionUser.organizationUuid,
@@ -420,7 +450,7 @@ export class UserService {
             openIdUser.openId.groups.length &&
             createdUser.organizationUuid
         )
-            await this.groupsModel.addUserToGroupsIfExist({
+            await this.tryAddUserToGroups({
                 userUuid: createdUser.userUuid,
                 groups: openIdUser.openId.groups,
                 organizationUuid: createdUser.organizationUuid,

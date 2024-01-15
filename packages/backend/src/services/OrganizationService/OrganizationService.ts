@@ -485,7 +485,19 @@ export class OrganizationService {
         const groupWithMembers = await this.groupsModel.getGroupWithMembers(
             group.uuid,
         );
-
+        analytics.track({
+            userId: actor.userUuid,
+            event: 'group.created',
+            properties: {
+                organizationId: groupWithMembers.organizationUuid,
+                groupId: groupWithMembers.uuid,
+                name: groupWithMembers.name,
+                userMembers: groupWithMembers.members.map(
+                    (member) => member.userUuid,
+                ),
+                viaSso: false,
+            },
+        });
         return groupWithMembers;
     }
 
