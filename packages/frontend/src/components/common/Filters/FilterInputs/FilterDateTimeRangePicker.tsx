@@ -32,16 +32,20 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 disabled={disabled}
                 placeholder="Start date"
                 maxDate={
-                    date2 ? dayjs(date2).subtract(1, 'day').toDate() : undefined
+                    date2
+                        ? dayjs(date2).subtract(1, 'second').toDate()
+                        : undefined
                 }
                 firstDayOfWeek={firstDayOfWeek}
                 {...rest}
                 value={date1}
                 onChange={(newDate) => {
-                    setDate1(newDate);
+                    if (!date2 || dayjs(newDate).isBefore(dayjs(date2))) {
+                        setDate1(newDate);
 
-                    if (newDate && date2) {
-                        onChange([newDate, date2]);
+                        if (newDate && date2) {
+                            onChange([newDate, date2]);
+                        }
                     }
                 }}
             />
@@ -56,16 +60,17 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 disabled={disabled}
                 placeholder="End date"
                 minDate={
-                    date1 ? dayjs(date1).add(1, 'day').toDate() : undefined
+                    date1 ? dayjs(date1).add(1, 'second').toDate() : undefined
                 }
                 firstDayOfWeek={firstDayOfWeek}
                 {...rest}
                 value={date2}
                 onChange={(newDate) => {
-                    setDate2(newDate);
-
-                    if (newDate && date1) {
-                        onChange([date1, newDate]);
+                    if (!date1 || dayjs(newDate).isAfter(dayjs(date1))) {
+                        setDate2(newDate);
+                        if (newDate && date1) {
+                            onChange([date1, newDate]);
+                        }
                     }
                 }}
             />
