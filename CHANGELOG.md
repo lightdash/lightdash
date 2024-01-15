@@ -1,3 +1,10 @@
+# [0.942.0](https://github.com/lightdash/lightdash/compare/0.941.0...0.942.0) (2024-01-15)
+
+
+### Features
+
+* upgrade react ([#8391](https://github.com/lightdash/lightdash/issues/8391)) ([d93abff](https://github.com/lightdash/lightdash/commit/d93abffce56e008e8e7d1a47da5c608941775d9b))
+
 # [0.941.0](https://github.com/lightdash/lightdash/compare/0.940.0...0.941.0) (2024-01-15)
 
 
