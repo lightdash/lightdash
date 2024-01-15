@@ -6,7 +6,9 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    isTableCalculation,
     Metric,
+    TableCalculation,
 } from '@lightdash/common';
 import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
@@ -119,18 +121,18 @@ const PieChartLayoutConfig: React.FC = () => {
                 label="You must select at least one numeric metric to create a pie chart"
             >
                 <Box>
-                    <FieldSelect<Metric>
+                    <FieldSelect<Metric | TableCalculation>
                         label="Metric"
                         placeholder="Select metric"
                         disabled={numericMetrics.length === 0}
                         item={selectedMetric}
                         items={numericMetrics}
                         onChange={(newField) => {
-                            metricChange(
-                                newField && isField(newField)
-                                    ? fieldId(newField)
-                                    : null,
-                            );
+                            if (newField && isField(newField))
+                                metricChange(fieldId(newField));
+                            else if (newField && isTableCalculation(newField))
+                                metricChange(newField.name);
+                            else metricChange(null);
                         }}
                     />
                 </Box>

@@ -5,6 +5,7 @@ import {
     formatItemValue,
     isField,
     isMetric,
+    isTableCalculation,
     ItemsMap,
     Metric,
     PieChart,
@@ -13,6 +14,7 @@ import {
     PieChartValueOptions,
     ResultRow,
     ResultValue,
+    TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
 import isEmpty from 'lodash/isEmpty';
@@ -33,7 +35,7 @@ type PieChartConfig = {
     groupRemove: (dimensionId: string) => void;
 
     metricId: string | null;
-    selectedMetric: Metric | undefined;
+    selectedMetric: Metric | TableCalculation | undefined;
     metricChange: (metricId: string | null) => void;
 
     isDonut: boolean;
@@ -84,7 +86,7 @@ export type PieChartConfigFn = (
     pieChartConfig: PieChart | undefined,
     itemsMap: ItemsMap | undefined,
     dimensions: Record<string, CustomDimension | Dimension>,
-    numericMetrics: Record<string, Metric>,
+    numericMetrics: Record<string, Metric | TableCalculation>,
     colorPalette: string[],
 ) => PieChartConfig;
 
@@ -161,7 +163,8 @@ const usePieChartConfig: PieChartConfigFn = (
         if (!itemsMap || !metricId) return undefined;
         const item = itemsMap[metricId];
 
-        if (isField(item) && isMetric(item)) return item;
+        if ((isField(item) && isMetric(item)) || isTableCalculation(item))
+            return item;
 
         return undefined;
     }, [itemsMap, metricId]);
