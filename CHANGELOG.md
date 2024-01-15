@@ -1,3 +1,10 @@
+# [0.940.0](https://github.com/lightdash/lightdash/compare/0.939.2...0.940.0) (2024-01-15)
+
+
+### Features
+
+* allow table calculations on pie metrics ([#8579](https://github.com/lightdash/lightdash/issues/8579)) ([c4e6965](https://github.com/lightdash/lightdash/commit/c4e69655cc7283dea80d7c6589c10cc0cad35ff0))
+
 ## [0.939.2](https://github.com/lightdash/lightdash/compare/0.939.1...0.939.2) (2024-01-15)
 
 
