@@ -1,3 +1,10 @@
+# [0.938.0](https://github.com/lightdash/lightdash/compare/0.937.3...0.938.0) (2024-01-15)
+
+
+### Features
+
+* CTE for table calculation filters instead of nested select ([#8586](https://github.com/lightdash/lightdash/issues/8586)) ([e18e127](https://github.com/lightdash/lightdash/commit/e18e127e58962cc3a1e89e26f262672fceb3fa37))
+
 ## [0.937.3](https://github.com/lightdash/lightdash/compare/0.937.2...0.937.3) (2024-01-15)
 
 
