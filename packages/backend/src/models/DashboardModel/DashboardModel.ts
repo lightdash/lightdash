@@ -805,9 +805,7 @@ export class DashboardModel {
         }));
     }
 
-    async findInfoForDbtExposures(
-        projectUuid: string,
-    ): Promise<
+    async findInfoForDbtExposures(projectUuid: string): Promise<
         Array<
             Pick<Dashboard, 'uuid' | 'name' | 'description'> &
                 Pick<LightdashUser, 'firstName' | 'lastName'> & {
