@@ -599,6 +599,11 @@ ${styles.bold('Examples:')}
         defaultProjectDir,
     )
     .option('--verbose', undefined, false)
+    .option(
+        '--output <path>',
+        'The path where the output exposures YAML file will be written',
+        undefined,
+    )
     .action(generateExposuresHandler);
 
 const errorHandler = (err: Error) => {
