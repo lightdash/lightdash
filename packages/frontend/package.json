@@ -74,7 +74,7 @@
         "react-helmet": "^6.1.0",
         "react-hook-form": "^7.26.1",
         "react-json-view": "^1.21.3",
-        "react-router-dom": "^5.2.0",
+        "react-router-dom": "5.3.4",
         "react-use": "^17.3.2",
         "react-use-intercom": "^1.5.1",
         "react-vega": "^7.6.0",
