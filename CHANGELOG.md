@@ -1,3 +1,10 @@
+## [0.939.1](https://github.com/lightdash/lightdash/compare/0.939.0...0.939.1) (2024-01-15)
+
+
+### Bug Fixes
+
+* keep menu open while exporting google sheets ([#8577](https://github.com/lightdash/lightdash/issues/8577)) ([3808e94](https://github.com/lightdash/lightdash/commit/3808e94f0f85bbc37e803b13bf79e8e0c6be3ed8))
+
 # [0.939.0](https://github.com/lightdash/lightdash/compare/0.938.1...0.939.0) (2024-01-15)
 
 
