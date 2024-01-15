@@ -27,16 +27,24 @@
                                 "description": "HTTP status code"
                             }
                         },
-                        "required": ["name", "statusCode"],
+                        "required": [
+                            "name",
+                            "statusCode"
+                        ],
                         "type": "object"
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["error"],
+                        "enum": [
+                            "error"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["error", "status"],
+                "required": [
+                    "error",
+                    "status"
+                ],
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
@@ -54,16 +62,25 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["truncated", "status", "url"],
+                        "required": [
+                            "truncated",
+                            "status",
+                            "url"
+                        ],
                         "type": "object"
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_CreateDbtCloudIntegration.metricsJobId_": {
@@ -73,7 +90,9 @@
                         "description": "Job id for a dbt cloud job containing a compiled dbt project with available dbt metrics"
                     }
                 },
-                "required": ["metricsJobId"],
+                "required": [
+                    "metricsJobId"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -88,11 +107,15 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["status"],
+                "required": [
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiDbtCloudSettingsDeleteSuccess": {
@@ -100,11 +123,15 @@
                     "results": {},
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["status"],
+                "required": [
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiGdriveAccessTokenResponse": {
@@ -114,11 +141,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiJobScheduledResponse": {
@@ -129,16 +161,23 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["jobId"],
+                        "required": [
+                            "jobId"
+                        ],
                         "type": "object"
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "FieldId": {
@@ -156,7 +195,10 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["or", "id"],
+                        "required": [
+                            "or",
+                            "id"
+                        ],
                         "type": "object"
                     },
                     {
@@ -169,7 +211,10 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["and", "id"],
+                        "required": [
+                            "and",
+                            "id"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -197,11 +242,19 @@
                         "type": "string"
                     }
                 },
-                "required": ["descending", "fieldId"],
+                "required": [
+                    "descending",
+                    "fieldId"
+                ],
                 "type": "object"
             },
             "TableCalculationFormatType": {
-                "enum": ["default", "percent", "currency", "number"],
+                "enum": [
+                    "default",
+                    "percent",
+                    "currency",
+                    "number"
+                ],
                 "type": "string"
             },
             "NumberSeparator": {
@@ -215,7 +268,12 @@
                 "type": "string"
             },
             "Compact": {
-                "enum": ["thousands", "millions", "billions", "trillions"],
+                "enum": [
+                    "thousands",
+                    "millions",
+                    "billions",
+                    "trillions"
+                ],
                 "type": "string"
             },
             "TableCalculationFormat": {
@@ -243,7 +301,9 @@
                         "$ref": "#/components/schemas/TableCalculationFormatType"
                     }
                 },
-                "required": ["type"],
+                "required": [
+                    "type"
+                ],
                 "type": "object"
             },
             "TableCalculation": {
@@ -265,7 +325,11 @@
                         "format": "double"
                     }
                 },
-                "required": ["sql", "displayName", "name"],
+                "required": [
+                    "sql",
+                    "displayName",
+                    "name"
+                ],
                 "type": "object"
             },
             "MetricType": {
@@ -307,7 +371,15 @@
                 ]
             },
             "Format": {
-                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
+                "enum": [
+                    "km",
+                    "mi",
+                    "usd",
+                    "gbp",
+                    "eur",
+                    "id",
+                    "percent"
+                ],
                 "type": "string"
             },
             "ConditionalOperator": {
@@ -350,7 +422,9 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["fieldRef"],
+                        "required": [
+                            "fieldRef"
+                        ],
                         "type": "object"
                     },
                     "settings": {},
@@ -358,7 +432,11 @@
                         "type": "boolean"
                     }
                 },
-                "required": ["operator", "id", "target"],
+                "required": [
+                    "operator",
+                    "id",
+                    "target"
+                ],
                 "type": "object",
                 "additionalProperties": false
             },
@@ -417,12 +495,21 @@
                         "format": "double"
                     }
                 },
-                "required": ["type", "sql", "table", "name"],
+                "required": [
+                    "type",
+                    "sql",
+                    "table",
+                    "name"
+                ],
                 "type": "object",
                 "additionalProperties": false
             },
             "BinType": {
-                "enum": ["fixed_number", "fixed_width", "custom_range"],
+                "enum": [
+                    "fixed_number",
+                    "fixed_width",
+                    "custom_range"
+                ],
                 "type": "string"
             },
             "BinRange": {
@@ -470,7 +557,13 @@
                         "type": "array"
                     }
                 },
-                "required": ["id", "name", "dimensionId", "table", "binType"],
+                "required": [
+                    "id",
+                    "name",
+                    "dimensionId",
+                    "table",
+                    "binType"
+                ],
                 "type": "object",
                 "additionalProperties": false
             },
@@ -483,7 +576,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["label", "name"],
+                "required": [
+                    "label",
+                    "name"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -495,7 +591,9 @@
                                 "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
                             }
                         },
-                        "required": ["hasADateDimension"],
+                        "required": [
+                            "hasADateDimension"
+                        ],
                         "type": "object"
                     },
                     "customDimensions": {
@@ -622,7 +720,12 @@
                         "description": "The group's UUID"
                     }
                 },
-                "required": ["organizationUuid", "createdAt", "name", "uuid"],
+                "required": [
+                    "organizationUuid",
+                    "createdAt",
+                    "name",
+                    "uuid"
+                ],
                 "type": "object"
             },
             "GroupMember": {
@@ -645,7 +748,12 @@
                         "format": "uuid"
                     }
                 },
-                "required": ["lastName", "firstName", "email", "userUuid"],
+                "required": [
+                    "lastName",
+                    "firstName",
+                    "email",
+                    "userUuid"
+                ],
                 "type": "object",
                 "description": "A summary for a Lightdash user within a group"
             },
@@ -670,7 +778,10 @@
                                 "description": "A list of the group's members."
                             }
                         },
-                        "required": ["memberUuids", "members"],
+                        "required": [
+                            "memberUuids",
+                            "members"
+                        ],
                         "type": "object"
                     }
                 ],
@@ -690,11 +801,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiSuccessEmpty": {
@@ -702,11 +818,15 @@
                     "results": {},
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["status"],
+                "required": [
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiGroupMembersResponse": {
@@ -719,11 +839,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_GroupMember.userUuid_": {
@@ -734,7 +859,9 @@
                         "format": "uuid"
                     }
                 },
-                "required": ["userUuid"],
+                "required": [
+                    "userUuid"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -774,7 +901,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["role", "groupUuid", "projectUuid"],
+                "required": [
+                    "role",
+                    "groupUuid",
+                    "projectUuid"
+                ],
                 "type": "object"
             },
             "ApiCreateProjectGroupAccess": {
@@ -784,11 +915,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_CreateDBProjectGroupAccess.role_": {
@@ -797,7 +933,9 @@
                         "$ref": "#/components/schemas/ProjectMemberRole"
                     }
                 },
-                "required": ["role"],
+                "required": [
+                    "role"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -808,11 +946,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_DBProjectGroupAccess.role_": {
@@ -821,7 +964,9 @@
                         "$ref": "#/components/schemas/ProjectMemberRole"
                     }
                 },
-                "required": ["role"],
+                "required": [
+                    "role"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -855,7 +1000,10 @@
                         "format": "uuid"
                     }
                 },
-                "required": ["name", "organizationUuid"],
+                "required": [
+                    "name",
+                    "organizationUuid"
+                ],
                 "type": "object",
                 "description": "Details of a user's Organization"
             },
@@ -866,11 +1014,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_Organization.name_": {
@@ -880,7 +1033,9 @@
                         "description": "The name of the organization"
                     }
                 },
-                "required": ["name"],
+                "required": [
+                    "name"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -912,7 +1067,10 @@
                 "$ref": "#/components/schemas/Partial_Omit_Organization.organizationUuid-or-needsProject__"
             },
             "ProjectType": {
-                "enum": ["DEFAULT", "PREVIEW"],
+                "enum": [
+                    "DEFAULT",
+                    "PREVIEW"
+                ],
                 "type": "string"
             },
             "OrganizationProject": {
@@ -929,7 +1087,11 @@
                         "format": "uuid"
                     }
                 },
-                "required": ["type", "name", "projectUuid"],
+                "required": [
+                    "type",
+                    "name",
+                    "projectUuid"
+                ],
                 "type": "object",
                 "description": "Summary of a project under an organization"
             },
@@ -943,11 +1105,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object",
                 "description": "List of projects in the current organization"
             },
@@ -1017,11 +1184,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiOrganizationMemberProfile": {
@@ -1031,11 +1203,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "UUID": {
@@ -1050,23 +1227,33 @@
                         "$ref": "#/components/schemas/OrganizationMemberRole"
                     }
                 },
-                "required": ["role"],
+                "required": [
+                    "role"
+                ],
                 "type": "object"
             },
             "OrganizationMemberRole.EDITOR": {
-                "enum": ["editor"],
+                "enum": [
+                    "editor"
+                ],
                 "type": "string"
             },
             "OrganizationMemberRole.INTERACTIVE_VIEWER": {
-                "enum": ["interactive_viewer"],
+                "enum": [
+                    "interactive_viewer"
+                ],
                 "type": "string"
             },
             "OrganizationMemberRole.VIEWER": {
-                "enum": ["viewer"],
+                "enum": [
+                    "viewer"
+                ],
                 "type": "string"
             },
             "OrganizationMemberRole.MEMBER": {
-                "enum": ["member"],
+                "enum": [
+                    "member"
+                ],
                 "type": "string"
             },
             "AllowedEmailDomainsRole": {
@@ -1086,15 +1273,21 @@
                 ]
             },
             "ProjectMemberRole.EDITOR": {
-                "enum": ["editor"],
+                "enum": [
+                    "editor"
+                ],
                 "type": "string"
             },
             "ProjectMemberRole.INTERACTIVE_VIEWER": {
-                "enum": ["interactive_viewer"],
+                "enum": [
+                    "interactive_viewer"
+                ],
                 "type": "string"
             },
             "ProjectMemberRole.VIEWER": {
-                "enum": ["viewer"],
+                "enum": [
+                    "viewer"
+                ],
                 "type": "string"
             },
             "AllowedEmailDomainProjectsRole": {
@@ -1122,7 +1315,10 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["role", "projectUuid"],
+                            "required": [
+                                "role",
+                                "projectUuid"
+                            ],
                             "type": "object"
                         },
                         "type": "array"
@@ -1155,11 +1351,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_AllowedEmailDomains.Exclude_keyofAllowedEmailDomains.organizationUuid__": {
@@ -1183,13 +1384,20 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["role", "projectUuid"],
+                            "required": [
+                                "role",
+                                "projectUuid"
+                            ],
                             "type": "object"
                         },
                         "type": "array"
                     }
                 },
-                "required": ["role", "emailDomains", "projects"],
+                "required": [
+                    "role",
+                    "emailDomains",
+                    "projects"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -1207,7 +1415,9 @@
                         "description": "A friendly name for the group"
                     }
                 },
-                "required": ["name"],
+                "required": [
+                    "name"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -1249,15 +1459,22 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ResourceViewItemType.DASHBOARD": {
-                "enum": ["dashboard"],
+                "enum": [
+                    "dashboard"
+                ],
                 "type": "string"
             },
             "UpdatedByUser": {
@@ -1272,7 +1489,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["userUuid", "firstName", "lastName"],
+                "required": [
+                    "userUuid",
+                    "firstName",
+                    "lastName"
+                ],
                 "type": "object",
                 "additionalProperties": false
             },
@@ -1290,7 +1511,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["validationId", "createdAt", "error"],
+                "required": [
+                    "validationId",
+                    "createdAt",
+                    "error"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -1364,7 +1589,11 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ResourceItemCategory": {
-                "enum": ["mostPopular", "recentlyUpdated", "pinned"],
+                "enum": [
+                    "mostPopular",
+                    "recentlyUpdated",
+                    "pinned"
+                ],
                 "type": "string"
             },
             "ResourceViewDashboardItem": {
@@ -1379,11 +1608,16 @@
                         "$ref": "#/components/schemas/ResourceViewItemType.DASHBOARD"
                     }
                 },
-                "required": ["data", "type"],
+                "required": [
+                    "data",
+                    "type"
+                ],
                 "type": "object"
             },
             "ResourceViewItemType.CHART": {
-                "enum": ["chart"],
+                "enum": [
+                    "chart"
+                ],
                 "type": "string"
             },
             "ChartKind": {
@@ -1482,11 +1716,16 @@
                         "$ref": "#/components/schemas/ResourceViewItemType.CHART"
                     }
                 },
-                "required": ["data", "type"],
+                "required": [
+                    "data",
+                    "type"
+                ],
                 "type": "object"
             },
             "ResourceViewItemType.SPACE": {
-                "enum": ["space"],
+                "enum": [
+                    "space"
+                ],
                 "type": "string"
             },
             "Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid_": {
@@ -1570,7 +1809,10 @@
                         "$ref": "#/components/schemas/ResourceViewItemType.SPACE"
                     }
                 },
-                "required": ["data", "type"],
+                "required": [
+                    "data",
+                    "type"
+                ],
                 "type": "object"
             },
             "PinnedItems": {
@@ -1596,15 +1838,24 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ResourceViewItemType": {
-                "enum": ["chart", "dashboard", "space"],
+                "enum": [
+                    "chart",
+                    "dashboard",
+                    "space"
+                ],
                 "type": "string"
             },
             "Pick_ResourceViewItem-at-data.uuid-or-pinnedListOrder_": {
@@ -1618,7 +1869,10 @@
                         "nullable": true
                     }
                 },
-                "required": ["uuid", "pinnedListOrder"],
+                "required": [
+                    "uuid",
+                    "pinnedListOrder"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -1631,11 +1885,16 @@
                         "$ref": "#/components/schemas/ResourceViewItemType"
                     }
                 },
-                "required": ["data", "type"],
+                "required": [
+                    "data",
+                    "type"
+                ],
                 "type": "object"
             },
             "DbtProjectType.DBT": {
-                "enum": ["dbt"],
+                "enum": [
+                    "dbt"
+                ],
                 "type": "string"
             },
             "DbtProjectEnvironmentVariable": {
@@ -1647,7 +1906,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["value", "key"],
+                "required": [
+                    "value",
+                    "key"
+                ],
                 "type": "object"
             },
             "DbtProjectType": {
@@ -1683,12 +1945,16 @@
                         "type": "string"
                     }
                 },
-                "required": ["type"],
+                "required": [
+                    "type"
+                ],
                 "type": "object",
                 "additionalProperties": false
             },
             "DbtProjectType.DBT_CLOUD_IDE": {
-                "enum": ["dbt_cloud_ide"],
+                "enum": [
+                    "dbt_cloud_ide"
+                ],
                 "type": "string"
             },
             "DbtCloudIDEProjectConfig": {
@@ -1744,7 +2010,9 @@
                 "additionalProperties": false
             },
             "DbtProjectType.GITHUB": {
-                "enum": ["github"],
+                "enum": [
+                    "github"
+                ],
                 "type": "string"
             },
             "DbtGithubProjectConfig": {
@@ -1788,7 +2056,9 @@
                 "additionalProperties": false
             },
             "DbtProjectType.BITBUCKET": {
-                "enum": ["bitbucket"],
+                "enum": [
+                    "bitbucket"
+                ],
                 "type": "string"
             },
             "DbtBitBucketProjectConfig": {
@@ -1836,7 +2106,9 @@
                 "additionalProperties": false
             },
             "DbtProjectType.GITLAB": {
-                "enum": ["gitlab"],
+                "enum": [
+                    "gitlab"
+                ],
                 "type": "string"
             },
             "DbtGitlabProjectConfig": {
@@ -1880,7 +2152,9 @@
                 "additionalProperties": false
             },
             "DbtProjectType.AZURE_DEVOPS": {
-                "enum": ["azure_devops"],
+                "enum": [
+                    "azure_devops"
+                ],
                 "type": "string"
             },
             "DbtAzureDevOpsProjectConfig": {
@@ -1929,7 +2203,9 @@
                 "additionalProperties": false
             },
             "DbtProjectType.NONE": {
-                "enum": ["none"],
+                "enum": [
+                    "none"
+                ],
                 "type": "string"
             },
             "DbtNoneProjectConfig": {
@@ -1950,7 +2226,9 @@
                         "type": "boolean"
                     }
                 },
-                "required": ["type"],
+                "required": [
+                    "type"
+                ],
                 "type": "object",
                 "additionalProperties": false
             },
@@ -1980,11 +2258,21 @@
                 ]
             },
             "WarehouseTypes.SNOWFLAKE": {
-                "enum": ["snowflake"],
+                "enum": [
+                    "snowflake"
+                ],
                 "type": "string"
             },
             "WeekDay": {
-                "enum": [0, 1, 2, 3, 4, 5, 6],
+                "enum": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
                 "type": "number"
             },
             "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__": {
@@ -2047,7 +2335,9 @@
                 "$ref": "#/components/schemas/Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_"
             },
             "WarehouseTypes.REDSHIFT": {
-                "enum": ["redshift"],
+                "enum": [
+                    "redshift"
+                ],
                 "type": "string"
             },
             "Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__": {
@@ -2107,7 +2397,13 @@
                         "type": "boolean"
                     }
                 },
-                "required": ["type", "schema", "host", "port", "dbname"],
+                "required": [
+                    "type",
+                    "schema",
+                    "host",
+                    "port",
+                    "dbname"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -2119,7 +2415,9 @@
                 "$ref": "#/components/schemas/Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_"
             },
             "WarehouseTypes.POSTGRES": {
-                "enum": ["postgres"],
+                "enum": [
+                    "postgres"
+                ],
                 "type": "string"
             },
             "Pick_CreatePostgresCredentials.Exclude_keyofCreatePostgresCredentials.SensitiveCredentialsFieldNames__": {
@@ -2182,7 +2480,13 @@
                         "type": "string"
                     }
                 },
-                "required": ["type", "schema", "host", "port", "dbname"],
+                "required": [
+                    "type",
+                    "schema",
+                    "host",
+                    "port",
+                    "dbname"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -2194,7 +2498,9 @@
                 "$ref": "#/components/schemas/Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_"
             },
             "WarehouseTypes.BIGQUERY": {
-                "enum": ["bigquery"],
+                "enum": [
+                    "bigquery"
+                ],
                 "type": "string"
             },
             "Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__": {
@@ -2226,7 +2532,10 @@
                     },
                     "priority": {
                         "type": "string",
-                        "enum": ["interactive", "batch"]
+                        "enum": [
+                            "interactive",
+                            "batch"
+                        ]
                     },
                     "retries": {
                         "type": "number",
@@ -2240,7 +2549,11 @@
                         "format": "double"
                     }
                 },
-                "required": ["type", "project", "dataset"],
+                "required": [
+                    "type",
+                    "project",
+                    "dataset"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -2252,7 +2565,9 @@
                 "$ref": "#/components/schemas/Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_"
             },
             "WarehouseTypes.DATABRICKS": {
-                "enum": ["databricks"],
+                "enum": [
+                    "databricks"
+                ],
                 "type": "string"
             },
             "Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__": {
@@ -2281,7 +2596,12 @@
                         "type": "string"
                     }
                 },
-                "required": ["type", "database", "serverHostName", "httpPath"],
+                "required": [
+                    "type",
+                    "database",
+                    "serverHostName",
+                    "httpPath"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -2293,7 +2613,9 @@
                 "$ref": "#/components/schemas/Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_"
             },
             "WarehouseTypes.TRINO": {
-                "enum": ["trino"],
+                "enum": [
+                    "trino"
+                ],
                 "type": "string"
             },
             "Pick_CreateTrinoCredentials.Exclude_keyofCreateTrinoCredentials.SensitiveCredentialsFieldNames__": {
@@ -2367,7 +2689,12 @@
                 ]
             },
             "SupportedDbtVersions": {
-                "enum": ["v1.4", "v1.5", "v1.6", "v1.7"],
+                "enum": [
+                    "v1.4",
+                    "v1.5",
+                    "v1.6",
+                    "v1.7"
+                ],
                 "type": "string"
             },
             "Project": {
@@ -2417,11 +2744,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName_": {
@@ -2475,7 +2807,13 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ChartType": {
-                "enum": ["cartesian", "table", "big_number", "pie", "custom"],
+                "enum": [
+                    "cartesian",
+                    "table",
+                    "big_number",
+                    "pie",
+                    "custom"
+                ],
                 "type": "string"
             },
             "ChartSummary": {
@@ -2503,11 +2841,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_": {
@@ -2571,7 +2914,11 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["dashboardCount", "chartCount", "access"],
+                        "required": [
+                            "dashboardCount",
+                            "chartCount",
+                            "access"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -2586,11 +2933,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ProjectMemberProfile": {
@@ -2634,11 +2986,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiGetProjectMemberResponse": {
@@ -2648,11 +3005,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "CreateProjectMember": {
@@ -2667,7 +3029,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["sendEmail", "role", "email"],
+                "required": [
+                    "sendEmail",
+                    "role",
+                    "email"
+                ],
                 "type": "object"
             },
             "UpdateProjectMember": {
@@ -2676,7 +3042,9 @@
                         "$ref": "#/components/schemas/ProjectMemberRole"
                     }
                 },
-                "required": ["role"],
+                "required": [
+                    "role"
+                ],
                 "type": "object"
             },
             "ApiGetProjectGroupAccesses": {
@@ -2689,11 +3057,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Record_string._type-DimensionType--__": {
@@ -2718,7 +3091,10 @@
                         "$ref": "#/components/schemas/Record_string._type-DimensionType--__"
                     }
                 },
-                "required": ["rows", "fields"],
+                "required": [
+                    "rows",
+                    "fields"
+                ],
                 "type": "object"
             },
             "Record_string.number_": {
@@ -2733,15 +3109,26 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "DateGranularity": {
-                "enum": ["Day", "Week", "Month", "Quarter", "Year"],
+                "enum": [
+                    "Day",
+                    "Week",
+                    "Month",
+                    "Quarter",
+                    "Year"
+                ],
                 "type": "string"
             },
             "MetricQueryRequest": {
@@ -2752,7 +3139,9 @@
                                 "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
                             }
                         },
-                        "required": ["hasADateDimension"],
+                        "required": [
+                            "hasADateDimension"
+                        ],
                         "type": "object"
                     },
                     "granularity": {
@@ -2834,7 +3223,10 @@
                         "$ref": "#/components/schemas/MetricQueryRequest"
                     }
                 },
-                "required": ["explore", "metricQuery"],
+                "required": [
+                    "explore",
+                    "metricQuery"
+                ],
                 "type": "object"
             },
             "Record_string.DbtExposure_": {
@@ -2852,7 +3244,9 @@
                         "format": "date-time"
                     }
                 },
-                "required": ["cacheHit"],
+                "required": [
+                    "cacheHit"
+                ],
                 "type": "object"
             },
             "Record_string.Item-or-AdditionalMetric_": {
@@ -2878,16 +3272,25 @@
                                 "$ref": "#/components/schemas/MetricQueryResponse"
                             }
                         },
-                        "required": ["rows", "cacheMetadata", "metricQuery"],
+                        "required": [
+                            "rows",
+                            "cacheMetadata",
+                            "metricQuery"
+                        ],
                         "type": "object"
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
@@ -2902,7 +3305,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["userUuid", "firstName", "lastName"],
+                "required": [
+                    "userUuid",
+                    "firstName",
+                    "lastName"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -2948,7 +3355,9 @@
                         "type": "array"
                     }
                 },
-                "required": ["history"],
+                "required": [
+                    "history"
+                ],
                 "type": "object"
             },
             "ApiGetChartHistoryResponse": {
@@ -2958,11 +3367,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "FilterGroup": {
@@ -2981,7 +3395,9 @@
                         "type": "string"
                     }
                 },
-                "required": ["fieldId"],
+                "required": [
+                    "fieldId"
+                ],
                 "type": "object"
             },
             "FilterRule": {
@@ -3004,7 +3420,11 @@
                         "type": "boolean"
                     }
                 },
-                "required": ["operator", "id", "target"],
+                "required": [
+                    "operator",
+                    "id",
+                    "target"
+                ],
                 "type": "object",
                 "additionalProperties": false
             },
@@ -3030,7 +3450,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["or", "id"],
+                "required": [
+                    "or",
+                    "id"
+                ],
                 "type": "object"
             },
             "AndFilterGroup": {
@@ -3045,7 +3468,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["and", "id"],
+                "required": [
+                    "and",
+                    "id"
+                ],
                 "type": "object"
             },
             "Filters": {
@@ -3070,7 +3496,9 @@
                                 "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
                             }
                         },
-                        "required": ["hasADateDimension"],
+                        "required": [
+                            "hasADateDimension"
+                        ],
                         "type": "object"
                     },
                     "customDimensions": {
@@ -3132,11 +3560,16 @@
                 "type": "object"
             },
             "ChartType.BIG_NUMBER": {
-                "enum": ["big_number"],
+                "enum": [
+                    "big_number"
+                ],
                 "type": "string"
             },
             "ComparisonFormatTypes": {
-                "enum": ["raw", "percentage"],
+                "enum": [
+                    "raw",
+                    "percentage"
+                ],
                 "type": "string"
             },
             "BigNumber": {
@@ -3177,11 +3610,15 @@
                         "$ref": "#/components/schemas/ChartType.BIG_NUMBER"
                     }
                 },
-                "required": ["type"],
+                "required": [
+                    "type"
+                ],
                 "type": "object"
             },
             "ChartType.CARTESIAN": {
-                "enum": ["cartesian"],
+                "enum": [
+                    "cartesian"
+                ],
                 "type": "string"
             },
             "Partial_CompleteCartesianChartLayout_": {
@@ -3228,7 +3665,11 @@
                     },
                     "align": {
                         "type": "string",
-                        "enum": ["auto", "left", "right"]
+                        "enum": [
+                            "auto",
+                            "left",
+                            "right"
+                        ]
                     },
                     "height": {
                         "type": "string"
@@ -3250,11 +3691,17 @@
                     },
                     "orient": {
                         "type": "string",
-                        "enum": ["horizontal", "vertical"]
+                        "enum": [
+                            "horizontal",
+                            "vertical"
+                        ]
                     },
                     "type": {
                         "type": "string",
-                        "enum": ["plain", "scroll"]
+                        "enum": [
+                            "plain",
+                            "scroll"
+                        ]
                     },
                     "show": {
                         "type": "boolean"
@@ -3295,7 +3742,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["value", "field"],
+                "required": [
+                    "value",
+                    "field"
+                ],
                 "type": "object"
             },
             "PivotReference": {
@@ -3310,11 +3760,18 @@
                         "type": "string"
                     }
                 },
-                "required": ["field"],
+                "required": [
+                    "field"
+                ],
                 "type": "object"
             },
             "CartesianSeriesType": {
-                "enum": ["line", "bar", "scatter", "area"],
+                "enum": [
+                    "line",
+                    "bar",
+                    "scatter",
+                    "area"
+                ],
                 "type": "string"
             },
             "MarkLineData": {
@@ -3333,7 +3790,9 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["color"],
+                        "required": [
+                            "color"
+                        ],
                         "type": "object"
                     },
                     "value": {
@@ -3349,7 +3808,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["value", "name"],
+                "required": [
+                    "value",
+                    "name"
+                ],
                 "type": "object"
             },
             "MarkLine": {
@@ -3375,7 +3837,11 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["type", "width", "color"],
+                        "required": [
+                            "type",
+                            "width",
+                            "color"
+                        ],
                         "type": "object"
                     },
                     "symbol": {
@@ -3388,7 +3854,9 @@
                         "type": "array"
                     }
                 },
-                "required": ["data"],
+                "required": [
+                    "data"
+                ],
                 "type": "object"
             },
             "Series": {
@@ -3466,11 +3934,17 @@
                                 "$ref": "#/components/schemas/PivotReference"
                             }
                         },
-                        "required": ["yRef", "xRef"],
+                        "required": [
+                            "yRef",
+                            "xRef"
+                        ],
                         "type": "object"
                     }
                 },
-                "required": ["type", "encode"],
+                "required": [
+                    "type",
+                    "encode"
+                ],
                 "type": "object"
             },
             "Axis": {
@@ -3532,7 +4006,10 @@
                         "$ref": "#/components/schemas/CartesianChartLayout"
                     }
                 },
-                "required": ["eChartsConfig", "layout"],
+                "required": [
+                    "eChartsConfig",
+                    "layout"
+                ],
                 "type": "object"
             },
             "CartesianChartConfig": {
@@ -3544,11 +4021,15 @@
                         "$ref": "#/components/schemas/ChartType.CARTESIAN"
                     }
                 },
-                "required": ["type"],
+                "required": [
+                    "type"
+                ],
                 "type": "object"
             },
             "ChartType.CUSTOM": {
-                "enum": ["custom"],
+                "enum": [
+                    "custom"
+                ],
                 "type": "string"
             },
             "CustomVis": {
@@ -3568,16 +4049,24 @@
                         "$ref": "#/components/schemas/ChartType.CUSTOM"
                     }
                 },
-                "required": ["type"],
+                "required": [
+                    "type"
+                ],
                 "type": "object"
             },
             "ChartType.PIE": {
-                "enum": ["pie"],
+                "enum": [
+                    "pie"
+                ],
                 "type": "string"
             },
             "PieChartValueLabel": {
                 "type": "string",
-                "enum": ["hidden", "inside", "outside"],
+                "enum": [
+                    "hidden",
+                    "inside",
+                    "outside"
+                ],
                 "nullable": false
             },
             "Record_string.string_": {
@@ -3592,7 +4081,10 @@
             },
             "PieChartLegendPosition": {
                 "type": "string",
-                "enum": ["horizontal", "vertical"],
+                "enum": [
+                    "horizontal",
+                    "vertical"
+                ],
                 "nullable": false
             },
             "PieChart": {
@@ -3651,11 +4143,15 @@
                         "$ref": "#/components/schemas/ChartType.PIE"
                     }
                 },
-                "required": ["type"],
+                "required": [
+                    "type"
+                ],
                 "type": "object"
             },
             "ChartType.TABLE": {
-                "enum": ["table"],
+                "enum": [
+                    "table"
+                ],
                 "type": "string"
             },
             "Record_string.ColumnProperties_": {
@@ -3679,7 +4175,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["operator", "id"],
+                "required": [
+                    "operator",
+                    "id"
+                ],
                 "type": "object"
             },
             "ConditionalFormattingWithConditionalOperator": {
@@ -3697,7 +4196,9 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["values"],
+                        "required": [
+                            "values"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -3722,7 +4223,11 @@
                         "nullable": true
                     }
                 },
-                "required": ["rules", "color", "target"],
+                "required": [
+                    "rules",
+                    "color",
+                    "target"
+                ],
                 "type": "object"
             },
             "ConditionalFormattingWithRange": {
@@ -3736,7 +4241,10 @@
                         "format": "double"
                     }
                 },
-                "required": ["max", "min"],
+                "required": [
+                    "max",
+                    "min"
+                ],
                 "type": "object"
             },
             "ConditionalFormattingConfigWithColorRange": {
@@ -3748,7 +4256,9 @@
                         "properties": {
                             "steps": {
                                 "type": "number",
-                                "enum": [5],
+                                "enum": [
+                                    5
+                                ],
                                 "nullable": false
                             },
                             "end": {
@@ -3758,7 +4268,11 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["steps", "end", "start"],
+                        "required": [
+                            "steps",
+                            "end",
+                            "start"
+                        ],
                         "type": "object"
                     },
                     "target": {
@@ -3770,7 +4284,11 @@
                         "nullable": true
                     }
                 },
-                "required": ["rule", "color", "target"],
+                "required": [
+                    "rule",
+                    "color",
+                    "target"
+                ],
                 "type": "object"
             },
             "ConditionalFormattingConfig": {
@@ -3824,7 +4342,9 @@
                         "$ref": "#/components/schemas/ChartType.TABLE"
                     }
                 },
-                "required": ["type"],
+                "required": [
+                    "type"
+                ],
                 "type": "object"
             },
             "ChartConfig": {
@@ -3896,7 +4416,9 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["columnOrder"],
+                        "required": [
+                            "columnOrder"
+                        ],
                         "type": "object"
                     },
                     "chartConfig": {
@@ -3911,7 +4433,9 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["columns"],
+                        "required": [
+                            "columns"
+                        ],
                         "type": "object"
                     },
                     "metricQuery": {
@@ -3993,15 +4517,24 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "SchedulerFormat": {
-                "enum": ["csv", "image", "gsheets"],
+                "enum": [
+                    "csv",
+                    "image",
+                    "gsheets"
+                ],
                 "type": "string"
             },
             "SchedulerCsvOptions": {
@@ -4014,7 +4547,10 @@
                             },
                             {
                                 "type": "string",
-                                "enum": ["table", "all"]
+                                "enum": [
+                                    "table",
+                                    "all"
+                                ]
                             }
                         ]
                     },
@@ -4022,7 +4558,10 @@
                         "type": "boolean"
                     }
                 },
-                "required": ["limit", "formatted"],
+                "required": [
+                    "limit",
+                    "formatted"
+                ],
                 "type": "object"
             },
             "SchedulerImageOptions": {
@@ -4132,14 +4671,19 @@
                         "properties": {
                             "dashboardUuid": {
                                 "type": "number",
-                                "enum": [null],
+                                "enum": [
+                                    null
+                                ],
                                 "nullable": true
                             },
                             "savedChartUuid": {
                                 "type": "string"
                             }
                         },
-                        "required": ["dashboardUuid", "savedChartUuid"],
+                        "required": [
+                            "dashboardUuid",
+                            "savedChartUuid"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -4153,7 +4697,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["tableName", "fieldId"],
+                "required": [
+                    "tableName",
+                    "fieldId"
+                ],
                 "type": "object"
             },
             "FilterRule_ConditionalOperator.T.V.any_": {
@@ -4176,7 +4723,11 @@
                         "type": "boolean"
                     }
                 },
-                "required": ["operator", "id", "target"],
+                "required": [
+                    "operator",
+                    "id",
+                    "target"
+                ],
                 "type": "object",
                 "additionalProperties": false
             },
@@ -4238,11 +4789,16 @@
                             },
                             "savedChartUuid": {
                                 "type": "number",
-                                "enum": [null],
+                                "enum": [
+                                    null
+                                ],
                                 "nullable": true
                             }
                         },
-                        "required": ["dashboardUuid", "savedChartUuid"],
+                        "required": [
+                            "dashboardUuid",
+                            "savedChartUuid"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -4336,13 +4892,20 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["targets"],
+                        "required": [
+                            "targets"
+                        ],
                         "type": "object"
                     }
                 ]
             },
             "SchedulerJobStatus": {
-                "enum": ["scheduled", "started", "completed", "error"],
+                "enum": [
+                    "scheduled",
+                    "started",
+                    "completed",
+                    "error"
+                ],
                 "type": "string"
             },
             "Record_string.any_": {
@@ -4357,7 +4920,11 @@
                     },
                     "targetType": {
                         "type": "string",
-                        "enum": ["email", "slack", "gsheets"]
+                        "enum": [
+                            "email",
+                            "slack",
+                            "gsheets"
+                        ]
                     },
                     "target": {
                         "type": "string"
@@ -4424,7 +4991,10 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["dashboardUuid", "name"],
+                            "required": [
+                                "dashboardUuid",
+                                "name"
+                            ],
                             "type": "object"
                         },
                         "type": "array"
@@ -4439,7 +5009,10 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["savedChartUuid", "name"],
+                            "required": [
+                                "savedChartUuid",
+                                "name"
+                            ],
                             "type": "object"
                         },
                         "type": "array"
@@ -4457,7 +5030,11 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["userUuid", "lastName", "firstName"],
+                            "required": [
+                                "userUuid",
+                                "lastName",
+                                "firstName"
+                            ],
                             "type": "object"
                         },
                         "type": "array"
@@ -4485,11 +5062,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiSchedulerAndTargetsResponse": {
@@ -4499,11 +5081,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ScheduledJobs": {
@@ -4516,7 +5103,10 @@
                         "format": "date-time"
                     }
                 },
-                "required": ["id", "date"],
+                "required": [
+                    "id",
+                    "date"
+                ],
                 "type": "object"
             },
             "ApiScheduledJobsResponse": {
@@ -4529,11 +5119,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiJobStatusResponse": {
@@ -4552,16 +5147,24 @@
                                 "$ref": "#/components/schemas/SchedulerJobStatus"
                             }
                         },
-                        "required": ["details", "status"],
+                        "required": [
+                            "details",
+                            "status"
+                        ],
                         "type": "object"
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiTestSchedulerResponse": {
@@ -4572,16 +5175,23 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["jobId"],
+                        "required": [
+                            "jobId"
+                        ],
                         "type": "object"
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ShareUrl": {
@@ -4615,7 +5225,11 @@
                         "description": "Unique shareable id"
                     }
                 },
-                "required": ["params", "path", "nanoid"],
+                "required": [
+                    "params",
+                    "path",
+                    "nanoid"
+                ],
                 "type": "object",
                 "description": "A ShareUrl maps a short shareable id to a full URL\nin the Lightdash UI. This allows very long URLs\nto be represented by short ids."
             },
@@ -4626,11 +5240,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_ShareUrl.path-or-params_": {
@@ -4643,7 +5262,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["path", "params"],
+                "required": [
+                    "path",
+                    "params"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -4660,7 +5282,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["name", "id"],
+                "required": [
+                    "name",
+                    "id"
+                ],
                 "type": "object"
             },
             "ApiSlackChannelsResponse": {
@@ -4673,11 +5298,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiSlackNotificationChannelResponse": {
@@ -4685,11 +5315,16 @@
                     "results": {},
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_": {
@@ -4753,7 +5388,10 @@
                         "format": "double"
                     }
                 },
-                "required": ["firstViewedAt", "views"],
+                "required": [
+                    "firstViewedAt",
+                    "views"
+                ],
                 "type": "object"
             },
             "SpaceQuery": {
@@ -4884,7 +5522,12 @@
                         "type": "string"
                     }
                 },
-                "required": ["role", "lastName", "firstName", "userUuid"],
+                "required": [
+                    "role",
+                    "lastName",
+                    "firstName",
+                    "userUuid"
+                ],
                 "type": "object"
             },
             "Space": {
@@ -4952,11 +5595,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_SpaceShare.userUuid_": {
@@ -4965,7 +5613,9 @@
                         "type": "string"
                     }
                 },
-                "required": ["userUuid"],
+                "required": [
+                    "userUuid"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -4984,7 +5634,9 @@
                         "type": "string"
                     }
                 },
-                "required": ["name"],
+                "required": [
+                    "name"
+                ],
                 "type": "object"
             },
             "UpdateSpace": {
@@ -4996,7 +5648,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["isPrivate", "name"],
+                "required": [
+                    "isPrivate",
+                    "name"
+                ],
                 "type": "object"
             },
             "AddSpaceShare": {
@@ -5005,7 +5660,9 @@
                         "type": "string"
                     }
                 },
-                "required": ["userUuid"],
+                "required": [
+                    "userUuid"
+                ],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -5014,7 +5671,9 @@
                         "type": "string"
                     }
                 },
-                "required": ["publicKey"],
+                "required": [
+                    "publicKey"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -5025,11 +5684,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "UserAttributeValue": {
@@ -5044,7 +5708,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["value", "email", "userUuid"],
+                "required": [
+                    "value",
+                    "email",
+                    "userUuid"
+                ],
                 "type": "object"
             },
             "GroupAttributeValue": {
@@ -5056,7 +5724,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["value", "groupUuid"],
+                "required": [
+                    "value",
+                    "groupUuid"
+                ],
                 "type": "object"
             },
             "UserAttribute": {
@@ -5115,11 +5786,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiCreateUserAttributeResponse": {
@@ -5129,11 +5805,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "Pick_UserAttribute.name-or-description-or-attributeDefault_": {
@@ -5149,7 +5830,10 @@
                         "nullable": true
                     }
                 },
-                "required": ["name", "attributeDefault"],
+                "required": [
+                    "name",
+                    "attributeDefault"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -5162,7 +5846,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["userUuid", "value"],
+                "required": [
+                    "userUuid",
+                    "value"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -5196,7 +5883,10 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["groups", "users"],
+                        "required": [
+                            "groups",
+                            "users"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -5260,11 +5950,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object",
                 "description": "Shows the authenticated user"
             },
@@ -5275,11 +5970,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ActivateUser": {
@@ -5294,7 +5994,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["password", "lastName", "firstName"],
+                "required": [
+                    "password",
+                    "lastName",
+                    "firstName"
+                ],
                 "type": "object"
             },
             "ActivateUserWithInviteCode": {
@@ -5308,7 +6012,9 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["inviteCode"],
+                        "required": [
+                            "inviteCode"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -5333,7 +6039,12 @@
                         "type": "string"
                     }
                 },
-                "required": ["password", "email", "lastName", "firstName"],
+                "required": [
+                    "password",
+                    "email",
+                    "lastName",
+                    "firstName"
+                ],
                 "type": "object"
             },
             "RegisterOrActivateUser": {
@@ -5359,7 +6070,10 @@
                         "description": "Time that the passcode was created"
                     }
                 },
-                "required": ["numberOfAttempts", "createdAt"],
+                "required": [
+                    "numberOfAttempts",
+                    "createdAt"
+                ],
                 "type": "object"
             },
             "EmailStatus": {
@@ -5374,7 +6088,10 @@
                         "type": "string"
                     }
                 },
-                "required": ["isVerified", "email"],
+                "required": [
+                    "isVerified",
+                    "email"
+                ],
                 "type": "object"
             },
             "EmailOneTimePasswordExpiring": {
@@ -5395,7 +6112,11 @@
                                 "format": "date-time"
                             }
                         },
-                        "required": ["isMaxAttempts", "isExpired", "expiresAt"],
+                        "required": [
+                            "isMaxAttempts",
+                            "isExpired",
+                            "expiresAt"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -5424,11 +6145,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object",
                 "description": "Shows the current verification status of an email address"
             },
@@ -5445,7 +6171,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["membersCount", "name", "organizationUuid"],
+                "required": [
+                    "membersCount",
+                    "name",
+                    "organizationUuid"
+                ],
                 "type": "object"
             },
             "ApiUserAllowedOrganizationsResponse": {
@@ -5458,11 +6188,16 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ValidationErrorType": {
@@ -5477,7 +6212,11 @@
                 "type": "string"
             },
             "ValidationSourceType": {
-                "enum": ["chart", "dashboard", "table"],
+                "enum": [
+                    "chart",
+                    "dashboard",
+                    "table"
+                ],
                 "type": "string"
             },
             "ValidationResponseBase": {
@@ -5550,7 +6289,9 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["chartViews"],
+                        "required": [
+                            "chartViews"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -5583,7 +6324,9 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["dashboardViews"],
+                        "required": [
+                            "dashboardViews"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -5666,22 +6409,31 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["results", "status"],
+                "required": [
+                    "results",
+                    "status"
+                ],
                 "type": "object"
             },
             "ApiValidationDismissResponse": {
                 "properties": {
                     "status": {
                         "type": "string",
-                        "enum": ["ok"],
+                        "enum": [
+                            "ok"
+                        ],
                         "nullable": false
                     }
                 },
-                "required": ["status"],
+                "required": [
+                    "status"
+                ],
                 "type": "object"
             }
         },
@@ -5740,7 +6492,9 @@
                     }
                 },
                 "description": "Get a Csv",
-                "tags": ["Exports"],
+                "tags": [
+                    "Exports"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -5781,7 +6535,9 @@
                     }
                 },
                 "description": "Get the current dbt Cloud integration settings for a project",
-                "tags": ["Integrations"],
+                "tags": [
+                    "Integrations"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -5820,7 +6576,9 @@
                     }
                 },
                 "description": "Update the dbt Cloud integration settings for a project",
-                "tags": ["Integrations"],
+                "tags": [
+                    "Integrations"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -5859,7 +6617,9 @@
                     }
                 },
                 "description": "Remove the dbt Cloud integration settings for a project",
-                "tags": ["Integrations"],
+                "tags": [
+                    "Integrations"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -5899,7 +6659,9 @@
                     }
                 },
                 "description": "Get access token for google drive",
-                "tags": ["Integrations"],
+                "tags": [
+                    "Integrations"
+                ],
                 "security": [],
                 "parameters": []
             }
@@ -5930,7 +6692,9 @@
                     }
                 },
                 "description": "Upload results from query to Google Sheet",
-                "tags": ["Integrations"],
+                "tags": [
+                    "Integrations"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -5971,7 +6735,9 @@
                     }
                 },
                 "description": "Get group details",
-                "tags": ["User Groups"],
+                "tags": [
+                    "User Groups"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6030,7 +6796,9 @@
                     }
                 },
                 "description": "Delete a group",
-                "tags": ["User Groups"],
+                "tags": [
+                    "User Groups"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6068,7 +6836,9 @@
                     }
                 },
                 "description": "Update a group",
-                "tags": ["User Groups"],
+                "tags": [
+                    "User Groups"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6118,7 +6888,9 @@
                     }
                 },
                 "description": "Add a Lightdash user to a group",
-                "tags": ["User Groups"],
+                "tags": [
+                    "User Groups"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6166,7 +6938,9 @@
                     }
                 },
                 "description": "Remove a user from a group",
-                "tags": ["User Groups"],
+                "tags": [
+                    "User Groups"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6216,7 +6990,9 @@
                     }
                 },
                 "description": "View members of a group",
-                "tags": ["User Groups"],
+                "tags": [
+                    "User Groups"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6257,7 +7033,9 @@
                     }
                 },
                 "description": "Add project access to a group",
-                "tags": ["User Groups"],
+                "tags": [
+                    "User Groups"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6313,7 +7091,9 @@
                     }
                 },
                 "description": "Update project access for a group",
-                "tags": ["User Groups"],
+                "tags": [
+                    "User Groups"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6369,7 +7149,9 @@
                     }
                 },
                 "description": "Remove project access from a group",
-                "tags": ["User Groups"],
+                "tags": [
+                    "User Groups"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6415,7 +7197,9 @@
                     }
                 },
                 "description": "Get DbtSemanticLayer data",
-                "tags": ["DbtSemanticLayer"],
+                "tags": [
+                    "DbtSemanticLayer"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6447,7 +7231,9 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["query"],
+                                "required": [
+                                    "query"
+                                ],
                                 "type": "object",
                                 "description": "graphql query"
                             }
@@ -6482,7 +7268,9 @@
                     }
                 },
                 "description": "Get the current user's organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": []
             },
@@ -6511,7 +7299,9 @@
                     }
                 },
                 "description": "Creates a new organization, the current user becomes the Admin of the new organization.\nThis is only available to users that are not already in an organization.",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -6552,7 +7342,9 @@
                     }
                 },
                 "description": "Update the current user's organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -6595,7 +7387,9 @@
                     }
                 },
                 "description": "Deletes an organization and all users inside that organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6636,7 +7430,9 @@
                     }
                 },
                 "description": "Gets all projects of the current user's organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": []
             }
@@ -6667,7 +7463,9 @@
                     }
                 },
                 "description": "Gets all the members of the current user's organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6708,7 +7506,9 @@
                     }
                 },
                 "description": "Get the member profile for a user in the current user's organization by uuid",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6747,7 +7547,10 @@
                     }
                 },
                 "description": "Updates the membership profile for a user in the current user's organization",
-                "tags": ["Roles & Permissions", "Organizations"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6800,7 +7603,9 @@
                     }
                 },
                 "description": "Deletes a user from the current user's organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6841,7 +7646,9 @@
                     }
                 },
                 "description": "Gets the allowed email domains for the current user's organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": []
             },
@@ -6870,7 +7677,9 @@
                     }
                 },
                 "description": "Updates the allowed email domains for the current user's organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -6913,7 +7722,9 @@
                     }
                 },
                 "description": "Creates a new group in the current user's organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -6954,7 +7765,9 @@
                     }
                 },
                 "description": "Gets all the groups in the current user's organization",
-                "tags": ["Organizations"],
+                "tags": [
+                    "Organizations"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -6996,7 +7809,9 @@
                     }
                 },
                 "description": "Get pinned items",
-                "tags": ["Content"],
+                "tags": [
+                    "Content"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7046,7 +7861,9 @@
                     }
                 },
                 "description": "Update pinned items order",
-                "tags": ["Content"],
+                "tags": [
+                    "Content"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7111,7 +7928,9 @@
                     }
                 },
                 "description": "Get a project of an organiztion",
-                "tags": ["Projects"],
+                "tags": [
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7151,7 +7970,9 @@
                     }
                 },
                 "description": "List all charts in a project",
-                "tags": ["Projects"],
+                "tags": [
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7192,7 +8013,9 @@
                     }
                 },
                 "description": "List all spaces in a project",
-                "tags": ["Projects"],
+                "tags": [
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7231,7 +8054,10 @@
                     }
                 },
                 "description": "Create a new space inside a project",
-                "tags": ["Roles & Permissions", "Spaces"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Spaces"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7282,7 +8108,10 @@
                     }
                 },
                 "description": "Get access list for a project. This is a list of users that have been explictly granted access to the project.\nThere may be other users that have access to the project via their organization membership.",
-                "tags": ["Roles & Permissions", "Projects"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7320,7 +8149,10 @@
                     }
                 },
                 "description": "Grant a user access to a project",
-                "tags": ["Roles & Permissions", "Projects"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7370,7 +8202,10 @@
                     }
                 },
                 "description": "Get a project explicit member's access.\nThere may be users that have access to the project via their organization membership.\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
-                "tags": ["Roles & Permissions", "Projects"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7418,7 +8253,10 @@
                     }
                 },
                 "description": "Update a user's access to a project",
-                "tags": ["Roles & Permissions", "Projects"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7474,7 +8312,10 @@
                     }
                 },
                 "description": "Remove a user's access to a project",
-                "tags": ["Roles & Permissions", "Projects"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7522,7 +8363,9 @@
                     }
                 },
                 "description": "List group access for projects",
-                "tags": ["Projects"],
+                "tags": [
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7551,11 +8394,16 @@
                                         },
                                         "status": {
                                             "type": "string",
-                                            "enum": ["ok"],
+                                            "enum": [
+                                                "ok"
+                                            ],
                                             "nullable": false
                                         }
                                     },
-                                    "required": ["results", "status"],
+                                    "required": [
+                                        "results",
+                                        "status"
+                                    ],
                                     "type": "object"
                                 }
                             }
@@ -7573,7 +8421,10 @@
                     }
                 },
                 "description": "Run a raw sql query against the project's warehouse connection",
-                "tags": ["Exploring", "Projects"],
+                "tags": [
+                    "Exploring",
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7597,7 +8448,9 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["sql"],
+                                "required": [
+                                    "sql"
+                                ],
                                 "type": "object",
                                 "description": "The query to run"
                             }
@@ -7632,7 +8485,9 @@
                     }
                 },
                 "description": "Calculate all metric totals from a metricQuery",
-                "tags": ["Projects"],
+                "tags": [
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7685,7 +8540,9 @@
                     }
                 },
                 "description": "Run a query for underlying data results",
-                "tags": ["Exploring"],
+                "tags": [
+                    "Exploring"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7747,7 +8604,9 @@
                     }
                 },
                 "description": "Run a query for explore",
-                "tags": ["Exploring"],
+                "tags": [
+                    "Exploring"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7809,7 +8668,9 @@
                     }
                 },
                 "description": "Run a query for a chart",
-                "tags": ["Charts"],
+                "tags": [
+                    "Charts"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7864,7 +8725,9 @@
                         }
                     }
                 },
-                "tags": ["Charts"],
+                "tags": [
+                    "Charts"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7937,7 +8800,9 @@
                     }
                 },
                 "description": "Get chart version history from last 30 days",
-                "tags": ["Charts"],
+                "tags": [
+                    "Charts"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -7978,7 +8843,9 @@
                     }
                 },
                 "description": "Get chart version",
-                "tags": ["Charts"],
+                "tags": [
+                    "Charts"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8028,7 +8895,9 @@
                     }
                 },
                 "description": "Run a query for a chart version",
-                "tags": ["Charts"],
+                "tags": [
+                    "Charts"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8078,7 +8947,9 @@
                     }
                 },
                 "description": "Rollback chart to version",
-                "tags": ["Charts"],
+                "tags": [
+                    "Charts"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8128,7 +8999,9 @@
                     }
                 },
                 "description": "Calculate metric totals from a saved chart",
-                "tags": ["Charts"],
+                "tags": [
+                    "Charts"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8185,7 +9058,9 @@
                     }
                 },
                 "description": "Get scheduled logs",
-                "tags": ["Schedulers"],
+                "tags": [
+                    "Schedulers"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8225,7 +9100,9 @@
                     }
                 },
                 "description": "Get a scheduler",
-                "tags": ["Schedulers"],
+                "tags": [
+                    "Schedulers"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8264,7 +9141,9 @@
                     }
                 },
                 "description": "Update a scheduler",
-                "tags": ["Schedulers"],
+                "tags": [
+                    "Schedulers"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8301,11 +9180,15 @@
                                         "results": {},
                                         "status": {
                                             "type": "string",
-                                            "enum": ["ok"],
+                                            "enum": [
+                                                "ok"
+                                            ],
                                             "nullable": false
                                         }
                                     },
-                                    "required": ["status"],
+                                    "required": [
+                                        "status"
+                                    ],
                                     "type": "object"
                                 }
                             }
@@ -8323,7 +9206,9 @@
                     }
                 },
                 "description": "Delete a scheduler",
-                "tags": ["Schedulers"],
+                "tags": [
+                    "Schedulers"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8364,7 +9249,9 @@
                     }
                 },
                 "description": "Get scheduled jobs",
-                "tags": ["Schedulers"],
+                "tags": [
+                    "Schedulers"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8405,7 +9292,9 @@
                     }
                 },
                 "description": "Get a generic job status\nThis method can be used when polling from the frontend",
-                "tags": ["Schedulers"],
+                "tags": [
+                    "Schedulers"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8446,7 +9335,9 @@
                     }
                 },
                 "description": "Send a scheduler now before saving it",
-                "tags": ["Schedulers"],
+                "tags": [
+                    "Schedulers"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -8488,7 +9379,9 @@
                     }
                 },
                 "description": "Get a share url from a short url id",
-                "tags": ["Share links"],
+                "tags": [
+                    "Share links"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8529,7 +9422,9 @@
                     }
                 },
                 "description": "Given a full URL generates a short url id that can be used for sharing",
-                "tags": ["Share links"],
+                "tags": [
+                    "Share links"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -8572,7 +9467,9 @@
                     }
                 },
                 "description": "Get slack channels",
-                "tags": ["Integrations"],
+                "tags": [
+                    "Integrations"
+                ],
                 "security": [],
                 "parameters": []
             }
@@ -8603,7 +9500,9 @@
                     }
                 },
                 "description": "Update slack notification channel to send notifications to scheduled jobs fail",
-                "tags": ["Integrations"],
+                "tags": [
+                    "Integrations"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -8617,7 +9516,9 @@
                                         "nullable": true
                                     }
                                 },
-                                "required": ["channelId"],
+                                "required": [
+                                    "channelId"
+                                ],
                                 "type": "object"
                             }
                         }
@@ -8651,7 +9552,9 @@
                     }
                 },
                 "description": "Get details for a space in a project",
-                "tags": ["Spaces"],
+                "tags": [
+                    "Spaces"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8699,7 +9602,9 @@
                     }
                 },
                 "description": "Delete a space from a project",
-                "tags": ["Spaces"],
+                "tags": [
+                    "Spaces"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8747,7 +9652,10 @@
                     }
                 },
                 "description": "Update a space in a project",
-                "tags": ["Roles & Permissions", "Spaces"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Spaces"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8807,7 +9715,10 @@
                     }
                 },
                 "description": "Grant a user access to a space",
-                "tags": ["Roles & Permissions", "Spaces"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Spaces"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8866,7 +9777,10 @@
                     }
                 },
                 "description": "Remove a user's access to a space",
-                "tags": ["Roles & Permissions", "Spaces"],
+                "tags": [
+                    "Roles & Permissions",
+                    "Spaces"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -8924,7 +9838,9 @@
                         }
                     }
                 },
-                "tags": ["SSH Keypairs"],
+                "tags": [
+                    "SSH Keypairs"
+                ],
                 "security": [],
                 "parameters": []
             }
@@ -8955,7 +9871,9 @@
                     }
                 },
                 "description": "Get all user attributes",
-                "tags": ["User attributes"],
+                "tags": [
+                    "User attributes"
+                ],
                 "security": [],
                 "parameters": []
             },
@@ -8984,7 +9902,9 @@
                     }
                 },
                 "description": "Creates new user attribute",
-                "tags": ["User attributes"],
+                "tags": [
+                    "User attributes"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -9027,7 +9947,9 @@
                     }
                 },
                 "description": "Updates a user attribute",
-                "tags": ["User attributes"],
+                "tags": [
+                    "User attributes"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -9078,7 +10000,9 @@
                     }
                 },
                 "description": "Remove a user attribute",
-                "tags": ["User attributes"],
+                "tags": [
+                    "User attributes"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -9119,7 +10043,9 @@
                     }
                 },
                 "description": "Get authenticated user",
-                "tags": ["My Account"],
+                "tags": [
+                    "My Account"
+                ],
                 "security": [],
                 "parameters": []
             },
@@ -9148,7 +10074,9 @@
                     }
                 },
                 "description": "Register user",
-                "tags": ["My Account"],
+                "tags": [
+                    "My Account"
+                ],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -9189,7 +10117,9 @@
                     }
                 },
                 "description": "Create a new one-time passcode for the current user's primary email.\nThe user will receive an email with the passcode.",
-                "tags": ["My Account"],
+                "tags": [
+                    "My Account"
+                ],
                 "security": [],
                 "parameters": []
             }
@@ -9220,7 +10150,9 @@
                     }
                 },
                 "description": "Get the verification status for the current user's primary email",
-                "tags": ["My Account"],
+                "tags": [
+                    "My Account"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -9261,7 +10193,9 @@
                     }
                 },
                 "description": "List the organizations that the current user can join.\nThis is based on the user's primary email domain and the organization's allowed email domains.",
-                "tags": ["My Account"],
+                "tags": [
+                    "My Account"
+                ],
                 "security": [],
                 "parameters": []
             }
@@ -9292,7 +10226,9 @@
                     }
                 },
                 "description": "Add the current user to an organization that accepts users with a verified email domain.\nThis will fail if the organization email domain does not match the user's primary email domain.",
-                "tags": ["My Account"],
+                "tags": [
+                    "My Account"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -9333,7 +10269,9 @@
                     }
                 },
                 "description": "Delete user",
-                "tags": ["My Account"],
+                "tags": [
+                    "My Account"
+                ],
                 "security": [],
                 "parameters": []
             }
@@ -9364,7 +10302,9 @@
                     }
                 },
                 "description": "Validate content inside a project. This will start a validation job and return the job id.\n\nValidation jobs scan all charts and dashboards inside a project to find any broken references\nto metrics or dimensions that aren't available. Results are available after the job is completed.",
-                "tags": ["Projects"],
+                "tags": [
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -9421,7 +10361,9 @@
                     }
                 },
                 "description": "Get validation results for a project. This will return the results of the latest validation job.",
-                "tags": ["Projects"],
+                "tags": [
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -9480,7 +10422,9 @@
                     }
                 },
                 "description": "Deletes a single validation error.",
-                "tags": ["Projects"],
+                "tags": [
+                    "Projects"
+                ],
                 "security": [],
                 "parameters": [
                     {
@@ -9511,6 +10455,10 @@
         }
     ],
     "tags": [
+        {
+            "name": "Get started",
+            "description": "Before you get started, you might need to create a Personal Access Token to authenticate with the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens"
+        },
         {
             "name": "My Account",
             "description": "These routes allow users to manage their own user account."

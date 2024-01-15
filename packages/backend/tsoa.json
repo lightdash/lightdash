@@ -1,7 +1,9 @@
 {
     "entryFile": "src/index.ts",
     "noImplicitAdditionalProperties": "throw-on-extras",
-    "controllerPathGlobs": ["src/**/*Controller.ts"],
+    "controllerPathGlobs": [
+        "src/**/*Controller.ts"
+    ],
     "spec": {
         "name": "Lightdash API",
         "description": "Open API documentation for all public Lightdash API endpoints",
@@ -12,6 +14,10 @@
         },
         "license": "MIT",
         "tags": [
+            {
+                "name": "Get started",
+                "description": "Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens"
+            },
             {
                 "name": "My Account",
                 "description": "These routes allow users to manage their own user account."
