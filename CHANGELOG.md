@@ -1,3 +1,10 @@
+## [0.938.1](https://github.com/lightdash/lightdash/compare/0.938.0...0.938.1) (2024-01-15)
+
+
+### Bug Fixes
+
+* omitting field in joins in tables with alias ([#8583](https://github.com/lightdash/lightdash/issues/8583)) ([717cce1](https://github.com/lightdash/lightdash/commit/717cce1ebab096b59d41e6bd4b61c8aad24dcd4e))
+
 # [0.938.0](https://github.com/lightdash/lightdash/compare/0.937.3...0.938.0) (2024-01-15)
 
 
