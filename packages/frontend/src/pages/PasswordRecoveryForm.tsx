@@ -1,4 +1,4 @@
-import { validateEmail } from '@lightdash/common';
+import { getEmailSchema } from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -9,9 +9,10 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
+import { z } from 'zod';
 import { usePasswordResetLinkMutation } from '../hooks/usePasswordReset';
 import { useApp } from '../providers/AppProvider';
 
@@ -23,10 +24,11 @@ export const PasswordRecoveryForm: FC = () => {
         initialValues: {
             email: '',
         },
-        validate: {
-            email: (value: string) =>
-                validateEmail(value) ? null : 'Your email address is not valid',
-        },
+        validate: zodResolver(
+            z.object({
+                email: getEmailSchema(),
+            }),
+        ),
     });
 
     const { isLoading, isSuccess, mutate, reset } =

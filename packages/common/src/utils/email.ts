@@ -1,4 +1,8 @@
 export const getEmailDomain = (email: string): string => {
+    if (/\s/.test(email)) {
+        throw new Error(`Invalid email, contains whitespace: ${email}`);
+    }
+
     const domain = email.split('@')[1];
     if (!domain) {
         throw new Error(`Invalid email: ${email}`);

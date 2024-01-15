@@ -1,11 +1,11 @@
 import {
     ApiError,
+    getEmailSchema,
     LightdashMode,
     LightdashUser,
     OpenIdIdentityIssuerType,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
-    validateEmail,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -19,11 +19,12 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { FC, useEffect } from 'react';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 
+import { z } from 'zod';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
@@ -67,10 +68,11 @@ const LoginContent: FC = () => {
             email: '',
             password: '',
         },
-        validate: {
-            email: (value) =>
-                validateEmail(value) ? null : 'Your email address is not valid',
-        },
+        validate: zodResolver(
+            z.object({
+                email: getEmailSchema(),
+            }),
+        ),
     });
 
     const { identify } = useTracking();

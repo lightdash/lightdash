@@ -171,15 +171,24 @@ export * from './utils/time';
 export * from './utils/timeFrames';
 
 export const validateEmail = (email: string): boolean => {
+    if (/\s/.test(email)) {
+        return false;
+    }
+
     const re =
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 };
 
 export const getEmailSchema = () =>
-    z.string().refine((email) => validateEmail(email), {
-        message: 'must be a valid email',
-    });
+    z
+        .string()
+        .refine((email) => validateEmail(email), {
+            message: 'Email address is not valid',
+        })
+        .refine((email) => !/\s/.test(email), {
+            message: 'Email address must not contain whitespaces',
+        });
 
 export const getPasswordSchema = () =>
     z
