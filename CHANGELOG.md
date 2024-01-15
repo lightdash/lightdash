@@ -1,3 +1,10 @@
+# [0.939.0](https://github.com/lightdash/lightdash/compare/0.938.1...0.939.0) (2024-01-15)
+
+
+### Features
+
+* **cli:** command to generate exposures ([#8582](https://github.com/lightdash/lightdash/issues/8582)) ([fe552b9](https://github.com/lightdash/lightdash/commit/fe552b9b4400b6a62f5984ea9741193595cafc0f))
+
 ## [0.938.1](https://github.com/lightdash/lightdash/compare/0.938.0...0.938.1) (2024-01-15)
 
 
