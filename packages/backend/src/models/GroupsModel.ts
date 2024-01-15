@@ -12,7 +12,7 @@ import {
 import { Knex } from 'knex';
 import differenceBy from 'lodash/differenceBy';
 import { EmailTableName } from '../database/entities/emails';
-import { GroupMembershipTableName } from '../database/entities/group_memberships';
+import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     DBProjectGroupAccess,
