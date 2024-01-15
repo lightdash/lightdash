@@ -1,3 +1,10 @@
+## [0.937.3](https://github.com/lightdash/lightdash/compare/0.937.2...0.937.3) (2024-01-15)
+
+
+### Bug Fixes
+
+* validate email inputs to not allow whitespaces ([#8584](https://github.com/lightdash/lightdash/issues/8584)) ([163b13f](https://github.com/lightdash/lightdash/commit/163b13f6ab1d610bd16dc46eb06de792f8f575e7))
+
 ## [0.937.2](https://github.com/lightdash/lightdash/compare/0.937.1...0.937.2) (2024-01-12)
 
 
