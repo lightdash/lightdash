@@ -239,7 +239,7 @@ LIGHTDASH_CONFIG_FILE=/*path*/*to*/lightdash/lightdash.yml
 
 ```shell
 # Create docker containers
-Note: before the next step make sure your docker has 4GB of memory ( Docker -> settings -> resources ) you should be able to manipulate the values here.
+# Note: before the next step make sure your docker has 4GB of memory ( Docker -> settings -> resources ) you should be able to manipulate the values here.
 
 docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
 ```
