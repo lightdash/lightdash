@@ -36,7 +36,9 @@ export const generateExposuresHandler = async (
     );
 
     const spinner = GlobalState.startSpinner(
-        `  Generating .yml for Lightdash exposures`,
+        `  Generating Lightdash exposures .yml for project ${styles.bold(
+            config.context.projectName || config.context.project,
+        )}`,
     );
     try {
         const absoluteProjectPath = path.resolve(options.projectDir);
