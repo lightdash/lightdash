@@ -3,7 +3,7 @@ import {
     CreateUserAttribute,
     UserAttribute,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -25,7 +25,7 @@ export const useUserAttributes = () => {
 };
 
 const createUserAttributes = async (data: CreateUserAttribute) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/attributes`,
         method: 'POST',
         body: JSON.stringify(data),
@@ -35,7 +35,7 @@ export const useCreateUserAtributesMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
 
-    return useMutation<undefined, ApiError, CreateUserAttribute>(
+    return useMutation<null, ApiError, CreateUserAttribute>(
         createUserAttributes,
         {
             mutationKey: ['user_attributes'],
@@ -59,7 +59,7 @@ const updateUserAttributes = async (
     userAttributeUuid: string,
     data: CreateUserAttribute,
 ) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/attributes/${userAttributeUuid}`,
         method: 'PUT',
         body: JSON.stringify(data),
@@ -69,7 +69,7 @@ export const useUpdateUserAtributesMutation = (userAttributeUuuid?: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
 
-    return useMutation<undefined, ApiError, CreateUserAttribute>(
+    return useMutation<null, ApiError, CreateUserAttribute>(
         (data) => updateUserAttributes(userAttributeUuuid || '', data),
 
         {
@@ -91,7 +91,7 @@ export const useUpdateUserAtributesMutation = (userAttributeUuuid?: string) => {
 };
 
 const deleteUserAttributes = async (uuid: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/attributes/${uuid}`,
         method: 'DELETE',
         body: undefined,
@@ -100,10 +100,10 @@ const deleteUserAttributes = async (uuid: string) =>
 export const useUserAttributesDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteUserAttributes, {
+    return useMutation<null, ApiError, string>(deleteUserAttributes, {
         mutationKey: ['delete_user_attributes'],
         onSuccess: async () => {
-            await queryClient.invalidateQueries('user_attributes');
+            await queryClient.invalidateQueries(['user_attributes']);
             showToastSuccess({
                 title: `Success! user attribute was deleted.`,
             });

@@ -6,7 +6,7 @@ import {
     JobStep,
     JobStepStatusType,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useActiveJob } from '../providers/ActiveJobProvider';
@@ -100,7 +100,7 @@ export const useJob = (
         staleTime: 0,
         onSuccess: (job) => {
             if (job.jobStatus === JobStatusType.DONE) {
-                queryClient.invalidateQueries('tables');
+                queryClient.invalidateQueries(['tables']);
             }
             onSuccess(job);
         },

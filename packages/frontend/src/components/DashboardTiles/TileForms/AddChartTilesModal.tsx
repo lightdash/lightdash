@@ -51,7 +51,8 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
 
 const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
+    const { data: savedCharts, isInitialLoading } =
+        useChartSummaries(projectUuid);
 
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -107,7 +108,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         onClose();
     });
 
-    if (!savedCharts || !dashboardTiles || isLoading) return null;
+    if (!savedCharts || !dashboardTiles || isInitialLoading) return null;
 
     return (
         <Modal
@@ -148,7 +149,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         id="saved-charts"
                         label={`Select the charts you want to add to this dashboard`}
                         data={allSavedCharts}
-                        disabled={isLoading}
+                        disabled={isInitialLoading}
                         defaultValue={[]}
                         placeholder="Search..."
                         required
@@ -166,7 +167,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading}>
+                        <Button type="submit" disabled={isInitialLoading}>
                             Add
                         </Button>
                     </Group>

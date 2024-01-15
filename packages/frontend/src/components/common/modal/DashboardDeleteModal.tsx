@@ -27,11 +27,11 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
-    const { data: dashboard, isLoading } = useDashboardQuery(uuid);
+    const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
     const { mutateAsync: deleteDashboard, isLoading: isDeleting } =
         useDashboardDeleteMutation();
 
-    if (isLoading || !dashboard) {
+    if (isInitialLoading || !dashboard) {
         return null;
     }
 

@@ -24,7 +24,9 @@ const SyncModalContext = createContext<
     | undefined
 >(undefined);
 
-export const SyncModalProvider: FC = ({ children }) => {
+export const SyncModalProvider: FC<React.PropsWithChildren<{}>> = ({
+    children,
+}) => {
     const [action, setAction] = useState<SyncModalAction>(SyncModalAction.VIEW);
     const [currentSchedulerUuid, setCurrentSchedulerUuid] = useState<string>();
 

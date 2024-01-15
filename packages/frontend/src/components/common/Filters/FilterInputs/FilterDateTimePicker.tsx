@@ -18,6 +18,8 @@ const FilterDateTimePicker: FC<Props> = ({
     ...rest
 }) => {
     return (
+        // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+        // @ts-ignore
         <DateTimePicker
             w="100%"
             size="xs"

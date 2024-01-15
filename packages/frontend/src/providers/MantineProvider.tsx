@@ -4,7 +4,7 @@ import { FC } from 'react';
 
 import { getMantineThemeOverride } from '../mantineTheme';
 
-const MantineProvider: FC = ({ children }) => {
+const MantineProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     return (
         <MantineProviderBase
             withGlobalStyles

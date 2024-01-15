@@ -8,7 +8,10 @@ type Props = {
     label: string;
 };
 
-const ExploreGroup: FC<Props> = ({ label, children }) => {
+const ExploreGroup: FC<React.PropsWithChildren<Props>> = ({
+    label,
+    children,
+}) => {
     const [isOpen, toggleOpen] = useToggle(false);
 
     return (

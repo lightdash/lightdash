@@ -8,7 +8,7 @@ import {
     useQuery,
     useQueryClient,
     UseQueryOptions,
-} from 'react-query';
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
@@ -43,9 +43,8 @@ export const useDashboards = (
 
     return useQuery<DashboardBasicDetails[], ApiError>(
         ['dashboards', projectUuid, includePrivateSpaces],
-        () => getDashboards(projectUuid || '', includePrivateSpaces),
+        () => getDashboards(projectUuid, includePrivateSpaces),
         {
-            enabled: projectUuid !== undefined,
             ...useQueryOptions,
             onError: (result) => {
                 setErrorResponse(result);
@@ -78,7 +77,7 @@ const updateMultipleDashboard = async (
     projectUuid: string,
     data: UpdateMultipleDashboards[],
 ) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/projects/${projectUuid}/dashboards`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -87,20 +86,20 @@ const updateMultipleDashboard = async (
 export const useUpdateMultipleDashboard = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, UpdateMultipleDashboards[]>(
+    return useMutation<null, ApiError, UpdateMultipleDashboards[]>(
         (data) => updateMultipleDashboard(projectUuid, data),
         {
             mutationKey: ['dashboard_update_multiple'],
             onSuccess: async (_, variables) => {
                 await queryClient.invalidateQueries(['space', projectUuid]);
 
-                await queryClient.invalidateQueries('dashboards');
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries(['dashboards']);
+                await queryClient.invalidateQueries([
                     'dashboards-containing-chart',
-                );
-                await queryClient.invalidateQueries(
+                ]);
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
 
                 const invalidateQueries = variables.map((dashboard) => [
                     'saved_dashboard_query',

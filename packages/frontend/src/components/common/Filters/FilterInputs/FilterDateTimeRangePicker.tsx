@@ -30,6 +30,8 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 size="xs"
                 withSeconds
                 disabled={disabled}
+                // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                // @ts-ignore
                 placeholder="Start date"
                 maxDate={
                     date2
@@ -58,6 +60,8 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 size="xs"
                 withSeconds
                 disabled={disabled}
+                // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                // @ts-ignore
                 placeholder="End date"
                 minDate={
                     date1 ? dayjs(date1).add(1, 'second').toDate() : undefined

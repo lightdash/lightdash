@@ -4,8 +4,8 @@ import {
     SchedulerFormat,
 } from '@lightdash/common';
 import { Loader, Stack, Text, Title } from '@mantine/core';
+import { UseQueryResult } from '@tanstack/react-query';
 import React, { FC, useState } from 'react';
-import { UseQueryResult } from 'react-query/types/react/types';
 import ErrorState from '../../../components/common/ErrorState';
 import { SchedulerDeleteModal } from './SchedulerDeleteModal';
 import SchedulersListItem from './SchedulersListItem';
@@ -16,10 +16,10 @@ type Props = {
 };
 
 const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
-    const { data: schedulers, isLoading, error } = schedulersQuery;
+    const { data: schedulers, isInitialLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return (
             <Stack h={300} w="100%" align="center">
                 <Text fw={600}>Loading schedulers</Text>

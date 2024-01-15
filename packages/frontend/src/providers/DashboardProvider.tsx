@@ -100,10 +100,12 @@ type DashboardContext = {
 
 const Context = createContext<DashboardContext | undefined>(undefined);
 
-export const DashboardProvider: React.FC<{
-    schedulerFilters?: SchedulerFilterRule[] | undefined;
-    dateZoom?: DateGranularity | undefined;
-}> = ({ schedulerFilters, dateZoom, children }) => {
+export const DashboardProvider: React.FC<
+    React.PropsWithChildren<{
+        schedulerFilters?: SchedulerFilterRule[] | undefined;
+        dateZoom?: DateGranularity | undefined;
+    }>
+> = ({ schedulerFilters, dateZoom, children }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
 
@@ -323,7 +325,7 @@ export const DashboardProvider: React.FC<{
     });
 
     const {
-        isLoading: isLoadingDashboardFilters,
+        isInitialLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
         data: dashboardAvailableFiltersData,
     } = useDashboardsAvailableFilters(savedChartUuidsAndTileUuids ?? []);
@@ -474,7 +476,7 @@ export const DashboardProvider: React.FC<{
     );
 
     const addMetricDashboardFilter = useCallback(
-        (filter, isTemporary: boolean) => {
+        (filter: DashboardFilterRule, isTemporary: boolean) => {
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;

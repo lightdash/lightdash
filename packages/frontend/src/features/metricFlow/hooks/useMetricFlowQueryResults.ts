@@ -1,6 +1,5 @@
 import { ApiError } from '@lightdash/common';
-import { useQuery } from 'react-query';
-import { UseQueryOptions } from 'react-query/types/react/types';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import {
     createMetricFlowQuery,
     CreateMetricFlowQueryResponse,
@@ -97,10 +96,11 @@ const useMetricFlowQueryResults = (
 
     return {
         isLoading:
-            metricFlowQuery.isLoading || metricFlowQueryResultsQuery.isLoading,
+            metricFlowQuery.isInitialLoading ||
+            metricFlowQueryResultsQuery.isInitialLoading,
         error: metricFlowQuery.error || metricFlowQueryResultsQuery.error,
         data: metricFlowQueryResultsQuery.data,
-        status: metricFlowQuery.isLoading
+        status: metricFlowQuery.isInitialLoading
             ? metricFlowQuery.status
             : metricFlowQueryResultsQuery.status,
         refetch: metricFlowQuery.refetch,

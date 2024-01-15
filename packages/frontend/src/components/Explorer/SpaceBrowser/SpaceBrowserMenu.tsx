@@ -13,7 +13,7 @@ interface Props {
     onTogglePin: () => void;
 }
 
-export const SpaceBrowserMenu: React.FC<Props> = ({
+export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
     isPinned,
     onRename,
     onDelete,

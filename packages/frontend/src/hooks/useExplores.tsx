@@ -1,7 +1,6 @@
 import { ApiError, ApiExploresResults } from '@lightdash/common';
-import { useQuery } from 'react-query';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
-import { UseQueryFetchOptions } from '../types/UseQuery';
 import useQueryError from './useQueryError';
 
 const getExplores = async (projectUuid: string, filtered?: boolean) =>
@@ -16,7 +15,7 @@ const getExplores = async (projectUuid: string, filtered?: boolean) =>
 export const useExplores = (
     projectUuid: string,
     filtered?: boolean,
-    useQueryFetchOptions?: UseQueryFetchOptions,
+    useQueryFetchOptions?: UseQueryOptions<ApiExploresResults, ApiError>,
 ) => {
     const setErrorResponse = useQueryError();
     const queryKey = ['tables', projectUuid, filtered ? 'filtered' : 'all'];

@@ -144,7 +144,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                             <Button
                                 type="submit"
                                 disabled
-                                loading={dbtCloudSettings.isLoading}
+                                loading={dbtCloudSettings.isInitialLoading}
                             >
                                 Save
                             </Button>

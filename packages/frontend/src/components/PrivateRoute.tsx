@@ -5,13 +5,12 @@ import { useApp } from '../providers/AppProvider';
 import { useAbilityContext } from './common/Authorization';
 import PageSpinner from './PageSpinner';
 
-const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
-    children,
-    ...rest
-}) => {
+const PrivateRoute: FC<
+    React.PropsWithChildren<ComponentProps<typeof Route>>
+> = ({ children, ...rest }) => {
     const {
         health,
-        user: { data, isLoading },
+        user: { data, isInitialLoading },
     } = useApp();
     const ability = useAbilityContext();
     const emailStatus = useEmailStatus(!!health.data?.isAuthenticated);
@@ -27,7 +26,7 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
         <Route
             {...rest}
             render={({ location }) => {
-                if (health.isLoading || health.error) {
+                if (health.isInitialLoading || health.error) {
                     return <PageSpinner />;
                 }
 
@@ -42,7 +41,7 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
                     );
                 }
 
-                if (isLoading || emailStatus.isLoading) {
+                if (isInitialLoading || emailStatus.isInitialLoading) {
                     return <PageSpinner />;
                 }
 

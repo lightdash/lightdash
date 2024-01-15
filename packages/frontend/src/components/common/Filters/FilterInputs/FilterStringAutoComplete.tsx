@@ -50,7 +50,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         [field, filterId, getAutocompleteFilterGroup],
     );
 
-    const { isLoading, results: resultsSet } = useFieldValues(
+    const { isInitialLoading, results: resultsSet } = useFieldValues(
         search,
         initialSuggestionData,
         projectUuid,
@@ -185,8 +185,10 @@ const FilterStringAutoComplete: FC<Props> = ({
             onSearchChange={setSearch}
             limit={MAX_AUTOCOMPLETE_RESULTS}
             onPaste={handlePaste}
-            nothingFound={isLoading ? 'Loading...' : 'No results found'}
-            rightSection={isLoading ? <Loader size="xs" color="gray" /> : null}
+            nothingFound={isInitialLoading ? 'Loading...' : 'No results found'}
+            rightSection={
+                isInitialLoading ? <Loader size="xs" color="gray" /> : null
+            }
             dropdownComponent={DropdownComponentOverride}
             itemComponent={({ label, ...others }) =>
                 others.disabled ? (

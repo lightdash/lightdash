@@ -6,8 +6,9 @@ interface FormSectionProps {
     isOpen?: boolean;
 }
 
-const FormSection: FC<FormSectionProps> = ({ isOpen = true, children }) => (
-    <Collapse in={isOpen}>{children}</Collapse>
-);
+const FormSection: FC<React.PropsWithChildren<FormSectionProps>> = ({
+    isOpen = true,
+    children,
+}) => <Collapse in={isOpen}>{children}</Collapse>;
 
 export default FormSection;

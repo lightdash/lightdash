@@ -16,7 +16,9 @@ import { isBigNumberVisualizationConfig } from '../LightdashVisualization/Visual
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
-const BigNumberContextMenu: FC<{}> = ({ children }) => {
+const BigNumberContextMenu: FC<React.PropsWithChildren<{}>> = ({
+    children,
+}) => {
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
     const { resultsData, visualizationConfig, itemsMap } =

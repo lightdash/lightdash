@@ -5,7 +5,7 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 
 const OrganizationPanel: FC = () => {
-    const { isLoading: isOrganizationLoading, data } = useOrganization();
+    const { isInitialLoading: isOrganizationLoading, data } = useOrganization();
     const {
         isLoading: isOrganizationUpdateLoading,
         mutate: updateOrganization,

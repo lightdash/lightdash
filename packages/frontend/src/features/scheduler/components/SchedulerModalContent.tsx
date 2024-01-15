@@ -6,11 +6,8 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { Box, Loader, LoadingOverlay, Stack, Text } from '@mantine/core';
+import { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { FC, useCallback, useEffect, useState } from 'react';
-import {
-    UseMutationResult,
-    UseQueryResult,
-} from 'react-query/types/react/types';
 import { useHistory, useLocation } from 'react-router-dom';
 import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';
@@ -176,18 +173,18 @@ const UpdateStateContent: FC<{
         [scheduler.data, user?.userUuid, track, sendNow],
     );
 
-    if (scheduler.isLoading || scheduler.error) {
+    if (scheduler.isInitialLoading || scheduler.error) {
         return (
             <>
                 <Box m="xl">
-                    {scheduler.isLoading ? (
+                    {scheduler.isInitialLoading ? (
                         <Stack h={300} w="100%" align="center">
                             <Text fw={600}>Loading scheduler</Text>
                             <Loader size="lg" />
                         </Stack>
-                    ) : (
+                    ) : scheduler.error ? (
                         <ErrorState error={scheduler.error.error} />
-                    )}
+                    ) : null}
                 </Box>
                 <SchedulersModalFooter onBack={onBack} />
             </>
@@ -217,7 +214,7 @@ const UpdateStateContent: FC<{
                 confirmText="Save"
                 onBack={onBack}
                 onSendNow={handleSendNow}
-                loading={mutation.isLoading || scheduler.isLoading}
+                loading={mutation.isLoading || scheduler.isInitialLoading}
             />
         </>
     );

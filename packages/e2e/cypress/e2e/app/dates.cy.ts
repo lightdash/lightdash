@@ -272,12 +272,16 @@ describe('Date tests', () => {
     it('Should change dates on filters', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
-        cy.findByTestId('Filters-card-expand').click();
-        cy.findByTestId('SQL-card-expand').click();
-        cy.findByTestId('Charts-card-expand').click(); // Close chart
+        cy.findByTestId('page-spinner').should('not.exist');
+        cy.get('[data-testid=Charts-card-expand]').click(); // Close chart
+        cy.contains('No data available').should('be.visible');
+        cy.contains('Pick a metric & select its dimensions').should(
+            'be.visible',
+        );
+        cy.contains('Filters').should('be.visible');
 
-        cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by year
+        cy.get('[data-testid=Filters-card-expand]').click();
         cy.contains('Add filter').click();
         cy.contains('Created year').click();
 
@@ -286,6 +290,7 @@ describe('Date tests', () => {
             cy.get('button').find('[data-previous="true"]').click();
             cy.contains('button', 2017).click();
         });
+        cy.get('[data-testid=SQL-card-expand]').click();
         cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2017-01-01')`,
         );
@@ -333,11 +338,17 @@ describe('Date tests', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/customers`);
 
-        cy.findByTestId('Filters-card-expand').click();
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('page-spinner').should('not.exist');
+        cy.get('[data-testid=Charts-card-expand]').click(); // Close chart
+        cy.contains('No data available').should('be.visible');
+        cy.contains('Pick a metric & select its dimensions').should(
+            'be.visible',
+        );
+        cy.contains('Filters').should('be.visible');
 
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by day
+        cy.get('[data-testid=Filters-card-expand]').click();
         cy.contains('Add filter').click();
         cy.findByPlaceholderText('Search field...').type('created day');
         cy.contains('Created day').click();
@@ -346,6 +357,7 @@ describe('Date tests', () => {
             'have.value',
             dayjs(todayDate).format('MMMM D, YYYY'),
         );
+        cy.get('[data-testid=SQL-card-expand]').click();
         cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('DAY', "customers".created)) = ('${getLocalISOString(
                 todayDate,
@@ -385,19 +397,21 @@ describe('Date tests', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
 
-        cy.findByTestId('Filters-card-expand').click();
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('page-spinner').should('not.exist');
+        cy.get('[data-testid=Charts-card-expand]').click(); // Close chart
 
-        cy.findAllByText('Loading chart').should('have.length', 0);
+        cy.contains('Filters').should('be.visible');
 
         // Open Date dimension
         cy.contains('Order date').click();
 
         // Filter by year
+        cy.get('[data-testid=Filters-card-expand]').click();
         cy.findByRole('button', { name: 'Year' }).findByRole('button').click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         cy.contains('button', now.format('YYYY'));
+        cy.get('[data-testid=SQL-card-expand]').click();
         cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('YEAR', "orders".order_date)) = ('${now.format(
                 'YYYY',

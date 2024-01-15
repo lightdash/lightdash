@@ -1,5 +1,5 @@
+import { Query, useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import { Query, useIsFetching, useQueryClient } from 'react-query';
 
 const QUERIES_TO_REFRESH = [
     'savedChartResults',

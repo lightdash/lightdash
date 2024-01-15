@@ -15,8 +15,8 @@ import {
     Text,
     Title,
 } from '@mantine/core';
+import { useMutation } from '@tanstack/react-query';
 import { FC, useEffect, useState } from 'react';
-import { useMutation } from 'react-query';
 import { Redirect, useLocation, useParams } from 'react-router-dom';
 
 import { lightdashApi } from '../api';
@@ -147,7 +147,7 @@ const Invite: FC = () => {
         }
     }, [search]);
 
-    if (health.isLoading || inviteLinkQuery.isLoading) {
+    if (health.isInitialLoading || inviteLinkQuery.isInitialLoading) {
         return <PageSpinner />;
     }
 

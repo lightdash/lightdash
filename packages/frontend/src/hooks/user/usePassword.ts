@@ -1,5 +1,9 @@
 import { ApiError } from '@lightdash/common';
-import { useMutation, UseMutationOptions, useQuery } from 'react-query';
+import {
+    useMutation,
+    UseMutationOptions,
+    useQuery,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 
 const getUserHasPassword = async (): Promise<boolean> =>
@@ -11,7 +15,7 @@ const getUserHasPassword = async (): Promise<boolean> =>
 
 export const useUserHasPassword = () =>
     useQuery<boolean, ApiError>({
-        queryKey: 'user-has-password',
+        queryKey: ['user-has-password'],
         queryFn: getUserHasPassword,
     });
 
@@ -20,21 +24,17 @@ type UserPasswordUpdate = {
     newPassword: string;
 };
 
-const updateUserPasswordQuery = async (data: UserPasswordUpdate) =>
-    lightdashApi<undefined>({
+const updateUserPasswordQuery = (data: UserPasswordUpdate) =>
+    lightdashApi<null>({
         url: `/user/password`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
 export const useUserUpdatePasswordMutation = (
-    useMutationOptions?: UseMutationOptions<
-        undefined,
-        ApiError,
-        UserPasswordUpdate
-    >,
+    useMutationOptions?: UseMutationOptions<null, ApiError, UserPasswordUpdate>,
 ) => {
-    return useMutation<undefined, ApiError, UserPasswordUpdate>(
+    return useMutation<null, ApiError, UserPasswordUpdate>(
         updateUserPasswordQuery,
         {
             mutationKey: ['user_password_update'],

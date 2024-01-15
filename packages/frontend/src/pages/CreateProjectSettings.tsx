@@ -1,5 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { FC } from 'react';
-import { useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 
 import { Stack, Text, Title } from '@mantine/core';
@@ -13,7 +13,7 @@ const CreateProjectSettings: FC = () => {
     const queryClient = useQueryClient();
     const history = useHistory();
     const { health } = useApp();
-    if (health.isLoading) {
+    if (health.isInitialLoading) {
         return <PageSpinner />;
     }
 

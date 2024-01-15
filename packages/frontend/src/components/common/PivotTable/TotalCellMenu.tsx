@@ -8,7 +8,7 @@ type TotalCellMenuProps = {
     onCopy: () => void;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
-const TotalCellMenu: FC<TotalCellMenuProps> = ({
+const TotalCellMenu: FC<React.PropsWithChildren<TotalCellMenuProps>> = ({
     children,
     opened,
     onOpen,

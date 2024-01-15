@@ -1,5 +1,5 @@
 import { ApiError, ApiFlashResults } from '@lightdash/common';
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
 const getFlash = async () =>
@@ -11,7 +11,7 @@ const getFlash = async () =>
 
 export const useFlashMessages = () =>
     useQuery<ApiFlashResults, ApiError>({
-        queryKey: 'flash',
+        queryKey: ['flash'],
         queryFn: getFlash,
         cacheTime: 200,
         refetchInterval: false,

@@ -199,7 +199,7 @@ const Context = createContext<TrackingContext>(undefined as any);
 
 const LIGHTDASH_APP_NAME = 'lightdash_webapp';
 
-const TrackingProviderMain: FC<TrackingData> = ({
+const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
     rudder,
     page: pageContext,
     section: sectionContext,
@@ -322,11 +322,9 @@ interface TrackingProviderProps extends TrackingData {
     enabled?: boolean;
 }
 
-export const TrackingProvider: FC<TrackingProviderProps> = ({
-    children,
-    enabled = true,
-    ...rest
-}) => {
+export const TrackingProvider: FC<
+    React.PropsWithChildren<TrackingProviderProps>
+> = ({ children, enabled = true, ...rest }) => {
     if (enabled) {
         return (
             <TrackingProviderMain {...rest}>{children}</TrackingProviderMain>
@@ -348,10 +346,9 @@ export function useTracking<S extends boolean = false>(
     return context;
 }
 
-const NestedTrackingProvider: FC<Partial<TrackingData>> = ({
-    children,
-    ...rest
-}) => (
+const NestedTrackingProvider: FC<
+    React.PropsWithChildren<Partial<TrackingData>>
+> = ({ children, ...rest }) => (
     <Context.Consumer>
         {({ data }) => (
             <TrackingProvider {...{ ...data, ...rest }}>
@@ -361,7 +358,10 @@ const NestedTrackingProvider: FC<Partial<TrackingData>> = ({
     </Context.Consumer>
 );
 
-export const TrackPage: FC<PageData> = ({ children, ...rest }) => {
+export const TrackPage: FC<React.PropsWithChildren<PageData>> = ({
+    children,
+    ...rest
+}) => {
     const { page } = useTracking();
 
     useEffect(() => {
@@ -375,11 +375,13 @@ export const TrackPage: FC<PageData> = ({ children, ...rest }) => {
     );
 };
 
-export const TrackSection: FC<SectionData> = memo(({ children, name }) => {
-    const section = useMemo(() => ({ name }), [name]);
-    return (
-        <NestedTrackingProvider section={section}>
-            {children || null}
-        </NestedTrackingProvider>
-    );
-});
+export const TrackSection: FC<React.PropsWithChildren<SectionData>> = memo(
+    ({ children, name }) => {
+        const section = useMemo(() => ({ name }), [name]);
+        return (
+            <NestedTrackingProvider section={section}>
+                {children || null}
+            </NestedTrackingProvider>
+        );
+    },
+);

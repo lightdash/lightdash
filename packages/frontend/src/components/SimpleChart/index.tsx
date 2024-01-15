@@ -137,7 +137,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
 
     const handleOnMouseOver = useCallback(
-        (params) => {
+        (params: any) => {
             const eCharts = chartRef.current?.getEchartsInstance();
 
             if (eCharts) {

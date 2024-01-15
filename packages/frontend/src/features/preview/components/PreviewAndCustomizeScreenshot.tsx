@@ -12,8 +12,8 @@ import {
     Text,
 } from '@mantine/core';
 import { IconEye, IconEyeClosed } from '@tabler/icons-react';
+import { UseMutationResult } from '@tanstack/react-query';
 import { Dispatch, FC, SetStateAction, useState } from 'react';
-import { UseMutationResult } from 'react-query';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { CUSTOM_WIDTH_OPTIONS } from '../../scheduler/constants';
 

@@ -1,6 +1,6 @@
 import { ApiError } from '@lightdash/common';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { useQueryClient } from 'react-query';
 import { useErrorLogs } from '../providers/ErrorLogsProvider';
 
 const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
@@ -18,7 +18,7 @@ const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
                     // So don't show the error popup there,
                     // we will handle this on pages showing a nice message
                 } else if (statusCode === 401) {
-                    await queryClient.invalidateQueries('health');
+                    await queryClient.invalidateQueries(['health']);
                 } else {
                     const { message } = error;
                     const [first, ...rest] = message.split('\n');

@@ -1,7 +1,9 @@
 import { Title, TitleProps } from '@mantine/core';
 import { FC } from 'react';
 
-export const OnboardingTitle: FC<TitleProps> = ({ children }) => {
+export const OnboardingTitle: FC<React.PropsWithChildren<TitleProps>> = ({
+    children,
+}) => {
     return (
         <Title order={3} fw={500}>
             {children}

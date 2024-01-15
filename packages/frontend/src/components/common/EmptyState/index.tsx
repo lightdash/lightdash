@@ -16,7 +16,7 @@ type EmptyStateProps = DefaultProps & {
     descriptionProps?: TextProps;
 };
 
-export const EmptyState: FC<EmptyStateProps> = ({
+export const EmptyState: FC<React.PropsWithChildren<EmptyStateProps>> = ({
     icon,
     title,
     titleProps,

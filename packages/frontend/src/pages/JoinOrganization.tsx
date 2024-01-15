@@ -27,7 +27,7 @@ import LightdashLogo from '../svgs/lightdash-black.svg';
 const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();
     const history = useHistory();
-    const { isLoading: isLoadingAllowedOrgs, data: allowedOrgs } =
+    const { isInitialLoading: isLoadingAllowedOrgs, data: allowedOrgs } =
         useAllowedOrganizations();
     const {
         mutate: createOrg,
@@ -71,7 +71,7 @@ const JoinOrganizationPage: FC = () => {
         }
     }, [createOrgError, hasCreatedOrg, hasJoinedOrg, history]);
 
-    if (health.isLoading || isLoadingAllowedOrgs || isCreatingOrg) {
+    if (health.isInitialLoading || isLoadingAllowedOrgs || isCreatingOrg) {
         return <PageSpinner />;
     }
 

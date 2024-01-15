@@ -39,7 +39,7 @@ const MinimalExplorer: FC = () => {
         (context) => context.queryResults.isLoading,
     );
 
-    if (!savedChart || health.isLoading || !health.data) {
+    if (!savedChart || health.isInitialLoading || !health.data) {
         return null;
     }
 
@@ -72,7 +72,7 @@ const MinimalSavedExplorer: FC = () => {
         projectUuid: string;
     }>();
 
-    const { data, isLoading, isError, error } = useSavedQuery({
+    const { data, isInitialLoading, isError, error } = useSavedQuery({
         id: savedQueryUuid,
     });
 
@@ -84,7 +84,7 @@ const MinimalSavedExplorer: FC = () => {
         dateZoomGranularity,
     });
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return null;
     }
 

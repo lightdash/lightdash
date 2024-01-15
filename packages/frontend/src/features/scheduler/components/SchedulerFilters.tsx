@@ -303,7 +303,9 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
     schedulerFilters,
     onChange,
 }) => {
-    const { data: project, isLoading } = useProject(dashboard?.projectUuid);
+    const { data: project, isInitialLoading } = useProject(
+        dashboard?.projectUuid,
+    );
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
     );
@@ -349,7 +351,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         [onChange, originalDashboardFilters, schedulerFiltersData],
     );
 
-    if (isLoading || isLoadingDashboardFilters || !project) {
+    if (isInitialLoading || isLoadingDashboardFilters || !project) {
         return (
             <Center component={Stack} h={100}>
                 <Loader color="gray" />

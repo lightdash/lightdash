@@ -23,11 +23,11 @@ export enum ConnectMethod {
 
 const CreateProject: FC = () => {
     const history = useHistory();
-    const { isLoading: isLoadingOrganization, data: organization } =
+    const { isInitialLoading: isLoadingOrganization, data: organization } =
         useOrganization();
 
     const {
-        health: { data: health, isLoading: isLoadingHealth },
+        health: { data: health, isInitialLoading: isLoadingHealth },
     } = useApp();
 
     const { method } = useParams<{ method: ConnectMethod }>();

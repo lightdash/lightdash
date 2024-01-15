@@ -7,18 +7,17 @@ import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
 import PageSpinner from './PageSpinner';
 
-const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
-    children,
-    ...rest
-}) => {
+const ProjectRoute: FC<
+    React.PropsWithChildren<ComponentProps<typeof Route>>
+> = ({ children, ...rest }) => {
     const { user } = useApp();
-    const { data: projects, isLoading, isError, error } = useProjects();
+    const { data: projects, isInitialLoading, isError, error } = useProjects();
 
     return (
         <Route
             {...rest}
             render={(location) => {
-                if (isLoading) {
+                if (isInitialLoading) {
                     return <PageSpinner />;
                 }
 

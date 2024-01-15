@@ -57,7 +57,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         p="xs"
                         fw="500"
                         leftIcon={<Logo />}
-                        loading={healthState.isLoading}
+                        loading={healthState.isInitialLoading}
                         onClick={() => setIsOpen(true)}
                     >
                         {!minimal && 'Lightdash - '}

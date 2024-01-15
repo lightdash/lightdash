@@ -173,9 +173,9 @@ const MetricFlowPage = () => {
     );
 
     if (
-        user.isLoading ||
+        user.isInitialLoading ||
         !activeProjectUuid ||
-        health.isLoading ||
+        health.isInitialLoading ||
         !health.data
     ) {
         return <LoadingState title="Loading metricflow" />;

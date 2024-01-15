@@ -4,8 +4,8 @@ import {
     ApiScheduledDownloadCsv,
     UploadMetricGsheet,
 } from '@lightdash/common';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useQuery, UseQueryOptions } from 'react-query';
 import { lightdashApi } from '../../api';
 import { convertDateFilters } from '../../utils/dateFilter';
 import useHealth from '../health/useHealth';

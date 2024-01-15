@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { ApiError, PinnedItems } from '@lightdash/common';
+import { UseMutateFunction } from '@tanstack/react-query';
 import React, { createContext, useContext } from 'react';
-import { UseMutateFunction } from 'react-query';
 import { useReorder } from '../hooks/pinning/usePinnedItems';
 import { useApp } from './AppProvider';
 
@@ -23,12 +23,9 @@ type PinnedItemsProviderProps = {
     organizationUuid: string;
 };
 
-export const PinnedItemsProvider: React.FC<PinnedItemsProviderProps> = ({
-    organizationUuid,
-    projectUuid,
-    pinnedListUuid,
-    children,
-}) => {
+export const PinnedItemsProvider: React.FC<
+    React.PropsWithChildren<PinnedItemsProviderProps>
+> = ({ organizationUuid, projectUuid, pinnedListUuid, children }) => {
     const { user } = useApp();
     const userCanManage =
         user.data?.ability.can(

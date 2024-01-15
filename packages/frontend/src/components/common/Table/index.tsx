@@ -11,9 +11,9 @@ import { TableProvider } from './TableProvider';
 
 type Props = ComponentProps<typeof TableProvider> & {
     status: 'idle' | 'loading' | 'success' | 'error';
-    loadingState?: FC;
-    idleState?: FC;
-    emptyState?: FC;
+    loadingState?: FC<React.PropsWithChildren<{}>>;
+    idleState?: FC<React.PropsWithChildren<{}>>;
+    emptyState?: FC<React.PropsWithChildren<{}>>;
     className?: string;
     minimal?: boolean;
     $shouldExpand?: boolean;
@@ -21,7 +21,7 @@ type Props = ComponentProps<typeof TableProvider> & {
     'data-testid'?: string;
 };
 
-const Table: FC<Props> = ({
+const Table: FC<React.PropsWithChildren<Props>> = ({
     $shouldExpand,
     $padding,
     status,

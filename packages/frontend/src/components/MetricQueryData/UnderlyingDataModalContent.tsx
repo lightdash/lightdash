@@ -302,7 +302,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     const {
         error,
         data: resultsData,
-        isLoading,
+        isInitialLoading,
     } = useUnderlyingDataResults(tableName, underlyingDataMetricQuery);
 
     const getCsvLink = async () => {
@@ -380,7 +380,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     <ErrorState error={error.error} hasMarginTop={false} />
                 ) : (
                     <UnderlyingDataResultsTable
-                        isLoading={isLoading}
+                        isLoading={isInitialLoading}
                         resultsData={resultsData}
                         fieldsMap={fieldsMap}
                         hasJoins={joinedTables.length > 0}

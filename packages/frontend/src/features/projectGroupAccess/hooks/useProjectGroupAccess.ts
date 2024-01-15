@@ -5,7 +5,7 @@ import {
     ProjectGroupAccess,
     UpdateProjectGroupAccess,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     addProjectGroupAccess,
     getProjectGroupAccessList,
@@ -63,7 +63,7 @@ export function useUpdateProjectGroupAccessMutation() {
 export function useRemoveProjectGroupAccessMutation() {
     const queryClient = useQueryClient();
 
-    return useMutation<undefined, LightdashError, DeleteProjectGroupAccess>({
+    return useMutation<null, LightdashError, DeleteProjectGroupAccess>({
         mutationFn: ({ groupUuid, projectUuid }) =>
             removeProjectGroupAccess({ groupUuid, projectUuid }),
         onSuccess: (_data, { projectUuid }) => {

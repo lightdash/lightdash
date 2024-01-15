@@ -81,10 +81,8 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
 
-    const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
-        projectUuid,
-        true,
-        {
+    const { data: spaces, isInitialLoading: isLoadingSpaces } =
+        useSpaceSummaries(projectUuid, true, {
             staleTime: 0,
             onSuccess: (data) => {
                 if (data.length > 0) {
@@ -96,8 +94,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     setShouldCreateNewSpace(true);
                 }
             },
-        },
-    );
+        });
     const showSpaceInput = shouldCreateNewSpace || spaces?.length === 0;
 
     const handleConfirm = useCallback(

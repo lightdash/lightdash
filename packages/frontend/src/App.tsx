@@ -1,8 +1,8 @@
 import { Ability } from '@casl/ability';
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Helmet } from 'react-helmet';
-import { QueryClient, QueryClientProvider } from 'react-query';
-import { ReactQueryDevtools } from 'react-query/devtools';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AbilityContext } from './components/common/Authorization';
 import MobileRoutes from './MobileRoutes';
@@ -23,7 +23,7 @@ const queryClient = new QueryClient({
                 // @ts-ignore
                 const { error: { statusCode } = {} } = result;
                 if (statusCode === 401) {
-                    await queryClient.invalidateQueries('health');
+                    await queryClient.invalidateQueries(['health']);
                 }
             },
         },

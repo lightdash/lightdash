@@ -1,10 +1,10 @@
 import { ApiError, UpdateOrganization } from '@lightdash/common';
-import { useMutation, useQueryClient } from 'react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
 const updateOrgQuery = async (data: UpdateOrganization) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -13,22 +13,19 @@ const updateOrgQuery = async (data: UpdateOrganization) =>
 export const useOrganizationUpdateMutation = () => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
-    return useMutation<undefined, ApiError, UpdateOrganization>(
-        updateOrgQuery,
-        {
-            mutationKey: ['organization_update'],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries(['organization']);
-                showToastSuccess({
-                    title: 'Success! Organization was updated',
-                });
-            },
-            onError: (error) => {
-                showToastError({
-                    title: 'Failed to update organization',
-                    subtitle: error.error.message,
-                });
-            },
+    return useMutation<null, ApiError, UpdateOrganization>(updateOrgQuery, {
+        mutationKey: ['organization_update'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['organization']);
+            showToastSuccess({
+                title: 'Success! Organization was updated',
+            });
         },
-    );
+        onError: (error) => {
+            showToastError({
+                title: 'Failed to update organization',
+                subtitle: error.error.message,
+            });
+        },
+    });
 };

@@ -154,7 +154,7 @@ const VisualizationCard: FC<{
         throw new NotFoundError('no metric query defined');
     };
 
-    if (health.isLoading || !health.data) {
+    if (health.isInitialLoading || !health.data) {
         return null;
     }
 

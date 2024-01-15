@@ -8,8 +8,12 @@ import {
     UpdateDashboard,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { UseQueryOptions } from 'react-query/types/react/types';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    UseQueryOptions,
+} from '@tanstack/react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
@@ -47,7 +51,7 @@ const updateDashboard = async (id: string, data: UpdateDashboard) =>
     });
 
 const deleteDashboard = async (id: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/dashboards/${id}`,
         method: 'DELETE',
         body: undefined,
@@ -171,14 +175,14 @@ export const useUpdateDashboard = (
             mutationKey: ['dashboard_update'],
             onSuccess: async (_, variables) => {
                 await queryClient.invalidateQueries(['space', projectUuid]);
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
 
-                await queryClient.invalidateQueries('dashboards');
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries(['dashboards']);
+                await queryClient.invalidateQueries([
                     'dashboards-containing-chart',
-                );
+                ]);
                 await queryClient.invalidateQueries([
                     'saved_dashboard_query',
                     id,
@@ -229,9 +233,9 @@ export const useMoveDashboardMutation = () => {
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries(['space']);
                 await queryClient.invalidateQueries(['dashboards']);
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
                 queryClient.setQueryData(
                     ['saved_dashboard_query', data.uuid],
                     data,
@@ -261,7 +265,6 @@ export const useMoveDashboardMutation = () => {
 export const useCreateMutation = (
     projectUuid: string,
     showRedirectButton: boolean = false,
-    useQueryOptions?: UseQueryOptions<Dashboard, ApiError>,
 ) => {
     const history = useHistory();
     const { showToastSuccess, showToastError } = useToaster();
@@ -270,15 +273,14 @@ export const useCreateMutation = (
         (data) => createDashboard(projectUuid, data),
         {
             mutationKey: ['dashboard_create', projectUuid],
-            ...useQueryOptions,
             onSuccess: async (result) => {
-                await queryClient.invalidateQueries('dashboards');
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries(['dashboards']);
+                await queryClient.invalidateQueries([
                     'dashboards-containing-chart',
-                );
-                await queryClient.invalidateQueries(
+                ]);
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
                 showToastSuccess({
                     title: `Success! Dashboard was created.`,
                     action: showRedirectButton
@@ -292,8 +294,6 @@ export const useCreateMutation = (
                           }
                         : undefined,
                 });
-
-                useQueryOptions?.onSuccess?.(result);
             },
             onError: (error) => {
                 showToastError({
@@ -321,14 +321,14 @@ export const useDuplicateDashboardMutation = (
         {
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (data) => {
-                await queryClient.invalidateQueries('dashboards');
+                await queryClient.invalidateQueries(['dashboards']);
                 await queryClient.invalidateQueries(['space', projectUuid]);
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries([
                     'dashboards-containing-chart',
-                );
-                await queryClient.invalidateQueries(
+                ]);
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
                 showToastSuccess({
                     title: `Dashboard successfully duplicated!`,
                     action: options?.showRedirectButton
@@ -356,16 +356,18 @@ export const useDuplicateDashboardMutation = (
 export const useDashboardDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteDashboard, {
+    return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
-            await queryClient.invalidateQueries('dashboards');
-            await queryClient.invalidateQueries('space');
+            await queryClient.invalidateQueries(['dashboards']);
+            await queryClient.invalidateQueries(['space']);
 
-            await queryClient.invalidateQueries('dashboards-containing-chart');
-            await queryClient.invalidateQueries('pinned_items');
-            await queryClient.invalidateQueries(
+            await queryClient.invalidateQueries([
+                'dashboards-containing-chart',
+            ]);
+            await queryClient.invalidateQueries(['pinned_items']);
+            await queryClient.invalidateQueries([
                 'most-popular-and-recently-updated',
-            );
+            ]);
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,
             });

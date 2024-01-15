@@ -10,7 +10,7 @@ import { Icon as TablerIconType } from '@tabler/icons-react';
 import { forwardRef, ReactNode } from 'react';
 import MantineIcon, { MantineIconProps } from './MantineIcon';
 
-interface LargeMenuItemProps extends MenuItemProps {
+interface LargeMenuItemProps extends Omit<MenuItemProps, 'icon'> {
     icon: TablerIconType;
     iconProps?: Omit<MantineIconProps, 'icon'>;
     title: string;

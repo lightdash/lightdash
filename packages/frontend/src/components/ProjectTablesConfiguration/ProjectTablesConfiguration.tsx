@@ -42,9 +42,10 @@ const ProjectTablesConfiguration: FC<{
     const ability = useAbilityContext();
     const [isListOpen, toggleList] = useToggle(false);
 
-    const { data: explores, isLoading: isLoadingExplores } =
+    const { data: explores, isInitialLoading: isLoadingExplores } =
         useExplores(projectUuid);
-    const { data, isLoading } = useProjectTablesConfiguration(projectUuid);
+    const { data, isInitialLoading } =
+        useProjectTablesConfiguration(projectUuid);
     const {
         mutate: update,
         isLoading: isSaving,
@@ -58,7 +59,7 @@ const ProjectTablesConfiguration: FC<{
         }),
     );
     const disabled =
-        isLoading ||
+        isInitialLoading ||
         isSaving ||
         isLoadingExplores ||
         !canUpdateTableConfiguration;

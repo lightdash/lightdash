@@ -115,7 +115,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     }, [isCartesianChart, visualizationConfig]);
 
     const removeReferenceLine = useCallback(
-        (markLineId) => {
+        (markLineId: string) => {
             if (!isCartesianChart) return;
 
             const {

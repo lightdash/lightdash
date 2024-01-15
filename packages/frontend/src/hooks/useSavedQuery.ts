@@ -15,7 +15,7 @@ import {
     useQuery,
     useQueryClient,
     UseQueryOptions,
-} from 'react-query';
+} from '@tanstack/react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
@@ -51,7 +51,7 @@ const duplicateSavedQuery = async (
     });
 
 export const deleteSavedQuery = async (id: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/saved/${id}`,
         method: 'DELETE',
         body: undefined,
@@ -148,27 +148,30 @@ export const useChartVersion = (chartUuid: string, versionUuid?: string) =>
 const rollbackChartQuery = async (
     chartUuid: string,
     versionUuid: string,
-): Promise<undefined> =>
-    lightdashApi<undefined>({
+): Promise<null> =>
+    lightdashApi<null>({
         url: `/saved/${chartUuid}/rollback/${versionUuid}`,
         method: 'POST',
         body: undefined,
     });
 export const useChartVersionRollbackMutation = (
     chartUuid: string,
-    useQueryOptions?: UseQueryOptions<undefined, ApiError>,
+    useMutationOptions?: Omit<
+        UseMutationOptions<null, ApiError, string, unknown>,
+        'mutationFn'
+    >,
 ) => {
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(
+    return useMutation<null, ApiError, string>(
         (versionUuid: string) => rollbackChartQuery(chartUuid, versionUuid),
         {
             mutationKey: ['saved_query_rollback'],
-            ...useQueryOptions,
-            onSuccess: async (data) => {
+            ...useMutationOptions,
+            onSuccess: async (...args) => {
                 showToastSuccess({
                     title: `Success! Chart was reverted.`,
                 });
-                useQueryOptions?.onSuccess?.(data);
+                useMutationOptions?.onSuccess?.(...args);
             },
             onError: (error) => {
                 showToastError({
@@ -183,21 +186,20 @@ export const useChartVersionRollbackMutation = (
 export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(
+    return useMutation<null, ApiError, string>(
         async (data) => {
-            await queryClient.removeQueries(['savedChartResults', data]);
-
+            queryClient.removeQueries(['savedChartResults', data]);
             return deleteSavedQuery(data);
         },
         {
             mutationKey: ['saved_query_create'],
             onSuccess: async () => {
-                await queryClient.invalidateQueries('spaces');
-                await queryClient.invalidateQueries('space');
-                await queryClient.invalidateQueries('pinned_items');
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries(['spaces']);
+                await queryClient.invalidateQueries(['space']);
+                await queryClient.invalidateQueries(['pinned_items']);
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
 
                 showToastSuccess({
                     title: `Success! Chart was deleted.`,
@@ -236,10 +238,10 @@ export const useUpdateMultipleMutation = (projectUuid: string) => {
             mutationKey: ['saved_query_multiple_update'],
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries(['space', projectUuid]);
-                await queryClient.invalidateQueries('spaces');
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries(['spaces']);
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
                 data.forEach((savedChart) => {
                     queryClient.setQueryData(
                         ['saved_query', savedChart.uuid],
@@ -287,11 +289,11 @@ export const useUpdateMutation = (
                     data.projectUuid,
                 ]);
 
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
 
-                await queryClient.invalidateQueries('spaces');
+                await queryClient.invalidateQueries(['spaces']);
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
                     title: `Success! Chart was saved.`,
@@ -337,11 +339,11 @@ export const useMoveChartMutation = (
         mutationKey: ['saved_query_move'],
         ...options,
         onSuccess: async (data, _, __) => {
-            await queryClient.invalidateQueries('spaces');
+            await queryClient.invalidateQueries(['spaces']);
             await queryClient.invalidateQueries(['space', projectUuid]);
-            await queryClient.invalidateQueries(
+            await queryClient.invalidateQueries([
                 'most-popular-and-recently-updated',
-            );
+            ]);
 
             queryClient.setQueryData(['saved_query', data.uuid], data);
             showToastSuccess({
@@ -410,11 +412,11 @@ export const useDuplicateChartMutation = (
         {
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: async (data) => {
-                await queryClient.invalidateQueries('spaces');
+                await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['space', projectUuid]);
-                await queryClient.invalidateQueries(
+                await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
-                );
+                ]);
 
                 if (!options?.showRedirectButton) {
                     history.push({
@@ -459,10 +461,10 @@ export const useAddVersionMutation = () => {
     >(addVersionSavedQuery, {
         mutationKey: ['saved_query_version'],
         onSuccess: async (data) => {
-            await queryClient.invalidateQueries('spaces');
-            await queryClient.invalidateQueries(
+            await queryClient.invalidateQueries(['spaces']);
+            await queryClient.invalidateQueries([
                 'most-popular-and-recently-updated',
-            );
+            ]);
 
             queryClient.setQueryData(['saved_query', data.uuid], data);
             await queryClient.resetQueries(['savedChartResults', data.uuid]);

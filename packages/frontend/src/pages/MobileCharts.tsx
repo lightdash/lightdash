@@ -18,7 +18,8 @@ import { useApp } from '../providers/AppProvider';
 
 const MobileCharts: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { isLoading, data: savedQueries = [] } = useSavedCharts(projectUuid);
+    const { isInitialLoading, data: savedQueries = [] } =
+        useSavedCharts(projectUuid);
     const { user } = useApp();
     const cannotView = user.data?.ability?.cannot('view', 'SavedChart');
     const [search, setSearch] = useState<string>('');
@@ -41,7 +42,7 @@ const MobileCharts: FC = () => {
         return items;
     }, [savedQueries, search]);
 
-    if (isLoading && !cannotView) {
+    if (isInitialLoading && !cannotView) {
         return <LoadingState title="Loading charts" />;
     }
 

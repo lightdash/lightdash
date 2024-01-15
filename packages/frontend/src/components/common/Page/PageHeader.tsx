@@ -3,7 +3,10 @@ import { FC } from 'react';
 
 export const PAGE_HEADER_HEIGHT = 80;
 
-const PageHeader: FC<Pick<CardProps, 'h'>> = ({ h, children }) => (
+const PageHeader: FC<React.PropsWithChildren<Pick<CardProps, 'h'>>> = ({
+    h,
+    children,
+}) => (
     <Card
         component={Flex}
         justify="flex-end"

@@ -6,11 +6,11 @@ import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProjects } from '../hooks/useProjects';
 
 const Projects: FC = () => {
-    const { isLoading, data, error } = useProjects();
+    const { isInitialLoading, data, error } = useProjects();
     const { isLoading: isActiveProjectLoading, activeProjectUuid } =
         useActiveProjectUuid();
 
-    if (isLoading || isActiveProjectLoading || !activeProjectUuid) {
+    if (isInitialLoading || isActiveProjectLoading || !activeProjectUuid) {
         return <PageSpinner />;
     }
     if (error && error.error) {

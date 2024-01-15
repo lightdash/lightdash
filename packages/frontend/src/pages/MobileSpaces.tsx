@@ -22,12 +22,10 @@ import { useApp } from '../providers/AppProvider';
 
 const MobileSpaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: spaces = [], isLoading: spaceIsLoading } = useSpaceSummaries(
-        projectUuid,
-        true,
-    );
+    const { data: spaces = [], isInitialLoading: spaceIsLoading } =
+        useSpaceSummaries(projectUuid, true);
     const project = useProject(projectUuid);
-    const isLoading = spaceIsLoading || project.isLoading;
+    const isLoading = spaceIsLoading || project.isInitialLoading;
     const { user } = useApp();
     const userCannotViewSpace = user.data?.ability?.cannot(
         'view',

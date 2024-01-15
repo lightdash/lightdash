@@ -53,7 +53,9 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         .then((d: ApiResponse | ApiError) => {
             switch (d.status) {
                 case 'ok':
-                    return d.results as T;
+                    // make sure we return null instead of undefined
+                    // otherwise react-query will crash
+                    return (d.results ?? null) as T;
                 case 'error':
                     // eslint-disable-next-line @typescript-eslint/no-throw-literal
                     throw d;

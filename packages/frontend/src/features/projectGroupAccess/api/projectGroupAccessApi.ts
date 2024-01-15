@@ -42,7 +42,7 @@ export function removeProjectGroupAccess({
     groupUuid,
     projectUuid,
 }: DeleteProjectGroupAccess) {
-    return lightdashApi<undefined>({
+    return lightdashApi<null>({
         url: `/groups/${groupUuid}/projects/${projectUuid}`,
         method: 'DELETE',
         body: undefined,

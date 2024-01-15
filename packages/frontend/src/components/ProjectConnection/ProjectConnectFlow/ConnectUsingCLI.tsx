@@ -6,9 +6,9 @@ import {
 import { Avatar, Button, LoadingOverlay, Stack, Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import moment from 'moment';
 import { FC, useCallback, useEffect, useRef } from 'react';
-import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
@@ -61,7 +61,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     (uuid) => !existingUuids.includes(uuid),
                 );
 
-                await queryClient.invalidateQueries('organization');
+                await queryClient.invalidateQueries(['organization']);
 
                 history.replace(
                     `/createProject/cli?projectUuid=${newProjectUuid}`,

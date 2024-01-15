@@ -4,7 +4,7 @@ import {
     ProjectMemberProfile,
     UpdateProjectMember,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -29,7 +29,7 @@ const removeProjectAccessQuery = async (
     projectUuid: string,
     userUuid: string,
 ) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/projects/${projectUuid}/access/${userUuid}`,
         method: 'DELETE',
         body: undefined,
@@ -38,7 +38,7 @@ const removeProjectAccessQuery = async (
 export const useRevokeProjectAccessMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(
+    return useMutation<null, ApiError, string>(
         (data) => removeProjectAccessQuery(projectUuid, data),
         {
             mutationKey: ['project_access_revoke'],
@@ -62,7 +62,7 @@ const createProjectAccessQuery = async (
     projectUuid: string,
     data: CreateProjectMember,
 ) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/projects/${projectUuid}/access`,
         method: 'POST',
         body: JSON.stringify(data),
@@ -71,7 +71,7 @@ const createProjectAccessQuery = async (
 export const useCreateProjectAccessMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
-    return useMutation<undefined, ApiError, CreateProjectMember>(
+    return useMutation<null, ApiError, CreateProjectMember>(
         (data) => createProjectAccessQuery(projectUuid, data),
         {
             mutationKey: ['project_access_create'],
@@ -97,7 +97,7 @@ const updateProjectAccessQuery = async (
     userUuid: string,
     data: UpdateProjectMember,
 ) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/projects/${projectUuid}/access/${userUuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -107,7 +107,7 @@ export const useUpdateProjectAccessMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
     return useMutation<
-        undefined,
+        null,
         ApiError,
         UpdateProjectMember & { userUuid: string }
     >(

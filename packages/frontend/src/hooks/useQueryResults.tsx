@@ -8,8 +8,8 @@ import {
     MetricQuery,
     SortField,
 } from '@lightdash/common';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useDashboardContext } from '../providers/DashboardProvider';
@@ -110,17 +110,14 @@ export const useQueryResults = (props?: {
         fetchQuery,
         {
             mutationKey: ['queryResults'],
-            onError: useCallback(
-                (result) => {
-                    showToastError({
-                        title: 'Error running query',
-                        subtitle: result.error.message,
-                    });
+            onError: (error) => {
+                showToastError({
+                    title: 'Error running query',
+                    subtitle: error.error.message,
+                });
 
-                    return setErrorResponse(result);
-                },
-                [setErrorResponse, showToastError],
-            ),
+                return setErrorResponse(error);
+            },
         },
     );
 
@@ -310,15 +307,12 @@ export const useChartVersionResultsMutation = (
         () => getChartVersionResults(chartUuid, versionUuid!),
         {
             mutationKey: ['chartVersionResults', chartUuid, versionUuid],
-            onError: useCallback(
-                (result) => {
-                    showToastError({
-                        title: 'Error running query',
-                        subtitle: result.error.message,
-                    });
-                },
-                [showToastError],
-            ),
+            onError: (result) => {
+                showToastError({
+                    title: 'Error running query',
+                    subtitle: result.error.message,
+                });
+            },
         },
     );
     const { mutateAsync } = mutation;

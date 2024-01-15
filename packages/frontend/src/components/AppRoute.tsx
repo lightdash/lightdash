@@ -5,7 +5,10 @@ import { useApp } from '../providers/AppProvider';
 import ErrorState from './common/ErrorState';
 import PageSpinner from './PageSpinner';
 
-const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
+const AppRoute: FC<React.PropsWithChildren<ComponentProps<typeof Route>>> = ({
+    children,
+    ...rest
+}) => {
     const { health } = useApp();
 
     const orgRequest = useOrganization();
@@ -14,7 +17,7 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
         <Route
             {...rest}
             render={({ location }) => {
-                if (health.isLoading || orgRequest.isLoading) {
+                if (health.isInitialLoading || orgRequest.isInitialLoading) {
                     return <PageSpinner />;
                 }
 

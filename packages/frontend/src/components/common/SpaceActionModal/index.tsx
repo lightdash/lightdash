@@ -48,7 +48,7 @@ interface ActionModalProps {
     projectUuid: string;
     spaceUuid?: string;
     onClose?: () => void;
-    onSubmitForm?: (data?: Space) => void;
+    onSubmitForm?: (data: Space | null) => void;
     isDisabled: boolean;
     shouldRedirect?: boolean;
 }
@@ -225,7 +225,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     shouldRedirect = true,
     ...props
 }) => {
-    const { data, isLoading } = useSpace(projectUuid, spaceUuid!, {
+    const { data, isInitialLoading } = useSpace(projectUuid, spaceUuid!, {
         enabled: !!spaceUuid,
     });
     const history = useHistory();
@@ -248,7 +248,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     const { mutateAsync: deleteMutation, isLoading: isDeleting } =
         useSpaceDeleteMutation(projectUuid);
 
-    const handleSubmitForm = async (state?: Space) => {
+    const handleSubmitForm = async (state: Space | null) => {
         if (actionType === ActionType.CREATE) {
             const result = await createMutation({
                 name: state!.name,
@@ -273,7 +273,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
         props.onClose?.();
     };
 
-    if (isLoading) return null;
+    if (isInitialLoading) return null;
 
     const isWorking = isCreating || isUpdating || isDeleting;
 

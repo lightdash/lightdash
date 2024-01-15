@@ -24,7 +24,7 @@ const getColorFormFields = (colors: string[]) =>
 
 const AppearancePanel: FC = () => {
     const ability = useAbilityContext();
-    const { isLoading: isOrgLoading, data } = useOrganization();
+    const { isInitialLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
 
     const form = useForm({

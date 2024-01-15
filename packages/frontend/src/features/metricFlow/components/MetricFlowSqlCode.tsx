@@ -1,8 +1,8 @@
 import { ApiError } from '@lightdash/common';
 import { Loader } from '@mantine/core';
 import { Prism } from '@mantine/prism';
+import { useQuery } from '@tanstack/react-query';
 import React, { FC } from 'react';
-import { useQuery } from 'react-query';
 import { EmptyState } from '../../../components/common/EmptyState';
 import ErrorState from '../../../components/common/ErrorState';
 

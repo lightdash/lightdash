@@ -1,5 +1,5 @@
 import { ApiError, ApiSuccessEmpty } from '@lightdash/common';
-import { useMutation, UseMutationOptions } from 'react-query';
+import { useMutation, UseMutationOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 
 const logoutQuery = async () =>

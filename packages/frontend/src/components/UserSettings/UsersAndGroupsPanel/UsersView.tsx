@@ -330,7 +330,7 @@ const UsersView: FC = () => {
     const [search, setSearch] = useState('');
 
     // TODO: fix the hardcoded groups number. This should be paginated.
-    const { data: organizationUsers, isLoading: isLoadingUsers } =
+    const { data: organizationUsers, isInitialLoading: isLoadingUsers } =
         useOrganizationUsers({ searchInput: search, includeGroups: 10000 });
 
     if (isLoadingUsers) {

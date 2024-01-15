@@ -46,10 +46,14 @@ const Space: FC = () => {
         projectUuid: string;
         spaceUuid: string;
     }>();
-    const { data: space, isLoading, error } = useSpace(projectUuid, spaceUuid);
-    const { data: dashboards = [], isLoading: dashboardsLoading } =
+    const {
+        data: space,
+        isInitialLoading,
+        error,
+    } = useSpace(projectUuid, spaceUuid);
+    const { data: dashboards = [], isInitialLoading: dashboardsLoading } =
         useDashboards(projectUuid);
-    const { data: savedCharts = [], isLoading: chartsLoading } =
+    const { data: savedCharts = [], isInitialLoading: chartsLoading } =
         useChartSummaries(projectUuid);
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
@@ -90,7 +94,7 @@ const Space: FC = () => {
         return <ForbiddenPanel />;
     }
 
-    if (isLoading || chartsLoading || dashboardsLoading) {
+    if (isInitialLoading || chartsLoading || dashboardsLoading) {
         return <LoadingState title="Loading space" />;
     }
 

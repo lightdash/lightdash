@@ -1,10 +1,10 @@
 import { ApiError } from '@lightdash/common';
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
 const deleteDashboard = async (id: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/${id}`,
         method: 'DELETE',
         body: undefined,
@@ -12,7 +12,7 @@ const deleteDashboard = async (id: string) =>
 
 export const useDeleteOrganizationMutation = () => {
     const { showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteDashboard, {
+    return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
             window.location.href = '/register';
         },

@@ -6,9 +6,9 @@ import {
     ValidationResponse,
 } from '@lightdash/common';
 import { Mark, Stack, Text } from '@mantine/core';
-import { FC, ReactNode } from 'react';
+import { FC } from 'react';
 
-const CustomMark: FC<{ children: ReactNode }> = ({ children }) => (
+const CustomMark: FC<React.PropsWithChildren<{}>> = ({ children }) => (
     <Mark
         color="gray"
         px={2}

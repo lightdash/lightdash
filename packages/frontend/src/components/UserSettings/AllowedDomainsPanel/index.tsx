@@ -86,10 +86,11 @@ const AllowedDomainsPanel: FC = () => {
     });
     const { setFieldValue } = form;
 
-    const { data: projects, isLoading: isLoadingProjects } = useProjects();
+    const { data: projects, isInitialLoading: isLoadingProjects } =
+        useProjects();
     const {
         data: allowedEmailDomainsData,
-        isLoading: emailDomainsLoading,
+        isInitialLoading: emailDomainsLoading,
         isSuccess,
     } = useAllowedEmailDomains();
     const { mutate, isLoading: updateEmailDomainsLoading } =

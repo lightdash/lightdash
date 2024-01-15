@@ -10,8 +10,8 @@ import {
     MetricQuery,
     MetricQueryRequest,
 } from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import {

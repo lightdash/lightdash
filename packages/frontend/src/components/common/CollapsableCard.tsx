@@ -41,7 +41,7 @@ interface CollapsableCardProps {
     isVisualizationCard?: boolean;
 }
 
-const CollapsableCard: FC<CollapsableCardProps> = ({
+const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     isVisualizationCard = false,
     children,
     onToggle,

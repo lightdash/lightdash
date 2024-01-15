@@ -3,10 +3,12 @@ import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
-const FormCollapseButton: FC<{
-    isSectionOpen: boolean;
-    onClick: () => void;
-}> = ({ isSectionOpen, onClick, children }) => {
+const FormCollapseButton: FC<
+    React.PropsWithChildren<{
+        isSectionOpen: boolean;
+        onClick: () => void;
+    }>
+> = ({ isSectionOpen, onClick, children }) => {
     return (
         <Button
             color="blue"

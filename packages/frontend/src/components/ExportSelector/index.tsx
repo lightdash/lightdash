@@ -6,8 +6,8 @@ import {
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import { FC, memo, useState } from 'react';
-import { useQuery } from 'react-query';
 import { ExportToGoogleSheet } from '../../features/export';
 import useHealth from '../../hooks/health/useHealth';
 import MantineIcon from '../common/MantineIcon';

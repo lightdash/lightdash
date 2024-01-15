@@ -12,7 +12,10 @@ const Link = styled.span`
     text-decoration-style: dotted;
 `;
 
-const RichBodyCell: FC<RichBodyCellProps> = ({ children, cell }) => {
+const RichBodyCell: FC<React.PropsWithChildren<RichBodyCellProps>> = ({
+    children,
+    cell,
+}) => {
     const item = cell.column.columnDef.meta?.item;
     const hasUrls = isField(item) && (item.urls || []).length > 0;
 

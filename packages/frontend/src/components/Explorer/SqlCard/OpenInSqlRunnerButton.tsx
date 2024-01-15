@@ -12,7 +12,7 @@ interface OpenInSqlRunnerButtonProps {
 
 const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
     ({ projectUuid }) => {
-        const { data, isLoading, error } = useCompiledSql();
+        const { data, isInitialLoading, error } = useCompiledSql();
         const searchParams = new URLSearchParams({
             sql_runner: JSON.stringify({ sql: data ?? '' }),
         });
@@ -23,7 +23,7 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                 component={Link}
                 to={`/projects/${projectUuid}/sqlRunner?${searchParams.toString()}`}
                 leftIcon={<MantineIcon icon={IconTerminal2} color="gray" />}
-                disabled={isLoading || !!error}
+                disabled={isInitialLoading || !!error}
             >
                 Open in SQL Runner
             </Button>

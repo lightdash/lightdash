@@ -534,7 +534,7 @@ type ApiResults =
     | FilterableField[]
     | DashboardAvailableFilters
     | ProjectSavedChartStatus
-    | undefined
+    | null
     | Array<unknown>
     | ApiJobStartedResults
     | ApiCreateUserTokenResults

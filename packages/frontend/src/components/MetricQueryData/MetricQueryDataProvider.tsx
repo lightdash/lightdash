@@ -99,7 +99,7 @@ type Props = {
     metricQuery: MetricQuery | undefined;
 };
 
-const MetricQueryDataProvider: FC<Props> = ({
+const MetricQueryDataProvider: FC<React.PropsWithChildren<Props>> = ({
     tableName,
     explore,
     metricQuery,

@@ -26,12 +26,12 @@ export const SyncModalDelete = () => {
         deleteScheduler(currentSchedulerUuid);
     }, [deleteScheduler, currentSchedulerUuid]);
 
-    if (scheduler.isLoading || scheduler.error) {
-        return scheduler.isLoading ? (
-            <SuboptimalState title="Loading sync" loading />
-        ) : (
-            <ErrorState error={scheduler.error.error} />
-        );
+    if (scheduler.isInitialLoading) {
+        return <SuboptimalState title="Loading sync" loading />;
+    }
+
+    if (scheduler.error) {
+        return <ErrorState error={scheduler.error.error} />;
     }
 
     return (

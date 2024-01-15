@@ -13,8 +13,8 @@ import {
     Text,
     Title,
 } from '@mantine/core';
+import { useMutation } from '@tanstack/react-query';
 import { FC, useEffect } from 'react';
-import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
@@ -72,7 +72,7 @@ const Register: FC = () => {
         },
     });
 
-    if (health.isLoading) {
+    if (health.isInitialLoading) {
         return <PageSpinner />;
     }
 

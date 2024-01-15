@@ -7,8 +7,8 @@ import {
     getItemId,
     isField,
 } from '@lightdash/common';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useQuery, UseQueryOptions } from 'react-query';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
 

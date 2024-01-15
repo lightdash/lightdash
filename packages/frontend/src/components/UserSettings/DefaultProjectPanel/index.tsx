@@ -7,8 +7,9 @@ import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOr
 import { useProjects } from '../../../hooks/useProjects';
 
 const DefaultProjectPanel: FC = () => {
-    const { isLoading: isOrganizationLoading, data } = useOrganization();
-    const { isLoading: isLoadingProjects, data: projects = [] } = useProjects();
+    const { isInitialLoading: isOrganizationLoading, data } = useOrganization();
+    const { isInitialLoading: isLoadingProjects, data: projects = [] } =
+        useProjects();
     const {
         isLoading: isOrganizationUpdateLoading,
         mutate: updateOrganization,

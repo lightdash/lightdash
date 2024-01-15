@@ -161,7 +161,7 @@ const GroupsView: FC = () => {
 
     const { mutate, isLoading: isDeleting } = useGroupDeleteMutation();
 
-    const { data: groups, isLoading: isLoadingGroups } =
+    const { data: groups, isInitialLoading: isLoadingGroups } =
         useOrganizationGroups(100); // TODO: pagination
 
     const handleDelete = useCallback(() => {

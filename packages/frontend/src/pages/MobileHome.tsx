@@ -26,13 +26,14 @@ const MobileHome: FC = () => {
     const selectedProjectUuid = params.projectUuid;
     const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
     const project = useProject(selectedProjectUuid);
-
-    const { data: pinnedItems = [], isLoading: pinnedItemsLoading } =
-        usePinnedItems(selectedProjectUuid, project.data?.pinnedListUuid);
+    const pinnedItems = usePinnedItems(
+        selectedProjectUuid,
+        project.data?.pinnedListUuid,
+    );
 
     const {
         data: mostPopularAndRecentlyUpdated,
-        isLoading: isMostPopularAndRecentlyUpdatedLoading,
+        isInitialLoading: isMostPopularAndRecentlyUpdatedLoading,
     } = useMostPopularAndRecentlyUpdated(selectedProjectUuid);
 
     const { user } = useApp();
@@ -47,18 +48,20 @@ const MobileHome: FC = () => {
                 ),
                 category: ResourceItemCategory.MOST_POPULAR,
             })) ?? [];
-        const pinnedItemsWithCategory = pinnedItems.map((item) => ({
-            ...item,
-            category: ResourceItemCategory.PINNED,
-        }));
+        const pinnedItemsWithCategory =
+            pinnedItems.data?.map((item) => ({
+                ...item,
+                category: ResourceItemCategory.PINNED,
+            })) ?? [];
+
         return [...pinnedItemsWithCategory, ...mostPopularItems];
     }, [mostPopularAndRecentlyUpdated, pinnedItems]);
 
     const isLoading =
-        project.isLoading ||
-        savedChartStatus.isLoading ||
+        project.isInitialLoading ||
+        savedChartStatus.isInitialLoading ||
         isMostPopularAndRecentlyUpdatedLoading ||
-        pinnedItemsLoading;
+        pinnedItems.isInitialLoading;
     const error = project.error || savedChartStatus.error;
 
     if (user.data?.ability?.cannot('view', 'SavedChart')) {
@@ -92,7 +95,7 @@ const MobileHome: FC = () => {
             <ResourceView
                 items={items}
                 tabs={
-                    pinnedItems.length > 0
+                    pinnedItems.data && pinnedItems.data.length > 0
                         ? [
                               {
                                   id: 'pinned',

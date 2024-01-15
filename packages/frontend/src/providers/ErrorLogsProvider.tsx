@@ -24,7 +24,9 @@ export interface ErrorLogs {
 
 const Context = createContext<ErrorLogs>(undefined as any);
 
-export const ErrorLogsProvider: FC = ({ children }) => {
+export const ErrorLogsProvider: FC<React.PropsWithChildren<{}>> = ({
+    children,
+}) => {
     const [errorLogs, setErrorLogs] = useState<ErrorLogEntry[]>([]);
     const { showToastError } = useToaster();
 

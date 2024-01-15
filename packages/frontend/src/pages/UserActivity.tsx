@@ -178,12 +178,12 @@ const UserActivity: FC = () => {
     const { data: project } = useProject(params.projectUuid);
     const { user: sessionUser } = useApp();
 
-    const { data, isLoading } = useUserActivity(params.projectUuid);
+    const { data, isInitialLoading } = useUserActivity(params.projectUuid);
     if (sessionUser.data?.ability?.cannot('view', 'Analytics')) {
         return <ForbiddenPanel />;
     }
 
-    if (isLoading || data === undefined) {
+    if (isInitialLoading || data === undefined) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading..." loading />

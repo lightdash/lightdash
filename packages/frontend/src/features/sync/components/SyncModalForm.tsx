@@ -32,7 +32,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const isEditing = action === SyncModalAction.EDIT;
     const {
         data: schedulerData,
-        isLoading: isLoadingSchedulerData,
+        isInitialLoading: isLoadingSchedulerData,
         isError: isSchedulerError,
         error: schedulerError,
     } = useScheduler(currentSchedulerUuid ?? '', {
@@ -109,13 +109,14 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
     const hasSetGoogleSheet = methods.watch('options.gdriveId') !== '';
 
-    if (isEditing && (isLoadingSchedulerData || isSchedulerError)) {
-        return isLoadingSchedulerData ? (
-            <SuboptimalState title="Loading Sync" loading />
-        ) : (
-            <ErrorState error={schedulerError.error} />
-        );
+    if (isEditing && isLoadingSchedulerData) {
+        return <SuboptimalState title="Loading Sync" loading />;
     }
+
+    if (isEditing && isSchedulerError) {
+        return <ErrorState error={schedulerError.error} />;
+    }
+
     return (
         <FormProvider {...methods}>
             <form onSubmit={methods.handleSubmit(handleSubmit)}>

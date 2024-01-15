@@ -44,9 +44,9 @@ export const hasRequiredScopes = (slackSettings: SlackSettings) => {
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 
 const SlackSettingsPanel: FC = () => {
-    const { data, isError, isLoading } = useGetSlack();
+    const { data, isError, isInitialLoading } = useGetSlack();
     const isValidSlack = data?.slackTeamName !== undefined && !isError;
-    const { data: slackChannels, isLoading: isLoadingSlackChannels } =
+    const { data: slackChannels, isInitialLoading: isLoadingSlackChannels } =
         useSlackChannels({
             enabled: isValidSlack,
         });
@@ -68,7 +68,7 @@ const SlackSettingsPanel: FC = () => {
         }
     }, [data?.notificationChannel, setFieldValue]);
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return <Loader />;
     }
 

@@ -17,13 +17,13 @@ import MantineIcon from '../../common/MantineIcon';
 export const OrganizationDeleteModal: FC<
     Pick<ModalProps, 'opened' | 'onClose'>
 > = ({ opened, onClose }) => {
-    const { isLoading, data: organization } = useOrganization();
+    const { isInitialLoading, data: organization } = useOrganization();
     const { mutateAsync, isLoading: isDeleting } =
         useDeleteOrganizationMutation();
 
     const [confirmOrgName, setConfirmOrgName] = useState<string>();
 
-    if (isLoading || !organization) return null;
+    if (isInitialLoading || !organization) return null;
 
     const handleConfirm = async () => {
         await mutateAsync(organization.organizationUuid);

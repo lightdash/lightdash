@@ -10,7 +10,7 @@ import {
     useQuery,
     useQueryClient,
     UseQueryOptions,
-} from 'react-query';
+} from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useUser from './user/useUser';
@@ -92,7 +92,7 @@ export const useSpace = (
     });
 
 const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/projects/${projectUuid}/spaces/${spaceUuid}`,
         method: 'DELETE',
         body: undefined,
@@ -102,7 +102,7 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
-    return useMutation<undefined, ApiError, string>(
+    return useMutation<null, ApiError, string>(
         (spaceUuid) => deleteQuery(projectUuid, spaceUuid),
         {
             mutationKey: ['space_delete', projectUuid],
@@ -112,7 +112,7 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
                     projectUuid,
                     'spaces',
                 ]);
-                await queryClient.invalidateQueries('pinned_items');
+                await queryClient.invalidateQueries(['pinned_items']);
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });
@@ -264,7 +264,7 @@ const deleteSpaceShare = async (
     spaceUuid: string,
     userUuid: string,
 ) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/projects/${projectUuid}/spaces/${spaceUuid}/share/${userUuid}`,
         method: 'DELETE',
         body: undefined,
@@ -277,7 +277,7 @@ export const useDeleteSpaceShareMutation = (
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
-    return useMutation<undefined, ApiError, string>(
+    return useMutation<null, ApiError, string>(
         (userUuid) => deleteSpaceShare(projectUuid, spaceUuid, userUuid),
         {
             mutationKey: ['space_unshare', projectUuid, spaceUuid],

@@ -6,12 +6,13 @@ import MantineIcon from '../../common/MantineIcon';
 import { OrganizationDeleteModal } from './DeleteOrganizationModal';
 
 export const DeleteOrganizationPanel: FC = () => {
-    const { isLoading: isLoading, data: organization } = useOrganization();
+    const { isInitialLoading: isOrganizationLoading, data: organization } =
+        useOrganization();
 
     const [showDeleteOrganizationModal, setShowDeleteOrganizationModal] =
         useState(false);
 
-    if (isLoading || organization === undefined) return null;
+    if (isOrganizationLoading || organization === undefined) return null;
 
     return (
         <Group position="right">

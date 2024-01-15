@@ -1131,14 +1131,16 @@ type ConfigCacheMap = {
     [ChartType.CUSTOM]: CustomVisConfig['config'];
 };
 
-export const ExplorerProvider: FC<{
-    isEditMode?: boolean;
-    initialState?: ExplorerReduceState;
-    savedChart?: SavedChart;
-    queryResults: ReturnType<
-        typeof useQueryResults | typeof useChartVersionResultsMutation
-    >;
-}> = ({
+export const ExplorerProvider: FC<
+    React.PropsWithChildren<{
+        isEditMode?: boolean;
+        initialState?: ExplorerReduceState;
+        savedChart?: SavedChart;
+        queryResults: ReturnType<
+            typeof useQueryResults | typeof useChartVersionResultsMutation
+        >;
+    }>
+> = ({
     isEditMode = false,
     initialState,
     savedChart,

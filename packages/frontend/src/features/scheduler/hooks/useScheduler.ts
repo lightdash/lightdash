@@ -8,13 +8,13 @@ import {
     SchedulerWithLogs,
 } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
-import { useMemo } from 'react';
 import {
     useMutation,
     useQuery,
     useQueryClient,
     UseQueryOptions,
-} from 'react-query';
+} from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -112,7 +112,7 @@ export const useSendNowScheduler = () => {
             return sendNowScheduler(res);
         },
         {
-            mutationKey: 'sendNowScheduler',
+            mutationKey: ['sendNowScheduler'],
             onSuccess: () => {},
             onError: (error) => {
                 showToastError({
@@ -200,7 +200,7 @@ export const useSendNowScheduler = () => {
 
                 queryClient.cancelQueries(['jobStatus', sendNowData?.jobId]);
             },
-            enabled: sendNowData && sendNowData?.jobId !== undefined,
+            enabled: Boolean(sendNowData && sendNowData?.jobId !== undefined),
         },
     );
 

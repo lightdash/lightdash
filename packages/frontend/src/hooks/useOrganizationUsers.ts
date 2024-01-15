@@ -4,8 +4,8 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationMemberProfileWithGroups,
 } from '@lightdash/common';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import useToaster from './toaster/useToaster';
@@ -23,14 +23,14 @@ const getOrganizationUsersQuery = async (includeGroups?: number) =>
     });
 
 const deleteUserQuery = async (id: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/user/${id}`,
         method: 'DELETE',
         body: undefined,
     });
 
 const updateUser = async (id: string, data: OrganizationMemberProfileUpdate) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/users/${id}`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -63,10 +63,10 @@ export const useOrganizationUsers = (params?: {
 export const useDeleteOrganizationUserMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteUserQuery, {
+    return useMutation<null, ApiError, string>(deleteUserQuery, {
         mutationKey: ['organization_users_delete'],
         onSuccess: async () => {
-            await queryClient.invalidateQueries('organization_users');
+            await queryClient.invalidateQueries(['organization_users']);
             showToastSuccess({
                 title: `Success! User was deleted.`,
             });
@@ -84,7 +84,7 @@ export const useUpdateUserMutation = (userUuid: string) => {
     const queryClient = useQueryClient();
     const { user } = useApp();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, OrganizationMemberProfileUpdate>(
+    return useMutation<null, ApiError, OrganizationMemberProfileUpdate>(
         (data) => {
             if (userUuid) {
                 return updateUser(userUuid, data);
@@ -95,9 +95,9 @@ export const useUpdateUserMutation = (userUuid: string) => {
             mutationKey: ['organization_membership_roles'],
             onSuccess: async () => {
                 if (user.data?.userUuid === userUuid) {
-                    await queryClient.refetchQueries('user');
+                    await queryClient.refetchQueries(['user']);
                 }
-                await queryClient.refetchQueries('organization_users');
+                await queryClient.refetchQueries(['organization_users']);
                 showToastSuccess({
                     title: `Success! User was updated.`,
                 });

@@ -35,7 +35,10 @@ const checks = passwordSchema._def.checks
     .map((check) => check.message)
     .filter((check): check is string => !!check);
 
-const PasswordTextInput: FC<Props> = ({ passwordValue, children }) => {
+const PasswordTextInput: FC<React.PropsWithChildren<Props>> = ({
+    passwordValue,
+    children,
+}) => {
     const [isPopoverOpen, { open: openPopover, close: closePopover }] =
         useDisclosure();
 

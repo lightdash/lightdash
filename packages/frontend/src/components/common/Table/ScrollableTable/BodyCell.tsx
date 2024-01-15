@@ -16,7 +16,7 @@ interface CommonBodyCellProps {
     index: number;
     isNumericItem: boolean;
     hasData: boolean;
-    cellContextMenu?: FC<CellContextMenuProps>;
+    cellContextMenu?: FC<React.PropsWithChildren<CellContextMenuProps>>;
     className?: string;
     style?: CSSProperties;
     backgroundColor?: string;
@@ -26,7 +26,7 @@ interface CommonBodyCellProps {
     minimal?: boolean;
 }
 
-const BodyCell: FC<CommonBodyCellProps> = ({
+const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     cell,
     children,
     className,

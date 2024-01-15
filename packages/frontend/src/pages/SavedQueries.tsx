@@ -19,7 +19,8 @@ import { useApp } from '../providers/AppProvider';
 
 const SavedQueries: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { isLoading, data: savedQueries = [] } = useSavedCharts(projectUuid);
+    const { isInitialLoading, data: savedQueries = [] } =
+        useSavedCharts(projectUuid);
 
     const { user, health } = useApp();
     const cannotView = user.data?.ability?.cannot('view', 'SavedChart');
@@ -35,7 +36,7 @@ const SavedQueries: FC = () => {
         }),
     );
 
-    if (isLoading && !cannotView) {
+    if (isInitialLoading && !cannotView) {
         return <LoadingState title="Loading charts" />;
     }
 

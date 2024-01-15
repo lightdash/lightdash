@@ -1,5 +1,5 @@
 import { ApiError, ViewStatistics } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from 'react-query';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 
 const getChartViewStats = async (chartUuid: string) => {

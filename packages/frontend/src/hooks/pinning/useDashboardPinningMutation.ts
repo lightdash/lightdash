@@ -1,5 +1,5 @@
 import { ApiError, Dashboard } from '@lightdash/common';
-import { useMutation, useQueryClient } from 'react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -22,8 +22,8 @@ export const useDashboardPinningMutation = () => {
                     'saved_dashboard_query',
                     variables.uuid,
                 ]);
-                await queryClient.invalidateQueries('pinned_items');
-                await queryClient.invalidateQueries('dashboards');
+                await queryClient.invalidateQueries(['pinned_items']);
+                await queryClient.invalidateQueries(['dashboards']);
                 await queryClient.invalidateQueries([
                     'space',
                     dashboard.projectUuid,

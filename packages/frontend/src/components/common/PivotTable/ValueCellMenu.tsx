@@ -24,7 +24,7 @@ type ValueCellMenuProps = {
     ) => Record<string, ResultValue>;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
-const ValueCellMenu: FC<ValueCellMenuProps> = ({
+const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
     children,
     rowIndex,
     colIndex,

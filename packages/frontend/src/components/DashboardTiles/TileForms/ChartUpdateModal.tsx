@@ -44,7 +44,8 @@ const ChartUpdateModal = ({
         },
     });
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
+    const { data: savedCharts, isInitialLoading } =
+        useChartSummaries(projectUuid);
 
     const handleConfirm = form.onSubmit(
         ({
@@ -134,7 +135,7 @@ const ChartUpdateModal = ({
                                 };
                             },
                         )}
-                        disabled={isLoading}
+                        disabled={isInitialLoading}
                         withinPortal
                         {...form.getInputProps('uuid')}
                         searchable
