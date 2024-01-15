@@ -1030,6 +1030,70 @@ export const compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields: Ex
         },
     };
 
+export const joinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeSqlFields: UncompiledExplore =
+    {
+        ...exploreReferenceInJoin,
+        joinedTables: [
+            {
+                table: 'b',
+                alias: 'custom_alias', // includes alias
+                sqlOn: '${a.dim1} = ${custom_alias.dim1}',
+                fields: ['dim2', 'dim3'], // doesn't include "dim1" that is required for join SQL
+            },
+        ],
+    };
+
+export const compiledJoinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeSqlFields: Explore =
+    {
+        ...exploreReferenceInJoinCompiled,
+        joinedTables: [
+            {
+                table: 'custom_alias',
+                sqlOn: '${a.dim1} = ${custom_alias.dim1}',
+                compiledSqlOn: '("a".dim1) = ("custom_alias".dim1)',
+                type: undefined,
+                hidden: undefined,
+            },
+        ],
+        tables: {
+            a: exploreReferenceInJoinCompiled.tables.a,
+            custom_alias: {
+                ...exploreReferenceInJoinCompiled.tables.b,
+                name: 'custom_alias',
+                label: 'Custom alias',
+                dimensions: {
+                    ...exploreReferenceInJoinCompiled.tables.b.dimensions,
+                    dim1: {
+                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
+                            .dim1,
+                        table: 'custom_alias',
+                        tableLabel: 'Custom alias',
+                        compiledSql: '"custom_alias".dim1',
+                        tablesReferences: ['custom_alias'],
+
+                        hidden: true,
+                    },
+                    dim2: {
+                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
+                            .dim2,
+                        table: 'custom_alias',
+                        tableLabel: 'Custom alias',
+                        compiledSql: '("a".dim1)',
+                        tablesReferences: ['custom_alias', 'a'],
+                    },
+                    dim3: {
+                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
+                            .dim3,
+                        table: 'custom_alias',
+                        tableLabel: 'Custom alias',
+                        compiledSql: '"custom_alias".dim3',
+                        tablesReferences: ['custom_alias'],
+                    },
+                },
+            },
+        },
+    };
+
 export const exploreWithMetricNumber: UncompiledExplore = {
     ...exploreBase,
     tables: {
