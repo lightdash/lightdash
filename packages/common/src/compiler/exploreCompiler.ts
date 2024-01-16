@@ -283,6 +283,16 @@ export class ExploreCompiler {
             ...metric,
             compiledSql: compiledMetric.sql,
             tablesReferences: Array.from(compiledMetric.tablesReferences),
+            tablesRequiredAttributes: Array.from(
+                compiledMetric.tablesReferences,
+            ).reduce(
+                (accValue, tableReference) => ({
+                    ...accValue,
+                    [tableReference]:
+                        tables[tableReference]?.requiredAttributes,
+                }),
+                {},
+            ),
         };
     }
 
@@ -399,6 +409,16 @@ export class ExploreCompiler {
             ...dimension,
             compiledSql: compiledDimension.sql,
             tablesReferences: Array.from(compiledDimension.tablesReferences),
+            tablesRequiredAttributes: Array.from(
+                compiledDimension.tablesReferences,
+            ).reduce(
+                (accValue, tableReference) => ({
+                    ...accValue,
+                    [tableReference]:
+                        tables[tableReference]?.requiredAttributes,
+                }),
+                {},
+            ),
         };
     }
 

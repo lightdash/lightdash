@@ -100,7 +100,7 @@ export class SearchService {
         const dimensionsHaveUserAttributes = results.fields.some(
             (field) =>
                 field.requiredAttributes !== undefined ||
-                Object.values(field.tablesRequiredAttributes).some(
+                Object.values(field.tablesRequiredAttributes || {}).some(
                     (tableHaveUserAttributes) =>
                         tableHaveUserAttributes !== undefined,
                 ),
@@ -127,7 +127,7 @@ export class SearchService {
                         field.requiredAttributes,
                         userAttributes,
                     ) &&
-                    Object.values(field.tablesRequiredAttributes).every(
+                    Object.values(field.tablesRequiredAttributes || {}).every(
                         (tableHaveUserAttributes) =>
                             hasUserAttributes(
                                 tableHaveUserAttributes,

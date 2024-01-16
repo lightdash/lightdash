@@ -279,17 +279,8 @@ export class SearchModel {
                                     requiredAttributes: isDimension(field)
                                         ? field.requiredAttributes
                                         : undefined,
-                                    tablesRequiredAttributes: (
-                                        field.tablesReferences || []
-                                    ).reduce(
-                                        (accValue, tableReference) => ({
-                                            ...accValue,
-                                            [tableReference]:
-                                                explore.tables[tableReference]
-                                                    ?.requiredAttributes,
-                                        }),
-                                        {},
-                                    ),
+                                    tablesRequiredAttributes:
+                                        field.tablesRequiredAttributes,
                                 });
                             }
                         });

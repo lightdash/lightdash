@@ -56,7 +56,10 @@ export type FieldSearchResult = Pick<
     | 'tableLabel'
 > & {
     requiredAttributes?: Record<string, string | string[]>;
-    tablesRequiredAttributes: Record<string, Table['requiredAttributes']>;
+    tablesRequiredAttributes?: Record<
+        string,
+        Record<string, string | string[]>
+    >;
     explore: string;
     exploreLabel: string;
 };
