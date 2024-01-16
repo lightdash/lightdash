@@ -13,6 +13,7 @@ type DbtLocalProjectAdapterArgs = {
     environment?: Record<string, string>;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
+    useDbtLs: boolean;
 };
 
 export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
@@ -25,6 +26,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         environment,
         cachedWarehouse,
         dbtVersion,
+        useDbtLs,
     }: DbtLocalProjectAdapterArgs) {
         const dbtClient = new DbtCliClient({
             dbtProjectDirectory: projectDir,
@@ -33,6 +35,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             profileName,
             target,
             dbtVersion,
+            useDbtLs,
         });
         super(dbtClient, warehouseClient, cachedWarehouse, dbtVersion);
     }

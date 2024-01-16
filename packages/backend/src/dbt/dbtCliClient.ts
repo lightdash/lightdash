@@ -69,6 +69,7 @@ type DbtCliArgs = {
     profileName?: string;
     target?: string;
     dbtVersion: SupportedDbtVersions;
+    useDbtLs?: boolean;
 };
 
 enum DbtCommands {
@@ -93,6 +94,8 @@ export class DbtCliClient implements DbtClient {
 
     dbtVersion: SupportedDbtVersions;
 
+    useDbtLs: boolean;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -100,6 +103,7 @@ export class DbtCliClient implements DbtClient {
         profileName,
         target,
         dbtVersion,
+        useDbtLs,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
@@ -108,6 +112,7 @@ export class DbtCliClient implements DbtClient {
         this.target = target;
         this.targetDirectory = undefined;
         this.dbtVersion = dbtVersion;
+        this.useDbtLs = useDbtLs ?? false;
     }
 
     private async _getTargetDirectory(): Promise<string> {
@@ -217,8 +222,13 @@ export class DbtCliClient implements DbtClient {
         const span = transaction?.startChild({
             op: 'dbt',
             description: 'getDbtManifest',
+            data: {
+                useDbtLs: this.useDbtLs,
+            },
         });
-        const logs = await this._runDbtCommand('compile');
+        const logs = await this._runDbtCommand(
+            this.useDbtLs ? 'ls' : 'compile',
+        );
         const rawManifest = {
             manifest: await this.loadDbtTargetArtifact('manifest.json'),
         };

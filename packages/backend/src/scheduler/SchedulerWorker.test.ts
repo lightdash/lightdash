@@ -2,6 +2,10 @@ import { getDailyDatesFromCron } from './SchedulerWorker';
 
 jest.mock('../clients/clients', () => ({}));
 
+jest.mock('../posthog', () => ({
+    postHogClient: undefined,
+}));
+
 describe('Cron converter', () => {
     test('Should convert cron into daily dates', () => {
         const when = new Date(2023, 0, 1); // Beggining of the day

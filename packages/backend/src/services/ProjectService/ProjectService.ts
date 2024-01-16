@@ -111,6 +111,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { postHogClient } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -397,7 +398,10 @@ export class ProjectService {
                     job.jobUuid,
                     JobStepType.TESTING_ADAPTOR,
                     async () =>
-                        ProjectService.testProjectAdapter(createProject),
+                        ProjectService.testProjectAdapter(
+                            createProject,
+                            user.userUuid,
+                        ),
                 );
 
                 const explores = await this.jobModel.tryJobStep(
@@ -622,6 +626,7 @@ export class ProjectService {
                 async () =>
                     ProjectService.testProjectAdapter(
                         updatedProject as UpdateProject,
+                        user.userUuid,
                     ),
             );
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
@@ -673,12 +678,18 @@ export class ProjectService {
         }
     }
 
-    private static async testProjectAdapter(data: UpdateProject): Promise<{
+    private static async testProjectAdapter(
+        data: UpdateProject,
+        userUuid: string,
+    ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
+        const useDbtLs =
+            (await postHogClient?.isFeatureEnabled('use-dbt-ls', userUuid)) ??
+            false;
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -687,6 +698,7 @@ export class ProjectService {
                 onWarehouseCatalogChange: () => {},
             },
             data.dbtVersion || DefaultSupportedDbtVersion,
+            useDbtLs,
         );
         try {
             await adapter.test();
@@ -724,7 +736,10 @@ export class ProjectService {
         });
     }
 
-    private async buildAdapter(projectUuid: string): Promise<{
+    private async buildAdapter(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<{
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         adapter: ProjectAdapter;
     }> {
@@ -740,6 +755,9 @@ export class ProjectService {
             await this.projectModel.getWarehouseFromCache(projectUuid);
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
+        const useDbtLs =
+            (await postHogClient?.isFeatureEnabled('use-dbt-ls', userUuid)) ??
+            false;
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -753,6 +771,7 @@ export class ProjectService {
                 },
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
+            useDbtLs,
         );
         return { adapter, sshTunnel };
     }
@@ -1803,7 +1822,10 @@ export class ProjectService {
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const { adapter, sshTunnel } = await this.buildAdapter(projectUuid);
+        const { adapter, sshTunnel } = await this.buildAdapter(
+            projectUuid,
+            user.userUuid,
+        );
         const packages = await adapter.getDbtPackages();
         try {
             const explores = await adapter.compileAllExplores();

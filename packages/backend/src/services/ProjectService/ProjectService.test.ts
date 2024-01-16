@@ -46,6 +46,10 @@ import {
     validExplore,
 } from './ProjectService.mock';
 
+jest.mock('../../posthog', () => ({
+    postHogClient: undefined,
+}));
+
 jest.mock('../../analytics/client', () => ({
     analytics: {
         track: jest.fn(),

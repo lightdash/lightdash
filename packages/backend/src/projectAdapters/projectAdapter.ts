@@ -20,6 +20,7 @@ export const projectAdapterFromConfig = async (
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersion: SupportedDbtVersions,
+    useDbtLs: boolean,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -39,6 +40,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
+                useDbtLs,
             });
         case DbtProjectType.NONE:
             return new DbtNoneCredentialsProjectAdapter({
@@ -68,6 +70,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
+                useDbtLs,
             });
         case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
@@ -82,6 +85,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
+                useDbtLs,
             });
         case DbtProjectType.BITBUCKET:
             return new DbtBitBucketProjectAdapter({
@@ -97,6 +101,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
+                useDbtLs,
             });
         case DbtProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
@@ -112,6 +117,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
+                useDbtLs,
             });
         default:
             const never: never = config;
