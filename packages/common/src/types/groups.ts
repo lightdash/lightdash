@@ -59,6 +59,7 @@ export type GroupWithMembers = Group & {
      * A list of the group's members.
      */
     members: GroupMember[];
+    memberUuids: string[];
 };
 
 export type UpdateGroupWithMembers = {
