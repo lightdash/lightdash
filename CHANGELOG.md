@@ -1,3 +1,10 @@
+## [0.945.2](https://github.com/lightdash/lightdash/compare/0.945.1...0.945.2) (2024-01-16)
+
+
+### Bug Fixes
+
+* org signup domain whitelist ([#8616](https://github.com/lightdash/lightdash/issues/8616)) ([68cd52d](https://github.com/lightdash/lightdash/commit/68cd52d44086d0bbf0da5d8804f3ca9d5953099f))
+
 ## [0.945.1](https://github.com/lightdash/lightdash/compare/0.945.0...0.945.1) (2024-01-16)
 
 
