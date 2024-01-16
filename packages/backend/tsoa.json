@@ -6,7 +6,7 @@
     ],
     "spec": {
         "name": "Lightdash API",
-        "description": "Open API documentation for all public Lightdash API endpoints",
+        "description": "Open API documentation for all public Lightdash API endpoints. \n # Authentication\nBefore you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens",
         "contact": {
             "name": "Lightdash Support",
             "email": "support@lightdash.com",
@@ -14,10 +14,6 @@
         },
         "license": "MIT",
         "tags": [
-            {
-                "name": "Get started",
-                "description": "Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens"
-            },
             {
                 "name": "My Account",
                 "description": "These routes allow users to manage their own user account."
