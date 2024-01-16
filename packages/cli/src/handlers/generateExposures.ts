@@ -2,6 +2,7 @@ import { AuthorizationError, DbtExposure } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
@@ -19,6 +20,7 @@ export const generateExposuresHandler = async (
 ) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
+    const executionId = uuidv4();
     const config = await getConfig();
     if (!(config.context?.project && config.context.serverUrl)) {
         throw new AuthorizationError(
@@ -28,6 +30,9 @@ export const generateExposuresHandler = async (
 
     await LightdashAnalytics.track({
         event: 'generate_exposures.started',
+        properties: {
+            executionId,
+        },
     });
 
     console.info(
@@ -74,6 +79,7 @@ export const generateExposuresHandler = async (
         await LightdashAnalytics.track({
             event: 'generate_exposures.completed',
             properties: {
+                executionId,
                 countExposures: Object.keys(exposures).length,
             },
         });
@@ -81,6 +87,7 @@ export const generateExposuresHandler = async (
         await LightdashAnalytics.track({
             event: 'generate_exposures.error',
             properties: {
+                executionId,
                 trigger: 'generate',
                 error: `${e.message}`,
             },

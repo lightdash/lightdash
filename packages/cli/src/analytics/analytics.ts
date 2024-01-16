@@ -42,20 +42,28 @@ type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 */
 type CliGenerateExposuresStarted = BaseTrack & {
     event: 'generate_exposures.started';
+    properties: {
+        executionId: string;
+    };
 };
 type CliGenerateExposuresCompleted = BaseTrack & {
     event: 'generate_exposures.completed';
     properties: {
+        executionId: string;
         countExposures: number;
     };
 };
 type CliGenerateExposuresError = BaseTrack & {
     event: 'generate_exposures.error';
+    properties: {
+        executionId: string;
+    };
 };
 
 type CliGenerateStarted = BaseTrack & {
     event: 'generate.started';
     properties: {
+        executionId: string;
         numModelsSelected: number | undefined;
         trigger: string; // generate or dbt
     };
@@ -63,6 +71,7 @@ type CliGenerateStarted = BaseTrack & {
 type CliGenerateCompleted = BaseTrack & {
     event: 'generate.completed';
     properties: {
+        executionId: string;
         numModelsSelected: number | undefined;
         trigger: string; // generate or dbt
     };
@@ -70,6 +79,7 @@ type CliGenerateCompleted = BaseTrack & {
 type CliGenerateError = BaseTrack & {
     event: 'generate.error';
     properties: {
+        executionId: string;
         trigger: string;
         error: string;
     };
@@ -92,18 +102,28 @@ type CliDbtError = BaseTrack & {
 type CliPreviewStarted = BaseTrack & {
     event: 'preview.started';
     properties: {
+        executionId: string;
         projectId: string;
     };
 };
 type CliPreviewCompleted = BaseTrack & {
     event: 'preview.completed';
     properties: {
+        executionId: string;
+        projectId: string;
+    };
+};
+type CliPreviewStopped = BaseTrack & {
+    event: 'preview.stopped';
+    properties: {
+        executionId: string;
         projectId: string;
     };
 };
 type CliPreviewError = BaseTrack & {
     event: 'preview.error';
     properties: {
+        executionId: string;
         projectId: string;
         error: string;
     };
@@ -112,18 +132,21 @@ type CliPreviewError = BaseTrack & {
 type CliRefreshStarted = BaseTrack & {
     event: 'refresh.started';
     properties: {
+        executionId: string;
         projectId: string;
     };
 };
 type CliRefreshCompleted = BaseTrack & {
     event: 'refresh.completed';
     properties: {
+        executionId: string;
         projectId: string;
     };
 };
 type CliRefreshError = BaseTrack & {
     event: 'refresh.error';
     properties: {
+        executionId: string;
         projectId: string;
         error: string;
     };
@@ -132,6 +155,7 @@ type CliRefreshError = BaseTrack & {
 type CliCompileStarted = BaseTrack & {
     event: 'compile.started';
     properties: {
+        executionId: string;
         dbtVersion: string;
         skipDbtCompile: boolean;
         skipWarehouseCatalog: boolean;
@@ -141,6 +165,7 @@ type CliCompileStarted = BaseTrack & {
 type CliCompileCompleted = BaseTrack & {
     event: 'compile.completed';
     properties: {
+        executionId: string;
         explores: number;
         errors: number;
         dbtMetrics: number;
@@ -150,6 +175,7 @@ type CliCompileCompleted = BaseTrack & {
 type CliCompileError = BaseTrack & {
     event: 'compile.error';
     properties: {
+        executionId: string;
         dbtVersion: string;
         error: string;
     };
@@ -165,6 +191,7 @@ type CliDeployTriggered = BaseTrack & {
 type CliCreateStarted = BaseTrack & {
     event: 'create.started';
     properties: {
+        executionId: string;
         projectName: string;
         isDefaultName: boolean;
     };
@@ -172,6 +199,7 @@ type CliCreateStarted = BaseTrack & {
 type CliCreateCompleted = BaseTrack & {
     event: 'create.completed';
     properties: {
+        executionId: string;
         projectId: string;
         projectName: string;
     };
@@ -179,6 +207,7 @@ type CliCreateCompleted = BaseTrack & {
 type CliCreateError = BaseTrack & {
     event: 'create.error';
     properties: {
+        executionId: string;
         error: string;
     };
 };
@@ -190,6 +219,7 @@ type CliStartStopPreview = BaseTrack & {
         | 'stop_preview.delete'
         | 'stop_preview.missing';
     properties: {
+        executionId: string;
         projectId: string;
         name: string;
     };
@@ -218,6 +248,7 @@ type Track =
     | CliDbtError
     | CliPreviewStarted
     | CliPreviewCompleted
+    | CliPreviewStopped
     | CliPreviewError
     | CliRefreshStarted
     | CliRefreshCompleted

@@ -10,6 +10,7 @@ import {
 import inquirer from 'inquirer';
 import path from 'path';
 import { URL } from 'url';
+import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
@@ -71,6 +72,7 @@ export const deploy = async (
 };
 
 const createNewProject = async (
+    executionId: string,
     options: DeployHandlerOptions,
 ): Promise<Project | undefined> => {
     console.error('');
@@ -108,6 +110,7 @@ const createNewProject = async (
     await LightdashAnalytics.track({
         event: 'create.started',
         properties: {
+            executionId,
             projectName,
             isDefaultName: dbtName === projectName,
         },
@@ -127,6 +130,7 @@ const createNewProject = async (
         await LightdashAnalytics.track({
             event: 'create.completed',
             properties: {
+                executionId,
                 projectId: project.projectUuid,
                 projectName,
             },
@@ -137,6 +141,7 @@ const createNewProject = async (
         await LightdashAnalytics.track({
             event: 'create.error',
             properties: {
+                executionId,
                 error: `Error creating developer preview ${e}`,
             },
         });
@@ -149,13 +154,14 @@ const createNewProject = async (
 export const deployHandler = async (options: DeployHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
+    const executionId = uuidv4();
     const explores = await compile(options);
 
     const config = await getConfig();
     let projectUuid: string;
 
     if (options.create !== undefined) {
-        const project = await createNewProject(options);
+        const project = await createNewProject(executionId, options);
         if (!project) {
             console.error(
                 "To preview your project, you'll need to manually enter your warehouse connection details.",
