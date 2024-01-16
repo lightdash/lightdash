@@ -110,7 +110,7 @@
         "winston": "^3.3.3"
     },
     "scripts": {
-        "generate-api": "tsoa spec-and-routes",
+        "generate-api": "tsoa spec-and-routes --configuration tsoa.yml",
         "dev": "LIGHTDASH_MODE=development HEADLESS=true tsx watch --clear-screen=false src/index.ts",
         "debug": "tsx watch --clear-screen=false --inspect-brk=0.0.0.0:9229 src/index.ts ",
         "build": "tsc --build tsconfig.json",
