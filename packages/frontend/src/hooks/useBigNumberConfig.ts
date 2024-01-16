@@ -42,7 +42,7 @@ const formatComparisonValue = (
     comparisonDiff: ComparisonDiffTypes | undefined,
     item: ItemsMap[string] | undefined,
     value: number | string,
-    bigNumberStyle: CompactOrAlias | undefined,
+    bigNumberComparisonStyle: CompactOrAlias | undefined,
 ) => {
     const prefix =
         comparisonDiff === ComparisonDiffTypes.POSITIVE ||
@@ -64,12 +64,12 @@ const formatComparisonValue = (
             }
             return `${prefix}${formatValue(value, {
                 format: isField(item) ? item.format : undefined,
-                round: bigNumberStyle
+                round: bigNumberComparisonStyle
                     ? 2
                     : isField(item)
                     ? item.round
                     : undefined,
-                compact: bigNumberStyle,
+                compact: bigNumberComparisonStyle,
             })}`;
         default:
             if (item !== undefined && isTableCalculation(item)) {
@@ -77,12 +77,12 @@ const formatComparisonValue = (
             }
             return formatValue(value, {
                 format: isField(item) ? item.format : undefined,
-                round: bigNumberStyle
+                round: bigNumberComparisonStyle
                     ? 2
                     : isField(item)
                     ? item.round
                     : undefined,
-                compact: bigNumberStyle,
+                compact: bigNumberComparisonStyle,
             });
     }
 };
@@ -166,6 +166,9 @@ const useBigNumberConfig = (
     const [bigNumberStyle, setBigNumberStyle] = useState<
         BigNumber['style'] | undefined
     >(bigNumberConfigData?.style);
+    const [bigNumberComparisonStyle, setBigNumberComparisonStyle] = useState<
+        BigNumber['style'] | undefined
+    >(bigNumberConfigData?.style);
 
     const [showComparison, setShowComparison] = useState<
         BigNumber['showComparison'] | undefined
@@ -188,6 +191,7 @@ const useBigNumberConfig = (
         setShowBigNumberLabel(bigNumberConfigData?.showBigNumberLabel ?? true);
 
         setBigNumberStyle(bigNumberConfigData?.style);
+        setBigNumberComparisonStyle(bigNumberConfigData?.style);
 
         setShowComparison(bigNumberConfigData?.showComparison ?? false);
         setComparisonFormat(
@@ -266,14 +270,14 @@ const useBigNumberConfig = (
                   comparisonDiff,
                   item,
                   unformattedValue,
-                  bigNumberStyle,
+                  bigNumberComparisonStyle,
               );
     }, [
         comparisonFormat,
         comparisonDiff,
         item,
         unformattedValue,
-        bigNumberStyle,
+        bigNumberComparisonStyle,
     ]);
 
     const comparisonTooltip = useMemo(() => {
@@ -326,6 +330,8 @@ const useBigNumberConfig = (
         validConfig,
         bigNumberStyle,
         setBigNumberStyle,
+        bigNumberComparisonStyle,
+        setBigNumberComparisonStyle,
         showStyle,
         selectedField,
         setSelectedField,
