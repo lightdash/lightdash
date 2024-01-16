@@ -12,6 +12,7 @@ import {
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import inquirer from 'inquirer';
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
 import { getDbtManifest, loadManifest } from '../dbt/manifest';
@@ -40,9 +41,11 @@ export const compile = async (options: CompileHandlerOptions) => {
     const dbtVersion = await getDbtVersion();
     const manifestVersion = await getDbtManifest();
     GlobalState.debug(`> dbt version ${dbtVersion}`);
+    const executionId = uuidv4();
     await LightdashAnalytics.track({
         event: 'compile.started',
         properties: {
+            executionId,
             dbtVersion,
             useDbtList: !!options.useDbtList,
             skipWarehouseCatalog: !!options.skipWarehouseCatalog,
@@ -154,6 +157,7 @@ ${errors.join('')}`),
         await LightdashAnalytics.track({
             event: 'compile.error',
             properties: {
+                executionId,
                 dbtVersion,
                 error: `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
             },
@@ -201,6 +205,7 @@ ${errors.join('')}`),
     await LightdashAnalytics.track({
         event: 'compile.completed',
         properties: {
+            executionId,
             explores: explores.length,
             errors,
             dbtMetrics: Object.values(manifest.metrics).length,

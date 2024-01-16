@@ -9,6 +9,7 @@ import {
     uniqueNamesGenerator,
 } from 'unique-names-generator';
 import { URL } from 'url';
+import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setPreviewProject, unsetPreviewProject } from '../config';
 import { getDbtContext } from '../dbt/context';
@@ -35,7 +36,10 @@ type StopPreviewHandlerOptions = {
     verbose: boolean;
 };
 
-const cleanupProject = async (projectUuid: string): Promise<void> => {
+const cleanupProject = async (
+    executionId: string,
+    projectUuid: string,
+): Promise<void> => {
     const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
 
     try {
@@ -45,8 +49,9 @@ const cleanupProject = async (projectUuid: string): Promise<void> => {
             body: undefined,
         });
         await LightdashAnalytics.track({
-            event: 'preview.completed',
+            event: 'preview.stopped',
             properties: {
+                executionId,
                 projectId: projectUuid,
             },
         });
@@ -86,6 +91,7 @@ export const previewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+    const executionId = uuidv4();
     await checkLightdashVersion();
     let name = options?.name;
     if (name === undefined) {
@@ -143,6 +149,7 @@ export const previewHandler = async (
     await LightdashAnalytics.track({
         event: 'preview.started',
         properties: {
+            executionId,
             projectId: project.projectUuid,
         },
     });
@@ -157,7 +164,7 @@ export const previewHandler = async (
         setPreviewProject(project.projectUuid, name);
 
         process.on('SIGINT', async () => {
-            await cleanupProject(project!.projectUuid);
+            await cleanupProject(executionId, project!.projectUuid);
 
             process.exit(0);
         });
@@ -167,6 +174,13 @@ export const previewHandler = async (
                 project,
             )}\n`,
         );
+        await LightdashAnalytics.track({
+            event: 'preview.completed',
+            properties: {
+                executionId,
+                projectId: project.projectUuid,
+            },
+        });
 
         const absoluteProjectPath = path.resolve(options.projectDir);
         const context = await getDbtContext({
@@ -226,6 +240,7 @@ export const previewHandler = async (
         await LightdashAnalytics.track({
             event: 'preview.error',
             properties: {
+                executionId,
                 projectId: project.projectUuid,
                 error: `Error creating developer preview ${e}`,
             },
@@ -233,7 +248,7 @@ export const previewHandler = async (
         throw e;
     }
 
-    await cleanupProject(project.projectUuid);
+    await cleanupProject(executionId, project.projectUuid);
 };
 
 export const startPreviewHandler = async (
@@ -241,7 +256,7 @@ export const startPreviewHandler = async (
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
-
+    const executionId = uuidv4();
     if (!options.name) {
         console.error(styles.error(`--name argument is required`));
         return;
@@ -254,6 +269,7 @@ export const startPreviewHandler = async (
         await LightdashAnalytics.track({
             event: 'start_preview.update',
             properties: {
+                executionId,
                 projectId: previewProject.projectUuid,
                 name: options.name,
             },
@@ -305,6 +321,7 @@ export const startPreviewHandler = async (
         await LightdashAnalytics.track({
             event: 'start_preview.create',
             properties: {
+                executionId,
                 projectId: project.projectUuid,
                 name: options.name,
             },
@@ -330,7 +347,7 @@ export const stopPreviewHandler = async (
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
-
+    const executionId = uuidv4();
     if (!options.name) {
         console.error(styles.error(`--name argument is required`));
         return;
@@ -345,6 +362,7 @@ export const stopPreviewHandler = async (
         await LightdashAnalytics.track({
             event: 'stop_preview.delete',
             properties: {
+                executionId,
                 projectId: previewProject.projectUuid,
                 name: options.name,
             },

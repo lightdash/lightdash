@@ -9,6 +9,7 @@ import {
     ParameterError,
     Project,
 } from '@lightdash/common';
+import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
@@ -91,7 +92,7 @@ type RefreshHandlerOptions = {
 export const refreshHandler = async (options: RefreshHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
-
+    const executionId = uuidv4();
     const config = await getConfig();
     if (!(config.context?.project && config.context.serverUrl)) {
         throw new AuthorizationError(
@@ -112,6 +113,7 @@ export const refreshHandler = async (options: RefreshHandlerOptions) => {
         await LightdashAnalytics.track({
             event: 'refresh.started',
             properties: {
+                executionId,
                 projectId: projectUuid,
             },
         });
@@ -122,6 +124,7 @@ export const refreshHandler = async (options: RefreshHandlerOptions) => {
         await LightdashAnalytics.track({
             event: 'refresh.completed',
             properties: {
+                executionId,
                 projectId: projectUuid,
             },
         });
@@ -130,6 +133,7 @@ export const refreshHandler = async (options: RefreshHandlerOptions) => {
         await LightdashAnalytics.track({
             event: 'refresh.error',
             properties: {
+                executionId,
                 projectId: projectUuid,
                 error: `Error refreshing project: ${e}`,
             },
