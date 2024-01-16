@@ -398,10 +398,7 @@ export class ProjectService {
                     job.jobUuid,
                     JobStepType.TESTING_ADAPTOR,
                     async () =>
-                        ProjectService.testProjectAdapter(
-                            createProject,
-                            user.userUuid,
-                        ),
+                        ProjectService.testProjectAdapter(createProject, user),
                 );
 
                 const explores = await this.jobModel.tryJobStep(
@@ -626,7 +623,7 @@ export class ProjectService {
                 async () =>
                     ProjectService.testProjectAdapter(
                         updatedProject as UpdateProject,
-                        user.userUuid,
+                        user,
                     ),
             );
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
@@ -680,7 +677,7 @@ export class ProjectService {
 
     private static async testProjectAdapter(
         data: UpdateProject,
-        userUuid: string,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -688,8 +685,17 @@ export class ProjectService {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
         const useDbtLs =
-            (await postHogClient?.isFeatureEnabled('use-dbt-ls', userUuid)) ??
-            false;
+            (await postHogClient?.isFeatureEnabled(
+                'use-dbt-ls',
+                user.userUuid,
+                user.organizationUuid !== undefined
+                    ? {
+                          groups: {
+                              organization: user.organizationUuid,
+                          },
+                      }
+                    : {},
+            )) ?? false;
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -738,7 +744,7 @@ export class ProjectService {
 
     private async buildAdapter(
         projectUuid: string,
-        userUuid: string,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<{
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         adapter: ProjectAdapter;
@@ -756,8 +762,19 @@ export class ProjectService {
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
         const useDbtLs =
-            (await postHogClient?.isFeatureEnabled('use-dbt-ls', userUuid)) ??
-            false;
+            (await postHogClient?.isFeatureEnabled(
+                'use-dbt-ls',
+                user.userUuid,
+                user.organizationUuid !== undefined
+                    ? {
+                          groups: {
+                              organization: user.organizationUuid,
+                          },
+                      }
+                    : {},
+            )) ?? false;
+        console.log(await postHogClient?.getAllFlags(user.userUuid));
+        console.log('projectservice', useDbtLs);
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -1824,7 +1841,7 @@ export class ProjectService {
         // Might want to cache parts of this in future if slow
         const { adapter, sshTunnel } = await this.buildAdapter(
             projectUuid,
-            user.userUuid,
+            user,
         );
         const packages = await adapter.getDbtPackages();
         try {

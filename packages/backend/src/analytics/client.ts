@@ -64,6 +64,7 @@ export const identifyUser = (
                 uuid: user.organizationUuid,
                 name: user.organizationName,
             },
+            distinctId: user.userUuid,
         });
     }
 };
