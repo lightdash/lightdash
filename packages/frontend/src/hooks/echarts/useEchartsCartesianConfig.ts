@@ -847,6 +847,16 @@ const getEchartAxis = ({
                     return formatTableCalculationValue(axisItem, value);
                 },
             };
+            axisConfig.axisPointer = {
+                label: {
+                    formatter: (value: any) => {
+                        return formatTableCalculationValue(
+                            axisItem,
+                            value.value,
+                        );
+                    },
+                },
+            };
         }
         if (axisMinInterval) {
             axisConfig.minInterval = axisMinInterval;
@@ -1420,21 +1430,6 @@ const useEchartsCartesianConfig = (
                 type: 'shadow',
                 label: {
                     show: true,
-                    formatter: (value: any) => {
-                        const dimensionId =
-                            value.seriesData[0].dimensionNames?.[0];
-
-                        if (dimensionId !== undefined && itemsMap) {
-                            const field = itemsMap[dimensionId];
-                            if (isTableCalculation(field)) {
-                                return formatTableCalculationValue(
-                                    field as TableCalculation,
-                                    value.value,
-                                );
-                            }
-                        }
-                        return value.value;
-                    },
                 },
             },
             formatter: (params) => {
