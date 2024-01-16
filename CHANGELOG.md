@@ -1,3 +1,15 @@
+# [0.943.0](https://github.com/lightdash/lightdash/compare/0.942.0...0.943.0) (2024-01-16)
+
+
+### Bug Fixes
+
+* explore from here long url ([#8594](https://github.com/lightdash/lightdash/issues/8594)) ([14d625a](https://github.com/lightdash/lightdash/commit/14d625ad09ad64efd4fea3e1d4e9216db413e4b1))
+
+
+### Features
+
+* format comparison differently in big value charts ([#8572](https://github.com/lightdash/lightdash/issues/8572)) ([8c60c9c](https://github.com/lightdash/lightdash/commit/8c60c9ccd65ea21ceb47a0d3daa71ae1652387b8))
+
 # [0.942.0](https://github.com/lightdash/lightdash/compare/0.941.0...0.942.0) (2024-01-15)
 
 
