@@ -45,6 +45,7 @@ const emptyFilters: DashboardFilters = {
 };
 
 type DashboardContext = {
+    isDashboardLoading: boolean;
     dashboard: Dashboard | undefined;
     dashboardError: ApiError | null;
     dashboardTiles: Dashboard['tiles'] | undefined;
@@ -113,28 +114,29 @@ export const DashboardProvider: React.FC<
         dashboardUuid: string;
     }>();
 
-    const { data: dashboard, error: dashboardError } = useDashboardQuery(
-        dashboardUuid,
-        {
-            select: (d) => {
-                if (schedulerFilters) {
-                    const overriddenDimensions = applyDimensionOverrides(
-                        d.filters,
-                        schedulerFilters,
-                    );
+    const {
+        data: dashboard,
+        isInitialLoading: isDashboardLoading,
+        error: dashboardError,
+    } = useDashboardQuery(dashboardUuid, {
+        select: (d) => {
+            if (schedulerFilters) {
+                const overriddenDimensions = applyDimensionOverrides(
+                    d.filters,
+                    schedulerFilters,
+                );
 
-                    return {
-                        ...d,
-                        filters: {
-                            ...d.filters,
-                            dimensions: overriddenDimensions,
-                        },
-                    };
-                }
-                return d;
-            },
+                return {
+                    ...d,
+                    filters: {
+                        ...d.filters,
+                        dimensions: overriddenDimensions,
+                    },
+                };
+            }
+            return d;
         },
-    );
+    });
 
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
 
@@ -538,6 +540,7 @@ export const DashboardProvider: React.FC<
     );
 
     const value = {
+        isDashboardLoading,
         dashboard,
         dashboardError,
         dashboardTiles,

@@ -1,5 +1,5 @@
 import { DashboardFilters, DashboardTile } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 
 const useDashboardStorage = () => {
     const getIsEditingDashboardChart = useCallback(() => {
@@ -67,23 +67,14 @@ const useDashboardStorage = () => {
         [],
     );
 
-    return useMemo(() => {
-        return {
-            storeDashboard: storeDashboard,
-            clearDashboardStorage: clearDashboardStorage,
-            getEditingDashboardInfo: getEditingDashboardInfo,
-            getIsEditingDashboardChart: getIsEditingDashboardChart,
-            clearIsEditingDashboardChart: clearIsEditingDashboardChart,
-            getHasDashboardChanges: getHasDashboardChanges,
-        };
-    }, [
-        storeDashboard,
-        clearDashboardStorage,
-        getEditingDashboardInfo,
-        getIsEditingDashboardChart,
-        clearIsEditingDashboardChart,
-        getHasDashboardChanges,
-    ]);
+    return {
+        storeDashboard: storeDashboard,
+        clearDashboardStorage: clearDashboardStorage,
+        getEditingDashboardInfo: getEditingDashboardInfo,
+        getIsEditingDashboardChart: getIsEditingDashboardChart,
+        clearIsEditingDashboardChart: clearIsEditingDashboardChart,
+        getHasDashboardChanges: getHasDashboardChanges,
+    };
 };
 
 export default useDashboardStorage;

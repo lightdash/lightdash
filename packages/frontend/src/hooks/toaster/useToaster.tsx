@@ -90,10 +90,6 @@ const useToaster = () => {
                             )}
                         </Stack>
                     ) : undefined,
-                onOpen: (props: NotificationProps) => {
-                    rest.onOpen?.(props);
-                    if (props.id) openedKeys.current.add(props.id);
-                },
                 onClose: (props: NotificationProps) => {
                     rest.onClose?.(props);
                     if (props.id) openedKeys.current.delete(props.id);
