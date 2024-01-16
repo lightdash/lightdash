@@ -1,3 +1,10 @@
+# [0.946.0](https://github.com/lightdash/lightdash/compare/0.945.2...0.946.0) (2024-01-16)
+
+
+### Features
+
+* use dbt ls on compile (feature flagged) ([#8618](https://github.com/lightdash/lightdash/issues/8618)) ([55b76e1](https://github.com/lightdash/lightdash/commit/55b76e17dc2115c802e739a9d222eb2ade872fae))
+
 ## [0.945.2](https://github.com/lightdash/lightdash/compare/0.945.1...0.945.2) (2024-01-16)
 
 
