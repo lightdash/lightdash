@@ -103,7 +103,7 @@ const TileUpdateModal = <T extends Tile>({
 
                     <Group position="right" mt="sm">
                         <Button variant="outline" onClick={() => onClose?.()}>
-                            Cancels
+                            Cancel
                         </Button>
 
                         <Button type="submit" disabled={!form.isValid()}>
