@@ -121,6 +121,9 @@ type CliCompileStarted = BaseTrack & {
     event: 'compile.started';
     properties: {
         dbtVersion: string;
+        skipDbtCompile: boolean;
+        skipWarehouseCatalog: boolean;
+        useDbtList: boolean;
     };
 };
 type CliCompileCompleted = BaseTrack & {

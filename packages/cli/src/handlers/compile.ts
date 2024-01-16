@@ -44,6 +44,9 @@ export const compile = async (options: CompileHandlerOptions) => {
         event: 'compile.started',
         properties: {
             dbtVersion,
+            useDbtList: !!options.useDbtList,
+            skipWarehouseCatalog: !!options.skipWarehouseCatalog,
+            skipDbtCompile: !!options.skipDbtCompile,
         },
     });
 
