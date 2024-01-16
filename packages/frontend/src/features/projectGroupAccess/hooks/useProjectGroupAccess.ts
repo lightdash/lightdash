@@ -5,7 +5,12 @@ import {
     ProjectGroupAccess,
     UpdateProjectGroupAccess,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    UseQueryOptions,
+} from '@tanstack/react-query';
 import {
     addProjectGroupAccess,
     getProjectGroupAccessList,
@@ -13,10 +18,14 @@ import {
     updateProjectGroupAccess,
 } from '../api/projectGroupAccessApi';
 
-export function useProjectGroupAccessList(projectUuid: string) {
+export function useProjectGroupAccessList(
+    projectUuid: string,
+    useQueryOptions?: UseQueryOptions<ProjectGroupAccess[], LightdashError>,
+) {
     return useQuery<ProjectGroupAccess[], LightdashError>({
         queryKey: ['projects', projectUuid, 'groupAccesses'],
         queryFn: () => getProjectGroupAccessList(projectUuid),
+        ...useQueryOptions,
     });
 }
 

@@ -1,5 +1,6 @@
 import {
     OrganizationMemberProfile,
+    OrganizationMemberRole,
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
@@ -19,20 +20,28 @@ import { IconKey, IconTrash } from '@tabler/icons-react';
 import React, { FC, useState } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
-const ProjectAccessRow: FC<{
+type InheritedRoles = {
+    organization: OrganizationMemberRole;
+    project?: ProjectMemberRole;
+    group?: string;
+};
+
+type Props = {
     user: OrganizationMemberProfile | ProjectMemberProfile;
-    relevantOrgRole?: OrganizationMemberProfile['role'];
+    inheritedRoles: InheritedRoles;
     roleTooltip?: string;
     onDelete?: () => void;
     onUpdate?: (newRole: ProjectMemberRole) => void;
-}> = ({
+};
+
+const ProjectAccessRow: FC<Props> = ({
     user: { firstName, lastName, email, role },
-    relevantOrgRole,
-    roleTooltip,
+    inheritedRoles,
     onDelete,
     onUpdate,
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
     return (
         <>
             <tr>
@@ -71,8 +80,8 @@ const ProjectAccessRow: FC<{
                                 value={role}
                                 sx={{ flex: 1 }}
                                 error={
-                                    relevantOrgRole
-                                        ? `This user inherits the organization role: ${relevantOrgRole}`
+                                    overalappingRole
+                                        ? `This user inherits the ${overalappingRole.type} role: ${overalappingRole.role}`
                                         : undefined
                                 }
                             />
