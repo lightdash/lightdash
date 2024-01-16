@@ -131,7 +131,7 @@ const UserCompletionModal: FC = () => {
                                             )} to join the organization as a viewer`}
                                             disabled={isLoading}
                                             {...form.getInputProps(
-                                                'organizationName',
+                                                'enableEmailDomainAccess',
                                                 { type: 'checkbox' },
                                             )}
                                         />
