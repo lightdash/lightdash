@@ -66,12 +66,14 @@ const UserListItem: FC<{
                     <Group spacing="sm">
                         <Text fz="xs" color="gray.6">
                             {orgUserAttribute.users.length} user
-                            {orgUserAttribute.users.length > 1 ? 's' : ''}
+                            {orgUserAttribute.users.length !== 1 ? 's' : ''}
                         </Text>
                         {isGroupsFeatureFlagEnabled && (
                             <Text fz="xs" color="gray.6">
                                 {orgUserAttribute.groups.length} group
-                                {orgUserAttribute.groups.length > 1 ? 's' : ''}
+                                {orgUserAttribute.groups.length !== 1
+                                    ? 's'
+                                    : ''}
                             </Text>
                         )}
                     </Group>
