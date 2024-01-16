@@ -1,6 +1,7 @@
 import { ParseError } from '@lightdash/common';
 import execa from 'execa';
 import GlobalState from '../../globalState';
+import { getDbtVersion } from './getDbtVersion';
 
 export type DbtCompileOptions = {
     profilesDir: string;
@@ -17,6 +18,8 @@ export type DbtCompileOptions = {
     state: string | undefined;
     fullRefresh: boolean | undefined;
     skipDbtCompile: boolean | undefined;
+    skipWarehouseCatalog: boolean | undefined;
+    useDbtList: boolean | undefined;
 };
 
 const dbtCompileArgs = [
@@ -62,5 +65,35 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
         console.error(stderr);
     } catch (e: any) {
         throw new ParseError(`Failed to run dbt compile:\n  ${e.message}`);
+    }
+};
+
+export const dbtList = async (
+    options: DbtCompileOptions,
+): Promise<string[]> => {
+    try {
+        const args = [
+            ...optionsToArgs(options),
+            '--output',
+            'json',
+            '--output-keys',
+            'unique_id',
+        ];
+        const version = await getDbtVersion();
+        // older dbt versions don't support --quiet flag
+        if (!version.startsWith('1.3.') && !version.startsWith('1.4.')) {
+            args.push('--quiet');
+        }
+        GlobalState.debug(`> Running: dbt ls ${args.join(' ')}`);
+        const { stdout, stderr } = await execa('dbt', ['ls', ...args]);
+        const models = stdout
+            .split('\n')
+            .map<string>((line) => JSON.parse(line).unique_id)
+            .filter((modelId) => modelId.startsWith('model.')); // filter models by name because "--models" and "--resource_type" are mutually exclusive arguments
+        GlobalState.debug(`> Models: ${models.join(' ')}`);
+        console.error(stderr);
+        return models;
+    } catch (e: any) {
+        throw new ParseError(`Failed to run dbt ls:\n  ${e.message}`);
     }
 };

@@ -7,6 +7,7 @@ import {
     isSupportedDbtAdapter,
     isWeekDay,
     ParseError,
+    WarehouseCatalog,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import inquirer from 'inquirer';
@@ -22,7 +23,7 @@ import {
 import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { dbtCompile, DbtCompileOptions } from './dbt/compile';
+import { dbtCompile, DbtCompileOptions, dbtList } from './dbt/compile';
 import { getDbtVersion, isSupportedDbtVersion } from './dbt/getDbtVersion';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
@@ -43,6 +44,9 @@ export const compile = async (options: CompileHandlerOptions) => {
         event: 'compile.started',
         properties: {
             dbtVersion,
+            useDbtList: !!options.useDbtList,
+            skipWarehouseCatalog: !!options.skipWarehouseCatalog,
+            skipDbtCompile: !!options.skipDbtCompile,
         },
     });
 
@@ -68,8 +72,13 @@ export const compile = async (options: CompileHandlerOptions) => {
     }
 
     // Skipping assumes manifest.json already exists.
-    if (!options.skipDbtCompile) {
+    let compiledModelIds: string[] | undefined;
+    if (options.useDbtList) {
+        compiledModelIds = await dbtList(options);
+    } else if (!options.skipDbtCompile) {
         await dbtCompile(options);
+    } else {
+        GlobalState.debug('> Skipping dbt compile');
     }
 
     const absoluteProjectPath = path.resolve(options.projectDir);
@@ -97,7 +106,13 @@ export const compile = async (options: CompileHandlerOptions) => {
             : undefined,
     });
     const manifest = await loadManifest({ targetDir: context.targetDir });
-    const models = getModelsFromManifest(manifest);
+    const models = getModelsFromManifest(manifest).filter((model) => {
+        if (compiledModelIds) {
+            return compiledModelIds.includes(model.unique_id);
+        }
+        // in case they skipped the compile step, we check if the models are compiled
+        return model.compiled;
+    });
 
     const adapterType = manifest.metadata.adapter_type;
 
@@ -118,10 +133,16 @@ ${errors.join('')}`),
         );
     }
 
-    // Ideally we'd skip this potentially expensive step
-    const catalog = await warehouseClient.getCatalog(
-        getSchemaStructureFromDbtModels(validModels),
-    );
+    // Skipping assumes yml has the field types.
+    let catalog: WarehouseCatalog = {};
+    if (!options.skipWarehouseCatalog) {
+        GlobalState.debug('> Fetching warehouse catalog');
+        catalog = await warehouseClient.getCatalog(
+            getSchemaStructureFromDbtModels(validModels),
+        );
+    } else {
+        GlobalState.debug('> Skipping warehouse catalog');
+    }
 
     const validModelsWithTypes = attachTypesToModels(
         validModels,
