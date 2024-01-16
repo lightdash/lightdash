@@ -20,6 +20,7 @@ type Args = {
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
+    useDbtLs: boolean;
 };
 
 export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
@@ -36,6 +37,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         environment,
         cachedWarehouse,
         dbtVersion,
+        useDbtLs,
     }: Args) {
         const remoteRepositoryUrl = `https://${personalAccessToken}@dev.azure.com/${organization}/${project}/_git/${repository}`;
         super({
@@ -48,6 +50,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             environment,
             cachedWarehouse,
             dbtVersion,
+            useDbtLs,
         });
     }
 }

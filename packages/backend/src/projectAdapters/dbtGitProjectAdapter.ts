@@ -29,6 +29,7 @@ export type DbtGitProjectAdapterArgs = {
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
+    useDbtLs: boolean;
 };
 
 const stripTokensFromUrls = (raw: string) => {
@@ -72,6 +73,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         environment,
         cachedWarehouse,
         dbtVersion,
+        useDbtLs,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = tempy.directory({
             prefix: 'git_',
@@ -88,6 +90,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             environment,
             cachedWarehouse,
             dbtVersion,
+            useDbtLs,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;

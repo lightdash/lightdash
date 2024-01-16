@@ -22,6 +22,7 @@ type DbtGithubProjectAdapterArgs = {
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
+    useDbtLs: boolean;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -37,6 +38,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         environment,
         cachedWarehouse,
         dbtVersion,
+        useDbtLs,
     }: DbtGithubProjectAdapterArgs) {
         const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
         if (!isValid) {
@@ -55,6 +57,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             environment,
             cachedWarehouse,
             dbtVersion,
+            useDbtLs,
         });
     }
 }

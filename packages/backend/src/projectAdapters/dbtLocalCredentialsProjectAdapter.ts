@@ -25,6 +25,7 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
+    useDbtLs: boolean;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -38,6 +39,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         environment,
         cachedWarehouse,
         dbtVersion,
+        useDbtLs,
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = tempy.directory();
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
@@ -76,6 +78,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             environment: updatedEnvironment,
             cachedWarehouse,
             dbtVersion,
+            useDbtLs,
         });
         this.profilesDir = profilesDir;
     }

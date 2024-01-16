@@ -13,6 +13,7 @@ jest.mock('./src/config/lightdashConfig', () => ({
             outputs: 'console',
             format: 'pretty',
         },
+        posthog: { projectApiKey: '' },
     },
 }));
 
