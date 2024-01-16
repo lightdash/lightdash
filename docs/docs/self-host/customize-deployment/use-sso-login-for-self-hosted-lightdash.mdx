@@ -76,7 +76,7 @@ You'll need to set the following environment variables in your Lightdash deploym
 
 #### Groups & Okta
 
-If you want to use groups to control access to Lightdash, you'll need to set the `AUTH_OKTA_EXTRA_SCOPES` environment, and add the `groups` scope (e.g. `AUTH_OKTA_EXTRA_SCOPES=groups`).
+If you want to use groups to control access to Lightdash, you'll need to configure Okta and Lightdash to support this.
 
 If you're **not** using a custom authorization server ID:
 - on `OpenID Connect ID Token` section in the Okta application settings, add `groups` to the `Groups claim` field, by setting a Groups claims type to `Filter` and a Filter to match expression to `.*`
