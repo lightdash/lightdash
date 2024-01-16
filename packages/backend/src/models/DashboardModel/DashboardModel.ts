@@ -873,6 +873,7 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_id`,
                 `${DashboardVersionsTableName}.created_at`,
             )
+            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
     }
 }
