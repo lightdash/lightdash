@@ -32,6 +32,8 @@ export class UserAttributesService {
             values: {
                 userIds: attribute.users.map((u) => u.userUuid),
                 values: attribute.users.map((u) => u.value),
+                groupIds: attribute.groups.map((g) => g.groupUuid),
+                groupValues: attribute.groups.map((g) => g.value),
             },
             defaultValue: attribute.attributeDefault,
         };

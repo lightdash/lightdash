@@ -802,6 +802,8 @@ export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
         values: {
             userIds: string[];
             values: string[];
+            groupIds: string[];
+            groupValues: string[];
         };
         defaultValue: string | null;
     };
