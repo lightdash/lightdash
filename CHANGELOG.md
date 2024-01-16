@@ -1,3 +1,10 @@
+# [0.945.0](https://github.com/lightdash/lightdash/compare/0.944.0...0.945.0) (2024-01-16)
+
+
+### Features
+
+* group api with member uuids ([#8573](https://github.com/lightdash/lightdash/issues/8573)) ([0ad1633](https://github.com/lightdash/lightdash/commit/0ad1633c61019613af55f8b842a8622dbde36491))
+
 # [0.944.0](https://github.com/lightdash/lightdash/compare/0.943.1...0.944.0) (2024-01-16)
 
 
