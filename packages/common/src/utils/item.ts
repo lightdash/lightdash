@@ -105,7 +105,12 @@ export const isDateItem = (
         return false;
     }
     if (isField(item) || isAdditionalMetric(item)) {
-        const dateTypes: string[] = [DimensionType.DATE, MetricType.DATE];
+        const dateTypes: string[] = [
+            DimensionType.DATE,
+            MetricType.DATE,
+            DimensionType.TIMESTAMP,
+            MetricType.TIMESTAMP,
+        ];
         return dateTypes.includes(item.type);
     }
     return true;
