@@ -1,3 +1,10 @@
+## [0.945.1](https://github.com/lightdash/lightdash/compare/0.945.0...0.945.1) (2024-01-16)
+
+
+### Bug Fixes
+
+* incorrect pluralization in attributes list ([#8614](https://github.com/lightdash/lightdash/issues/8614)) ([4e8d9ac](https://github.com/lightdash/lightdash/commit/4e8d9ac4c0e53acbb87b2d7d847b2aff57105e77))
+
 # [0.945.0](https://github.com/lightdash/lightdash/compare/0.944.0...0.945.0) (2024-01-16)
 
 
