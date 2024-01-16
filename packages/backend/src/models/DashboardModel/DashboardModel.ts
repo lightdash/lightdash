@@ -809,7 +809,7 @@ export class DashboardModel {
         Array<
             Pick<Dashboard, 'uuid' | 'name' | 'description'> &
                 Pick<LightdashUser, 'firstName' | 'lastName'> & {
-                    chartUuids: string[];
+                    chartUuids: string[] | null;
                 }
         >
     > {
@@ -852,7 +852,7 @@ export class DashboardModel {
                 firstName: `${UserTableName}.first_name`,
                 lastName: `${UserTableName}.last_name`,
                 chartUuids: this.database.raw(
-                    "COALESCE(json_agg(saved_queries.saved_query_uuid), '[]')",
+                    'ARRAY_AGG(DISTINCT saved_queries.saved_query_uuid) FILTER (WHERE saved_queries.saved_query_uuid IS NOT NULL)',
                 ),
             })
             .orderBy([

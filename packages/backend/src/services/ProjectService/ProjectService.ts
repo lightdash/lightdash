@@ -3177,21 +3177,24 @@ export class ProjectService {
                     label: dashboard.name,
                     description: dashboard.description ?? '',
                     url: `${lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboard.uuid}/view`,
-                    dependsOn: uniq(
-                        dashboard.chartUuids
-                            .map((chartUuid) => {
-                                const chartExposureId = `ld_chart_${snakeCaseName(
-                                    chartUuid,
-                                )}`;
-                                const chartExposure = chartExposures.find(
-                                    ({ name }) => name === chartExposureId,
-                                );
-                                return chartExposure
-                                    ? chartExposure.dependsOn
-                                    : [];
-                            })
-                            .flat(),
-                    ),
+                    dependsOn: dashboard.chartUuids
+                        ? uniq(
+                              dashboard.chartUuids
+                                  .map((chartUuid) => {
+                                      const chartExposureId = `ld_chart_${snakeCaseName(
+                                          chartUuid,
+                                      )}`;
+                                      const chartExposure = chartExposures.find(
+                                          ({ name }) =>
+                                              name === chartExposureId,
+                                      );
+                                      return chartExposure
+                                          ? chartExposure.dependsOn
+                                          : [];
+                                  })
+                                  .flat(),
+                          )
+                        : [],
                     tags: ['lightdash', 'dashboard'],
                 });
                 return acc;
