@@ -28,7 +28,6 @@ import {
     VerifyFunctionWithRequest,
 } from 'passport-openidconnect';
 import { Strategy } from 'passport-strategy';
-import path from 'path';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -231,7 +230,6 @@ export class OpenIDClientOktaStrategy extends Strategy {
         } catch (err) {
             return this.error(err);
         }
-        return this.fail(401);
     }
 }
 
