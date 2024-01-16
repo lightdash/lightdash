@@ -59,7 +59,7 @@ export const identifyUser = (
 
         postHogClient?.groupIdentify({
             groupType: 'organization',
-            groupKey: 'organization',
+            groupKey: user.organizationUuid,
             properties: {
                 uuid: user.organizationUuid,
                 name: user.organizationName,
