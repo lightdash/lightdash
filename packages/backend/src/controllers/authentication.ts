@@ -250,10 +250,14 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
         const codeVerifier = generators.codeVerifier();
         const codeChallenge = generators.codeChallenge(codeVerifier);
 
+        const extraScopes = lightdashConfig.auth.okta.extraScopes
+            ? ` ${lightdashConfig.auth.okta.extraScopes.join(' ')}`
+            : '';
+
         const authorizationUrl = client.authorizationUrl({
             redirect_uri: redirectUri,
             response_type: 'code',
-            scope: 'openid profile email',
+            scope: 'openid profile email'.concat(extraScopes),
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
             state,
