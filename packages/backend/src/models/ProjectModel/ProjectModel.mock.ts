@@ -55,6 +55,7 @@ export const lightdashConfigMock: LightdashConfig = {
             oauth2ClientId: undefined,
             oauth2Issuer: undefined,
             authorizationServerId: undefined,
+            extraScopes: '',
             oktaDomain: undefined,
         },
         oneLogin: {
