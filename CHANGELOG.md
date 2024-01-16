@@ -1,3 +1,15 @@
+# [0.944.0](https://github.com/lightdash/lightdash/compare/0.943.1...0.944.0) (2024-01-16)
+
+
+### Bug Fixes
+
+* **cli:** generate exposures for dashboards ([#8609](https://github.com/lightdash/lightdash/issues/8609)) ([d7dd60b](https://github.com/lightdash/lightdash/commit/d7dd60bc0818742b99700c6b6281588f2497faa1))
+
+
+### Features
+
+* **cli:** options --skip-warehouse-catalog and --use-dbt-list ([#8367](https://github.com/lightdash/lightdash/issues/8367)) ([128d642](https://github.com/lightdash/lightdash/commit/128d6420cc518a7166c44a23c84a0d6494134940))
+
 ## [0.943.1](https://github.com/lightdash/lightdash/compare/0.943.0...0.943.1) (2024-01-16)
 
 
