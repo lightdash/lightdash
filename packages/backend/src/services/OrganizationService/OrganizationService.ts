@@ -492,9 +492,7 @@ export class OrganizationService {
                 organizationId: groupWithMembers.organizationUuid,
                 groupId: groupWithMembers.uuid,
                 name: groupWithMembers.name,
-                userMembers: groupWithMembers.members.map(
-                    (member) => member.userUuid,
-                ),
+                countUsersInGroup: groupWithMembers.memberUuids.length,
                 viaSso: false,
             },
         });

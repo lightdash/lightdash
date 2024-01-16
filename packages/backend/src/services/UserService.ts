@@ -336,9 +336,7 @@ export class UserService {
                             organizationId: updatedGroup.organizationUuid,
                             groupId: updatedGroup.uuid,
                             name: updatedGroup.name,
-                            userMembers: updatedGroup.members.map(
-                                (member) => member.userUuid,
-                            ),
+                            countUsersInGroup: updatedGroup.memberUuids.length,
                         },
                     });
                 }),

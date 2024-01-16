@@ -56,7 +56,7 @@ export class GroupsService {
                     organizationId: updatedGroup.organizationUuid,
                     groupId: updatedGroup.uuid,
                     name: updatedGroup.name,
-                    userMembers: updatedGroup.members.map((m) => m.userUuid),
+                    countUsersInGroup: updatedGroup.memberUuids.length,
                     viaSso: false,
                 },
             });
@@ -94,7 +94,7 @@ export class GroupsService {
                     organizationId: updatedGroup.organizationUuid,
                     groupId: updatedGroup.uuid,
                     name: updatedGroup.name,
-                    userMembers: updatedGroup.members.map((m) => m.userUuid),
+                    countUsersInGroup: updatedGroup.memberUuids.length,
                     viaSso: false,
                 },
             });
@@ -180,7 +180,7 @@ export class GroupsService {
                 organizationId: updatedGroup.organizationUuid,
                 groupId: updatedGroup.uuid,
                 name: updatedGroup.name,
-                userMembers: updatedGroup.members.map((m) => m.userUuid),
+                countUsersInGroup: updatedGroup.memberUuids.length,
                 viaSso: false,
             },
         });

@@ -823,7 +823,7 @@ export type GroupCreateAndUpdateEvent = BaseTrack & {
         organizationId: string;
         groupId: string;
         name: string;
-        userMembers: string[];
+        countUsersInGroup: number;
         viaSso: boolean;
     };
 };
