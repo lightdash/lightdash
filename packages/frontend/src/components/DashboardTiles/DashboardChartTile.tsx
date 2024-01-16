@@ -46,7 +46,7 @@ import {
     IconTelescope,
 } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
@@ -57,13 +57,13 @@ import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useCreateShareMutation } from '../../hooks/useShare';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
-import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -321,6 +321,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         dimensions: string[];
         pivotReference?: PivotReference;
     }>();
+    const { mutateAsync: createShareUrl } = useCreateShareMutation();
+    const history = useHistory();
 
     const handleViewUnderlyingData = useCallback(() => {
         if (!viewUnderlyingDataOptions) return;
@@ -486,13 +488,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         }),
         [chart, metricQuery],
     );
-    const exploreFromHereUrl = useMemo(() => {
-        const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
-            chartWithDashboardFilters.projectUuid,
-            chartWithDashboardFilters,
-        );
-        return `${pathname}?${search}`;
-    }, [chartWithDashboardFilters]);
+    const { pathname: chartPathname, search: chartSearch } = useMemo(
+        () =>
+            getExplorerUrlFromCreateSavedChartVersion(
+                chartWithDashboardFilters.projectUuid,
+                chartWithDashboardFilters,
+            ),
+        [chartWithDashboardFilters],
+    );
 
     const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
 
@@ -613,16 +616,25 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     />
                                 )}
 
-                                {exploreFromHereUrl && (
-                                    <LinkMenuItem
+                                {chartPathname && (
+                                    <Menu.Item
                                         icon={
                                             <MantineIcon icon={IconTelescope} />
                                         }
                                         disabled={isEditMode}
-                                        href={exploreFromHereUrl}
+                                        onClick={() => {
+                                            createShareUrl({
+                                                path: chartPathname,
+                                                params: `?` + chartSearch,
+                                            }).then((shareUrl) => {
+                                                history.push(
+                                                    `/share/${shareUrl.nanoid}`,
+                                                );
+                                            });
+                                        }}
                                     >
                                         Explore from here
-                                    </LinkMenuItem>
+                                    </Menu.Item>
                                 )}
 
                                 {chart.chartConfig.type === ChartType.TABLE && (
