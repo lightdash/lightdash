@@ -208,6 +208,19 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                     disabled={disabled}
                                     placeholder="prod"
                                 />
+                                <TextInput
+                                    {...register('dbt.select')}
+                                    label="dbt selector"
+                                    description={
+                                        <p>
+                                            Apply a dbt selector to filter what
+                                            models are compiled and available in
+                                            Lightdash.
+                                        </p>
+                                    }
+                                    disabled={disabled}
+                                    placeholder="tag:lightdash"
+                                />
                                 {warehouseSchemaInput}
                             </Stack>
                         </FormSection>

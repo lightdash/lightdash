@@ -69,6 +69,7 @@ type DbtCliArgs = {
     profileName?: string;
     target?: string;
     dbtVersion: SupportedDbtVersions;
+    select?: string;
 };
 
 enum DbtCommands {
@@ -93,6 +94,8 @@ export class DbtCliClient implements DbtClient {
 
     dbtVersion: SupportedDbtVersions;
 
+    select: string | undefined;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -100,6 +103,7 @@ export class DbtCliClient implements DbtClient {
         profileName,
         target,
         dbtVersion,
+        select,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
@@ -108,6 +112,7 @@ export class DbtCliClient implements DbtClient {
         this.target = target;
         this.targetDirectory = undefined;
         this.dbtVersion = dbtVersion;
+        this.select = select;
     }
 
     private async _getTargetDirectory(): Promise<string> {
@@ -218,7 +223,8 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtManifest',
         });
-        const logs = await this._runDbtCommand('compile');
+        const compileArgs = this.select ? ['-s', this.select] : [];
+        const logs = await this._runDbtCommand('compile', ...compileArgs);
         const rawManifest = {
             manifest: await this.loadDbtTargetArtifact('manifest.json'),
         };

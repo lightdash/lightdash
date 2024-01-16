@@ -39,6 +39,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
+                select: config.select,
             });
         case DbtProjectType.NONE:
             return new DbtNoneCredentialsProjectAdapter({
