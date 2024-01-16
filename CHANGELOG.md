@@ -1,3 +1,10 @@
+## [0.943.1](https://github.com/lightdash/lightdash/compare/0.943.0...0.943.1) (2024-01-16)
+
+
+### Bug Fixes
+
+* date zoom timestamp ([#8608](https://github.com/lightdash/lightdash/issues/8608)) ([cc5386f](https://github.com/lightdash/lightdash/commit/cc5386fcb19f7080517cebaad9e64a01a119db50))
+
 # [0.943.0](https://github.com/lightdash/lightdash/compare/0.942.0...0.943.0) (2024-01-16)
 
 
