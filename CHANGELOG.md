@@ -1,3 +1,10 @@
+## [0.946.3](https://github.com/lightdash/lightdash/compare/0.946.2...0.946.3) (2024-01-17)
+
+
+### Bug Fixes
+
+* create chart from dashboard ([#8619](https://github.com/lightdash/lightdash/issues/8619)) ([1b8d3b3](https://github.com/lightdash/lightdash/commit/1b8d3b3d425e1ad013cb9ea9ba4c9fbf4b6d43e9))
+
 ## [0.946.2](https://github.com/lightdash/lightdash/compare/0.946.1...0.946.2) (2024-01-17)
 
 
