@@ -1,3 +1,11 @@
+## [0.946.1](https://github.com/lightdash/lightdash/compare/0.946.0...0.946.1) (2024-01-17)
+
+
+### Bug Fixes
+
+* add query tags totals ([#8625](https://github.com/lightdash/lightdash/issues/8625)) ([ed3479c](https://github.com/lightdash/lightdash/commit/ed3479c9e0a782bb33d59503ee2351c1d3ce9dbd))
+* table calculation format tooltip ([#8607](https://github.com/lightdash/lightdash/issues/8607)) ([4d0a937](https://github.com/lightdash/lightdash/commit/4d0a937dec24402df21a3407afca9e6f5c8df4a5))
+
 # [0.946.0](https://github.com/lightdash/lightdash/compare/0.945.2...0.946.0) (2024-01-16)
 
 
