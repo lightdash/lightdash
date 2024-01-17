@@ -847,6 +847,16 @@ const getEchartAxis = ({
                     return formatTableCalculationValue(axisItem, value);
                 },
             };
+            axisConfig.axisPointer = {
+                label: {
+                    formatter: (value: any) => {
+                        return formatTableCalculationValue(
+                            axisItem,
+                            value.value,
+                        );
+                    },
+                },
+            };
         }
         if (axisMinInterval) {
             axisConfig.minInterval = axisMinInterval;
@@ -1418,7 +1428,9 @@ const useEchartsCartesianConfig = (
             extraCssText: 'overflow-y: auto; max-height:280px;',
             axisPointer: {
                 type: 'shadow',
-                label: { show: true },
+                label: {
+                    show: true,
+                },
             },
             formatter: (params) => {
                 if (!Array.isArray(params) || !itemsMap) return '';
@@ -1461,7 +1473,14 @@ const useEchartsCartesianConfig = (
 
                 if (dimensionId !== undefined) {
                     const field = itemsMap[dimensionId];
+                    if (isTableCalculation(field)) {
+                        const tooltipHeader = formatTableCalculationValue(
+                            field as TableCalculation,
+                            params[0].axisValueLabel,
+                        );
 
+                        return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+                    }
                     if (
                         isDimension(field) &&
                         (field.type === DimensionType.DATE ||
