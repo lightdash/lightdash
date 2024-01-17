@@ -124,19 +124,22 @@ columns:
           team_name: ["HR", "C-Suite"]
 ```
 
-#### Current limitations 
+### Table filtering with `required_attributes`
 
-Lightdash dimensions and custom metrics are protected by this feature, however, 
-it is possible to write custom SQL to bypass this filter, for example: 
+You can use `user attributes` to limit some tables to some users.
 
-- Developers and admins running SQL queries on SQL runner. 
-- Custom SQL or subqueries on `table calculations`
+In the example below, only users with `is_admin` attribute `true` can use the `payments` table. Users without access to this table will not see it on the `tables page` or the `explore page` when joined to other tables.
 
-:::info
+```
+version: 2
+models:
+  - name: payments
+    meta:
+      required_attributes:
+        is_admin: "true"
+```
 
-Scheduler deliveries will run against the user who created the scheduled delivery, be careful when sharing required attributes with other users. 
-
-:::
+Similar to [columns filtering](#column-filtering-with-required_attributes), you can add multiple attributes for a single table.
 
 ### Filtering joins with `sql_on`
 
@@ -157,6 +160,21 @@ models:
             ${base}.id = ${joined}.id
             AND ${joined}.sales_region = ${lightdash.attributes.sales_region}
 ```
+
+## Current limitations
+
+Lightdash dimensions and custom metrics are protected by this feature, however,
+it is possible to write custom SQL to bypass this filter, for example:
+
+- Developers and admins running SQL queries on SQL runner.
+- Custom SQL or subqueries on `table calculations`
+
+:::info
+
+Scheduler deliveries will run against the user who created the scheduled delivery, be careful when sharing required attributes with other users.
+
+:::
+
 
 ## Demo: filtering a chart based on user attributes
 
