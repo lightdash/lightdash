@@ -5,6 +5,7 @@ import {
     Modal,
     ModalProps,
     Stack,
+    Textarea,
     TextInput,
     Title,
 } from '@mantine/core';
@@ -75,10 +76,13 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
                         {...form.getInputProps('name')}
                     />
 
-                    <TextInput
+                    <Textarea
                         label="Description"
                         placeholder="A few words to give your team some context"
                         disabled={isUpdating}
+                        autosize
+                        maxRows={3}
+                        style={{ overflowY: 'auto' }}
                         {...form.getInputProps('description')}
                     />
 
