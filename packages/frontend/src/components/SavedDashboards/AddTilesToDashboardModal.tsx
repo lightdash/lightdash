@@ -10,6 +10,7 @@ import {
     Modal,
     Select,
     Stack,
+    Textarea,
     TextInput,
     Title,
 } from '@mantine/core';
@@ -247,10 +248,13 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 required
                                 {...form.getInputProps('dashboardName')}
                             />
-                            <TextInput
+                            <Textarea
                                 id="dashboard-description"
                                 label="Dashboard description"
                                 placeholder="A few words to give your team some context"
+                                autosize
+                                maxRows={3}
+                                style={{ overflowY: 'auto' }}
                                 {...form.getInputProps('dashboardDescription')}
                             />
                             {!isLoadingSpaces && !showNewSpaceInput ? (

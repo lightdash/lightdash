@@ -13,6 +13,7 @@ import {
     Select,
     Stack,
     Text,
+    Textarea,
     TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -211,9 +212,12 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         {...form.getInputProps('name')}
                         data-testid="ChartCreateModal/NameInput"
                     />
-                    <TextInput
+                    <Textarea
                         label="Chart description"
                         placeholder="A few words to give your team some context"
+                        autosize
+                        maxRows={3}
+                        style={{ overflowY: 'auto' }}
                         {...form.getInputProps('description')}
                     />
                     {fromDashboard && fromDashboard.length > 0 && (
