@@ -34,6 +34,7 @@ import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel'
 import AppearancePanel from '../components/UserSettings/AppearancePanel';
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
+import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
@@ -54,6 +55,8 @@ const Settings: FC = () => {
     // TODO: this is a feature flag while we are building groups.
     // Remove this when groups are ready to be released.
     const groupManagementEnabled = useFeatureFlagEnabled('group-management');
+    const isPassthroughLoginFeatureEnabled =
+        useFeatureFlagEnabled('passthrough-login');
 
     const {
         health: {
@@ -150,6 +153,16 @@ const Settings: FC = () => {
                                 />
                             )}
 
+                            {isPassthroughLoginFeatureEnabled && (
+                                <RouterNavLink
+                                    label="My warehouse connections"
+                                    exact
+                                    to="/generalSettings/myWarehouseConnections"
+                                    icon={
+                                        <MantineIcon icon={IconDatabaseCog} />
+                                    }
+                                />
+                            )}
                             <RouterNavLink
                                 label="Personal access tokens"
                                 exact
@@ -396,6 +409,24 @@ const Settings: FC = () => {
                                     <SocialLoginsPanel />
                                 </SettingsGridCard>
                             )}
+                        </Stack>
+                    </Route>
+                )}
+                {isPassthroughLoginFeatureEnabled && (
+                    <Route exact path="/generalSettings/myWarehouseConnections">
+                        <Stack spacing="xl">
+                            <SettingsGridCard>
+                                <Stack spacing="xs">
+                                    <Title order={4}>
+                                        My warehouse connections
+                                    </Title>
+                                    <Text c="gray.6" fz="xs">
+                                        Add Credentials to connect to your
+                                        warehouse.
+                                    </Text>
+                                </Stack>
+                                <MyWarehouseConnectionsPanel />
+                            </SettingsGridCard>
                         </Stack>
                     </Route>
                 )}
