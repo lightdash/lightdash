@@ -1,3 +1,10 @@
+## [0.946.2](https://github.com/lightdash/lightdash/compare/0.946.1...0.946.2) (2024-01-17)
+
+
+### Bug Fixes
+
+* rename custom metric with filter ([#8521](https://github.com/lightdash/lightdash/issues/8521)) ([e959be5](https://github.com/lightdash/lightdash/commit/e959be5239bcb799061ab00e52ad6efc462e3853))
+
 ## [0.946.1](https://github.com/lightdash/lightdash/compare/0.946.0...0.946.1) (2024-01-17)
 
 
