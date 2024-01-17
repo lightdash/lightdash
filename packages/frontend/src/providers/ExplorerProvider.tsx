@@ -20,6 +20,7 @@ import {
     MetricType,
     PieChartConfig,
     removeEmptyProperties,
+    removeMetricFromFilters,
     SavedChart,
     SortField,
     TableCalculation,
@@ -974,6 +975,22 @@ function reducer(
                         sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
                             (sort) => sort.fieldId !== action.payload,
                         ),
+                        filters: Object.entries(
+                            state.unsavedChartVersion.metricQuery.filters,
+                        ).reduce((acc, [key, value]) => {
+                            let valueDeepCopy = cloneDeep(value);
+                            if (key === 'metrics') {
+                                removeMetricFromFilters(
+                                    valueDeepCopy,
+                                    action.payload,
+                                );
+                            }
+
+                            return {
+                                ...acc,
+                                [key]: valueDeepCopy,
+                            };
+                        }, {}),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,

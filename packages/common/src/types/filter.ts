@@ -199,6 +199,60 @@ export const updateFieldIdInFilters = (
     }
 };
 
+export const isMetricToDelete = (
+    item: FilterGroupItem,
+    metricName: string,
+): boolean => !isFilterGroup(item) && item.target.fieldId === metricName;
+
+export const removeMetricFromFilterGroupItem = (
+    item: FilterGroupItem,
+    metricName: string,
+): void => {
+    if (isFilterGroup(item)) {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        removeMetricFromFilters(item, metricName);
+    }
+};
+
+export const removeMetricFromFilters = (
+    filterGroup: FilterGroup | undefined,
+    metricName: string,
+): void => {
+    if (!filterGroup) return;
+
+    const processGroupItems = (items: FilterGroupItem[]): FilterGroupItem[] =>
+        items
+            .filter((item) => !isMetricToDelete(item, metricName))
+            .map((item) => {
+                removeMetricFromFilterGroupItem(item, metricName);
+                return item;
+            });
+
+    const isNotEmptyGroup = (item: FilterGroupItem): boolean => {
+        if (isOrFilterGroup(item)) return item.or.length !== 0;
+        if (isAndFilterGroup(item)) return item.and.length !== 0;
+        return true;
+    };
+
+    /* eslint-disable no-param-reassign */
+    if (isOrFilterGroup(filterGroup)) {
+        filterGroup.or = processGroupItems(filterGroup.or);
+        if (filterGroup.or.length === 0) filterGroup = undefined;
+        else
+            filterGroup.or = filterGroup.or.filter((item) =>
+                isNotEmptyGroup(item),
+            );
+    } else if (isAndFilterGroup(filterGroup)) {
+        filterGroup.and = processGroupItems(filterGroup.and);
+        if (filterGroup.and.length === 0) filterGroup = undefined;
+        else
+            filterGroup.and = filterGroup.and.filter((item) =>
+                isNotEmptyGroup(item),
+            );
+    }
+    /* eslint-enable no-param-reassign */
+};
+
 export const applyDimensionOverrides = (
     dashboardFilters: DashboardFilters,
     overrides: DashboardFilters | SchedulerFilterRule[],
