@@ -144,6 +144,7 @@ const Dashboard: FC = () => {
 
     const { clearIsEditingDashboardChart } = useDashboardStorage();
 
+    const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardError = useDashboardContext((c) => c.dashboardError);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -201,50 +202,46 @@ const Dashboard: FC = () => {
         [dashboardTiles, isEditMode],
     );
 
-    const { tiles: savedTiles } = dashboard || {};
     useEffect(() => {
-        if (savedTiles) {
-            clearIsEditingDashboardChart();
-            const unsavedDashboardTilesRaw = sessionStorage.getItem(
-                'unsavedDashboardTiles',
+        if (isDashboardLoading) return;
+        if (dashboardTiles) return;
+
+        setDashboardTiles(dashboard?.tiles ?? []);
+    }, [isDashboardLoading, dashboard, dashboardTiles, setDashboardTiles]);
+
+    useEffect(() => {
+        if (isDashboardLoading) return;
+        if (dashboardTiles === undefined) return;
+
+        clearIsEditingDashboardChart();
+
+        const unsavedDashboardTilesRaw = sessionStorage.getItem(
+            'unsavedDashboardTiles',
+        );
+        if (!unsavedDashboardTilesRaw) return;
+
+        sessionStorage.removeItem('unsavedDashboardTiles');
+
+        try {
+            const unsavedDashboardTiles = JSON.parse(unsavedDashboardTilesRaw);
+            // If there are unsaved tiles, add them to the dashboard
+            setDashboardTiles(unsavedDashboardTiles);
+
+            setHaveTilesChanged(!!unsavedDashboardTiles);
+        } catch {
+            showToastError({
+                title: 'Error parsing chart',
+                subtitle: 'Unable to save chart in dashboard',
+            });
+            captureException(
+                `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
             );
-            sessionStorage.removeItem('unsavedDashboardTiles');
-            if (unsavedDashboardTilesRaw) {
-                try {
-                    const unsavedDashboardTiles = JSON.parse(
-                        unsavedDashboardTilesRaw,
-                    );
-                    // If there are unsaved tiles, add them to the dashboard
-                    setDashboardTiles((old = []) => {
-                        return [...old, ...unsavedDashboardTiles];
-                    });
-                    setHaveTilesChanged(!!unsavedDashboardTiles);
-                } catch {
-                    showToastError({
-                        title: 'Error parsing chart',
-                        subtitle: 'Unable to save chart in dashboard',
-                    });
-                    console.error(
-                        'Error parsing chart in dashboard. Attempted to parse: ',
-                        unsavedDashboardTilesRaw,
-                    );
-                    captureException(
-                        `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
-                    );
-                }
-            } else {
-                // If there are no dashboard tiles, set them to the saved ones
-                // This is the first time the dashboard is being loaded.
-                if (!dashboardTiles) {
-                    setDashboardTiles(savedTiles);
-                }
-            }
         }
     }, [
+        isDashboardLoading,
+        dashboardTiles,
         setHaveTilesChanged,
         setDashboardTiles,
-        dashboardTiles,
-        savedTiles,
         clearIsEditingDashboardChart,
         showToastError,
     ]);
