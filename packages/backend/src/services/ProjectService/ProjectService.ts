@@ -3011,7 +3011,7 @@ export class ProjectService {
         );
 
         const queryTags: RunQueryTags = {
-            organization_uuid: projectUuid,
+            organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
@@ -3041,6 +3041,13 @@ export class ProjectService {
             organizationUuid,
             warehouseClient,
         );
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: user.organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+        };
+
         const { rows, cacheMetadata } =
             await this.getResultsFromCacheOrWarehouse({
                 projectUuid,
@@ -3048,7 +3055,7 @@ export class ProjectService {
                 warehouseClient,
                 metricQuery: totalQuery,
                 query,
-                queryTags: {},
+                queryTags,
                 invalidateCache,
             });
         await sshTunnel.disconnect();
