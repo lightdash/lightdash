@@ -167,6 +167,38 @@ export const getFilterRules = (filters: Filters): FilterRule[] => {
     return rules;
 };
 
+export const updateFieldIdInFilterGroupItem = (
+    filterGroupItem: FilterGroupItem,
+    previousName: string,
+    newName: string,
+): void => {
+    if (isFilterGroup(filterGroupItem)) {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        updateFieldIdInFilters(filterGroupItem, previousName, newName);
+    } else if (filterGroupItem.target.fieldId === previousName) {
+        // eslint-disable-next-line no-param-reassign
+        filterGroupItem.target.fieldId = newName;
+    }
+};
+
+export const updateFieldIdInFilters = (
+    filterGroup: FilterGroup | undefined,
+    previousName: string,
+    newName: string,
+): void => {
+    if (filterGroup) {
+        if (isOrFilterGroup(filterGroup)) {
+            filterGroup.or.forEach((item) =>
+                updateFieldIdInFilterGroupItem(item, previousName, newName),
+            );
+        } else if (isAndFilterGroup(filterGroup)) {
+            filterGroup.and.forEach((item) =>
+                updateFieldIdInFilterGroupItem(item, previousName, newName),
+            );
+        }
+    }
+};
+
 export const applyDimensionOverrides = (
     dashboardFilters: DashboardFilters,
     overrides: DashboardFilters | SchedulerFilterRule[],
