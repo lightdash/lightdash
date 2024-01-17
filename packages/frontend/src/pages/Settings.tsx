@@ -421,7 +421,7 @@ const Settings: FC = () => {
                                         My warehouse connections
                                     </Title>
                                     <Text c="gray.6" fz="xs">
-                                        Add Credentials to connect to your
+                                        Add credentials to connect to your
                                         warehouse.
                                     </Text>
                                 </Stack>
