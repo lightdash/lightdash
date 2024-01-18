@@ -4,6 +4,7 @@ import { EncryptionService } from '../services/EncryptionService/EncryptionServi
 import { AnalyticsModel } from './AnalyticsModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { DownloadFileModel } from './DownloadFileModel';
 import { EmailModel } from './EmailModel';
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
@@ -98,3 +99,4 @@ export const sshKeyPairModel = new SshKeyPairModel({
 });
 
 export const userAttributesModel = new UserAttributesModel({ database });
+export const downloadFileModel = new DownloadFileModel({ database });

@@ -123,6 +123,10 @@ import {
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
 import {
+    DownloadFileTable,
+    DownloadFileTableName,
+} from '../database/entities/downloadFile';
+import {
     EmailOneTimePasscodesTableName,
     EmailOneTimePasscodeTable,
 } from '../database/entities/emailOneTimePasscodes';
@@ -230,5 +234,6 @@ declare module 'knex/types/tables' {
         [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
         [GroupUserAttributesTable]: DbGroupUserAttribute;
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
+        [DownloadFileTableName]: DownloadFileTable;
     }
 }

@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     AuthorizationError,
     ChartType,
+    DownloadFileType,
     ForbiddenError,
     LightdashPage,
     SessionUser,
@@ -19,6 +20,7 @@ import { S3Client } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
@@ -90,6 +92,7 @@ type UnfurlServiceDependencies = {
     encryptionService: EncryptionService;
     s3Client: S3Client;
     projectModel: ProjectModel;
+    downloadFileModel: DownloadFileModel;
 };
 
 export class UnfurlService {
@@ -109,6 +112,8 @@ export class UnfurlService {
 
     projectModel: ProjectModel;
 
+    downloadFileModel: DownloadFileModel;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -118,6 +123,7 @@ export class UnfurlService {
         encryptionService,
         s3Client,
         projectModel,
+        downloadFileModel,
     }: UnfurlServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
@@ -127,6 +133,7 @@ export class UnfurlService {
         this.encryptionService = encryptionService;
         this.s3Client = s3Client;
         this.projectModel = projectModel;
+        this.downloadFileModel = downloadFileModel;
     }
 
     async getTitleAndDescription(
@@ -262,7 +269,16 @@ export class UnfurlService {
                 imageUrl = await this.s3Client.uploadImage(buffer, imageId);
             } else {
                 // We will share the image saved by puppetteer on our lightdash enpdoint
-                imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
+                const filePath = `/tmp/${imageId}.png`;
+                const downloadFileId = useNanoid();
+                await this.downloadFileModel.createDownloadFile(
+                    downloadFileId,
+                    filePath,
+                    DownloadFileType.IMAGE,
+                );
+
+                // Slack requires for the image to end with .png, otherwise it throws an error (invalid_blocks)
+                imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${downloadFileId}.png`;
             }
         }
 
@@ -302,25 +318,6 @@ export class UnfurlService {
             throw new Error('Unable to unfurl image');
         }
         return unfurlImage.imageUrl;
-    }
-
-    static isValidImageFileId(imageId: string): boolean {
-        // Checks if the image follows one of the following formats:
-        // slack-image-${nanoid()}.png
-        // slack-image_${snakeCaseName(name)}_${nanoid()}.png
-        // slack-image-notification-${nanoid()}.png
-
-        const imageRegex = /slack-image-[a-zA-Z0-9_-]{21}.png/;
-        const imageWithNameRegex =
-            /slack-image_[a-z0-9_-]+_[a-zA-Z0-9_-]{21}.png/;
-        const imageNotificationRegex =
-            /slack-image-notification-[a-zA-Z0-9_-]{21}.png/;
-
-        return (
-            imageRegex.test(imageId) ||
-            imageWithNameRegex.test(imageId) ||
-            imageNotificationRegex.test(imageId)
-        );
     }
 
     private async saveScreenshot({

@@ -3,6 +3,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import {
     analyticsModel,
     dashboardModel,
+    downloadFileModel,
     emailModel,
     groupsModel,
     inviteLinkModel,
@@ -31,6 +32,7 @@ import {
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
+import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EncryptionService } from './EncryptionService/EncryptionService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GroupsService } from './GroupService';
@@ -145,6 +147,7 @@ export const unfurlService = new UnfurlService({
     encryptionService,
     s3Client,
     projectModel,
+    downloadFileModel,
 });
 
 export const analyticsService = new AnalyticsService({
@@ -166,6 +169,7 @@ export const csvService = new CsvService({
     projectService,
     dashboardModel,
     savedChartModel,
+    downloadFileModel,
 });
 
 export const pinningService = new PinningService({
@@ -205,4 +209,9 @@ export const gdriveService = new GdriveService({
     projectService,
     dashboardModel,
     savedChartModel,
+});
+
+export const downloadFileService = new DownloadFileService({
+    lightdashConfig,
+    downloadFileModel,
 });
