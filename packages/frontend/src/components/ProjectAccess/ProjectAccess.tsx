@@ -20,7 +20,7 @@ import {
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
 import LoadingState from '../common/LoadingState';
-import ProjectAccessCreation from './ProjectAccessCreation';
+import CreateProjectAccessModal from './CreateProjectAccessModal';
 import ProjectAccessRow from './ProjectAccessRow';
 
 interface ProjectAccessProps {
@@ -165,7 +165,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                             <ProjectAccessRow
                                 key={orgUser.email}
                                 user={orgUser}
-                                organizationRole={orgRoles[orgUser.userUuid]}
                                 inheritedRoles={[
                                     {
                                         type: 'organization',
@@ -194,8 +193,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
             </Paper>
 
             {isAddingProjectAccess && (
-                <ProjectAccessCreation
-                    opened
+                <CreateProjectAccessModal
                     projectUuid={projectUuid}
                     onClose={() => onAddProjectAccessClose()}
                 />

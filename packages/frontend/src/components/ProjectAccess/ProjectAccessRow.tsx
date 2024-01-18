@@ -2,8 +2,6 @@ import {
     getHighestProjectRole,
     InheritedRoles,
     OrganizationMemberProfile,
-    OrganizationMemberRole,
-    ProjectMemberProfile,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     ProjectRole,
@@ -11,23 +9,20 @@ import {
 import {
     ActionIcon,
     Badge,
-    Button,
     Group,
-    Modal,
     NativeSelect,
     Stack,
     Text,
-    Title,
     Tooltip,
 } from '@mantine/core';
-import { IconKey, IconTrash } from '@tabler/icons-react';
+import { IconTrash } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
 import { FC, useState } from 'react';
 import MantineIcon from '../common/MantineIcon';
+import RemoveProjectAccessModal from './RemoveProjectAccessModal';
 
 type Props = {
-    user: OrganizationMemberProfile | ProjectMemberProfile;
-    organizationRole: OrganizationMemberRole;
+    user: OrganizationMemberProfile;
     inheritedRoles: InheritedRoles;
     roleTooltip?: string;
     isUpdatingAccess: boolean;
@@ -123,33 +118,13 @@ const ProjectAccessRow: FC<Props> = ({
                 </td>
             </tr>
 
-            <Modal
-                opened={isDeleteDialogOpen}
-                onClose={() => setIsDeleteDialogOpen(false)}
-                title={
-                    <Group spacing="xs">
-                        <MantineIcon size="lg" icon={IconKey} color="red" />
-                        <Title order={4}>Revoke project access</Title>
-                    </Group>
-                }
-            >
-                <Text pb="md">
-                    Are you sure you want to revoke project access for this user{' '}
-                    {user.email} ?
-                </Text>
-                <Group spacing="xs" position="right">
-                    <Button
-                        variant="outline"
-                        onClick={() => setIsDeleteDialogOpen(false)}
-                        color="dark"
-                    >
-                        Cancel
-                    </Button>
-                    <Button color="red" onClick={onDelete}>
-                        Delete
-                    </Button>
-                </Group>
-            </Modal>
+            {isDeleteDialogOpen && (
+                <RemoveProjectAccessModal
+                    user={user}
+                    onDelete={onDelete}
+                    onClose={() => setIsDeleteDialogOpen(false)}
+                />
+            )}
         </>
     );
 };
