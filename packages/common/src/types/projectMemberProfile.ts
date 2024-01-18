@@ -1,4 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
+import { OrganizationMemberRole } from './organizationMemberProfile';
 
 export enum ProjectMemberRole {
     VIEWER = 'viewer',
@@ -8,31 +9,94 @@ export enum ProjectMemberRole {
     ADMIN = 'admin',
 }
 
-export const getHighestProjectRole = (
-    roles: ProjectMemberRole[],
-): ProjectMemberRole | undefined => {
-    if (roles.length === 0) {
-        return undefined;
-    }
+export const ProjectMemberRoleLabels: Record<ProjectMemberRole, string> = {
+    [ProjectMemberRole.VIEWER]: 'Viewer',
+    [ProjectMemberRole.INTERACTIVE_VIEWER]: 'Interactive Viewer',
+    [ProjectMemberRole.EDITOR]: 'Editor',
+    [ProjectMemberRole.DEVELOPER]: 'Developer',
+    [ProjectMemberRole.ADMIN]: 'Admin',
+} as const;
 
-    if (roles.includes(ProjectMemberRole.ADMIN)) {
-        return ProjectMemberRole.ADMIN;
-    }
-    if (roles.includes(ProjectMemberRole.DEVELOPER)) {
-        return ProjectMemberRole.DEVELOPER;
-    }
-    if (roles.includes(ProjectMemberRole.EDITOR)) {
-        return ProjectMemberRole.EDITOR;
-    }
-    if (roles.includes(ProjectMemberRole.INTERACTIVE_VIEWER)) {
-        return ProjectMemberRole.INTERACTIVE_VIEWER;
-    }
-    if (roles.includes(ProjectMemberRole.VIEWER)) {
-        return ProjectMemberRole.VIEWER;
-    }
-
-    return undefined;
+type OrganizationRole = {
+    type: 'organization';
+    role: ProjectMemberRole;
 };
+type ProjectRole = {
+    type: 'project';
+    role: ProjectMemberRole | undefined;
+};
+
+type GroupRole = {
+    type: 'group';
+    role: ProjectMemberRole | undefined;
+};
+
+export type InheritedRoles = [OrganizationRole, GroupRole, ProjectRole];
+
+const RoleTypes = ['organization', 'project', 'group'] as const;
+type RoleType = typeof RoleTypes[number];
+
+type InheritedProjectRole = {
+    type: RoleType;
+    role: ProjectMemberRole;
+};
+
+const ProjectRoleOrder = {
+    [ProjectMemberRole.VIEWER]: 0,
+    [ProjectMemberRole.INTERACTIVE_VIEWER]: 1,
+    [ProjectMemberRole.EDITOR]: 2,
+    [ProjectMemberRole.DEVELOPER]: 3,
+    [ProjectMemberRole.ADMIN]: 4,
+} as const;
+
+export const convertOrganizationRoleToProjectRole = (
+    organizationRole: OrganizationMemberRole,
+): ProjectMemberRole => {
+    switch (organizationRole) {
+        case OrganizationMemberRole.VIEWER:
+            return ProjectMemberRole.VIEWER;
+        case OrganizationMemberRole.INTERACTIVE_VIEWER:
+            return ProjectMemberRole.INTERACTIVE_VIEWER;
+        case OrganizationMemberRole.EDITOR:
+            return ProjectMemberRole.EDITOR;
+        case OrganizationMemberRole.DEVELOPER:
+            return ProjectMemberRole.DEVELOPER;
+        case OrganizationMemberRole.ADMIN:
+            return ProjectMemberRole.ADMIN;
+        case OrganizationMemberRole.MEMBER:
+            return ProjectMemberRole.VIEWER;
+        default:
+            return assertUnreachable(
+                organizationRole,
+                `Unknown role ${organizationRole}`,
+            );
+    }
+};
+
+export const getHighestProjectRole = (
+    inheritedRoles: Array<OrganizationRole | ProjectRole | GroupRole>,
+): InheritedProjectRole =>
+    inheritedRoles.reduce<InheritedProjectRole>(
+        (highestRole, role) => {
+            if (role.role === undefined) {
+                return highestRole;
+            }
+
+            if (
+                highestRole.role === undefined ||
+                ProjectRoleOrder[role.role] >=
+                    ProjectRoleOrder[highestRole.role]
+            ) {
+                return {
+                    type: role.type,
+                    role: role.role,
+                };
+            }
+
+            return highestRole;
+        },
+        { type: 'project', role: ProjectMemberRole.VIEWER },
+    );
 
 export type ProjectMemberProfile = {
     userUuid: string;

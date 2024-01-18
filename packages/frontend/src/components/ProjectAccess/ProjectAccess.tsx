@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    convertOrganizationRoleToProjectRole,
     getHighestProjectRole,
     OrganizationMemberProfile,
     OrganizationMemberRole,
-    ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
 import { Paper, Table } from '@mantine/core';
@@ -22,29 +22,6 @@ import { useAbilityContext } from '../common/Authorization';
 import LoadingState from '../common/LoadingState';
 import ProjectAccessCreation from './ProjectAccessCreation';
 import ProjectAccessRow from './ProjectAccessRow';
-
-const relevantOrgRolesForProjectRole: Record<
-    ProjectMemberRole,
-    OrganizationMemberRole[]
-> = {
-    [ProjectMemberRole.VIEWER]: [
-        OrganizationMemberRole.INTERACTIVE_VIEWER,
-        OrganizationMemberRole.EDITOR,
-        OrganizationMemberRole.DEVELOPER,
-        OrganizationMemberRole.ADMIN,
-    ],
-    [ProjectMemberRole.INTERACTIVE_VIEWER]: [
-        OrganizationMemberRole.EDITOR,
-        OrganizationMemberRole.DEVELOPER,
-        OrganizationMemberRole.ADMIN,
-    ],
-    [ProjectMemberRole.EDITOR]: [
-        OrganizationMemberRole.DEVELOPER,
-        OrganizationMemberRole.ADMIN,
-    ],
-    [ProjectMemberRole.DEVELOPER]: [OrganizationMemberRole.ADMIN],
-    [ProjectMemberRole.ADMIN]: [],
-};
 
 interface ProjectAccessProps {
     projectUuid: string;
@@ -76,33 +53,20 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
         useProjectAccess(projectUuid);
     const { data: projectGroupAccess } = useProjectGroupAccessList(projectUuid);
 
-    const [inheritedPermissions, overlapPermissions] = useMemo(() => {
-        if (projectAccess === undefined) return [[], []];
+    const orgRoles = useMemo(() => {
+        if (!organizationUsers) return {};
+        if (!projectAccess) return {};
 
-        const projectMemberEmails = projectAccess.map(
-            (projectMember) => projectMember.email,
-        );
-
-        if (organizationUsers === undefined) return [[], []];
-
-        return organizationUsers.reduce<
-            [OrganizationMemberProfile[], OrganizationMemberProfile[]]
-        >(
-            ([inherited, overlapping], orgUser) => {
-                if (orgUser.role === OrganizationMemberRole.MEMBER) {
-                    return [inherited, overlapping];
-                }
-                if (projectMemberEmails.includes(orgUser.email)) {
-                    return [inherited, [...overlapping, orgUser]];
-                }
-                return [[...inherited, orgUser], overlapping];
+        return organizationUsers.reduce<Record<string, OrganizationMemberRole>>(
+            (acc, orgUser) => {
+                return {
+                    ...acc,
+                    [orgUser.userUuid]: orgUser.role,
+                };
             },
-            [[], []],
+            {},
         );
     }, [organizationUsers, projectAccess]);
-
-    console.log('inheritedPermissions', inheritedPermissions);
-    console.log('overlapPermissions', overlapPermissions);
 
     const groupRoles = useMemo(() => {
         if (!organizationUsers) return {};
@@ -110,7 +74,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
         if (!groups) return {};
 
         return organizationUsers.reduce<Record<string, ProjectMemberRole>>(
-            (acc, orgUser) => {
+            (aggregatedRoles, orgUser) => {
                 const userGroupRoles = projectGroupAccess.reduce<
                     ProjectMemberRole[]
                 >((userRoles, groupAccess) => {
@@ -124,18 +88,35 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                     return [...userRoles, groupAccess.role];
                 }, []);
 
-                const highestRole = getHighestProjectRole(userGroupRoles);
-
-                if (highestRole === undefined) return acc;
+                const highestRole = getHighestProjectRole(
+                    userGroupRoles.map((role) => ({
+                        type: 'group',
+                        role,
+                    })),
+                );
 
                 return {
-                    ...acc,
-                    [orgUser.userUuid]: highestRole,
+                    ...aggregatedRoles,
+                    [orgUser.userUuid]: highestRole.role,
                 };
             },
             {},
         );
     }, [organizationUsers, projectGroupAccess, groups]);
+
+    const projectRoles = useMemo(() => {
+        if (!projectAccess) return {};
+
+        return projectAccess.reduce<Record<string, ProjectMemberRole>>(
+            (acc, projectMember) => {
+                return {
+                    ...acc,
+                    [projectMember.userUuid]: projectMember.role,
+                };
+            },
+            {},
+        );
+    }, [projectAccess]);
 
     console.log('groupRoles', groupRoles);
 
@@ -148,37 +129,25 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     );
 
     const handleUpdate = (
-        projectMember: ProjectMemberProfile,
+        orgUser: OrganizationMemberProfile,
         newRole: ProjectMemberRole,
     ) => {
         if (!canManageProjectAccess) return;
 
         updateAccess({
-            userUuid: projectMember.userUuid,
+            userUuid: orgUser.userUuid,
             role: newRole,
         });
     };
 
-    const handleDelete = (projectMember: ProjectMemberProfile) => {
+    const handleDelete = (orgUser: OrganizationMemberProfile) => {
         if (!canManageProjectAccess) return;
-        revokeAccess(projectMember.userUuid);
+        revokeAccess(orgUser.userUuid);
     };
 
     if (isProjectAccessLoading || isOrganizationUsersLoading) {
         return <LoadingState title="Loading user access" />;
     }
-
-
-    relevantOrgRole={
-        overlapPermissions.find(
-            ({ email, role }) =>
-                email === projectMember.email &&
-                relevantOrgRolesForProjectRole[
-                    projectMember.role
-                ].includes(role),
-        )?.role
-    }
-
 
     return (
         <>
@@ -192,26 +161,30 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {projectAccess?.map((projectMember) => (
-                            <ProjectAccessRow
-                                key={projectMember.email}
-                                user={projectMember}
-                                overalappingRole={{
-                                    type: 'organization',
-                                    role: projectMember.role,
-                                }}
-                                onUpdate={(newRole) =>
-                                    handleUpdate(projectMember, newRole)
-                                }
-                                onDelete={() => handleDelete(projectMember)}
-                            />
-                        ))}
-
-                        {inheritedPermissions?.map((orgUser) => (
+                        {organizationUsers?.map((orgUser) => (
                             <ProjectAccessRow
                                 key={orgUser.email}
                                 user={orgUser}
-                                roleTooltip={`This user inherits the organization role: ${orgUser.role}`}
+                                inheritedRoles={[
+                                    {
+                                        type: 'organization',
+                                        role: convertOrganizationRoleToProjectRole(
+                                            orgRoles[orgUser.userUuid],
+                                        ),
+                                    },
+                                    {
+                                        type: 'group',
+                                        role: groupRoles[orgUser.userUuid],
+                                    },
+                                    {
+                                        type: 'project',
+                                        role: projectRoles[orgUser.userUuid],
+                                    },
+                                ]}
+                                onUpdate={(newRole) =>
+                                    handleUpdate(orgUser, newRole)
+                                }
+                                onDelete={() => handleDelete(orgUser)}
                             />
                         ))}
                     </tbody>
