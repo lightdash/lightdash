@@ -1,4 +1,4 @@
-import { ProjectMemberRole } from './projectMemberProfile';
+import { ProjectMemberRole } from './projectMemberRole';
 
 export type ProjectGroupAccess = {
     projectUuid: string;

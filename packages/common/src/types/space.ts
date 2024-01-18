@@ -1,5 +1,5 @@
 import { SpaceDashboard } from './dashboard';
-import { ProjectMemberRole } from './projectMemberProfile';
+import { ProjectMemberRole } from './projectMemberRole';
 import { SpaceQuery } from './savedCharts';
 
 export type Space = {
