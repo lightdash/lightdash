@@ -1,4 +1,5 @@
 import reactPlugin from '@vitejs/plugin-react';
+import million from 'million/compiler';
 import { defineConfig } from 'vite';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
@@ -9,6 +10,9 @@ export default defineConfig({
     plugins: [
         tsconfigPaths(),
         svgrPlugin(),
+        million.vite({
+            auto: true,
+        }),
         reactPlugin(),
         compression({
             include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],

@@ -59,6 +59,7 @@
         "immer": "^9.0.15",
         "jspdf": "^2.5.1",
         "lodash": "^4.17.21",
+        "million": "^2.6.4",
         "moment": "^2.29.4",
         "monaco-editor": "^0.44.0",
         "polished": "^4.2.2",
