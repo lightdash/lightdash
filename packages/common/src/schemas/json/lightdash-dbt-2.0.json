@@ -264,6 +264,7 @@
                                                                     "MINUTE",
                                                                     "SECOND",
                                                                     "MILLISECOND",
+                                                                    "WEEK_NUM",
                                                                     "MONTH_NUM",
                                                                     "MONTH_NAME",
                                                                     "DAY_OF_WEEK_NAME",

@@ -19,6 +19,7 @@ models:
               - DAY_OF_MONTH_NUM
               - DAY_OF_YEAR_NUM
               - WEEK
+              - WEEK_NUM
               - MONTH
               - MONTH_NUM
               - MONTH_NAME

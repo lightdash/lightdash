@@ -36,6 +36,7 @@ const nullTimeFrameMap: Record<TimeFrames, null> = {
     RAW: null,
     SECOND: null,
     WEEK: null,
+    WEEK_NUM: null,
     YEAR: null,
     YEAR_NUM: null,
 };
@@ -45,6 +46,7 @@ const timeFrameToDatePartMap: Record<TimeFrames, string | null> = {
     [TimeFrames.DAY_OF_WEEK_INDEX]: 'DOW',
     [TimeFrames.DAY_OF_MONTH_NUM]: 'DAY',
     [TimeFrames.DAY_OF_YEAR_NUM]: 'DOY',
+    [TimeFrames.WEEK_NUM]: 'WEEK',
     [TimeFrames.MONTH_NUM]: 'MONTH',
     [TimeFrames.QUARTER_NUM]: 'QUARTER',
     [TimeFrames.YEAR_NUM]: 'YEAR',
@@ -393,6 +395,13 @@ export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
         getAxisMinInterval: () => 31557600000,
         getAxisLabelFormatter: () => null,
     },
+    WEEK_NUM: {
+        getLabel: () => 'Week (number)',
+        getDimensionType: () => DimensionType.NUMBER,
+        getSql: getSqlForDatePart,
+        getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
+    },
     MONTH_NUM: {
         getLabel: () => 'Month (number)',
         getDimensionType: () => DimensionType.NUMBER,
@@ -492,6 +501,7 @@ const timeFrameOrder = [
     TimeFrames.DAY_OF_MONTH_NUM,
     TimeFrames.DAY_OF_YEAR_NUM,
     TimeFrames.WEEK,
+    TimeFrames.WEEK_NUM,
     TimeFrames.MONTH,
     TimeFrames.MONTH_NUM,
     TimeFrames.MONTH_NAME,

@@ -287,6 +287,7 @@ const testTimeIntervalsResults = (
                 'events_timestamp_tz_day_of_month_num',
                 'events_timestamp_tz_day_of_year_num',
                 'events_timestamp_tz_week',
+                'events_timestamp_tz_week_num',
                 'events_timestamp_tz_month',
                 'events_timestamp_tz_month_num',
                 'events_timestamp_tz_month_name',
