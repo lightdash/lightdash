@@ -41,6 +41,7 @@ type Props<T> = {
     onEdit: (tile: T) => void;
     children?: ReactNode;
     extraHeaderElement?: ReactNode;
+    minimal?: boolean;
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -57,6 +58,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     children,
     extraHeaderElement,
     titleHref,
+    minimal = false,
 }: Props<T>) => {
     const [isEditingTileContent, setIsEditingTileContent] = useState(false);
     const [
@@ -110,50 +112,56 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         : {}
                 }
             >
-                <Tooltip
-                    disabled={!description || !!titleLeftIcon}
-                    label={description}
-                    multiline
-                    position="top-start"
-                    withinPortal
-                    maw={400}
-                >
-                    <TitleWrapper $hovered={titleHovered}>
-                        <Group spacing="xs">
-                            {titleLeftIcon}
+                {' '}
+                {minimal ? (
+                    <Text fw={600} size="md">
+                        {title}
+                    </Text>
+                ) : (
+                    <Tooltip
+                        disabled={!description || !!titleLeftIcon}
+                        label={description}
+                        multiline
+                        position="top-start"
+                        withinPortal
+                        maw={400}
+                    >
+                        <TitleWrapper $hovered={titleHovered}>
+                            <Group spacing="xs">
+                                {titleLeftIcon}
 
-                            <Tooltip
-                                disabled={!description || !titleLeftIcon}
-                                label={description}
-                                multiline
-                                position="top-start"
-                                withinPortal
-                                maw={400}
-                            >
-                                {!hideTitle ? (
-                                    belongsToDashboard ? (
-                                        <Text fw={600} size="md">
-                                            {title}
-                                        </Text>
+                                <Tooltip
+                                    disabled={!description || !titleLeftIcon}
+                                    label={description}
+                                    multiline
+                                    position="top-start"
+                                    withinPortal
+                                    maw={400}
+                                >
+                                    {!hideTitle ? (
+                                        belongsToDashboard ? (
+                                            <Text fw={600} size="md">
+                                                {title}
+                                            </Text>
+                                        ) : (
+                                            <TileTitleLink
+                                                ref={titleRef}
+                                                href={titleHref}
+                                                $hovered={titleHovered}
+                                                target="_blank"
+                                                className="non-draggable"
+                                            >
+                                                {title}
+                                            </TileTitleLink>
+                                        )
                                     ) : (
-                                        <TileTitleLink
-                                            ref={titleRef}
-                                            href={titleHref}
-                                            $hovered={titleHovered}
-                                            target="_blank"
-                                            className="non-draggable"
-                                        >
-                                            {title}
-                                        </TileTitleLink>
-                                    )
-                                ) : (
-                                    <Box />
-                                )}
-                            </Tooltip>
-                        </Group>
-                    </TitleWrapper>
-                </Tooltip>
-
+                                        <Box />
+                                    )}
+                                </Tooltip>
+                            </Group>
+                        </TitleWrapper>
+                    </Tooltip>
+                )}
                 {(containerHovered && !titleHovered) || isMenuOpen ? (
                     <ButtonsWrapper className="non-draggable">
                         {extraHeaderElement}
