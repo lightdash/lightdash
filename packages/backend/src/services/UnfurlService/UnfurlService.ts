@@ -277,7 +277,6 @@ export class UnfurlService {
                     DownloadFileType.IMAGE,
                 );
 
-                // Slack requires for the image to end with .png, otherwise it throws an error (invalid_blocks)
                 imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${downloadFileId}`;
             }
         }
