@@ -113,9 +113,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 }
             >
                 {minimal ? (
-                    <Text fw={600} size="md">
-                        {title}
-                    </Text>
+                    !hideTitle ? (
+                        <Text fw={600} size="md">
+                            {title}
+                        </Text>
+                    ) : (
+                        <Box />
+                    )
                 ) : (
                     <Tooltip
                         disabled={!description || !!titleLeftIcon}
