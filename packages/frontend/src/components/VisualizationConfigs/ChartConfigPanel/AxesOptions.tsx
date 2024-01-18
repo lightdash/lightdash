@@ -177,7 +177,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                             dirtyEchartsConfig?.xAxis?.[0].rotate || 0
                         }
                         min={0}
-                        max={180}
+                        max={90}
                         step={15}
                         size="xs"
                         w={80}

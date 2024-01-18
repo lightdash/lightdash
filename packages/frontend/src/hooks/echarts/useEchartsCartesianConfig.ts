@@ -887,9 +887,8 @@ const getEchartAxes = ({
                 (longestLabelWidth || 0) * Math.sin(rotateRadians);
             axisConfig.axisLabel = axisConfig.axisLabel || {};
             axisConfig.axisLabel.rotate = rotate;
-            axisConfig.nameGap = oppositeSide + 10;
+            axisConfig.nameGap = oppositeSide + 15;
         }
-        axisConfig.hideOverlap = false;
         return axisConfig;
     };
 
@@ -1048,9 +1047,8 @@ const getEchartAxes = ({
                 ...getAxisFormatter({
                     axisItem: topAxisXField,
                     longestLabelWidth: calculateWidthText(longestValueXAxisTop),
+                    defaultNameGap: 30,
                 }),
-                nameGap: 30,
-
                 nameTextStyle: {
                     fontWeight: 'bold',
                 },
@@ -1096,7 +1094,6 @@ const getEchartAxes = ({
                     axisItem: leftAxisYField,
                     defaultNameGap: leftYaxisGap + 20,
                 }),
-                nameGap: leftYaxisGap + 20,
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
                         ? showGridX
