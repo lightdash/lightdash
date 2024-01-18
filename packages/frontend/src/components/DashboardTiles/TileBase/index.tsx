@@ -112,7 +112,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         : {}
                 }
             >
-                {' '}
                 {minimal ? (
                     <Text fw={600} size="md">
                         {title}
