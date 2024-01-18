@@ -6,8 +6,9 @@ import {
     OrganizationMemberRole,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Paper, Table } from '@mantine/core';
-import { FC, useMemo } from 'react';
+import { ActionIcon, Paper, Table, TextInput } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
+import { FC, useMemo, useState } from 'react';
 import { useProjectGroupAccessList } from '../../features/projectGroupAccess/hooks/useProjectGroupAccess';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
@@ -20,6 +21,8 @@ import {
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
 import LoadingState from '../common/LoadingState';
+import MantineIcon from '../common/MantineIcon';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import CreateProjectAccessModal from './CreateProjectAccessModal';
 import ProjectAccessRow from './ProjectAccessRow';
 
@@ -35,23 +38,29 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     onAddProjectAccessClose,
 }) => {
     const { user } = useApp();
+    const ability = useAbilityContext();
 
     const { cx, classes } = useTableStyles();
 
-    const ability = useAbilityContext();
-    const { mutate: revokeAccess } =
-        useRevokeProjectAccessMutation(projectUuid);
-    const { mutate: updateAccess, isLoading: isUpdatingAccess } =
-        useUpdateProjectAccessMutation(projectUuid);
+    const [search, setSearch] = useState('');
 
     const {
         data: organizationUsers,
         isInitialLoading: isOrganizationUsersLoading,
-    } = useOrganizationUsers();
+    } = useOrganizationUsers({ searchInput: search });
+
     const { data: groups } = useOrganizationGroups(5);
+
     const { data: projectAccess, isInitialLoading: isProjectAccessLoading } =
         useProjectAccess(projectUuid);
+
     const { data: projectGroupAccess } = useProjectGroupAccessList(projectUuid);
+
+    const { mutate: revokeAccess } =
+        useRevokeProjectAccessMutation(projectUuid);
+
+    const { mutate: updateAccess, isLoading: isUpdatingAccess } =
+        useUpdateProjectAccessMutation(projectUuid);
 
     const orgRoles = useMemo(() => {
         if (!organizationUsers) return {};
@@ -151,7 +160,24 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
 
     return (
         <>
-            <Paper withBorder sx={{ overflow: 'hidden' }}>
+            <SettingsCard shadow="none" p={0}>
+                <Paper p="sm">
+                    <TextInput
+                        size="xs"
+                        placeholder="Search users by name, email, or role"
+                        onChange={(e) => setSearch(e.target.value)}
+                        value={search}
+                        w={320}
+                        rightSection={
+                            search.length > 0 && (
+                                <ActionIcon onClick={() => setSearch('')}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            )
+                        }
+                    />
+                </Paper>
+
                 <Table className={cx(classes.root, classes.alignLastTdRight)}>
                     <thead>
                         <tr>
@@ -190,7 +216,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                         ))}
                     </tbody>
                 </Table>
-            </Paper>
+            </SettingsCard>
 
             {isAddingProjectAccess && (
                 <CreateProjectAccessModal
