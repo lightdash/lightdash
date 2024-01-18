@@ -302,6 +302,7 @@ export const getCompiledModels = async (
         profilesDir: string;
         target: string | undefined;
         profile: string | undefined;
+        vars: string | undefined;
     },
 ): Promise<CompiledModel[]> => {
     let allModelIds = models.map((model) => model.unique_id);
@@ -319,6 +320,7 @@ export const getCompiledModels = async (
                 ...(args.profile ? ['--profile', args.profile] : []),
                 ...(args.select ? ['--select', args.select.join(' ')] : []),
                 ...(args.exclude ? ['--exclude', args.exclude.join(' ')] : []),
+                ...(args.vars ? ['--vars', args.vars] : []),
                 '--resource-type=model',
                 '--output=json',
             ]);
