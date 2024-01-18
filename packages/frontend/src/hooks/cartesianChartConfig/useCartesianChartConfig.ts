@@ -247,6 +247,15 @@ const useCartesianChartConfig = ({
             return x;
         });
     }, []);
+    const setXAxisLabelRotation = useCallback((rotation: number) => {
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            return {
+                ...prevState,
+                xAxis: [{ ...firstAxis, rotate: rotation }, ...axes],
+            };
+        });
+    }, []);
     const addSingleSeries = useCallback((yField: string) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -702,6 +711,7 @@ const useCartesianChartConfig = ({
         setShowGridX,
         setShowGridY,
         setInverseX,
+        setXAxisLabelRotation,
         updateSeries,
         referenceLines,
         setReferenceLines,

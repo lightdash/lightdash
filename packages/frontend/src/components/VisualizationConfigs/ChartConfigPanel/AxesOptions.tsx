@@ -8,6 +8,7 @@ import {
 import {
     Checkbox,
     Group,
+    NumberInput,
     SegmentedControl,
     Stack,
     Switch,
@@ -97,6 +98,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
         setShowGridX,
         setShowGridY,
         setInverseX,
+        setXAxisLabelRotation,
     } = visualizationConfig.chartConfig;
 
     const xAxisField =
@@ -128,7 +130,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
     );
 
     return (
-        <Stack spacing="xs">
+        <Stack spacing="xs" mb="xl">
             <TextInput
                 label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis label`}
                 placeholder="Enter axis label"
@@ -165,6 +167,26 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     }}
                 />
             </Group>
+            {!dirtyLayout?.flipAxes && (
+                <Group noWrap spacing="xs" align="baseline">
+                    <Text fw={600} mt="sm">
+                        Rotation
+                    </Text>
+                    <NumberInput
+                        defaultValue={
+                            dirtyEchartsConfig?.xAxis?.[0].rotate || 0
+                        }
+                        min={0}
+                        max={180}
+                        step={15}
+                        size="xs"
+                        w={80}
+                        onChange={(value) => {
+                            setXAxisLabelRotation(Number(value));
+                        }}
+                    />
+                </Group>
+            )}
             <TextInput
                 label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
                     dirtyLayout?.flipAxes ? 'bottom' : 'left'
