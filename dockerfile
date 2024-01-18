@@ -7,6 +7,7 @@ WORKDIR /usr/app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     g++ \
+    git \
     libsasl2-modules-gssapi-mit \
     nodejs \
     python3 \
