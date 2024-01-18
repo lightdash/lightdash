@@ -118,6 +118,7 @@ export const chart: SavedChart = {
                 label: 'Count of dimension',
                 description: 'Count of dimension',
                 sql: '${TABLE}.dimension',
+                baseDimensionName: 'dimension',
             },
         ],
         limit: 10,

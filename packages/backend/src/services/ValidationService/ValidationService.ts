@@ -299,7 +299,8 @@ export class ValidationService {
             ).reduce<CreateChartValidation[]>(
                 (acc, field) => {
                     const dimensionId = getCustomMetricDimensionId(field);
-                    if (!dimensionId) return acc;
+                    if (field.baseDimensionName === undefined || !dimensionId)
+                        return acc;
                     return containsFieldId({
                         acc,
                         fieldIds: availableDimensionIds,
