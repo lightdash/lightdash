@@ -11,7 +11,7 @@ import assertUnreachable from './assertUnreachable';
 
 export const convertOrganizationRoleToProjectRole = (
     organizationRole: OrganizationMemberRole,
-): ProjectMemberRole => {
+): ProjectMemberRole | undefined => {
     switch (organizationRole) {
         case OrganizationMemberRole.VIEWER:
             return ProjectMemberRole.VIEWER;
@@ -24,7 +24,7 @@ export const convertOrganizationRoleToProjectRole = (
         case OrganizationMemberRole.ADMIN:
             return ProjectMemberRole.ADMIN;
         case OrganizationMemberRole.MEMBER:
-            return ProjectMemberRole.VIEWER;
+            return undefined;
         default:
             return assertUnreachable(
                 organizationRole,
@@ -35,15 +35,15 @@ export const convertOrganizationRoleToProjectRole = (
 
 export const getHighestProjectRole = (
     inheritedRoles: Array<OrganizationRole | ProjectRole | GroupRole>,
-): InheritedProjectRole =>
-    inheritedRoles.reduce<InheritedProjectRole>(
+): InheritedProjectRole | undefined =>
+    inheritedRoles.reduce<InheritedProjectRole | undefined>(
         (highestRole, role) => {
             if (role.role === undefined) {
                 return highestRole;
             }
 
             if (
-                highestRole.role === undefined ||
+                highestRole?.role === undefined ||
                 ProjectRoleOrder[role.role] >=
                     ProjectRoleOrder[highestRole.role]
             ) {
@@ -55,5 +55,5 @@ export const getHighestProjectRole = (
 
             return highestRole;
         },
-        { type: 'project', role: ProjectMemberRole.VIEWER },
+        undefined,
     );

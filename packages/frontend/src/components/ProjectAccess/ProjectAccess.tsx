@@ -95,6 +95,8 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                     })),
                 );
 
+                if (!highestRole) return aggregatedRoles;
+
                 return {
                     ...aggregatedRoles,
                     [orgUser.userUuid]: highestRole.role,
@@ -117,8 +119,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
             {},
         );
     }, [projectAccess]);
-
-    console.log('groupRoles', groupRoles);
 
     const canManageProjectAccess = ability.can(
         'manage',
@@ -165,6 +165,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                             <ProjectAccessRow
                                 key={orgUser.email}
                                 user={orgUser}
+                                organizationRole={orgRoles[orgUser.userUuid]}
                                 inheritedRoles={[
                                     {
                                         type: 'organization',

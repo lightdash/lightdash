@@ -2,9 +2,11 @@ import {
     getHighestProjectRole,
     InheritedRoles,
     OrganizationMemberProfile,
+    OrganizationMemberRole,
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
+    ProjectRole,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -25,6 +27,7 @@ import MantineIcon from '../common/MantineIcon';
 
 type Props = {
     user: OrganizationMemberProfile | ProjectMemberProfile;
+    organizationRole: OrganizationMemberRole;
     inheritedRoles: InheritedRoles;
     roleTooltip?: string;
     onDelete: () => void;
@@ -40,7 +43,11 @@ const ProjectAccessRow: FC<Props> = ({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const highestRole = getHighestProjectRole(inheritedRoles);
-    const projectRole = inheritedRoles.find((role) => role.type === 'project');
+    const projectRole = inheritedRoles.find(
+        (role): role is ProjectRole => role.type === 'project',
+    );
+
+    if (!highestRole) return null;
 
     return (
         <>

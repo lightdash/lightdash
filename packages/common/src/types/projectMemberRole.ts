@@ -16,7 +16,7 @@ export const ProjectMemberRoleLabels: Record<ProjectMemberRole, string> = {
 
 export type OrganizationRole = {
     type: 'organization';
-    role: ProjectMemberRole;
+    role: ProjectMemberRole | undefined;
 };
 
 export type ProjectRole = {
