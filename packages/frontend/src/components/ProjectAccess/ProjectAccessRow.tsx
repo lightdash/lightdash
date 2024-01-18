@@ -23,30 +23,6 @@ import { capitalize } from 'lodash';
 import { FC, useState } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
-// FIXME: do we need this?
-// const relevantOrgRolesForProjectRole: Record<
-//     ProjectMemberRole,
-//     OrganizationMemberRole[]
-// > = {
-//     [ProjectMemberRole.VIEWER]: [
-//         OrganizationMemberRole.INTERACTIVE_VIEWER,
-//         OrganizationMemberRole.EDITOR,
-//         OrganizationMemberRole.DEVELOPER,
-//         OrganizationMemberRole.ADMIN,
-//     ],
-//     [ProjectMemberRole.INTERACTIVE_VIEWER]: [
-//         OrganizationMemberRole.EDITOR,
-//         OrganizationMemberRole.DEVELOPER,
-//         OrganizationMemberRole.ADMIN,
-//     ],
-//     [ProjectMemberRole.EDITOR]: [
-//         OrganizationMemberRole.DEVELOPER,
-//         OrganizationMemberRole.ADMIN,
-//     ],
-//     [ProjectMemberRole.DEVELOPER]: [OrganizationMemberRole.ADMIN],
-//     [ProjectMemberRole.ADMIN]: [],
-// };
-
 type Props = {
     user: OrganizationMemberProfile | ProjectMemberProfile;
     inheritedRoles: InheritedRoles;
