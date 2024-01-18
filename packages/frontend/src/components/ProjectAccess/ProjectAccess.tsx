@@ -14,6 +14,7 @@ import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
+    useCreateProjectAccessMutation,
     useProjectAccess,
     useRevokeProjectAccessMutation,
     useUpdateProjectAccessMutation,
@@ -56,11 +57,14 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
 
     const { data: projectGroupAccess } = useProjectGroupAccessList(projectUuid);
 
-    const { mutate: revokeAccess } =
-        useRevokeProjectAccessMutation(projectUuid);
+    const { mutate: createAccess } =
+        useCreateProjectAccessMutation(projectUuid);
 
     const { mutate: updateAccess, isLoading: isUpdatingAccess } =
         useUpdateProjectAccessMutation(projectUuid);
+
+    const { mutate: revokeAccess } =
+        useRevokeProjectAccessMutation(projectUuid);
 
     const orgRoles = useMemo(() => {
         if (!organizationUsers) return {};
@@ -208,10 +212,17 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                                     },
                                 ]}
                                 isUpdatingAccess={isUpdatingAccess}
-                                onUpdate={(newRole) =>
+                                onCreateAccess={(role) =>
+                                    createAccess({
+                                        email: orgUser.email,
+                                        role,
+                                        sendEmail: false,
+                                    })
+                                }
+                                onUpdateAccess={(newRole) =>
                                     handleUpdate(orgUser, newRole)
                                 }
-                                onDelete={() => handleDelete(orgUser)}
+                                onDeleteAccess={() => handleDelete(orgUser)}
                             />
                         ))}
                     </tbody>

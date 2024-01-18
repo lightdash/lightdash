@@ -1,41 +1,63 @@
 import {
+    assertUnreachable,
     getHighestProjectRole,
     InheritedRoles,
     OrganizationMemberProfile,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     ProjectRole,
+    ProjectRoleOrder,
+    RoleType,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
     Group,
-    NativeSelect,
+    Select,
     Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import {
+    IconBuildingSkyscraper,
+    IconTrash,
+    IconUser,
+    IconUsersGroup,
+} from '@tabler/icons-react';
 import { capitalize } from 'lodash';
 import { FC, useState } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import RemoveProjectAccessModal from './RemoveProjectAccessModal';
 
+const getIconForRoleType = (roleType: RoleType) => {
+    switch (roleType) {
+        case 'project':
+            return IconUser;
+        case 'group':
+            return IconUsersGroup;
+        case 'organization':
+            return IconBuildingSkyscraper;
+        default:
+            return assertUnreachable(roleType, `Unknown role type ${roleType}`);
+    }
+};
+
 type Props = {
     user: OrganizationMemberProfile;
     inheritedRoles: InheritedRoles;
-    roleTooltip?: string;
     isUpdatingAccess: boolean;
-    onUpdate: (newRole: ProjectMemberRole) => void;
-    onDelete: () => void;
+    onCreateAccess: (newRole: ProjectMemberRole) => void;
+    onUpdateAccess: (newRole: ProjectMemberRole) => void;
+    onDeleteAccess: () => void;
 };
 
 const ProjectAccessRow: FC<Props> = ({
     user,
     inheritedRoles,
     isUpdatingAccess,
-    onUpdate,
-    onDelete,
+    onCreateAccess,
+    onDeleteAccess,
+    onUpdateAccess,
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -66,8 +88,7 @@ const ProjectAccessRow: FC<Props> = ({
                 <td>
                     <Group>
                         <Tooltip
-                            withinPortal
-                            withArrow
+                            position="top-start"
                             disabled={highestRole.type === 'project'}
                             label={`This user inherits the ${capitalize(
                                 highestRole.type,
@@ -75,53 +96,76 @@ const ProjectAccessRow: FC<Props> = ({
                                 ProjectMemberRoleLabels[highestRole.role]
                             }`}
                         >
-                            {projectRole?.role ? (
-                                <NativeSelect
-                                    id="user-role"
-                                    disabled={isUpdatingAccess}
-                                    w="150px"
-                                    error={highestRole.type !== 'project'}
-                                    size="xs"
-                                    data={Object.values(ProjectMemberRole).map(
-                                        (role) => ({
-                                            value: role,
-                                            label: ProjectMemberRoleLabels[
-                                                role
-                                            ],
-                                        }),
-                                    )}
-                                    onChange={(e) => {
-                                        const newRole = e.target
-                                            .value as ProjectMemberRole;
-                                        onUpdate(newRole);
-                                    }}
-                                    value={projectRole.role}
-                                />
-                            ) : (
-                                <Badge color="gray" radius="xs">
-                                    {ProjectMemberRoleLabels[highestRole.role]}
-                                </Badge>
-                            )}
+                            <Select
+                                id="user-role"
+                                w="180px"
+                                size="xs"
+                                disabled={isUpdatingAccess}
+                                icon={
+                                    <MantineIcon
+                                        icon={getIconForRoleType(
+                                            highestRole.type,
+                                        )}
+                                    />
+                                }
+                                error={
+                                    highestRole.type !== 'project' &&
+                                    ProjectRoleOrder[highestRole.role] >
+                                        ProjectRoleOrder[
+                                            projectRole?.role ??
+                                                ProjectMemberRole.VIEWER
+                                        ]
+                                }
+                                data={Object.values(ProjectMemberRole).map(
+                                    (role) => ({
+                                        value: role,
+                                        label: ProjectMemberRoleLabels[role],
+                                    }),
+                                )}
+                                value={projectRole?.role ?? highestRole.role}
+                                onChange={(newRole: ProjectMemberRole) => {
+                                    if (projectRole && projectRole.role) {
+                                        onUpdateAccess(newRole);
+                                    } else {
+                                        onCreateAccess(newRole);
+                                    }
+                                }}
+                            />
                         </Tooltip>
                     </Group>
                 </td>
                 <td width="1%">
-                    {projectRole?.role && (
-                        <ActionIcon
-                            variant="outline"
-                            color="red"
-                            onClick={() => setIsDeleteDialogOpen(true)}
-                        >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    )}
+                    <Tooltip
+                        position="top"
+                        label={
+                            highestRole.type === 'project'
+                                ? 'Revoke project access'
+                                : `Cannot revoke inherited access from ${capitalize(
+                                      highestRole.type,
+                                  )}`
+                        }
+                    >
+                        <div>
+                            <ActionIcon
+                                disabled={highestRole.type !== 'project'}
+                                variant="outline"
+                                color="red"
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                            >
+                                <MantineIcon icon={IconTrash} />
+                            </ActionIcon>
+                        </div>
+                    </Tooltip>
                 </td>
             </tr>
 
             {isDeleteDialogOpen && (
                 <RemoveProjectAccessModal
                     user={user}
-                    onDelete={onDelete}
+                    onDelete={() => {
+                        setIsDeleteDialogOpen(false);
+                        onDeleteAccess();
+                    }}
                     onClose={() => setIsDeleteDialogOpen(false)}
                 />
             )}
