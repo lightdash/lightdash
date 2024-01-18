@@ -1,10 +1,10 @@
 import {
     AllowedEmailDomains,
     OrganizationMemberRole,
+    ProjectMemberRole,
     ProjectType,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
-import { ProjectMemberRole } from '@lightdash/common/src/types/projectMemberProfile';
 import {
     ActionIcon,
     Button,
