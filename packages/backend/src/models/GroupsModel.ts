@@ -10,6 +10,7 @@ import {
     UpdateGroupWithMembers,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { uniq } from 'lodash';
 import differenceBy from 'lodash/differenceBy';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
@@ -207,7 +208,7 @@ export class GroupsModel {
     async updateGroup(
         groupUuid: string,
         update: UpdateGroupWithMembers,
-    ): Promise<Group | GroupWithMembers> {
+    ): Promise<GroupWithMembers> {
         // TODO: fix include member count
         const existingGroup = await this.getGroupWithMembers(groupUuid, 10000);
         if (existingGroup === undefined) {
@@ -352,7 +353,7 @@ export class GroupsModel {
         userUuid: string;
         groups: string[];
         organizationUuid: string;
-    }) {
+    }): Promise<string[]> {
         const organization = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
             .first('organization_id');
@@ -366,7 +367,7 @@ export class GroupsModel {
             .select('group_uuid', 'organization_id');
 
         if (existingGroups.length === 0) {
-            return;
+            return [];
         }
 
         const userIdToInsert = (
@@ -384,9 +385,11 @@ export class GroupsModel {
             organization_id: organization.organization_id,
         }));
 
-        await this.database('group_memberships')
+        const groupsUpdated = await this.database('group_memberships')
             .insert(insertData)
             .onConflict()
-            .ignore();
+            .ignore()
+            .returning('group_uuid');
+        return uniq(groupsUpdated.map((row) => row.group_uuid));
     }
 }

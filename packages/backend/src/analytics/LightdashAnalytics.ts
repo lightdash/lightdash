@@ -802,6 +802,8 @@ export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
         values: {
             userIds: string[];
             values: string[];
+            groupIds: string[];
+            groupValues: string[];
         };
         defaultValue: string | null;
     };
@@ -813,6 +815,27 @@ export type UserAttributeDeleteEvent = BaseTrack & {
     properties: {
         organizationId: string;
         attributeId: string;
+    };
+};
+
+export type GroupCreateAndUpdateEvent = BaseTrack & {
+    event: 'group.created' | 'group.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        groupId: string;
+        name: string;
+        countUsersInGroup: number;
+        viaSso: boolean;
+    };
+};
+
+export type GroupDeleteEvent = BaseTrack & {
+    event: 'group.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        groupId: string;
     };
 };
 
@@ -878,6 +901,8 @@ type Track =
     | UserAttributeCreateAndUpdateEvent
     | UserAttributeDeleteEvent
     | MetricFlowQueryEvent
+    | GroupCreateAndUpdateEvent
+    | GroupDeleteEvent
     | ConditionalFormattingRuleSavedEvent;
 
 export class LightdashAnalytics extends Analytics {

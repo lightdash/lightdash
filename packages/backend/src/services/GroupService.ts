@@ -8,8 +8,8 @@ import {
     ProjectGroupAccess,
     SessionUser,
     UpdateGroupWithMembers,
-    UpdateProjectGroupAccess,
 } from '@lightdash/common';
+import { analytics } from '../analytics/client';
 import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -44,7 +44,24 @@ export class GroupsService {
         ) {
             throw new ForbiddenError();
         }
-        return this.groupsModel.addGroupMember(member);
+        const groupMembership = await this.groupsModel.addGroupMember(member);
+        if (groupMembership) {
+            const updatedGroup = await this.groupsModel.getGroupWithMembers(
+                member.groupUuid,
+            );
+            analytics.track({
+                userId: actor.userUuid,
+                event: 'group.updated',
+                properties: {
+                    organizationId: updatedGroup.organizationUuid,
+                    groupId: updatedGroup.uuid,
+                    name: updatedGroup.name,
+                    countUsersInGroup: updatedGroup.memberUuids.length,
+                    viaSso: false,
+                },
+            });
+        }
+        return groupMembership;
     }
 
     async removeGroupMember(
@@ -62,7 +79,27 @@ export class GroupsService {
         ) {
             throw new ForbiddenError();
         }
-        return this.groupsModel.removeGroupMember(member);
+        const isGroupMemberRemoved = await this.groupsModel.removeGroupMember(
+            member,
+        );
+
+        if (isGroupMemberRemoved) {
+            const updatedGroup = await this.groupsModel.getGroupWithMembers(
+                member.groupUuid,
+            );
+            analytics.track({
+                userId: actor.userUuid,
+                event: 'group.updated',
+                properties: {
+                    organizationId: updatedGroup.organizationUuid,
+                    groupId: updatedGroup.uuid,
+                    name: updatedGroup.name,
+                    countUsersInGroup: updatedGroup.memberUuids.length,
+                    viaSso: false,
+                },
+            });
+        }
+        return isGroupMemberRemoved;
     }
 
     async delete(actor: SessionUser, groupUuid: string): Promise<void> {
@@ -78,6 +115,14 @@ export class GroupsService {
             throw new ForbiddenError();
         }
         await this.groupsModel.deleteGroup(groupUuid);
+        analytics.track({
+            userId: actor.userUuid,
+            event: 'group.deleted',
+            properties: {
+                organizationId: group.organizationUuid,
+                groupId: group.uuid,
+            },
+        });
     }
 
     async get(
@@ -124,8 +169,22 @@ export class GroupsService {
         ) {
             throw new ForbiddenError();
         }
-        const newGroup = await this.groupsModel.updateGroup(groupUuid, update);
-        return newGroup;
+        const updatedGroup = await this.groupsModel.updateGroup(
+            groupUuid,
+            update,
+        );
+        analytics.track({
+            userId: actor.userUuid,
+            event: 'group.updated',
+            properties: {
+                organizationId: updatedGroup.organizationUuid,
+                groupId: updatedGroup.uuid,
+                name: updatedGroup.name,
+                countUsersInGroup: updatedGroup.memberUuids.length,
+                viaSso: false,
+            },
+        });
+        return updatedGroup;
     }
 
     async getGroupMembers(
