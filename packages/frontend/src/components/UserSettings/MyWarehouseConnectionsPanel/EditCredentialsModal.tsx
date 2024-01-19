@@ -56,13 +56,13 @@ const FormInputs: FC<{
                         required
                         size="xs"
                         label="Username/email"
-                        {...form.getInputProps('username')}
+                        {...form.getInputProps('credentials.username')}
                     />
                     <PasswordInput
                         required
                         size="xs"
                         label="Password"
-                        {...form.getInputProps('password')}
+                        {...form.getInputProps('credentials.password')}
                     />
                 </>
             );
