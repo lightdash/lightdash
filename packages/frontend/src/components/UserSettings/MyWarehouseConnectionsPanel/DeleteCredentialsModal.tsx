@@ -1,18 +1,24 @@
-import { Button, Group, Modal, Stack, Text, Title } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Modal,
+    ModalProps,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { Dispatch, FC, SetStateAction } from 'react';
+import { FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 
-type Props = {
-    isDeletingWarehouseCredentials: string | undefined;
-    setIsDeletingWarehouseCredentials: Dispatch<
-        SetStateAction<string | undefined>
-    >;
+type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+    warehouseCredentialsToBeDeleted: string | undefined;
 };
 
 export const DeleteCredentialsModal: FC<Props> = ({
-    isDeletingWarehouseCredentials,
-    setIsDeletingWarehouseCredentials,
+    opened,
+    onClose,
+    warehouseCredentialsToBeDeleted,
 }) => (
     <Modal
         title={
@@ -21,25 +27,27 @@ export const DeleteCredentialsModal: FC<Props> = ({
                 <Title order={4}>Delete credentials</Title>
             </Group>
         }
-        opened={!!isDeletingWarehouseCredentials}
-        onClose={() => setIsDeletingWarehouseCredentials(undefined)}
+        opened={opened}
+        onClose={onClose}
     >
         <Stack>
-            <Text>
+            <Text fz="sm">
                 Are you sure you want to delete credentials:{' '}
-                <b>{isDeletingWarehouseCredentials}</b>?
+                <b>{warehouseCredentialsToBeDeleted}</b>?
             </Text>
 
             <Group position="right" spacing="xs">
                 <Button
+                    size="xs"
                     variant="outline"
-                    onClick={() => setIsDeletingWarehouseCredentials(undefined)}
+                    onClick={onClose}
                     color="dark"
                 >
                     Cancel
                 </Button>
 
                 <Button
+                    size="xs"
                     color="red"
                     onClick={() => {}} // TODO - delete credentials from database
                     type="submit"

@@ -415,18 +415,7 @@ const Settings: FC = () => {
                 {isPassthroughLoginFeatureEnabled && (
                     <Route exact path="/generalSettings/myWarehouseConnections">
                         <Stack spacing="xl">
-                            <SettingsGridCard>
-                                <Stack spacing="xs">
-                                    <Title order={4}>
-                                        My warehouse connections
-                                    </Title>
-                                    <Text c="gray.6" fz="xs">
-                                        Add credentials to connect to your
-                                        warehouse.
-                                    </Text>
-                                </Stack>
-                                <MyWarehouseConnectionsPanel />
-                            </SettingsGridCard>
+                            <MyWarehouseConnectionsPanel />
                         </Stack>
                     </Route>
                 )}

@@ -1,74 +1,92 @@
-import { Button, Collapse, Divider, Stack, Text } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { Button, Group, Stack, Title } from '@mantine/core';
+import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
+import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
-import { CreateCredentialsForm } from './CreateCredentialsForm';
-import { CredentialsAndForm } from './CredentialsAndForm';
+import { CreateCredentialsModal } from './CreateCredentialsModal';
+import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
+import { EditCredentialsModal } from './EditCredentialsModal';
+import { Credentials } from './types';
 
 export const MyWarehouseConnectionsPanel = () => {
-    const [credentials] = useState([
+    const [credentials] = useState<Pick<Credentials, 'name' | 'username'>[]>([
         {
             name: 'My warehouse connection 1',
             username: 'myusername',
         },
     ]); // TODO: Fetch credentials from database with react-query
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
-    const [isEditingWarehouseCredentials, setIsEditingWarehouseCredentials] =
-        useState(false);
-    const [isDeletingWarehouseCredentials, setIsDeletingWarehouseCredentials] =
-        useState<string | undefined>(undefined);
+    const [warehouseCredentialsToBeEdited, setWarehouseCredentialsToBeEdited] =
+        useState<Pick<Credentials, 'name' | 'username'> | undefined>(undefined);
+    const [
+        warehouseCredentialsToBeDeleted,
+        setWarehouseCredentialsToBeDeleted,
+    ] = useState<string | undefined>(undefined);
 
     return (
         <>
-            <Stack spacing="xs">
+            <Stack mb="lg">
                 {credentials.length > 0 ? (
-                    credentials.map((credential) => (
-                        <Stack key={credential.name} spacing="xs">
-                            <CredentialsAndForm
-                                credential={credential}
-                                isCreatingCredentials={isCreatingCredentials}
-                                isEditingWarehouseCredentials={
-                                    isEditingWarehouseCredentials
-                                }
-                                setIsEditingWarehouseCredentials={
-                                    setIsEditingWarehouseCredentials
-                                }
-                                setIsDeletingWarehouseCredentials={
-                                    setIsDeletingWarehouseCredentials
-                                }
-                            />
-                        </Stack>
-                    ))
+                    <>
+                        <Group position="apart">
+                            <Title order={5}>My Warehouse credentials</Title>
+                            <Button
+                                size="xs"
+                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                onClick={() => setIsCreatingCredentials(true)}
+                            >
+                                Add new credentials
+                            </Button>
+                        </Group>
+                        <CredentialsTable
+                            credentials={credentials}
+                            setWarehouseCredentialsToBeDeleted={
+                                setWarehouseCredentialsToBeDeleted
+                            }
+                            setWarehouseCredentialsToBeEdited={
+                                setWarehouseCredentialsToBeEdited
+                            }
+                        />
+                    </>
                 ) : (
-                    <Text fs="italic" c="gray.6" fz="xs">
-                        You have no credentials saved.
-                    </Text>
+                    <EmptyState
+                        icon={
+                            <MantineIcon
+                                icon={IconDatabaseCog}
+                                color="gray.6"
+                                stroke={1}
+                                size="5xl"
+                            />
+                        }
+                        title="No credentials"
+                        description="You haven't created any personal warehouse connections yet!"
+                    >
+                        <Button onClick={() => setIsCreatingCredentials(true)}>
+                            Add new credentials
+                        </Button>
+                    </EmptyState>
                 )}
-
-                <Divider />
-
-                <Button
-                    size="xs"
-                    ml="auto"
-                    leftIcon={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setIsCreatingCredentials(true)}
-                    disabled={
-                        isCreatingCredentials || isEditingWarehouseCredentials
-                    }
-                >
-                    Add new credentials
-                </Button>
-                <Collapse in={isCreatingCredentials}>
-                    <CreateCredentialsForm
-                        setIsCreatingCredentials={setIsCreatingCredentials}
-                    />
-                </Collapse>
             </Stack>
+
+            {!!warehouseCredentialsToBeEdited && (
+                <EditCredentialsModal
+                    opened={!!warehouseCredentialsToBeEdited}
+                    onClose={() => setWarehouseCredentialsToBeEdited(undefined)}
+                    credentials={warehouseCredentialsToBeEdited}
+                />
+            )}
+
+            <CreateCredentialsModal
+                opened={isCreatingCredentials}
+                onClose={() => setIsCreatingCredentials(false)}
+            />
+
             <DeleteCredentialsModal
-                isDeletingWarehouseCredentials={isDeletingWarehouseCredentials}
-                setIsDeletingWarehouseCredentials={
-                    setIsDeletingWarehouseCredentials
+                opened={!!warehouseCredentialsToBeDeleted}
+                onClose={() => setWarehouseCredentialsToBeDeleted(undefined)}
+                warehouseCredentialsToBeDeleted={
+                    warehouseCredentialsToBeDeleted
                 }
             />
         </>
