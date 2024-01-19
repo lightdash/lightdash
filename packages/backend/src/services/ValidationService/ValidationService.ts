@@ -10,6 +10,7 @@ import {
     ExploreError,
     fieldId as getFieldId,
     ForbiddenError,
+    getCustomMetricDimensionId,
     getFilterRules,
     getItemId,
     InlineErrorType,
@@ -293,6 +294,25 @@ export class ValidationService {
                     }),
                 [],
             );
+            const customMetricsErrors = (
+                chart.metricQuery.additionalMetrics || []
+            ).reduce<CreateChartValidation[]>(
+                (acc, field) => {
+                    const dimensionId = getCustomMetricDimensionId(field);
+                    if (field.baseDimensionName === undefined || !dimensionId)
+                        return acc;
+                    return containsFieldId({
+                        acc,
+                        fieldIds: availableDimensionIds,
+                        fieldId: dimensionId,
+                        error: `Custom metric error: the base dimension '${field.baseDimensionName}' no longer exists`,
+                        errorType: ValidationErrorType.CustomMetric,
+                        fieldName: dimensionId,
+                    });
+                },
+
+                [],
+            );
 
             const fieldsWithTableCalculationFilters = [
                 ...allItemIdsAvailableInChart,
@@ -364,6 +384,7 @@ export class ValidationService {
                 ...metricErrors,
                 ...filterErrors,
                 ...sortErrors,
+                ...customMetricsErrors,
             ];
         });
 

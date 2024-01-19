@@ -99,6 +99,7 @@ export enum ValidationErrorType {
     Metric = 'metric',
     Model = 'model',
     Dimension = 'dimension',
+    CustomMetric = 'custom metric',
 }
 
 export enum ValidationSourceType {
