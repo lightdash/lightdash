@@ -1,3 +1,10 @@
+# [0.949.0](https://github.com/lightdash/lightdash/compare/0.948.1...0.949.0) (2024-01-19)
+
+
+### Features
+
+* chart x-axis label rotation ([#8657](https://github.com/lightdash/lightdash/issues/8657)) ([1d6ce80](https://github.com/lightdash/lightdash/commit/1d6ce80c73afa99d2693c9054ad0f1a0c65e003d))
+
 ## [0.948.1](https://github.com/lightdash/lightdash/compare/0.948.0...0.948.1) (2024-01-19)
 
 
