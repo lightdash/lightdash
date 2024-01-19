@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Title } from '@mantine/core';
+import { Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { EmptyState } from '../../common/EmptyState';
@@ -30,7 +30,15 @@ export const MyWarehouseConnectionsPanel = () => {
                 {credentials.length > 0 ? (
                     <>
                         <Group position="apart">
-                            <Title order={5}>My Warehouse credentials</Title>
+                            <Stack spacing="one">
+                                <Title order={5}>
+                                    My Warehouse connections
+                                </Title>
+                                <Text c="gray.6" fz="xs">
+                                    Add credentials to connect to your
+                                    warehouse.
+                                </Text>
+                            </Stack>
                             <Button
                                 size="xs"
                                 leftIcon={<MantineIcon icon={IconPlus} />}
