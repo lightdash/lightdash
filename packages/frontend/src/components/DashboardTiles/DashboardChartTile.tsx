@@ -46,7 +46,7 @@ import {
     IconTelescope,
 } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
@@ -322,7 +322,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         pivotReference?: PivotReference;
     }>();
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
-    const history = useHistory();
 
     const handleViewUnderlyingData = useCallback(() => {
         if (!viewUnderlyingDataOptions) return;
@@ -627,8 +626,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 path: chartPathname,
                                                 params: `?` + chartSearch,
                                             }).then((shareUrl) => {
-                                                history.push(
+                                                window.open(
                                                     `/share/${shareUrl.nanoid}`,
+                                                    '_blank',
                                                 );
                                             });
                                         }}
