@@ -199,7 +199,6 @@ export class SlackClient {
         }
 
         const { organizationUuid, text, channel, blocks } = message;
-
         const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,

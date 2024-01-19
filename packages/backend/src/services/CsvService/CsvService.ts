@@ -6,6 +6,7 @@ import {
     DashboardFilters,
     DimensionType,
     DownloadCsvPayload,
+    DownloadFileType,
     DownloadMetricCsv,
     ForbiddenError,
     formatItemValue,
@@ -49,6 +50,7 @@ import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
 import { runWorkerThread } from '../../utils';
@@ -62,6 +64,7 @@ type CsvServiceDependencies = {
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     userModel: UserModel;
+    downloadFileModel: DownloadFileModel;
 };
 
 const isRowValueTimestamp = (
@@ -141,6 +144,8 @@ export class CsvService {
 
     userModel: UserModel;
 
+    downloadFileModel: DownloadFileModel;
+
     constructor({
         lightdashConfig,
         userModel,
@@ -148,6 +153,7 @@ export class CsvService {
         s3Client,
         savedChartModel,
         dashboardModel,
+        downloadFileModel,
     }: CsvServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.userModel = userModel;
@@ -155,6 +161,7 @@ export class CsvService {
         this.s3Client = s3Client;
         this.savedChartModel = savedChartModel;
         this.dashboardModel = dashboardModel;
+        this.downloadFileModel = downloadFileModel;
     }
 
     static convertRowToCsv(
@@ -462,11 +469,19 @@ export class CsvService {
             };
         }
         // storing locally
-        const localUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${fileId}`;
+        const filePath = `/tmp/${fileId}`;
+        const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
+        await this.downloadFileModel.createDownloadFile(
+            downloadFileId,
+            filePath,
+            DownloadFileType.CSV,
+        );
+
+        const localUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${downloadFileId}`;
         return {
             filename: `${chart.name}`,
             path: localUrl,
-            localPath: `/tmp/${fileId}`,
+            localPath: filePath,
             truncated,
         };
     }
@@ -570,12 +585,15 @@ export class CsvService {
                 fileUrl = await this.s3Client.uploadCsv(csvContent, fileId);
             } else {
                 // storing locally
-                await fsPromise.writeFile(
-                    `/tmp/${fileId}`,
-                    csvContent,
-                    'utf-8',
+                const filePath = `/tmp/${fileId}`;
+                await fsPromise.writeFile(filePath, csvContent, 'utf-8');
+                const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
+                await this.downloadFileModel.createDownloadFile(
+                    downloadFileId,
+                    filePath,
+                    DownloadFileType.CSV,
                 );
-                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${fileId}`;
+                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${downloadFileId}`;
             }
 
             analytics.track({
@@ -746,7 +764,15 @@ export class CsvService {
                 await fsPromise.unlink(`/tmp/${fileId}`);
             } else {
                 // Storing locally
-                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${fileId}`;
+                const filePath = `/tmp/${fileId}`;
+                const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
+                await this.downloadFileModel.createDownloadFile(
+                    downloadFileId,
+                    filePath,
+                    DownloadFileType.CSV,
+                );
+
+                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${downloadFileId}`;
             }
 
             analytics.track({

@@ -4,6 +4,7 @@ import { s3Client } from '../../clients/clients';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import {
     dashboardModel,
+    downloadFileModel,
     savedChartModel,
     userModel,
 } from '../../models/models';
@@ -20,6 +21,7 @@ jest.mock('../../models/models', () => ({
     savedChartModel: {},
     dashboardModel: {},
     userModel: {},
+    downloadFileModel: {},
 }));
 
 jest.mock('../services', () => ({
@@ -34,6 +36,7 @@ describe('Csv service', () => {
         s3Client,
         savedChartModel,
         dashboardModel,
+        downloadFileModel,
     });
 
     it('Should convert rows to CSV with format', async () => {

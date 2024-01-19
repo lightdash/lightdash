@@ -2,16 +2,13 @@ import {
     ApiCompiledQueryResults,
     ApiExploreResults,
     ApiExploresResults,
-    ApiSqlQueryResults,
     getRequestMethod,
     LightdashRequestMethodHeader,
     MetricQuery,
-    NotFoundError,
     ProjectCatalog,
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
-import fs from 'fs';
 
 import path from 'path';
 import {
@@ -23,6 +20,7 @@ import { CsvService } from '../services/CsvService/CsvService';
 import {
     csvService,
     dashboardService,
+    downloadFileService,
     projectService,
     savedChartsService,
     searchService,
@@ -223,24 +221,17 @@ projectRouter.post(
 );
 
 projectRouter.get(
-    '/csv/:fileId',
+    '/csv/:nanoId',
 
     async (req, res, next) => {
         try {
-            const { fileId } = req.params;
-
-            if (!CsvService.isValidCsvFileId(fileId)) {
-                throw new NotFoundError(`CSV file not found ${fileId}`);
-            }
-            const sanitizedFileId = path.normalize(fileId);
-            const filePath = path.join('/tmp', sanitizedFileId);
-
-            if (!fs.existsSync(filePath)) {
-                const error = `This file ${fileId} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage`;
-                throw new NotFoundError(error);
-            }
+            const { nanoId } = req.params;
+            const { path: filePath } =
+                await downloadFileService.getDownloadFile(nanoId);
+            const filename = path.basename(filePath);
             res.set('Content-Type', 'text/csv');
-            res.set('Content-Disposition', `attachment; filename=${fileId}`);
+            res.set('Content-Disposition', `attachment; filename=${filename}`);
+
             res.sendFile(filePath);
         } catch (error) {
             next(error);
