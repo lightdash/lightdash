@@ -856,6 +856,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
             description={chart.description}
             isLoading={false}
+            minimal={true}
             {...props}
         >
             <ValidDashboardChartTileMinimal
@@ -917,6 +918,7 @@ export const GenericDashboardChartTile: FC<
                         <EditChartMenuItem tile={tile} />
                     )
                 }
+                minimal={minimal}
                 {...rest}
             />
         );
