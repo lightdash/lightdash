@@ -1,3 +1,10 @@
+## [0.948.1](https://github.com/lightdash/lightdash/compare/0.948.0...0.948.1) (2024-01-19)
+
+
+### Bug Fixes
+
+* open explore from here new tab ([#8663](https://github.com/lightdash/lightdash/issues/8663)) ([1f18beb](https://github.com/lightdash/lightdash/commit/1f18beb327f7d2db6f3ef178b1844976c1ab6c11))
+
 # [0.948.0](https://github.com/lightdash/lightdash/compare/0.947.0...0.948.0) (2024-01-19)
 
 
