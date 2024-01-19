@@ -29,9 +29,16 @@ export class DownloadFileModel {
     }
 
     async getDownloadFile(nanoid: string): Promise<DownloadFile> {
-        const [row] = await this.database(DownloadFileTableName)
+        const row = await this.database(DownloadFileTableName)
             .where('nanoid', nanoid)
-            .select('*');
+            .select('*')
+            .first();
+            
+        if (row === undefined) {
+            throw new NotFoundError(
+                `Cannot find file`,
+            );
+        }
 
         return {
             nanoid: row.nanoid,
