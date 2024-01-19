@@ -1,3 +1,10 @@
+# [0.950.0](https://github.com/lightdash/lightdash/compare/0.949.0...0.950.0) (2024-01-19)
+
+
+### Features
+
+* download file using nanoids ([#8649](https://github.com/lightdash/lightdash/issues/8649)) ([b27339e](https://github.com/lightdash/lightdash/commit/b27339e2fedc351cccb323b9b54e94bd493232de))
+
 # [0.949.0](https://github.com/lightdash/lightdash/compare/0.948.1...0.949.0) (2024-01-19)
 
 
