@@ -33,11 +33,9 @@ export class DownloadFileModel {
             .where('nanoid', nanoid)
             .select('*')
             .first();
-            
+
         if (row === undefined) {
-            throw new NotFoundError(
-                `Cannot find file`,
-            );
+            throw new NotFoundError(`Cannot find file`);
         }
 
         return {
