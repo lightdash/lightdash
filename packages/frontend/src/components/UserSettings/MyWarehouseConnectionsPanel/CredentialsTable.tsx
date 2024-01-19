@@ -3,12 +3,12 @@ import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { Dispatch, FC, SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import MantineIcon from '../../common/MantineIcon';
-import { Credentials } from './types';
+import { UpdateUserCredentials } from './types';
 
 type CredentialsTableProps = {
-    credentials: Pick<Credentials, 'name' | 'username'>[];
+    credentials: UpdateUserCredentials[];
     setWarehouseCredentialsToBeEdited: Dispatch<
-        SetStateAction<Pick<Credentials, 'name' | 'username'> | undefined>
+        SetStateAction<UpdateUserCredentials | undefined>
     >;
     setWarehouseCredentialsToBeDeleted: Dispatch<
         SetStateAction<string | undefined>
@@ -17,7 +17,7 @@ type CredentialsTableProps = {
 
 const CredentialsItem: FC<
     {
-        credentials: Pick<Credentials, 'name' | 'username'>;
+        credentials: UpdateUserCredentials;
     } & Pick<
         CredentialsTableProps,
         | 'setWarehouseCredentialsToBeDeleted'

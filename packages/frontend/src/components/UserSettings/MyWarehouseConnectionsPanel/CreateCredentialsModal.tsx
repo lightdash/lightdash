@@ -1,24 +1,33 @@
+import { WarehouseTypes } from '@lightdash/common';
 import {
     Button,
     Group,
     Modal,
     ModalProps,
-    PasswordInput,
+    Select,
     Stack,
     TextInput,
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC } from 'react';
+import { FC, useState } from 'react';
+import { CreateUserCredentials } from './types';
+import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
 export const CreateCredentialsModal: FC<Props> = ({ opened, onClose }) => {
-    const addCredentialsForm = useForm({
+    const [userCredentialsType, setUserCredentialsType] = useState<
+        WarehouseTypes | undefined
+    >(undefined);
+    const form = useForm<
+        Pick<CreateUserCredentials, 'name'> & {
+            credentials: CreateUserCredentials['credentials'] | undefined;
+        }
+    >({
         initialValues: {
             name: '',
-            username: '',
-            password: '',
+            credentials: undefined,
         },
     });
     return (
@@ -31,15 +40,30 @@ export const CreateCredentialsModal: FC<Props> = ({ opened, onClose }) => {
                 <Stack spacing="xs">
                     <form
                         onSubmit={() =>
-                            addCredentialsForm.onSubmit((values) => {
+                            form.onSubmit((values) => {
                                 // TODO: Save credentials to database
                                 return values;
                             })
                         }
                     >
                         <TextInput required size="xs" label="Name" />
-                        <TextInput required size="xs" label="Username/email" />
-                        <PasswordInput required size="xs" label="Password" />
+
+                        <Select
+                            data={Object.values(WarehouseTypes).map((type) => ({
+                                value: type,
+                                label: type,
+                            }))}
+                            onChange={(value: WarehouseTypes | null) => {
+                                if (value) setUserCredentialsType(value);
+                            }}
+                        />
+
+                        {userCredentialsType && (
+                            <WarehouseFormInputs
+                                form={form}
+                                userCredentialsType={userCredentialsType}
+                            />
+                        )}
                         <Group position="right" spacing="xs" mt="sm">
                             <Button
                                 size="xs"

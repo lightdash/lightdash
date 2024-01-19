@@ -1,3 +1,4 @@
+import { WarehouseTypes } from '@lightdash/common';
 import { Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -7,18 +8,23 @@ import { CreateCredentialsModal } from './CreateCredentialsModal';
 import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 import { EditCredentialsModal } from './EditCredentialsModal';
-import { Credentials } from './types';
+import { UpdateUserCredentials } from './types';
 
 export const MyWarehouseConnectionsPanel = () => {
-    const [credentials] = useState<Pick<Credentials, 'name' | 'username'>[]>([
+    const [credentials] = useState<UpdateUserCredentials[]>([
         {
+            uuid: '1',
             name: 'My warehouse connection 1',
-            username: 'myusername',
+            credentials: {
+                type: WarehouseTypes.REDSHIFT,
+                user: 'user',
+                password: '',
+            },
         },
     ]); // TODO: Fetch credentials from database with react-query
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const [warehouseCredentialsToBeEdited, setWarehouseCredentialsToBeEdited] =
-        useState<Pick<Credentials, 'name' | 'username'> | undefined>(undefined);
+        useState<UpdateUserCredentials | undefined>(undefined);
     const [
         warehouseCredentialsToBeDeleted,
         setWarehouseCredentialsToBeDeleted,
@@ -81,7 +87,7 @@ export const MyWarehouseConnectionsPanel = () => {
                 <EditCredentialsModal
                     opened={!!warehouseCredentialsToBeEdited}
                     onClose={() => setWarehouseCredentialsToBeEdited(undefined)}
-                    credentials={warehouseCredentialsToBeEdited}
+                    userCredentials={warehouseCredentialsToBeEdited}
                 />
             )}
 

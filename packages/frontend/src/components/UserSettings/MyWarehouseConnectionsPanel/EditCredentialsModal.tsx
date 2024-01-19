@@ -4,14 +4,14 @@ import {
     Group,
     Modal,
     ModalProps,
-    PasswordInput,
     Stack,
     TextInput,
     Title,
 } from '@mantine/core';
-import { useForm, UseFormReturnType } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { FC } from 'react';
 import { UpdateUserCredentials, UpsertUserWarehouseCredentials } from './types';
+import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 const getCredentials = (credentials: UpsertUserWarehouseCredentials) => {
     switch (credentials.type) {
@@ -36,42 +36,6 @@ const getCredentials = (credentials: UpsertUserWarehouseCredentials) => {
             };
         default:
             return {};
-    }
-};
-
-const FormInputs: FC<{
-    form: UseFormReturnType<
-        Pick<UpdateUserCredentials, 'name' | 'credentials'>
-    >;
-    userCredentialsType: WarehouseTypes;
-}> = ({ form, userCredentialsType }) => {
-    switch (userCredentialsType) {
-        case WarehouseTypes.REDSHIFT:
-        case WarehouseTypes.SNOWFLAKE:
-        case WarehouseTypes.POSTGRES:
-        case WarehouseTypes.TRINO:
-            return (
-                <>
-                    <TextInput
-                        required
-                        size="xs"
-                        label="Username/email"
-                        {...form.getInputProps('credentials.username')}
-                    />
-                    <PasswordInput
-                        required
-                        size="xs"
-                        label="Password"
-                        {...form.getInputProps('credentials.password')}
-                    />
-                </>
-            );
-        case WarehouseTypes.BIGQUERY:
-            return <>{/* Add key file content input - JSON? */}</>;
-        case WarehouseTypes.DATABRICKS:
-            return <>{/* Add personal access token input */}</>;
-        default:
-            return null;
     }
 };
 
@@ -112,7 +76,7 @@ export const EditCredentialsModal: FC<
                             {...form.getInputProps('name')}
                         />
 
-                        <FormInputs
+                        <WarehouseFormInputs
                             form={form}
                             userCredentialsType={
                                 userCredentials.credentials.type
