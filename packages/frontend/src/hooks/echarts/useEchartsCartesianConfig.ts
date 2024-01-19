@@ -749,7 +749,25 @@ const calculateWidthText = (text: string | undefined): number => {
     return width;
 };
 
-const getEchartAxis = ({
+const getLongestLabel = ({
+    resultsData,
+    axisId,
+}: {
+    resultsData?: ApiQueryResults;
+    axisId?: string;
+}): string | undefined => {
+    return (
+        axisId &&
+        resultsData?.rows
+            .map((row) => row[axisId]?.value.formatted)
+            .reduce<string>(
+                (acc, p) => (p && acc.length > p.length ? acc : p),
+                '',
+            )
+    );
+};
+
+const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
     series,
@@ -801,7 +819,17 @@ const getEchartAxis = ({
         [true, true],
     );
 
-    const getAxisFormatter = (axisItem: ItemsMap[string] | undefined) => {
+    const getAxisFormatter = ({
+        axisItem,
+        longestLabelWidth,
+        rotate,
+        defaultNameGap,
+    }: {
+        axisItem: ItemsMap[string] | undefined;
+        longestLabelWidth?: number;
+        rotate?: number;
+        defaultNameGap?: number;
+    }) => {
         const hasFormattingConfig =
             isField(axisItem) &&
             (axisItem.format || axisItem.round || axisItem.compact);
@@ -861,6 +889,16 @@ const getEchartAxis = ({
         if (axisMinInterval) {
             axisConfig.minInterval = axisMinInterval;
         }
+
+        axisConfig.nameGap = defaultNameGap || 0;
+        if (rotate) {
+            const rotateRadians = (rotate * Math.PI) / 180;
+            const oppositeSide =
+                (longestLabelWidth || 0) * Math.sin(rotateRadians);
+            axisConfig.axisLabel = axisConfig.axisLabel || {};
+            axisConfig.axisLabel.rotate = rotate;
+            axisConfig.nameGap = oppositeSide + 15;
+        }
         return axisConfig;
     };
 
@@ -882,6 +920,16 @@ const getEchartAxis = ({
           )?.encode.yRef.field
         : xAxisItemId;
 
+    const longestValueXAxisTop: string | undefined = getLongestLabel({
+        resultsData,
+        axisId: topAxisXId,
+    });
+
+    const longestValueXAxisBottom: string | undefined = getLongestLabel({
+        resultsData,
+        axisId: bottomAxisXId,
+    });
+
     const leftAxisYId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.xField
         : validCartesianConfig.eChartsConfig.series?.find(
@@ -893,24 +941,16 @@ const getEchartAxis = ({
             (serie) => serie.yAxisIndex === 1,
         )?.encode.yRef.field || validCartesianConfig.layout?.yField?.[1];
 
-    const longestValueYAxisLeft: string | undefined =
-        leftAxisYId &&
-        resultsData?.rows
-            .map((row) => row[leftAxisYId]?.value.formatted)
-            .reduce<string>(
-                (acc, p) => (p && acc.length > p.length ? acc : p),
-                '',
-            );
+    const longestValueYAxisLeft: string | undefined = getLongestLabel({
+        resultsData,
+        axisId: leftAxisYId,
+    });
     const leftYaxisGap = calculateWidthText(longestValueYAxisLeft);
 
-    const longestValueYAxisRight: string | undefined =
-        rightAxisYId &&
-        resultsData?.rows
-            .map((row) => row[rightAxisYId]?.value.formatted)
-            .reduce<string>(
-                (acc, p) => (p && acc.length > p.length ? acc : p),
-                '',
-            );
+    const longestValueYAxisRight: string | undefined = getLongestLabel({
+        resultsData,
+        axisId: rightAxisYId,
+    });
     const rightYaxisGap = calculateWidthText(longestValueYAxisRight);
 
     const rightAxisYField = rightAxisYId ? itemsMap[rightAxisYId] : undefined;
@@ -974,11 +1014,17 @@ const getEchartAxis = ({
                       maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
                     : referenceLineMaxX,
                 nameLocation: 'center',
-                nameGap: 30,
                 nameTextStyle: {
                     fontWeight: 'bold',
                 },
-                ...getAxisFormatter(bottomAxisXField),
+                ...getAxisFormatter({
+                    axisItem: bottomAxisXField,
+                    longestLabelWidth: calculateWidthText(
+                        longestValueXAxisBottom,
+                    ),
+                    rotate: xAxisConfiguration?.[0]?.rotate,
+                    defaultNameGap: 30,
+                }),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
                         ? showGridY
@@ -1008,9 +1054,11 @@ const getEchartAxis = ({
                       maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange)
                     : undefined,
                 nameLocation: 'center',
-                nameGap: 30,
-                ...getAxisFormatter(topAxisXField),
-
+                ...getAxisFormatter({
+                    axisItem: topAxisXField,
+                    longestLabelWidth: calculateWidthText(longestValueXAxisTop),
+                    defaultNameGap: 30,
+                }),
                 nameTextStyle: {
                     fontWeight: 'bold',
                 },
@@ -1052,8 +1100,10 @@ const getEchartAxis = ({
                     align: 'center',
                 },
                 nameLocation: 'center',
-                nameGap: leftYaxisGap + 20,
-                ...getAxisFormatter(leftAxisYField),
+                ...getAxisFormatter({
+                    axisItem: leftAxisYField,
+                    defaultNameGap: leftYaxisGap + 20,
+                }),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
                         ? showGridX
@@ -1088,11 +1138,13 @@ const getEchartAxis = ({
                     fontWeight: 'bold',
                     align: 'center',
                 },
-                ...getAxisFormatter(rightAxisYField),
+                ...getAxisFormatter({
+                    axisItem: rightAxisYField,
+                    defaultNameGap: rightYaxisGap + 20,
+                }),
 
                 nameLocation: 'center',
                 nameRotate: -90,
-                nameGap: rightYaxisGap + 20,
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
@@ -1286,12 +1338,12 @@ const useEchartsCartesianConfig = (
         );
     }, [validCartesianConfig, resultsData, itemsMap, pivotDimensions]);
 
-    const axis = useMemo(() => {
+    const axes = useMemo(() => {
         if (!itemsMap || !validCartesianConfig) {
             return { xAxis: [], yAxis: [] };
         }
 
-        return getEchartAxis({
+        return getEchartAxes({
             itemsMap,
             series,
             validCartesianConfig,
@@ -1520,8 +1572,8 @@ const useEchartsCartesianConfig = (
 
     const eChartsOptions = useMemo(
         () => ({
-            xAxis: axis.xAxis,
-            yAxis: axis.yAxis,
+            xAxis: axes.xAxis,
+            yAxis: axes.yAxis,
             useUTC: true,
             series: stackedSeries,
             animation: !isInDashboard,
@@ -1544,8 +1596,8 @@ const useEchartsCartesianConfig = (
             color: colors,
         }),
         [
-            axis.xAxis,
-            axis.yAxis,
+            axes.xAxis,
+            axes.yAxis,
             stackedSeries,
             isInDashboard,
             validCartesianConfig?.eChartsConfig.legend,
