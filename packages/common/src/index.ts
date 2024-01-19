@@ -157,6 +157,7 @@ export * from './types/table';
 export * from './types/timeFrames';
 export * from './types/user';
 export * from './types/userAttributes';
+export * from './types/userWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';
 export * from './utils/additionalMetrics';
