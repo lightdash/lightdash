@@ -343,22 +343,26 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     </>
                 ) : null}
 
-                <Menu.Divider />
+                {item.type !== ResourceViewItemType.SPACE && (
+                    <>
+                        <Menu.Divider />
 
-                <Menu.Item
-                    component="button"
-                    role="menuitem"
-                    color="red"
-                    icon={<MantineIcon icon={IconTrash} size={18} />}
-                    onClick={() => {
-                        onAction({
-                            type: ResourceViewItemAction.DELETE,
-                            item,
-                        });
-                    }}
-                >
-                    Delete {item.type}
-                </Menu.Item>
+                        <Menu.Item
+                            component="button"
+                            role="menuitem"
+                            color="red"
+                            icon={<MantineIcon icon={IconTrash} size={18} />}
+                            onClick={() => {
+                                onAction({
+                                    type: ResourceViewItemAction.DELETE,
+                                    item,
+                                });
+                            }}
+                        >
+                            Delete {item.type}
+                        </Menu.Item>
+                    </>
+                )}
             </Menu.Dropdown>
         </Menu>
     );
