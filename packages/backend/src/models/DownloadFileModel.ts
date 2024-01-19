@@ -1,10 +1,10 @@
-import { DownloadFile, DownloadFileType, ShareUrl } from '@lightdash/common';
+import {
+    DownloadFile,
+    DownloadFileType,
+    NotFoundError,
+} from '@lightdash/common';
 import { Knex } from 'knex';
-import { DownloadCsv } from '../analytics/LightdashAnalytics';
 import { DownloadFileTableName } from '../database/entities/downloadFile';
-import { DbOrganization } from '../database/entities/organizations';
-import { DbShareUrl, ShareTableName } from '../database/entities/share';
-import { DbUser } from '../database/entities/users';
 
 type Dependencies = {
     database: Knex;
