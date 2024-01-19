@@ -1,3 +1,15 @@
+# [0.948.0](https://github.com/lightdash/lightdash/compare/0.947.0...0.948.0) (2024-01-19)
+
+
+### Bug Fixes
+
+* remove links from minimal charts ([#8642](https://github.com/lightdash/lightdash/issues/8642)) ([594496e](https://github.com/lightdash/lightdash/commit/594496e4f75f2f449d94717461186404da7e8387))
+
+
+### Features
+
+* validate custom metrics missing dimensions ([#8644](https://github.com/lightdash/lightdash/issues/8644)) ([f9aac6f](https://github.com/lightdash/lightdash/commit/f9aac6f15d7337e0cb7d64a2a67c064ded5e2bec))
+
 # [0.947.0](https://github.com/lightdash/lightdash/compare/0.946.3...0.947.0) (2024-01-19)
 
 
