@@ -1,3 +1,10 @@
+# [0.947.0](https://github.com/lightdash/lightdash/compare/0.946.3...0.947.0) (2024-01-19)
+
+
+### Features
+
+* Add WEEK_NUM to timeFrames ([#8651](https://github.com/lightdash/lightdash/issues/8651)) ([5a6bf57](https://github.com/lightdash/lightdash/commit/5a6bf57b9a4fb5e5cbb6e13a585da9cd6832e361))
+
 ## [0.946.3](https://github.com/lightdash/lightdash/compare/0.946.2...0.946.3) (2024-01-17)
 
 
