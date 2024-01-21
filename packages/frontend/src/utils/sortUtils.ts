@@ -73,6 +73,12 @@ export const getSortLabel = (
                     ? NumericSortLabels.ASC
                     : NumericSortLabels.DESC;
             case DimensionType.STRING:
+                if (item.timeInterval) {
+                    return direction === SortDirection.ASC
+                        ? DateSortLabels.ASC
+                        : DateSortLabels.DESC;
+                }
+
                 return direction === SortDirection.ASC
                     ? StringSortLabels.ASC
                     : StringSortLabels.DESC;

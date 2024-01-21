@@ -4,6 +4,7 @@ import {
     CompiledDimension,
     CompiledMetricQuery,
     CustomDimension,
+    dayOfWeekNames,
     DbtModelJoinType,
     Explore,
     fieldId,
@@ -24,11 +25,13 @@ import {
     isAndFilterGroup,
     isFilterGroup,
     ItemsMap,
+    monthNames,
     parseAllReferences,
     renderFilterRuleSql,
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
+    TimeFrames,
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
@@ -698,27 +701,6 @@ export const buildQuery = ({
         groups.length > 0
             ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
             : '';
-    const fieldOrders = sorts.map((sort) => {
-        if (
-            customDimensions &&
-            customDimensions.find(
-                (customDimension) =>
-                    getCustomDimensionId(customDimension) === sort.fieldId,
-            )
-        ) {
-            // Custom dimensions will have a separate `select` for ordering,
-            // that returns the min value (int) of the bin, rather than a string,
-            // so we can use it for sorting
-            return `${fieldQuoteChar}${sort.fieldId}_order${fieldQuoteChar}${
-                sort.descending ? ' DESC' : ''
-            }`;
-        }
-        return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
-            sort.descending ? ' DESC' : ''
-        }`;
-    });
-    const sqlOrderBy =
-        fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
     const sqlFilterRule = (filter: FilterRule, fieldType: FieldType) => {
         if (fieldType === FieldType.TABLE_CALCULATION) {
             const field = compiledMetricQuery.compiledTableCalculations?.find(
@@ -816,6 +798,75 @@ export const buildQuery = ({
         filters.tableCalculations,
         FieldType.TABLE_CALCULATION,
     );
+
+    const fieldOrders = sorts.map((sort) => {
+        if (
+            customDimensions &&
+            customDimensions.find(
+                (customDimension) =>
+                    getCustomDimensionId(customDimension) === sort.fieldId,
+            )
+        ) {
+            // Custom dimensions will have a separate `select` for ordering,
+            // that returns the min value (int) of the bin, rather than a string,
+            // so we can use it for sorting
+            return `${fieldQuoteChar}${sort.fieldId}_order${fieldQuoteChar}${
+                sort.descending ? ' DESC' : ''
+            }`;
+        }
+
+        if (
+            dimensions &&
+            dimensions.find((dimension) => dimension === sort.fieldId)
+        ) {
+            const dimension = getDimensionFromId(
+                sort.fieldId,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
+            if (
+                dimension.timeInterval === TimeFrames.MONTH_NAME ||
+                dimension.timeInterval === TimeFrames.DAY_OF_WEEK_NAME
+            ) {
+                const createCaseStatement = (
+                    fieldSql: string,
+                    values: string[],
+                ) => {
+                    let caseStatement = `(\n  CASE ${fieldSql}\n`;
+                    values.forEach((value, index) => {
+                        caseStatement += `    WHEN '${value}' THEN ${
+                            index + 1
+                        }\n`;
+                    });
+                    caseStatement += `  END\n)`;
+                    return caseStatement;
+                };
+
+                let field = dimension.compiledSql;
+                if (
+                    compiledMetricQuery.compiledTableCalculations.length > 0 ||
+                    whereMetricFilters
+                ) {
+                    // to update field if cte used
+                    field = `"${dimension.table}_${dimension.name}"`;
+                }
+
+                const caseStatement =
+                    dimension.timeInterval === TimeFrames.MONTH_NAME
+                        ? createCaseStatement(field, monthNames)
+                        : createCaseStatement(field, dayOfWeekNames);
+                return `${caseStatement}${sort.descending ? ' DESC' : ''}`;
+            }
+        }
+
+        return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
+            sort.descending ? ' DESC' : ''
+        }`;
+    });
+
+    const sqlOrderBy =
+        fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
 
     const sqlLimit = `LIMIT ${limit}`;
 
