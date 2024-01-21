@@ -5,6 +5,7 @@ import {
     CartesianChartConfig,
     ChartConfig,
     ChartType,
+    convertFieldRefToFieldId,
     CreateSavedChartVersion,
     CustomDimension,
     CustomVisConfig,
@@ -13,6 +14,7 @@ import {
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
+    lightdashVariablePattern,
     MetricQuery,
     MetricType,
     PieChartConfig,
@@ -903,6 +905,42 @@ function reducer(
                                 [key]: valueDeepCopy,
                             };
                         }, {}),
+                        tableCalculations:
+                            state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                                (tableCalculation) => {
+                                    let tableCalculationDeepCopy =
+                                        cloneDeep(tableCalculation);
+
+                                    tableCalculationDeepCopy.sql =
+                                        tableCalculationDeepCopy.sql.replace(
+                                            lightdashVariablePattern,
+                                            (_, fieldRef) => {
+                                                const fieldId =
+                                                    convertFieldRefToFieldId(
+                                                        fieldRef,
+                                                    );
+
+                                                if (
+                                                    fieldId ===
+                                                    action.payload
+                                                        .previousAdditionalMetricName
+                                                ) {
+                                                    const [tableName] =
+                                                        fieldRef.split('.');
+                                                    const newFieldName =
+                                                        additionalMetricFieldId.replace(
+                                                            `${tableName}_`,
+                                                            '',
+                                                        );
+                                                    return `\${${tableName}.${newFieldName}}`;
+                                                }
+                                                return `\${${fieldRef}}`;
+                                            },
+                                        );
+
+                                    return tableCalculationDeepCopy;
+                                },
+                            ),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
