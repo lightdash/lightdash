@@ -5,6 +5,7 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
     MetricQuery,
+    NotFoundError,
     ProjectCatalog,
     TablesConfiguration,
 } from '@lightdash/common';
@@ -232,7 +233,9 @@ projectRouter.get(
             res.set('Content-Type', 'text/csv');
             res.set('Content-Disposition', `attachment; filename=${filename}`);
             const normalizedPath = path.normalize(filePath);
-
+            if (!normalizedPath.startsWith('/tmp/')) {
+                throw new NotFoundError(`File not found ${normalizedPath}`);
+            }
             res.sendFile(normalizedPath);
         } catch (error) {
             next(error);

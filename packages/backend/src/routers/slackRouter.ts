@@ -1,4 +1,8 @@
-import { ForbiddenError, SlackSettings } from '@lightdash/common';
+import {
+    ForbiddenError,
+    NotFoundError,
+    SlackSettings,
+} from '@lightdash/common';
 import { ExpressReceiver } from '@slack/bolt';
 import express from 'express';
 import path from 'path';
@@ -59,6 +63,9 @@ slackRouter.get(
             const { path: filePath } =
                 await downloadFileService.getDownloadFile(nanoId);
             const normalizedPath = path.normalize(filePath);
+            if (!normalizedPath.startsWith('/tmp/')) {
+                throw new NotFoundError(`File not found ${normalizedPath}`);
+            }
             res.sendFile(normalizedPath);
         } catch (error) {
             next(error);
