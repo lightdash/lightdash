@@ -7,6 +7,8 @@ import {
     ApiUserAllowedOrganizationsResponse,
     ParameterError,
     RegisterOrActivateUser,
+    UpsertUserWarehouseCredentials,
+    UserWarehouseCredentials,
     validatePassword,
 } from '@lightdash/common';
 import {
@@ -16,6 +18,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Put,
@@ -200,6 +203,89 @@ export class UserController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         await userService.delete(req.user!, req.user!.userUuid);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Get user warehouse credentials
+     */
+    @Middlewares([isAuthenticated])
+    @Get('/warehouseCredentials')
+    @OperationId('getWarehouseCredentials')
+    async getWarehouseCredentials(@Request() req: express.Request): Promise<{
+        status: 'ok';
+        results: UserWarehouseCredentials[];
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await userService.getWarehouseCredentials(req.user!),
+        };
+    }
+
+    /**
+     * Create user warehouse credentials
+     */
+    @Middlewares([isAuthenticated])
+    @Post('/warehouseCredentials')
+    @OperationId('createWarehouseCredentials')
+    async createWarehouseCredentials(
+        @Request() req: express.Request,
+        @Body() body: UpsertUserWarehouseCredentials,
+    ): Promise<{
+        status: 'ok';
+        results: UserWarehouseCredentials;
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await userService.createWarehouseCredentials(
+                req.user!,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Update user warehouse credentials
+     */
+    @Middlewares([isAuthenticated])
+    @Patch('/warehouseCredentials/{uuid}')
+    @OperationId('updateWarehouseCredentials')
+    async updateWarehouseCredentials(
+        @Request() req: express.Request,
+        @Path() uuid: string,
+        @Body() body: UpsertUserWarehouseCredentials,
+    ): Promise<{
+        status: 'ok';
+        results: UserWarehouseCredentials;
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await userService.updateWarehouseCredentials(
+                req.user!,
+                uuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Delete user warehouse credentials
+     */
+    @Middlewares([isAuthenticated])
+    @Delete('/warehouseCredentials/{uuid}')
+    @OperationId('deleteWarehouseCredentials')
+    async deleteWarehouseCredentials(
+        @Request() req: express.Request,
+        @Path() uuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        await userService.deleteWarehouseCredentials(req.user!, uuid);
         this.setStatus(200);
         return {
             status: 'ok',

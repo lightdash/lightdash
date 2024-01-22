@@ -1,7 +1,7 @@
 import { Knex } from 'knex';
 import { WarehouseType } from './warehouseCredentials';
 
-type DbUserWarehouseCredentials = {
+export type DbUserWarehouseCredentials = {
     user_warehouse_credentials_uuid: string;
     name: string;
     created_at: Date;
@@ -21,4 +21,7 @@ type Create = Pick<
     DbUserWarehouseCredentials,
     'name' | 'user_uuid' | 'warehouse_type' | 'encrypted_credentials'
 >;
-type Update = Create & Pick<DbUserWarehouseCredentials, 'updated_at'>;
+type Update = Pick<
+    DbUserWarehouseCredentials,
+    'name' | 'warehouse_type' | 'encrypted_credentials' | 'updated_at'
+>;

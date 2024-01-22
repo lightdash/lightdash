@@ -28,6 +28,7 @@ import {
     RegisterOrActivateUser,
     SessionUser,
     UpdateUserArgs,
+    UpsertUserWarehouseCredentials,
     UserAllowedOrganization,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
@@ -49,6 +50,7 @@ import { OrganizationModel } from '../models/OrganizationModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
+import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 
 type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
@@ -63,6 +65,7 @@ type UserServiceDependencies = {
     organizationModel: OrganizationModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 };
 
 export class UserService {
@@ -90,6 +93,8 @@ export class UserService {
 
     private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 
+    private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -107,6 +112,7 @@ export class UserService {
         organizationMemberProfileModel,
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
+        userWarehouseCredentialsModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
@@ -121,6 +127,7 @@ export class UserService {
         this.personalAccessTokenModel = personalAccessTokenModel;
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
+        this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
     }
 
     private async tryVerifyUserEmail(
@@ -1003,5 +1010,71 @@ export class UserService {
      */
     async getRefreshToken(userUuid: string): Promise<string> {
         return this.userModel.getRefreshToken(userUuid);
+    }
+
+    async getWarehouseCredentials(user: SessionUser) {
+        return this.userWarehouseCredentialsModel.getAllByUserUuid(
+            user.userUuid,
+        );
+    }
+
+    async createWarehouseCredentials(
+        user: SessionUser,
+        data: UpsertUserWarehouseCredentials,
+    ) {
+        const userWarehouseCredentialsUuid =
+            await this.userWarehouseCredentialsModel.create(
+                user.userUuid,
+                data,
+            );
+        analytics.track({
+            userId: user.userUuid,
+            event: 'user_warehouse_credentials.created',
+            properties: {
+                credentialsId: userWarehouseCredentialsUuid,
+            },
+        });
+        return this.userWarehouseCredentialsModel.getByUuid(
+            userWarehouseCredentialsUuid,
+        );
+    }
+
+    async updateWarehouseCredentials(
+        user: SessionUser,
+        userWarehouseCredentialsUuid: string,
+        data: UpsertUserWarehouseCredentials,
+    ) {
+        await this.userWarehouseCredentialsModel.update(
+            user.userUuid,
+            userWarehouseCredentialsUuid,
+            data,
+        );
+        analytics.track({
+            userId: user.userUuid,
+            event: 'user_warehouse_credentials.updated',
+            properties: {
+                credentialsId: userWarehouseCredentialsUuid,
+            },
+        });
+        return this.userWarehouseCredentialsModel.getByUuid(
+            userWarehouseCredentialsUuid,
+        );
+    }
+
+    async deleteWarehouseCredentials(
+        user: SessionUser,
+        userWarehouseCredentialsUuid: string,
+    ) {
+        await this.userWarehouseCredentialsModel.delete(
+            user.userUuid,
+            userWarehouseCredentialsUuid,
+        );
+        analytics.track({
+            userId: user.userUuid,
+            event: 'user_warehouse_credentials.deleted',
+            properties: {
+                credentialsId: userWarehouseCredentialsUuid,
+            },
+        });
     }
 }

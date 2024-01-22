@@ -13,27 +13,25 @@ export type UserWarehouseCredentials = {
     name: string;
     createdAt: Date;
     updatedAt: Date;
-    warehouseType: UserWarehouseCredentialsDetails['type'];
+    credentials:
+        | Pick<
+              | CreateRedshiftCredentials
+              | CreatePostgresCredentials
+              | CreateSnowflakeCredentials
+              | CreateTrinoCredentials,
+              'type' | 'user'
+          >
+        | Pick<CreateBigqueryCredentials, 'type'>
+        | Pick<CreateDatabricksCredentials, 'type'>;
 };
 
-export type CreateUserWarehouseCredentials = {
+export type UpsertUserWarehouseCredentials = {
     name: string;
-    credentials: UserWarehouseCredentialsDetails;
+    credentials:
+        | Pick<CreateRedshiftCredentials, 'type' | 'user' | 'password'>
+        | Pick<CreatePostgresCredentials, 'type' | 'user' | 'password'>
+        | Pick<CreateSnowflakeCredentials, 'type' | 'user' | 'password'>
+        | Pick<CreateTrinoCredentials, 'type' | 'user' | 'password'>
+        | Pick<CreateBigqueryCredentials, 'type' | 'keyfileContents'>
+        | Pick<CreateDatabricksCredentials, 'type' | 'personalAccessToken'>;
 };
-
-export type UpdateUserWarehouseCredentials = {
-    uuid: string;
-    name: string;
-    credentials: UserWarehouseCredentialsDetails;
-};
-
-export type UserWarehouseCredentialsDetails =
-    | Pick<
-          | CreateRedshiftCredentials
-          | CreatePostgresCredentials
-          | CreateSnowflakeCredentials
-          | CreateTrinoCredentials,
-          'type' | 'user' | 'password'
-      >
-    | Pick<CreateBigqueryCredentials, 'type' | 'keyfileContents'>
-    | Pick<CreateDatabricksCredentials, 'type' | 'personalAccessToken'>;
