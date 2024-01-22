@@ -25,6 +25,7 @@ services:
       - LIGHTDASH_CONFIG_FILE=/usr/app/lightdash.yml
       - DBT_DEMO_DIR=/usr/app/examples/full-jaffle-shop-demo
       - AUTH_DISABLE_PASSWORD_AUTHENTICATION=false
+      - AUTH_DISABLE_GROUP_SYNC=false
       - SITE_URL=http://localhost:3000
       - ALLOW_MULTIPLE_ORGS=false
       - LIGHTDASH_QUERY_MAX_LIMIT=5000

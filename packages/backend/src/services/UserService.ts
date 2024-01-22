@@ -390,6 +390,7 @@ export class UserService {
             });
 
             if (
+                lightdashConfig.auth.disableGroupSync === false &&
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
                 loginUser.organizationUuid
@@ -423,6 +424,7 @@ export class UserService {
             });
 
             if (
+                lightdashConfig.auth.disableGroupSync === false &&
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
                 sessionUser.organizationUuid
@@ -444,6 +446,7 @@ export class UserService {
         await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
 
         if (
+            lightdashConfig.auth.disableGroupSync === false &&
             Array.isArray(openIdUser.openId.groups) &&
             openIdUser.openId.groups.length &&
             createdUser.organizationUuid
