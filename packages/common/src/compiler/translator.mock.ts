@@ -232,6 +232,7 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
     sqlTable: model.relation_name,
     description: model.description,
     sqlWhere: undefined,
+    requiredAttributes: undefined,
     dimensions: {
         myColumnName: {
             compact: undefined,

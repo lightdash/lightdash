@@ -31,6 +31,8 @@ import {
     exploreWithHiddenJoin,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
+    exploreWithRequiredAttributes,
+    exploreWithRequiredAttributesCompiled,
     joinedExploreOverridingAliasAndLabel,
     joinedExploreOverridingJoinAlias,
     joinedExploreOverridingJoinLabel,
@@ -288,5 +290,13 @@ describe('Parse dimension reference', () => {
         expect(
             parseAllReferences('${ld_table.ld_dimension} == 1', 'ld_table'),
         ).toStrictEqual([{ refName: 'ld_dimension', refTable: 'ld_table' }]);
+    });
+});
+
+describe('Explore with user attributes', () => {
+    test('should compile explore with table and field required attributes', () => {
+        expect(
+            compiler.compileExplore(exploreWithRequiredAttributes),
+        ).toStrictEqual(exploreWithRequiredAttributesCompiled);
     });
 });

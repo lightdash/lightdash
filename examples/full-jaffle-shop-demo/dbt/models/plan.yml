@@ -1,6 +1,9 @@
 version: 2
 models:
   - name: plan
+    meta:
+      required_attributes:
+        is_admin: 'true'
     columns:
       - name: id
       - name: plan_name

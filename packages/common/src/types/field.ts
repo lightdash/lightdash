@@ -249,6 +249,10 @@ export const isTableCalculationField = (
 export interface CompiledDimension extends Dimension {
     compiledSql: string; // sql string with resolved template variables
     tablesReferences: Array<string> | undefined;
+    tablesRequiredAttributes?: Record<
+        string,
+        Record<string, string | string[]>
+    >;
 }
 
 export type CompiledField = CompiledDimension | CompiledMetric;
@@ -261,6 +265,10 @@ export const isDimension = (
 export interface CompiledMetric extends Metric {
     compiledSql: string;
     tablesReferences: Array<string> | undefined;
+    tablesRequiredAttributes?: Record<
+        string,
+        Record<string, string | string[]>
+    >;
 }
 
 export interface FilterableDimension extends Dimension {
