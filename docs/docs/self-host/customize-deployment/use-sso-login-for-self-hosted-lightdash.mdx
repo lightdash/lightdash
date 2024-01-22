@@ -61,17 +61,31 @@ for a custom authorization server navigate to **API** > **Authorization Servers*
 server and note the **Issuer URI** and **Name** of the authorization server. For example the `default` authorization
 server has an issuer URI of `https://dev-123456.okta.com/oauth2/default`.
 
+#### Groups & Okta
+
+If you want to use groups to control access to Lightdash, you'll need to configure Okta and Lightdash to support this.
+
+If you're **not** using a custom authorization server ID:
+- on `OpenID Connect ID Token` section in the Okta application settings, add `groups` to the `Groups claim` field, by setting a Groups claims type to `Filter` and a Filter to match expression to `.*`
+
+If you're using a custom authorization server ID:
+- you don't need to set the `AUTH_OKTA_EXTRA_SCOPES` environment variable
+- on the Authorization Server settings, add claim `groups`, value type `Groups`, matches regex `.*`
+
 ### Configuring Lightdash for Okta
 
 You'll need to set the following environment variables in your Lightdash deployment:
 
-| Variable                            | Description                                                                                        | Required? |
-|-------------------------------------|----------------------------------------------------------------------------------------------------|-----------|
+| Variable                            | Description                                                                                        | Required?  |
+|-------------------------------------|----------------------------------------------------------------------------------------------------|------------|
 | `AUTH_OKTA_DOMAIN`                  | The `{{ okta_domain }}`. Should not include `https://`                                             | ✅         |
 | `AUTH_OKTA_OAUTH_CLIENT_ID`         | The **Client ID** copied from the application settings in okta                                     | ✅         |
 | `AUTH_OKTA_OAUTH_CLIENT_SECRET`     | The **Client secret** copied from the application settings in okta                                 | ✅         |
 | `AUTH_OKTA_OAUTH_ISSUER`            | The **Issuer URI** copied from the authorization server. Should include `https://`                 | ✅         |
-| `AUTH_OKTA_AUTHORIZATION_SERVER_ID` | Optional. The **Name** of a custom authorization server if not using the org authorization server. |           |
+| `AUTH_OKTA_AUTHORIZATION_SERVER_ID` | Optional. The **Name** of a custom authorization server if not using the org authorization server. |            |
+| `AUTH_OKTA_EXTRA_SCOPES`            | Optional. The extra **scopes** (e.g. "groups") when not using a custom authorization server        |            |
+
+
 
 ## Google
 

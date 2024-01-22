@@ -28,7 +28,6 @@ import {
     VerifyFunctionWithRequest,
 } from 'passport-openidconnect';
 import { Strategy } from 'passport-strategy';
-import path from 'path';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -231,7 +230,6 @@ export class OpenIDClientOktaStrategy extends Strategy {
         } catch (err) {
             return this.error(err);
         }
-        return this.fail(401);
     }
 }
 
@@ -255,7 +253,11 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
         const authorizationUrl = client.authorizationUrl({
             redirect_uri: redirectUri,
             response_type: 'code',
-            scope: 'openid profile email',
+            scope: 'openid profile email'.concat(
+                lightdashConfig.auth.okta.extraScopes
+                    ? ` ${lightdashConfig.auth.okta.extraScopes}`
+                    : '',
+            ),
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
             state,
