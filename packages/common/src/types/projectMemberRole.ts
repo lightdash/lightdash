@@ -33,7 +33,7 @@ export type InheritedRoles = [OrganizationRole, GroupRole, ProjectRole];
 
 const RoleTypes = ['organization', 'project', 'group'] as const;
 
-type RoleType = typeof RoleTypes[number];
+export type RoleType = typeof RoleTypes[number];
 
 export type InheritedProjectRole = {
     type: RoleType;

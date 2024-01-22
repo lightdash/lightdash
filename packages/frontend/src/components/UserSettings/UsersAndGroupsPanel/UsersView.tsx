@@ -6,6 +6,7 @@ import {
     OrganizationMemberRole,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Badge,
     Button,
@@ -359,12 +360,9 @@ const UsersView: FC = () => {
                         w={320}
                         rightSection={
                             search.length > 0 && (
-                                <MantineIcon
-                                    color="gray.6"
-                                    icon={IconX}
-                                    onClick={() => setSearch('')}
-                                    style={{ cursor: 'pointer' }}
-                                />
+                                <ActionIcon onClick={() => setSearch('')}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
                             )
                         }
                     />
