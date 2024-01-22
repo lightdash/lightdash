@@ -5,6 +5,7 @@ import {
     Modal,
     ModalProps,
     Stack,
+    Textarea,
     TextInput,
     Title,
 } from '@mantine/core';
@@ -73,10 +74,12 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
                         {...form.getInputProps('name')}
                     />
 
-                    <TextInput
+                    <Textarea
                         label="Chart description"
                         placeholder="A few words to give your team some context"
                         disabled={isUpdating}
+                        autosize
+                        maxRows={3}
                         {...form.getInputProps('description')}
                     />
 

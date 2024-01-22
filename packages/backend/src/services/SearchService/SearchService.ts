@@ -1,11 +1,15 @@
 import { subject } from '@casl/ability';
 import {
     DashboardSearchResult,
+    FieldSearchResult,
     ForbiddenError,
+    isTableErrorSearchResult,
     SavedChartSearchResult,
     SearchResults,
     SessionUser,
     SpaceSearchResult,
+    TableErrorSearchResult,
+    TableSearchResult,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -94,26 +98,54 @@ export class SearchService {
         );
 
         const dimensionsHaveUserAttributes = results.fields.some(
-            (field) => field.requiredAttributes !== undefined,
+            (field) =>
+                field.requiredAttributes !== undefined ||
+                Object.values(field.tablesRequiredAttributes || {}).some(
+                    (tableHaveUserAttributes) =>
+                        tableHaveUserAttributes !== undefined,
+                ),
         );
-
-        let filteredFields = results.fields;
-        if (dimensionsHaveUserAttributes) {
-            // Do not make user attribute query if not needed
+        const tablesHaveUserAttributes = results.tables.some(
+            (table) =>
+                !isTableErrorSearchResult(table) &&
+                table.requiredAttributes !== undefined,
+        );
+        let filteredFields: FieldSearchResult[] = [];
+        let filteredTables: (TableSearchResult | TableErrorSearchResult)[] = [];
+        if (
+            hasExploreAccess &&
+            (dimensionsHaveUserAttributes || tablesHaveUserAttributes)
+        ) {
             const userAttributes =
                 await this.userAttributesModel.getAttributeValuesForOrgMember({
                     organizationUuid,
                     userUuid: user.userUuid,
                 });
-            filteredFields = results.fields.filter((field) =>
-                hasUserAttributes(field.requiredAttributes, userAttributes),
+            filteredFields = results.fields.filter(
+                (field) =>
+                    hasUserAttributes(
+                        field.requiredAttributes,
+                        userAttributes,
+                    ) &&
+                    Object.values(field.tablesRequiredAttributes || {}).every(
+                        (tableHaveUserAttributes) =>
+                            hasUserAttributes(
+                                tableHaveUserAttributes,
+                                userAttributes,
+                            ),
+                    ),
+            );
+            filteredTables = results.tables.filter(
+                (table) =>
+                    isTableErrorSearchResult(table) ||
+                    hasUserAttributes(table.requiredAttributes, userAttributes),
             );
         }
 
         const filteredResults = {
             ...results,
-            tables: hasExploreAccess ? results.tables : [],
-            fields: hasExploreAccess ? filteredFields : [],
+            tables: filteredTables,
+            fields: filteredFields,
             dashboards: results.dashboards.filter(filterItem),
             savedCharts: results.savedCharts.filter(filterItem),
             spaces: results.spaces.filter(filterItem),

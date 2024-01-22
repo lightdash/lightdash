@@ -2,25 +2,23 @@ import { subject } from '@casl/ability';
 import {
     convertOrganizationRoleToProjectRole,
     getHighestProjectRole,
-    OrganizationMemberProfile,
     OrganizationMemberRole,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Paper, Table } from '@mantine/core';
-import { FC, useMemo } from 'react';
+import { ActionIcon, Paper, Table, TextInput } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
+import { FC, useMemo, useState } from 'react';
 import { useProjectGroupAccessList } from '../../features/projectGroupAccess/hooks/useProjectGroupAccess';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
-import {
-    useProjectAccess,
-    useRevokeProjectAccessMutation,
-    useUpdateProjectAccessMutation,
-} from '../../hooks/useProjectAccess';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
 import LoadingState from '../common/LoadingState';
-import ProjectAccessCreation from './ProjectAccessCreation';
+import MantineIcon from '../common/MantineIcon';
+import { SettingsCard } from '../common/Settings/SettingsCard';
+import CreateProjectAccessModal from './CreateProjectAccessModal';
 import ProjectAccessRow from './ProjectAccessRow';
 
 interface ProjectAccessProps {
@@ -35,22 +33,22 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     onAddProjectAccessClose,
 }) => {
     const { user } = useApp();
+    const ability = useAbilityContext();
 
     const { cx, classes } = useTableStyles();
 
-    const ability = useAbilityContext();
-    const { mutate: revokeAccess } =
-        useRevokeProjectAccessMutation(projectUuid);
-    const { mutate: updateAccess, isLoading: isUpdatingAccess } =
-        useUpdateProjectAccessMutation(projectUuid);
+    const [search, setSearch] = useState('');
 
     const {
         data: organizationUsers,
         isInitialLoading: isOrganizationUsersLoading,
-    } = useOrganizationUsers();
+    } = useOrganizationUsers({ searchInput: search });
+
     const { data: groups } = useOrganizationGroups(5);
+
     const { data: projectAccess, isInitialLoading: isProjectAccessLoading } =
         useProjectAccess(projectUuid);
+
     const { data: projectGroupAccess } = useProjectGroupAccessList(projectUuid);
 
     const orgRoles = useMemo(() => {
@@ -128,30 +126,30 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
         }),
     );
 
-    const handleUpdate = (
-        orgUser: OrganizationMemberProfile,
-        newRole: ProjectMemberRole,
-    ) => {
-        if (!canManageProjectAccess) return;
-
-        updateAccess({
-            userUuid: orgUser.userUuid,
-            role: newRole,
-        });
-    };
-
-    const handleDelete = (orgUser: OrganizationMemberProfile) => {
-        if (!canManageProjectAccess) return;
-        revokeAccess(orgUser.userUuid);
-    };
-
     if (isProjectAccessLoading || isOrganizationUsersLoading) {
         return <LoadingState title="Loading user access" />;
     }
 
     return (
         <>
-            <Paper withBorder sx={{ overflow: 'hidden' }}>
+            <SettingsCard shadow="none" p={0}>
+                <Paper p="sm">
+                    <TextInput
+                        size="xs"
+                        placeholder="Search users by name, email, or role"
+                        onChange={(e) => setSearch(e.target.value)}
+                        value={search}
+                        w={320}
+                        rightSection={
+                            search.length > 0 && (
+                                <ActionIcon onClick={() => setSearch('')}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            )
+                        }
+                    />
+                </Paper>
+
                 <Table className={cx(classes.root, classes.alignLastTdRight)}>
                     <thead>
                         <tr>
@@ -163,9 +161,10 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                     <tbody>
                         {organizationUsers?.map((orgUser) => (
                             <ProjectAccessRow
-                                key={orgUser.email}
+                                key={orgUser.userUuid}
+                                projectUuid={projectUuid}
+                                canManageProjectAccess={canManageProjectAccess}
                                 user={orgUser}
-                                organizationRole={orgRoles[orgUser.userUuid]}
                                 inheritedRoles={[
                                     {
                                         type: 'organization',
@@ -182,20 +181,14 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                                         role: projectRoles[orgUser.userUuid],
                                     },
                                 ]}
-                                isUpdatingAccess={isUpdatingAccess}
-                                onUpdate={(newRole) =>
-                                    handleUpdate(orgUser, newRole)
-                                }
-                                onDelete={() => handleDelete(orgUser)}
                             />
                         ))}
                     </tbody>
                 </Table>
-            </Paper>
+            </SettingsCard>
 
             {isAddingProjectAccess && (
-                <ProjectAccessCreation
-                    opened
+                <CreateProjectAccessModal
                     projectUuid={projectUuid}
                     onClose={() => onAddProjectAccessClose()}
                 />

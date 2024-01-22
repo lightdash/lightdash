@@ -427,6 +427,7 @@ export const convertTable = (
                 : OrderFieldsByStrategy.LABEL,
         groupLabel: meta.group_label,
         sqlWhere: meta.sql_filter || meta.sql_where,
+        requiredAttributes: meta.required_attributes,
     };
 };
 

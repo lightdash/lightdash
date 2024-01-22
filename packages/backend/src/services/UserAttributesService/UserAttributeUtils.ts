@@ -1,4 +1,8 @@
-import { Explore, UserAttributeValueMap } from '@lightdash/common';
+import {
+    AuthorizationError,
+    Explore,
+    UserAttributeValueMap,
+} from '@lightdash/common';
 
 export const hasUserAttribute = (
     userAttributes: UserAttributeValueMap,
@@ -28,38 +32,90 @@ export const hasUserAttributes = (
 };
 
 export const exploreHasFilteredAttribute = (explore: Explore) =>
-    Object.values(explore.tables).some((table) =>
-        Object.values(table.dimensions).some(
-            (dimension) => dimension.requiredAttributes !== undefined,
-        ),
+    Object.values(explore.tables).some(
+        (table) =>
+            table.requiredAttributes !== undefined ||
+            Object.values(table.dimensions).some(
+                (dimension) => dimension.requiredAttributes !== undefined,
+            ),
     );
-export const filterDimensionsFromExplore = (
+
+export const doesExploreMatchRequiredAttributes = (
     explore: Explore,
     userAttributes: UserAttributeValueMap,
-): Explore => ({
-    ...explore,
-    tables: Object.entries(explore.tables).reduce((at, exploreTable) => {
-        const [tableName, table] = exploreTable;
-        return {
-            ...at,
-            [tableName]: {
-                ...table,
-                dimensions: Object.entries(table.dimensions).reduce(
-                    (acc, tableDimension) => {
-                        const [dimensionName, dimension] = tableDimension;
+) =>
+    explore.tables[explore.baseTable].requiredAttributes === undefined ||
+    hasUserAttributes(
+        explore.tables[explore.baseTable].requiredAttributes,
+        userAttributes,
+    );
 
-                        if (
-                            hasUserAttributes(
-                                dimension.requiredAttributes,
-                                userAttributes,
-                            )
-                        )
-                            return { ...acc, [dimensionName]: dimension };
-                        return acc;
-                    },
-                    [],
-                ),
-            },
-        };
-    }, {}),
-});
+export const getFilteredExplore = (
+    explore: Explore,
+    userAttributes: UserAttributeValueMap,
+): Explore => {
+    if (!doesExploreMatchRequiredAttributes(explore, userAttributes)) {
+        throw new AuthorizationError(
+            "You don't have authorization to access this explore",
+        );
+    }
+
+    const filteredTableNames: string[] = Object.values(explore.tables).reduce<
+        string[]
+    >((acc, table) => {
+        if (hasUserAttributes(table.requiredAttributes, userAttributes))
+            return [...acc, table.name];
+        return acc;
+    }, []);
+
+    return {
+        ...explore,
+        joinedTables: explore.joinedTables.filter((joinedTable) =>
+            filteredTableNames.includes(joinedTable.table),
+        ),
+        tables: Object.entries(explore.tables).reduce((at, exploreTable) => {
+            const [tableName, table] = exploreTable;
+            if (!filteredTableNames.includes(tableName)) return at;
+            return {
+                ...at,
+                [tableName]: {
+                    ...table,
+                    metrics: Object.fromEntries(
+                        Object.entries(table.metrics).filter(
+                            ([metricName, metric]) =>
+                                !metric.tablesReferences ||
+                                metric.tablesReferences.every(
+                                    (tableReference) =>
+                                        filteredTableNames.includes(
+                                            tableReference,
+                                        ),
+                                ),
+                        ),
+                    ),
+                    dimensions: Object.fromEntries(
+                        Object.entries(table.dimensions).filter(
+                            ([dimensionName, dimension]) => {
+                                const canAccessAllTableReferences =
+                                    !dimension.tablesReferences ||
+                                    dimension.tablesReferences.every(
+                                        (tableReference) =>
+                                            filteredTableNames.includes(
+                                                tableReference,
+                                            ),
+                                    );
+                                const canAccessDimension = hasUserAttributes(
+                                    dimension.requiredAttributes,
+                                    userAttributes,
+                                );
+                                return (
+                                    canAccessAllTableReferences &&
+                                    canAccessDimension
+                                );
+                            },
+                        ),
+                    ),
+                },
+            };
+        }, {}),
+    };
+};

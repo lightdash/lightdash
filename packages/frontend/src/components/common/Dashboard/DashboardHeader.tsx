@@ -158,7 +158,7 @@ const DashboardHeader = ({
                             </ActionIcon>
                         </Popover.Target>
 
-                        <Popover.Dropdown>
+                        <Popover.Dropdown maw={500}>
                             <Stack spacing="xs">
                                 {dashboardDescription && (
                                     <Text fz="xs" color="gray.7" fw={500}>

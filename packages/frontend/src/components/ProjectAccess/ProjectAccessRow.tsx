@@ -2,8 +2,6 @@ import {
     getHighestProjectRole,
     InheritedRoles,
     OrganizationMemberProfile,
-    OrganizationMemberRole,
-    ProjectMemberProfile,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     ProjectRole,
@@ -11,50 +9,98 @@ import {
 import {
     ActionIcon,
     Badge,
-    Button,
     Group,
-    Modal,
-    NativeSelect,
+    Select,
     Stack,
     Text,
-    Title,
     Tooltip,
 } from '@mantine/core';
-import { IconKey, IconTrash } from '@tabler/icons-react';
+import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
-import { FC, useState } from 'react';
+import { FC, useCallback, useMemo, useState } from 'react';
+import {
+    useCreateProjectAccessMutation,
+    useRevokeProjectAccessMutation,
+    useUpdateProjectAccessMutation,
+} from '../../hooks/useProjectAccess';
 import MantineIcon from '../common/MantineIcon';
+import RemoveProjectAccessModal from './RemoveProjectAccessModal';
 
 type Props = {
-    user: OrganizationMemberProfile | ProjectMemberProfile;
-    organizationRole: OrganizationMemberRole;
+    projectUuid: string;
+    canManageProjectAccess: boolean;
+    user: OrganizationMemberProfile;
     inheritedRoles: InheritedRoles;
-    roleTooltip?: string;
-    isUpdatingAccess: boolean;
-    onUpdate: (newRole: ProjectMemberRole) => void;
-    onDelete: () => void;
 };
 
 const ProjectAccessRow: FC<Props> = ({
+    projectUuid,
+    canManageProjectAccess,
     user,
     inheritedRoles,
-    isUpdatingAccess,
-    onUpdate,
-    onDelete,
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-    const highestRole = getHighestProjectRole(inheritedRoles);
-    const projectRole = inheritedRoles.find(
-        (role): role is ProjectRole => role.type === 'project',
+    const { mutate: createAccess, isLoading: isCreatingAccess } =
+        useCreateProjectAccessMutation(projectUuid);
+
+    const { mutate: updateAccess, isLoading: isUpdatingAccess } =
+        useUpdateProjectAccessMutation(projectUuid);
+
+    const { mutate: revokeAccess, isLoading: isRevokingAccess } =
+        useRevokeProjectAccessMutation(projectUuid);
+
+    const handleCreate = useCallback(
+        (role: ProjectMemberRole) => {
+            if (!canManageProjectAccess) return;
+
+            createAccess({
+                email: user.email,
+                role: role,
+                sendEmail: false,
+            });
+        },
+        [canManageProjectAccess, createAccess, user.email],
     );
 
+    const handleUpdate = useCallback(
+        (newRole: ProjectMemberRole) => {
+            if (!canManageProjectAccess) return;
+
+            updateAccess({
+                userUuid: user.userUuid,
+                role: newRole,
+            });
+        },
+        [canManageProjectAccess, updateAccess, user.userUuid],
+    );
+
+    const handleDelete = useCallback(() => {
+        if (!canManageProjectAccess) return;
+
+        revokeAccess(user.userUuid);
+    }, [canManageProjectAccess, revokeAccess, user.userUuid]);
+
+    const highestRole = useMemo(() => {
+        return getHighestProjectRole(inheritedRoles);
+    }, [inheritedRoles]);
+
+    const projectRole = useMemo(() => {
+        return inheritedRoles.find(
+            (role): role is ProjectRole => role.type === 'project',
+        );
+    }, [inheritedRoles]);
+
     if (!highestRole) return null;
+
+    const hasProjectRole = !!projectRole?.role;
+    const hasInheritedHigherRole =
+        hasProjectRole && highestRole.type !== 'project' && !!highestRole.role;
 
     return (
         <>
             <tr>
-                <td>
+                <td width="30%">
                     <Stack spacing="xs" align={'flex-start'}>
                         {user.firstName && (
                             <Text fw={700}>
@@ -68,88 +114,106 @@ const ProjectAccessRow: FC<Props> = ({
                         )}
                     </Stack>
                 </td>
-                <td>
-                    <Group>
+
+                <td width="70%">
+                    <Stack spacing="xs">
                         <Tooltip
-                            withinPortal
-                            withArrow
-                            disabled={highestRole.type === 'project'}
-                            label={`This user inherits the ${capitalize(
-                                highestRole.type,
-                            )} role: ${
-                                ProjectMemberRoleLabels[highestRole.role]
-                            }`}
+                            disabled={hasProjectRole}
+                            label={
+                                <Text>
+                                    User inherits this role from{' '}
+                                    <Text span fw={600}>
+                                        {capitalize(highestRole.type)}
+                                    </Text>
+                                </Text>
+                            }
                         >
-                            {projectRole?.role ? (
-                                <NativeSelect
-                                    id="user-role"
-                                    disabled={isUpdatingAccess}
-                                    w="150px"
-                                    error={highestRole.type !== 'project'}
-                                    size="xs"
-                                    data={Object.values(ProjectMemberRole).map(
-                                        (role) => ({
-                                            value: role,
-                                            label: ProjectMemberRoleLabels[
-                                                role
-                                            ],
-                                        }),
-                                    )}
-                                    onChange={(e) => {
-                                        const newRole = e.target
-                                            .value as ProjectMemberRole;
-                                        onUpdate(newRole);
-                                    }}
-                                    value={projectRole.role}
-                                />
-                            ) : (
-                                <Badge color="gray" radius="xs">
-                                    {ProjectMemberRoleLabels[highestRole.role]}
-                                </Badge>
-                            )}
+                            <Select
+                                id="user-role"
+                                w="180px"
+                                size="xs"
+                                disabled={isUpdatingAccess || isCreatingAccess}
+                                data={Object.values(ProjectMemberRole).map(
+                                    (role) => ({
+                                        value: role,
+                                        label: ProjectMemberRoleLabels[role],
+                                    }),
+                                )}
+                                value={
+                                    hasProjectRole
+                                        ? projectRole.role
+                                        : highestRole.role
+                                }
+                                onChange={(newRole: ProjectMemberRole) => {
+                                    if (projectRole && projectRole.role) {
+                                        handleUpdate(newRole);
+                                    } else {
+                                        handleCreate(newRole);
+                                    }
+                                }}
+                            />
                         </Tooltip>
-                    </Group>
+
+                        {hasInheritedHigherRole && (
+                            <Group spacing="xxs">
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    color="orange"
+                                />
+                                <Text color="orange" size="xs">
+                                    User inherits higher role{' '}
+                                    <Text span fw={600}>
+                                        {
+                                            ProjectMemberRoleLabels[
+                                                highestRole.role
+                                            ]
+                                        }
+                                    </Text>{' '}
+                                    from{' '}
+                                    <Text span fw={600}>
+                                        {capitalize(highestRole.type)}
+                                    </Text>
+                                </Text>
+                            </Group>
+                        )}
+                    </Stack>
                 </td>
+
                 <td width="1%">
-                    {projectRole?.role && (
-                        <ActionIcon
-                            variant="outline"
-                            color="red"
-                            onClick={() => setIsDeleteDialogOpen(true)}
-                        >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    )}
+                    <Tooltip
+                        position="top"
+                        label={
+                            hasProjectRole
+                                ? 'Revoke project access'
+                                : `Cannot revoke inherited access from ${capitalize(
+                                      highestRole.type,
+                                  )}`
+                        }
+                    >
+                        <div>
+                            <ActionIcon
+                                disabled={!hasProjectRole || isRevokingAccess}
+                                variant="outline"
+                                color="red"
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                            >
+                                <MantineIcon icon={IconTrash} />
+                            </ActionIcon>
+                        </div>
+                    </Tooltip>
                 </td>
             </tr>
 
-            <Modal
-                opened={isDeleteDialogOpen}
-                onClose={() => setIsDeleteDialogOpen(false)}
-                title={
-                    <Group spacing="xs">
-                        <MantineIcon size="lg" icon={IconKey} color="red" />
-                        <Title order={4}>Revoke project access</Title>
-                    </Group>
-                }
-            >
-                <Text pb="md">
-                    Are you sure you want to revoke project access for this user{' '}
-                    {user.email} ?
-                </Text>
-                <Group spacing="xs" position="right">
-                    <Button
-                        variant="outline"
-                        onClick={() => setIsDeleteDialogOpen(false)}
-                        color="dark"
-                    >
-                        Cancel
-                    </Button>
-                    <Button color="red" onClick={onDelete}>
-                        Delete
-                    </Button>
-                </Group>
-            </Modal>
+            {isDeleteDialogOpen && (
+                <RemoveProjectAccessModal
+                    user={user}
+                    onDelete={() => {
+                        setIsDeleteDialogOpen(false);
+                        handleDelete();
+                    }}
+                    onClose={() => setIsDeleteDialogOpen(false)}
+                />
+            )}
         </>
     );
 };

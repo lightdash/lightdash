@@ -279,10 +279,25 @@ export class ExploreCompiler {
                 );
             }
         });
+        const tablesRequiredAttributes = Array.from(
+            compiledMetric.tablesReferences,
+        ).reduce<Record<string, Record<string, string | string[]>>>(
+            (acc, tableReference) => {
+                const table = tables[tableReference] as Table | undefined;
+                if (table?.requiredAttributes) {
+                    acc[tableReference] = table.requiredAttributes;
+                }
+                return acc;
+            },
+            {},
+        );
         return {
             ...metric,
             compiledSql: compiledMetric.sql,
             tablesReferences: Array.from(compiledMetric.tablesReferences),
+            ...(Object.keys(tablesRequiredAttributes).length
+                ? { tablesRequiredAttributes }
+                : {}),
         };
     }
 
@@ -395,10 +410,25 @@ export class ExploreCompiler {
         tables: Record<string, Table>,
     ): CompiledDimension {
         const compiledDimension = this.compileDimensionSql(dimension, tables);
+        const tablesRequiredAttributes = Array.from(
+            compiledDimension.tablesReferences,
+        ).reduce<Record<string, Record<string, string | string[]>>>(
+            (acc, tableReference) => {
+                const table = tables[tableReference] as Table | undefined;
+                if (table?.requiredAttributes) {
+                    acc[tableReference] = table.requiredAttributes;
+                }
+                return acc;
+            },
+            {},
+        );
         return {
             ...dimension,
             compiledSql: compiledDimension.sql,
             tablesReferences: Array.from(compiledDimension.tablesReferences),
+            ...(Object.keys(tablesRequiredAttributes).length
+                ? { tablesRequiredAttributes }
+                : {}),
         };
     }
 

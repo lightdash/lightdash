@@ -14,4 +14,5 @@ export type TableBase = {
     groupLabel?: string;
     sqlWhere?: string;
     hidden?: boolean;
+    requiredAttributes?: Record<string, string | string[]>;
 };
