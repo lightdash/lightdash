@@ -620,7 +620,7 @@ columns:
 :::info
 
 To filter a field by a set of given values you can supply them as an array for that field. For example,
-if you wanted to filter for orders with order status `paid` or `shipped` you should write the metric like:
+if you wanted to filter for orders with order status `completed` or `shipped` you should write the metric like:
 
 
 ```yaml
@@ -628,11 +628,11 @@ columns:
   - name: order_id
     meta:
       metrics:
-        total_completed_orders:
+        completed_or_shipped_order_count:
           type: count_distinct
           filters:
             - order_status:
-                - paid
+                - completed
                 - shipped
 ```
 
