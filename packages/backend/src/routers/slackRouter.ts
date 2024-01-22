@@ -1,6 +1,7 @@
 import { ForbiddenError, SlackSettings } from '@lightdash/common';
 import { ExpressReceiver } from '@slack/bolt';
 import express from 'express';
+import path from 'path';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { slackOptions } from '../clients/Slack/SlackOptions';
@@ -55,8 +56,9 @@ slackRouter.get(
     async (req, res, next) => {
         try {
             const { nanoId } = req.params;
-            const { path } = await downloadFileService.getDownloadFile(nanoId);
-            const normalizedPath = path.normalize(path);
+            const { path: filePath } =
+                await downloadFileService.getDownloadFile(nanoId);
+            const normalizedPath = path.normalize(filePath);
             res.sendFile(normalizedPath);
         } catch (error) {
             next(error);
