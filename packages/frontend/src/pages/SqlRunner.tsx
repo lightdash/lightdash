@@ -235,7 +235,9 @@ const SqlRunnerPage = () => {
         >
             <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
                 <Group position="apart">
-                    <RefreshDbtButton />
+                    <Box>
+                        <RefreshDbtButton />
+                    </Box>
 
                     <Group spacing="sm">
                         <RunSqlQueryButton
