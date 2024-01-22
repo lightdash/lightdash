@@ -38,6 +38,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     auth: {
         disablePasswordAuthentication: false,
+        disableGroupSync: false,
         google: {
             oauth2ClientId: undefined,
             oauth2ClientSecret: undefined,
