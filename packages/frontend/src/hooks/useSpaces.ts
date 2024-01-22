@@ -152,6 +152,7 @@ export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
                     projectUuid,
                     'spaces',
                 ]);
+                await queryClient.invalidateQueries(['pinned_items']);
                 await queryClient.refetchQueries(['spaces', projectUuid]);
                 queryClient.setQueryData(
                     ['space', projectUuid, spaceUuid],
