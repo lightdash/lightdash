@@ -1,3 +1,10 @@
+# [0.954.0](https://github.com/lightdash/lightdash/compare/0.953.0...0.954.0) (2024-01-22)
+
+
+### Features
+
+* expand description box in charts and dashboards ([#8639](https://github.com/lightdash/lightdash/issues/8639)) ([910dcbe](https://github.com/lightdash/lightdash/commit/910dcbe6f333e636a7533ceaedf413fddc672cc9))
+
 # [0.953.0](https://github.com/lightdash/lightdash/compare/0.952.1...0.953.0) (2024-01-22)
 
 
