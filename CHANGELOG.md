@@ -1,3 +1,10 @@
+# [0.951.0](https://github.com/lightdash/lightdash/compare/0.950.0...0.951.0) (2024-01-22)
+
+
+### Features
+
+* show inherited group role in project access settings ([#8643](https://github.com/lightdash/lightdash/issues/8643)) ([7fdd7d4](https://github.com/lightdash/lightdash/commit/7fdd7d439fca1cccbc71d65f54785e97eacf278b))
+
 # [0.950.0](https://github.com/lightdash/lightdash/compare/0.949.0...0.950.0) (2024-01-19)
 
 
