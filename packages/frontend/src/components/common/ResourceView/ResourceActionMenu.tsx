@@ -35,6 +35,7 @@ export interface ResourceViewActionMenuCommonProps {
 interface ResourceViewActionMenuProps
     extends ResourceViewActionMenuCommonProps {
     item: ResourceViewItem;
+    allowDelete?: boolean;
     isOpen?: boolean;
     onOpen?: () => void;
     onClose?: () => void;
@@ -52,6 +53,7 @@ const SpaceTypeLabels = {
 
 const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     item,
+    allowDelete = true,
     isOpen,
     onOpen,
     onClose,
@@ -343,7 +345,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     </>
                 ) : null}
 
-                {item.type !== ResourceViewItemType.SPACE && (
+                {allowDelete && (
                     <>
                         <Menu.Divider />
 

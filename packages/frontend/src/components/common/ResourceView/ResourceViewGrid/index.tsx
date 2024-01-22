@@ -37,6 +37,7 @@ type ResourceViewGridProps = ResourceViewGridCommonProps &
 
 type DraggableItemProps = Pick<ResourceViewGridProps, 'onAction'> & {
     item: ResourceViewItem;
+    allowDelete?: boolean;
     index: number;
     onAction: (newAction: ResourceViewItemActionState) => void;
     projectUuid: string;
@@ -45,6 +46,7 @@ type DraggableItemProps = Pick<ResourceViewGridProps, 'onAction'> & {
 
 const DraggableItem: FC<DraggableItemProps> = ({
     item,
+    allowDelete,
     index,
     onAction,
     projectUuid,
@@ -94,6 +96,7 @@ const DraggableItem: FC<DraggableItemProps> = ({
                         {item.type === ResourceViewItemType.SPACE ? (
                             <ResourceViewGridSpaceItem
                                 item={item}
+                                allowDelete={allowDelete}
                                 onAction={onAction}
                                 dragIcon={DragIcon}
                             />
@@ -134,7 +137,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     onAction,
     hasReorder = false,
 }) => {
-    const { reorderItems } = usePinnedItemsContext();
+    const { reorderItems, allowDelete } = usePinnedItemsContext();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const groupedItems = useMemo(() => {
@@ -226,6 +229,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                                                 item.type + '-' + item.data.uuid
                                             }
                                             item={item}
+                                            allowDelete={allowDelete}
                                             index={index}
                                             onAction={onAction}
                                             projectUuid={projectUuid}
