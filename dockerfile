@@ -7,7 +7,6 @@ WORKDIR /usr/app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     g++ \
-    git \
     libsasl2-modules-gssapi-mit \
     nodejs \
     python3 \
@@ -17,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     unzip \
     wget \
+    git \ 
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
