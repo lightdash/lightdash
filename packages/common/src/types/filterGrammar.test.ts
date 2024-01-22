@@ -289,7 +289,7 @@ describe('Parse metric filters', () => {
         expect(removeIds(parseFilters(filters))).toStrictEqual([
             {
                 id: undefined,
-                operator: FilterOperator.INCLUDE,
+                operator: FilterOperator.EQUALS,
                 target: {
                     fieldRef: 'name',
                 },

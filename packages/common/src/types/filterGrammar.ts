@@ -245,7 +245,7 @@ export const parseFilters = (
                 {
                     id: uuidv4(),
                     target: { fieldRef: key },
-                    operator: FilterOperator.INCLUDE,
+                    operator: FilterOperator.EQUALS,
                     values: value,
                 },
             ];
