@@ -1,3 +1,10 @@
+# [0.953.0](https://github.com/lightdash/lightdash/compare/0.952.1...0.953.0) (2024-01-22)
+
+
+### Features
+
+* restrict access to models with required attributes ([#8567](https://github.com/lightdash/lightdash/issues/8567)) ([9d7e67e](https://github.com/lightdash/lightdash/commit/9d7e67ecfe47b71e387681db0490317edf7e6ab3))
+
 ## [0.952.1](https://github.com/lightdash/lightdash/compare/0.952.0...0.952.1) (2024-01-22)
 
 
