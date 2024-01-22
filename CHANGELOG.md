@@ -1,3 +1,10 @@
+# [0.952.0](https://github.com/lightdash/lightdash/compare/0.951.0...0.952.0) (2024-01-22)
+
+
+### Features
+
+* update role ux in projec access list ([#8660](https://github.com/lightdash/lightdash/issues/8660)) ([a564cc4](https://github.com/lightdash/lightdash/commit/a564cc475a969ed76410f8df4467bf6576a14569))
+
 # [0.951.0](https://github.com/lightdash/lightdash/compare/0.950.0...0.951.0) (2024-01-22)
 
 
