@@ -1,8 +1,6 @@
 import { AbilityBuilder } from '@casl/ability';
-import {
-    ProjectMemberProfile,
-    ProjectMemberRole,
-} from '../types/projectMemberProfile';
+import { ProjectMemberProfile } from '../types/projectMemberProfile';
+import { ProjectMemberRole } from '../types/projectMemberRole';
 import { MemberAbility } from './types';
 
 // eslint-disable-next-line import/prefer-default-export

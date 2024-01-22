@@ -1,7 +1,12 @@
 import {
+    getHighestProjectRole,
+    InheritedRoles,
     OrganizationMemberProfile,
+    OrganizationMemberRole,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectMemberRoleLabels,
+    ProjectRole,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -16,81 +21,97 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconKey, IconTrash } from '@tabler/icons-react';
-import React, { FC, useState } from 'react';
+import { capitalize } from 'lodash';
+import { FC, useState } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
-const ProjectAccessRow: FC<{
+type Props = {
     user: OrganizationMemberProfile | ProjectMemberProfile;
-    relevantOrgRole?: OrganizationMemberProfile['role'];
+    organizationRole: OrganizationMemberRole;
+    inheritedRoles: InheritedRoles;
     roleTooltip?: string;
-    onDelete?: () => void;
-    onUpdate?: (newRole: ProjectMemberRole) => void;
-}> = ({
-    user: { firstName, lastName, email, role },
-    relevantOrgRole,
-    roleTooltip,
-    onDelete,
+    isUpdatingAccess: boolean;
+    onUpdate: (newRole: ProjectMemberRole) => void;
+    onDelete: () => void;
+};
+
+const ProjectAccessRow: FC<Props> = ({
+    user,
+    inheritedRoles,
+    isUpdatingAccess,
     onUpdate,
+    onDelete,
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+    const highestRole = getHighestProjectRole(inheritedRoles);
+    const projectRole = inheritedRoles.find(
+        (role): role is ProjectRole => role.type === 'project',
+    );
+
+    if (!highestRole) return null;
+
     return (
         <>
             <tr>
                 <td>
                     <Stack spacing="xs" align={'flex-start'}>
-                        {firstName && (
+                        {user.firstName && (
                             <Text fw={700}>
-                                {firstName} {lastName}
+                                {user.firstName} {user.lastName}
                             </Text>
                         )}
-                        {email && (
+                        {user.email && (
                             <Badge color="gray" size="xs" radius="xs">
-                                {email}
+                                {user.email}
                             </Badge>
                         )}
                     </Stack>
                 </td>
                 <td>
                     <Group>
-                        {onUpdate ? (
-                            <NativeSelect
-                                id="user-role"
-                                data={Object.values(ProjectMemberRole).map(
-                                    (orgMemberRole) => ({
-                                        value: orgMemberRole,
-                                        label: orgMemberRole.replace('_', ' '),
-                                    }),
-                                )}
-                                onChange={(e) => {
-                                    const newRole = e.target
-                                        .value as ProjectMemberRole;
-                                    onUpdate(newRole);
-                                }}
-                                variant="filled"
-                                size="xs"
-                                value={role}
-                                sx={{ flex: 1 }}
-                                error={
-                                    relevantOrgRole
-                                        ? `This user inherits the organization role: ${relevantOrgRole}`
-                                        : undefined
-                                }
-                            />
-                        ) : (
-                            <Tooltip
-                                withinPortal
-                                withArrow
-                                label={roleTooltip ? roleTooltip : undefined}
-                            >
+                        <Tooltip
+                            withinPortal
+                            withArrow
+                            disabled={highestRole.type === 'project'}
+                            label={`This user inherits the ${capitalize(
+                                highestRole.type,
+                            )} role: ${
+                                ProjectMemberRoleLabels[highestRole.role]
+                            }`}
+                        >
+                            {projectRole?.role ? (
+                                <NativeSelect
+                                    id="user-role"
+                                    disabled={isUpdatingAccess}
+                                    w="150px"
+                                    error={highestRole.type !== 'project'}
+                                    size="xs"
+                                    data={Object.values(ProjectMemberRole).map(
+                                        (role) => ({
+                                            value: role,
+                                            label: ProjectMemberRoleLabels[
+                                                role
+                                            ],
+                                        }),
+                                    )}
+                                    onChange={(e) => {
+                                        const newRole = e.target
+                                            .value as ProjectMemberRole;
+                                        onUpdate(newRole);
+                                    }}
+                                    value={projectRole.role}
+                                />
+                            ) : (
                                 <Badge color="gray" radius="xs">
-                                    {role}
+                                    {ProjectMemberRoleLabels[highestRole.role]}
                                 </Badge>
-                            </Tooltip>
-                        )}
+                            )}
+                        </Tooltip>
                     </Group>
                 </td>
                 <td width="1%">
-                    {onDelete && (
+                    {projectRole?.role && (
                         <ActionIcon
                             variant="outline"
                             color="red"
@@ -114,7 +135,7 @@ const ProjectAccessRow: FC<{
             >
                 <Text pb="md">
                     Are you sure you want to revoke project access for this user{' '}
-                    {email} ?
+                    {user.email} ?
                 </Text>
                 <Group spacing="xs" position="right">
                     <Button

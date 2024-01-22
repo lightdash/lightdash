@@ -1,5 +1,5 @@
 import { OrganizationMemberRole } from './organizationMemberProfile';
-import { ProjectMemberRole } from './projectMemberProfile';
+import { ProjectMemberRole } from './projectMemberRole';
 import { ProjectType } from './projects';
 
 /**
