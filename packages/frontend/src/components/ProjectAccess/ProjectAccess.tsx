@@ -41,7 +41,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     const ability = useAbilityContext();
     const { mutate: revokeAccess } =
         useRevokeProjectAccessMutation(projectUuid);
-    const { mutate: updateAccess } =
+    const { mutate: updateAccess, isLoading: isUpdatingAccess } =
         useUpdateProjectAccessMutation(projectUuid);
 
     const {
@@ -182,6 +182,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                                         role: projectRoles[orgUser.userUuid],
                                     },
                                 ]}
+                                isUpdatingAccess={isUpdatingAccess}
                                 onUpdate={(newRole) =>
                                     handleUpdate(orgUser, newRole)
                                 }

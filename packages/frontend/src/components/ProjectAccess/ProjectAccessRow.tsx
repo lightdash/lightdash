@@ -30,15 +30,17 @@ type Props = {
     organizationRole: OrganizationMemberRole;
     inheritedRoles: InheritedRoles;
     roleTooltip?: string;
-    onDelete: () => void;
+    isUpdatingAccess: boolean;
     onUpdate: (newRole: ProjectMemberRole) => void;
+    onDelete: () => void;
 };
 
 const ProjectAccessRow: FC<Props> = ({
     user,
     inheritedRoles,
-    onDelete,
+    isUpdatingAccess,
     onUpdate,
+    onDelete,
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -81,6 +83,7 @@ const ProjectAccessRow: FC<Props> = ({
                             {projectRole?.role ? (
                                 <NativeSelect
                                     id="user-role"
+                                    disabled={isUpdatingAccess}
                                     w="150px"
                                     error={highestRole.type !== 'project'}
                                     size="xs"
