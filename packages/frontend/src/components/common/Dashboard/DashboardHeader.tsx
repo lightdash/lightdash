@@ -241,8 +241,9 @@ const DashboardHeader = ({
                                 disabled={!hasDashboardChanged}
                                 loading={isSaving}
                                 onClick={onSaveDashboard}
+                                color="green.7"
                             >
-                                Save
+                                Save changes
                             </Button>
                         </Box>
                     </Tooltip>
