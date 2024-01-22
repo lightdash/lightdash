@@ -1,3 +1,10 @@
+## [0.952.1](https://github.com/lightdash/lightdash/compare/0.952.0...0.952.1) (2024-01-22)
+
+
+### Bug Fixes
+
+* add extra scopes env var for okta groups ([#8612](https://github.com/lightdash/lightdash/issues/8612)) ([4541c89](https://github.com/lightdash/lightdash/commit/4541c89864544d5ce27738386eb15ff361cc6826))
+
 # [0.952.0](https://github.com/lightdash/lightdash/compare/0.951.0...0.952.0) (2024-01-22)
 
 
