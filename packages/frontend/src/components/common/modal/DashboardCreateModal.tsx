@@ -155,7 +155,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             disabled={isCreatingDashboard}
                             autosize
                             maxRows={3}
-                            style={{ overflowY: 'auto' }}
                             {...form.getInputProps('dashboardDescription')}
                         />
                         {!isLoadingSpaces && spaces ? (

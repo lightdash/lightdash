@@ -217,7 +217,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         placeholder="A few words to give your team some context"
                         autosize
                         maxRows={3}
-                        style={{ overflowY: 'auto' }}
                         {...form.getInputProps('description')}
                     />
                     {fromDashboard && fromDashboard.length > 0 && (

@@ -80,7 +80,6 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
                         disabled={isUpdating}
                         autosize
                         maxRows={3}
-                        style={{ overflowY: 'auto' }}
                         {...form.getInputProps('description')}
                     />
 

@@ -82,7 +82,6 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
                         disabled={isUpdating}
                         autosize
                         maxRows={3}
-                        style={{ overflowY: 'auto' }}
                         {...form.getInputProps('description')}
                     />
 
