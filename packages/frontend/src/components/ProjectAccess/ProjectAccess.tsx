@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     convertOrganizationRoleToProjectRole,
     getHighestProjectRole,
-    OrganizationMemberProfile,
     OrganizationMemberRole,
     ProjectMemberRole,
 } from '@lightdash/common';
@@ -13,12 +12,7 @@ import { useProjectGroupAccessList } from '../../features/projectGroupAccess/hoo
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
-import {
-    useCreateProjectAccessMutation,
-    useProjectAccess,
-    useRevokeProjectAccessMutation,
-    useUpdateProjectAccessMutation,
-} from '../../hooks/useProjectAccess';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
 import LoadingState from '../common/LoadingState';
@@ -56,15 +50,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
         useProjectAccess(projectUuid);
 
     const { data: projectGroupAccess } = useProjectGroupAccessList(projectUuid);
-
-    const { mutate: createAccess } =
-        useCreateProjectAccessMutation(projectUuid);
-
-    const { mutate: updateAccess, isLoading: isUpdatingAccess } =
-        useUpdateProjectAccessMutation(projectUuid);
-
-    const { mutate: revokeAccess } =
-        useRevokeProjectAccessMutation(projectUuid);
 
     const orgRoles = useMemo(() => {
         if (!organizationUsers) return {};
@@ -141,23 +126,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
         }),
     );
 
-    const handleUpdate = (
-        orgUser: OrganizationMemberProfile,
-        newRole: ProjectMemberRole,
-    ) => {
-        if (!canManageProjectAccess) return;
-
-        updateAccess({
-            userUuid: orgUser.userUuid,
-            role: newRole,
-        });
-    };
-
-    const handleDelete = (orgUser: OrganizationMemberProfile) => {
-        if (!canManageProjectAccess) return;
-        revokeAccess(orgUser.userUuid);
-    };
-
     if (isProjectAccessLoading || isOrganizationUsersLoading) {
         return <LoadingState title="Loading user access" />;
     }
@@ -193,7 +161,9 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                     <tbody>
                         {organizationUsers?.map((orgUser) => (
                             <ProjectAccessRow
-                                key={orgUser.email}
+                                key={orgUser.userUuid}
+                                projectUuid={projectUuid}
+                                canManageProjectAccess={canManageProjectAccess}
                                 user={orgUser}
                                 inheritedRoles={[
                                     {
@@ -211,18 +181,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                                         role: projectRoles[orgUser.userUuid],
                                     },
                                 ]}
-                                isUpdatingAccess={isUpdatingAccess}
-                                onCreateAccess={(role) =>
-                                    createAccess({
-                                        email: orgUser.email,
-                                        role,
-                                        sendEmail: false,
-                                    })
-                                }
-                                onUpdateAccess={(newRole) =>
-                                    handleUpdate(orgUser, newRole)
-                                }
-                                onDeleteAccess={() => handleDelete(orgUser)}
                             />
                         ))}
                     </tbody>
