@@ -231,8 +231,9 @@ projectRouter.get(
             const filename = path.basename(filePath);
             res.set('Content-Type', 'text/csv');
             res.set('Content-Disposition', `attachment; filename=${filename}`);
+            const normalizedPath = path.normalize(filePath);
 
-            res.sendFile(filePath);
+            res.sendFile(normalizedPath);
         } catch (error) {
             next(error);
         }

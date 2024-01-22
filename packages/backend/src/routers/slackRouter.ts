@@ -56,8 +56,8 @@ slackRouter.get(
         try {
             const { nanoId } = req.params;
             const { path } = await downloadFileService.getDownloadFile(nanoId);
-
-            res.sendFile(path);
+            const normalizedPath = path.normalize(path);
+            res.sendFile(normalizedPath);
         } catch (error) {
             next(error);
         }
