@@ -14,7 +14,7 @@ export async function up(knex: Knex): Promise<void> {
                     .defaultTo(knex.raw('uuid_generate_v4()'));
                 tableBuilder
                     .uuid('user_uuid')
-                    .nullable()
+                    .notNullable()
                     .references('user_uuid')
                     .inTable('users')
                     .onDelete('CASCADE');
