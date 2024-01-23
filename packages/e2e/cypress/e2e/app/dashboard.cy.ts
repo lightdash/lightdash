@@ -240,7 +240,7 @@ describe('Dashboard', () => {
         cy.get('textarea').type('Content');
         cy.findByText('Add').click();
 
-        cy.findByText('Save').click();
+        cy.findByText('Save changes').click();
 
         cy.contains('Dashboard was updated');
 
