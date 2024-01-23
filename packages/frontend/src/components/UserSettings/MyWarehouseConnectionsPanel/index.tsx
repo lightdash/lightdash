@@ -1,39 +1,29 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { UserWarehouseCredentials } from '@lightdash/common/src/types/userWarehouseCredentials';
 import { Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
 import { CreateCredentialsModal } from './CreateCredentialsModal';
 import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 import { EditCredentialsModal } from './EditCredentialsModal';
-import { UpdateUserCredentials } from './types';
 
 export const MyWarehouseConnectionsPanel = () => {
-    const [credentials] = useState<UpdateUserCredentials[]>([
-        {
-            uuid: '1',
-            name: 'My warehouse connection 1',
-            credentials: {
-                type: WarehouseTypes.REDSHIFT,
-                user: 'user',
-                password: '',
-            },
-        },
-    ]); // TODO: Fetch credentials from database with react-query
+    const { data: credentials } = useUserWarehouseCredentials();
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const [warehouseCredentialsToBeEdited, setWarehouseCredentialsToBeEdited] =
-        useState<UpdateUserCredentials | undefined>(undefined);
+        useState<UserWarehouseCredentials | undefined>(undefined);
     const [
         warehouseCredentialsToBeDeleted,
         setWarehouseCredentialsToBeDeleted,
-    ] = useState<string | undefined>(undefined);
+    ] = useState<UserWarehouseCredentials | undefined>(undefined);
 
     return (
         <>
             <Stack mb="lg">
-                {credentials.length > 0 ? (
+                {credentials && credentials.length > 0 ? (
                     <>
                         <Group position="apart">
                             <Stack spacing="one">
@@ -91,18 +81,24 @@ export const MyWarehouseConnectionsPanel = () => {
                 />
             )}
 
-            <CreateCredentialsModal
-                opened={isCreatingCredentials}
-                onClose={() => setIsCreatingCredentials(false)}
-            />
+            {isCreatingCredentials && (
+                <CreateCredentialsModal
+                    opened={isCreatingCredentials}
+                    onClose={() => setIsCreatingCredentials(false)}
+                />
+            )}
 
-            <DeleteCredentialsModal
-                opened={!!warehouseCredentialsToBeDeleted}
-                onClose={() => setWarehouseCredentialsToBeDeleted(undefined)}
-                warehouseCredentialsToBeDeleted={
-                    warehouseCredentialsToBeDeleted
-                }
-            />
+            {warehouseCredentialsToBeDeleted && (
+                <DeleteCredentialsModal
+                    opened={!!warehouseCredentialsToBeDeleted}
+                    onClose={() =>
+                        setWarehouseCredentialsToBeDeleted(undefined)
+                    }
+                    warehouseCredentialsToBeDeleted={
+                        warehouseCredentialsToBeDeleted
+                    }
+                />
+            )}
         </>
     );
 };

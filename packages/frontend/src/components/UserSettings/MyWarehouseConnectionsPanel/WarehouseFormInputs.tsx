@@ -1,20 +1,16 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    UpsertUserWarehouseCredentials,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { PasswordInput, TextInput } from '@mantine/core';
 import { UseFormReturnType } from '@mantine/form';
 import { FC } from 'react';
-import { CreateUserCredentials, UpdateUserCredentials } from './types';
 
 export const WarehouseFormInputs: FC<{
-    form:
-        | UseFormReturnType<Pick<UpdateUserCredentials, 'name' | 'credentials'>>
-        | UseFormReturnType<
-              Pick<CreateUserCredentials, 'name'> & {
-                  credentials: CreateUserCredentials['credentials'] | undefined;
-              }
-          >;
-    userCredentialsType: WarehouseTypes;
-}> = ({ form, userCredentialsType }) => {
-    switch (userCredentialsType) {
+    disabled: boolean;
+    form: UseFormReturnType<UpsertUserWarehouseCredentials>;
+}> = ({ form, disabled }) => {
+    switch (form.values.credentials.type) {
         case WarehouseTypes.REDSHIFT:
         case WarehouseTypes.SNOWFLAKE:
         case WarehouseTypes.POSTGRES:
@@ -25,12 +21,14 @@ export const WarehouseFormInputs: FC<{
                         required
                         size="xs"
                         label="Username/email"
-                        {...form.getInputProps('credentials.username')}
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.user')}
                     />
                     <PasswordInput
                         required
                         size="xs"
                         label="Password"
+                        disabled={disabled}
                         {...form.getInputProps('credentials.password')}
                     />
                 </>

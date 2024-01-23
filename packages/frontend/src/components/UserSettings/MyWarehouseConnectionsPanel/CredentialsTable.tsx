@@ -1,23 +1,24 @@
+import { UserWarehouseCredentials } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { Dispatch, FC, SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import MantineIcon from '../../common/MantineIcon';
-import { UpdateUserCredentials } from './types';
+import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/SelectWarehouse';
 
 type CredentialsTableProps = {
-    credentials: UpdateUserCredentials[];
+    credentials: UserWarehouseCredentials[];
     setWarehouseCredentialsToBeEdited: Dispatch<
-        SetStateAction<UpdateUserCredentials | undefined>
+        SetStateAction<UserWarehouseCredentials | undefined>
     >;
     setWarehouseCredentialsToBeDeleted: Dispatch<
-        SetStateAction<string | undefined>
+        SetStateAction<UserWarehouseCredentials | undefined>
     >;
 };
 
 const CredentialsItem: FC<
     {
-        credentials: UpdateUserCredentials;
+        credentials: UserWarehouseCredentials;
     } & Pick<
         CredentialsTableProps,
         | 'setWarehouseCredentialsToBeDeleted'
@@ -32,7 +33,7 @@ const CredentialsItem: FC<
         <Text component="td" fw={500}>
             {credentials.name}
         </Text>
-
+        <td>{getWarehouseLabel(credentials.credentials.type)}</td>
         <td
             style={{
                 display: 'flex',
@@ -51,7 +52,7 @@ const CredentialsItem: FC<
 
                 <ActionIcon
                     onClick={() =>
-                        setWarehouseCredentialsToBeDeleted(credentials.name)
+                        setWarehouseCredentialsToBeDeleted(credentials)
                     }
                 >
                     <MantineIcon icon={IconTrash} />
@@ -70,17 +71,21 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
 
     return (
         <Paper withBorder sx={{ overflow: 'hidden' }}>
-            <Table className={cx(classes.root, classes.alignLastTdRight)}>
+            <Table
+                className={cx(classes.root, classes.alignLastTdRight)}
+                ta="left"
+            >
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Warehouse</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {credentials?.map((c) => (
                         <CredentialsItem
-                            key={c.name}
+                            key={c.uuid}
                             credentials={c}
                             setWarehouseCredentialsToBeEdited={
                                 setWarehouseCredentialsToBeEdited

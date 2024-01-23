@@ -1,4 +1,8 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    UpsertUserWarehouseCredentials,
+    UserWarehouseCredentials,
+    WarehouseTypes,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -10,46 +14,49 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { FC } from 'react';
-import { UpdateUserCredentials, UpsertUserWarehouseCredentials } from './types';
+import { useUserWarehouseCredentialsUpdateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
-const getCredentials = (credentials: UpsertUserWarehouseCredentials) => {
+const getCredentialsWithPlaceholders = (
+    credentials: UserWarehouseCredentials['credentials'],
+): UpsertUserWarehouseCredentials['credentials'] => {
     switch (credentials.type) {
         case WarehouseTypes.REDSHIFT:
         case WarehouseTypes.SNOWFLAKE:
         case WarehouseTypes.POSTGRES:
         case WarehouseTypes.TRINO:
             return {
-                type: credentials.type,
-                user: credentials.user,
+                ...credentials,
                 password: '',
             };
         case WarehouseTypes.BIGQUERY:
             return {
-                type: credentials.type,
-                keyFileContents: credentials.keyfileContents,
+                ...credentials,
+                keyfileContents: {},
             };
         case WarehouseTypes.DATABRICKS:
             return {
-                type: credentials.type,
-                personalAccessToken: credentials.personalAccessToken,
+                ...credentials,
+                personalAccessToken: '',
             };
         default:
-            return {};
+            throw new Error(`Credential type not supported`);
     }
 };
 
 export const EditCredentialsModal: FC<
     Pick<ModalProps, 'opened' | 'onClose'> & {
-        userCredentials: UpdateUserCredentials;
+        userCredentials: UserWarehouseCredentials;
     }
 > = ({ opened, onClose, userCredentials }) => {
-    const form = useForm<Pick<UpdateUserCredentials, 'name' | 'credentials'>>({
+    const { mutateAsync, isLoading: isSaving } =
+        useUserWarehouseCredentialsUpdateMutation(userCredentials.uuid);
+    const form = useForm<UpsertUserWarehouseCredentials>({
         initialValues: {
             name: userCredentials.name,
-            credentials: getCredentials(
+            credentials: getCredentialsWithPlaceholders(
                 userCredentials.credentials,
-            ) as UpdateUserCredentials['credentials'],
+            ),
         },
     });
 
@@ -59,47 +66,40 @@ export const EditCredentialsModal: FC<
             opened={opened}
             onClose={onClose}
         >
-            <Stack>
+            <form
+                onSubmit={form.onSubmit(async (formData) => {
+                    await mutateAsync(formData);
+                    onClose();
+                })}
+            >
                 <Stack spacing="xs">
-                    <form
-                        onSubmit={
-                            () => {
-                                form.onSubmit(() => {});
-                            }
-                            // TODO: Edit credentials to database
-                        }
-                    >
-                        <TextInput
-                            required
+                    <TextInput
+                        required
+                        size="xs"
+                        label="Name"
+                        disabled={isSaving}
+                        {...form.getInputProps('name')}
+                    />
+
+                    <WarehouseFormInputs form={form} disabled={isSaving} />
+
+                    <Group position="right" spacing="xs" mt="sm">
+                        <Button
                             size="xs"
-                            label="Name"
-                            {...form.getInputProps('name')}
-                        />
+                            variant="outline"
+                            color="dark"
+                            onClick={onClose}
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </Button>
 
-                        <WarehouseFormInputs
-                            form={form}
-                            userCredentialsType={
-                                userCredentials.credentials.type
-                            }
-                        />
-
-                        <Group position="right" spacing="xs" mt="sm">
-                            <Button
-                                size="xs"
-                                variant="outline"
-                                color="dark"
-                                onClick={onClose}
-                            >
-                                Cancel
-                            </Button>
-
-                            <Button size="xs" type="submit">
-                                Save
-                            </Button>
-                        </Group>
-                    </form>
+                        <Button size="xs" type="submit" disabled={isSaving}>
+                            Save
+                        </Button>
+                    </Group>
                 </Stack>
-            </Stack>
+            </form>
         </Modal>
     );
 };

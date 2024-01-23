@@ -1,4 +1,7 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    UpsertUserWarehouseCredentials,
+    WarehouseTypes,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -10,24 +13,24 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useState } from 'react';
-import { CreateUserCredentials } from './types';
+import { FC } from 'react';
+import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/SelectWarehouse';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
 export const CreateCredentialsModal: FC<Props> = ({ opened, onClose }) => {
-    const [userCredentialsType, setUserCredentialsType] = useState<
-        WarehouseTypes | undefined
-    >(undefined);
-    const form = useForm<
-        Pick<CreateUserCredentials, 'name'> & {
-            credentials: CreateUserCredentials['credentials'] | undefined;
-        }
-    >({
+    const { mutateAsync, isLoading: isSaving } =
+        useUserWarehouseCredentialsCreateMutation();
+    const form = useForm<UpsertUserWarehouseCredentials>({
         initialValues: {
             name: '',
-            credentials: undefined,
+            credentials: {
+                type: WarehouseTypes.POSTGRES,
+                user: '',
+                password: '',
+            },
         },
     });
     return (
@@ -36,51 +39,62 @@ export const CreateCredentialsModal: FC<Props> = ({ opened, onClose }) => {
             opened={opened}
             onClose={onClose}
         >
-            <Stack>
+            <form
+                onSubmit={form.onSubmit(async (formData) => {
+                    await mutateAsync(formData);
+                    onClose();
+                })}
+            >
                 <Stack spacing="xs">
-                    <form
-                        onSubmit={() =>
-                            form.onSubmit((values) => {
-                                // TODO: Save credentials to database
-                                return values;
-                            })
-                        }
-                    >
-                        <TextInput required size="xs" label="Name" />
+                    <TextInput
+                        required
+                        size="xs"
+                        label="Name"
+                        disabled={isSaving}
+                        {...form.getInputProps('name')}
+                    />
 
-                        <Select
-                            data={Object.values(WarehouseTypes).map((type) => ({
+                    <Select
+                        required
+                        label="Warehouse"
+                        size="xs"
+                        disabled={isSaving}
+                        data={Object.values(WarehouseTypes).map((type) => {
+                            const isNotSupportedYet = [
+                                WarehouseTypes.BIGQUERY,
+                                WarehouseTypes.DATABRICKS,
+                            ].includes(type);
+                            return {
                                 value: type,
-                                label: type,
-                            }))}
-                            onChange={(value: WarehouseTypes | null) => {
-                                if (value) setUserCredentialsType(value);
-                            }}
-                        />
+                                label: `${getWarehouseLabel(type) || type} ${
+                                    isNotSupportedYet ? ' (coming soon)' : ''
+                                }`,
+                                disabled: isNotSupportedYet,
+                            };
+                        })}
+                        withinPortal
+                        {...form.getInputProps('credentials.type')}
+                    />
 
-                        {userCredentialsType && (
-                            <WarehouseFormInputs
-                                form={form}
-                                userCredentialsType={userCredentialsType}
-                            />
-                        )}
-                        <Group position="right" spacing="xs" mt="sm">
-                            <Button
-                                size="xs"
-                                variant="outline"
-                                color="dark"
-                                onClick={onClose}
-                            >
-                                Cancel
-                            </Button>
+                    <WarehouseFormInputs form={form} disabled={isSaving} />
 
-                            <Button size="xs" type="submit">
-                                Save
-                            </Button>
-                        </Group>
-                    </form>
+                    <Group position="right" spacing="xs" mt="sm">
+                        <Button
+                            size="xs"
+                            variant="outline"
+                            color="dark"
+                            onClick={onClose}
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </Button>
+
+                        <Button size="xs" type="submit" disabled={isSaving}>
+                            Save
+                        </Button>
+                    </Group>
                 </Stack>
-            </Stack>
+            </form>
         </Modal>
     );
 };
