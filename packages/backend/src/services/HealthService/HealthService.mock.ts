@@ -63,4 +63,7 @@ export const Config = {
             loginPath: '',
         },
     },
-} as LightdashConfig;
+    groups: {
+        enabled: false,
+    },
+} as LightdashConfig; // TODO: Refactor this to be a mock of the actual configuration, rather than a partial that might contain incorrect properties.
