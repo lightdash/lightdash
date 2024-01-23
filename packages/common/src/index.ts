@@ -40,10 +40,7 @@ import {
     CreatePersonalAccessToken,
     PersonalAccessToken,
 } from './types/personalAccessToken';
-import {
-    ProjectMemberProfile,
-    ProjectMemberRole,
-} from './types/projectMemberProfile';
+import { ProjectMemberProfile } from './types/projectMemberProfile';
 import {
     ApiCalculateTotalResponse,
     ChartHistory,
@@ -74,6 +71,7 @@ import {
 } from './types/organization';
 import { PinnedItems } from './types/pinning';
 import { ProjectGroupAccess } from './types/projectGroupAccess';
+import { ProjectMemberRole } from './types/projectMemberRole';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -142,6 +140,7 @@ export * from './types/pinning';
 export * from './types/pivot';
 export * from './types/projectGroupAccess';
 export * from './types/projectMemberProfile';
+export * from './types/projectMemberRole';
 export * from './types/projects';
 export * from './types/resourceViewItem';
 export * from './types/results';
@@ -169,6 +168,7 @@ export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/projectMemberRole';
 export * from './utils/scheduler';
 export * from './utils/time';
 export * from './utils/timeFrames';

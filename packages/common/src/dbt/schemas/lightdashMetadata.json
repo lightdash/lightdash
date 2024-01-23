@@ -1,5 +1,24 @@
 {
     "definitions": {
+        "RequiredAttributes": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+                "oneOf": [
+                    {
+                        "type": "array",
+                        "items": [
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "string"
+                    }
+                ]
+            }
+        },
         "Compact": {
             "type": "string",
             "enum": [
@@ -90,8 +109,7 @@
                     "$ref": "#/definitions/Urls"
                 },
                 "required_attributes": {
-                    "type": "object",
-                    "properties": {}
+                    "$ref": "#/definitions/RequiredAttributes"
                 }
             }
         },
@@ -131,8 +149,7 @@
                     "$ref": "#/definitions/Urls"
                 },
                 "required_attributes": {
-                    "type": "object",
-                    "properties": {}
+                    "$ref": "#/definitions/RequiredAttributes"
                 }
             }
         },
@@ -256,6 +273,9 @@
                 },
                 "sql_filter": {
                     "type": "string"
+                },
+                "required_attributes": {
+                    "$ref": "#/definitions/RequiredAttributes"
                 }
             },
             "default": {}

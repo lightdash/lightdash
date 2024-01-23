@@ -1,46 +1,25 @@
 import { subject } from '@casl/ability';
 import {
-    OrganizationMemberProfile,
+    convertOrganizationRoleToProjectRole,
+    getHighestProjectRole,
     OrganizationMemberRole,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Paper, Table } from '@mantine/core';
-import { FC, useMemo } from 'react';
+import { ActionIcon, Paper, Table, TextInput } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
+import { FC, useMemo, useState } from 'react';
+import { useProjectGroupAccessList } from '../../features/projectGroupAccess/hooks/useProjectGroupAccess';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
+import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
-import {
-    useProjectAccess,
-    useRevokeProjectAccessMutation,
-    useUpdateProjectAccessMutation,
-} from '../../hooks/useProjectAccess';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
 import LoadingState from '../common/LoadingState';
-import ProjectAccessCreation from './ProjectAccessCreation';
+import MantineIcon from '../common/MantineIcon';
+import { SettingsCard } from '../common/Settings/SettingsCard';
+import CreateProjectAccessModal from './CreateProjectAccessModal';
 import ProjectAccessRow from './ProjectAccessRow';
-
-const relevantOrgRolesForProjectRole: Record<
-    ProjectMemberRole,
-    OrganizationMemberRole[]
-> = {
-    [ProjectMemberRole.VIEWER]: [
-        OrganizationMemberRole.INTERACTIVE_VIEWER,
-        OrganizationMemberRole.EDITOR,
-        OrganizationMemberRole.DEVELOPER,
-        OrganizationMemberRole.ADMIN,
-    ],
-    [ProjectMemberRole.INTERACTIVE_VIEWER]: [
-        OrganizationMemberRole.EDITOR,
-        OrganizationMemberRole.DEVELOPER,
-        OrganizationMemberRole.ADMIN,
-    ],
-    [ProjectMemberRole.EDITOR]: [
-        OrganizationMemberRole.DEVELOPER,
-        OrganizationMemberRole.ADMIN,
-    ],
-    [ProjectMemberRole.DEVELOPER]: [OrganizationMemberRole.ADMIN],
-    [ProjectMemberRole.ADMIN]: [],
-};
 
 interface ProjectAccessProps {
     projectUuid: string;
@@ -54,40 +33,90 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     onAddProjectAccessClose,
 }) => {
     const { user } = useApp();
+    const ability = useAbilityContext();
 
     const { cx, classes } = useTableStyles();
 
-    const ability = useAbilityContext();
-    const { mutate: revokeAccess } =
-        useRevokeProjectAccessMutation(projectUuid);
-    const { mutate: updateAccess } =
-        useUpdateProjectAccessMutation(projectUuid);
+    const [search, setSearch] = useState('');
 
-    const { data: projectAccess, isInitialLoading: isProjectAccessLoading } =
-        useProjectAccess(projectUuid);
     const {
         data: organizationUsers,
         isInitialLoading: isOrganizationUsersLoading,
-    } = useOrganizationUsers();
+    } = useOrganizationUsers({ searchInput: search });
 
-    const [inheritedPermissions, overlapPermissions] = useMemo(() => {
-        const projectMemberEmails =
-            projectAccess?.map((projectMember) => projectMember.email) || [];
-        return (organizationUsers || []).reduce<
-            [OrganizationMemberProfile[], OrganizationMemberProfile[]]
-        >(
-            ([inherited, overlapping], orgUser) => {
-                if (orgUser.role === OrganizationMemberRole.MEMBER) {
-                    return [inherited, overlapping];
-                }
-                if (projectMemberEmails.includes(orgUser.email)) {
-                    return [inherited, [...overlapping, orgUser]];
-                }
-                return [[...inherited, orgUser], overlapping];
+    const { data: groups } = useOrganizationGroups(5);
+
+    const { data: projectAccess, isInitialLoading: isProjectAccessLoading } =
+        useProjectAccess(projectUuid);
+
+    const { data: projectGroupAccess } = useProjectGroupAccessList(projectUuid);
+
+    const orgRoles = useMemo(() => {
+        if (!organizationUsers) return {};
+        if (!projectAccess) return {};
+
+        return organizationUsers.reduce<Record<string, OrganizationMemberRole>>(
+            (acc, orgUser) => {
+                return {
+                    ...acc,
+                    [orgUser.userUuid]: orgUser.role,
+                };
             },
-            [[], []],
+            {},
         );
     }, [organizationUsers, projectAccess]);
+
+    const groupRoles = useMemo(() => {
+        if (!organizationUsers) return {};
+        if (!projectGroupAccess) return {};
+        if (!groups) return {};
+
+        return organizationUsers.reduce<Record<string, ProjectMemberRole>>(
+            (aggregatedRoles, orgUser) => {
+                const userGroupRoles = projectGroupAccess.reduce<
+                    ProjectMemberRole[]
+                >((userRoles, groupAccess) => {
+                    const group = groups.find(
+                        (g) => g.uuid === groupAccess.groupUuid,
+                    );
+                    if (!group) return userRoles;
+                    if (!group.memberUuids.includes(orgUser.userUuid))
+                        return userRoles;
+
+                    return [...userRoles, groupAccess.role];
+                }, []);
+
+                const highestRole = getHighestProjectRole(
+                    userGroupRoles.map((role) => ({
+                        type: 'group',
+                        role,
+                    })),
+                );
+
+                if (!highestRole) return aggregatedRoles;
+
+                return {
+                    ...aggregatedRoles,
+                    [orgUser.userUuid]: highestRole.role,
+                };
+            },
+            {},
+        );
+    }, [organizationUsers, projectGroupAccess, groups]);
+
+    const projectRoles = useMemo(() => {
+        if (!projectAccess) return {};
+
+        return projectAccess.reduce<Record<string, ProjectMemberRole>>(
+            (acc, projectMember) => {
+                return {
+                    ...acc,
+                    [projectMember.userUuid]: projectMember.role,
+                };
+            },
+            {},
+        );
+    }, [projectAccess]);
 
     const canManageProjectAccess = ability.can(
         'manage',
@@ -100,9 +129,27 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     if (isProjectAccessLoading || isOrganizationUsersLoading) {
         return <LoadingState title="Loading user access" />;
     }
+
     return (
         <>
-            <Paper withBorder sx={{ overflow: 'hidden' }}>
+            <SettingsCard shadow="none" p={0}>
+                <Paper p="sm">
+                    <TextInput
+                        size="xs"
+                        placeholder="Search users by name, email, or role"
+                        onChange={(e) => setSearch(e.target.value)}
+                        value={search}
+                        w={320}
+                        rightSection={
+                            search.length > 0 && (
+                                <ActionIcon onClick={() => setSearch('')}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            )
+                        }
+                    />
+                </Paper>
+
                 <Table className={cx(classes.root, classes.alignLastTdRight)}>
                     <thead>
                         <tr>
@@ -112,53 +159,36 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {projectAccess?.map((projectMember) => (
+                        {organizationUsers?.map((orgUser) => (
                             <ProjectAccessRow
-                                key={projectMember.email}
-                                user={projectMember}
-                                onUpdate={
-                                    canManageProjectAccess
-                                        ? (newRole) =>
-                                              updateAccess({
-                                                  userUuid:
-                                                      projectMember.userUuid,
-                                                  role: newRole,
-                                              })
-                                        : undefined
-                                }
-                                onDelete={
-                                    canManageProjectAccess
-                                        ? () =>
-                                              revokeAccess(
-                                                  projectMember.userUuid,
-                                              )
-                                        : undefined
-                                }
-                                relevantOrgRole={
-                                    overlapPermissions.find(
-                                        ({ email, role }) =>
-                                            email === projectMember.email &&
-                                            relevantOrgRolesForProjectRole[
-                                                projectMember.role
-                                            ].includes(role),
-                                    )?.role
-                                }
-                            />
-                        ))}
-                        {inheritedPermissions?.map((orgUser) => (
-                            <ProjectAccessRow
-                                key={orgUser.email}
+                                key={orgUser.userUuid}
+                                projectUuid={projectUuid}
+                                canManageProjectAccess={canManageProjectAccess}
                                 user={orgUser}
-                                roleTooltip={`This user inherits the organization role: ${orgUser.role}`}
+                                inheritedRoles={[
+                                    {
+                                        type: 'organization',
+                                        role: convertOrganizationRoleToProjectRole(
+                                            orgRoles[orgUser.userUuid],
+                                        ),
+                                    },
+                                    {
+                                        type: 'group',
+                                        role: groupRoles[orgUser.userUuid],
+                                    },
+                                    {
+                                        type: 'project',
+                                        role: projectRoles[orgUser.userUuid],
+                                    },
+                                ]}
                             />
                         ))}
                     </tbody>
                 </Table>
-            </Paper>
+            </SettingsCard>
 
             {isAddingProjectAccess && (
-                <ProjectAccessCreation
-                    opened
+                <CreateProjectAccessModal
                     projectUuid={projectUuid}
                     onClose={() => onAddProjectAccessClose()}
                 />

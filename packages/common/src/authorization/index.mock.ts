@@ -2,10 +2,8 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
-import {
-    ProjectMemberProfile,
-    ProjectMemberRole,
-} from '../types/projectMemberProfile';
+import { ProjectMemberProfile } from '../types/projectMemberProfile';
+import { ProjectMemberRole } from '../types/projectMemberRole';
 
 export const userWithoutOrg = {
     userUuid: 'user-uuid-1234',

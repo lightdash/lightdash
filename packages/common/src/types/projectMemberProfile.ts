@@ -1,10 +1,4 @@
-export enum ProjectMemberRole {
-    VIEWER = 'viewer',
-    INTERACTIVE_VIEWER = 'interactive_viewer',
-    EDITOR = 'editor',
-    DEVELOPER = 'developer',
-    ADMIN = 'admin',
-}
+import { ProjectMemberRole } from './projectMemberRole';
 
 export type ProjectMemberProfile = {
     userUuid: string;

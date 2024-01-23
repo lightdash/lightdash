@@ -58,6 +58,7 @@ type DbtModelLightdashConfig = {
     group_label?: string;
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
+    required_attributes?: Record<string, string | string[]>;
 };
 
 export type DbtModelJoinType = 'inner' | 'full' | 'left' | 'right';

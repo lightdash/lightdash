@@ -1,3 +1,38 @@
+# [0.954.0](https://github.com/lightdash/lightdash/compare/0.953.0...0.954.0) (2024-01-22)
+
+
+### Features
+
+* expand description box in charts and dashboards ([#8639](https://github.com/lightdash/lightdash/issues/8639)) ([910dcbe](https://github.com/lightdash/lightdash/commit/910dcbe6f333e636a7533ceaedf413fddc672cc9))
+
+# [0.953.0](https://github.com/lightdash/lightdash/compare/0.952.1...0.953.0) (2024-01-22)
+
+
+### Features
+
+* restrict access to models with required attributes ([#8567](https://github.com/lightdash/lightdash/issues/8567)) ([9d7e67e](https://github.com/lightdash/lightdash/commit/9d7e67ecfe47b71e387681db0490317edf7e6ab3))
+
+## [0.952.1](https://github.com/lightdash/lightdash/compare/0.952.0...0.952.1) (2024-01-22)
+
+
+### Bug Fixes
+
+* add extra scopes env var for okta groups ([#8612](https://github.com/lightdash/lightdash/issues/8612)) ([4541c89](https://github.com/lightdash/lightdash/commit/4541c89864544d5ce27738386eb15ff361cc6826))
+
+# [0.952.0](https://github.com/lightdash/lightdash/compare/0.951.0...0.952.0) (2024-01-22)
+
+
+### Features
+
+* update role ux in projec access list ([#8660](https://github.com/lightdash/lightdash/issues/8660)) ([a564cc4](https://github.com/lightdash/lightdash/commit/a564cc475a969ed76410f8df4467bf6576a14569))
+
+# [0.951.0](https://github.com/lightdash/lightdash/compare/0.950.0...0.951.0) (2024-01-22)
+
+
+### Features
+
+* show inherited group role in project access settings ([#8643](https://github.com/lightdash/lightdash/issues/8643)) ([7fdd7d4](https://github.com/lightdash/lightdash/commit/7fdd7d439fca1cccbc71d65f54785e97eacf278b))
+
 # [0.950.0](https://github.com/lightdash/lightdash/compare/0.949.0...0.950.0) (2024-01-19)
 
 

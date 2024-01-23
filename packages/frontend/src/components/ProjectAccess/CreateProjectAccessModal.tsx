@@ -5,32 +5,29 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import { Button, Group, Modal, ModalProps, Select, Title } from '@mantine/core';
+import { Button, Group, Modal, Select, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
-import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
-import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
-import { TrackPage, useTracking } from '../../../providers/TrackingProvider';
+import { useCreateInviteLinkMutation } from '../../hooks/useInviteLink';
+import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
+import { useCreateProjectAccessMutation } from '../../hooks/useProjectAccess';
+import { TrackPage, useTracking } from '../../providers/TrackingProvider';
 import {
     CategoryName,
     EventName,
     PageName,
     PageType,
-} from '../../../types/Events';
-import MantineIcon from '../../common/MantineIcon';
-import InviteSuccess from '../../UserSettings/UsersAndGroupsPanel/InviteSuccess';
+} from '../../types/Events';
+import MantineIcon from '../common/MantineIcon';
+import InviteSuccess from '../UserSettings/UsersAndGroupsPanel/InviteSuccess';
 
-interface ProjectAccessCreationProps extends ModalProps {
+interface Props {
     projectUuid: string;
+    onClose: () => void;
 }
 
-const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
-    opened,
-    onClose,
-    projectUuid,
-}) => {
+const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
     const { track } = useTracking();
     const { data: organizationUsers } = useOrganizationUsers();
     const { mutateAsync: createMutation, isLoading } =
@@ -91,7 +88,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
 
     return (
         <Modal
-            opened={opened}
+            opened
             onClose={onClose}
             keepMounted={false}
             title={
@@ -166,6 +163,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
                         </Button>
                     </Group>
                 </form>
+
                 {inviteLink && (
                     <InviteSuccess invite={inviteLink} hasMarginTop />
                 )}
@@ -174,4 +172,4 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
     );
 };
 
-export default ProjectAccessCreation;
+export default CreateProjectAccessModal;

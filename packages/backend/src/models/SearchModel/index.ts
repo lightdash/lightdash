@@ -250,6 +250,7 @@ export class SearchModel {
                                 description: table.description,
                                 explore: explore.name,
                                 exploreLabel: explore.label,
+                                requiredAttributes: table.requiredAttributes,
                             });
                         }
                         [
@@ -278,6 +279,8 @@ export class SearchModel {
                                     requiredAttributes: isDimension(field)
                                         ? field.requiredAttributes
                                         : undefined,
+                                    tablesRequiredAttributes:
+                                        field.tablesRequiredAttributes,
                                 });
                             }
                         });
