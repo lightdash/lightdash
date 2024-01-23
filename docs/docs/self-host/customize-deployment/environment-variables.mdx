@@ -49,23 +49,24 @@ This is a reference to all the SMTP environment variables that can be used to co
 
 These variables enable you to control Single Sign On (SSO) functionality.
 
-| Variable                               | Description                                                  | Required? | Default |
-| -------------------------------------- | ------------------------------------------------------------ | --------- | ------- |
-| `AUTH_DISABLE_PASSWORD_AUTHENTICATION` | If `"true"` disables signing in with plain passwords         |           | false   |
-| `AUTH_ENABLE_GROUP_SYNC`               | If `"true"` enables assigning SSO groups to Lightdash groups |           | false   |
-| `AUTH_GOOGLE_OAUTH2_CLIENT_ID`         | Required for Google SSO                                      |           |         |
-| `AUTH_GOOGLE_OAUTH2_CLIENT_SECRET`     | Required for Google SSO                                      |           |         |
-| `AUTH_OKTA_OAUTH_CLIENT_ID`            | Required for Okta SSO                                        |           |         |
-| `AUTH_OKTA_OAUTH_CLIENT_SECRET`        | Required for Okta SSO                                        |           |         |
-| `AUTH_OKTA_OAUTH_ISSUER`               | Required for Okta SSO                                        |           |         |
-| `AUTH_OKTA_DOMAIN`                     | Required for Okta SSO                                        |           |         |
-| `AUTH_OKTA_AUTHORIZATION_SERVER_ID`    | Optional for Okta SSO with a custom authorization server     |           |         |
-| `AUTH_ONE_LOGIN_OAUTH_CLIENT_ID`       | Required for One Login SSO                                   |           |         |
-| `AUTH_ONE_LOGIN_OAUTH_CLIENT_SECRET`   | Required for One Login SSO                                   |           |         |
-| `AUTH_ONE_LOGIN_OAUTH_ISSUER`          | Required for One Login SSO                                   |           |         |
-| `AUTH_AZURE_AD_OAUTH_CLIENT_ID`        | Required for Azure AD                                        |           |         |
-| `AUTH_AZURE_AD_OAUTH_CLIENT_SECRET`    | Required for Azure AD                                        |           |         |
-| `AUTH_AZURE_AD_OAUTH_TENANT_ID`        | Required for Azure AD                                        |           |         |
+| Variable                               | Description                                                                      | Required? | Default |
+| -------------------------------------- | -------------------------------------------------------------------------------- | --------- | ------- |
+| `AUTH_DISABLE_PASSWORD_AUTHENTICATION` | If `"true"` disables signing in with plain passwords                             |           | false   |
+| `AUTH_ENABLE_GROUP_SYNC`               | If `"true"` enables assigning SSO groups to Lightdash groups                     |           | false   |
+| `AUTH_GOOGLE_OAUTH2_CLIENT_ID`         | Required for Google SSO                                                          |           |         |
+| `AUTH_GOOGLE_OAUTH2_CLIENT_SECRET`     | Required for Google SSO                                                          |           |         |
+| `AUTH_OKTA_OAUTH_CLIENT_ID`            | Required for Okta SSO                                                            |           |         |
+| `AUTH_OKTA_OAUTH_CLIENT_SECRET`        | Required for Okta SSO                                                            |           |         |
+| `AUTH_OKTA_OAUTH_ISSUER`               | Required for Okta SSO                                                            |           |         |
+| `AUTH_OKTA_DOMAIN`                     | Required for Okta SSO                                                            |           |         |
+| `AUTH_OKTA_AUTHORIZATION_SERVER_ID`    | Optional for Okta SSO with a custom authorization server                         |           |         |
+| `AUTH_OKTA_EXTRA_SCOPES`               | Optional for Okta SSO scopes (e.g. groups) without a custom authorization server |           |         |
+| `AUTH_ONE_LOGIN_OAUTH_CLIENT_ID`       | Required for One Login SSO                                                       |           |         |
+| `AUTH_ONE_LOGIN_OAUTH_CLIENT_SECRET`   | Required for One Login SSO                                                       |           |         |
+| `AUTH_ONE_LOGIN_OAUTH_ISSUER`          | Required for One Login SSO                                                       |           |         |
+| `AUTH_AZURE_AD_OAUTH_CLIENT_ID`        | Required for Azure AD                                                            |           |         |
+| `AUTH_AZURE_AD_OAUTH_CLIENT_SECRET`    | Required for Azure AD                                                            |           |         |
+| `AUTH_AZURE_AD_OAUTH_TENANT_ID`        | Required for Azure AD                                                            |           |         |
 
 # Logging environment variables
 
