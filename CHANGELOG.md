@@ -1,3 +1,10 @@
+# [0.955.0](https://github.com/lightdash/lightdash/compare/0.954.2...0.955.0) (2024-01-23)
+
+
+### Features
+
+* **API:** user warehouse credentials ([#8696](https://github.com/lightdash/lightdash/issues/8696)) ([d144255](https://github.com/lightdash/lightdash/commit/d144255314b85bd4e6a9131b7dd8c478ce1defdc))
+
 ## [0.954.2](https://github.com/lightdash/lightdash/compare/0.954.1...0.954.2) (2024-01-23)
 
 
