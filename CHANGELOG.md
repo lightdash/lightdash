@@ -1,3 +1,10 @@
+## [0.954.1](https://github.com/lightdash/lightdash/compare/0.954.0...0.954.1) (2024-01-23)
+
+
+### Bug Fixes
+
+* normalize path ([#8682](https://github.com/lightdash/lightdash/issues/8682)) ([ab00e18](https://github.com/lightdash/lightdash/commit/ab00e1824e7d4f3ea2246fa26f15cde7b9f6fbb7))
+
 # [0.954.0](https://github.com/lightdash/lightdash/compare/0.953.0...0.954.0) (2024-01-22)
 
 
