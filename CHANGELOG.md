@@ -1,3 +1,10 @@
+## [0.954.2](https://github.com/lightdash/lightdash/compare/0.954.1...0.954.2) (2024-01-23)
+
+
+### Bug Fixes
+
+* Button alignment in SQLRunner ([#8699](https://github.com/lightdash/lightdash/issues/8699)) ([8a6cf41](https://github.com/lightdash/lightdash/commit/8a6cf4166b608729296c0242343afae8c5421789))
+
 ## [0.954.1](https://github.com/lightdash/lightdash/compare/0.954.0...0.954.1) (2024-01-23)
 
 
