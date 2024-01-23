@@ -1,3 +1,10 @@
+# [0.956.0](https://github.com/lightdash/lightdash/compare/0.955.0...0.956.0) (2024-01-23)
+
+
+### Features
+
+* env variable to enable group sync ([#8695](https://github.com/lightdash/lightdash/issues/8695)) ([4fb1f8e](https://github.com/lightdash/lightdash/commit/4fb1f8e80df30f3aef204ef51abbeb8f880cc037))
+
 # [0.955.0](https://github.com/lightdash/lightdash/compare/0.954.2...0.955.0) (2024-01-23)
 
 
