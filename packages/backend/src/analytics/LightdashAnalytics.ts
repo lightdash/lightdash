@@ -121,8 +121,15 @@ type VerifiedUserEvent = BaseTrack & {
 type UserWarehouseCredentialsEvent = BaseTrack & {
     event:
         | 'user_warehouse_credentials.created'
-        | 'user_warehouse_credentials.updated'
-        | 'user_warehouse_credentials.deleted';
+        | 'user_warehouse_credentials.updated';
+    properties: {
+        credentialsId: string;
+        warehouseType: WarehouseTypes;
+    };
+};
+
+type UserWarehouseCredentialsDeleteEvent = BaseTrack & {
+    event: 'user_warehouse_credentials.deleted';
     properties: {
         credentialsId: string;
     };
@@ -880,6 +887,7 @@ type Track =
     | DeleteOrganizationEvent
     | OrganizationAllowedEmailDomainUpdatedEvent
     | UserWarehouseCredentialsEvent
+    | UserWarehouseCredentialsDeleteEvent
     | LoginEvent
     | IdentityLinkedEvent
     | SqlExecutedEvent

@@ -1032,6 +1032,7 @@ export class UserService {
             event: 'user_warehouse_credentials.created',
             properties: {
                 credentialsId: userWarehouseCredentialsUuid,
+                warehouseType: data.credentials.type,
             },
         });
         return this.userWarehouseCredentialsModel.getByUuid(
@@ -1054,6 +1055,7 @@ export class UserService {
             event: 'user_warehouse_credentials.updated',
             properties: {
                 credentialsId: userWarehouseCredentialsUuid,
+                warehouseType: data.credentials.type,
             },
         });
         return this.userWarehouseCredentialsModel.getByUuid(
