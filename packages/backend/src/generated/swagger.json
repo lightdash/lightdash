@@ -3475,6 +3475,10 @@
             },
             "Axis": {
                 "properties": {
+                    "rotate": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "inverse": {
                         "type": "boolean"
                     },
@@ -5465,6 +5469,203 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials.type-or-user_": {
+                "properties": {
+                    "user": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    }
+                },
+                "required": ["user", "type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateBigqueryCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateDatabricksCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "UserWarehouseCredentials": {
+                "properties": {
+                    "credentials": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials.type-or-user_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type_"
+                            }
+                        ]
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "credentials",
+                    "updatedAt",
+                    "createdAt",
+                    "name",
+                    "userUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "Pick_CreateRedshiftCredentials.type-or-user-or-password_": {
+                "properties": {
+                    "user": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    }
+                },
+                "required": ["user", "password", "type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreatePostgresCredentials.type-or-user-or-password_": {
+                "properties": {
+                    "user": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
+                    }
+                },
+                "required": ["user", "password", "type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateSnowflakeCredentials.type-or-user-or-password_": {
+                "properties": {
+                    "user": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    }
+                },
+                "required": ["user", "type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateTrinoCredentials.type-or-user-or-password_": {
+                "properties": {
+                    "user": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                    }
+                },
+                "required": ["user", "password", "type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateBigqueryCredentials.type-or-keyfileContents_": {
+                "properties": {
+                    "keyfileContents": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    }
+                },
+                "required": ["keyfileContents", "type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateDatabricksCredentials.type-or-personalAccessToken_": {
+                "properties": {
+                    "personalAccessToken": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
+                    }
+                },
+                "required": ["personalAccessToken", "type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "UpsertUserWarehouseCredentials": {
+                "properties": {
+                    "credentials": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-password_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials.type-or-user-or-password_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-password_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateTrinoCredentials.type-or-user-or-password_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type-or-keyfileContents_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type-or-personalAccessToken_"
+                            }
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["credentials", "name"],
+                "type": "object"
+            },
             "ValidationErrorType": {
                 "enum": [
                     "chart",
@@ -5472,7 +5673,8 @@
                     "filter",
                     "metric",
                     "model",
-                    "dimension"
+                    "dimension",
+                    "custom metric"
                 ],
                 "type": "string"
             },
@@ -5701,7 +5903,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.945.0",
+        "version": "0.950.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -9336,6 +9538,200 @@
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/user/warehouseCredentials": {
+            "get": {
+                "operationId": "getWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/UserWarehouseCredentials"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get user warehouse credentials",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "createWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/UserWarehouseCredentials"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create user warehouse credentials",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertUserWarehouseCredentials"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/warehouseCredentials/{uuid}": {
+            "patch": {
+                "operationId": "updateWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/UserWarehouseCredentials"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update user warehouse credentials",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "uuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertUserWarehouseCredentials"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete user warehouse credentials",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "uuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/validate": {

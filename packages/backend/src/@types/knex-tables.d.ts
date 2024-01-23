@@ -168,6 +168,10 @@ import {
     UserAttributesTable,
 } from '../database/entities/userAttributes';
 import {
+    UserWarehouseCredentialsTable,
+    UserWarehouseCredentialsTableName,
+} from '../database/entities/userWarehouseCredentials';
+import {
     DbValidationTable,
     ValidationTableName,
 } from '../database/entities/validation';
@@ -180,6 +184,7 @@ declare module 'knex/types/tables' {
         [EmailTableName]: EmailTable;
         [SessionTableName]: SessionTable;
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
+        [UserWarehouseCredentialsTableName]: UserWarehouseCredentialsTable;
         [ProjectTableName]: ProjectTable;
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;

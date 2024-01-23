@@ -27,6 +27,7 @@ import {
     sshKeyPairModel,
     userAttributesModel,
     userModel,
+    userWarehouseCredentialsModel,
     validationModel,
 } from '../models/models';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
@@ -67,6 +68,7 @@ export const userService = new UserService({
     organizationModel,
     personalAccessTokenModel,
     organizationAllowedEmailDomainsModel,
+    userWarehouseCredentialsModel,
 });
 export const organizationService = new OrganizationService({
     organizationModel,
