@@ -40,6 +40,7 @@ export const BaseResponse = {
     query: undefined,
     staticIp: undefined,
     hasDbtSemanticLayer: false,
+    hasGroups: false,
 };
 
 export const Config = {
