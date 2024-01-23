@@ -87,6 +87,16 @@ You'll need to set the following environment variables in your Lightdash deploym
 
 
 
+### Enable Automatic Assignment of Okta Users to Groups in Lightdash
+
+Okta users will automatically be assigned to the same groups in Lightdash as they are in Okta if you have [configured Okta to share groups with Lightdash](../../references/groups.mdx#using-okta-to-manage-groups-in-lightdash). To enable this functionality, ensure the following environment variable is set:
+
+| Variable                 | Description                               | Required? |
+| ------------------------ | ----------------------------------------- | --------- |
+| `AUTH_ENABLE_GROUP_SYNC` | If `"true"` enables group sync from Okta. |           |
+
+read more about [Using OKTA to manage groups in Lightdash](/references/groups/#using-okta-to-manage-groups-in-lightdash)
+
 ## Google
 
 To enable Google Single Sign On (SSO) you'll need to follow these instructions to 
