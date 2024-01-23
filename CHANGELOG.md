@@ -1,3 +1,11 @@
+# [0.957.0](https://github.com/lightdash/lightdash/compare/0.956.0...0.957.0) (2024-01-23)
+
+
+### Features
+
+* add accordion for format ([#8706](https://github.com/lightdash/lightdash/issues/8706)) ([4c79b6a](https://github.com/lightdash/lightdash/commit/4c79b6aa15c4acc8729cb9ae40219131f8f63c13))
+* granular date part options for date dimensions ([#8487](https://github.com/lightdash/lightdash/issues/8487)) ([fc033ac](https://github.com/lightdash/lightdash/commit/fc033ac4e951e39d68baae11908a2ed77cae7d81))
+
 # [0.956.0](https://github.com/lightdash/lightdash/compare/0.955.0...0.956.0) (2024-01-23)
 
 
