@@ -103,12 +103,14 @@ const DraggableItem: FC<DraggableItemProps> = ({
                         ) : item.type === ResourceViewItemType.DASHBOARD ? (
                             <ResourceViewGridDashboardItem
                                 item={item}
+                                allowDelete={allowDelete}
                                 onAction={onAction}
                                 dragIcon={DragIcon}
                             />
                         ) : item.type === ResourceViewItemType.CHART ? (
                             <ResourceViewGridChartItem
                                 item={item}
+                                allowDelete={allowDelete}
                                 onAction={onAction}
                                 dragIcon={DragIcon}
                             />
