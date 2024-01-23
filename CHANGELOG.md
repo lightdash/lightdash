@@ -1,3 +1,10 @@
+# [0.958.0](https://github.com/lightdash/lightdash/compare/0.957.0...0.958.0) (2024-01-23)
+
+
+### Features
+
+* users can manage their own warehouse credentials ([#8636](https://github.com/lightdash/lightdash/issues/8636)) ([555e992](https://github.com/lightdash/lightdash/commit/555e992b1542b9bab4fde083c4ab1b3a65fb9d75))
+
 # [0.957.0](https://github.com/lightdash/lightdash/compare/0.956.0...0.957.0) (2024-01-23)
 
 
