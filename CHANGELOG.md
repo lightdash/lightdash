@@ -1,3 +1,11 @@
+## [0.958.1](https://github.com/lightdash/lightdash/compare/0.958.0...0.958.1) (2024-01-23)
+
+
+### Bug Fixes
+
+* make save buttons consistent ([#8692](https://github.com/lightdash/lightdash/issues/8692)) ([f095b91](https://github.com/lightdash/lightdash/commit/f095b91d374f91fb67e7286b281e6011743ac9d9))
+* refetch pinned items on space mutation ([#8698](https://github.com/lightdash/lightdash/issues/8698)) ([9c7c3b2](https://github.com/lightdash/lightdash/commit/9c7c3b2a0830d71f0164329cf9b4a1d26383ee33))
+
 # [0.958.0](https://github.com/lightdash/lightdash/compare/0.957.0...0.958.0) (2024-01-23)
 
 
