@@ -32,6 +32,7 @@ services:
       - HEADLESS_BROWSER_HOST=headless-browser
       - HEADLESS_BROWSER_PORT=3000
       - SCHEDULER_ENABLED=true
+      - GROUPS_ENABLED=true
     volumes:
       - "../:/usr/app"
       - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"

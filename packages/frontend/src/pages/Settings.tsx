@@ -52,9 +52,6 @@ import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 
 const Settings: FC = () => {
-    // TODO: this is a feature flag while we are building groups.
-    // Remove this when groups are ready to be released.
-    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
     const isPassthroughLoginFeatureEnabled =
         useFeatureFlagEnabled('passthrough-login');
 
@@ -113,6 +110,8 @@ const Settings: FC = () => {
         health.auth.okta.enabled ||
         health.auth.oneLogin.enabled ||
         health.auth.azuread.enabled;
+
+    const isGroupManagementEnabled = health.hasGroups;
 
     return (
         <Page
@@ -201,7 +200,7 @@ const Settings: FC = () => {
                                 ) && (
                                     <RouterNavLink
                                         label={
-                                            groupManagementEnabled
+                                            isGroupManagementEnabled
                                                 ? 'Users & groups'
                                                 : 'User management'
                                         }
@@ -221,7 +220,7 @@ const Settings: FC = () => {
                                 ) && (
                                     <RouterNavLink
                                         label={
-                                            groupManagementEnabled
+                                            isGroupManagementEnabled
                                                 ? 'User & group attributes'
                                                 : 'User attributes'
                                         }

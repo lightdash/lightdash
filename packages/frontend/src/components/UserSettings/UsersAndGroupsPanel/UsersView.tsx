@@ -33,7 +33,6 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -117,8 +116,8 @@ const UserNameDisplay: FC<{
 const UserListItem: FC<{
     disabled: boolean;
     user: OrganizationMemberProfile | OrganizationMemberProfileWithGroups;
-    groupManagementEnabled?: boolean;
-}> = ({ disabled, user, groupManagementEnabled }) => {
+    isGroupManagementEnabled?: boolean;
+}> = ({ disabled, user, isGroupManagementEnabled }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [showInviteSuccess, setShowInviteSuccess] = useState(true);
     const { mutate, isLoading: isDeleting } =
@@ -199,7 +198,7 @@ const UserListItem: FC<{
                                 )}
                             />
                         </td>
-                        {groupManagementEnabled && (
+                        {isGroupManagementEnabled && (
                             <td>
                                 {isOrganizationMemberProfileWithGroups(
                                     user,
@@ -322,17 +321,18 @@ const UserListItem: FC<{
 
 const UsersView: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { classes } = useTableStyles();
-
-    // TODO: this is a feature flag while we are building groups.
-    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
 
     const [search, setSearch] = useState('');
 
     // TODO: fix the hardcoded groups number. This should be paginated.
     const { data: organizationUsers, isInitialLoading: isLoadingUsers } =
         useOrganizationUsers({ searchInput: search, includeGroups: 10000 });
+
+    if (!user.data || !health.data) return null;
+
+    const isGroupManagementEnabled = health.data.hasGroups;
 
     if (isLoadingUsers) {
         return <LoadingState title="Loading users" />;
@@ -377,7 +377,9 @@ const UsersView: FC = () => {
                             ) && (
                                 <>
                                     <th>Role</th>
-                                    {groupManagementEnabled && <th>Groups</th>}
+                                    {isGroupManagementEnabled && (
+                                        <th>Groups</th>
+                                    )}
                                     <th></th>
                                 </>
                             )}
@@ -389,8 +391,8 @@ const UsersView: FC = () => {
                                 <UserListItem
                                     key={orgUser.email}
                                     user={orgUser}
-                                    groupManagementEnabled={
-                                        groupManagementEnabled
+                                    isGroupManagementEnabled={
+                                        isGroupManagementEnabled
                                     }
                                     disabled={
                                         user.data?.userUuid ===
