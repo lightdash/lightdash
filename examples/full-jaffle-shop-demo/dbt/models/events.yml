@@ -28,6 +28,8 @@ models:
               - QUARTER_NAME
               - YEAR
               - YEAR_NUM
+              - HOUR_OF_DAY_NUM
+              - MINUTE_OF_HOUR_NUM
       - name: timestamp_ntz
         description: ""
         meta:
