@@ -1,3 +1,10 @@
+# [0.960.0](https://github.com/lightdash/lightdash/compare/0.959.0...0.960.0) (2024-01-24)
+
+
+### Features
+
+* remove delete space from space list ([#8669](https://github.com/lightdash/lightdash/issues/8669)) ([298f357](https://github.com/lightdash/lightdash/commit/298f3573f8a767f2177c1a0005890ab5a0d65b97))
+
 # [0.959.0](https://github.com/lightdash/lightdash/compare/0.958.3...0.959.0) (2024-01-24)
 
 
