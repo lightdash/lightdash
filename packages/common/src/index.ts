@@ -20,7 +20,6 @@ import {
     isDimension,
     isField,
     isMetric,
-    isTableCalculation,
     ItemsMap,
     Metric,
     TableCalculation,
