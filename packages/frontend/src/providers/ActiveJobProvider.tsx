@@ -45,11 +45,6 @@ export const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({
 
             const toastTitle = jobStatusLabel(job?.jobStatus);
 
-            // TODO: this hides the current notification and things
-            // seem to look ok, but it would be better to update it.
-            // That will require a refactor of the useToaster hook.
-            notifications.hide(TOAST_KEY_FOR_REFRESH_JOB);
-
             switch (job.jobStatus) {
                 case 'DONE':
                     if (job.jobType === JobType.CREATE_PROJECT) {
