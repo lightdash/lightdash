@@ -1426,13 +1426,26 @@ const useEchartsCartesianConfig = (
                 : getResultValueArray(rows, true);
         try {
             if (!itemsMap) return results;
-
             const xFieldId = validCartesianConfig?.layout?.xField;
             if (xFieldId === undefined) return results;
+            const { min, max } = axes.xAxis[0];
+
+            const hasCustomRange = min !== undefined && max !== undefined;
+            const resultsInRange = hasCustomRange
+                ? results.filter((result) => {
+                      const value = result[xFieldId];
+                      if (!value) return true;
+
+                      const isGreaterThan = min === undefined || value > min;
+                      const isLessThan = max === undefined || value < max;
+
+                      return isGreaterThan && isLessThan;
+                  })
+                : results;
 
             const alreadySorted =
                 resultsData?.metricQuery.sorts?.[0]?.fieldId === xFieldId;
-            if (alreadySorted) return results;
+            if (alreadySorted) return resultsInRange;
 
             const xField = itemsMap[xFieldId];
             const hasTotal = validCartesianConfig?.eChartsConfig?.series?.some(
@@ -1441,10 +1454,10 @@ const useEchartsCartesianConfig = (
 
             // If there is a total, we don't sort the results because we need to keep the same order on results
             // This could still cause issues if there is a total on bar chart axis, the sorting is wrong and one of the axis is a line chart
-            if (hasTotal) return results;
+            if (hasTotal) return resultsInRange;
 
             if (isCustomDimension(xField)) {
-                return results.sort((a, b) => {
+                return resultsInRange.sort((a, b) => {
                     if (
                         typeof a[xFieldId] === 'string' &&
                         typeof b[xFieldId] === 'string'
@@ -1462,13 +1475,13 @@ const useEchartsCartesianConfig = (
             }
             if (
                 xField !== undefined &&
-                results.length >= 0 &&
+                resultsInRange.length >= 0 &&
                 isDimension(xField) &&
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                     xField.type,
                 )
             ) {
-                return results.sort((a, b) => {
+                return resultsInRange.sort((a, b) => {
                     if (
                         typeof a[xFieldId] === 'string' &&
                         typeof b[xFieldId] === 'string'
@@ -1481,7 +1494,7 @@ const useEchartsCartesianConfig = (
                 });
             }
 
-            return results;
+            return resultsInRange;
         } catch (e) {
             console.error('Unable to sort date results', e);
             return results;
@@ -1492,6 +1505,7 @@ const useEchartsCartesianConfig = (
         rows,
         itemsMap,
         resultsData?.metricQuery.sorts,
+        axes.xAxis,
     ]);
 
     const tooltip = useMemo<TooltipOption>(
