@@ -110,8 +110,9 @@ export class SearchService {
                 !isTableErrorSearchResult(table) &&
                 table.requiredAttributes !== undefined,
         );
-        let filteredFields: FieldSearchResult[] = [];
-        let filteredTables: (TableSearchResult | TableErrorSearchResult)[] = [];
+        let filteredFields: FieldSearchResult[] = results.fields;
+        let filteredTables: (TableSearchResult | TableErrorSearchResult)[] =
+            results.tables;
         if (
             hasExploreAccess &&
             (dimensionsHaveUserAttributes || tablesHaveUserAttributes)
