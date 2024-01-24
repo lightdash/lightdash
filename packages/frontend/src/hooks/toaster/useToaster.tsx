@@ -98,6 +98,10 @@ const useToaster = () => {
 
             const method = openedKeys.current.has(key) ? 'update' : 'show';
 
+            if (method === 'show') {
+                openedKeys.current.add(key);
+            }
+
             notifications[method]({
                 id: key,
                 ...commonProps,

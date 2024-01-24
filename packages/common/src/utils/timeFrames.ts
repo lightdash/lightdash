@@ -39,6 +39,8 @@ const nullTimeFrameMap: Record<TimeFrames, null> = {
     WEEK_NUM: null,
     YEAR: null,
     YEAR_NUM: null,
+    HOUR_OF_DAY_NUM: null,
+    MINUTE_OF_HOUR_NUM: null,
 };
 
 const timeFrameToDatePartMap: Record<TimeFrames, string | null> = {
@@ -50,6 +52,8 @@ const timeFrameToDatePartMap: Record<TimeFrames, string | null> = {
     [TimeFrames.MONTH_NUM]: 'MONTH',
     [TimeFrames.QUARTER_NUM]: 'QUARTER',
     [TimeFrames.YEAR_NUM]: 'YEAR',
+    [TimeFrames.HOUR_OF_DAY_NUM]: 'HOUR',
+    [TimeFrames.MINUTE_OF_HOUR_NUM]: 'MINUTE',
 };
 
 type WarehouseConfig = {
@@ -465,6 +469,20 @@ export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
         getAxisMinInterval: () => null,
         getAxisLabelFormatter: () => null,
     },
+    HOUR_OF_DAY_NUM: {
+        getLabel: () => 'Hour of day (number)',
+        getDimensionType: () => DimensionType.NUMBER,
+        getSql: getSqlForDatePart,
+        getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
+    },
+    MINUTE_OF_HOUR_NUM: {
+        getLabel: () => 'Minute of hour (number)',
+        getDimensionType: () => DimensionType.NUMBER,
+        getSql: getSqlForDatePart,
+        getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
+    },
 };
 
 export const getDefaultTimeFrames = (type: DimensionType) =>
@@ -510,6 +528,8 @@ const timeFrameOrder = [
     TimeFrames.QUARTER_NAME,
     TimeFrames.YEAR,
     TimeFrames.YEAR_NUM,
+    TimeFrames.HOUR_OF_DAY_NUM,
+    TimeFrames.MINUTE_OF_HOUR_NUM,
 ];
 
 export const sortTimeFrames = (a: TimeFrames, b: TimeFrames) =>

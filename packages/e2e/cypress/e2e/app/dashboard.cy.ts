@@ -240,7 +240,7 @@ describe('Dashboard', () => {
         cy.get('.mantine-Modal-body').find('textarea').type('Content');
         cy.findByText('Add').click();
 
-        cy.findByText('Save').click();
+        cy.findByText('Save changes').click();
 
         cy.contains('Dashboard was updated');
 

@@ -5,6 +5,7 @@ import {
     isDimension,
     MetricType,
 } from '@lightdash/common';
+import { isNumericItem } from '@lightdash/common/src/utils/item';
 import {
     Accordion,
     Button,
@@ -16,6 +17,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -37,6 +39,10 @@ export const CustomMetricModal = () => {
         item,
         type: customMetricType,
     } = useExplorerContext((context) => context.state.modals.additionalMetric);
+
+    const isCustomMetricFormattingEnabled = useFeatureFlagEnabled(
+        'custom-metrics-formatting',
+    );
 
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
@@ -230,6 +236,16 @@ export const CustomMetricModal = () => {
                         />
                     )}
                     <Accordion chevronPosition="left" chevronSize="xs">
+                        {isCustomMetricFormattingEnabled &&
+                            isNumericItem(item) && (
+                                <Accordion.Item value="format">
+                                    <Accordion.Control>
+                                        <Text fw={500} fz="sm">
+                                            Format
+                                        </Text>
+                                    </Accordion.Control>
+                                </Accordion.Item>
+                            )}
                         <Accordion.Item value="filters">
                             <Accordion.Control>
                                 <Text fw={500} fz="sm">

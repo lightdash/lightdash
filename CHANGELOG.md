@@ -1,3 +1,33 @@
+## [0.958.2](https://github.com/lightdash/lightdash/compare/0.958.1...0.958.2) (2024-01-24)
+
+
+### Bug Fixes
+
+* week num chart float ([#8702](https://github.com/lightdash/lightdash/issues/8702)) ([7452aa6](https://github.com/lightdash/lightdash/commit/7452aa60ef0d6bf266b272336a0f40c55f3ce6ea))
+
+## [0.958.1](https://github.com/lightdash/lightdash/compare/0.958.0...0.958.1) (2024-01-23)
+
+
+### Bug Fixes
+
+* make save buttons consistent ([#8692](https://github.com/lightdash/lightdash/issues/8692)) ([f095b91](https://github.com/lightdash/lightdash/commit/f095b91d374f91fb67e7286b281e6011743ac9d9))
+* refetch pinned items on space mutation ([#8698](https://github.com/lightdash/lightdash/issues/8698)) ([9c7c3b2](https://github.com/lightdash/lightdash/commit/9c7c3b2a0830d71f0164329cf9b4a1d26383ee33))
+
+# [0.958.0](https://github.com/lightdash/lightdash/compare/0.957.0...0.958.0) (2024-01-23)
+
+
+### Features
+
+* users can manage their own warehouse credentials ([#8636](https://github.com/lightdash/lightdash/issues/8636)) ([555e992](https://github.com/lightdash/lightdash/commit/555e992b1542b9bab4fde083c4ab1b3a65fb9d75))
+
+# [0.957.0](https://github.com/lightdash/lightdash/compare/0.956.0...0.957.0) (2024-01-23)
+
+
+### Features
+
+* add accordion for format ([#8706](https://github.com/lightdash/lightdash/issues/8706)) ([4c79b6a](https://github.com/lightdash/lightdash/commit/4c79b6aa15c4acc8729cb9ae40219131f8f63c13))
+* granular date part options for date dimensions ([#8487](https://github.com/lightdash/lightdash/issues/8487)) ([fc033ac](https://github.com/lightdash/lightdash/commit/fc033ac4e951e39d68baae11908a2ed77cae7d81))
+
 # [0.956.0](https://github.com/lightdash/lightdash/compare/0.955.0...0.956.0) (2024-01-23)
 
 
