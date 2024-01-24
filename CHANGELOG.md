@@ -1,3 +1,10 @@
+## [0.960.1](https://github.com/lightdash/lightdash/compare/0.960.0...0.960.1) (2024-01-24)
+
+
+### Bug Fixes
+
+* datepicker different timezone ([#8705](https://github.com/lightdash/lightdash/issues/8705)) ([6dd62e8](https://github.com/lightdash/lightdash/commit/6dd62e813a738014807a8bdd9da49931223af9e5))
+
 # [0.960.0](https://github.com/lightdash/lightdash/compare/0.959.0...0.960.0) (2024-01-24)
 
 
