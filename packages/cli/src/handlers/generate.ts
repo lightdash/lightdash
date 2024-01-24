@@ -96,6 +96,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         target: options.target,
         select: options.select || options.models,
         exclude: options.exclude,
+        vars: options.vars || undefined,
     });
 
     GlobalState.debug(`> Compiled models: ${compiledModels.length}`);
