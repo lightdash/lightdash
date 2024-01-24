@@ -2,8 +2,10 @@ import {
     Compact,
     CompactConfigMap,
     currencies,
+    CustomMetricFormat,
     formatTableCalculationValue,
     NumberSeparator,
+    TableCalculationFormat,
     TableCalculationFormatType,
 } from '@lightdash/common';
 import {
@@ -14,11 +16,19 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
+import { GetInputProps } from '@mantine/form/lib/types';
 import { FC } from 'react';
-import { TableCalculationForm } from '../types';
+import { ValueOf } from 'type-fest';
 
 type Props = {
-    form: TableCalculationForm;
+    formatInputProps: (
+        path: keyof TableCalculationFormat | keyof CustomMetricFormat,
+    ) => ReturnType<GetInputProps<TableCalculationFormat | CustomMetricFormat>>;
+    format: TableCalculationFormat;
+    setFormatFieldValue: (
+        path: keyof TableCalculationFormat | keyof CustomMetricFormat,
+        value: ValueOf<TableCalculationFormat | CustomMetricFormat>,
+    ) => void;
 };
 
 const formatTypeOptions = [
@@ -65,8 +75,12 @@ const formatCurrencyOptions = currencies.map((c) => {
     };
 });
 
-export const FormatForm: FC<Props> = ({ form }) => {
-    const formatType = form.values.format.type;
+export const FormatForm: FC<Props> = ({
+    formatInputProps,
+    setFormatFieldValue,
+    format,
+}) => {
+    const formatType = format.type;
 
     return (
         <Stack p="sm">
@@ -76,7 +90,7 @@ export const FormatForm: FC<Props> = ({ form }) => {
                     w={200}
                     label="Type"
                     data={formatTypeOptions}
-                    {...form.getInputProps('format.type')}
+                    {...formatInputProps('type')}
                 />
 
                 {formatType !== TableCalculationFormatType.DEFAULT && (
@@ -87,7 +101,7 @@ export const FormatForm: FC<Props> = ({ form }) => {
                                 name: 'preview',
                                 sql: '',
                                 displayName: 'preview',
-                                format: form.values.format,
+                                format,
                             },
                             TableCalculationFormatType.PERCENT === formatType
                                 ? '0.75'
@@ -107,7 +121,7 @@ export const FormatForm: FC<Props> = ({ form }) => {
                             searchable
                             label="Currency"
                             data={formatCurrencyOptions}
-                            {...form.getInputProps('format.currency')}
+                            {...formatInputProps('currency')}
                         />
                     )}
                     <NumberInput
@@ -118,11 +132,11 @@ export const FormatForm: FC<Props> = ({ form }) => {
                         label="Round"
                         placeholder="Number of decimal places"
                         {...{
-                            ...form.getInputProps('format.round'),
+                            ...formatInputProps('round'),
                             // Explicitly set value to undefined so the API doesn't received invalid values
                             onChange: (value) => {
-                                form.setFieldValue(
-                                    'format.round',
+                                setFormatFieldValue(
+                                    'round',
                                     value === '' ? undefined : value,
                                 );
                             },
@@ -134,7 +148,7 @@ export const FormatForm: FC<Props> = ({ form }) => {
                         ml="md"
                         label="Separator style"
                         data={formatSeparatorOptions}
-                        {...form.getInputProps('format.separator')}
+                        {...formatInputProps('separator')}
                     />
                 </Flex>
             )}
@@ -155,11 +169,11 @@ export const FormatForm: FC<Props> = ({ form }) => {
                             })),
                         ]}
                         {...{
-                            ...form.getInputProps('format.compact'),
+                            ...formatInputProps('compact'),
                             onChange: (value) => {
                                 // Explicitly set value to undefined so the API doesn't received invalid values
-                                form.setFieldValue(
-                                    'format.compact',
+                                setFormatFieldValue(
+                                    'compact',
                                     !value || !(value in CompactConfigMap)
                                         ? undefined
                                         : value,
@@ -175,13 +189,13 @@ export const FormatForm: FC<Props> = ({ form }) => {
                                 mr="md"
                                 label="Prefix"
                                 placeholder="E.g. GBP revenue:"
-                                {...form.getInputProps('format.prefix')}
+                                {...formatInputProps('prefix')}
                             />
                             <TextInput
                                 w={200}
                                 label="Suffix"
                                 placeholder="E.g. km/h"
-                                {...form.getInputProps('format.suffix')}
+                                {...formatInputProps('suffix')}
                             />
                         </>
                     )}

@@ -1,9 +1,13 @@
 import {
+    CustomMetricFormat,
     fieldId as getFieldId,
     friendlyName,
     isAdditionalMetric,
     isDimension,
     MetricType,
+    NumberSeparator,
+    // NOTE: The types are the same, but we can't derive enums from other enums
+    TableCalculationFormatType as CustomMetricFormatType,
 } from '@lightdash/common';
 import { isNumericItem } from '@lightdash/common/src/utils/item';
 import {
@@ -19,7 +23,9 @@ import {
 import { useForm } from '@mantine/form';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useEffect, useMemo, useState } from 'react';
+import { ValueOf } from 'type-fest';
 import { v4 as uuidv4 } from 'uuid';
+import { FormatForm } from '../../../features/tableCalculation/components/FormatForm';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -73,6 +79,15 @@ export const CustomMetricModal = () => {
         initialValues: {
             customMetricLabel: '',
             percentile: 50,
+            format: {
+                type: CustomMetricFormatType.DEFAULT,
+                round: undefined,
+                separator: NumberSeparator.DEFAULT,
+                currency: 'USD',
+                compact: undefined,
+                prefix: undefined,
+                suffix: undefined,
+            },
         },
         validate: {
             customMetricLabel: (label) => {
@@ -205,6 +220,14 @@ export const CustomMetricModal = () => {
         }
     }, [isEditing, item]);
 
+    const getFormatInputProps = (path: keyof CustomMetricFormat) =>
+        form.getInputProps(`format.${path}`);
+
+    const setFormatFieldValue = (
+        path: keyof CustomMetricFormat,
+        value: ValueOf<CustomMetricFormat>,
+    ) => form.setFieldValue(`format.${path}`, value);
+
     return item ? (
         <Modal
             size="xl"
@@ -244,6 +267,17 @@ export const CustomMetricModal = () => {
                                             Format
                                         </Text>
                                     </Accordion.Control>
+                                    <Accordion.Panel>
+                                        <FormatForm
+                                            formatInputProps={
+                                                getFormatInputProps
+                                            }
+                                            format={form.values.format}
+                                            setFormatFieldValue={
+                                                setFormatFieldValue
+                                            }
+                                        />
+                                    </Accordion.Panel>
                                 </Accordion.Item>
                             )}
                         <Accordion.Item value="filters">
