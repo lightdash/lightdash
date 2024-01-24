@@ -1,3 +1,15 @@
+# [0.959.0](https://github.com/lightdash/lightdash/compare/0.958.3...0.959.0) (2024-01-24)
+
+
+### Bug Fixes
+
+* **cli:** support dbt vars in generate command ([#8640](https://github.com/lightdash/lightdash/issues/8640)) ([509d4e1](https://github.com/lightdash/lightdash/commit/509d4e1f41e9f34e76d6f9f5138b5650bf9ea175))
+
+
+### Features
+
+* Include multiple values in metric filter ([#8693](https://github.com/lightdash/lightdash/issues/8693)) ([88d0b67](https://github.com/lightdash/lightdash/commit/88d0b671e78c6ea4ec70bfce9daf2bc7da962f41))
+
 ## [0.958.3](https://github.com/lightdash/lightdash/compare/0.958.2...0.958.3) (2024-01-24)
 
 
