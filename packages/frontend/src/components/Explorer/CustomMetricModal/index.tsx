@@ -4,12 +4,13 @@ import {
     friendlyName,
     isAdditionalMetric,
     isDimension,
+    isNumericType,
     MetricType,
     NumberSeparator,
     // NOTE: The types are the same, but we can't derive enums from other enums
     TableCalculationFormatType as CustomMetricFormatType,
 } from '@lightdash/common';
-import { isNumericItem } from '@lightdash/common/src/utils/item';
+
 import {
     Accordion,
     Button,
@@ -260,7 +261,8 @@ export const CustomMetricModal = () => {
                     )}
                     <Accordion chevronPosition="left" chevronSize="xs">
                         {isCustomMetricFormattingEnabled &&
-                            isNumericItem(item) && (
+                            customMetricType &&
+                            isNumericType(customMetricType) && (
                                 <Accordion.Item value="format">
                                     <Accordion.Control>
                                         <Text fw={500} fz="sm">
