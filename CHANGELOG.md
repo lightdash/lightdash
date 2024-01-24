@@ -1,3 +1,10 @@
+## [0.958.3](https://github.com/lightdash/lightdash/compare/0.958.2...0.958.3) (2024-01-24)
+
+
+### Bug Fixes
+
+* show success toast on refresh dbt complete ([#8659](https://github.com/lightdash/lightdash/issues/8659)) ([bc4427f](https://github.com/lightdash/lightdash/commit/bc4427f1eaad278ea6dea69b63d181994e4a254b))
+
 ## [0.958.2](https://github.com/lightdash/lightdash/compare/0.958.1...0.958.2) (2024-01-24)
 
 
