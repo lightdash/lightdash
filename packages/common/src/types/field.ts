@@ -105,6 +105,8 @@ export type ItemsMap = Record<
 >;
 export type Item = ItemsMap[string];
 
+export type CustomMetricFormat = TableCalculationFormat;
+
 export enum TableCalculationFormatType {
     DEFAULT = 'default',
     PERCENT = 'percent',
