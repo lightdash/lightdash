@@ -27,6 +27,7 @@ import {
     Series,
     TableCalculation,
     timeFrameConfigs,
+    TimeFrames,
 } from '@lightdash/common';
 import {
     DefaultLabelFormatterCallbackParams,
@@ -885,6 +886,35 @@ const getEchartAxes = ({
                     },
                 },
             };
+        } else if (
+            axisItem &&
+            isDimension(axisItem) &&
+            axisItem.timeInterval &&
+            isTimeInterval(axisItem.timeInterval)
+        ) {
+            // Some int numbers are converted to float by default on echarts
+            // This is to ensure the value is correctly formatted on some types
+            switch (axisItem.timeInterval) {
+                case TimeFrames.WEEK_NUM:
+                    axisConfig.axisLabel = {
+                        formatter: (value: any) => {
+                            return formatItemValue(axisItem, value, false);
+                        },
+                    };
+                    axisConfig.axisPointer = {
+                        label: {
+                            formatter: (value: any) => {
+                                return formatItemValue(
+                                    axisItem,
+                                    value.value,
+                                    false,
+                                );
+                            },
+                        },
+                    };
+                    break;
+                default:
+            }
         }
         if (axisMinInterval) {
             axisConfig.minInterval = axisMinInterval;
