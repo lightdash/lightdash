@@ -1015,7 +1015,6 @@ const getEchartAxes = ({
         validCartesianConfig.eChartsConfig.series,
         itemsMap,
     );
-
     return {
         xAxis: [
             {
@@ -1035,14 +1034,14 @@ const getEchartAxes = ({
                           ? getDateGroupLabel(xAxisItem) ||
                             getItemLabelWithoutTableName(xAxisItem)
                           : undefined),
-                min: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[0]?.min ||
-                      maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
-                    : referenceLineMinX,
-                max: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[0]?.max ||
-                      maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
-                    : referenceLineMaxX,
+                min:
+                    xAxisConfiguration?.[0]?.min ||
+                    referenceLineMinX ||
+                    maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange),
+                max:
+                    xAxisConfiguration?.[0]?.max ||
+                    referenceLineMaxX ||
+                    maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange),
                 nameLocation: 'center',
                 nameTextStyle: {
                     fontWeight: 'bold',
@@ -1075,14 +1074,12 @@ const getEchartAxes = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       })
                     : undefined,
-                min: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[1]?.min ||
-                      maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange)
-                    : undefined,
-                max: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[1]?.max ||
-                      maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange)
-                    : undefined,
+                min:
+                    xAxisConfiguration?.[1]?.min ||
+                    maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange),
+                max:
+                    xAxisConfiguration?.[1]?.max ||
+                    maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange),
                 nameLocation: 'center',
                 ...getAxisFormatter({
                     axisItem: topAxisXField,
@@ -1115,16 +1112,14 @@ const getEchartAxes = ({
                           itemsMap,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
-                min: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[0]?.min ||
-                      referenceLineMinLeftY ||
-                      maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
-                    : undefined,
-                max: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[0]?.max ||
-                      referenceLineMaxLeftY ||
-                      maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
-                    : undefined,
+                min:
+                    yAxisConfiguration?.[0]?.min ||
+                    referenceLineMinLeftY ||
+                    maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange),
+                max:
+                    yAxisConfiguration?.[0]?.max ||
+                    referenceLineMaxLeftY ||
+                    maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange),
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
@@ -1154,16 +1149,14 @@ const getEchartAxes = ({
                           itemsMap,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
-                min: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[1]?.min ||
-                      referenceLineMinRightY ||
-                      maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange)
-                    : undefined,
-                max: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[1]?.max ||
-                      referenceLineMaxRightY ||
-                      maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange)
-                    : undefined,
+                min:
+                    yAxisConfiguration?.[1]?.min ||
+                    referenceLineMinRightY ||
+                    maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange),
+                max:
+                    yAxisConfiguration?.[1]?.max ||
+                    referenceLineMaxRightY ||
+                    maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange),
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
