@@ -511,6 +511,7 @@ describe('Create projects', () => {
                 '12',
                 '225',
                 '2020-08-09',
+                '33',
                 '2020-08',
                 '8',
                 'August',
@@ -519,6 +520,8 @@ describe('Create projects', () => {
                 'Q3',
                 '2020',
                 '2,020',
+                '23',
+                '44',
             ];
 
             testTimeIntervalsResults(projectUuid, bigqueryRowValues);
@@ -643,6 +646,7 @@ describe('Create projects', () => {
                 '12',
                 '225',
                 '2020-08-10',
+                '33',
                 '2020-08',
                 '8',
                 'August',
@@ -651,6 +655,8 @@ describe('Create projects', () => {
                 'Q3',
                 '2020',
                 '2,020',
+                '23',
+                '44',
             ];
 
             testTimeIntervalsResults(projectUuid, snowflakeRowValues);
