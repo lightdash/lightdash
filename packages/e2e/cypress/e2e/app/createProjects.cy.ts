@@ -218,6 +218,7 @@ const defaultRowValues = [
     '11',
     '224',
     '2020-08-10',
+    '33',
     '2020-08',
     '8',
     'August',
@@ -226,6 +227,8 @@ const defaultRowValues = [
     'Q3',
     '2020',
     '2,020',
+    '23',
+    '44',
 ];
 
 const percentileRowValues = ['2020-08-11', '1,298', '828', '1,298', '1,717'];
