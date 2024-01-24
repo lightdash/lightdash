@@ -29,6 +29,7 @@ interface ResourceViewGridSpaceItemProps
     extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
     item: ResourceViewSpaceItem;
     dragIcon: ReactNode;
+    allowDelete?: boolean;
 }
 
 enum ResourceAccess {
@@ -102,6 +103,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     item,
     onAction,
     dragIcon,
+    allowDelete,
 }) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
@@ -196,6 +198,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                 >
                     <ResourceViewActionMenu
                         item={item}
+                        allowDelete={allowDelete}
                         isOpen={opened}
                         onOpen={handlers.open}
                         onClose={handlers.close}
