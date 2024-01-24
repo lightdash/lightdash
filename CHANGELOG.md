@@ -1,3 +1,10 @@
+## [0.958.2](https://github.com/lightdash/lightdash/compare/0.958.1...0.958.2) (2024-01-24)
+
+
+### Bug Fixes
+
+* week num chart float ([#8702](https://github.com/lightdash/lightdash/issues/8702)) ([7452aa6](https://github.com/lightdash/lightdash/commit/7452aa60ef0d6bf266b272336a0f40c55f3ce6ea))
+
 ## [0.958.1](https://github.com/lightdash/lightdash/compare/0.958.0...0.958.1) (2024-01-23)
 
 
