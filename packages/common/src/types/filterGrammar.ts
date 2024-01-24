@@ -239,6 +239,17 @@ export const parseFilters = (
                 },
             ];
         }
+        if (typeof value === 'object') {
+            return [
+                ...acc,
+                {
+                    id: uuidv4(),
+                    target: { fieldRef: key },
+                    operator: FilterOperator.EQUALS,
+                    values: value,
+                },
+            ];
+        }
         return [
             ...acc,
             {

@@ -89,6 +89,13 @@ models:
           metrics:
             unique_order_count:
               type: count_distinct
+            completed_or_shipped_order_count:
+              label: Completed or Shipped Order Count
+              type: count_distinct
+              filters:
+                - status:
+                    - completed
+                    - shipped
       - name: is_completed
         description: Boolean indicating if status is completed
         meta:

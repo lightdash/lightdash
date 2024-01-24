@@ -257,7 +257,7 @@ describe('Parse metric filters', () => {
         ]);
     });
 
-    it('Should parse NULL using gtrammar', () => {
+    it('Should parse NULL using grammar', () => {
         const filters = [{ name: null }];
         expect(removeIds(parseFilters(filters))).toStrictEqual([
             {
@@ -270,7 +270,7 @@ describe('Parse metric filters', () => {
             },
         ]);
     });
-    it('Should parse NOT_NULL using gtrammar', () => {
+    it('Should parse NOT_NULL using grammar', () => {
         const filters = [{ name: '!null' }];
         expect(removeIds(parseFilters(filters))).toStrictEqual([
             {
@@ -280,6 +280,20 @@ describe('Parse metric filters', () => {
                     fieldRef: 'name',
                 },
                 values: [1],
+            },
+        ]);
+    });
+
+    it('Should parse multiple filter values using grammar', () => {
+        const filters = [{ name: ['cat', 'dog'] }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'name',
+                },
+                values: ['cat', 'dog'],
             },
         ]);
     });
