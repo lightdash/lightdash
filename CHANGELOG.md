@@ -1,3 +1,10 @@
+## [0.961.1](https://github.com/lightdash/lightdash/compare/0.961.0...0.961.1) (2024-01-25)
+
+
+### Bug Fixes
+
+* conditional formatting range with decimal numbers ([#8722](https://github.com/lightdash/lightdash/issues/8722)) ([4eed27b](https://github.com/lightdash/lightdash/commit/4eed27b442044aa95fa459231efc4cb15637314e))
+
 # [0.961.0](https://github.com/lightdash/lightdash/compare/0.960.1...0.961.0) (2024-01-25)
 
 
