@@ -20,6 +20,7 @@ import { useForm } from '@mantine/form';
 import { IconMaximize, IconMinimize } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
+import { ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -91,6 +92,17 @@ const TableCalculationModal: FC<Props> = ({
         }
     });
 
+    const getFormatInputProps = (path: keyof TableCalculationFormat) => {
+        return form.getInputProps(`format.${path}`);
+    };
+
+    const setFormatFieldValue = (
+        path: keyof TableCalculationFormat,
+        value: ValueOf<TableCalculationFormat>,
+    ) => {
+        return form.setFieldValue(`format.${path}`, value);
+    };
+
     return (
         <Modal
             opened={opened}
@@ -139,7 +151,11 @@ const TableCalculationModal: FC<Props> = ({
                             <SqlForm form={form} isFullScreen={isFullscreen} />
                         </Tabs.Panel>
                         <Tabs.Panel value="format">
-                            <FormatForm form={form} />
+                            <FormatForm
+                                formatInputProps={getFormatInputProps}
+                                setFormatFieldValue={setFormatFieldValue}
+                                format={form.values.format}
+                            />
                         </Tabs.Panel>
                     </Tabs>
 
