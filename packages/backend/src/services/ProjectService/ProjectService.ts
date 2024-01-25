@@ -230,14 +230,10 @@ export class ProjectService {
         return args;
     }
 
-    private async _getWarehouseClient(
+    private async getWarehouseCredentials(
         projectUuid: string,
-        snowflakeVirtualWarehouse?: string,
-    ): Promise<{
-        warehouseClient: WarehouseClient;
-        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
-    }> {
-        // Always load the latest credentials from the database
+        userUuid: string,
+    ) {
         let credentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
@@ -245,6 +241,7 @@ export class ProjectService {
         if (credentials.requireUserCredentials) {
             const userWarehouseCredentials =
                 await this.userWarehouseCredentialsModel.findForProject(
+                    userUuid,
                     credentials.type,
                 );
             if (userWarehouseCredentials === undefined) {
@@ -262,6 +259,17 @@ export class ProjectService {
                 );
             }
         }
+        return credentials;
+    }
+
+    private async _getWarehouseClient(
+        projectUuid: string,
+        credentials: CreateWarehouseCredentials,
+        snowflakeVirtualWarehouse?: string,
+    ): Promise<{
+        warehouseClient: WarehouseClient;
+        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+    }> {
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
@@ -921,6 +929,7 @@ export class ProjectService {
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
         const userAttributes =
@@ -1573,6 +1582,10 @@ export class ProjectService {
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
                             projectUuid,
+                            await this.getWarehouseCredentials(
+                                projectUuid,
+                                user.userUuid,
+                            ),
                             explore.warehouse,
                         );
 
@@ -1721,6 +1734,7 @@ export class ProjectService {
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
         );
         Logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
@@ -1819,6 +1833,7 @@ export class ProjectService {
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
         const userAttributes =
@@ -3046,6 +3061,7 @@ export class ProjectService {
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
 
@@ -3078,6 +3094,7 @@ export class ProjectService {
     ) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
 

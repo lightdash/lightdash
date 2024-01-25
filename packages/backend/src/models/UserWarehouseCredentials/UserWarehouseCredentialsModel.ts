@@ -89,11 +89,13 @@ export class UserWarehouseCredentialsModel {
     }
 
     async findForProject(
+        userUuid: string,
         warehouseType: WarehouseTypes,
     ): Promise<UpsertUserWarehouseCredentials['credentials'] | undefined> {
         const result = await this.database(UserWarehouseCredentialsTableName)
             .select('encrypted_credentials')
             .where('warehouse_type', warehouseType)
+            .andWhere('user_uuid', userUuid)
             .orderBy('created_at')
             .first();
 
