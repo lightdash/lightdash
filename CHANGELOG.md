@@ -1,3 +1,10 @@
+# [0.962.0](https://github.com/lightdash/lightdash/compare/0.961.1...0.962.0) (2024-01-25)
+
+
+### Features
+
+* allow lightdash generate to target dbt_packages ([#8647](https://github.com/lightdash/lightdash/issues/8647)) ([e215d0c](https://github.com/lightdash/lightdash/commit/e215d0c818c400954a1883c8f52a744d24b78371))
+
 ## [0.961.1](https://github.com/lightdash/lightdash/compare/0.961.0...0.961.1) (2024-01-25)
 
 
