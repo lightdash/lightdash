@@ -18,6 +18,7 @@ import {
     spaceModel,
     sshKeyPairModel,
     userAttributesModel,
+    userWarehouseCredentialsModel,
 } from '../../models/models';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { projectService } from '../services';
@@ -95,6 +96,7 @@ jest.mock('../../models/models', () => ({
     },
     analyticsModel: {},
     dashboardModel: {},
+    userWarehouseCredentialsModel: {},
 }));
 
 describe('ProjectService', () => {
@@ -113,6 +115,7 @@ describe('ProjectService', () => {
         s3CacheClient,
         analyticsModel,
         dashboardModel,
+        userWarehouseCredentialsModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

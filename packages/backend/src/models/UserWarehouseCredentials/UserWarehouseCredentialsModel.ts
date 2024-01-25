@@ -71,7 +71,8 @@ export class UserWarehouseCredentialsModel {
     ): Promise<UserWarehouseCredentials[]> {
         const rows = await this.database(UserWarehouseCredentialsTableName)
             .select('*')
-            .where('user_uuid', userUuid);
+            .where('user_uuid', userUuid)
+            .orderBy('created_at');
 
         return rows.map((r) => this.convertToUserWarehouseCredentials(r));
     }
@@ -85,6 +86,31 @@ export class UserWarehouseCredentialsModel {
             throw new NotFoundError('Warehouse credentials not found');
         }
         return this.convertToUserWarehouseCredentials(result);
+    }
+
+    async findForProject(
+        warehouseType: WarehouseTypes,
+    ): Promise<UpsertUserWarehouseCredentials['credentials'] | undefined> {
+        const result = await this.database(UserWarehouseCredentialsTableName)
+            .select('encrypted_credentials')
+            .where('warehouse_type', warehouseType)
+            .orderBy('created_at')
+            .first();
+
+        if (result) {
+            try {
+                return JSON.parse(
+                    this.encryptionService.decrypt(
+                        result.encrypted_credentials,
+                    ),
+                ) as UpsertUserWarehouseCredentials['credentials'];
+            } catch (e) {
+                throw new UnexpectedServerError(
+                    'Failed to parse user warehouse credentials',
+                );
+            }
+        }
+        return undefined;
     }
 
     async create(

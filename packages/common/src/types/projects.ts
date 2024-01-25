@@ -44,6 +44,7 @@ export type CreateBigqueryCredentials = {
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
     keyfileContents: Record<string, string>;
+    requireUserCredentials?: boolean;
     retries: number | undefined;
     location: string | undefined;
     maximumBytesBilled: number | undefined;
@@ -72,6 +73,7 @@ export type CreateDatabricksCredentials = {
     serverHostName: string;
     httpPath: string;
     personalAccessToken: string;
+    requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
 };
 export type DatabricksCredentials = Omit<
