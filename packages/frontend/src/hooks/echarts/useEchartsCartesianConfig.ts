@@ -3,6 +3,7 @@ import {
     CartesianChart,
     CartesianSeriesType,
     DimensionType,
+    Field,
     formatItemValue,
     formatTableCalculationValue,
     formatValue,
@@ -768,6 +769,17 @@ const getLongestLabel = ({
     );
 };
 
+const formatValuesAndTimestamps = (field: Field, value: unknown): string => {
+    const isTimestamp = DimensionType.TIMESTAMP === field.type;
+    if (isTimestamp && typeof value === 'number' && isField(field)) {
+        // This is for formatting timestamp values from echarts to the right value in UTC
+        const dateInUtc = moment(value).utc();
+        const dateWithoutTimezone = dateInUtc.format('YYYY-MM-DD HH:mm:ss');
+        return formatItemValue(field, dateWithoutTimezone, true);
+    }
+    return formatItemValue(field, value, false);
+};
+
 const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
@@ -855,7 +867,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatItemValue(axisItem, value.value, false);
+                        return formatValuesAndTimestamps(axisItem, value.value);
                     },
                 },
             };
@@ -866,7 +878,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatItemValue(axisItem, value.value, false);
+                        return formatValuesAndTimestamps(axisItem, value.value);
                     },
                 },
             };
@@ -1516,7 +1528,6 @@ const useEchartsCartesianConfig = (
             },
             formatter: (params) => {
                 if (!Array.isArray(params) || !itemsMap) return '';
-
                 const tooltipRows = params
                     .map((param) => {
                         const {
@@ -1565,14 +1576,18 @@ const useEchartsCartesianConfig = (
                     }
                     if (
                         isDimension(field) &&
-                        (field.type === DimensionType.DATE ||
-                            field.type === DimensionType.TIMESTAMP)
+                        field.type === DimensionType.TIMESTAMP &&
+                        field.timeInterval === TimeFrames.RAW
                     ) {
                         const date = (params[0].data as Record<string, any>)[
                             dimensionId
                         ]; // get full timestamp from data
+                        const dateInUtc = moment(date).utc();
+                        const dateWithoutTimezone = dateInUtc.format(
+                            'YYYY-MM-DD HH:mm:ss',
+                        );
                         const dateFormatted = getFormattedValue(
-                            date,
+                            dateWithoutTimezone,
                             dimensionId,
                             itemsMap,
                             false,
