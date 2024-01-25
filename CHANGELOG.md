@@ -1,3 +1,10 @@
+# [0.963.0](https://github.com/lightdash/lightdash/compare/0.962.0...0.963.0) (2024-01-25)
+
+
+### Features
+
+* enable groups env variable ([#8704](https://github.com/lightdash/lightdash/issues/8704)) ([fd0847e](https://github.com/lightdash/lightdash/commit/fd0847e6fceb18e5f3eaec7a4ccefee8387e4252))
+
 # [0.962.0](https://github.com/lightdash/lightdash/compare/0.961.1...0.962.0) (2024-01-25)
 
 
