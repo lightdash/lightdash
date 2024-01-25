@@ -521,7 +521,7 @@ describe('Create projects', () => {
                 '2020',
                 '2,020',
                 '7',
-                '44',
+                '58',
             ];
 
             testTimeIntervalsResults(projectUuid, bigqueryRowValues);
