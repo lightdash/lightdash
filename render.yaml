@@ -54,3 +54,5 @@ services:
           type: pserv
           name: headless-browser
           property: host
+      - key: GROUPS_ENABLED
+        value: true

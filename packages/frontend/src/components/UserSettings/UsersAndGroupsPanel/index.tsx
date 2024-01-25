@@ -1,6 +1,5 @@
 import { ActionIcon, Group, Stack, Tabs, Title, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 
@@ -11,19 +10,20 @@ import GroupsView from './GroupsView';
 import UsersView from './UsersView';
 
 const UsersAndGroupsPanel: FC = () => {
-    // TODO: this is a feature flag while we are building groups.
-    // Remove this when groups are ready to be released.
-    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
-    const { user } = useApp();
+    const { user, health } = useApp();
 
-    if (user.data?.ability.cannot('view', 'OrganizationMemberProfile')) {
+    if (!user.data || !health.data) return null;
+
+    if (user.data.ability.cannot('view', 'OrganizationMemberProfile')) {
         return <ForbiddenPanel />;
     }
+
+    const isGroupManagementEnabled = health.data.hasGroups;
 
     return (
         <Stack spacing="sm">
             <Group spacing="two">
-                {groupManagementEnabled ? (
+                {isGroupManagementEnabled ? (
                     <Title order={5}>Users and groups</Title>
                 ) : (
                     <Title order={5}>User management settings</Title>
@@ -41,7 +41,7 @@ const UsersAndGroupsPanel: FC = () => {
             </Group>
 
             <Tabs defaultValue={'users'}>
-                {groupManagementEnabled && (
+                {isGroupManagementEnabled && (
                     <Tabs.List mb="xs">
                         <Tabs.Tab value="users">Users</Tabs.Tab>
                         <Tabs.Tab value="groups">Groups</Tabs.Tab>

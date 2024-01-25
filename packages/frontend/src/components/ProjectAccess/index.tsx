@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { Anchor, Button, Group, Stack, Tabs, Text } from '@mantine/core';
 import { IconPlus, IconUser, IconUsersGroup } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useState } from 'react';
 import { ProjectGroupAccess } from '../../features/projectGroupAccess';
 import { useApp } from '../../providers/AppProvider';
@@ -14,13 +13,15 @@ interface ProjectUserAccessProps {
 }
 
 const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
-    const { user } = useApp();
+    const { user, health } = useApp();
 
     const [showProjectAccessAdd, setShowProjectAccessAdd] = useState(false);
     const [showProjectGroupAccessAdd, setShowProjectGroupAccessAdd] =
         useState(false);
 
-    const groupManagementEnabled = useFeatureFlagEnabled('group-management');
+    if (!user.data || !health.data) return null;
+
+    const isGroupManagementEnabled = health.data.hasGroups;
 
     return (
         <Stack>
@@ -40,7 +41,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
 
             <Tabs defaultValue="users">
                 <Stack>
-                    {groupManagementEnabled && (
+                    {isGroupManagementEnabled && (
                         <Tabs.List>
                             <Tabs.Tab
                                 icon={<MantineIcon icon={IconUser} size="sm" />}
