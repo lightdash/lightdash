@@ -1,3 +1,10 @@
+# [0.961.0](https://github.com/lightdash/lightdash/compare/0.960.1...0.961.0) (2024-01-25)
+
+
+### Features
+
+* add formatting inputs to custom metric accordion ([#8719](https://github.com/lightdash/lightdash/issues/8719)) ([b22e069](https://github.com/lightdash/lightdash/commit/b22e069f7b6a842534c9f4dd88cc104f861ef03e))
+
 ## [0.960.1](https://github.com/lightdash/lightdash/compare/0.960.0...0.960.1) (2024-01-24)
 
 
