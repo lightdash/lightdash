@@ -14,11 +14,13 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, { FC } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
+import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import FormCollapseButton from '../FormCollapseButton';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -72,6 +74,8 @@ const RedshiftForm: FC<{
             setValue('warehouse.sshTunnelPublicKey', data.publicKey);
         },
     });
+    const isPassthroughLoginFeatureEnabled =
+        useFeatureFlagEnabled('passthrough-login');
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -115,6 +119,14 @@ const RedshiftForm: FC<{
                     {...register('warehouse.password')}
                     disabled={disabled}
                 />
+                {isPassthroughLoginFeatureEnabled && (
+                    <BooleanSwitch
+                        name="warehouse.requireUserCredentials"
+                        label="Require users to provide their own credentials"
+                        defaultValue={false}
+                        disabled={disabled}
+                    />
+                )}
                 <TextInput
                     label="DB name"
                     description="This is the database name."

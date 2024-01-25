@@ -7,6 +7,7 @@ import {
     Switch,
     TextInput,
 } from '@mantine/core';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, { FC } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
@@ -15,6 +16,7 @@ import {
     isUppercase,
     startWithHTTPSProtocol,
 } from '../../../utils/fieldValidators';
+import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import FormCollapseButton from '../FormCollapseButton';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -48,6 +50,8 @@ const SnowflakeForm: FC<{
 
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE;
+    const isPassthroughLoginFeatureEnabled =
+        useFeatureFlagEnabled('passthrough-login');
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -91,6 +95,14 @@ const SnowflakeForm: FC<{
                     {...register('warehouse.password')}
                     disabled={disabled}
                 />
+                {isPassthroughLoginFeatureEnabled && (
+                    <BooleanSwitch
+                        name="warehouse.requireUserCredentials"
+                        label="Require users to provide their own credentials"
+                        defaultValue={false}
+                        disabled={disabled}
+                    />
+                )}
                 <TextInput
                     label="Role"
                     description="This is the role to assume when running queries as the specified user."

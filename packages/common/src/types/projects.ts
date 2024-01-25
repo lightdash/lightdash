@@ -83,6 +83,7 @@ export type CreatePostgresCredentials = SshTunnelConfiguration & {
     host: string;
     user: string;
     password: string;
+    requireUserCredentials: boolean;
     port: number;
     dbname: string;
     schema: string;
@@ -102,6 +103,7 @@ export type CreateTrinoCredentials = {
     host: string;
     user: string;
     password: string;
+    requireUserCredentials: boolean;
     port: number;
     dbname: string;
     schema: string;
@@ -117,6 +119,7 @@ export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     host: string;
     user: string;
     password: string;
+    requireUserCredentials: boolean;
     port: number;
     dbname: string;
     schema: string;
@@ -135,6 +138,7 @@ export type CreateSnowflakeCredentials = {
     account: string;
     user: string;
     password?: string;
+    requireUserCredentials: boolean;
     privateKey?: string;
     privateKeyPass?: string;
     role?: string;
