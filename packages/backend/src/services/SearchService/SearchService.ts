@@ -112,34 +112,42 @@ export class SearchService {
         );
         let filteredFields: FieldSearchResult[] = [];
         let filteredTables: (TableSearchResult | TableErrorSearchResult)[] = [];
-        if (
-            hasExploreAccess &&
-            (dimensionsHaveUserAttributes || tablesHaveUserAttributes)
-        ) {
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
-            filteredFields = results.fields.filter(
-                (field) =>
-                    hasUserAttributes(
-                        field.requiredAttributes,
-                        userAttributes,
-                    ) &&
-                    Object.values(field.tablesRequiredAttributes || {}).every(
-                        (tableHaveUserAttributes) =>
+        if (hasExploreAccess) {
+            if (dimensionsHaveUserAttributes || tablesHaveUserAttributes) {
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
+                    );
+                filteredFields = results.fields.filter(
+                    (field) =>
+                        hasUserAttributes(
+                            field.requiredAttributes,
+                            userAttributes,
+                        ) &&
+                        Object.values(
+                            field.tablesRequiredAttributes || {},
+                        ).every((tableHaveUserAttributes) =>
                             hasUserAttributes(
                                 tableHaveUserAttributes,
                                 userAttributes,
                             ),
-                    ),
-            );
-            filteredTables = results.tables.filter(
-                (table) =>
-                    isTableErrorSearchResult(table) ||
-                    hasUserAttributes(table.requiredAttributes, userAttributes),
-            );
+                        ),
+                );
+                filteredTables = results.tables.filter(
+                    (table) =>
+                        isTableErrorSearchResult(table) ||
+                        hasUserAttributes(
+                            table.requiredAttributes,
+                            userAttributes,
+                        ),
+                );
+            } else {
+                filteredFields = results.fields;
+                filteredTables = results.tables;
+            }
         }
 
         const filteredResults = {
