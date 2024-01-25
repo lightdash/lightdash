@@ -29,6 +29,7 @@ import { NotificationsMenu } from './NotificationsMenu';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
+import WarehouseCredentialSwitcher from './WarehouseCredentialSwitcher';
 
 export const NAVBAR_HEIGHT = 50;
 export const BANNER_HEIGHT = 35;
@@ -212,7 +213,7 @@ const NavBar = memo(() => {
                     <Divider orientation="vertical" my="xs" color="gray.8" />
 
                     <ProjectSwitcher />
-
+                    <WarehouseCredentialSwitcher />
                     <UserMenu />
                 </Group>
             </Header>

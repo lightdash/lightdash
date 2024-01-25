@@ -35,3 +35,9 @@ export type UpsertUserWarehouseCredentials = {
         | Pick<CreateBigqueryCredentials, 'type' | 'keyfileContents'>
         | Pick<CreateDatabricksCredentials, 'type' | 'personalAccessToken'>;
 };
+
+export type UserWarehouseCredentialsWithSecrets = Pick<
+    UserWarehouseCredentials,
+    'uuid'
+> &
+    Pick<UpsertUserWarehouseCredentials, 'credentials'>;

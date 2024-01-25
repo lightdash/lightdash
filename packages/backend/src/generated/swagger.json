@@ -915,8 +915,25 @@
                 "enum": ["DEFAULT", "PREVIEW"],
                 "type": "string"
             },
+            "WarehouseTypes": {
+                "enum": [
+                    "bigquery",
+                    "postgres",
+                    "redshift",
+                    "snowflake",
+                    "databricks",
+                    "trino"
+                ],
+                "type": "string"
+            },
             "OrganizationProject": {
                 "properties": {
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    },
                     "type": {
                         "$ref": "#/components/schemas/ProjectType"
                     },
@@ -929,7 +946,13 @@
                         "format": "uuid"
                     }
                 },
-                "required": ["type", "name", "projectUuid"],
+                "required": [
+                    "requireUserCredentials",
+                    "warehouseType",
+                    "type",
+                    "name",
+                    "projectUuid"
+                ],
                 "type": "object",
                 "description": "Summary of a project under an organization"
             },
@@ -1998,6 +2021,9 @@
                     "account": {
                         "type": "string"
                     },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
                     "database": {
                         "type": "string"
                     },
@@ -2054,6 +2080,9 @@
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
                     },
                     "schema": {
                         "type": "string"
@@ -2130,6 +2159,9 @@
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
                     },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
                     "schema": {
                         "type": "string"
                     },
@@ -2202,6 +2234,9 @@
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
                     },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
                     "threads": {
                         "type": "number",
                         "format": "double"
@@ -2260,6 +2295,9 @@
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
                     },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
                     "database": {
                         "type": "string"
                     },
@@ -2300,6 +2338,9 @@
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
                     },
                     "schema": {
                         "type": "string"
@@ -2841,6 +2882,82 @@
                 "properties": {},
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
+            },
+            "Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials.type-or-user_": {
+                "properties": {
+                    "user": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    }
+                },
+                "required": ["user", "type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateBigqueryCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateDatabricksCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "UserWarehouseCredentials": {
+                "properties": {
+                    "credentials": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials.type-or-user_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type_"
+                            }
+                        ]
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "credentials",
+                    "updatedAt",
+                    "createdAt",
+                    "name",
+                    "userUuid",
+                    "uuid"
+                ],
+                "type": "object"
             },
             "CacheMetadata": {
                 "properties": {
@@ -5469,82 +5586,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials.type-or-user_": {
-                "properties": {
-                    "user": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
-                    }
-                },
-                "required": ["user", "type"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_CreateBigqueryCredentials.type_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_CreateDatabricksCredentials.type_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "UserWarehouseCredentials": {
-                "properties": {
-                    "credentials": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials.type-or-user_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type_"
-                            }
-                        ]
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "credentials",
-                    "updatedAt",
-                    "createdAt",
-                    "name",
-                    "userUuid",
-                    "uuid"
-                ],
-                "type": "object"
-            },
             "Pick_CreateRedshiftCredentials.type-or-user-or-password_": {
                 "properties": {
                     "user": {
@@ -5903,7 +5944,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.956.0",
+        "version": "0.964.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7859,6 +7900,103 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/user-credentials": {
+            "get": {
+                "operationId": "getUserWarehouseCredentialsPreference",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/UserWarehouseCredentials"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/user-credentials/{userWarehouseCredentialsUuid}": {
+            "patch": {
+                "operationId": "updateUserWarehouseCredentialsPreference",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userWarehouseCredentialsUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {

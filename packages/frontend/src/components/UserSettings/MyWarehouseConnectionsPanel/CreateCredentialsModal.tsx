@@ -1,5 +1,6 @@
 import {
     UpsertUserWarehouseCredentials,
+    UserWarehouseCredentials,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -18,19 +19,60 @@ import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWa
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/SelectWarehouse';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'>;
+type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+    warehouseType?: WarehouseTypes;
+    onSuccess?: (data: UserWarehouseCredentials) => void;
+};
 
-export const CreateCredentialsModal: FC<Props> = ({ opened, onClose }) => {
+const defaultCredentials: Record<
+    WarehouseTypes,
+    UpsertUserWarehouseCredentials['credentials']
+> = {
+    [WarehouseTypes.POSTGRES]: {
+        type: WarehouseTypes.POSTGRES,
+        user: '',
+        password: '',
+    },
+    [WarehouseTypes.REDSHIFT]: {
+        type: WarehouseTypes.REDSHIFT,
+        user: '',
+        password: '',
+    },
+    [WarehouseTypes.SNOWFLAKE]: {
+        type: WarehouseTypes.SNOWFLAKE,
+        user: '',
+        password: '',
+    },
+    [WarehouseTypes.TRINO]: {
+        type: WarehouseTypes.TRINO,
+        user: '',
+        password: '',
+    },
+    [WarehouseTypes.BIGQUERY]: {
+        type: WarehouseTypes.BIGQUERY,
+        keyfileContents: {},
+    },
+    [WarehouseTypes.DATABRICKS]: {
+        type: WarehouseTypes.DATABRICKS,
+        personalAccessToken: '',
+    },
+};
+
+export const CreateCredentialsModal: FC<Props> = ({
+    opened,
+    onClose,
+    warehouseType,
+    onSuccess,
+}) => {
     const { mutateAsync, isLoading: isSaving } =
-        useUserWarehouseCredentialsCreateMutation();
+        useUserWarehouseCredentialsCreateMutation({
+            onSuccess,
+        });
     const form = useForm<UpsertUserWarehouseCredentials>({
         initialValues: {
             name: '',
-            credentials: {
-                type: WarehouseTypes.POSTGRES,
-                user: '',
-                password: '',
-            },
+            credentials:
+                defaultCredentials[warehouseType || WarehouseTypes.POSTGRES],
         },
     });
     return (
@@ -54,27 +96,33 @@ export const CreateCredentialsModal: FC<Props> = ({ opened, onClose }) => {
                         {...form.getInputProps('name')}
                     />
 
-                    <Select
-                        required
-                        label="Warehouse"
-                        size="xs"
-                        disabled={isSaving}
-                        data={Object.values(WarehouseTypes).map((type) => {
-                            const isNotSupportedYet = [
-                                WarehouseTypes.BIGQUERY,
-                                WarehouseTypes.DATABRICKS,
-                            ].includes(type);
-                            return {
-                                value: type,
-                                label: `${getWarehouseLabel(type) || type} ${
-                                    isNotSupportedYet ? ' (coming soon)' : ''
-                                }`,
-                                disabled: isNotSupportedYet,
-                            };
-                        })}
-                        withinPortal
-                        {...form.getInputProps('credentials.type')}
-                    />
+                    {!warehouseType && (
+                        <Select
+                            required
+                            label="Warehouse"
+                            size="xs"
+                            disabled={isSaving}
+                            data={Object.values(WarehouseTypes).map((type) => {
+                                const isNotSupportedYet = [
+                                    WarehouseTypes.BIGQUERY,
+                                    WarehouseTypes.DATABRICKS,
+                                ].includes(type);
+                                return {
+                                    value: type,
+                                    label: `${
+                                        getWarehouseLabel(type) || type
+                                    } ${
+                                        isNotSupportedYet
+                                            ? ' (coming soon)'
+                                            : ''
+                                    }`,
+                                    disabled: isNotSupportedYet,
+                                };
+                            })}
+                            withinPortal
+                            {...form.getInputProps('credentials.type')}
+                        />
+                    )}
 
                     <WarehouseFormInputs form={form} disabled={isSaving} />
 
