@@ -1,3 +1,10 @@
+## [0.963.1](https://github.com/lightdash/lightdash/compare/0.963.0...0.963.1) (2024-01-25)
+
+
+### Bug Fixes
+
+* check correctly if can apply formatting ([#8726](https://github.com/lightdash/lightdash/issues/8726)) ([58c4582](https://github.com/lightdash/lightdash/commit/58c4582497b53ed1147b9dc80420f81d9e4ea751))
+
 # [0.963.0](https://github.com/lightdash/lightdash/compare/0.962.0...0.963.0) (2024-01-25)
 
 
