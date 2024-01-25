@@ -769,12 +769,16 @@ const getLongestLabel = ({
     );
 };
 
-const formatValuesAndTimestamps = (field: Field, value: unknown): string => {
-    const isTimestamp = DimensionType.TIMESTAMP === field.type;
-    if (isTimestamp && typeof value === 'number' && isField(field)) {
+const formatValuesAndDates = (field: Field, value: unknown): string => {
+    const isDate =
+        DimensionType.TIMESTAMP === field.type ||
+        DimensionType.DATE === field.type;
+
+    if (isDate && typeof value === 'number') {
         // This is for formatting timestamp values from echarts to the right value in UTC
         const dateInUtc = moment(value).utc();
         const dateWithoutTimezone = dateInUtc.format('YYYY-MM-DD HH:mm:ss');
+
         return formatItemValue(field, dateWithoutTimezone, true);
     }
     return formatItemValue(field, value, false);
@@ -867,7 +871,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatValuesAndTimestamps(axisItem, value.value);
+                        return formatValuesAndDates(axisItem, value.value);
                     },
                 },
             };
@@ -878,7 +882,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatValuesAndTimestamps(axisItem, value.value);
+                        return formatValuesAndDates(axisItem, value.value);
                     },
                 },
             };
