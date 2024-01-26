@@ -124,7 +124,7 @@ describe('Explore', () => {
         cy.get('button').contains('Big value');
     });
 
-    it.only('Should change chart config layout', () => {
+    it('Should change chart config layout', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         cy.findByTestId('page-spinner').should('not.exist');
 
@@ -137,6 +137,7 @@ describe('Explore', () => {
         cy.get('button').contains('Run query').click();
 
         cy.get('g').children('text').should('have.length.lessThan', 30); // without labels
+        cy.findAllByText('Loading results').should('have.length', 0); // Finish loading
 
         cy.findByTestId('Charts-card-expand').click();
 
