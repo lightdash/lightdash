@@ -769,6 +769,18 @@
             },
             "AdditionalMetric": {
                 "properties": {
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "suffix": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
                     "label": {
                         "type": "string"
                     },

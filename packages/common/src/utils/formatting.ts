@@ -258,6 +258,22 @@ export function formatFieldValue(
         return `${value}`;
     }
     const { type, round, format, compact } = field;
+
+    const formatOpts = {
+        type,
+        round,
+        format,
+        compact,
+        ...(isAdditionalMetric(field)
+            ? {
+                  prefix: field.prefix,
+                  suffix: field.suffix,
+                  currency: field.currency,
+                  separator: field.separator,
+              }
+            : {}),
+    };
+
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -270,7 +286,7 @@ export function formatFieldValue(
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
-            return formatValue(value, { format, round, compact });
+            return formatValue(value, formatOpts);
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
             return formatBoolean(value);
@@ -301,7 +317,7 @@ export function formatFieldValue(
                     convertToUTC,
                 );
             }
-            return formatValue(value, { format, round, compact });
+            return formatValue(value, formatOpts);
         }
         default: {
             return `${value}`;

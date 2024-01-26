@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    CustomMetricFormat,
     Dimension,
     DimensionType,
     Explore,
@@ -106,6 +107,7 @@ export const prepareCustomMetricData = ({
     isEditingCustomMetric,
     exploreData,
     percentile: metricPercentile,
+    customMetricFormat,
 }: {
     item: Dimension | AdditionalMetric;
     type: MetricType;
@@ -114,6 +116,7 @@ export const prepareCustomMetricData = ({
     isEditingCustomMetric: boolean;
     exploreData?: Explore;
     percentile?: number;
+    customMetricFormat?: CustomMetricFormat;
 }): AdditionalMetric => {
     const shouldCopyFormatting = [
         MetricType.PERCENTILE,
@@ -124,16 +127,17 @@ export const prepareCustomMetricData = ({
         MetricType.MAX,
     ].includes(type);
 
-    const compact =
-        shouldCopyFormatting && item.compact ? { compact: item.compact } : {};
+    const defaultRound = type === MetricType.AVERAGE ? 2 : undefined;
+    const baseDimensionRound =
+        shouldCopyFormatting && item.round ? item.round : defaultRound;
+    const round = customMetricFormat?.round || baseDimensionRound;
+
+    const baseDimensionCompact =
+        shouldCopyFormatting && item.compact ? item.compact : undefined;
+    const compact = customMetricFormat?.compact || baseDimensionCompact;
+
     const format =
         shouldCopyFormatting && item.format ? { format: item.format } : {};
-
-    const defaultRound = type === MetricType.AVERAGE ? { round: 2 } : {};
-    const round =
-        shouldCopyFormatting && item.round
-            ? { round: item.round }
-            : defaultRound;
 
     const percentile =
         type === MetricType.PERCENTILE ? metricPercentile || 50 : undefined;
@@ -156,8 +160,12 @@ export const prepareCustomMetricData = ({
         sql: item.sql,
         type,
         ...format,
-        ...round,
-        ...compact,
+        round,
+        compact,
+        prefix: customMetricFormat?.prefix,
+        suffix: customMetricFormat?.suffix,
+        currency: customMetricFormat?.currency,
+        separator: customMetricFormat?.separator,
         percentile,
         filters: customMetricFilters.length > 0 ? customMetricFilters : [],
         label: customMetricLabel,

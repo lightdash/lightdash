@@ -186,7 +186,7 @@ export const CustomMetricModal = () => {
     }, [initialCustomMetricFiltersWithIds]);
 
     const handleOnSubmit = form.onSubmit(
-        ({ customMetricLabel, percentile }) => {
+        ({ customMetricLabel, percentile, format }) => {
             if (!item || !customMetricType) return;
 
             const data = prepareCustomMetricData({
@@ -197,6 +197,9 @@ export const CustomMetricModal = () => {
                 isEditingCustomMetric: !!isEditing,
                 exploreData,
                 percentile,
+                ...(isCustomMetricFormattingEnabled && {
+                    customMetricFormat: format,
+                }),
             });
 
             if (isEditing && isAdditionalMetric(item)) {

@@ -255,6 +255,10 @@ const createSavedChartVersion = async (
                             : null,
                     base_dimension_name:
                         additionalMetric.baseDimensionName ?? null,
+                    prefix: additionalMetric.prefix,
+                    suffix: additionalMetric.suffix,
+                    currency: additionalMetric.currency,
+                    separator: additionalMetric.separator,
                 }),
             );
         });

@@ -7,6 +7,7 @@ import {
     DBFieldTypes,
     MetricFilterRule,
     MetricType,
+    NumberSeparator,
     TableCalculationFormat,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -199,6 +200,10 @@ export type DbSavedChartAdditionalMetric = {
     filters: MetricFilterRule[] | null; // JSONB
     base_dimension_name: string | null;
     uuid: string;
+    separator?: NumberSeparator;
+    currency?: string;
+    prefix?: string;
+    suffix?: string;
 };
 export type DbSavedChartAdditionalMetricInsert = Omit<
     DbSavedChartAdditionalMetric,
