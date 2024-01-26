@@ -212,7 +212,9 @@ describe('Explore', () => {
                     cy.get('button').contains('Run query').click();
 
                     // wait for the chart to finish loading
-                    cy.findByText('Loading chart').should('not.exist');
+                    cy.findByText('Loading results').should('not.exist');
+                    cy.findByTestId('Charts-card-expand').click();
+                    cy.contains('Loading chart').should('not.exist');
 
                     // open chart menu and change chart type to Table
                     cy.get('button').contains('Configure').click();
@@ -253,7 +255,9 @@ describe('Explore', () => {
                     cy.get('button').contains('Run query').click();
 
                     // wait for the chart to finish loading
-                    cy.findByText('Loading chart').should('not.exist');
+                    cy.findByText('Loading results').should('not.exist');
+                    cy.findByTestId('Charts-card-expand').click();
+                    cy.contains('Loading chart').should('not.exist');
 
                     // open chart menu and change chart type to Table
                     cy.get('button').contains('Configure').click();
