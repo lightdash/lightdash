@@ -95,14 +95,6 @@ const SnowflakeForm: FC<{
                     {...register('warehouse.password')}
                     disabled={disabled}
                 />
-                {isPassthroughLoginFeatureEnabled && (
-                    <BooleanSwitch
-                        name="warehouse.requireUserCredentials"
-                        label="Require users to provide their own credentials"
-                        defaultValue={false}
-                        disabled={disabled}
-                    />
-                )}
                 <TextInput
                     label="Role"
                     description="This is the role to assume when running queries as the specified user."
@@ -140,6 +132,14 @@ const SnowflakeForm: FC<{
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
+                        {isPassthroughLoginFeatureEnabled && (
+                            <BooleanSwitch
+                                name="warehouse.requireUserCredentials"
+                                label="Require users to provide their own credentials"
+                                defaultValue={false}
+                                disabled={disabled}
+                            />
+                        )}
                         <Controller
                             name="warehouse.clientSessionKeepAlive"
                             render={({ field }) => (

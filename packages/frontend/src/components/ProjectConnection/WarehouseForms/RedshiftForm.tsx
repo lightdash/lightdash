@@ -119,14 +119,6 @@ const RedshiftForm: FC<{
                     {...register('warehouse.password')}
                     disabled={disabled}
                 />
-                {isPassthroughLoginFeatureEnabled && (
-                    <BooleanSwitch
-                        name="warehouse.requireUserCredentials"
-                        label="Require users to provide their own credentials"
-                        defaultValue={false}
-                        disabled={disabled}
-                    />
-                )}
                 <TextInput
                     label="DB name"
                     description="This is the database name."
@@ -140,6 +132,14 @@ const RedshiftForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
+                        {isPassthroughLoginFeatureEnabled && (
+                            <BooleanSwitch
+                                name="warehouse.requireUserCredentials"
+                                label="Require users to provide their own credentials"
+                                defaultValue={false}
+                                disabled={disabled}
+                            />
+                        )}
                         <Controller
                             name="warehouse.port"
                             defaultValue={5439}
