@@ -1,10 +1,16 @@
-import fetchMock from 'jest-fetch-mock';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import createFetchMock from 'vitest-fetch-mock';
 import { lightdashApi } from './api';
+
+const fetchMocker = createFetchMock(vi);
+
+fetchMocker.enableMocks();
 
 describe('api', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
-        fetchMock.mockResponse(async () => ({
+        vi.resetAllMocks();
+        fetchMocker.doMock();
+        fetchMocker.mockResponse(async () => ({
             body: JSON.stringify({
                 status: 'ok',
                 results: 'test',
@@ -20,8 +26,8 @@ describe('api', () => {
             headers: undefined,
         });
         expect(result).toEqual('test');
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(fetchMock).toHaveBeenCalledWith('/api/v1/test', {
+        expect(fetchMocker).toHaveBeenCalledTimes(1);
+        expect(fetchMocker).toHaveBeenCalledWith('/api/v1/test', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -40,8 +46,8 @@ describe('api', () => {
                 'Lightdash-Request-Method': 'TEST',
             },
         });
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(fetchMock).toHaveBeenCalledWith('/api/v1/test', {
+        expect(fetchMocker).toHaveBeenCalledTimes(1);
+        expect(fetchMocker).toHaveBeenCalledWith('/api/v1/test', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
