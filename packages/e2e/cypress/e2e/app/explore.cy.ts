@@ -50,7 +50,7 @@ describe('Explore', () => {
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
-        cy.findByTestId('Charts-card-expand').click();
+        cy.get('[data-testid="Charts-card-expand"]').click();
 
         cy.findByText('Save chart').click();
         cy.findByTestId('ChartCreateModal/NameInput').type('My chart');
@@ -88,7 +88,7 @@ describe('Explore', () => {
         // check that selected fields are in the table headers
         cy.get('th').contains('Customers First name').should('exist');
         cy.get('th').contains('Orders Unique order count').should('exist');
-        cy.findByTestId('Charts-card-expand').click();
+        cy.get('[data-testid="Charts-card-expand"]').click();
 
         // run query
         cy.get('button').contains('Run query').click();
@@ -135,7 +135,7 @@ describe('Explore', () => {
         cy.findByText('Customers').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
-        cy.findByTestId('Charts-card-expand').click();
+        cy.get('[data-testid="Charts-card-expand"]').click();
 
         // run query
         cy.get('button').contains('Run query').click();
@@ -206,9 +206,7 @@ describe('Explore', () => {
                     cy.findByText('Customers').click();
                     cy.findByText('First name').click();
                     cy.findByText('Unique order count').click();
-                    cy.findByTestId('Charts-card-expand').click({
-                        force: true,
-                    });
+                    cy.get('[data-testid="Charts-card-expand"]').click();
 
                     // run query
                     cy.get('button').contains('Run query').click();
@@ -251,7 +249,7 @@ describe('Explore', () => {
                     cy.findByText('Customers').click();
                     cy.findByText('First name').click();
                     cy.findByText('Unique order count').click();
-                    cy.findByTestId('Charts-card-expand').click();
+                    cy.get('[data-testid="Charts-card-expand"]').click();
 
                     // run query
                     cy.get('button').contains('Run query').click();
