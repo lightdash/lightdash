@@ -1,3 +1,10 @@
+## [0.965.3](https://github.com/lightdash/lightdash/compare/0.965.2...0.965.3) (2024-01-26)
+
+
+### Bug Fixes
+
+* timezone raw results ([#8733](https://github.com/lightdash/lightdash/issues/8733)) ([80f46f1](https://github.com/lightdash/lightdash/commit/80f46f157835275db06dc025690acbcd508ae643))
+
 ## [0.965.2](https://github.com/lightdash/lightdash/compare/0.965.1...0.965.2) (2024-01-26)
 
 
