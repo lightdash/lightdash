@@ -1,3 +1,10 @@
+# [0.965.0](https://github.com/lightdash/lightdash/compare/0.964.0...0.965.0) (2024-01-26)
+
+
+### Features
+
+* allow project to require users credentials ([#8723](https://github.com/lightdash/lightdash/issues/8723)) ([045d699](https://github.com/lightdash/lightdash/commit/045d69941d2c69d9e4107635f1de656738d5841b))
+
 # [0.964.0](https://github.com/lightdash/lightdash/compare/0.963.1...0.964.0) (2024-01-26)
 
 
