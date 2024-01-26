@@ -7,7 +7,7 @@
         "build": "tsc --project tsconfig.build.json && NODE_OPTIONS=--max-old-space-size=8192 vite build",
         "serve": "vite preview",
         "test": "vitest run",
-        "test:watch": "vitest dev",
+        "test-watch": "vitest dev",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "yarn run linter ./src",
