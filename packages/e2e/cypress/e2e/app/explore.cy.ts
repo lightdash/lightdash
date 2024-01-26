@@ -88,6 +88,7 @@ describe('Explore', () => {
         // check that selected fields are in the table headers
         cy.get('th').contains('Customers First name').should('exist');
         cy.get('th').contains('Orders Unique order count').should('exist');
+        cy.findByTestId('Charts-card-expand').click();
 
         // run query
         cy.get('button').contains('Run query').click();
@@ -97,7 +98,6 @@ describe('Explore', () => {
         // wait for the chart to finish loading
         cy.findAllByText('Loading results').should('have.length', 0); // Finish loading
 
-        cy.findByTestId('Charts-card-expand').click();
         cy.contains('Loading chart').should('not.exist');
 
         // open chart menu and change chart types
@@ -135,14 +135,13 @@ describe('Explore', () => {
         cy.findByText('Customers').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
+        cy.findByTestId('Charts-card-expand').click();
 
         // run query
         cy.get('button').contains('Run query').click();
 
         cy.get('g').children('text').should('have.length.lessThan', 30); // without labels
         cy.findAllByText('Loading results').should('have.length', 0); // Finish loading
-
-        cy.findByTestId('Charts-card-expand').click();
 
         cy.findByText('Configure').click();
         cy.findByText('Series').click();
@@ -207,13 +206,15 @@ describe('Explore', () => {
                     cy.findByText('Customers').click();
                     cy.findByText('First name').click();
                     cy.findByText('Unique order count').click();
+                    cy.findByTestId('Charts-card-expand').click({
+                        force: true,
+                    });
 
                     // run query
                     cy.get('button').contains('Run query').click();
 
                     // wait for the chart to finish loading
                     cy.findByText('Loading results').should('not.exist');
-                    cy.findByTestId('Charts-card-expand').click();
                     cy.contains('Loading chart').should('not.exist');
 
                     // open chart menu and change chart type to Table
@@ -250,13 +251,13 @@ describe('Explore', () => {
                     cy.findByText('Customers').click();
                     cy.findByText('First name').click();
                     cy.findByText('Unique order count').click();
+                    cy.findByTestId('Charts-card-expand').click();
 
                     // run query
                     cy.get('button').contains('Run query').click();
 
                     // wait for the chart to finish loading
                     cy.findByText('Loading results').should('not.exist');
-                    cy.findByTestId('Charts-card-expand').click();
                     cy.contains('Loading chart').should('not.exist');
 
                     // open chart menu and change chart type to Table
