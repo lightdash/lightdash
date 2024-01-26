@@ -855,7 +855,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatItemValue(axisItem, value.value, false);
+                        return formatItemValue(axisItem, value.value, true);
                     },
                 },
             };
@@ -866,7 +866,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatItemValue(axisItem, value.value, false);
+                        return formatItemValue(axisItem, value.value, true);
                     },
                 },
             };
@@ -1569,22 +1569,6 @@ const useEchartsCartesianConfig = (
                         );
 
                         return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
-                    }
-                    if (
-                        isDimension(field) &&
-                        (field.type === DimensionType.DATE ||
-                            field.type === DimensionType.TIMESTAMP)
-                    ) {
-                        const date = (params[0].data as Record<string, any>)[
-                            dimensionId
-                        ]; // get full timestamp from data
-                        const dateFormatted = getFormattedValue(
-                            date,
-                            dimensionId,
-                            itemsMap,
-                            false,
-                        );
-                        return `${dateFormatted}<br/><table>${tooltipRows}</table>`;
                     }
 
                     const hasFormat = isField(field)

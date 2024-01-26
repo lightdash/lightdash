@@ -1,3 +1,4 @@
+import moment from 'moment';
 import { z } from 'zod';
 import { UserActivity, ViewStatistics } from './types/analytics';
 import {
@@ -92,11 +93,12 @@ import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { TableBase } from './types/table';
+import { TimeFrames } from './types/timeFrames';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
 import { ValidationResponse } from './types/validation';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
-import { formatItemValue } from './utils/formatting';
+import { formatItemValue, formatTimestamp } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 
 export * from './authorization/index';
@@ -849,6 +851,22 @@ export function itemsInMetricQuery(
           ];
 }
 
+function formatRawValue(
+    field: Field | Metric | TableCalculation | CustomDimension,
+    value: any,
+) {
+    const isTimestamp =
+        isField(field) &&
+        (field.type === DimensionType.DATE ||
+            field.type === DimensionType.TIMESTAMP);
+
+    if (isTimestamp) {
+        // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
+        return moment(value).utc(true).format();
+    }
+    return value;
+}
+
 export function formatRows(
     rows: { [col: string]: any }[],
     itemsMap: ItemsMap,
@@ -862,7 +880,7 @@ export function formatRows(
                 ...acc,
                 [columnName]: {
                     value: {
-                        raw: col,
+                        raw: formatRawValue(item, col),
                         formatted: formatItemValue(item, col),
                     },
                 },
