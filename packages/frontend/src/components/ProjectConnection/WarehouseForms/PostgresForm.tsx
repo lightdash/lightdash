@@ -12,6 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, { FC } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { useToggle } from 'react-use';
@@ -72,7 +73,8 @@ const PostgresForm: FC<{
             setValue('warehouse.sshTunnelPublicKey', data.publicKey);
         },
     });
-
+    const isPassthroughLoginFeatureEnabled =
+        useFeatureFlagEnabled('passthrough-login');
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -129,6 +131,14 @@ const PostgresForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
+                        {isPassthroughLoginFeatureEnabled && (
+                            <BooleanSwitch
+                                name="warehouse.requireUserCredentials"
+                                label="Require users to provide their own credentials"
+                                defaultValue={false}
+                                disabled={disabled}
+                            />
+                        )}
                         <Controller
                             name="warehouse.port"
                             defaultValue={5432}
