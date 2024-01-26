@@ -3,6 +3,7 @@ import {
     ApiErrorPayload,
     ApiExploreResults,
     ApiExploresResults,
+    ApiSuccessEmpty,
     Explore,
     ExploreError,
     MetricQuery,
@@ -47,12 +48,13 @@ export class ExploreController extends Controller {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body() body: (Explore | ExploreError)[],
-    ): Promise<{ status: 'ok' }> {
+    ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await projectService.setExplores(req.user!, projectUuid, body);
 
         return {
             status: 'ok',
+            results: undefined,
         };
     }
 
