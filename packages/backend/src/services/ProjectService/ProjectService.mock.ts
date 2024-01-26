@@ -29,6 +29,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     WarehouseClient,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
@@ -248,6 +249,8 @@ export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',
     name: 'name',
     type: ProjectType.DEFAULT,
+    warehouseType: WarehouseTypes.POSTGRES,
+    requireUserCredentials: false,
 };
 
 export const spacesWithSavedCharts: Space[] = [

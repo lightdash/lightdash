@@ -25,8 +25,10 @@ export type UserWarehouseCredentials = {
         | Pick<CreateDatabricksCredentials, 'type'>;
 };
 
-export type UpsertUserWarehouseCredentials = {
-    name: string;
+export type UserWarehouseCredentialsWithSecrets = Pick<
+    UserWarehouseCredentials,
+    'uuid'
+> & {
     credentials:
         | Pick<CreateRedshiftCredentials, 'type' | 'user' | 'password'>
         | Pick<CreatePostgresCredentials, 'type' | 'user' | 'password'>
@@ -34,4 +36,9 @@ export type UpsertUserWarehouseCredentials = {
         | Pick<CreateTrinoCredentials, 'type' | 'user' | 'password'>
         | Pick<CreateBigqueryCredentials, 'type' | 'keyfileContents'>
         | Pick<CreateDatabricksCredentials, 'type' | 'personalAccessToken'>;
+};
+
+export type UpsertUserWarehouseCredentials = {
+    name: string;
+    credentials: UserWarehouseCredentialsWithSecrets['credentials'];
 };

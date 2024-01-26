@@ -25,3 +25,13 @@ type Update = Pick<
     DbUserWarehouseCredentials,
     'name' | 'warehouse_type' | 'encrypted_credentials' | 'updated_at'
 >;
+
+export type DbProjectUserWarehouseCredentialPreference = {
+    user_uuid: string;
+    project_uuid: string;
+    user_warehouse_credentials_uuid: string;
+};
+export const ProjectUserWarehouseCredentialPreferenceTableName =
+    'project_user_warehouse_credentials_preference';
+export type ProjectUserWarehouseCredentialPreferenceTable =
+    Knex.CompositeTableType<DbProjectUserWarehouseCredentialPreference>;

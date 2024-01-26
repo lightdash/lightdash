@@ -168,6 +168,8 @@ import {
     UserAttributesTable,
 } from '../database/entities/userAttributes';
 import {
+    ProjectUserWarehouseCredentialPreferenceTable,
+    ProjectUserWarehouseCredentialPreferenceTableName,
     UserWarehouseCredentialsTable,
     UserWarehouseCredentialsTableName,
 } from '../database/entities/userWarehouseCredentials';
@@ -185,6 +187,7 @@ declare module 'knex/types/tables' {
         [SessionTableName]: SessionTable;
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [UserWarehouseCredentialsTableName]: UserWarehouseCredentialsTable;
+        [ProjectUserWarehouseCredentialPreferenceTableName]: ProjectUserWarehouseCredentialPreferenceTable;
         [ProjectTableName]: ProjectTable;
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;

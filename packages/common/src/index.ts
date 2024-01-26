@@ -95,6 +95,7 @@ import { Space } from './types/space';
 import { ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { TableBase } from './types/table';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
+import { UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { ValidationResponse } from './types/validation';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
@@ -569,6 +570,7 @@ type ApiResults =
     | ValidationResponse[]
     | ChartHistory
     | ChartVersion
+    | UserWarehouseCredentials
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results']
