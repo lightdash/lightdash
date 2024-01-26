@@ -1,3 +1,10 @@
+## [0.965.1](https://github.com/lightdash/lightdash/compare/0.965.0...0.965.1) (2024-01-26)
+
+
+### Bug Fixes
+
+* onboarding enabled domain access for email providers ([#8734](https://github.com/lightdash/lightdash/issues/8734)) ([8ebaa6a](https://github.com/lightdash/lightdash/commit/8ebaa6ab6343498dcdc7e41a5ac7b95bf6e294ce))
+
 # [0.965.0](https://github.com/lightdash/lightdash/compare/0.964.0...0.965.0) (2024-01-26)
 
 
