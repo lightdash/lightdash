@@ -1,3 +1,10 @@
+# [0.964.0](https://github.com/lightdash/lightdash/compare/0.963.1...0.964.0) (2024-01-26)
+
+
+### Features
+
+* limit axis range 2 ([#8715](https://github.com/lightdash/lightdash/issues/8715)) ([a0a8a94](https://github.com/lightdash/lightdash/commit/a0a8a94a5ecf8517ae40ff73883e03225253fbcf)), closes [#8261](https://github.com/lightdash/lightdash/issues/8261) [#8291](https://github.com/lightdash/lightdash/issues/8291)
+
 ## [0.963.1](https://github.com/lightdash/lightdash/compare/0.963.0...0.963.1) (2024-01-25)
 
 
