@@ -21,7 +21,6 @@ import {
     Collapse,
     ColorInput,
     Group,
-    NumberInput,
     Select,
     SimpleGrid,
     Stack,
@@ -38,6 +37,7 @@ import {
 import produce from 'immer';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import FieldSelect from '../../common/FieldSelect';
+import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
@@ -391,9 +391,10 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     }
                                 />
 
-                                <NumberInput
+                                {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
+                                {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
+                                <FilterNumberInput
                                     label="Min value"
-                                    value={config.rule.min}
                                     icon={
                                         hasPercentageFormat(field) ? (
                                             <MantineIcon
@@ -401,8 +402,10 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                             />
                                         ) : null
                                     }
+                                    size="sm"
+                                    value={config.rule.min}
                                     onChange={(newMin) => {
-                                        if (newMin === '') return;
+                                        if (newMin === null) return;
 
                                         handleChangeColorRangeRule({
                                             min: newMin,
@@ -410,7 +413,9 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     }}
                                 />
 
-                                <NumberInput
+                                {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
+                                {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
+                                <FilterNumberInput
                                     label="Max value"
                                     icon={
                                         hasPercentageFormat(field) ? (
@@ -419,9 +424,10 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                             />
                                         ) : null
                                     }
+                                    size="sm"
                                     value={config.rule.max}
                                     onChange={(newMax) => {
-                                        if (newMax === '') return;
+                                        if (newMax === null) return;
 
                                         handleChangeColorRangeRule({
                                             max: newMax,

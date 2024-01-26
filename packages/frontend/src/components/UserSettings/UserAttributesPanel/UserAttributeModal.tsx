@@ -14,7 +14,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconTrash, IconUserPlus, IconUsersPlus } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useEffect, useState } from 'react';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
@@ -22,6 +21,7 @@ import {
     useCreateUserAtributesMutation,
     useUpdateUserAtributesMutation,
 } from '../../../hooks/useUserAttributes';
+import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
 const UserAttributeModal: FC<{
@@ -30,8 +30,8 @@ const UserAttributeModal: FC<{
     allUserAttributes: UserAttribute[];
     onClose: () => void;
 }> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
-    const isGroupsFeatureFlagEnabled =
-        useFeatureFlagEnabled('group-management');
+    const { health } = useApp();
+
     const form = useForm<CreateUserAttribute>({
         initialValues: {
             name: userAttribute?.name || '',
@@ -124,8 +124,12 @@ const UserAttributeModal: FC<{
 
     const { data: orgUsers } = useOrganizationUsers();
     const { data: groups } = useOrganizationGroups(undefined, {
-        enabled: !!isGroupsFeatureFlagEnabled,
+        enabled: !!health.data?.hasGroups,
     });
+
+    if (!health.data) return null;
+
+    const isGroupManagementEnabled = health.data.hasGroups;
 
     return (
         <Modal
@@ -279,7 +283,7 @@ const UserAttributeModal: FC<{
                             </Button>
                         </Stack>
 
-                        {isGroupsFeatureFlagEnabled && (
+                        {isGroupManagementEnabled && (
                             <Stack spacing="xs">
                                 <Text fw={500}>Assign to groups</Text>
                                 {!form.isValid('groups') && (

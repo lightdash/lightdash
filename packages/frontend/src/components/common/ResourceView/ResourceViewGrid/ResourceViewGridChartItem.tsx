@@ -20,11 +20,13 @@ import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
 interface ResourceViewGridChartItemProps
     extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
     item: ResourceViewChartItem;
+    allowDelete?: boolean;
     dragIcon: ReactNode;
 }
 
 const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
     item,
+    allowDelete,
     onAction,
     dragIcon,
 }) => {
@@ -100,6 +102,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     <ResourceViewActionMenu
                         item={item}
                         isOpen={opened}
+                        allowDelete={allowDelete}
                         onOpen={handlers.open}
                         onClose={handlers.close}
                         onAction={onAction}

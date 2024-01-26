@@ -44,6 +44,7 @@ export const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({
             if (!job || isJobsDrawerOpen) return;
 
             const toastTitle = jobStatusLabel(job?.jobStatus);
+
             switch (job.jobStatus) {
                 case 'DONE':
                     if (job.jobType === JobType.CREATE_PROJECT) {

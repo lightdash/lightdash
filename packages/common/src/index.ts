@@ -670,6 +670,7 @@ export type HealthState = {
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;
     hasDbtSemanticLayer: boolean;
+    hasGroups: boolean;
 };
 
 export enum DBFieldTypes {

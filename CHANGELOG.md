@@ -1,3 +1,71 @@
+# [0.964.0](https://github.com/lightdash/lightdash/compare/0.963.1...0.964.0) (2024-01-26)
+
+
+### Features
+
+* limit axis range 2 ([#8715](https://github.com/lightdash/lightdash/issues/8715)) ([a0a8a94](https://github.com/lightdash/lightdash/commit/a0a8a94a5ecf8517ae40ff73883e03225253fbcf)), closes [#8261](https://github.com/lightdash/lightdash/issues/8261) [#8291](https://github.com/lightdash/lightdash/issues/8291)
+
+## [0.963.1](https://github.com/lightdash/lightdash/compare/0.963.0...0.963.1) (2024-01-25)
+
+
+### Bug Fixes
+
+* check correctly if can apply formatting ([#8726](https://github.com/lightdash/lightdash/issues/8726)) ([58c4582](https://github.com/lightdash/lightdash/commit/58c4582497b53ed1147b9dc80420f81d9e4ea751))
+
+# [0.963.0](https://github.com/lightdash/lightdash/compare/0.962.0...0.963.0) (2024-01-25)
+
+
+### Features
+
+* enable groups env variable ([#8704](https://github.com/lightdash/lightdash/issues/8704)) ([fd0847e](https://github.com/lightdash/lightdash/commit/fd0847e6fceb18e5f3eaec7a4ccefee8387e4252))
+
+# [0.962.0](https://github.com/lightdash/lightdash/compare/0.961.1...0.962.0) (2024-01-25)
+
+
+### Features
+
+* allow lightdash generate to target dbt_packages ([#8647](https://github.com/lightdash/lightdash/issues/8647)) ([e215d0c](https://github.com/lightdash/lightdash/commit/e215d0c818c400954a1883c8f52a744d24b78371))
+
+## [0.961.1](https://github.com/lightdash/lightdash/compare/0.961.0...0.961.1) (2024-01-25)
+
+
+### Bug Fixes
+
+* conditional formatting range with decimal numbers ([#8722](https://github.com/lightdash/lightdash/issues/8722)) ([4eed27b](https://github.com/lightdash/lightdash/commit/4eed27b442044aa95fa459231efc4cb15637314e))
+
+# [0.961.0](https://github.com/lightdash/lightdash/compare/0.960.1...0.961.0) (2024-01-25)
+
+
+### Features
+
+* add formatting inputs to custom metric accordion ([#8719](https://github.com/lightdash/lightdash/issues/8719)) ([b22e069](https://github.com/lightdash/lightdash/commit/b22e069f7b6a842534c9f4dd88cc104f861ef03e))
+
+## [0.960.1](https://github.com/lightdash/lightdash/compare/0.960.0...0.960.1) (2024-01-24)
+
+
+### Bug Fixes
+
+* datepicker different timezone ([#8705](https://github.com/lightdash/lightdash/issues/8705)) ([6dd62e8](https://github.com/lightdash/lightdash/commit/6dd62e813a738014807a8bdd9da49931223af9e5))
+
+# [0.960.0](https://github.com/lightdash/lightdash/compare/0.959.0...0.960.0) (2024-01-24)
+
+
+### Features
+
+* remove delete space from space list ([#8669](https://github.com/lightdash/lightdash/issues/8669)) ([298f357](https://github.com/lightdash/lightdash/commit/298f3573f8a767f2177c1a0005890ab5a0d65b97))
+
+# [0.959.0](https://github.com/lightdash/lightdash/compare/0.958.3...0.959.0) (2024-01-24)
+
+
+### Bug Fixes
+
+* **cli:** support dbt vars in generate command ([#8640](https://github.com/lightdash/lightdash/issues/8640)) ([509d4e1](https://github.com/lightdash/lightdash/commit/509d4e1f41e9f34e76d6f9f5138b5650bf9ea175))
+
+
+### Features
+
+* Include multiple values in metric filter ([#8693](https://github.com/lightdash/lightdash/issues/8693)) ([88d0b67](https://github.com/lightdash/lightdash/commit/88d0b671e78c6ea4ec70bfce9daf2bc7da962f41))
+
 ## [0.958.3](https://github.com/lightdash/lightdash/compare/0.958.2...0.958.3) (2024-01-24)
 
 

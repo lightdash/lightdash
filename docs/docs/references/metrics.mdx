@@ -617,6 +617,27 @@ columns:
 | is null                     | Status is `NULL`                               | `status: "null"`         |
 | is not null                 | Status is not `NULL`                           | `status: "!null"`     |
 
+:::info
+
+To filter a field by a set of given values you can supply them as an array for that field. For example,
+if you wanted to filter for orders with order status `completed` or `shipped` you should write the metric like:
+
+
+```yaml
+columns:
+  - name: order_id
+    meta:
+      metrics:
+        completed_or_shipped_order_count:
+          type: count_distinct
+          filters:
+            - order_status:
+                - completed
+                - shipped
+```
+
+:::
+
 ### If you have many filters in your list, they will be joined using `AND`.
 
 For example:

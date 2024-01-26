@@ -86,6 +86,7 @@ const Home: FC = () => {
                             organizationUuid={project.data.organizationUuid}
                             projectUuid={project.data.projectUuid}
                             pinnedListUuid={project.data.pinnedListUuid || ''}
+                            allowDelete={false}
                         >
                             <PinnedItemsPanel
                                 pinnedItems={pinnedItems.data ?? []}

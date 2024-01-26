@@ -273,7 +273,6 @@ describe('Date tests', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
         cy.findByTestId('page-spinner').should('not.exist');
-        cy.get('[data-testid=Charts-card-expand]').click(); // Close chart
         cy.contains('No data available').should('be.visible');
         cy.contains('Pick a metric & select its dimensions').should(
             'be.visible',

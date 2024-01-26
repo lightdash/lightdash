@@ -2,6 +2,7 @@ import { Explore } from '../types/explore';
 import {
     CompiledDimension,
     CustomDimension,
+    Dimension,
     DimensionType,
     Field,
     fieldId,
@@ -18,6 +19,22 @@ import {
     isCustomDimension,
 } from '../types/metricQuery';
 
+export const isNumericType = (type: DimensionType | MetricType) => {
+    const numericTypes = [
+        DimensionType.NUMBER,
+        MetricType.NUMBER,
+        MetricType.PERCENTILE,
+        MetricType.MEDIAN,
+        MetricType.AVERAGE,
+        MetricType.COUNT,
+        MetricType.COUNT_DISTINCT,
+        MetricType.SUM,
+        MetricType.MIN,
+        MetricType.MAX,
+    ];
+    return numericTypes.includes(type);
+};
+
 export const isNumericItem = (
     item:
         | Field
@@ -25,25 +42,13 @@ export const isNumericItem = (
         | TableCalculation
         | CustomDimension
         | undefined,
-): boolean => {
+) => {
     if (!item) {
         return false;
     }
     if (isCustomDimension(item)) return false;
     if (isField(item) || isAdditionalMetric(item)) {
-        const numericTypes: string[] = [
-            DimensionType.NUMBER,
-            MetricType.NUMBER,
-            MetricType.PERCENTILE,
-            MetricType.MEDIAN,
-            MetricType.AVERAGE,
-            MetricType.COUNT,
-            MetricType.COUNT_DISTINCT,
-            MetricType.SUM,
-            MetricType.MIN,
-            MetricType.MAX,
-        ];
-        return numericTypes.includes(item.type);
+        return isNumericType(item.type as DimensionType | MetricType);
     }
     return true;
 };
@@ -132,3 +137,10 @@ export const replaceDimensionInExplore = (
         },
     },
 });
+
+export const canApplyFormattingToCustomMetric = (
+    item: Dimension,
+    customMetricType: MetricType,
+) =>
+    isNumericItem(item) ||
+    [MetricType.COUNT_DISTINCT, MetricType.COUNT].includes(customMetricType);

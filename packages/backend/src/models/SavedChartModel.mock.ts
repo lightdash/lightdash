@@ -123,6 +123,9 @@ export const lightdashConfigMock: LightdashConfig = {
         cacheStateTimeSeconds: 86400,
         s3: {},
     },
+    groups: {
+        enabled: false,
+    },
 };
 
 type VersionSummaryRow = {

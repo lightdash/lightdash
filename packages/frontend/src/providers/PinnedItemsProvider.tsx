@@ -13,6 +13,7 @@ type PinnedItemsContext = {
         PinnedItems,
         unknown
     >;
+    allowDelete: boolean;
 };
 
 const Context = createContext<PinnedItemsContext | null>(null);
@@ -21,11 +22,18 @@ type PinnedItemsProviderProps = {
     projectUuid: string;
     pinnedListUuid: string;
     organizationUuid: string;
+    allowDelete?: boolean;
 };
 
 export const PinnedItemsProvider: React.FC<
     React.PropsWithChildren<PinnedItemsProviderProps>
-> = ({ organizationUuid, projectUuid, pinnedListUuid, children }) => {
+> = ({
+    organizationUuid,
+    projectUuid,
+    pinnedListUuid,
+    allowDelete,
+    children,
+}) => {
     const { user } = useApp();
     const userCanManage =
         user.data?.ability.can(
@@ -38,6 +46,7 @@ export const PinnedItemsProvider: React.FC<
     const value: PinnedItemsContext = {
         userCanManage,
         reorderItems,
+        allowDelete: allowDelete ?? true,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
