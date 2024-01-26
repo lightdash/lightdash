@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     useMutation,
+    UseMutationOptions,
     useQuery,
     useQueryClient,
     UseQueryOptions,
@@ -32,36 +33,42 @@ export const useUserWarehouseCredentials = (
 const createUserWarehouseCredentials = async (
     data: UpsertUserWarehouseCredentials,
 ) =>
-    lightdashApi<null>({
+    lightdashApi<UserWarehouseCredentials>({
         url: `/user/warehouseCredentials`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
-export const useUserWarehouseCredentialsCreateMutation = () => {
+export const useUserWarehouseCredentialsCreateMutation = (
+    useMutationOptions?: UseMutationOptions<
+        UserWarehouseCredentials,
+        ApiError,
+        UpsertUserWarehouseCredentials
+    >,
+) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<null, ApiError, UpsertUserWarehouseCredentials>(
-        (data) => createUserWarehouseCredentials(data),
-        {
-            mutationKey: ['create_user_warehouse_credentials'],
-            onSuccess: async (_) => {
-                await queryClient.invalidateQueries([
-                    'user_warehouse_credentials',
-                ]);
+    return useMutation<
+        UserWarehouseCredentials,
+        ApiError,
+        UpsertUserWarehouseCredentials
+    >((data) => createUserWarehouseCredentials(data), {
+        mutationKey: ['create_user_warehouse_credentials'],
+        onSuccess: async (data, payload) => {
+            await queryClient.invalidateQueries(['user_warehouse_credentials']);
 
-                showToastSuccess({
-                    title: `Success! Warehouse connection was created.`,
-                });
-            },
-            onError: (error) => {
-                showToastError({
-                    title: `Failed to create warehouse connection`,
-                    subtitle: error.error.message,
-                });
-            },
+            showToastSuccess({
+                title: `Success! Warehouse connection was created.`,
+            });
+            useMutationOptions?.onSuccess?.(data, payload, undefined);
         },
-    );
+        onError: (error) => {
+            showToastError({
+                title: `Failed to create warehouse connection`,
+                subtitle: error.error.message,
+            });
+        },
+    });
 };
 
 const updateUserWarehouseCredentials = async (

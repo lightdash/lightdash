@@ -28,6 +28,7 @@ import HelpMenu from './HelpMenu';
 import { NotificationsMenu } from './NotificationsMenu';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
+import UserCredentialsSwitcher from './UserCredentialsSwitcher';
 import UserMenu from './UserMenu';
 
 export const NAVBAR_HEIGHT = 50;
@@ -212,7 +213,7 @@ const NavBar = memo(() => {
                     <Divider orientation="vertical" my="xs" color="gray.8" />
 
                     <ProjectSwitcher />
-
+                    <UserCredentialsSwitcher />
                     <UserMenu />
                 </Group>
             </Header>
