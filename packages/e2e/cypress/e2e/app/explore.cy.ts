@@ -75,12 +75,11 @@ describe('Explore', () => {
     });
 
     it('Should change chart config type', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
         cy.findByTestId('page-spinner').should('not.exist');
 
         // choose table and select fields
-        cy.findByText('Orders').click();
         cy.findByText('Customers').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
