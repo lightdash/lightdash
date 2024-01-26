@@ -96,6 +96,9 @@ describe('Explore', () => {
 
         // wait for the chart to finish loading
         cy.contains('Loading chart').should('not.exist');
+        cy.findAllByText('Loading results').should('have.length', 0); // Finish loading
+
+        cy.findByTestId('Charts-card-expand').click();
 
         // open chart menu and change chart types
         cy.findByText('Configure').click();
