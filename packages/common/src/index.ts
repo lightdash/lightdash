@@ -93,12 +93,11 @@ import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { TableBase } from './types/table';
-import { TimeFrames } from './types/timeFrames';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
 import { ValidationResponse } from './types/validation';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
-import { formatItemValue, formatTimestamp } from './utils/formatting';
+import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 
 export * from './authorization/index';
