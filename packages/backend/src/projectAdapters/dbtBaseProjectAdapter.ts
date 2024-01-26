@@ -176,12 +176,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         }
     }
 
-    public async runQuery(sql: string) {
-        Logger.debug(`Run query against warehouse`);
-        // Possible error if query is ran before dependencies are installed
-        return this.warehouseClient.runQuery(sql);
-    }
-
     static _validateDbtMetrics(
         version: DbtManifestVersion,
         metrics: DbtMetric[],

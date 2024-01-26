@@ -80,6 +80,7 @@ import {
     TableCalculationFormatType,
     TablesConfiguration,
     TableSelectionType,
+    UnexpectedServerError,
     UpdateProject,
     UpdateProjectMember,
     UserAttributeValueMap,
@@ -111,6 +112,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { postHogClient } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
@@ -148,6 +150,7 @@ type ProjectServiceDependencies = {
     s3CacheClient: S3CacheClient;
     analyticsModel: AnalyticsModel;
     dashboardModel: DashboardModel;
+    userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 };
 
 export class ProjectService {
@@ -175,6 +178,8 @@ export class ProjectService {
 
     dashboardModel: DashboardModel;
 
+    userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -187,6 +192,7 @@ export class ProjectService {
         s3CacheClient,
         analyticsModel,
         dashboardModel,
+        userWarehouseCredentialsModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -200,6 +206,7 @@ export class ProjectService {
         this.s3CacheClient = s3CacheClient;
         this.analyticsModel = analyticsModel;
         this.dashboardModel = dashboardModel;
+        this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -223,18 +230,46 @@ export class ProjectService {
         return args;
     }
 
+    private async getWarehouseCredentials(
+        projectUuid: string,
+        userUuid: string,
+    ) {
+        let credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        if (credentials.requireUserCredentials) {
+            const userWarehouseCredentials =
+                await this.userWarehouseCredentialsModel.findForProject(
+                    userUuid,
+                    credentials.type,
+                );
+            if (userWarehouseCredentials === undefined) {
+                throw new NotFoundError('User warehouse credentials not found');
+            }
+
+            if (credentials.type === userWarehouseCredentials.type) {
+                credentials = {
+                    ...credentials,
+                    ...userWarehouseCredentials,
+                } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
+            } else {
+                throw new UnexpectedServerError(
+                    'User warehouse credentials are not compatible',
+                );
+            }
+        }
+        return credentials;
+    }
+
     private async _getWarehouseClient(
         projectUuid: string,
+        credentials: CreateWarehouseCredentials,
         snowflakeVirtualWarehouse?: string,
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
     }> {
-        // Always load the latest credentials from the database
-        const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
@@ -894,6 +929,7 @@ export class ProjectService {
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
         const userAttributes =
@@ -1546,6 +1582,10 @@ export class ProjectService {
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
                             projectUuid,
+                            await this.getWarehouseCredentials(
+                                projectUuid,
+                                user.userUuid,
+                            ),
                             explore.warehouse,
                         );
 
@@ -1694,6 +1734,7 @@ export class ProjectService {
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
         );
         Logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
@@ -1792,6 +1833,7 @@ export class ProjectService {
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
         const userAttributes =
@@ -3019,6 +3061,7 @@ export class ProjectService {
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
 
@@ -3051,6 +3094,7 @@ export class ProjectService {
     ) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
 

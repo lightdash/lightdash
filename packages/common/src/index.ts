@@ -1,4 +1,5 @@
-import moment from 'moment';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
 import { UserActivity, ViewStatistics } from './types/analytics';
 import {
@@ -99,6 +100,8 @@ import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
+
+dayjs.extend(utc);
 
 export * from './authorization/index';
 export * from './authorization/types';
@@ -861,7 +864,7 @@ function formatRawValue(
 
     if (isTimestamp) {
         // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
-        return moment(value).utc(true).format();
+        return dayjs(value).utc(true).format();
     }
     return value;
 }
