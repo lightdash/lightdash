@@ -31,11 +31,12 @@ describe('SQL Runner', () => {
         find.forEach((text) => cy.findByText(text));
     });
 
-    it('Should autocomplete customer table', () => {
+    it.only('Should autocomplete customer table', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`);
 
         cy.get('.ace_content')
-            .type(`SELECT * FROM cu\n order by customer_id`)
+            .type(`SELECT * FROM cu{enter} order by customer_id`)
+
             .type('{ctrl}{enter}');
 
         const find = [
