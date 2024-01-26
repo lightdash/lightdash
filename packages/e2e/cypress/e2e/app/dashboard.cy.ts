@@ -237,7 +237,7 @@ describe('Dashboard', () => {
         cy.findAllByText('Add tile').click();
         cy.findByText('Markdown').click();
         cy.findByLabelText('Title').type('Title');
-        cy.get('textarea').type('Content');
+        cy.get('.mantine-Modal-body').find('textarea').type('Content');
         cy.findByText('Add').click();
 
         cy.findByText('Save changes').click();

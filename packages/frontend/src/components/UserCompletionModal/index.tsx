@@ -17,7 +17,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import shuffle from 'lodash/shuffle';
-import { FC, useEffect } from 'react';
+import { FC, useEffect, useMemo } from 'react';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useApp } from '../../providers/AppProvider';
 
@@ -46,7 +46,7 @@ const UserCompletionModal: FC = () => {
         initialValues: {
             organizationName: '',
             jobTitle: '',
-            enableEmailDomainAccess: true,
+            enableEmailDomainAccess: false,
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
         },
@@ -70,13 +70,22 @@ const UserCompletionModal: FC = () => {
         setFieldValue('organizationName', user.data.organizationName);
     }, [setFieldValue, user.data]);
 
+    const isValidOrganizationDomain = useMemo(() => {
+        if (!user.data?.email) return false;
+
+        return !validateOrganizationEmailDomains([
+            getEmailDomain(user.data.email),
+        ]);
+    }, [user.data?.email]);
+
+    useEffect(() => {
+        if (!isValidOrganizationDomain) return;
+        setFieldValue('enableEmailDomainAccess', true);
+    }, [isValidOrganizationDomain, setFieldValue]);
+
     if (!user.data || user.data.isSetupComplete) {
         return null;
     }
-
-    const isValidOrganizationDomain = !validateOrganizationEmailDomains([
-        getEmailDomain(user.data?.email || ''),
-    ]);
 
     return (
         <>
@@ -136,6 +145,7 @@ const UserCompletionModal: FC = () => {
                                             )}
                                         />
                                     )}
+
                                 <Checkbox
                                     label="Keep me updated on new Lightdash features"
                                     disabled={isLoading}
@@ -146,6 +156,7 @@ const UserCompletionModal: FC = () => {
                                         },
                                     )}
                                 />
+
                                 {health.data?.mode !==
                                     LightdashMode.CLOUD_BETA && (
                                     <Checkbox

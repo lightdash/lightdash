@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.961.0",
+    "version": "0.965.3",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
@@ -16,6 +16,7 @@
         "ajv": "^8.3.0",
         "ajv-formats": "^2.1.0",
         "cronstrue": "^2.23.0",
+        "dayjs": "^1.11.9",
         "dependency-graph": "^0.11.0",
         "liquidjs": "^10.0.0",
         "moment": "^2.29.4",

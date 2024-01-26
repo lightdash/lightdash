@@ -38,6 +38,7 @@ services:
       - HEADLESS_BROWSER_PORT=3000
       - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
       - SCHEDULER_ENABLED=true
+      - GROUPS_ENABLED=${GROUPS_ENABLED:-false}
     volumes:
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
     ports:

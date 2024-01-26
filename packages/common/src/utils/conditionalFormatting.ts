@@ -222,7 +222,8 @@ export const getConditionalFormattingColor = (
     if (
         isConditionalFormattingConfigWithColorRange(conditionalFormattingConfig)
     ) {
-        const numericValue = typeof value === 'string' ? Number(value) : value;
+        const numericValue =
+            typeof value === 'string' ? parseFloat(value) : value;
         const convertedValue = convertFormattedValue(numericValue, field);
 
         if (typeof convertedValue !== 'number') return undefined;

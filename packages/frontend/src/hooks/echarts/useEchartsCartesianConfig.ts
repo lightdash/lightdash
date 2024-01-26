@@ -855,7 +855,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatItemValue(axisItem, value.value, false);
+                        return formatItemValue(axisItem, value.value, true);
                     },
                 },
             };
@@ -866,7 +866,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatItemValue(axisItem, value.value, false);
+                        return formatItemValue(axisItem, value.value, true);
                     },
                 },
             };
@@ -1015,7 +1015,6 @@ const getEchartAxes = ({
         validCartesianConfig.eChartsConfig.series,
         itemsMap,
     );
-
     return {
         xAxis: [
             {
@@ -1035,14 +1034,14 @@ const getEchartAxes = ({
                           ? getDateGroupLabel(xAxisItem) ||
                             getItemLabelWithoutTableName(xAxisItem)
                           : undefined),
-                min: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[0]?.min ||
-                      maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
-                    : referenceLineMinX,
-                max: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[0]?.max ||
-                      maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
-                    : referenceLineMaxX,
+                min:
+                    xAxisConfiguration?.[0]?.min ||
+                    referenceLineMinX ||
+                    maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange),
+                max:
+                    xAxisConfiguration?.[0]?.max ||
+                    referenceLineMaxX ||
+                    maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange),
                 nameLocation: 'center',
                 nameTextStyle: {
                     fontWeight: 'bold',
@@ -1075,14 +1074,12 @@ const getEchartAxes = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       })
                     : undefined,
-                min: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[1]?.min ||
-                      maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange)
-                    : undefined,
-                max: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[1]?.max ||
-                      maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange)
-                    : undefined,
+                min:
+                    xAxisConfiguration?.[1]?.min ||
+                    maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange),
+                max:
+                    xAxisConfiguration?.[1]?.max ||
+                    maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange),
                 nameLocation: 'center',
                 ...getAxisFormatter({
                     axisItem: topAxisXField,
@@ -1115,16 +1112,14 @@ const getEchartAxes = ({
                           itemsMap,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
-                min: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[0]?.min ||
-                      referenceLineMinLeftY ||
-                      maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
-                    : undefined,
-                max: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[0]?.max ||
-                      referenceLineMaxLeftY ||
-                      maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
-                    : undefined,
+                min:
+                    yAxisConfiguration?.[0]?.min ||
+                    referenceLineMinLeftY ||
+                    maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange),
+                max:
+                    yAxisConfiguration?.[0]?.max ||
+                    referenceLineMaxLeftY ||
+                    maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange),
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
@@ -1154,16 +1149,14 @@ const getEchartAxes = ({
                           itemsMap,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
-                min: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[1]?.min ||
-                      referenceLineMinRightY ||
-                      maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange)
-                    : undefined,
-                max: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[1]?.max ||
-                      referenceLineMaxRightY ||
-                      maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange)
-                    : undefined,
+                min:
+                    yAxisConfiguration?.[1]?.min ||
+                    referenceLineMinRightY ||
+                    maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange),
+                max:
+                    yAxisConfiguration?.[1]?.max ||
+                    referenceLineMaxRightY ||
+                    maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange),
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
@@ -1433,13 +1426,26 @@ const useEchartsCartesianConfig = (
                 : getResultValueArray(rows, true);
         try {
             if (!itemsMap) return results;
-
             const xFieldId = validCartesianConfig?.layout?.xField;
             if (xFieldId === undefined) return results;
+            const { min, max } = axes.xAxis[0];
+
+            const hasCustomRange = min !== undefined && max !== undefined;
+            const resultsInRange = hasCustomRange
+                ? results.filter((result) => {
+                      const value = result[xFieldId];
+                      if (!value) return true;
+
+                      const isGreaterThan = min === undefined || value > min;
+                      const isLessThan = max === undefined || value < max;
+
+                      return isGreaterThan && isLessThan;
+                  })
+                : results;
 
             const alreadySorted =
                 resultsData?.metricQuery.sorts?.[0]?.fieldId === xFieldId;
-            if (alreadySorted) return results;
+            if (alreadySorted) return resultsInRange;
 
             const xField = itemsMap[xFieldId];
             const hasTotal = validCartesianConfig?.eChartsConfig?.series?.some(
@@ -1448,10 +1454,10 @@ const useEchartsCartesianConfig = (
 
             // If there is a total, we don't sort the results because we need to keep the same order on results
             // This could still cause issues if there is a total on bar chart axis, the sorting is wrong and one of the axis is a line chart
-            if (hasTotal) return results;
+            if (hasTotal) return resultsInRange;
 
             if (isCustomDimension(xField)) {
-                return results.sort((a, b) => {
+                return resultsInRange.sort((a, b) => {
                     if (
                         typeof a[xFieldId] === 'string' &&
                         typeof b[xFieldId] === 'string'
@@ -1469,13 +1475,13 @@ const useEchartsCartesianConfig = (
             }
             if (
                 xField !== undefined &&
-                results.length >= 0 &&
+                resultsInRange.length >= 0 &&
                 isDimension(xField) &&
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                     xField.type,
                 )
             ) {
-                return results.sort((a, b) => {
+                return resultsInRange.sort((a, b) => {
                     if (
                         typeof a[xFieldId] === 'string' &&
                         typeof b[xFieldId] === 'string'
@@ -1488,7 +1494,7 @@ const useEchartsCartesianConfig = (
                 });
             }
 
-            return results;
+            return resultsInRange;
         } catch (e) {
             console.error('Unable to sort date results', e);
             return results;
@@ -1499,6 +1505,7 @@ const useEchartsCartesianConfig = (
         rows,
         itemsMap,
         resultsData?.metricQuery.sorts,
+        axes.xAxis,
     ]);
 
     const tooltip = useMemo<TooltipOption>(
@@ -1562,22 +1569,6 @@ const useEchartsCartesianConfig = (
                         );
 
                         return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
-                    }
-                    if (
-                        isDimension(field) &&
-                        (field.type === DimensionType.DATE ||
-                            field.type === DimensionType.TIMESTAMP)
-                    ) {
-                        const date = (params[0].data as Record<string, any>)[
-                            dimensionId
-                        ]; // get full timestamp from data
-                        const dateFormatted = getFormattedValue(
-                            date,
-                            dimensionId,
-                            itemsMap,
-                            false,
-                        );
-                        return `${dateFormatted}<br/><table>${tooltipRows}</table>`;
                     }
 
                     const hasFormat = isField(field)

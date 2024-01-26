@@ -1,10 +1,11 @@
 import {
+    canApplyFormattingToCustomMetric,
     CustomMetricFormat,
+    Dimension,
     fieldId as getFieldId,
     friendlyName,
     isAdditionalMetric,
     isDimension,
-    isNumericType,
     MetricType,
     NumberSeparator,
     // NOTE: The types are the same, but we can't derive enums from other enums
@@ -67,6 +68,22 @@ export const CustomMetricModal = () => {
     );
 
     const { data: exploreData } = useExplore(tableName);
+
+    let dimensionToCheck: Dimension | undefined;
+
+    if (isDimension(item)) {
+        dimensionToCheck = item;
+    }
+    if (isEditing && isAdditionalMetric(item) && item.baseDimensionName) {
+        dimensionToCheck =
+            exploreData?.tables[item.table]?.dimensions[item.baseDimensionName];
+    }
+
+    const canApplyFormatting =
+        isCustomMetricFormattingEnabled &&
+        dimensionToCheck &&
+        customMetricType &&
+        canApplyFormattingToCustomMetric(dimensionToCheck, customMetricType);
 
     const additionalMetrics = useExplorerContext(
         (context) =>
@@ -260,28 +277,24 @@ export const CustomMetricModal = () => {
                         />
                     )}
                     <Accordion chevronPosition="left" chevronSize="xs">
-                        {isCustomMetricFormattingEnabled &&
-                            customMetricType &&
-                            isNumericType(customMetricType) && (
-                                <Accordion.Item value="format">
-                                    <Accordion.Control>
-                                        <Text fw={500} fz="sm">
-                                            Format
-                                        </Text>
-                                    </Accordion.Control>
-                                    <Accordion.Panel>
-                                        <FormatForm
-                                            formatInputProps={
-                                                getFormatInputProps
-                                            }
-                                            format={form.values.format}
-                                            setFormatFieldValue={
-                                                setFormatFieldValue
-                                            }
-                                        />
-                                    </Accordion.Panel>
-                                </Accordion.Item>
-                            )}
+                        {canApplyFormatting && (
+                            <Accordion.Item value="format">
+                                <Accordion.Control>
+                                    <Text fw={500} fz="sm">
+                                        Format
+                                    </Text>
+                                </Accordion.Control>
+                                <Accordion.Panel>
+                                    <FormatForm
+                                        formatInputProps={getFormatInputProps}
+                                        format={form.values.format}
+                                        setFormatFieldValue={
+                                            setFormatFieldValue
+                                        }
+                                    />
+                                </Accordion.Panel>
+                            </Accordion.Item>
+                        )}
                         <Accordion.Item value="filters">
                             <Accordion.Control>
                                 <Text fw={500} fz="sm">

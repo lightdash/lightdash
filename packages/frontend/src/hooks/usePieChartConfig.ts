@@ -172,7 +172,7 @@ const usePieChartConfig: PieChartConfigFn = (
     const isLoading = !resultsData;
 
     useEffect(() => {
-        if (isLoading) return;
+        if (isLoading || dimensionIds.length === 0) return;
 
         const newGroupFieldIds = groupFieldIds.filter((id) =>
             dimensionIds.includes(id),
@@ -190,7 +190,7 @@ const usePieChartConfig: PieChartConfigFn = (
     }, [isLoading, dimensionIds, groupFieldIds, pieChartConfig?.groupFieldIds]);
 
     useEffect(() => {
-        if (isLoading) return;
+        if (isLoading || allNumericMetricIds.length === 0) return;
         if (metricId && allNumericMetricIds.includes(metricId)) return;
 
         setMetricId(allNumericMetricIds[0] ?? null);

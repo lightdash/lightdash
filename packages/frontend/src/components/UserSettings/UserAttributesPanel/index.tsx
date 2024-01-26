@@ -20,7 +20,6 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
@@ -38,8 +37,8 @@ import UserAttributeModal from './UserAttributeModal';
 const UserListItem: FC<{
     orgUserAttribute: UserAttribute;
     onEdit: () => void;
-    isGroupsFeatureFlagEnabled?: boolean;
-}> = ({ orgUserAttribute, onEdit, isGroupsFeatureFlagEnabled }) => {
+    isGroupManagementEnabled?: boolean;
+}> = ({ orgUserAttribute, onEdit, isGroupManagementEnabled }) => {
     const [isDeleteDialogOpen, deleteDialog] = useDisclosure(false);
     const { mutate: deleteUserAttribute } = useUserAttributesDeleteMutation();
 
@@ -68,7 +67,7 @@ const UserListItem: FC<{
                             {orgUserAttribute.users.length} user
                             {orgUserAttribute.users.length !== 1 ? 's' : ''}
                         </Text>
-                        {isGroupsFeatureFlagEnabled && (
+                        {isGroupManagementEnabled && (
                             <Text fz="xs" color="gray.6">
                                 {orgUserAttribute.groups.length} group
                                 {orgUserAttribute.groups.length !== 1
@@ -140,15 +139,14 @@ const UserListItem: FC<{
 };
 
 const UserAttributesPanel: FC = () => {
-    const isGroupsFeatureFlagEnabled =
-        useFeatureFlagEnabled('group-management');
     const { classes } = useTableStyles();
-    const { user } = useApp();
+    const { user, health } = useApp();
     const [showAddAttributeModal, addAttributeModal] = useDisclosure(false);
 
     const [editAttribute, setEditAttribute] = useState<
         UserAttribute | undefined
     >();
+
     const { data: orgUserAttributes, isInitialLoading } = useUserAttributes();
     const { data: organization } = useOrganization();
     if (
@@ -165,12 +163,16 @@ const UserAttributesPanel: FC = () => {
     if (isInitialLoading)
         return <LoadingState title="Loading user attributes" />;
 
+    if (!user.data || !health.data) return null;
+
+    const isGroupManagementEnabled = health.data.hasGroups;
+
     return (
         <Stack>
             <Group position="apart">
                 <Group spacing="two">
                     <Title order={5}>
-                        {isGroupsFeatureFlagEnabled
+                        {isGroupManagementEnabled
                             ? 'User and group attributes'
                             : 'User attributes'}
                     </Title>
@@ -238,8 +240,8 @@ const UserAttributesPanel: FC = () => {
                                     onEdit={() =>
                                         setEditAttribute(orgUserAttribute)
                                     }
-                                    isGroupsFeatureFlagEnabled={
-                                        isGroupsFeatureFlagEnabled
+                                    isGroupManagementEnabled={
+                                        isGroupManagementEnabled
                                     }
                                 />
                             ))}

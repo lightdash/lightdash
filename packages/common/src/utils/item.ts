@@ -2,6 +2,7 @@ import { Explore } from '../types/explore';
 import {
     CompiledDimension,
     CustomDimension,
+    Dimension,
     DimensionType,
     Field,
     fieldId,
@@ -136,3 +137,10 @@ export const replaceDimensionInExplore = (
         },
     },
 });
+
+export const canApplyFormattingToCustomMetric = (
+    item: Dimension,
+    customMetricType: MetricType,
+) =>
+    isNumericItem(item) ||
+    [MetricType.COUNT_DISTINCT, MetricType.COUNT].includes(customMetricType);

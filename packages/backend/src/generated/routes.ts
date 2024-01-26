@@ -146,6 +146,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccessEmpty: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { dataType: 'undefined', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DbtModelJoinType: {
         dataType: 'refAlias',
         type: {
@@ -1187,18 +1199,6 @@ const models: TsoaRoute.Models = {
                     subSchemas: [{ ref: 'Group' }, { ref: 'GroupWithMembers' }],
                     required: true,
                 },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccessEmpty: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { dataType: 'undefined', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -2310,6 +2310,7 @@ const models: TsoaRoute.Models = {
                     warehouse: { dataType: 'string', required: true },
                     role: { dataType: 'string' },
                     account: { dataType: 'string', required: true },
+                    requireUserCredentials: { dataType: 'boolean' },
                     database: { dataType: 'string', required: true },
                     schema: { dataType: 'string', required: true },
                     threads: { dataType: 'double' },
@@ -2356,6 +2357,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     type: { ref: 'WarehouseTypes.REDSHIFT', required: true },
+                    requireUserCredentials: { dataType: 'boolean' },
                     schema: { dataType: 'string', required: true },
                     threads: { dataType: 'double' },
                     startOfWeek: {
@@ -2410,6 +2412,7 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     type: { ref: 'WarehouseTypes.POSTGRES', required: true },
                     role: { dataType: 'string' },
+                    requireUserCredentials: { dataType: 'boolean' },
                     schema: { dataType: 'string', required: true },
                     threads: { dataType: 'double' },
                     startOfWeek: {
@@ -2463,6 +2466,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     type: { ref: 'WarehouseTypes.BIGQUERY', required: true },
+                    requireUserCredentials: { dataType: 'boolean' },
                     threads: { dataType: 'double' },
                     startOfWeek: {
                         dataType: 'union',
@@ -2547,6 +2551,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     type: { ref: 'WarehouseTypes.DATABRICKS', required: true },
+                    requireUserCredentials: { dataType: 'boolean' },
                     database: { dataType: 'string', required: true },
                     startOfWeek: {
                         dataType: 'union',
@@ -2591,6 +2596,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     type: { ref: 'WarehouseTypes.TRINO', required: true },
+                    requireUserCredentials: { dataType: 'boolean' },
                     schema: { dataType: 'string', required: true },
                     startOfWeek: {
                         dataType: 'union',

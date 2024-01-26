@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
 import { UserActivity, ViewStatistics } from './types/analytics';
 import {
@@ -98,6 +100,8 @@ import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
+
+dayjs.extend(utc);
 
 export * from './authorization/index';
 export * from './authorization/types';
@@ -670,6 +674,7 @@ export type HealthState = {
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;
     hasDbtSemanticLayer: boolean;
+    hasGroups: boolean;
 };
 
 export enum DBFieldTypes {
@@ -848,6 +853,22 @@ export function itemsInMetricQuery(
           ];
 }
 
+function formatRawValue(
+    field: Field | Metric | TableCalculation | CustomDimension,
+    value: any,
+) {
+    const isTimestamp =
+        isField(field) &&
+        (field.type === DimensionType.DATE ||
+            field.type === DimensionType.TIMESTAMP);
+
+    if (isTimestamp) {
+        // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
+        return dayjs(value).utc(true).format();
+    }
+    return value;
+}
+
 export function formatRows(
     rows: { [col: string]: any }[],
     itemsMap: ItemsMap,
@@ -861,7 +882,7 @@ export function formatRows(
                 ...acc,
                 [columnName]: {
                     value: {
-                        raw: col,
+                        raw: formatRawValue(item, col),
                         formatted: formatItemValue(item, col),
                     },
                 },

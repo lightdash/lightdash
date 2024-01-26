@@ -107,6 +107,18 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "ApiSuccessEmpty": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "DbtModelJoinType": {
                 "type": "string",
                 "enum": ["inner", "full", "left", "right"]
@@ -1321,18 +1333,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiSuccessEmpty": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
                 "type": "object"
             },
             "ApiGroupMembersResponse": {
@@ -2627,6 +2627,9 @@
                     "account": {
                         "type": "string"
                     },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
                     "database": {
                         "type": "string"
                     },
@@ -2680,6 +2683,9 @@
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
                     },
                     "schema": {
                         "type": "string"
@@ -2756,6 +2762,9 @@
                     "role": {
                         "type": "string"
                     },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
                     "schema": {
                         "type": "string"
                     },
@@ -2828,6 +2837,9 @@
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
                     },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
                     "threads": {
                         "type": "number",
                         "format": "double"
@@ -2886,6 +2898,9 @@
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
                     },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
                     "database": {
                         "type": "string"
                     },
@@ -2926,6 +2941,9 @@
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
                     },
                     "schema": {
                         "type": "string"
@@ -6358,7 +6376,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.961.0",
+        "version": "0.965.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -6539,15 +6557,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["status"],
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
                                 }
                             }
                         }

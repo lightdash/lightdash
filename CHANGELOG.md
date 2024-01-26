@@ -1,3 +1,66 @@
+## [0.965.3](https://github.com/lightdash/lightdash/compare/0.965.2...0.965.3) (2024-01-26)
+
+
+### Bug Fixes
+
+* timezone raw results ([#8733](https://github.com/lightdash/lightdash/issues/8733)) ([80f46f1](https://github.com/lightdash/lightdash/commit/80f46f157835275db06dc025690acbcd508ae643))
+
+## [0.965.2](https://github.com/lightdash/lightdash/compare/0.965.1...0.965.2) (2024-01-26)
+
+
+### Bug Fixes
+
+* piecahrt metrics and dimensions reset on query ([#8737](https://github.com/lightdash/lightdash/issues/8737)) ([e704ea5](https://github.com/lightdash/lightdash/commit/e704ea5b4de6bbe575917467776d672740d82818))
+
+## [0.965.1](https://github.com/lightdash/lightdash/compare/0.965.0...0.965.1) (2024-01-26)
+
+
+### Bug Fixes
+
+* onboarding enabled domain access for email providers ([#8734](https://github.com/lightdash/lightdash/issues/8734)) ([8ebaa6a](https://github.com/lightdash/lightdash/commit/8ebaa6ab6343498dcdc7e41a5ac7b95bf6e294ce))
+
+# [0.965.0](https://github.com/lightdash/lightdash/compare/0.964.0...0.965.0) (2024-01-26)
+
+
+### Features
+
+* allow project to require users credentials ([#8723](https://github.com/lightdash/lightdash/issues/8723)) ([045d699](https://github.com/lightdash/lightdash/commit/045d69941d2c69d9e4107635f1de656738d5841b))
+
+# [0.964.0](https://github.com/lightdash/lightdash/compare/0.963.1...0.964.0) (2024-01-26)
+
+
+### Features
+
+* limit axis range 2 ([#8715](https://github.com/lightdash/lightdash/issues/8715)) ([a0a8a94](https://github.com/lightdash/lightdash/commit/a0a8a94a5ecf8517ae40ff73883e03225253fbcf)), closes [#8261](https://github.com/lightdash/lightdash/issues/8261) [#8291](https://github.com/lightdash/lightdash/issues/8291)
+
+## [0.963.1](https://github.com/lightdash/lightdash/compare/0.963.0...0.963.1) (2024-01-25)
+
+
+### Bug Fixes
+
+* check correctly if can apply formatting ([#8726](https://github.com/lightdash/lightdash/issues/8726)) ([58c4582](https://github.com/lightdash/lightdash/commit/58c4582497b53ed1147b9dc80420f81d9e4ea751))
+
+# [0.963.0](https://github.com/lightdash/lightdash/compare/0.962.0...0.963.0) (2024-01-25)
+
+
+### Features
+
+* enable groups env variable ([#8704](https://github.com/lightdash/lightdash/issues/8704)) ([fd0847e](https://github.com/lightdash/lightdash/commit/fd0847e6fceb18e5f3eaec7a4ccefee8387e4252))
+
+# [0.962.0](https://github.com/lightdash/lightdash/compare/0.961.1...0.962.0) (2024-01-25)
+
+
+### Features
+
+* allow lightdash generate to target dbt_packages ([#8647](https://github.com/lightdash/lightdash/issues/8647)) ([e215d0c](https://github.com/lightdash/lightdash/commit/e215d0c818c400954a1883c8f52a744d24b78371))
+
+## [0.961.1](https://github.com/lightdash/lightdash/compare/0.961.0...0.961.1) (2024-01-25)
+
+
+### Bug Fixes
+
+* conditional formatting range with decimal numbers ([#8722](https://github.com/lightdash/lightdash/issues/8722)) ([4eed27b](https://github.com/lightdash/lightdash/commit/4eed27b442044aa95fa459231efc4cb15637314e))
+
 # [0.961.0](https://github.com/lightdash/lightdash/compare/0.960.1...0.961.0) (2024-01-25)
 
 

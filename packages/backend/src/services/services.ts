@@ -93,6 +93,7 @@ export const projectService = new ProjectService({
     s3CacheClient,
     analyticsModel,
     dashboardModel,
+    userWarehouseCredentialsModel,
 });
 
 export const shareService = new ShareService({
