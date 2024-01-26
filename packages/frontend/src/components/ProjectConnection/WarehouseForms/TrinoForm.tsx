@@ -7,10 +7,12 @@ import {
     Stack,
     TextInput,
 } from '@mantine/core';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, { FC } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import FormCollapseButton from '../FormCollapseButton';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -44,6 +46,8 @@ const TrinoForm: FC<{
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.TRINO;
     const { register } = useFormContext();
+    const isPassthroughLoginFeatureEnabled =
+        useFeatureFlagEnabled('passthrough-login');
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -101,6 +105,14 @@ const TrinoForm: FC<{
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
+                        {isPassthroughLoginFeatureEnabled && (
+                            <BooleanSwitch
+                                name="warehouse.requireUserCredentials"
+                                label="Require users to provide their own credentials"
+                                defaultValue={false}
+                                disabled={disabled}
+                            />
+                        )}
                         <Controller
                             name="warehouse.port"
                             defaultValue={443}
