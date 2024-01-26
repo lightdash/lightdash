@@ -82,6 +82,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
 
     return (
         <NavLink
+            component="div"
             noWrap
             sx={{
                 backgroundColor: isSelected ? bgColor : undefined,
