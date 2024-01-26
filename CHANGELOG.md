@@ -1,3 +1,10 @@
+## [0.965.2](https://github.com/lightdash/lightdash/compare/0.965.1...0.965.2) (2024-01-26)
+
+
+### Bug Fixes
+
+* piecahrt metrics and dimensions reset on query ([#8737](https://github.com/lightdash/lightdash/issues/8737)) ([e704ea5](https://github.com/lightdash/lightdash/commit/e704ea5b4de6bbe575917467776d672740d82818))
+
 ## [0.965.1](https://github.com/lightdash/lightdash/compare/0.965.0...0.965.1) (2024-01-26)
 
 
