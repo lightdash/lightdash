@@ -36,7 +36,6 @@ describe('SQL Runner', () => {
 
         cy.get('.ace_content')
             .type(`SELECT * FROM cu{enter} order by customer_id`)
-
             .type('{ctrl}{enter}');
 
         const find = [
