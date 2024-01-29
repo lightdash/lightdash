@@ -31,7 +31,7 @@ describe('SQL Runner', () => {
         find.forEach((text) => cy.findByText(text));
     });
 
-    it.only('Should autocomplete customer table', () => {
+    it('Should autocomplete customer table', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`);
 
         cy.get('.ace_content')
