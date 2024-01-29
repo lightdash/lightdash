@@ -1,12 +1,9 @@
 import {
-    DimensionType,
     getAxisName,
     getDateGroupLabel,
     getItemLabelWithoutTableName,
-    isField,
     isNumericItem,
     ItemsMap,
-    MetricType,
 } from '@lightdash/common';
 import {
     Checkbox,
@@ -133,17 +130,6 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
         },
         [false, false],
     );
-    const isXFieldDateOrNumber = () => {
-        const dateEnums: string[] = [
-            DimensionType.DATE,
-            DimensionType.TIMESTAMP,
-            MetricType.DATE,
-            MetricType.TIMESTAMP,
-        ];
-        const isDate =
-            isField(xAxisField) && dateEnums.includes(xAxisField?.type);
-        return isNumericItem(xAxisField) || isDate;
-    };
 
     return (
         <Stack spacing="xs" mb="xl">
@@ -158,7 +144,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                 }
                 onBlur={(e) => setXAxisName(e.currentTarget.value)}
             />
-            {isXFieldDateOrNumber() && (
+            {isNumericItem(xAxisField) && (
                 <AxisMinMax
                     label={`Auto ${
                         dirtyLayout?.flipAxes ? 'y' : 'x'
