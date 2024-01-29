@@ -4,15 +4,15 @@ Thanks for taking the time to contribute ❤️ all types of contributions are e
 
 ## Table of Contents
 
-- [Code of Conduct](#code-of-conduct)
-- [How to ask for help](#how-to-ask-for-help)
--  Contributing:
-    - [Report a bug](#how-to-report-a-bug)
-    - [Request a feature](#how-to-request-a-new-feature)
-    - [Contribute code](#how-to-contribute-code-to-lightdash)
-- [Opening a Pull Request](#opening-a-pull-request)
-- [Setup Development Environment](#setup-development-environment)
-- [Join The Lightdash Team](#join-the-lightdash-team)
+-   [Code of Conduct](#code-of-conduct)
+-   [How to ask for help](#how-to-ask-for-help)
+-   Contributing:
+    -   [Report a bug](#how-to-report-a-bug)
+    -   [Request a feature](#how-to-request-a-new-feature)
+    -   [Contribute code](#how-to-contribute-code-to-lightdash)
+-   [Opening a Pull Request](#opening-a-pull-request)
+-   [Setup Development Environment](#setup-development-environment)
+-   [Join The Lightdash Team](#join-the-lightdash-team)
 
 ## Code of Conduct
 
@@ -24,15 +24,15 @@ to <support@lightdash.com>.
 ## How to ask for help
 
 Useful resources for answering your questions:
- - [Documentation](https://docs.lightdash.com)
- - [Issues](https://github.com/lightdash/lightdash/issues)
+
+-   [Documentation](https://docs.lightdash.com)
+-   [Issues](https://github.com/lightdash/lightdash/issues)
 
 If you cannot find an answer to your question then please join our [slack community](https://lightdash-community.slack.com/join/shared_invite/zt-1busg6781-EgwQ6sPLAK3~QU7GA3ttzQ#/shared-invite/email) and head for the `#help` channel.
 
-
 ## How to report a bug
 
-> Vulnerabilities can be submitted through the GitHub repository security tab or by email at  <security@lightdash.com>.
+> Vulnerabilities can be submitted through the GitHub repository security tab or by email at <security@lightdash.com>.
 
 We use GitHub issues to track bugs and errors. If you run into an issue with the project:
 
@@ -63,14 +63,13 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 > When contributing to this project, you must agree that you have authored 100% of the content, that you have the
 > necessary rights to the content and that the content you contribute may be provided under the project license.
 
-
 Before contributing to Lightdash you must complete the following steps:
 
-- Join our [slack community](https://lightdash-community.slack.com/join/shared_invite/zt-1busg6781-EgwQ6sPLAK3~QU7GA3ttzQ) and introduce yourself in the `#community-contributors` channel
-- Choose an existing labelled `open-contribution`
-- Ask a member of the team to assign you to the issue
+-   Join our [slack community](https://lightdash-community.slack.com/join/shared_invite/zt-1busg6781-EgwQ6sPLAK3~QU7GA3ttzQ) and introduce yourself in the `#community-contributors` channel
+-   Choose an existing labelled `open-contribution`
+-   Ask a member of the team to assign you to the issue
 
-Pull requests will not be reviewed unless the previous three steps are completed. 
+Pull requests will not be reviewed unless the previous three steps are completed.
 
 ---
 
@@ -223,19 +222,7 @@ Alternatively you can create a developer environment using docker compose:
 git clone https://github.com/lightdash/lightdash
 ```
 
-Copy `.env.development` into a new file called `.env.development.local`
-
-Edit all the ENV variables in that file to match your setup, eg:
-
-```shell
-PGHOST=localhost
-PGPORT=5432
-PGUSER=pg_user *OR* machine username if no prior postgres set up
-PGPASSWORD=pg_password *OR* blank if no prior postgres set up
-PGDATABASE=postgres
-DBT_DEMO_DIR=/*path*/*to*/lightdash/project/examples/full-jaffle-shop-demo
-LIGHTDASH_CONFIG_FILE=/*path*/*to*/lightdash/lightdash.yml
-```
+Copy `.env.development` into a new file called `.env.development.local` and run the following `docker compose up` command:
 
 ```shell
 # Create docker containers
@@ -282,6 +269,7 @@ Notes:
 -   If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`
 -   If you change files inside `/packages/warehouses` you should run `yarn warehouses-build` before `yarn dev`
 -   If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
+-   If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run the `docker compose up` command mentioned above
 
 When you want to stop:
 
