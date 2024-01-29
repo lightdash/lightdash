@@ -405,7 +405,6 @@ describe('Date tests', () => {
         cy.contains('Order date').click();
 
         // Filter by year
-        cy.get('[data-testid=Filters-card-expand]').click();
         cy.findByRole('button', { name: 'Year' }).findByRole('button').click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 

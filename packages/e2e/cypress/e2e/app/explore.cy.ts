@@ -75,12 +75,11 @@ describe('Explore', () => {
     });
 
     it('Should change chart config type', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
         cy.findByTestId('page-spinner').should('not.exist');
 
         // choose table and select fields
-        cy.findByText('Orders').click();
         cy.findByText('Customers').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
@@ -125,10 +124,9 @@ describe('Explore', () => {
     });
 
     it('Should change chart config layout', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         cy.findByTestId('page-spinner').should('not.exist');
 
-        cy.findByText('Orders').click();
         cy.findByText('Customers').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
@@ -194,10 +192,11 @@ describe('Explore', () => {
         describe('Table', () => {
             describe('Config', () => {
                 it('should hide table names from the header according to the config', () => {
-                    cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+                    cy.visit(
+                        `/projects/${SEED_PROJECT.project_uuid}/tables/orders`,
+                    );
 
                     // choose table and select fields
-                    cy.findByText('Orders').click();
                     cy.findByText('Customers').click();
                     cy.findByText('First name').click();
                     cy.findByText('Unique order count').click();
@@ -235,10 +234,11 @@ describe('Explore', () => {
                 });
 
                 it('should show header overrides according to the config', () => {
-                    cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+                    cy.visit(
+                        `/projects/${SEED_PROJECT.project_uuid}/tables/orders`,
+                    );
 
                     // choose table and select fields
-                    cy.findByText('Orders').click();
                     cy.findByText('Customers').click();
                     cy.findByText('First name').click();
                     cy.findByText('Unique order count').click();
