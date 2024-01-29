@@ -666,20 +666,17 @@ const models: TsoaRoute.Models = {
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculationFormat: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                suffix: { dataType: 'string' },
-                prefix: { dataType: 'string' },
-                compact: { ref: 'Compact' },
-                currency: { dataType: 'string' },
-                separator: { ref: 'NumberSeparator' },
-                round: { dataType: 'double' },
-                type: { ref: 'TableCalculationFormatType', required: true },
-            },
-            validators: {},
+        dataType: 'refObject',
+        properties: {
+            round: { dataType: 'double' },
+            separator: { ref: 'NumberSeparator' },
+            currency: { dataType: 'string' },
+            compact: { ref: 'Compact' },
+            prefix: { dataType: 'string' },
+            suffix: { dataType: 'string' },
+            type: { ref: 'TableCalculationFormatType', required: true },
         },
+        additionalProperties: false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculation: {

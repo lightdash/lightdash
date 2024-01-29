@@ -647,31 +647,32 @@
             },
             "TableCalculationFormat": {
                 "properties": {
-                    "suffix": {
-                        "type": "string"
+                    "round": {
+                        "type": "number",
+                        "format": "double"
                     },
-                    "prefix": {
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
+                    "currency": {
                         "type": "string"
                     },
                     "compact": {
                         "$ref": "#/components/schemas/Compact"
                     },
-                    "currency": {
+                    "prefix": {
                         "type": "string"
                     },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
+                    "suffix": {
+                        "type": "string"
                     },
                     "type": {
                         "$ref": "#/components/schemas/TableCalculationFormatType"
                     }
                 },
                 "required": ["type"],
-                "type": "object"
+                "type": "object",
+                "additionalProperties": false
             },
             "TableCalculation": {
                 "properties": {
