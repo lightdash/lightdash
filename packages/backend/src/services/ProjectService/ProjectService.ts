@@ -84,6 +84,7 @@ import {
     UpdateProject,
     UpdateProjectMember,
     UserAttributeValueMap,
+    UserWarehouseCredentials,
     WarehouseClient,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -240,7 +241,8 @@ export class ProjectService {
             );
         if (credentials.requireUserCredentials) {
             const userWarehouseCredentials =
-                await this.userWarehouseCredentialsModel.findForProject(
+                await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
+                    projectUuid,
                     userUuid,
                     credentials.type,
                 );
@@ -248,10 +250,12 @@ export class ProjectService {
                 throw new NotFoundError('User warehouse credentials not found');
             }
 
-            if (credentials.type === userWarehouseCredentials.type) {
+            if (
+                credentials.type === userWarehouseCredentials.credentials.type
+            ) {
                 credentials = {
                     ...credentials,
-                    ...userWarehouseCredentials,
+                    ...userWarehouseCredentials.credentials,
                 } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
             } else {
                 throw new UnexpectedServerError(
@@ -3336,5 +3340,47 @@ export class ProjectService {
             acc[exposure.name] = exposure;
             return acc;
         }, {});
+    }
+
+    async getProjectCredentialsPreference(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<UserWarehouseCredentials | undefined> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (user.ability.cannot('view', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        return this.userWarehouseCredentialsModel.findForProject(
+            project.projectUuid,
+            user.userUuid,
+            credentials.type,
+        );
+    }
+
+    async upsertProjectCredentialsPreference(
+        user: SessionUser,
+        projectUuid: string,
+        userWarehouseCredentialsUuid: string,
+    ) {
+        const userWarehouseCredentials =
+            await this.userWarehouseCredentialsModel.getByUuid(
+                userWarehouseCredentialsUuid,
+            );
+        if (userWarehouseCredentials.userUuid !== user.userUuid) {
+            throw new ForbiddenError();
+        }
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (user.ability.cannot('view', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+        await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
+            user.userUuid,
+            projectUuid,
+            userWarehouseCredentialsUuid,
+        );
     }
 }

@@ -24,6 +24,7 @@ import {
     UnexpectedServerError,
     UpdateProject,
     WarehouseCredentials,
+    WarehouseTypes,
 } from '@lightdash/common';
 import {
     WarehouseCatalog,
@@ -160,15 +161,46 @@ export class ProjectModel {
             throw new NotExistsError('Cannot find organization');
         }
         const projects = await this.database('projects')
-            .select('project_uuid', 'name', 'project_type')
+            .leftJoin(
+                WarehouseCredentialTableName,
+                'projects.project_id',
+                'warehouse_credentials.project_id',
+            )
+            .select(
+                'project_uuid',
+                'name',
+                'project_type',
+                `warehouse_type`,
+                `encrypted_credentials`,
+            )
             .where('organization_id', orgs[0].organization_id);
 
         return projects.map<OrganizationProject>(
-            ({ name, project_uuid, project_type }) => ({
+            ({
                 name,
-                projectUuid: project_uuid,
-                type: project_type,
-            }),
+                project_uuid,
+                project_type,
+                warehouse_type,
+                encrypted_credentials,
+            }) => {
+                try {
+                    const warehouseCredentials = JSON.parse(
+                        this.encryptionService.decrypt(encrypted_credentials),
+                    ) as CreateWarehouseCredentials;
+                    return {
+                        name,
+                        projectUuid: project_uuid,
+                        type: project_type,
+                        warehouseType: warehouse_type as WarehouseTypes,
+                        requireUserCredentials:
+                            !!warehouseCredentials.requireUserCredentials,
+                    };
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Unexpected error: failed to parse warehouse credentials',
+                    );
+                }
+            },
         );
     }
 
