@@ -1,6 +1,5 @@
 import moment, { MomentInput } from 'moment';
 import {
-    CompactConfigMap,
     CompactOrAlias,
     CustomDimension,
     CustomFormat,
@@ -395,14 +394,19 @@ export function formatTableCalculationValue(
     } => {
         if (field.format?.compact === undefined)
             return { compactValue: Number(value), compactSuffix: '' };
-        const compactValue = CompactConfigMap[field.format.compact].convertFn(
-            Number(value),
-        );
-        const compactSuffix = field.format.compact
-            ? CompactConfigMap[field.format.compact].suffix
-            : '';
 
-        return { compactValue, compactSuffix };
+        const compactConfig = findCompactConfig(field.format.compact);
+
+        if (compactConfig) {
+            const compactValue = compactConfig.convertFn(Number(value));
+            const compactSuffix = field.format.compact
+                ? compactConfig.suffix
+                : '';
+
+            return { compactValue, compactSuffix };
+        }
+
+        return { compactValue: Number(value), compactSuffix: '' };
     };
     if (value === '') return '';
     if (value instanceof Date) {

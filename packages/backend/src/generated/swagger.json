@@ -645,6 +645,26 @@
                 "enum": ["thousands", "millions", "billions", "trillions"],
                 "type": "string"
             },
+            "CompactOrAlias": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/Compact"
+                    },
+                    {
+                        "type": "string",
+                        "enum": [
+                            "K",
+                            "thousand",
+                            "M",
+                            "million",
+                            "B",
+                            "billion",
+                            "T",
+                            "trillion"
+                        ]
+                    }
+                ]
+            },
             "CustomFormat": {
                 "properties": {
                     "type": {
@@ -661,7 +681,7 @@
                         "type": "string"
                     },
                     "compact": {
-                        "$ref": "#/components/schemas/Compact"
+                        "$ref": "#/components/schemas/CompactOrAlias"
                     },
                     "prefix": {
                         "type": "string"
@@ -713,26 +733,6 @@
                     "boolean"
                 ],
                 "type": "string"
-            },
-            "CompactOrAlias": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/Compact"
-                    },
-                    {
-                        "type": "string",
-                        "enum": [
-                            "K",
-                            "thousand",
-                            "M",
-                            "million",
-                            "B",
-                            "billion",
-                            "T",
-                            "trillion"
-                        ]
-                    }
-                ]
             },
             "Format": {
                 "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],

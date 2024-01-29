@@ -110,7 +110,7 @@ export interface CustomFormat {
     round?: number;
     separator?: NumberSeparator;
     currency?: string;
-    compact?: Compact;
+    compact?: CompactOrAlias;
     prefix?: string;
     suffix?: string;
 }
