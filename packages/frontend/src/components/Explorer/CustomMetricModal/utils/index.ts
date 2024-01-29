@@ -1,11 +1,13 @@
 import {
     AdditionalMetric,
     CustomMetricFormat,
+    CustomMetricFormatType,
     Dimension,
     DimensionType,
     Explore,
     Field,
     FilterRule,
+    Format,
     friendlyName,
     isAdditionalMetric,
     isDimension,
@@ -136,8 +138,12 @@ export const prepareCustomMetricData = ({
         shouldCopyFormatting && item.compact ? item.compact : undefined;
     const compact = customMetricFormat?.compact || baseDimensionCompact;
 
+    const baseDimensionFormat =
+        shouldCopyFormatting && item.format ? item.format : undefined;
     const format =
-        shouldCopyFormatting && item.format ? { format: item.format } : {};
+        customMetricFormat.type === CustomMetricFormatType.PERCENT
+            ? Format.PERCENT
+            : baseDimensionFormat;
 
     const percentile =
         type === MetricType.PERCENTILE ? metricPercentile || 50 : undefined;
@@ -159,7 +165,7 @@ export const prepareCustomMetricData = ({
         table: item.table,
         sql: item.sql,
         type,
-        ...format,
+        format,
         round,
         compact,
         prefix: customMetricFormat?.prefix,

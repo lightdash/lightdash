@@ -1,6 +1,7 @@
 import {
     canApplyFormattingToCustomMetric,
     CustomMetricFormat,
+    CustomMetricFormatType,
     Dimension,
     fieldId as getFieldId,
     friendlyName,
@@ -8,8 +9,6 @@ import {
     isDimension,
     MetricType,
     NumberSeparator,
-    // NOTE: The types are the same, but we can't derive enums from other enums
-    TableCalculationFormatType as CustomMetricFormatType,
 } from '@lightdash/common';
 
 import {
@@ -101,7 +100,7 @@ export const CustomMetricModal = () => {
                 type: CustomMetricFormatType.DEFAULT,
                 round: undefined,
                 separator: NumberSeparator.DEFAULT,
-                currency: 'USD',
+                currency: undefined,
                 compact: undefined,
                 prefix: undefined,
                 suffix: undefined,
