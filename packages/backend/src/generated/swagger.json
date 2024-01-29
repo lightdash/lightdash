@@ -627,7 +627,7 @@
                 "required": ["descending", "fieldId"],
                 "type": "object"
             },
-            "TableCalculationFormatType": {
+            "CustomFormatType": {
                 "enum": ["default", "percent", "currency", "number"],
                 "type": "string"
             },
@@ -645,8 +645,11 @@
                 "enum": ["thousands", "millions", "billions", "trillions"],
                 "type": "string"
             },
-            "TableCalculationFormat": {
+            "CustomFormat": {
                 "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/CustomFormatType"
+                    },
                     "round": {
                         "type": "number",
                         "format": "double"
@@ -665,9 +668,6 @@
                     },
                     "suffix": {
                         "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/TableCalculationFormatType"
                     }
                 },
                 "required": ["type"],
@@ -677,7 +677,7 @@
             "TableCalculation": {
                 "properties": {
                     "format": {
-                        "$ref": "#/components/schemas/TableCalculationFormat"
+                        "$ref": "#/components/schemas/CustomFormat"
                     },
                     "sql": {
                         "type": "string"

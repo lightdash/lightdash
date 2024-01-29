@@ -1,7 +1,7 @@
 import {
     AdditionalMetric,
-    CustomMetricFormat,
-    CustomMetricFormatType,
+    CustomFormat,
+    CustomFormatType,
     Dimension,
     DimensionType,
     Explore,
@@ -118,7 +118,7 @@ export const prepareCustomMetricData = ({
     isEditingCustomMetric: boolean;
     exploreData?: Explore;
     percentile?: number;
-    customMetricFormat?: CustomMetricFormat;
+    customMetricFormat?: CustomFormat;
 }): AdditionalMetric => {
     const shouldCopyFormatting = [
         MetricType.PERCENTILE,
@@ -141,7 +141,7 @@ export const prepareCustomMetricData = ({
     const baseDimensionFormat =
         shouldCopyFormatting && item.format ? item.format : undefined;
     const format =
-        customMetricFormat.type === CustomMetricFormatType.PERCENT
+        customMetricFormat?.type === CustomFormatType.PERCENT
             ? Format.PERCENT
             : baseDimensionFormat;
 

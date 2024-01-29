@@ -5,7 +5,7 @@ import {
     CompiledMetric,
     CompiledTableCalculation,
     CustomDimension,
-    CustomMetricFormat,
+    CustomFormat,
     FieldId,
     Format,
     friendlyName,
@@ -16,7 +16,7 @@ import { Filters, MetricFilterRule } from './filter';
 import { DateGranularity } from './timeFrames';
 
 export interface AdditionalMetric
-    extends Pick<CustomMetricFormat, 'prefix' | 'suffix' | 'separator'> {
+    extends Pick<CustomFormat, 'prefix' | 'suffix' | 'separator'> {
     label?: string;
     type: MetricType;
     description?: string;

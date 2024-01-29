@@ -1,7 +1,7 @@
 import {
     canApplyFormattingToCustomMetric,
-    CustomMetricFormat,
-    CustomMetricFormatType,
+    CustomFormat,
+    CustomFormatType,
     Dimension,
     fieldId as getFieldId,
     friendlyName,
@@ -97,7 +97,7 @@ export const CustomMetricModal = () => {
             customMetricLabel: '',
             percentile: 50,
             format: {
-                type: CustomMetricFormatType.DEFAULT,
+                type: CustomFormatType.DEFAULT,
                 round: undefined,
                 separator: NumberSeparator.DEFAULT,
                 currency: undefined,
@@ -240,12 +240,12 @@ export const CustomMetricModal = () => {
         }
     }, [isEditing, item]);
 
-    const getFormatInputProps = (path: keyof CustomMetricFormat) =>
+    const getFormatInputProps = (path: keyof CustomFormat) =>
         form.getInputProps(`format.${path}`);
 
     const setFormatFieldValue = (
-        path: keyof CustomMetricFormat,
-        value: ValueOf<CustomMetricFormat>,
+        path: keyof CustomFormat,
+        value: ValueOf<CustomFormat>,
     ) => form.setFieldValue(`format.${path}`, value);
 
     return item ? (

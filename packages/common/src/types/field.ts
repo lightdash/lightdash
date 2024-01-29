@@ -105,7 +105,8 @@ export type ItemsMap = Record<
 >;
 export type Item = ItemsMap[string];
 
-interface BaseFormatType {
+export interface CustomFormat {
+    type: CustomFormatType;
     round?: number;
     separator?: NumberSeparator;
     currency?: string;
@@ -114,26 +115,11 @@ interface BaseFormatType {
     suffix?: string;
 }
 
-export enum CustomMetricFormatType {
+export enum CustomFormatType {
     DEFAULT = 'default',
     PERCENT = 'percent',
     CURRENCY = 'currency',
     NUMBER = 'number',
-}
-
-export interface CustomMetricFormat extends BaseFormatType {
-    type: CustomMetricFormatType;
-}
-
-export enum TableCalculationFormatType {
-    DEFAULT = 'default',
-    PERCENT = 'percent',
-    CURRENCY = 'currency',
-    NUMBER = 'number',
-}
-
-export interface TableCalculationFormat extends BaseFormatType {
-    type: TableCalculationFormatType;
 }
 
 export type TableCalculation = {
@@ -141,12 +127,12 @@ export type TableCalculation = {
     name: string;
     displayName: string;
     sql: string;
-    format?: TableCalculationFormat;
+    format?: CustomFormat;
 };
 
 export interface TableCalculationField extends Field {
     fieldType: FieldType.TABLE_CALCULATION;
-    type: TableCalculationFormatType;
+    type: CustomFormatType;
     index?: number;
     name: string;
     displayName: string;
@@ -411,7 +397,7 @@ export const isNonAggregateMetric = (field: Field): boolean =>
 
 export interface Metric
     extends Field,
-        Pick<CustomMetricFormat, 'prefix' | 'suffix' | 'separator'>,
+        Pick<CustomFormat, 'prefix' | 'suffix' | 'separator'>,
         Pick<AdditionalMetric, 'baseDimensionName'> {
     fieldType: FieldType.METRIC;
     type: MetricType;

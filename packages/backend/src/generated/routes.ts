@@ -644,7 +644,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableCalculationFormatType: {
+    CustomFormatType: {
         dataType: 'refEnum',
         enums: ['default', 'percent', 'currency', 'number'],
     },
@@ -665,16 +665,16 @@ const models: TsoaRoute.Models = {
         enums: ['thousands', 'millions', 'billions', 'trillions'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableCalculationFormat: {
+    CustomFormat: {
         dataType: 'refObject',
         properties: {
+            type: { ref: 'CustomFormatType', required: true },
             round: { dataType: 'double' },
             separator: { ref: 'NumberSeparator' },
             currency: { dataType: 'string' },
             compact: { ref: 'Compact' },
             prefix: { dataType: 'string' },
             suffix: { dataType: 'string' },
-            type: { ref: 'TableCalculationFormatType', required: true },
         },
         additionalProperties: false,
     },
@@ -684,7 +684,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                format: { ref: 'TableCalculationFormat' },
+                format: { ref: 'CustomFormat' },
                 sql: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
