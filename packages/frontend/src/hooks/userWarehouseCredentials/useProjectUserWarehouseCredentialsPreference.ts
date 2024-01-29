@@ -37,14 +37,15 @@ const updateProjectUserWarehouseCredentialsPreference = async (
         body: undefined,
     });
 
+type UpdateCredentialsPreference = {
+    projectUuid: string;
+    userWarehouseCredentialsUuid: string;
+};
+
 export const useProjectUserWarehouseCredentialsPreferenceMutation = () => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
-    return useMutation<
-        null,
-        ApiError,
-        { projectUuid: string; userWarehouseCredentialsUuid: string }
-    >(
+    return useMutation<null, ApiError, UpdateCredentialsPreference>(
         ({ projectUuid, userWarehouseCredentialsUuid }) =>
             updateProjectUserWarehouseCredentialsPreference(
                 projectUuid,
