@@ -30,8 +30,5 @@ export const convertAdditionalMetric = ({
         ...(additionalMetric.separator && {
             separator: additionalMetric.separator,
         }),
-        ...(additionalMetric.currency && {
-            currency: additionalMetric.currency,
-        }),
     };
 };

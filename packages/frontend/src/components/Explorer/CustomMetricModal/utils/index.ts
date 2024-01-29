@@ -170,7 +170,6 @@ export const prepareCustomMetricData = ({
         compact,
         prefix: customMetricFormat?.prefix,
         suffix: customMetricFormat?.suffix,
-        currency: customMetricFormat?.currency,
         separator: customMetricFormat?.separator,
         percentile,
         filters: customMetricFilters.length > 0 ? customMetricFilters : [],

@@ -268,7 +268,6 @@ export function formatFieldValue(
             ? {
                   prefix: field.prefix,
                   suffix: field.suffix,
-                  currency: field.currency,
                   separator: field.separator,
               }
             : {}),

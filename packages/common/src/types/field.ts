@@ -411,10 +411,7 @@ export const isNonAggregateMetric = (field: Field): boolean =>
 
 export interface Metric
     extends Field,
-        Pick<
-            CustomMetricFormat,
-            'prefix' | 'suffix' | 'currency' | 'separator'
-        >,
+        Pick<CustomMetricFormat, 'prefix' | 'suffix' | 'separator'>,
         Pick<AdditionalMetric, 'baseDimensionName'> {
     fieldType: FieldType.METRIC;
     type: MetricType;

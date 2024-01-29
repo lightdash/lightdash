@@ -776,9 +776,6 @@
                     "suffix": {
                         "type": "string"
                     },
-                    "currency": {
-                        "type": "string"
-                    },
                     "separator": {
                         "$ref": "#/components/schemas/NumberSeparator"
                     },

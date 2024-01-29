@@ -201,7 +201,6 @@ export type DbSavedChartAdditionalMetric = {
     base_dimension_name: string | null;
     uuid: string;
     separator?: NumberSeparator;
-    currency?: string;
     prefix?: string;
     suffix?: string;
 };

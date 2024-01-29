@@ -257,7 +257,6 @@ const createSavedChartVersion = async (
                         additionalMetric.baseDimensionName ?? null,
                     prefix: additionalMetric.prefix,
                     suffix: additionalMetric.suffix,
-                    currency: additionalMetric.currency,
                     separator: additionalMetric.separator,
                 }),
             );

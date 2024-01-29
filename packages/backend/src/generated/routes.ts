@@ -766,7 +766,6 @@ const models: TsoaRoute.Models = {
         properties: {
             prefix: { dataType: 'string' },
             suffix: { dataType: 'string' },
-            currency: { dataType: 'string' },
             separator: { ref: 'NumberSeparator' },
             label: { dataType: 'string' },
             type: { ref: 'MetricType', required: true },
