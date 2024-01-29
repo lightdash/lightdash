@@ -6,13 +6,12 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(customMetricsTableName, (tableBuilder) => {
         tableBuilder.string('prefix').nullable();
         tableBuilder.string('suffix').nullable();
-        tableBuilder.string('currency').nullable();
         tableBuilder.string('separator').nullable();
     });
 }
 
 export async function down(knex: Knex): Promise<void> {
     await knex.schema.alterTable(customMetricsTableName, (tableBuilder) => {
-        tableBuilder.dropColumns('prefix', 'suffix', 'currency', 'separator');
+        tableBuilder.dropColumns('prefix', 'suffix', 'separator');
     });
 }
