@@ -8,10 +8,10 @@ import fetch from 'isomorphic-fetch';
 
 export const BASE_API_URL =
     import.meta.env.VITEST === 'true'
-        ? `http://test.lightdash`
-        : import.meta.env.SITE_URL;
+        ? `http://test.lightdash/`
+        : import.meta.env.BASE_URL;
 
-const apiPrefix = `${BASE_API_URL}/api/v1`;
+const apiPrefix = `${BASE_API_URL}api/v1`;
 
 const defaultHeaders = {
     'Content-Type': 'application/json',
