@@ -3,7 +3,7 @@ import {
     CustomFormat,
     CustomFormatType,
     DimensionType,
-    Format,
+    FormatOptions,
     MetricType,
     NumberSeparator,
 } from '../types/field';
@@ -21,21 +21,27 @@ describe('Formatting', () => {
     describe('format and round', () => {
         test('formatValue should return the right format', async () => {
             const kilometerOptions = {
-                format: Format.KM,
+                format: FormatOptions.KM,
             };
             expect(formatValue(5, kilometerOptions)).toEqual('5 km');
             expect(formatValue('5', kilometerOptions)).toEqual('5 km');
             expect(
                 formatValue(5, {
-                    format: Format.MI,
+                    format: FormatOptions.MI,
                 }),
             ).toEqual('5 mi');
-            expect(formatValue(5, { format: Format.USD })).toEqual('$5.00');
-            expect(formatValue(5, { format: Format.GBP })).toEqual('£5.00');
-            expect(formatValue(5, { format: Format.EUR })).toEqual('€5.00');
+            expect(formatValue(5, { format: FormatOptions.USD })).toEqual(
+                '$5.00',
+            );
+            expect(formatValue(5, { format: FormatOptions.GBP })).toEqual(
+                '£5.00',
+            );
+            expect(formatValue(5, { format: FormatOptions.EUR })).toEqual(
+                '€5.00',
+            );
 
             const percentageOptions = {
-                format: Format.PERCENT,
+                format: FormatOptions.PERCENT,
             };
             expect(formatValue(5, percentageOptions)).toEqual('500%');
             expect(formatValue(0.05, percentageOptions)).toEqual('5%');
@@ -54,7 +60,9 @@ describe('Formatting', () => {
             expect(formatValue(5.99999)).toEqual('6');
 
             // ids are not comma separated
-            expect(formatValue(1019, { format: Format.ID })).toEqual('1019');
+            expect(formatValue(1019, { format: FormatOptions.ID })).toEqual(
+                '1019',
+            );
         });
         test('formatValue should return the right round', async () => {
             const roundZeroOptions = {
@@ -102,145 +110,145 @@ describe('Formatting', () => {
         test('formatValue should return the right format and round', async () => {
             expect(
                 formatValue(5, {
-                    format: Format.KM,
+                    format: FormatOptions.KM,
                     round: 2,
                 }),
             ).toEqual('5.00 km');
             expect(
                 formatValue(5, {
-                    format: Format.KM,
+                    format: FormatOptions.KM,
                     round: -2,
                 }),
             ).toEqual('5 km');
             expect(
                 formatValue(5, {
-                    format: Format.MI,
+                    format: FormatOptions.MI,
                     round: 4,
                 }),
             ).toEqual('5.0000 mi');
             expect(
                 formatValue(5, {
-                    format: Format.MI,
+                    format: FormatOptions.MI,
                     round: -4,
                 }),
             ).toEqual('5 mi');
             expect(
                 formatValue(5, {
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                     round: 2,
                 }),
             ).toEqual('$5.00');
             expect(
                 formatValue(5.0, {
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                     round: 0,
                 }),
             ).toEqual('$5');
             expect(
                 formatValue(5, {
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                     round: -2,
                 }),
             ).toEqual('$5.00');
             expect(
                 formatValue(5.25, {
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                     round: -1,
                 }),
             ).toEqual('$5.25');
             expect(
                 formatValue('5.0000', {
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                     round: 2,
                 }),
             ).toEqual('$5.00');
             expect(
                 formatValue(5, {
-                    format: Format.GBP,
+                    format: FormatOptions.GBP,
                     round: 2,
                 }),
             ).toEqual('£5.00');
             expect(
                 formatValue(5, {
-                    format: Format.GBP,
+                    format: FormatOptions.GBP,
                     round: -2,
                 }),
             ).toEqual('£5.00');
             expect(
                 formatValue(5.25, {
-                    format: Format.GBP,
+                    format: FormatOptions.GBP,
                     round: -2,
                 }),
             ).toEqual('£5.25');
             expect(
                 formatValue(5, {
-                    format: Format.EUR,
+                    format: FormatOptions.EUR,
                     round: 2,
                 }),
             ).toEqual('€5.00');
             expect(
                 formatValue(5, {
-                    format: Format.EUR,
+                    format: FormatOptions.EUR,
                     round: -2,
                 }),
             ).toEqual('€5.00');
             expect(
                 formatValue(5.25, {
-                    format: Format.EUR,
+                    format: FormatOptions.EUR,
                     round: -2,
                 }),
             ).toEqual('€5.25');
             expect(
                 formatValue(5, {
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                     round: 2,
                 }),
             ).toEqual('500.00%');
             expect(
                 formatValue(0.05, {
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                     round: 2,
                 }),
             ).toEqual('5.00%');
             expect(
                 formatValue('5', {
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                     round: 2,
                 }),
             ).toEqual('500.00%');
             expect(
                 formatValue(0.0511, {
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                     round: 2,
                 }),
             ).toEqual('5.11%');
             expect(
                 formatValue(0.0511, {
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                     round: 4,
                 }),
             ).toEqual('5.1100%');
             expect(
                 formatValue('foo', {
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                     round: 2,
                 }),
             ).toEqual('foo');
             expect(
                 formatValue(false, {
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                     round: 2,
                 }),
             ).toEqual('false');
             expect(
                 formatValue(0.05, {
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                     round: -2,
                 }),
             ).toEqual('5%');
             expect(
                 formatValue('5', {
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                     round: -2,
                 }),
             ).toEqual('500%');
@@ -257,34 +265,38 @@ describe('Formatting', () => {
             expect(formatValue(5, { compact: M, round: 2 })).toEqual('0.00M');
 
             expect(
-                formatValue(5000, { compact: T, round: 2, format: Format.KM }),
+                formatValue(5000, {
+                    compact: T,
+                    round: 2,
+                    format: FormatOptions.KM,
+                }),
             ).toEqual('5.00K km');
             expect(
                 formatValue(50000, {
                     compact: T,
                     round: 4,
-                    format: Format.MI,
+                    format: FormatOptions.MI,
                 }),
             ).toEqual('50.0000K mi');
             expect(
                 formatValue(5000, {
                     compact: T,
                     round: 2,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$5.00K');
             expect(
                 formatValue(5000000, {
                     compact: T,
                     round: 2,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$5,000.00K');
             expect(
                 formatValue(5000000, {
                     compact: M,
                     round: 2,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$5.00M');
 
@@ -292,14 +304,14 @@ describe('Formatting', () => {
                 formatValue(4, {
                     compact: T,
                     round: 2,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$0.00K');
             expect(
                 formatValue(4, {
                     compact: T,
                     round: 3,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$0.004K');
 
@@ -307,21 +319,21 @@ describe('Formatting', () => {
                 formatValue(5000000, {
                     compact: M,
                     round: 2,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$5.00M');
             expect(
                 formatValue(5000000000, {
                     compact: M,
                     round: 2,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$5,000.00M');
             expect(
                 formatValue(5000000000, {
                     compact: B,
                     round: 2,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$5.00B');
 
@@ -329,35 +341,35 @@ describe('Formatting', () => {
                 formatValue(5000.0, {
                     compact: T,
                     round: 0,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$5K');
             expect(
                 formatValue('5000', {
                     compact: T,
                     round: 2,
-                    format: Format.USD,
+                    format: FormatOptions.USD,
                 }),
             ).toEqual('$5.00K');
             expect(
                 formatValue(5000, {
                     compact: T,
                     round: 2,
-                    format: Format.GBP,
+                    format: FormatOptions.GBP,
                 }),
             ).toEqual('£5.00K');
             expect(
                 formatValue(5000, {
                     compact: T,
                     round: 2,
-                    format: Format.EUR,
+                    format: FormatOptions.EUR,
                 }),
             ).toEqual('€5.00K');
             expect(
                 formatValue(0.05, {
                     compact: T,
                     round: 2,
-                    format: Format.PERCENT,
+                    format: FormatOptions.PERCENT,
                 }),
             ).toEqual('5.00%'); // No affects percent
         });
@@ -851,7 +863,7 @@ describe('Formatting', () => {
                 expect(
                     formatTableCalculation(value, {
                         type: CustomFormatType.CURRENCY,
-                        currency: Format.USD,
+                        currency: FormatOptions.USD,
                     }),
                 ).toEqual(expectedValue[i]),
             );
@@ -859,7 +871,7 @@ describe('Formatting', () => {
                 expect(
                     formatTableCalculation(value, {
                         type: CustomFormatType.CURRENCY,
-                        currency: Format.USD,
+                        currency: FormatOptions.USD,
                         round: 2,
                         compact: Compact.THOUSANDS,
                         separator: NumberSeparator.PERIOD_COMMA,

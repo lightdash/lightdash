@@ -8,6 +8,8 @@ import {
     Field,
     findCompactConfig,
     Format,
+    FormatOptions,
+    isCurrencyFormat,
     isDimension,
     isField,
     isTableCalculation,
@@ -222,16 +224,14 @@ export function formatValue(
         ? styleNumber(value, options)
         : roundNumber(value, { round, format });
     switch (format) {
-        case Format.KM:
-        case Format.MI:
+        case FormatOptions.KM:
+        case FormatOptions.MI:
             return `${styledValue} ${format}`;
-        case Format.USD:
-        case Format.GBP:
-        case Format.EUR:
+        case isCurrencyFormat(format):
             return `${styledValue}`;
-        case Format.ID:
+        case FormatOptions.ID:
             return `${value}`;
-        case Format.PERCENT:
+        case FormatOptions.PERCENT:
             if (valueIsNaN(value)) {
                 return `${value}`;
             }

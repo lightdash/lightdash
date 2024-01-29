@@ -1,4 +1,9 @@
-import { FieldType, Format, ItemsMap, MetricQuery } from '@lightdash/common';
+import {
+    FieldType,
+    FormatOptions,
+    ItemsMap,
+    MetricQuery,
+} from '@lightdash/common';
 
 export const metricQuery: MetricQuery = {
     exploreName: 'test',
@@ -25,7 +30,7 @@ export const itemMap: ItemsMap = {
         hidden: false,
         fieldType: FieldType.DIMENSION,
         type: 'number',
-        format: Format.USD,
+        format: FormatOptions.USD,
         tableLabel: 'table',
         label: 'column number',
         sql: '${TABLE}.column_number',

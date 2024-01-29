@@ -15,7 +15,7 @@ import {
 import {
     CustomFormatType,
     FilterableItem,
-    Format,
+    FormatOptions,
     isField,
     isFilterableItem,
     isTableCalculation,
@@ -60,7 +60,7 @@ export const hasPercentageFormat = (field: ItemsMap[string] | undefined) => {
     if (!field) return false;
 
     return (
-        (isField(field) && field?.format === Format.PERCENT) ||
+        (isField(field) && field?.format === FormatOptions.PERCENT) ||
         (isTableCalculation(field) &&
             field.format?.type === CustomFormatType.PERCENT)
     );

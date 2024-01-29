@@ -4,7 +4,7 @@ import {
     CompactOrAlias,
     ComparisonDiffTypes,
     ComparisonFormatTypes,
-    Format,
+    FormatOptions,
     formatTableCalculationValue,
     formatValue,
     friendlyName,
@@ -55,7 +55,7 @@ const formatComparisonValue = (
     switch (format) {
         case ComparisonFormatTypes.PERCENTAGE:
             return `${prefix}${formatValue(value, {
-                format: Format.PERCENT,
+                format: FormatOptions.PERCENT,
                 round: 0,
             })}`;
         case ComparisonFormatTypes.RAW:
