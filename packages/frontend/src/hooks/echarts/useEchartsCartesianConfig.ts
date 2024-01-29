@@ -1430,23 +1430,14 @@ const useEchartsCartesianConfig = (
             if (xFieldId === undefined) return results;
             const { min, max } = axes.xAxis[0];
 
-            const hasCustomRange =
-                (min !== undefined || max !== undefined) &&
-                (typeof min === 'string' || typeof max === 'string');
-
+            const hasCustomRange = min !== undefined && max !== undefined;
             const resultsInRange = hasCustomRange
                 ? results.filter((result) => {
                       const value = result[xFieldId];
                       if (!value) return true;
 
-                      const isGreaterThan =
-                          min === undefined ||
-                          typeof min !== 'string' ||
-                          value > min;
-                      const isLessThan =
-                          max === undefined ||
-                          typeof max !== 'string' ||
-                          value < max;
+                      const isGreaterThan = min === undefined || value > min;
+                      const isLessThan = max === undefined || value < max;
 
                       return isGreaterThan && isLessThan;
                   })
