@@ -1,3 +1,10 @@
+## [0.965.7](https://github.com/lightdash/lightdash/compare/0.965.6...0.965.7) (2024-01-29)
+
+
+### Bug Fixes
+
+* Update dbt installation instructions + other minor tweaks in CONTRIBUTING.md ([#8760](https://github.com/lightdash/lightdash/issues/8760)) ([faf9426](https://github.com/lightdash/lightdash/commit/faf94260a10cb8daae590f6cf3a810689e54a7f6))
+
 ## [0.965.6](https://github.com/lightdash/lightdash/compare/0.965.5...0.965.6) (2024-01-29)
 
 
