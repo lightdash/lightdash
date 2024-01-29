@@ -295,37 +295,37 @@ To setup Development Environment without Docker you need following pre-requisite
 eg. on MacOS you can follow this instructions:
 
 ```shell
-#1 install brew (https://brew.sh)
+# 1 Install Homebrew (https://brew.sh)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-#2 install nvm (https://github.com/nvm-sh/nvm#troubleshooting-on-macos)
+# 2 Install nvm (https://github.com/nvm-sh/nvm#troubleshooting-on-macos)
 brew update
 brew install nvm
 
-#3 install specified node version using NVM (https://github.com/nvm-sh/nvm)
+# 3 Install specified node version using NVM (https://github.com/nvm-sh/nvm)
 
 nvm install v20.8.0
 nvm alias default v20.8.0
 
-#4 install postgres (https://wiki.postgresql.org/wiki/Homebrew)
+# 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew)
 brew install postgresql@14
 brew services start postgresql@14
 
-#5 install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
-brew tap dbt-labs/dbt@1.4.9
-brew install dbt-postgres@1.4.9
+# 5 Install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
+brew tap dbt-labs/dbt
+brew install dbt-postgres@1.5.4
 
-#6 clone the repo and open it in your IDE
+# 6 Clone the repo and open it in your IDE
 git clone https://github.com/lightdash/lightdash.git
 cd lightdash
 
-#7 Copy `.env.development` to `.env.development.local`
+# 7 Copy `.env.development` to `.env.development.local`
 cp .env.development .env.development.local
 
-#8 Edit some environment variables to match your setup
+# 8 Edit some environment variables to match your setup
 open .env.development.local -t
 
-# here is some variables that you might need to edit:
+# 8.1 You may need to edit the following variables:
 PGHOST=localhost
 PGPORT=5432
 PGUSER=pg_user *OR* machine username if no prior postgres set up
@@ -334,16 +334,16 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
 LIGHTDASH_CONFIG_FILE=$PWD/lightdash.yml
 
-#9 install packages
+# 9 Install packages
 yarn
 
-#10 build / migrate / seed
+# 10 Build / migrate / seed
 yarn load:env ./scripts/build.sh
 yarn load:env ./scripts/seed-jaffle.sh
 yarn load:env ./scripts/migrate.sh
 yarn load:env ./scripts/seed-lightdash.sh
 
-# run
+# Run
 yarn load:env yarn dev
 
 # Log in dev mode
@@ -377,10 +377,10 @@ yarn install
 yarn common-build
 yarn warehouses-build
 
-# run cypress in interactive mode
+# Run cypress in interactive mode
 yarn e2e-open
 
-# or run cypress in cli mode
+# Or run cypress in cli mode
 yarn e2e-run
 ```
 
@@ -421,28 +421,28 @@ If you are running both Lightdash and Headless browser using our docker-compose 
 If you are running lightdash without docker, you will have to run headless browser in a way that it is able to connect
 to your lightdash endpoint in localhost. You can achive this on Linux by doing:
 
-```
+```shell
 docker run -e PORT=3001 --name=lightdash-headless --network 'host' -it --rm browserless/chrome
 ```
 
 Then make sure to configure the following ENV variables:
 
-```
+```shell
 export HEADLESS_BROWSER_HOST='localhost'
 export HEADLESS_BROWSER_PORT=3001
 export SITE_URL=http://localhost:3000
 ```
 
-#### Running Lighdtash without docker and headless browser on Mac
+#### Running Lightdash without docker and headless browser on Mac
 
 If you are running Lightdash without docker on Mac, you will have to run docker and create an special host to reach
 lightdash because it can't use localhost.
 
-```
+```shell
 docker run -e PORT=3001 -p 3001:3001 --name=lightdash-headless --add-host=lightdash-dev:host-gateway -it --rm browserless/chrome
 ```
 
-make sure to add the following line to your `/etc/hosts` file:
+Make sure to add the following line to your `/etc/hosts` file:
 
 ```
 127.0.0.1 lightdash-dev
@@ -452,7 +452,7 @@ Then headless browser should be able to reach lightdash on `http://lightdash-dev
 
 So make sure to configure the following ENV variables:
 
-```
+```shell
 export HEADLESS_BROWSER_HOST='localhost'
 export HEADLESS_BROWSER_PORT=3001
 export SITE_URL=http://lightdash-dev:3000
