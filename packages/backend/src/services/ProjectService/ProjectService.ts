@@ -3361,7 +3361,7 @@ export class ProjectService {
         );
     }
 
-    async updateProjectCredentialsPreference(
+    async upsertProjectCredentialsPreference(
         user: SessionUser,
         projectUuid: string,
         userWarehouseCredentialsUuid: string,
@@ -3377,7 +3377,7 @@ export class ProjectService {
         if (user.ability.cannot('view', subject('Project', project))) {
             throw new ForbiddenError();
         }
-        await this.userWarehouseCredentialsModel.updateUserCredentialsPreference(
+        await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
             user.userUuid,
             projectUuid,
             userWarehouseCredentialsUuid,

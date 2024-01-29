@@ -183,7 +183,7 @@ export class UserWarehouseCredentialsModel {
         return undefined;
     }
 
-    async updateUserCredentialsPreference(
+    async upsertUserCredentialsPreference(
         userUuid: string,
         projectUuid: string,
         userWarehouseCredentialsUuid: string,

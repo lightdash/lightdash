@@ -372,7 +372,7 @@ export class ProjectController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await projectService.updateProjectCredentialsPreference(
+        await projectService.upsertProjectCredentialsPreference(
             req.user!,
             projectUuid,
             userWarehouseCredentialsUuid,
