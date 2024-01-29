@@ -1,3 +1,10 @@
+## [0.965.4](https://github.com/lightdash/lightdash/compare/0.965.3...0.965.4) (2024-01-29)
+
+
+### Bug Fixes
+
+* empty line chart axis range ([#8751](https://github.com/lightdash/lightdash/issues/8751)) ([4eaa4e7](https://github.com/lightdash/lightdash/commit/4eaa4e7c8c2ca0a08a3d3f5ac26179f9e1c816ac))
+
 ## [0.965.3](https://github.com/lightdash/lightdash/compare/0.965.2...0.965.3) (2024-01-26)
 
 
