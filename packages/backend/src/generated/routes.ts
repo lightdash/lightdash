@@ -739,7 +739,66 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Format: {
         dataType: 'refEnum',
-        enums: ['km', 'mi', 'usd', 'gbp', 'eur', 'id', 'percent'],
+        enums: [
+            'ars',
+            'aud',
+            'brl',
+            'cad',
+            'chf',
+            'clp',
+            'cny',
+            'cop',
+            'czk',
+            'dkk',
+            'eur',
+            'gbp',
+            'hkd',
+            'huf',
+            'ils',
+            'inr',
+            'jpy',
+            'krw',
+            'mad',
+            'mxn',
+            'myr',
+            'nok',
+            'nzd',
+            'php',
+            'pln',
+            'rub',
+            'sar',
+            'sek',
+            'sgd',
+            'thb',
+            'try',
+            'twd',
+            'usd',
+            'vnd',
+            'zar',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NumberFormat: {
+        dataType: 'refEnum',
+        enums: ['percent', 'id'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DistanceFormat: {
+        dataType: 'refEnum',
+        enums: ['km', 'mi'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Format: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'CurrencyFormat' },
+                { ref: 'NumberFormat' },
+                { ref: 'DistanceFormat' },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricFilterRule: {
