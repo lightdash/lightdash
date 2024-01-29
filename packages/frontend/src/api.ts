@@ -5,17 +5,20 @@ import {
     RequestMethod,
 } from '@lightdash/common';
 
-const apiPrefix = '/api/v1';
+export const BASE_API_URL =
+    import.meta.env.VITEST === 'true' ? `http://test.lightdash` : '';
+const apiPrefix = `${BASE_API_URL}/api/v1`;
 
 const defaultHeaders = {
     'Content-Type': 'application/json',
     [LightdashRequestMethodHeader]: RequestMethod.WEB_APP,
 };
 
-const handleError = (err: any): ApiError => {
+const handleError = (err: any, url: string): ApiError & { url: string } => {
     if (err.error?.statusCode && err.error?.name) return err;
     return {
         status: 'error',
+        url,
         error: {
             name: 'NetworkError',
             statusCode: 500,
@@ -66,5 +69,5 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         })
         .catch((err) => {
             // eslint-disable-next-line @typescript-eslint/no-throw-literal
-            throw handleError(err);
+            throw handleError(err, `${apiPrefix}${url}`);
         });

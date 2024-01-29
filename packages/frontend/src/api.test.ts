@@ -27,14 +27,17 @@ describe('api', () => {
         });
         expect(result).toEqual('test');
         expect(fetchMocker).toHaveBeenCalledTimes(1);
-        expect(fetchMocker).toHaveBeenCalledWith('/api/v1/test', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Lightdash-Request-Method': 'WEB_APP',
+        expect(fetchMocker).toHaveBeenCalledWith(
+            'http://test.lightdash/api/v1/test',
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Lightdash-Request-Method': 'WEB_APP',
+                },
+                body: null,
             },
-            body: null,
-        });
+        );
     });
 
     it('should allow custom headers', async () => {
@@ -47,13 +50,16 @@ describe('api', () => {
             },
         });
         expect(fetchMocker).toHaveBeenCalledTimes(1);
-        expect(fetchMocker).toHaveBeenCalledWith('/api/v1/test', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Lightdash-Request-Method': 'TEST',
+        expect(fetchMocker).toHaveBeenCalledWith(
+            'http://test.lightdash/api/v1/test',
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Lightdash-Request-Method': 'TEST',
+                },
+                body: null,
             },
-            body: null,
-        });
+        );
     });
 });
