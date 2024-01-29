@@ -1,3 +1,10 @@
+## [0.965.5](https://github.com/lightdash/lightdash/compare/0.965.4...0.965.5) (2024-01-29)
+
+
+### Bug Fixes
+
+* e2e tests jan 2024 ([#8735](https://github.com/lightdash/lightdash/issues/8735)) ([0ee8ed0](https://github.com/lightdash/lightdash/commit/0ee8ed044eee2d9f44606e5dbd32a140031bc9a3))
+
 ## [0.965.4](https://github.com/lightdash/lightdash/compare/0.965.3...0.965.4) (2024-01-29)
 
 
