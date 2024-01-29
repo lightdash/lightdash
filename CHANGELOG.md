@@ -1,3 +1,10 @@
+## [0.965.6](https://github.com/lightdash/lightdash/compare/0.965.5...0.965.6) (2024-01-29)
+
+
+### Bug Fixes
+
+* fix explore tsoa issue from CLI ([#8759](https://github.com/lightdash/lightdash/issues/8759)) ([0410101](https://github.com/lightdash/lightdash/commit/041010121ec825fcf46b8676f9c1096c9fe43f5f))
+
 ## [0.965.5](https://github.com/lightdash/lightdash/compare/0.965.4...0.965.5) (2024-01-29)
 
 
