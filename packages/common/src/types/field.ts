@@ -333,18 +333,67 @@ export enum MetricType {
     BOOLEAN = 'boolean',
 }
 
-export enum Format {
+export enum DistanceFormat {
     KM = 'km',
     MI = 'mi',
-    USD = 'usd',
-    GBP = 'gbp',
-    EUR = 'eur',
-    ID = 'id',
-    PERCENT = 'percent',
 }
 
+export enum NumberFormat {
+    PERCENT = 'percent',
+    ID = 'id',
+}
+
+export enum CurrencyFormat {
+    ARS = 'ars',
+    AUD = 'aud',
+    BRL = 'brl',
+    CAD = 'cad',
+    CHF = 'chf',
+    CLP = 'clp',
+    CNY = 'cny',
+    COP = 'cop',
+    CZK = 'czk',
+    DKK = 'dkk',
+    EUR = 'eur',
+    GBP = 'gbp',
+    HKD = 'hkd',
+    HUF = 'huf',
+    ILS = 'ils',
+    INR = 'inr',
+    JPY = 'jpy',
+    KRW = 'krw',
+    MAD = 'mad',
+    MXN = 'mxn',
+    MYR = 'myr',
+    NOK = 'nok',
+    NZD = 'nzd',
+    PHP = 'php',
+    PLN = 'pln',
+    RUB = 'rub',
+    SAR = 'sar',
+    SEK = 'sek',
+    SGD = 'sgd',
+    THB = 'thb',
+    TRY = 'try',
+    TWD = 'twd',
+    USD = 'usd',
+    VND = 'vnd',
+    ZAR = 'zar',
+}
+
+export const FormatOptions = {
+    ...DistanceFormat,
+    ...NumberFormat,
+    ...CurrencyFormat,
+} as const;
+
+export type Format = typeof FormatOptions[keyof typeof FormatOptions];
+
 export const isFormat = (value: string | undefined): value is Format =>
-    !!value && Object.values(Format).includes(value as Format);
+    !!value && Object.values(FormatOptions).includes(value as Format);
+
+export const isCurrencyFormat = (format: Format | undefined) =>
+    format && format in CurrencyFormat;
 
 export const parseMetricType = (metricType: string): MetricType => {
     switch (metricType) {
