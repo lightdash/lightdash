@@ -372,6 +372,11 @@ const SchedulerForm: FC<Props> = ({
                             placeholder="Name your delivery"
                             required
                             {...form.getInputProps('name')}
+                            styles={{
+                                label: {
+                                    marginBottom: '0.25rem',
+                                },
+                            }}
                         />
                         <Input.Wrapper label="Delivery frequency">
                             <Box mt="xxs">
