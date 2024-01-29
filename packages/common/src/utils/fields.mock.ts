@@ -30,7 +30,6 @@ export const metricQuery: MetricQuery = {
             table: 'table1',
             type: MetricType.COUNT,
             description: 'My description',
-            baseDimensionName: 'dim1',
         },
     ],
     customDimensions: [
