@@ -119,6 +119,132 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "Pick_Explore.SummaryExploreFields_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "label", "tags"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SummaryExtraFields": {
+                "properties": {
+                    "databaseName": {
+                        "type": "string"
+                    },
+                    "schemaName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["databaseName", "schemaName"],
+                "type": "object"
+            },
+            "InlineErrorType": {
+                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
+                "type": "string"
+            },
+            "InlineError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/InlineErrorType"
+                    }
+                },
+                "required": ["message", "type"],
+                "type": "object"
+            },
+            "Pick_ExploreError.SummaryExploreErrorFields_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    },
+                    "errors": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["name", "label", "tags", "errors"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Partial_SummaryExtraFields_": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "schemaName": {
+                        "type": "string"
+                    },
+                    "databaseName": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "SummaryExplore": {
+                "anyOf": [
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_Explore.SummaryExploreFields_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/SummaryExtraFields"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_ExploreError.SummaryExploreErrorFields_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Partial_SummaryExtraFields_"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "ApiExploresResults": {
+                "items": {
+                    "$ref": "#/components/schemas/SummaryExplore"
+                },
+                "type": "array"
+            },
             "DbtModelJoinType": {
                 "type": "string",
                 "enum": ["inner", "full", "left", "right"]
@@ -360,213 +486,6 @@
                     "name"
                 ],
                 "type": "object"
-            },
-            "Partial_Explore_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    },
-                    "baseTable": {
-                        "type": "string"
-                    },
-                    "joinedTables": {
-                        "items": {
-                            "$ref": "#/components/schemas/CompiledExploreJoin"
-                        },
-                        "type": "array"
-                    },
-                    "tables": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "$ref": "#/components/schemas/CompiledTable"
-                        },
-                        "type": "object"
-                    },
-                    "targetDatabase": {
-                        "$ref": "#/components/schemas/SupportedDbtAdapter"
-                    },
-                    "warehouse": {
-                        "type": "string"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "Pick_Explore.name-or-label-or-groupLabel_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "label"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "InlineErrorType": {
-                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
-                "type": "string"
-            },
-            "InlineError": {
-                "properties": {
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/InlineErrorType"
-                    }
-                },
-                "required": ["message", "type"],
-                "type": "object"
-            },
-            "ExploreError": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Partial_Explore_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Pick_Explore.name-or-label-or-groupLabel_"
-                    },
-                    {
-                        "properties": {
-                            "errors": {
-                                "items": {
-                                    "$ref": "#/components/schemas/InlineError"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["errors"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Pick_Explore.SummaryExploreFields_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["name", "label", "tags"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "SummaryExtraFields": {
-                "properties": {
-                    "databaseName": {
-                        "type": "string"
-                    },
-                    "schemaName": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    }
-                },
-                "required": ["databaseName", "schemaName"],
-                "type": "object"
-            },
-            "Pick_ExploreError.SummaryExploreErrorFields_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "errors": {
-                        "items": {
-                            "$ref": "#/components/schemas/InlineError"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["name", "label", "tags", "errors"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Partial_SummaryExtraFields_": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "schemaName": {
-                        "type": "string"
-                    },
-                    "databaseName": {
-                        "type": "string"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "SummaryExplore": {
-                "anyOf": [
-                    {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_Explore.SummaryExploreFields_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/SummaryExtraFields"
-                            }
-                        ]
-                    },
-                    {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_ExploreError.SummaryExploreErrorFields_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Partial_SummaryExtraFields_"
-                            }
-                        ]
-                    }
-                ]
-            },
-            "ApiExploresResults": {
-                "items": {
-                    "$ref": "#/components/schemas/SummaryExplore"
-                },
-                "type": "array"
             },
             "ApiExploreResults": {
                 "$ref": "#/components/schemas/Explore"
@@ -2615,11 +2534,11 @@
             },
             "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
-                    },
                     "warehouse": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
                     },
                     "role": {
                         "type": "string"
@@ -2659,8 +2578,8 @@
                     }
                 },
                 "required": [
-                    "type",
                     "warehouse",
+                    "type",
                     "account",
                     "database",
                     "schema"
@@ -6590,16 +6509,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "items": {
-                                    "anyOf": [
-                                        {
-                                            "$ref": "#/components/schemas/Explore"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/ExploreError"
-                                        }
-                                    ]
-                                },
+                                "items": {},
                                 "type": "array"
                             }
                         }
