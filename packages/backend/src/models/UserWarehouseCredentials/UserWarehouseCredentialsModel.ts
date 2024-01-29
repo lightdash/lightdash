@@ -137,17 +137,11 @@ export class UserWarehouseCredentialsModel {
             )
             .first();
 
-<<<<<<< HEAD
         if (projectPreferredCredentials) {
             return projectPreferredCredentials;
         }
         // fallback to compatible credentials
         return this.database(UserWarehouseCredentialsTableName)
-=======
-        const firstCompatibleCredentials = await this.database(
-            UserWarehouseCredentialsTableName,
-        )
->>>>>>> ad978b280 (feat(API): project credentials preference)
             .select('*')
             .where('warehouse_type', warehouseType)
             .andWhere('user_uuid', userUuid)
@@ -155,12 +149,6 @@ export class UserWarehouseCredentialsModel {
             .first();
     }
 
-<<<<<<< HEAD
-=======
-        return projectPreferredCredentials || firstCompatibleCredentials;
-    }
-
->>>>>>> ad978b280 (feat(API): project credentials preference)
     async findForProject(
         projectUuid: string,
         userUuid: string,
