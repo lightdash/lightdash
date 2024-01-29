@@ -1,35 +1,24 @@
-import { screen, waitFor } from '@testing-library/react';
-import { ComponentProps } from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { useApp } from '../../providers/AppProvider';
-import {
-    renderHookWithProviders,
-    renderWithProviders,
-} from '../../utils/testUtils';
+import { waitFor } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { renderWithProviders } from '../../testing/testUtils';
 import UserCompletionModal from './UserCompletionModal';
 
-vi.mock('@uiw/react-markdown-preview', () => ({
-    default: ({ source }: ComponentProps<any>) => {
-        return <>{source}</>;
-    },
-}));
-
 describe('UserCompletionModal', () => {
-    it('should render', async () => {
-        const { result } = renderHookWithProviders(() => useApp(), {
+    it("should not render anything if user's setup is complete", async () => {
+        const { container } = renderWithProviders(<UserCompletionModal />);
+
+        await waitFor(() => expect(container).toBeEmptyDOMElement());
+    });
+
+    it("should render user completion modal if user's setup is not complete", async () => {
+        const { getByText } = renderWithProviders(<UserCompletionModal />, {
             user: {
                 isSetupComplete: false,
             },
         });
 
-        await waitFor(() => expect(result.current.user.isLoading).toBe(false));
-
-        expect(result.current.user.data!.isSetupComplete).toBe(false);
+        await waitFor(() =>
+            expect(getByText('Nearly there...')).toBeInTheDocument(),
+        );
     });
-
-    it("should not render anything if user's setup is complete", async () => {
-        const { container } = renderWithProviders(<UserCompletionModal />);
-        expect(container).toBeEmptyDOMElement();
-    });
-    // await waitFor(() => screen.findByText('Nearly there...'));
 });

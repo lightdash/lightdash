@@ -9,7 +9,9 @@ interface AppContext {
     user: UseQueryResult<UserWithAbility, ApiError>;
 }
 
-const Context = createContext<AppContext>(undefined as any);
+// used in test mocks
+// ts-unused-exports:disable-next-line
+export const AppProviederContext = createContext<AppContext>(undefined as any);
 
 export const AppProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     const health = useHealth();
@@ -20,11 +22,15 @@ export const AppProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
         user,
     };
 
-    return <Context.Provider value={value}>{children}</Context.Provider>;
+    return (
+        <AppProviederContext.Provider value={value}>
+            {children}
+        </AppProviederContext.Provider>
+    );
 };
 
 export function useApp(): AppContext {
-    const context = useContext(Context);
+    const context = useContext(AppProviederContext);
     if (context === undefined) {
         throw new Error('useApp must be used within a AppProvider');
     }

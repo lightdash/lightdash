@@ -8,9 +8,7 @@ import { ActiveJobProvider } from './providers/ActiveJobProvider';
 import { AppProvider } from './providers/AppProvider';
 import { ErrorLogsProvider } from './providers/ErrorLogsProvider';
 import MantineProvider from './providers/MantineProvider';
-import ReactQueryProvider, {
-    createQueryClient,
-} from './providers/ReactQueryProvider';
+import ReactQueryProvider from './providers/ReactQueryProvider';
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import { TrackingProvider } from './providers/TrackingProvider';
 import Routes from './Routes';
@@ -26,15 +24,13 @@ const isMobile = window.innerWidth < 768;
 
 const isMinimalPage = window.location.pathname.startsWith('/minimal');
 
-const queryClient = createQueryClient();
-
 const App = () => (
     <>
         <Helmet>
             <title>Lightdash</title>
         </Helmet>
 
-        <ReactQueryProvider queryClient={queryClient}>
+        <ReactQueryProvider>
             <MantineProvider>
                 <AppProvider>
                     <Router>

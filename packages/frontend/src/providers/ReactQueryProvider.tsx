@@ -5,6 +5,8 @@ import {
 } from '@tanstack/react-query';
 import { FC, PropsWithChildren } from 'react';
 
+// used in test mocks
+// ts-unused-exports:disable-next-line
 export const createQueryClient = (options?: DefaultOptions) => {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -30,14 +32,9 @@ export const createQueryClient = (options?: DefaultOptions) => {
     return queryClient;
 };
 
-type Props = {
-    queryClient: QueryClient;
-};
+const ReactQueryProvider: FC<PropsWithChildren> = ({ children }) => {
+    const queryClient = createQueryClient();
 
-const ReactQueryProvider: FC<PropsWithChildren<Props>> = ({
-    children,
-    queryClient,
-}) => {
     return (
         <QueryClientProvider client={queryClient}>
             {children}
