@@ -164,6 +164,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                     onMenuChange={toggleMenu}
                 />
             }
+            data-testid={`tree-single-node-${label}`}
         />
     );
 };
