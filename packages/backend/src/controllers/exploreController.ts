@@ -47,7 +47,7 @@ export class ExploreController extends Controller {
     async SetExplores(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: (Explore | ExploreError)[],
+        @Body() body: any[], // tsoa doesn't seem to work with explores from CLI
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await projectService.setExplores(req.user!, projectUuid, body);
