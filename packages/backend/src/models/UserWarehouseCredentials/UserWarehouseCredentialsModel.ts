@@ -137,16 +137,16 @@ export class UserWarehouseCredentialsModel {
             )
             .first();
 
-        const firstCompatibleCredentials = await this.database(
-            UserWarehouseCredentialsTableName,
-        )
+        if (projectPreferredCredentials) {
+            return projectPreferredCredentials;
+        }
+        // fallback to compatible credentials
+        return this.database(UserWarehouseCredentialsTableName)
             .select('*')
             .where('warehouse_type', warehouseType)
             .andWhere('user_uuid', userUuid)
             .orderBy('created_at')
             .first();
-
-        return projectPreferredCredentials || firstCompatibleCredentials;
     }
 
     async findForProject(
