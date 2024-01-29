@@ -360,6 +360,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://ulisesgascon.com/"><img src="https://avatars.githubusercontent.com/u/5110813?v=4?s=100" width="100px;" alt="Ulises Gascón"/><br /><sub><b>Ulises Gascón</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=UlisesGascon" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/GtheSheep"><img src="https://avatars.githubusercontent.com/u/13685708?v=4?s=100" width="100px;" alt="Gary James"/><br /><sub><b>Gary James</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=GtheSheep" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/almeidabbm"><img src="https://avatars.githubusercontent.com/u/22939015?v=4?s=100" width="100px;" alt="Bruno Almeida"/><br /><sub><b>Bruno Almeida</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=almeidabbm" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/filp"><img src="https://avatars.githubusercontent.com/u/382538?v=4?s=100" width="100px;" alt="Filipe Dobreira"/><br /><sub><b>Filipe Dobreira</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=filp" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
