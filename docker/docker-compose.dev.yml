@@ -11,28 +11,29 @@ services:
     depends_on:
       - db-dev
     environment:
-      - PGHOST=db-dev
-      - PGPORT=5432
-      - PGUSER=postgres
-      - PGPASSWORD=password
-      - PGDATABASE=postgres
-      - RUDDERSTACK_WRITE_KEY=1vikeGadtB0Y0oRDFNL2Prdhkbp
-      - RUDDERSTACK_DATA_PLANE_URL=https://analytics.lightdash.com
-      - SECURE_COOKIES=false
-      - LIGHTDASH_SECRET="not very secret"
-      - LIGHTDASH_LOG_LEVEL=debug
-      - NODE_ENV=development
-      - LIGHTDASH_CONFIG_FILE=/usr/app/lightdash.yml
-      - DBT_DEMO_DIR=/usr/app/examples/full-jaffle-shop-demo
-      - AUTH_DISABLE_PASSWORD_AUTHENTICATION=false
-      - AUTH_ENABLE_GROUP_SYNC=false
-      - SITE_URL=http://localhost:3000
-      - ALLOW_MULTIPLE_ORGS=false
-      - LIGHTDASH_QUERY_MAX_LIMIT=5000
-      - HEADLESS_BROWSER_HOST=headless-browser
-      - HEADLESS_BROWSER_PORT=3000
-      - SCHEDULER_ENABLED=true
-      - GROUPS_ENABLED=true
+      - PGHOST=${PGHOST}
+      - PGPORT=${PGPORT}
+      - PGUSER=${PGUSER}
+      - PGPASSWORD=${PGPASSWORD}
+      - PGDATABASE=${PGDATABASE}
+      - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
+      - RUDDERSTACK_DATA_PLANE_URL=${RUDDERSTACK_DATA_PLANE_URL}
+      - SECURE_COOKIES=${SECURE_COOKIES}
+      - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
+      - LIGHTDASH_LOG_LEVEL=${LIGHTDASH_LOG_LEVEL}
+      - NODE_ENV=${NODE_ENV}
+      - LIGHTDASH_CONFIG_FILE=${LIGHTDASH_CONFIG_FILE}
+      - DBT_DEMO_DIR=${DBT_DEMO_DIR}
+      - AUTH_DISABLE_PASSWORD_AUTHENTICATION=${AUTH_DISABLE_PASSWORD_AUTHENTICATION}
+      - AUTH_ENABLE_GROUP_SYNC=${AUTH_ENABLE_GROUP_SYNC}
+      - SITE_URL=${AUTH_ENABLE_GROUP_SYNC}
+      - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS}
+      - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
+      - HEADLESS_BROWSER_HOST=${HEADLESS_BROWSER_HOST}
+      - HEADLESS_BROWSER_PORT=${HEADLESS_BROWSER_PORT}
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
+      - GROUPS_ENABLED=${GROUPS_ENABLED}
+      - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
     volumes:
       - "../:/usr/app"
       - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
