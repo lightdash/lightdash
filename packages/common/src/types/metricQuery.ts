@@ -38,7 +38,7 @@ export const getCustomDimensionId = (dimension: CustomDimension) =>
     dimension.id;
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
-    value?.table && value?.name && value.baseDimensionName && !value.binType;
+    value?.table && value?.name && !value?.fieldType && !value.binType;
 
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;
