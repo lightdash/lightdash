@@ -35,6 +35,11 @@ const TableHeader: FC<TableHeaderProps> = ({ minimal = false }) => {
                     <HeaderDroppable headerGroup={headerGroup}>
                         {headerGroup.headers.map((header) => {
                             const meta = header.column.columnDef.meta;
+                            const tooltipLabel =
+                                meta?.item && isField(meta?.item)
+                                    ? meta.item.description
+                                    : undefined;
+
                             return (
                                 <Th
                                     key={header.id}
@@ -78,15 +83,11 @@ const TableHeader: FC<TableHeaderProps> = ({ minimal = false }) => {
                                                         withinPortal
                                                         maw={400}
                                                         multiline
-                                                        label={
-                                                            meta?.item &&
-                                                            isField(meta?.item)
-                                                                ? meta.item
-                                                                      .description
-                                                                : undefined
-                                                        }
+                                                        label={tooltipLabel}
                                                         position="top"
                                                         disabled={
+                                                            tooltipLabel ==
+                                                                null ||
                                                             minimal ||
                                                             snapshot.isDropAnimating ||
                                                             snapshot.isDragging
