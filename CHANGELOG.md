@@ -1,3 +1,10 @@
+# [0.967.0](https://github.com/lightdash/lightdash/compare/0.966.1...0.967.0) (2024-01-30)
+
+
+### Features
+
+* update project credentials preference ([#8744](https://github.com/lightdash/lightdash/issues/8744)) ([f8c8a71](https://github.com/lightdash/lightdash/commit/f8c8a715a204e884b057057b8f2fd55cf3d796c8))
+
 ## [0.966.1](https://github.com/lightdash/lightdash/compare/0.966.0...0.966.1) (2024-01-30)
 
 
