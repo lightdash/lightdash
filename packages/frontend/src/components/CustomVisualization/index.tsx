@@ -1,107 +1,60 @@
-import { ResultRow } from '@lightdash/common';
-import { Center, Code, Loader } from '@mantine/core';
-import {
-    createContext,
-    FC,
-    lazy,
-    Suspense,
-    useContext,
-    useMemo,
-    useState,
-} from 'react';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
+import { Center, Code, Loader, Text } from '@mantine/core';
+import { FC, lazy, Suspense, useMemo } from 'react';
+import { CustomVisualizationProps } from '../../hooks/useCustomVisualizationConfig';
+import { isCustomVisualizationConfig } from '../LightdashVisualization/VisualizationCustomConfig';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 const VegaLite = lazy(() =>
     import('react-vega').then((module) => ({ default: module.VegaLite })),
 );
 
-const defaultValue = JSON.stringify({}, null, 2);
-
-const CustomVisualizationContext = createContext<{
-    chartConfig: string;
-    setChartConfig: (newConfig: string) => void;
-    rows: {
-        [k: string]: unknown;
-    }[];
-    fields: string[];
-}>({
-    chartConfig: defaultValue,
-    setChartConfig: () => {},
-    rows: [],
-    fields: [],
-});
-
-export const useCustomVisualizationContext = () =>
-    useContext(CustomVisualizationContext);
-
-const convertRowsToSeries = (rows: ResultRow[]) => {
-    return rows.map((row) => {
-        return Object.fromEntries(
-            Object.entries(row).map(([key, rowValue]) => [
-                key,
-                rowValue.value.raw,
-            ]),
-        );
-    });
-};
-
-export const CustomVisualizationProvider: FC<React.PropsWithChildren<{}>> = ({
-    children,
-}) => {
-    const rows = useExplorerContext(
-        (context) => context.queryResults.data?.rows,
-    );
-
-    const [chartConfig, setChartConfig] = useState<string>(defaultValue);
-
-    const convertedRows = useMemo(() => {
-        return rows ? convertRowsToSeries(rows) : [];
-    }, [rows]);
-
-    const fields = useMemo(() => {
-        return rows && rows.length > 0 ? Object.keys(rows[0]) : [];
-    }, [rows]);
-
-    return (
-        <CustomVisualizationContext.Provider
-            value={{
-                chartConfig,
-                setChartConfig,
-                rows: convertedRows,
-                fields,
-            }}
-        >
-            {children}
-        </CustomVisualizationContext.Provider>
-    );
-};
-
-type CustomVisualizationProps = {
+type Props = {
     className?: string;
     'data-testid'?: string;
 };
 
-const CustomVisualization: FC<CustomVisualizationProps> = (props) => {
-    const { chartConfig, rows } = useCustomVisualizationContext();
+const CustomVisualization: FC<Props> = (props) => {
+    // TODO: isSqlRunner
+    const { isLoading, visualizationConfig } = useVisualizationContext();
 
-    const [config, error] = useMemo(() => {
+    const [spec, error] = useMemo(() => {
         try {
+            if (!isCustomVisualizationConfig(visualizationConfig))
+                return [null, 'Invalid config for custom visualization'];
             return [
                 {
-                    ...JSON.parse(chartConfig),
+                    ...JSON.parse(
+                        visualizationConfig.chartConfig.validConfig.spec || '',
+                    ),
                 },
                 null,
             ];
         } catch (e) {
             return [null, e];
         }
-    }, [chartConfig]);
+    }, [visualizationConfig]);
 
     if (error) {
         return <Code>{error.toString()}</Code>;
     }
 
-    const data = { table: rows };
+    if (isLoading) {
+        return <Text>Loading...</Text>;
+    }
+
+    if (
+        !visualizationConfig ||
+        !isCustomVisualizationConfig(visualizationConfig)
+    ) {
+        return null;
+    }
+
+    // TODO: 'chartConfig' is more props than config. It has data and
+    // configuration for the chart. We should consider renaming it generally.
+    const visProps =
+        visualizationConfig.chartConfig as CustomVisualizationProps;
+
+    const data = { table: visProps.series };
 
     return (
         <div
@@ -133,7 +86,7 @@ const CustomVisualization: FC<CustomVisualizationProps> = (props) => {
                         },
                     }}
                     spec={{
-                        ...config,
+                        ...spec,
                         width: 'container',
                         height: 'container',
                         data: { name: 'table' },

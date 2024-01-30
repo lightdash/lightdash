@@ -241,7 +241,7 @@ export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
 
 // TODO: temporary type, wanted to avoid {}
 export type CustomVis = {
-    code?: string;
+    spec?: string;
 };
 
 export type CartesianChart = {
