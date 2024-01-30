@@ -1,3 +1,10 @@
+# [0.970.0](https://github.com/lightdash/lightdash/compare/0.969.0...0.970.0) (2024-01-30)
+
+
+### Features
+
+* add format options to custom metrics ([#8768](https://github.com/lightdash/lightdash/issues/8768)) ([e8a269a](https://github.com/lightdash/lightdash/commit/e8a269aa1897e64c1ac8d3d92d4eb9701d2191a5))
+
 # [0.969.0](https://github.com/lightdash/lightdash/compare/0.968.1...0.969.0) (2024-01-30)
 
 
