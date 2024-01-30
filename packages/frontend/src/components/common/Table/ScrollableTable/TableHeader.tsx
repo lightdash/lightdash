@@ -86,7 +86,7 @@ const TableHeader: FC<TableHeaderProps> = ({ minimal = false }) => {
                                                         label={tooltipLabel}
                                                         position="top"
                                                         disabled={
-                                                            tooltipLabel ==
+                                                            !tooltipLabel ||
                                                                 null ||
                                                             minimal ||
                                                             snapshot.isDropAnimating ||
