@@ -63,14 +63,17 @@ When referencing user attributes in SQL you can use the following [SQL variables
 
 You can use user attributes to filter the rows returned by a query. This is useful if you want to restrict the data 
 based on the user's attributes. To reference a user attribute in your sql, use the special lightdash reference 
-`${lightdash.attributes.<attribute_name> }`. For example, if you have a user attribute called `sales_region` you can
+`${lightdash.attributes.<attribute_name> }`.
+You should use the `IN` operator since the attribute might have multiple values.
+
+For example, if you have a user attribute called `sales_region` you can
 use it in your sql like this:
 
 ```yaml
 models:
   - name: my_model
     meta:
-      sql_filter: ${TABLE}.sales_region = ${lightdash.attributes.sales_region}
+      sql_filter: ${TABLE}.sales_region IN (${lightdash.attributes.sales_region})
 ```
 
 ### Column filtering with `required_attributes`
@@ -205,7 +208,7 @@ In this example, the `tropical_fruits_column` will be visible to them because `c
 
 ### Row filtering
 
-If the user has group and user attribute values assigned, the user attribute values take precedence over group attribute values. If there are multiple group attribute values, there is no prioritization over which value will be used. 
+The template reference will be replaced by an array of the user's group or user attribute values.
 
 Let's walk through an example:
 
@@ -213,19 +216,8 @@ Let's walk through an example:
 models:
   - name: my_model
     meta:
-      sql_filter: ${TABLE}.fruit = ${lightdash.attributes.fruit}
+      sql_filter: ${TABLE}.fruit IN (${lightdash.attributes.fruit})
 ```
 
-**Scenario 1**:
-- The default attribute value is `banana`.
-- The user's been assigned the value `coconut`
-- They also have group values assigned of `kiwi` and `orange` 
-
-The `${lightdash.attributes.fruit}` reference will equal `coconut`. User attribute values take precedence over group attribute values.
-
-**Scenario 2**:
-- The default attribute value is `banana`.
-- The user's been assigned no value.
-- They also have group values assigned of `kiwi` and `orange` 
-
-The `${lightdash.attributes.fruit}` reference will equal either `kiwi` or `orange. The order of multiple group attribute values is not defined. 
+In this example, the `${lightdash.attributes.fruit}` will be replaced with `'kiwi','orange','coconut'`.
+The final SQL will be `my_model.fruit IN ('kiwi','orange','coconut)`
