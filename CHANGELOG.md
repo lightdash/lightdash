@@ -1,3 +1,11 @@
+# [0.968.0](https://github.com/lightdash/lightdash/compare/0.967.0...0.968.0) (2024-01-30)
+
+
+### Features
+
+* automatically show modal to add user warehouse credentials ([#8758](https://github.com/lightdash/lightdash/issues/8758)) ([6bdedcd](https://github.com/lightdash/lightdash/commit/6bdedcd3af9bd6a30f49a718cc04d291ca666874))
+* save custom metric percent format ([#8756](https://github.com/lightdash/lightdash/issues/8756)) ([746cd45](https://github.com/lightdash/lightdash/commit/746cd45d5fbc59cfdbe33c6126a5606ee162d1bf))
+
 # [0.967.0](https://github.com/lightdash/lightdash/compare/0.966.1...0.967.0) (2024-01-30)
 
 
