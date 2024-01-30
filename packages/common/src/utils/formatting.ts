@@ -444,29 +444,6 @@ export function formatTableCalculationValue(
     }
 }
 
-// const getCustomFormat = (
-//     item:
-//         | Field
-//         | AdditionalMetric
-//         | TableCalculation
-//         | CustomDimension
-//         | undefined,
-// ) => {
-//     if (!item) return undefined;
-
-//     if ('formatOptions' in item) {
-//         return item.formatOptions;
-//     }
-//     if (isField(item)) {
-//         return item.format;
-//     }
-//     if ('format' in item && typeof item.format === 'string') {
-//         return item.format;
-//     }
-
-//     return undefined;
-// };
-
 export function formatItemValue(
     item:
         | Field
