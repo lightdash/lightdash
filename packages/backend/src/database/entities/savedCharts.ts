@@ -239,5 +239,6 @@ export type DBFilteredAdditionalMetrics = Pick<
             | 'percentile'
             | 'filters'
             | 'base_dimension_name'
+            | 'format_options'
         >
     >;
