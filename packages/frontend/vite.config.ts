@@ -1,9 +1,9 @@
 import reactPlugin from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
     plugins: [
@@ -80,6 +80,11 @@ export default defineConfig({
                 },
             },
         },
+    },
+    test: {
+        environment: 'jsdom',
+        globals: true,
+        setupFiles: './setupVitest.ts',
     },
     server: {
         port: 3000,

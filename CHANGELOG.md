@@ -1,3 +1,66 @@
+# [0.967.0](https://github.com/lightdash/lightdash/compare/0.966.1...0.967.0) (2024-01-30)
+
+
+### Features
+
+* update project credentials preference ([#8744](https://github.com/lightdash/lightdash/issues/8744)) ([f8c8a71](https://github.com/lightdash/lightdash/commit/f8c8a715a204e884b057057b8f2fd55cf3d796c8))
+
+## [0.966.1](https://github.com/lightdash/lightdash/compare/0.966.0...0.966.1) (2024-01-30)
+
+
+### Bug Fixes
+
+* in between millisecond ([#8755](https://github.com/lightdash/lightdash/issues/8755)) ([0b3a36a](https://github.com/lightdash/lightdash/commit/0b3a36ad3a6d73768f0bb654d6d6dd03cfb45b3d))
+
+# [0.966.0](https://github.com/lightdash/lightdash/compare/0.965.7...0.966.0) (2024-01-29)
+
+
+### Features
+
+* **API:** project credentials preference ([#8743](https://github.com/lightdash/lightdash/issues/8743)) ([14bd7e3](https://github.com/lightdash/lightdash/commit/14bd7e3aeb5050268f942a992737818872284db0))
+
+## [0.965.7](https://github.com/lightdash/lightdash/compare/0.965.6...0.965.7) (2024-01-29)
+
+
+### Bug Fixes
+
+* Update dbt installation instructions + other minor tweaks in CONTRIBUTING.md ([#8760](https://github.com/lightdash/lightdash/issues/8760)) ([faf9426](https://github.com/lightdash/lightdash/commit/faf94260a10cb8daae590f6cf3a810689e54a7f6))
+
+## [0.965.6](https://github.com/lightdash/lightdash/compare/0.965.5...0.965.6) (2024-01-29)
+
+
+### Bug Fixes
+
+* fix explore tsoa issue from CLI ([#8759](https://github.com/lightdash/lightdash/issues/8759)) ([0410101](https://github.com/lightdash/lightdash/commit/041010121ec825fcf46b8676f9c1096c9fe43f5f))
+
+## [0.965.5](https://github.com/lightdash/lightdash/compare/0.965.4...0.965.5) (2024-01-29)
+
+
+### Bug Fixes
+
+* e2e tests jan 2024 ([#8735](https://github.com/lightdash/lightdash/issues/8735)) ([0ee8ed0](https://github.com/lightdash/lightdash/commit/0ee8ed044eee2d9f44606e5dbd32a140031bc9a3))
+
+## [0.965.4](https://github.com/lightdash/lightdash/compare/0.965.3...0.965.4) (2024-01-29)
+
+
+### Bug Fixes
+
+* empty line chart axis range ([#8751](https://github.com/lightdash/lightdash/issues/8751)) ([4eaa4e7](https://github.com/lightdash/lightdash/commit/4eaa4e7c8c2ca0a08a3d3f5ac26179f9e1c816ac))
+
+## [0.965.3](https://github.com/lightdash/lightdash/compare/0.965.2...0.965.3) (2024-01-26)
+
+
+### Bug Fixes
+
+* timezone raw results ([#8733](https://github.com/lightdash/lightdash/issues/8733)) ([80f46f1](https://github.com/lightdash/lightdash/commit/80f46f157835275db06dc025690acbcd508ae643))
+
+## [0.965.2](https://github.com/lightdash/lightdash/compare/0.965.1...0.965.2) (2024-01-26)
+
+
+### Bug Fixes
+
+* piecahrt metrics and dimensions reset on query ([#8737](https://github.com/lightdash/lightdash/issues/8737)) ([e704ea5](https://github.com/lightdash/lightdash/commit/e704ea5b4de6bbe575917467776d672740d82818))
+
 ## [0.965.1](https://github.com/lightdash/lightdash/compare/0.965.0...0.965.1) (2024-01-26)
 
 

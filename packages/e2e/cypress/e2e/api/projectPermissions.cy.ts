@@ -543,7 +543,12 @@ describe('Lightdash API tests for member user with editor project permissions', 
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: runqueryBody,
+            body: {
+                ...runqueryBody,
+                onlyRaw: false,
+                columnOrder: [],
+                showTableNames: false,
+            },
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             cy.log(`resp.body ${JSON.stringify(resp.body)}`);
@@ -839,7 +844,12 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: runqueryBody,
+            body: {
+                ...runqueryBody,
+                onlyRaw: false,
+                columnOrder: [],
+                showTableNames: false,
+            },
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body).to.have.property('status', 'ok');
@@ -1095,7 +1105,12 @@ describe('Lightdash API tests for member user with viewer project permissions', 
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: runqueryBody,
+            body: {
+                ...runqueryBody,
+                onlyRaw: false,
+                columnOrder: [],
+                showTableNames: false,
+            },
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(200);

@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { SEED_PROJECT, WarehouseTypes } from '@lightdash/common';
 
 const CREATE_CREDENTIALS_MOCK = {
     name: 'prod auth',
@@ -44,9 +44,28 @@ const deleteCredentials = (uuid: string) =>
         method: 'DELETE',
     });
 
+const getCredentialsPreference = () =>
+    cy.request({
+        url: `api/v1/projects/${SEED_PROJECT.project_uuid}/user-credentials`,
+        method: 'GET',
+    });
+
+const updateCredentialsPreference = (uuid: string) =>
+    cy.request({
+        url: `api/v1/projects/${SEED_PROJECT.project_uuid}/user-credentials/${uuid}`,
+        method: 'PATCH',
+    });
+
 describe('User Warehouse Credentials API', () => {
     beforeEach(() => {
         cy.login();
+        getCredentials().then((getEmptyResponse) => {
+            getEmptyResponse.body.results.forEach(({ uuid }) => {
+                deleteCredentials(uuid).then((deleteResponse) => {
+                    expect(deleteResponse.status).to.eq(200);
+                });
+            });
+        });
     });
 
     it('should list/create/update/delete warehouse credentials', () => {
@@ -113,6 +132,47 @@ describe('User Warehouse Credentials API', () => {
                             });
                         },
                     );
+                });
+            });
+        });
+    });
+
+    it('should get/update project user warehouse credentials preference', () => {
+        // get preference (empty)
+        getCredentialsPreference().then((getEmptyResponse) => {
+            expect(getEmptyResponse.status).to.eq(200);
+            expect(getEmptyResponse.body.results).to.eq(undefined); // Has no preference
+            // create first credentials
+            createCredentials().then((createResponse) => {
+                // get preference with fallback result
+                getCredentialsPreference().then((getFallbackResponse) => {
+                    expect(getFallbackResponse.status).to.eq(200);
+                    expect(getFallbackResponse.body.results.uuid).to.eq(
+                        // Has fallback credentials
+                        createResponse.body.results.uuid,
+                    );
+                    // create second credentials
+                    createCredentials().then((createSecondResponse) => {
+                        // update project preference
+                        updateCredentialsPreference(
+                            createSecondResponse.body.results.uuid,
+                        ).then(() => {
+                            // get preference result
+                            getCredentialsPreference().then(
+                                (getPreferenceResponse) => {
+                                    expect(getPreferenceResponse.status).to.eq(
+                                        200,
+                                    );
+                                    expect(
+                                        getPreferenceResponse.body.results.uuid,
+                                    ).to.eq(
+                                        // Has preferred credentials
+                                        createSecondResponse.body.results.uuid,
+                                    );
+                                },
+                            );
+                        });
+                    });
                 });
             });
         });

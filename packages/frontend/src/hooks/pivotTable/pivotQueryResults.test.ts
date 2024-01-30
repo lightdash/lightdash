@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { pivotQueryResults } from './pivotQueryResults';
 import {
     METRIC_QUERY_0DIM_2METRIC,

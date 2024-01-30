@@ -3,11 +3,13 @@ import {
     UnexpectedServerError,
     UpsertUserWarehouseCredentials,
     UserWarehouseCredentials,
+    UserWarehouseCredentialsWithSecrets,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DbUserWarehouseCredentials,
+    ProjectUserWarehouseCredentialPreferenceTableName,
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
@@ -25,6 +27,25 @@ export class UserWarehouseCredentialsModel {
     constructor(deps: ModelDependencies) {
         this.database = deps.database;
         this.encryptionService = deps.encryptionService;
+    }
+
+    private convertToUserWarehouseCredentialsWithSecrets(
+        data: DbUserWarehouseCredentials,
+    ): UserWarehouseCredentialsWithSecrets {
+        let credentials: UserWarehouseCredentialsWithSecrets['credentials'];
+        try {
+            credentials = JSON.parse(
+                this.encryptionService.decrypt(data.encrypted_credentials),
+            ) as UpsertUserWarehouseCredentials['credentials'];
+        } catch (e) {
+            throw new UnexpectedServerError(
+                'Failed to parse warehouse credentials',
+            );
+        }
+        return {
+            uuid: data.user_warehouse_credentials_uuid,
+            credentials,
+        };
     }
 
     private convertToUserWarehouseCredentials(
@@ -88,31 +109,100 @@ export class UserWarehouseCredentialsModel {
         return this.convertToUserWarehouseCredentials(result);
     }
 
-    async findForProject(
+    private async _findProjectCredentials(
+        projectUuid: string,
         userUuid: string,
         warehouseType: WarehouseTypes,
-    ): Promise<UpsertUserWarehouseCredentials['credentials'] | undefined> {
-        const result = await this.database(UserWarehouseCredentialsTableName)
-            .select('encrypted_credentials')
+    ) {
+        const projectPreferredCredentials = await this.database(
+            UserWarehouseCredentialsTableName,
+        )
+            .leftJoin(
+                ProjectUserWarehouseCredentialPreferenceTableName,
+                `${ProjectUserWarehouseCredentialPreferenceTableName}.user_warehouse_credentials_uuid`,
+                `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+            )
+            .select(`*`)
+            .where(
+                `${UserWarehouseCredentialsTableName}.warehouse_type`,
+                warehouseType,
+            )
+            .andWhere(
+                `${ProjectUserWarehouseCredentialPreferenceTableName}.project_uuid`,
+                projectUuid,
+            )
+            .andWhere(
+                `${ProjectUserWarehouseCredentialPreferenceTableName}.user_uuid`,
+                userUuid,
+            )
+            .first();
+
+        if (projectPreferredCredentials) {
+            return projectPreferredCredentials;
+        }
+        // fallback to compatible credentials
+        return this.database(UserWarehouseCredentialsTableName)
+            .select('*')
             .where('warehouse_type', warehouseType)
             .andWhere('user_uuid', userUuid)
             .orderBy('created_at')
             .first();
+    }
 
-        if (result) {
-            try {
-                return JSON.parse(
-                    this.encryptionService.decrypt(
-                        result.encrypted_credentials,
-                    ),
-                ) as UpsertUserWarehouseCredentials['credentials'];
-            } catch (e) {
-                throw new UnexpectedServerError(
-                    'Failed to parse user warehouse credentials',
-                );
-            }
+    async findForProject(
+        projectUuid: string,
+        userUuid: string,
+        warehouseType: WarehouseTypes,
+    ): Promise<UserWarehouseCredentials | undefined> {
+        const credentials = await this._findProjectCredentials(
+            projectUuid,
+            userUuid,
+            warehouseType,
+        );
+        if (credentials) {
+            return this.convertToUserWarehouseCredentials(credentials);
         }
         return undefined;
+    }
+
+    async findForProjectWithSecrets(
+        projectUuid: string,
+        userUuid: string,
+        warehouseType: WarehouseTypes,
+    ): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
+        const credentials = await this._findProjectCredentials(
+            projectUuid,
+            userUuid,
+            warehouseType,
+        );
+        if (credentials) {
+            return this.convertToUserWarehouseCredentialsWithSecrets(
+                credentials,
+            );
+        }
+        return undefined;
+    }
+
+    async upsertUserCredentialsPreference(
+        userUuid: string,
+        projectUuid: string,
+        userWarehouseCredentialsUuid: string,
+    ) {
+        const [result] = await this.database(
+            ProjectUserWarehouseCredentialPreferenceTableName,
+        )
+            .insert({
+                user_uuid: userUuid,
+                user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
+                project_uuid: projectUuid,
+            })
+            .onConflict(['user_uuid', 'project_uuid'])
+            .merge()
+            .returning('*');
+
+        if (!result) {
+            throw new UnexpectedServerError('Could not save preference.');
+        }
     }
 
     async create(

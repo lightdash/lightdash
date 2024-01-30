@@ -1,11 +1,12 @@
 import { ResultRow } from '@lightdash/common';
+import { describe, expect, test, vi } from 'vitest';
 import {
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
     getMinAndMaxValues,
 } from './useEchartsCartesianConfig';
 
-jest.mock('./../../providers/TrackingProvider');
+vi.mock('./../../providers/TrackingProvider');
 
 describe('getAxisDefaultMinValue', () => {
     test('should return undefined', () => {

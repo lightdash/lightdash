@@ -855,7 +855,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatItemValue(axisItem, value.value, false);
+                        return formatItemValue(axisItem, value.value, true);
                     },
                 },
             };
@@ -866,7 +866,7 @@ const getEchartAxes = ({
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatItemValue(axisItem, value.value, false);
+                        return formatItemValue(axisItem, value.value, true);
                     },
                 },
             };
@@ -1430,14 +1430,23 @@ const useEchartsCartesianConfig = (
             if (xFieldId === undefined) return results;
             const { min, max } = axes.xAxis[0];
 
-            const hasCustomRange = min !== undefined && max !== undefined;
+            const hasCustomRange =
+                (min !== undefined || max !== undefined) &&
+                (typeof min === 'string' || typeof max === 'string');
+
             const resultsInRange = hasCustomRange
                 ? results.filter((result) => {
                       const value = result[xFieldId];
                       if (!value) return true;
 
-                      const isGreaterThan = min === undefined || value > min;
-                      const isLessThan = max === undefined || value < max;
+                      const isGreaterThan =
+                          min === undefined ||
+                          typeof min !== 'string' ||
+                          value > min;
+                      const isLessThan =
+                          max === undefined ||
+                          typeof max !== 'string' ||
+                          value < max;
 
                       return isGreaterThan && isLessThan;
                   })
@@ -1569,22 +1578,6 @@ const useEchartsCartesianConfig = (
                         );
 
                         return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
-                    }
-                    if (
-                        isDimension(field) &&
-                        (field.type === DimensionType.DATE ||
-                            field.type === DimensionType.TIMESTAMP)
-                    ) {
-                        const date = (params[0].data as Record<string, any>)[
-                            dimensionId
-                        ]; // get full timestamp from data
-                        const dateFormatted = getFormattedValue(
-                            date,
-                            dimensionId,
-                            itemsMap,
-                            false,
-                        );
-                        return `${dateFormatted}<br/><table>${tooltipRows}</table>`;
                     }
 
                     const hasFormat = isField(field)

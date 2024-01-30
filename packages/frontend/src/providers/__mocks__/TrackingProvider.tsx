@@ -1,11 +1,12 @@
 import { FC } from 'react';
+import { vi } from 'vitest';
 
 export const TrackingProvider: FC<React.PropsWithChildren<{}>> = ({
     children,
 }) => <>{children}</>;
 
 export function useTracking() {
-    return jest.fn();
+    return vi.fn();
 }
 
 export const TrackPage: FC<React.PropsWithChildren<{}>> = ({ children }) => (

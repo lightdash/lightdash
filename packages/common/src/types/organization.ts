@@ -1,6 +1,6 @@
 import { OrganizationMemberRole } from './organizationMemberProfile';
 import { ProjectMemberRole } from './projectMemberRole';
-import { ProjectType } from './projects';
+import { ProjectType, WarehouseTypes } from './projects';
 
 /**
  * Details of a user's Organization
@@ -52,6 +52,8 @@ export type OrganizationProject = {
     projectUuid: string;
     name: string;
     type: ProjectType;
+    warehouseType: WarehouseTypes;
+    requireUserCredentials: boolean;
 };
 
 /**
