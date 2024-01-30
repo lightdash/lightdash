@@ -1,3 +1,10 @@
+## [0.966.1](https://github.com/lightdash/lightdash/compare/0.966.0...0.966.1) (2024-01-30)
+
+
+### Bug Fixes
+
+* in between millisecond ([#8755](https://github.com/lightdash/lightdash/issues/8755)) ([0b3a36a](https://github.com/lightdash/lightdash/commit/0b3a36ad3a6d73768f0bb654d6d6dd03cfb45b3d))
+
 # [0.966.0](https://github.com/lightdash/lightdash/compare/0.965.7...0.966.0) (2024-01-29)
 
 
