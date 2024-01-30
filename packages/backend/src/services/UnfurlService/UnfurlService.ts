@@ -465,8 +465,12 @@ export class UnfurlService {
                             ? `[data-testid="visualization"]`
                             : 'body';
 
-                    const element = await page.waitForSelector(selector, {
+                    await page.waitForNetworkIdle({
                         timeout: 30000,
+                    });
+
+                    const element = await page.waitForSelector(selector, {
+                        timeout: 60000,
                     });
 
                     if (!element) {
