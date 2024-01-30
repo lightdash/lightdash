@@ -764,9 +764,6 @@ const models: TsoaRoute.Models = {
     AdditionalMetric: {
         dataType: 'refObject',
         properties: {
-            prefix: { dataType: 'string' },
-            suffix: { dataType: 'string' },
-            separator: { ref: 'NumberSeparator' },
             label: { dataType: 'string' },
             type: { ref: 'MetricType', required: true },
             description: { dataType: 'string' },
@@ -791,6 +788,7 @@ const models: TsoaRoute.Models = {
                 ],
             },
             percentile: { dataType: 'double' },
+            formatOptions: { ref: 'CustomFormat' },
         },
         additionalProperties: false,
     },

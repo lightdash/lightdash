@@ -96,12 +96,7 @@ export const FormatForm: FC<Props> = ({
                     <Text ml="md" mt={30} color="gray.6">
                         {'Looks like: '}
                         {formatTableCalculationValue(
-                            {
-                                name: 'preview',
-                                sql: '',
-                                displayName: 'preview',
-                                format,
-                            },
+                            format,
                             CustomFormatType.PERCENT === formatType
                                 ? '0.75'
                                 : '1234.56',

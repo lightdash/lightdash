@@ -200,15 +200,17 @@ export type DbSavedChartAdditionalMetric = {
     filters: MetricFilterRule[] | null; // JSONB
     base_dimension_name: string | null;
     uuid: string;
-    separator?: NumberSeparator;
-    prefix?: string;
-    suffix?: string;
+    format_options?: CustomFormat | null; // JSONB
 };
 export type DbSavedChartAdditionalMetricInsert = Omit<
     DbSavedChartAdditionalMetric,
-    'saved_queries_version_additional_metric_id' | 'filters' | 'uuid'
+    | 'saved_queries_version_additional_metric_id'
+    | 'filters'
+    | 'uuid'
+    | 'format_options'
 > & {
     filters: string | null;
+    format_options: string | null;
 };
 
 export type SavedChartAdditionalMetricTable = Knex.CompositeTableType<

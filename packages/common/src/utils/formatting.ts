@@ -15,7 +15,11 @@ import {
     NumberSeparator,
     TableCalculation,
 } from '../types/field';
-import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
+import {
+    AdditionalMetric,
+    isAdditionalMetric,
+    isAdditionalMetricWithFormatOptions,
+} from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 
@@ -369,25 +373,23 @@ export function formatTableCalculationNumber(
 }
 
 export function formatTableCalculationValue(
-    field: TableCalculation,
+    format: CustomFormat | undefined,
     value: unknown,
 ): string {
-    if (field.format?.type === undefined) return formatValue(value);
+    if (format?.type === undefined) return formatValue(value);
 
     const applyCompact = (): {
         compactValue: number;
         compactSuffix: string;
     } => {
-        if (field.format?.compact === undefined)
+        if (format?.compact === undefined)
             return { compactValue: Number(value), compactSuffix: '' };
 
-        const compactConfig = findCompactConfig(field.format.compact);
+        const compactConfig = findCompactConfig(format.compact);
 
         if (compactConfig) {
             const compactValue = compactConfig.convertFn(Number(value));
-            const compactSuffix = field.format.compact
-                ? compactConfig.suffix
-                : '';
+            const compactSuffix = format.compact ? compactConfig.suffix : '';
 
             return { compactValue, compactSuffix };
         }
@@ -401,14 +403,14 @@ export function formatTableCalculationValue(
     if (valueIsNaN(value) || value === null) {
         return formatValue(value);
     }
-    switch (field.format.type) {
+    switch (format.type) {
         case CustomFormatType.DEFAULT:
             return formatValue(value);
 
         case CustomFormatType.PERCENT:
             const formatted = formatTableCalculationNumber(
                 Number(value) * 100,
-                field.format,
+                format,
             );
             return `${formatted}%`;
         case CustomFormatType.CURRENCY:
@@ -416,13 +418,13 @@ export function formatTableCalculationValue(
 
             const currencyFormatted = formatTableCalculationNumber(
                 compactValue,
-                field.format,
+                format,
             ).replace(/\u00A0/, ' ');
 
             return `${currencyFormatted}${compactSuffix}`;
         case CustomFormatType.NUMBER:
-            const prefix = field.format.prefix || '';
-            const suffix = field.format.suffix || '';
+            const prefix = format.prefix || '';
+            const suffix = format.suffix || '';
             const {
                 compactValue: compactNumber,
                 compactSuffix: compactNumberSuffix,
@@ -430,17 +432,40 @@ export function formatTableCalculationValue(
 
             const numberFormatted = formatTableCalculationNumber(
                 compactNumber,
-                field.format,
+                format,
             );
 
             return `${prefix}${numberFormatted}${compactNumberSuffix}${suffix}`;
         default:
             return assertUnreachable(
-                field.format.type,
-                `Table calculation format type ${field.format.type} is not valid`,
+                format.type,
+                `Table calculation format type ${format.type} is not valid`,
             );
     }
 }
+
+const getCustomFormat = (
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
+) => {
+    if (!item) return undefined;
+
+    if ('formatOptions' in item) {
+        return item.formatOptions;
+    }
+    if (isField(item)) {
+        return item.format;
+    }
+    if ('format' in item && typeof item.format === 'string') {
+        return item.format;
+    }
+
+    return undefined;
+};
 
 export function formatItemValue(
     item:
@@ -455,11 +480,18 @@ export function formatItemValue(
     if (value === null) return '∅';
     if (value === undefined) return '-';
 
-    if (isField(item) || isAdditionalMetric(item)) {
-        return formatFieldValue(item, value, convertToUTC);
-    }
-    if (item !== undefined && isTableCalculation(item)) {
-        return formatTableCalculationValue(item, value);
+    if (item) {
+        if (isField(item) || isAdditionalMetric(item)) {
+            return formatFieldValue(item, value, convertToUTC);
+        }
+
+        if (isAdditionalMetricWithFormatOptions(item)) {
+            return formatTableCalculationValue(item.formatOptions, value);
+        }
+
+        if (isTableCalculation(item)) {
+            return formatTableCalculationValue(item.format, value);
+        }
     }
     return formatValue(value);
 }
