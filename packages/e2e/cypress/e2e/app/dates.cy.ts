@@ -458,7 +458,7 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by day
-        cy.get('[data-testid=tree-single-node-Month]')
+        cy.get('[data-testid=tree-single-node-Day]')
             .findByRole('button')
             .click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
