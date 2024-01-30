@@ -128,7 +128,7 @@ export const replaceUserAttributes = (
                     (attributeValue) =>
                         `${stringQuoteChar}${attributeValue}${stringQuoteChar}`,
                 )
-                .join(','),
+                .join(', '),
         );
     }, sqlFilter);
 };

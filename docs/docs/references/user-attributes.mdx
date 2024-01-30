@@ -64,7 +64,7 @@ When referencing user attributes in SQL you can use the following [SQL variables
 You can use user attributes to filter the rows returned by a query. This is useful if you want to restrict the data 
 based on the user's attributes. To reference a user attribute in your sql, use the special lightdash reference 
 `${lightdash.attributes.<attribute_name> }`.
-We recommend using the `IN` operator because the attribute might have multiple values.
+You should use the `IN` operator since the attribute might have multiple values.
 
 For example, if you have a user attribute called `sales_region` you can
 use it in your sql like this:
@@ -73,7 +73,7 @@ use it in your sql like this:
 models:
   - name: my_model
     meta:
-      sql_filter: ${TABLE}.sales_region IN(${lightdash.attributes.sales_region})
+      sql_filter: ${TABLE}.sales_region IN (${lightdash.attributes.sales_region})
 ```
 
 ### Column filtering with `required_attributes`

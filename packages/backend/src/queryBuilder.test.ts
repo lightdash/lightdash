@@ -325,7 +325,7 @@ describe('replaceUserAttributes', () => {
             replaceUserAttributes("'1' IN (${lightdash.attribute.test})", {
                 test: ['1', '2'],
             }),
-        ).toEqual("'1' IN ('1','2')");
+        ).toEqual("'1' IN ('1', '2')");
     });
 
     it('method should replace sqlFilter with multiple user attributes', async () => {
