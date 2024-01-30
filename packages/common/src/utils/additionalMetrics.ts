@@ -25,5 +25,10 @@ export const convertAdditionalMetric = ({
         ...(additionalMetric.filters && {
             filters: additionalMetric.filters,
         }),
+        ...(additionalMetric.prefix && { prefix: additionalMetric.prefix }),
+        ...(additionalMetric.suffix && { suffix: additionalMetric.suffix }),
+        ...(additionalMetric.separator && {
+            separator: additionalMetric.separator,
+        }),
     };
 };

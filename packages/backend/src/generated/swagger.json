@@ -627,7 +627,7 @@
                 "required": ["descending", "fieldId"],
                 "type": "object"
             },
-            "TableCalculationFormatType": {
+            "CustomFormatType": {
                 "enum": ["default", "percent", "currency", "number"],
                 "type": "string"
             },
@@ -645,38 +645,59 @@
                 "enum": ["thousands", "millions", "billions", "trillions"],
                 "type": "string"
             },
-            "TableCalculationFormat": {
-                "properties": {
-                    "suffix": {
-                        "type": "string"
-                    },
-                    "prefix": {
-                        "type": "string"
-                    },
-                    "compact": {
+            "CompactOrAlias": {
+                "anyOf": [
+                    {
                         "$ref": "#/components/schemas/Compact"
                     },
-                    "currency": {
-                        "type": "string"
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator"
+                    {
+                        "type": "string",
+                        "enum": [
+                            "K",
+                            "thousand",
+                            "M",
+                            "million",
+                            "B",
+                            "billion",
+                            "T",
+                            "trillion"
+                        ]
+                    }
+                ]
+            },
+            "CustomFormat": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/CustomFormatType"
                     },
                     "round": {
                         "type": "number",
                         "format": "double"
                     },
-                    "type": {
-                        "$ref": "#/components/schemas/TableCalculationFormatType"
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "suffix": {
+                        "type": "string"
                     }
                 },
                 "required": ["type"],
-                "type": "object"
+                "type": "object",
+                "additionalProperties": false
             },
             "TableCalculation": {
                 "properties": {
                     "format": {
-                        "$ref": "#/components/schemas/TableCalculationFormat"
+                        "$ref": "#/components/schemas/CustomFormat"
                     },
                     "sql": {
                         "type": "string"
@@ -712,26 +733,6 @@
                     "boolean"
                 ],
                 "type": "string"
-            },
-            "CompactOrAlias": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/Compact"
-                    },
-                    {
-                        "type": "string",
-                        "enum": [
-                            "K",
-                            "thousand",
-                            "M",
-                            "million",
-                            "B",
-                            "billion",
-                            "T",
-                            "trillion"
-                        ]
-                    }
-                ]
             },
             "Format": {
                 "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
@@ -769,6 +770,15 @@
             },
             "AdditionalMetric": {
                 "properties": {
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "suffix": {
+                        "type": "string"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
                     "label": {
                         "type": "string"
                     },
@@ -6318,7 +6328,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.965.7",
+        "version": "0.967.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,8 +1,9 @@
 import moment, { MomentInput } from 'moment';
 import {
-    CompactConfigMap,
     CompactOrAlias,
     CustomDimension,
+    CustomFormat,
+    CustomFormatType,
     DimensionType,
     Field,
     findCompactConfig,
@@ -13,8 +14,6 @@ import {
     MetricType,
     NumberSeparator,
     TableCalculation,
-    TableCalculationFormat,
-    TableCalculationFormatType,
 } from '../types/field';
 import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
@@ -258,6 +257,7 @@ export function formatFieldValue(
         return `${value}`;
     }
     const { type, round, format, compact } = field;
+
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -311,18 +311,18 @@ export function formatFieldValue(
 
 export function formatTableCalculationNumber(
     value: number,
-    format: TableCalculationFormat,
+    format: CustomFormat,
 ): string {
     const getFormatOptions = () => {
         const currencyOptions =
-            format.type === TableCalculationFormatType.CURRENCY &&
+            format.type === CustomFormatType.CURRENCY &&
             format.currency !== undefined
                 ? { style: 'currency', currency: format.currency }
                 : {};
 
         if (
             format.round === undefined &&
-            format.type === TableCalculationFormatType.CURRENCY &&
+            format.type === CustomFormatType.CURRENCY &&
             format.currency !== undefined
         ) {
             // We apply the default round and separator from the currency
@@ -380,14 +380,19 @@ export function formatTableCalculationValue(
     } => {
         if (field.format?.compact === undefined)
             return { compactValue: Number(value), compactSuffix: '' };
-        const compactValue = CompactConfigMap[field.format.compact].convertFn(
-            Number(value),
-        );
-        const compactSuffix = field.format.compact
-            ? CompactConfigMap[field.format.compact].suffix
-            : '';
 
-        return { compactValue, compactSuffix };
+        const compactConfig = findCompactConfig(field.format.compact);
+
+        if (compactConfig) {
+            const compactValue = compactConfig.convertFn(Number(value));
+            const compactSuffix = field.format.compact
+                ? compactConfig.suffix
+                : '';
+
+            return { compactValue, compactSuffix };
+        }
+
+        return { compactValue: Number(value), compactSuffix: '' };
     };
     if (value === '') return '';
     if (value instanceof Date) {
@@ -397,16 +402,16 @@ export function formatTableCalculationValue(
         return formatValue(value);
     }
     switch (field.format.type) {
-        case TableCalculationFormatType.DEFAULT:
+        case CustomFormatType.DEFAULT:
             return formatValue(value);
 
-        case TableCalculationFormatType.PERCENT:
+        case CustomFormatType.PERCENT:
             const formatted = formatTableCalculationNumber(
                 Number(value) * 100,
                 field.format,
             );
             return `${formatted}%`;
-        case TableCalculationFormatType.CURRENCY:
+        case CustomFormatType.CURRENCY:
             const { compactValue, compactSuffix } = applyCompact();
 
             const currencyFormatted = formatTableCalculationNumber(
@@ -415,7 +420,7 @@ export function formatTableCalculationValue(
             ).replace(/\u00A0/, ' ');
 
             return `${currencyFormatted}${compactSuffix}`;
-        case TableCalculationFormatType.NUMBER:
+        case CustomFormatType.NUMBER:
             const prefix = field.format.prefix || '';
             const suffix = field.format.suffix || '';
             const {

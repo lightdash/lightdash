@@ -1,6 +1,7 @@
 import {
     canApplyFormattingToCustomMetric,
-    CustomMetricFormat,
+    CustomFormat,
+    CustomFormatType,
     Dimension,
     fieldId as getFieldId,
     friendlyName,
@@ -8,8 +9,6 @@ import {
     isDimension,
     MetricType,
     NumberSeparator,
-    // NOTE: The types are the same, but we can't derive enums from other enums
-    TableCalculationFormatType as CustomMetricFormatType,
 } from '@lightdash/common';
 
 import {
@@ -98,10 +97,10 @@ export const CustomMetricModal = () => {
             customMetricLabel: '',
             percentile: 50,
             format: {
-                type: CustomMetricFormatType.DEFAULT,
+                type: CustomFormatType.DEFAULT,
                 round: undefined,
                 separator: NumberSeparator.DEFAULT,
-                currency: 'USD',
+                currency: undefined,
                 compact: undefined,
                 prefix: undefined,
                 suffix: undefined,
@@ -186,7 +185,7 @@ export const CustomMetricModal = () => {
     }, [initialCustomMetricFiltersWithIds]);
 
     const handleOnSubmit = form.onSubmit(
-        ({ customMetricLabel, percentile }) => {
+        ({ customMetricLabel, percentile, format }) => {
             if (!item || !customMetricType) return;
 
             const data = prepareCustomMetricData({
@@ -197,6 +196,9 @@ export const CustomMetricModal = () => {
                 isEditingCustomMetric: !!isEditing,
                 exploreData,
                 percentile,
+                ...(isCustomMetricFormattingEnabled && {
+                    customMetricFormat: format,
+                }),
             });
 
             if (isEditing && isAdditionalMetric(item)) {
@@ -238,12 +240,12 @@ export const CustomMetricModal = () => {
         }
     }, [isEditing, item]);
 
-    const getFormatInputProps = (path: keyof CustomMetricFormat) =>
+    const getFormatInputProps = (path: keyof CustomFormat) =>
         form.getInputProps(`format.${path}`);
 
     const setFormatFieldValue = (
-        path: keyof CustomMetricFormat,
-        value: ValueOf<CustomMetricFormat>,
+        path: keyof CustomFormat,
+        value: ValueOf<CustomFormat>,
     ) => form.setFieldValue(`format.${path}`, value);
 
     return item ? (

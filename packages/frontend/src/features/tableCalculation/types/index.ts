@@ -1,10 +1,10 @@
-import { TableCalculationFormat } from '@lightdash/common';
+import { CustomFormat } from '@lightdash/common';
 import { UseFormReturnType } from '@mantine/form';
 
 type TableCalculationFormInputs = {
     name: string;
     sql: string;
-    format: TableCalculationFormat;
+    format: CustomFormat;
 };
 
 export type TableCalculationForm = UseFormReturnType<
