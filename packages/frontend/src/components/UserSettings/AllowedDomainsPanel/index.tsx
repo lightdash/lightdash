@@ -18,7 +18,14 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconX } from '@tabler/icons-react';
-import { FC, ForwardedRef, forwardRef, useEffect, useMemo } from 'react';
+import {
+    FC,
+    ForwardedRef,
+    forwardRef,
+    useCallback,
+    useEffect,
+    useMemo,
+} from 'react';
 import {
     useAllowedEmailDomains,
     useUpdateAllowedEmailDomains,
@@ -116,6 +123,26 @@ const AllowedDomainsPanel: FC = () => {
             setFieldValue('projects', allowedEmailDomainsData.projects);
         }
     }, [allowedEmailDomainsData, projectOptions, setFieldValue]);
+
+    const setFormValuesFromData = useCallback(() => {
+        if (allowedEmailDomainsData) {
+            form.setValues({
+                emailDomains: allowedEmailDomainsData.emailDomains,
+                role: allowedEmailDomainsData.role,
+                projects: allowedEmailDomainsData.projects,
+            });
+            form.resetDirty({
+                emailDomains: allowedEmailDomainsData.emailDomains,
+                role: allowedEmailDomainsData.role,
+                projects: allowedEmailDomainsData.projects,
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [allowedEmailDomainsData]);
+
+    useEffect(() => {
+        setFormValuesFromData();
+    }, [setFormValuesFromData]);
 
     const handleOnSubmit = form.onSubmit((values) => {
         const role =
@@ -386,14 +413,27 @@ const AllowedDomainsPanel: FC = () => {
                         ) : null}
                     </>
                 )}
-                <Button
-                    type="submit"
-                    display="block"
-                    ml="auto"
-                    loading={isLoading}
-                >
-                    Update
-                </Button>
+
+                <Flex justify="flex-end" gap="sm">
+                    {form.isDirty() && (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setFormValuesFromData();
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    )}
+                    <Button
+                        type="submit"
+                        display="block"
+                        loading={isLoading}
+                        disabled={!form.isDirty()}
+                    >
+                        Update
+                    </Button>
+                </Flex>
             </Stack>
         </form>
     ) : null;

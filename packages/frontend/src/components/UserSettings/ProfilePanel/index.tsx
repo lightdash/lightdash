@@ -4,7 +4,15 @@ import {
     UpdateUserArgs,
     validateEmail,
 } from '@lightdash/common';
-import { Anchor, Button, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import {
+    Anchor,
+    Button,
+    Flex,
+    Stack,
+    Text,
+    TextInput,
+    Tooltip,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -84,6 +92,26 @@ const ProfilePanel: FC = () => {
             setShowVerifyEmailModal(false);
         }
     }, [data?.isVerified, isEmailServerConfigured, sendVerificationEmailError]);
+
+    const setFormValuesFromData = useCallback(() => {
+        if (user.data?.firstName || user.data?.lastName || user.data?.email) {
+            form.setValues({
+                firstName: user.data?.firstName,
+                lastName: user.data?.lastName,
+                email: user.data?.email,
+            });
+            form.resetDirty({
+                firstName: user.data?.firstName,
+                lastName: user.data?.lastName,
+                email: user.data?.email,
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user.data?.firstName, user.data?.lastName, user.data?.email]);
+
+    useEffect(() => {
+        setFormValuesFromData();
+    }, [setFormValuesFromData]);
 
     const handleOnSubmit = form.onSubmit(({ firstName, lastName, email }) => {
         if (firstName && lastName && email && validateEmail(email)) {
@@ -182,15 +210,27 @@ const ProfilePanel: FC = () => {
                     }
                 />
 
-                <Button
-                    type="submit"
-                    display="block"
-                    ml="auto"
-                    loading={isUpdateUserLoading}
-                    data-cy="update-profile-settings"
-                >
-                    Update
-                </Button>
+                <Flex justify="flex-end" gap="sm">
+                    {form.isDirty() && (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setFormValuesFromData();
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    )}
+                    <Button
+                        type="submit"
+                        display="block"
+                        loading={isUpdateUserLoading}
+                        data-cy="update-profile-settings"
+                        disabled={!form.isDirty()}
+                    >
+                        Update
+                    </Button>
+                </Flex>
                 <VerifyEmailModal
                     opened={showVerifyEmailModal}
                     onClose={() => {

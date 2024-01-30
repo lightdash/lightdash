@@ -1,7 +1,7 @@
 import { getPasswordSchema } from '@lightdash/common';
-import { Button, PasswordInput, Stack } from '@mantine/core';
+import { Button, Flex, PasswordInput, Stack } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { FC } from 'react';
+import { FC, useCallback, useEffect } from 'react';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -53,6 +53,22 @@ const PasswordPanel: FC = () => {
             },
         });
 
+    const setFormValuesFromData = useCallback(() => {
+        form.setValues({
+            currentPassword: '',
+            newPassword: '',
+        });
+        form.resetDirty({
+            currentPassword: '',
+            newPassword: '',
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        setFormValuesFromData();
+    }, [setFormValuesFromData]);
+
     const handleOnSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
         if (hasPassword) {
             updateUserPassword({
@@ -85,15 +101,27 @@ const PasswordPanel: FC = () => {
                         {...form.getInputProps('newPassword')}
                     />
                 </PasswordTextInput>
-                <Button
-                    type="submit"
-                    ml="auto"
-                    display="block"
-                    loading={isLoading}
-                    disabled={isLoading}
-                >
-                    Update
-                </Button>
+
+                <Flex justify="flex-end" gap="sm">
+                    {form.isDirty() && (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setFormValuesFromData();
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    )}
+                    <Button
+                        type="submit"
+                        display="block"
+                        loading={isLoading}
+                        disabled={isLoading || !form.isDirty()}
+                    >
+                        Update
+                    </Button>
+                </Flex>
             </Stack>
         </form>
     );

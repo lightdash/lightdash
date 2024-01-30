@@ -1,7 +1,7 @@
 import { ProjectType } from '@lightdash/common';
-import { Button, Select, Stack } from '@mantine/core';
+import { Button, Flex, Select, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import React, { FC, useEffect } from 'react';
+import React, { FC, useCallback, useEffect } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { useProjects } from '../../../hooks/useProjects';
@@ -33,6 +33,22 @@ const DefaultProjectPanel: FC = () => {
         }
     }, [data, data?.defaultProjectUuid, setFieldValue]);
 
+    const setFormValuesFromData = useCallback(() => {
+        if (data) {
+            form.setValues({
+                defaultProjectUuid: data?.defaultProjectUuid,
+            });
+            form.resetDirty({
+                defaultProjectUuid: data?.defaultProjectUuid,
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data]);
+
+    useEffect(() => {
+        setFormValuesFromData();
+    }, [setFormValuesFromData]);
+
     const handleOnSubmit = form.onSubmit(({ defaultProjectUuid }) => {
         updateOrganization({ defaultProjectUuid: defaultProjectUuid });
     });
@@ -41,6 +57,7 @@ const DefaultProjectPanel: FC = () => {
         <form onSubmit={handleOnSubmit}>
             <Stack>
                 <Select
+                    key={form.values.defaultProjectUuid}
                     label="Project name"
                     data={projects
                         .filter(({ type }) => type !== ProjectType.PREVIEW)
@@ -54,15 +71,27 @@ const DefaultProjectPanel: FC = () => {
                     dropdownPosition="bottom"
                     {...form.getInputProps('defaultProjectUuid')}
                 />
-                <Button
-                    display="block"
-                    ml="auto"
-                    type="submit"
-                    disabled={isLoading}
-                    loading={isLoading}
-                >
-                    Update
-                </Button>
+
+                <Flex justify="flex-end" gap="sm">
+                    {form.isDirty() && (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setFormValuesFromData();
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    )}
+                    <Button
+                        display="block"
+                        type="submit"
+                        disabled={isLoading || !form.isDirty()}
+                        loading={isLoading}
+                    >
+                        Update
+                    </Button>
+                </Flex>
             </Stack>
         </form>
     );
