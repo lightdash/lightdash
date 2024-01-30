@@ -1,4 +1,4 @@
-import type { AdditionalMetric } from '..';
+import type { AdditionalMetric, currencies } from '..';
 import { CompileError } from './errors';
 import { MetricFilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
@@ -107,12 +107,12 @@ export type Item = ItemsMap[string];
 
 export interface CustomFormat {
     type: CustomFormatType;
-    round?: number;
+    round?: number | undefined;
     separator?: NumberSeparator;
-    currency?: string;
-    compact?: CompactOrAlias;
-    prefix?: string;
-    suffix?: string;
+    currency?: typeof currencies[number] | undefined;
+    compact?: CompactOrAlias | undefined;
+    prefix?: string | undefined;
+    suffix?: string | undefined;
 }
 
 export enum CustomFormatType {
