@@ -11,7 +11,7 @@ interface AppContext {
 
 // used in test mocks
 // ts-unused-exports:disable-next-line
-export const AppProviederContext = createContext<AppContext>(undefined as any);
+export const AppProviderContext = createContext<AppContext>(undefined as any);
 
 export const AppProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     const health = useHealth();
@@ -23,14 +23,14 @@ export const AppProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     };
 
     return (
-        <AppProviederContext.Provider value={value}>
+        <AppProviderContext.Provider value={value}>
             {children}
-        </AppProviederContext.Provider>
+        </AppProviderContext.Provider>
     );
 };
 
 export function useApp(): AppContext {
-    const context = useContext(AppProviederContext);
+    const context = useContext(AppProviderContext);
     if (context === undefined) {
         throw new Error('useApp must be used within a AppProvider');
     }
