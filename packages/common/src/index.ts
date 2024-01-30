@@ -677,6 +677,7 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasDbtSemanticLayer: boolean;
     hasGroups: boolean;
+    hasExtendedUsageAnalytics: boolean;
 };
 
 export enum DBFieldTypes {

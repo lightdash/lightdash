@@ -99,6 +99,8 @@ export class HealthService {
                 !!process.env.DBT_CLOUD_ENVIRONMENT_ID &&
                 !!process.env.DBT_CLOUD_BEARER_TOKEN,
             hasGroups: this.lightdashConfig.groups.enabled,
+            hasExtendedUsageAnalytics:
+                this.lightdashConfig.extendedUsageAnalytics.enabled,
         };
     }
 

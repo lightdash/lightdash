@@ -51,7 +51,6 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
                     capture_pageview: false,
                     bootstrap: {
                         featureFlags: {
-                            'extended-usage-analytics': false,
                             'lazy-load-dashboard-tiles': true,
                         },
                     },
