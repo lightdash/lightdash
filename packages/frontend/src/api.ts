@@ -4,8 +4,14 @@ import {
     LightdashRequestMethodHeader,
     RequestMethod,
 } from '@lightdash/common';
+import fetch from 'isomorphic-fetch';
 
-const apiPrefix = '/api/v1';
+export const BASE_API_URL =
+    import.meta.env.VITEST === 'true'
+        ? `http://test.lightdash/`
+        : import.meta.env.BASE_URL;
+
+const apiPrefix = `${BASE_API_URL}api/v1`;
 
 const defaultHeaders = {
     'Content-Type': 'application/json',
@@ -43,10 +49,11 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         body,
     })
         .then((r) => {
-            if (!r.ok)
+            if (!r.ok) {
                 return r.json().then((d) => {
                     throw d;
                 });
+            }
             return r;
         })
         .then((r) => r.json())
@@ -57,14 +64,11 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                     // otherwise react-query will crash
                     return (d.results ?? null) as T;
                 case 'error':
-                    // eslint-disable-next-line @typescript-eslint/no-throw-literal
                     throw d;
                 default:
-                    // eslint-disable-next-line @typescript-eslint/no-throw-literal
                     throw d;
             }
         })
         .catch((err) => {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
             throw handleError(err);
         });
