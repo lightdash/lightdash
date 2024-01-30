@@ -405,7 +405,9 @@ describe('Date tests', () => {
         cy.contains('Order date').click();
 
         // Filter by year
-        cy.findByRole('button', { name: 'Year' }).findByRole('button').click();
+        cy.get('[data-testid=Filters-card-expand]').click();
+        cy.get('[data-testid=tree-single-node-Year]').find('button').click();
+
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         cy.contains('button', now.format('YYYY'));
@@ -418,7 +420,9 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by month
-        cy.findByRole('button', { name: 'Month' }).findByRole('button').click();
+        cy.get('[data-testid=tree-single-node-Month]')
+            .findByRole('button')
+            .click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         cy.contains('button', now.format('MMMM YYYY'));
@@ -437,7 +441,9 @@ describe('Date tests', () => {
         }
 
         const weekDate = startOfTheWeek();
-        cy.findByRole('button', { name: 'Week' }).findByRole('button').click();
+        cy.get('[data-testid=tree-single-node-Week]')
+            .findByRole('button')
+            .click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         cy.get('.mantine-DateInput-root input').should(
@@ -452,7 +458,9 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by day
-        cy.findByRole('button', { name: 'Day' }).findByRole('button').click();
+        cy.get('[data-testid=tree-single-node-Day]')
+            .findByRole('button')
+            .click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         const todayDate = now.toDate();
