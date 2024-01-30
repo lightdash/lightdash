@@ -1,11 +1,17 @@
 import {
+    ActionIcon,
     Alert,
     Anchor,
     ScrollArea,
     Text,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconSparkles } from '@tabler/icons-react';
+import {
+    IconSparkles,
+    IconTextWrap,
+    IconTextWrapDisabled,
+} from '@tabler/icons-react';
 import { FC } from 'react';
 import AceEditor, { IAceEditorProps } from 'react-ace';
 import styled, { css } from 'styled-components';
@@ -15,6 +21,7 @@ import { TableCalculationForm } from '../types';
 
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
+import { useToggle } from 'react-use';
 
 const SQL_PLACEHOLDER = '${table_name.field_name} + ${table_name.metric_name}';
 
@@ -41,8 +48,42 @@ const SqlEditor = styled(AceEditor)<
               `}
 `;
 
+const SqlEditorActions: FC<{
+    isSoftWrapEnabled: boolean;
+    onToggleSoftWrap: () => void;
+}> = ({ isSoftWrapEnabled, onToggleSoftWrap }) => (
+    <div
+        style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            // Avoids potential collision with ScrollArea scrollbar:
+            marginRight: '5px',
+        }}
+    >
+        <Tooltip
+            label={
+                isSoftWrapEnabled
+                    ? 'Disable editor soft-wrapping'
+                    : 'Enable editor soft-wrapping'
+            }
+            withArrow
+            position="left"
+        >
+            <ActionIcon onClick={onToggleSoftWrap}>
+                {isSoftWrapEnabled ? (
+                    <IconTextWrapDisabled size="1rem" />
+                ) : (
+                    <IconTextWrap size="1rem" />
+                )}
+            </ActionIcon>
+        </Tooltip>
+    </div>
+);
+
 export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
     const theme = useMantineTheme();
+    const [isSoftWrapEnabled, toggleSoftWrap] = useToggle(false);
     const { setAceEditor } = useExplorerAceEditorCompleter();
     return (
         <>
@@ -62,8 +103,13 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
                     enableBasicAutocompletion
                     showPrintMargin={false}
                     isFullScreen={isFullScreen}
+                    wrapEnabled={isSoftWrapEnabled}
                     gutterBackgroundColor={theme.colors.gray['1']}
                     {...form.getInputProps('sql')}
+                />
+                <SqlEditorActions
+                    isSoftWrapEnabled={isSoftWrapEnabled}
+                    onToggleSoftWrap={toggleSoftWrap}
                 />
             </ScrollArea>
 
