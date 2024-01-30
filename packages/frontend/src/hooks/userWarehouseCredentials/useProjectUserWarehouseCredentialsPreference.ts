@@ -48,11 +48,7 @@ type UpdateCredentialsPreference = {
 };
 
 export const useProjectUserWarehouseCredentialsPreferenceMutation = (
-    options?: UseMutationOptions<
-        null,
-        ApiError,
-        UpdateCredentialsPreference
-    >,
+    options?: UseMutationOptions<null, ApiError, UpdateCredentialsPreference>,
 ) => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();

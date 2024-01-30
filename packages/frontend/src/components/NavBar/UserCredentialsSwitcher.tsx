@@ -9,7 +9,9 @@ import {
     useProjectUserWarehouseCredentialsPreferenceMutation,
 } from '../../hooks/userWarehouseCredentials/useProjectUserWarehouseCredentialsPreference';
 import { useUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
+import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/SelectWarehouse';
 import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal';
 
 const routesThatNeedWarehouseCredentials = [
@@ -20,6 +22,7 @@ const routesThatNeedWarehouseCredentials = [
 ];
 
 const UserCredentialsSwitcher = () => {
+    const { user } = useApp();
     const location = useLocation();
     const [showCreateModalOnPageLoad, setShowCreateModalOnPageLoad] =
         useState(false);
@@ -152,14 +155,24 @@ const UserCredentialsSwitcher = () => {
                         opened={isCreatingCredentials}
                         title={
                             showCreateModalOnPageLoad ? (
-                                <Title order={4}>Warehouse credentials</Title>
+                                <Title order={4}>
+                                    Login to{' '}
+                                    {getWarehouseLabel(
+                                        activeProject.warehouseType,
+                                    )}
+                                </Title>
                             ) : undefined
                         }
                         description={
                             showCreateModalOnPageLoad ? (
                                 <Text>
-                                    Add your warehouse credentials to access
-                                    this project's data.
+                                    The admin of your organization “
+                                    {user.data?.organizationName}” requires that
+                                    you login to{' '}
+                                    {getWarehouseLabel(
+                                        activeProject.warehouseType,
+                                    )}{' '}
+                                    to continue.
                                 </Text>
                             ) : undefined
                         }
