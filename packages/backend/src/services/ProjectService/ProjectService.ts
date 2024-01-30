@@ -1694,6 +1694,10 @@ export class ProjectService {
                     Logger.debug(`Fetch query results from cache or warehouse`);
                     span.setAttribute('generatedSql', query);
 
+                    /**
+                     * If enabled, we include additional attributes for this span allowing us to measure
+                     * the impact of upcoming table calculation handling changes.
+                     */
                     if (useNewTableCalculationsEngine) {
                         span.setAttribute(
                             'tableCalculationsNum',
