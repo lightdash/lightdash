@@ -322,16 +322,16 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                       parseTimestamp(
                                           formatTimestamp(
                                               rule.values[0],
-                                              TimeFrames.MILLISECOND,
+                                              TimeFrames.SECOND,
                                           ),
-                                          TimeFrames.MILLISECOND,
+                                          TimeFrames.SECOND,
                                       ),
                                       parseTimestamp(
                                           formatTimestamp(
                                               rule.values[1],
-                                              TimeFrames.MILLISECOND,
+                                              TimeFrames.SECOND,
                                           ),
-                                          TimeFrames.MILLISECOND,
+                                          TimeFrames.SECOND,
                                       ),
                                   ]
                                 : null
@@ -344,11 +344,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     ? [
                                           formatTimestamp(
                                               value[0],
-                                              TimeFrames.MILLISECOND,
+                                              TimeFrames.SECOND,
                                           ),
                                           formatTimestamp(
                                               value[1],
-                                              TimeFrames.MILLISECOND,
+                                              TimeFrames.SECOND,
                                           ),
                                       ]
                                     : [],
