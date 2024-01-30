@@ -1558,6 +1558,19 @@ export class ProjectService {
                         );
                     }
 
+                    const useNewTableCalculationsEngine =
+                        (await postHogClient?.isFeatureEnabled(
+                            'new-table-calculations-engine',
+                            user.userUuid,
+                            user.organizationUuid !== undefined
+                                ? {
+                                      groups: {
+                                          organization: user.organizationUuid,
+                                      },
+                                  }
+                                : {},
+                        )) ?? false;
+
                     const { organizationUuid } =
                         await this.projectModel.getSummary(projectUuid);
 
@@ -1680,6 +1693,13 @@ export class ProjectService {
 
                     Logger.debug(`Fetch query results from cache or warehouse`);
                     span.setAttribute('generatedSql', query);
+
+                    if (useNewTableCalculationsEngine) {
+                        span.setAttribute(
+                            'tableCalculationsNum',
+                            metricQuery.tableCalculations.length,
+                        );
+                    }
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
                         'warehouse.type',
