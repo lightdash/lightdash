@@ -1,3 +1,10 @@
+# [0.969.0](https://github.com/lightdash/lightdash/compare/0.968.1...0.969.0) (2024-01-30)
+
+
+### Features
+
+* access all attribute values when filtering rows ([#8769](https://github.com/lightdash/lightdash/issues/8769)) ([7e06467](https://github.com/lightdash/lightdash/commit/7e0646777e937d1dc9075ad2f4e6f8eaebbe44ec))
+
 ## [0.968.1](https://github.com/lightdash/lightdash/compare/0.968.0...0.968.1) (2024-01-30)
 
 
