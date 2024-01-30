@@ -108,15 +108,14 @@ export const replaceUserAttributes = (
 
     return sqlAttributes.reduce<string>((acc, sqlAttribute) => {
         const attribute = sqlAttribute.replace(userAttributeRegex, '$1');
-        const userValue: string | null | undefined =
-            userAttributes[attribute]?.[0]; // Pick first value, where user value takes precedence over group values
+        const attributeValues: string[] | undefined = userAttributes[attribute];
 
-        if (userValue === undefined) {
+        if (attributeValues === undefined) {
             throw new ForbiddenError(
                 `Missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
         }
-        if (userValue === null) {
+        if (attributeValues.length === 0) {
             throw new ForbiddenError(
                 `Invalid or missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
@@ -124,7 +123,12 @@ export const replaceUserAttributes = (
 
         return acc.replace(
             sqlAttribute,
-            `${stringQuoteChar}${userValue}${stringQuoteChar}`,
+            attributeValues
+                .map(
+                    (attributeValue) =>
+                        `${stringQuoteChar}${attributeValue}${stringQuoteChar}`,
+                )
+                .join(','),
         );
     }, sqlFilter);
 };

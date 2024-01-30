@@ -297,6 +297,14 @@ describe('replaceUserAttributes', () => {
         ).toThrowError(ForbiddenError);
     });
 
+    it('method with no user attribute value should throw error', async () => {
+        expect(() =>
+            replaceUserAttributes('${lightdash.attribute.test} > 1', {
+                test: [],
+            }),
+        ).toThrowError(ForbiddenError);
+    });
+
     it('method should replace sqlFilter with user attribute', async () => {
         const userAttributes = { test: ['1'] };
         const expected = "'1' > 1";
@@ -310,6 +318,14 @@ describe('replaceUserAttributes', () => {
         expect(
             replaceUserAttributes('${ld.attr.test} > 1', userAttributes),
         ).toEqual(expected);
+    });
+
+    it('method should replace sqlFilter with user attribute with multiple values', async () => {
+        expect(
+            replaceUserAttributes("'1' IN (${lightdash.attribute.test})", {
+                test: ['1', '2'],
+            }),
+        ).toEqual("'1' IN ('1','2')");
     });
 
     it('method should replace sqlFilter with multiple user attributes', async () => {
