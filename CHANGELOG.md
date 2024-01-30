@@ -1,3 +1,10 @@
+## [0.968.1](https://github.com/lightdash/lightdash/compare/0.968.0...0.968.1) (2024-01-30)
+
+
+### Bug Fixes
+
+* TableHeader empty tooltip on results ([#8770](https://github.com/lightdash/lightdash/issues/8770)) ([7b1c71d](https://github.com/lightdash/lightdash/commit/7b1c71df2dc980765a3cafd8ef2b6ce5a6af3dad))
+
 # [0.968.0](https://github.com/lightdash/lightdash/compare/0.967.0...0.968.0) (2024-01-30)
 
 
