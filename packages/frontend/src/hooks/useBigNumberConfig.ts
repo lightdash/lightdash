@@ -60,7 +60,10 @@ const formatComparisonValue = (
             })}`;
         case ComparisonFormatTypes.RAW:
             if (item !== undefined && isTableCalculation(item)) {
-                return `${prefix}${formatTableCalculationValue(item, value)}`;
+                return `${prefix}${formatTableCalculationValue(
+                    item.format,
+                    value,
+                )}`;
             }
             return `${prefix}${formatValue(value, {
                 format: isField(item) ? item.format : undefined,
@@ -73,7 +76,7 @@ const formatComparisonValue = (
             })}`;
         default:
             if (item !== undefined && isTableCalculation(item)) {
-                return formatTableCalculationValue(item, value);
+                return formatTableCalculationValue(item.format, value);
             }
             return formatValue(value, {
                 format: isField(item) ? item.format : undefined,
@@ -221,7 +224,7 @@ const useBigNumberConfig = (
                 resultsData?.rows?.[0]?.[selectedField]?.value.formatted
             );
         } else if (item !== undefined && isTableCalculation(item)) {
-            return formatTableCalculationValue(item, firstRowValueRaw);
+            return formatTableCalculationValue(item.format, firstRowValueRaw);
         } else {
             return formatValue(firstRowValueRaw, {
                 format: isField(item) ? item.format : undefined,

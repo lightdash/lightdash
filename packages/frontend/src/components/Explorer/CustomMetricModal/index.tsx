@@ -197,7 +197,7 @@ export const CustomMetricModal = () => {
                 exploreData,
                 percentile,
                 ...(isCustomMetricFormattingEnabled && {
-                    customMetricFormat: format,
+                    formatOptions: format,
                 }),
             });
 

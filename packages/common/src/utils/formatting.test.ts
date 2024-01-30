@@ -662,11 +662,8 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: CustomFormatType.CURRENCY,
-                                currency,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
                         },
                         12345.1235,
                     ),
@@ -678,11 +675,8 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: CustomFormatType.CURRENCY,
-                                currency,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
                         },
                         '12345.1235',
                     ),
@@ -694,12 +688,9 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: CustomFormatType.CURRENCY,
-                                currency,
-                                round: 3,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
+                            round: 3,
                         },
                         12345.1235,
                     ),
@@ -717,12 +708,9 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: CustomFormatType.CURRENCY,
-                                currency,
-                                separator: NumberSeparator.PERIOD_COMMA,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
+                            separator: NumberSeparator.PERIOD_COMMA,
                         },
                         12345.1235,
                     ),
@@ -739,12 +727,9 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: CustomFormatType.CURRENCY,
-                                currency,
-                                compact: Compact.THOUSANDS,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
+                            compact: Compact.THOUSANDS,
                         },
                         12345.1235,
                     ),
@@ -755,13 +740,10 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: CustomFormatType.CURRENCY,
-                                currency,
-                                compact: Compact.MILLIONS,
-                                round: 0,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
+                            compact: Compact.MILLIONS,
+                            round: 0,
                         },
                         123456789.1235,
                     ),
@@ -773,10 +755,7 @@ describe('Formatting', () => {
             expect(
                 formatTableCalculationValue(
                     {
-                        ...tableCalculation,
-                        format: {
-                            type: CustomFormatType.NUMBER,
-                        },
+                        type: CustomFormatType.NUMBER,
                     },
                     12345.56789,
                 ),
@@ -784,14 +763,11 @@ describe('Formatting', () => {
             expect(
                 formatTableCalculationValue(
                     {
-                        ...tableCalculation,
-                        format: {
-                            type: CustomFormatType.NUMBER,
-                            round: 2,
-                            prefix: 'foo ',
-                            suffix: ' bar',
-                            compact: Compact.THOUSANDS,
-                        },
+                        type: CustomFormatType.NUMBER,
+                        round: 2,
+                        prefix: 'foo ',
+                        suffix: ' bar',
+                        compact: Compact.THOUSANDS,
                     },
                     12345.1235,
                 ),
@@ -801,12 +777,9 @@ describe('Formatting', () => {
             expect(
                 formatTableCalculationValue(
                     {
-                        ...tableCalculation,
-                        format: {
-                            type: CustomFormatType.NUMBER,
-                            prefix: 'foo ',
-                            suffix: ' bar',
-                        },
+                        type: CustomFormatType.NUMBER,
+                        prefix: 'foo ',
+                        suffix: ' bar',
                     },
                     '12345.1235',
                 ),
@@ -814,13 +787,7 @@ describe('Formatting', () => {
         });
         test('convert table calculation formats with invalid numbers', async () => {
             const formatTableCalculation = (value: any, format: CustomFormat) =>
-                formatTableCalculationValue(
-                    {
-                        ...tableCalculation,
-                        format,
-                    },
-                    value,
-                );
+                formatTableCalculationValue(format, value);
             // This method should return the original value if the value is not a number
 
             const values = [
