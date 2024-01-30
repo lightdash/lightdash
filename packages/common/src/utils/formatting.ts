@@ -17,8 +17,8 @@ import {
 } from '../types/field';
 import {
     AdditionalMetric,
+    hasFormatOptions,
     isAdditionalMetric,
-    isAdditionalMetricWithFormatOptions,
 } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
@@ -444,28 +444,28 @@ export function formatTableCalculationValue(
     }
 }
 
-const getCustomFormat = (
-    item:
-        | Field
-        | AdditionalMetric
-        | TableCalculation
-        | CustomDimension
-        | undefined,
-) => {
-    if (!item) return undefined;
+// const getCustomFormat = (
+//     item:
+//         | Field
+//         | AdditionalMetric
+//         | TableCalculation
+//         | CustomDimension
+//         | undefined,
+// ) => {
+//     if (!item) return undefined;
 
-    if ('formatOptions' in item) {
-        return item.formatOptions;
-    }
-    if (isField(item)) {
-        return item.format;
-    }
-    if ('format' in item && typeof item.format === 'string') {
-        return item.format;
-    }
+//     if ('formatOptions' in item) {
+//         return item.formatOptions;
+//     }
+//     if (isField(item)) {
+//         return item.format;
+//     }
+//     if ('format' in item && typeof item.format === 'string') {
+//         return item.format;
+//     }
 
-    return undefined;
-};
+//     return undefined;
+// };
 
 export function formatItemValue(
     item:
@@ -481,12 +481,12 @@ export function formatItemValue(
     if (value === undefined) return '-';
 
     if (item) {
-        if (isField(item) || isAdditionalMetric(item)) {
-            return formatFieldValue(item, value, convertToUTC);
+        if (hasFormatOptions(item)) {
+            return formatTableCalculationValue(item.formatOptions, value);
         }
 
-        if (isAdditionalMetricWithFormatOptions(item)) {
-            return formatTableCalculationValue(item.formatOptions, value);
+        if (isField(item) || isAdditionalMetric(item)) {
+            return formatFieldValue(item, value, convertToUTC);
         }
 
         if (isTableCalculation(item)) {
