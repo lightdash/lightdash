@@ -1,3 +1,10 @@
+## [0.972.1](https://github.com/lightdash/lightdash/compare/0.972.0...0.972.1) (2024-01-31)
+
+
+### Bug Fixes
+
+* search admin access ([#8784](https://github.com/lightdash/lightdash/issues/8784)) ([04e13f9](https://github.com/lightdash/lightdash/commit/04e13f90ae14a5272147079b0a2d66ca92e8e305))
+
 # [0.972.0](https://github.com/lightdash/lightdash/compare/0.971.0...0.972.0) (2024-01-31)
 
 
