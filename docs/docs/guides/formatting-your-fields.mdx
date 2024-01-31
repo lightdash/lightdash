@@ -1,5 +1,9 @@
 import GroupLabel from './assets/group-label.png';
 import Description from './assets/description-on-hover.png';
+import CustomMetricCreate from './assets/custom-metric-create.png';
+import CustomMetricFormat from './assets/custom-metric-format.png';
+import TableCalculationCreate from './assets/table-calculation-create.png';
+import TableCalculationFormat from './assets/table-calculation-format.png';
 
 # Formatting your fields
 
@@ -305,3 +309,92 @@ models:
 
 To see which format types are available for metrics, [check the reference docs here.](https://docs.lightdash.com/references/metrics#:~:text=number%20of%20digits-,format,-No)
 Check out [this doc](https://docs.lightdash.com/references/metrics#metric-configuration) to see all of the other properties you can customize for metrics.
+
+## Formatting your fields in the Lightdash UI
+
+You can also format your fields in the Lightdash UI. This is useful if you want to format your fields quickly without having to change your YAML files.
+
+Currently you can format 2 types of fields in the Lightdash UI:
+
+-   Custom metrics ([reference](https://docs.lightdash.com/guides/how-to-create-custom-fields#custom-metrics))
+-   Table calculations ([reference](https://docs.lightdash.com/guides/table-calculations/adding-table-calculations))
+
+### Formatting custom metrics
+
+:::info
+
+Custom metrics formatting is currently only available for numeric metric types.
+
+:::
+
+Firstly, create a custom metric. You can do this by clicking the `...` button on the dimension you want to create a custom metric for, and then clicking on a metric type, e.g.: `count distinct`, `sum`, `average`.
+
+<img
+    src={CustomMetricCreate}
+    width="366"
+    height="100"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you've created your custom metric, you can format it by clicking on the `Format` button.
+
+<img
+    src={CustomMetricFormat}
+    width="600"
+    height="200"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You can then choose from the following formatting types:
+
+-   `percent`: Formats your metric as a percentage, with the following options:
+    -   `round` value to your metric to round it to a certain number of decimal places
+    -   `separator`, e.g. from `.` to `,`
+-   `currency`: Formats your metric as a currency
+    -   `round` value to your metric to round it to a certain number of decimal places
+    -   `separator`, e.g. from `.` to `,`
+    -   `currency` symbol, e.g. from `$` to `£`
+    -   `compact` value to compact your metric to a certain unit, e.g. from `1,000,000` to `1M`
+-   `number`: Formats your metric as a number
+    -   `round` value to your metric to round it to a certain number of decimal places
+    -   `separator`, e.g. from `.` to `,`
+    -   `compact` value to compact your metric to a certain unit, e.g. from `1,000,000` to `1M`
+    -   `prefix` value to add a prefix to your metric, e.g. `+` or `-`
+    -   `suffix` value to add a suffix to your metric, e.g. `%`
+
+### Formatting table calculations
+
+On the results table, you can add a table calculation by clicking on the button on the right hand side of the section.
+
+<img
+    src={TableCalculationCreate}
+    width="366"
+    height="100"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you've created your table calculation, you can format it by clicking on the `Format` tab:
+
+<img
+    src={TableCalculationFormat}
+    width="600"
+    height="200"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You can then choose from the following formatting types:
+
+-   `percent`: Formats your metric as a percentage, with the following options:
+    -   `round` value to your metric to round it to a certain number of decimal places
+    -   `separator`, e.g. from `.` to `,`
+-   `currency`: Formats your metric as a currency
+    -   `round` value to your metric to round it to a certain number of decimal places
+    -   `separator`, e.g. from `.` to `,`
+    -   `currency` symbol, e.g. from `$` to `£`
+    -   `compact` value to compact your metric to a certain unit, e.g. from `1,000,000` to `1M`
+-   `number`: Formats your metric as a number
+    -   `round` value to your metric to round it to a certain number of decimal places
+    -   `separator`, e.g. from `.` to `,`
+    -   `compact` value to compact your metric to a certain unit, e.g. from `1,000,000` to `1M`
+    -   `prefix` value to add a prefix to your metric, e.g. `+` or `-`
+    -   `suffix` value to add a suffix to your metric, e.g. `%`
