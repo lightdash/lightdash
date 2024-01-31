@@ -2,6 +2,7 @@ import {
     ActionIcon,
     Alert,
     Anchor,
+    Box,
     ScrollArea,
     Text,
     Tooltip,
@@ -52,14 +53,12 @@ const SqlEditorActions: FC<{
     isSoftWrapEnabled: boolean;
     onToggleSoftWrap: () => void;
 }> = ({ isSoftWrapEnabled, onToggleSoftWrap }) => (
-    <div
-        style={{
-            position: 'absolute',
-            bottom: 0,
-            right: 0,
-            // Avoids potential collision with ScrollArea scrollbar:
-            marginRight: '5px',
-        }}
+    <Box
+        pos="absolute"
+        bottom={0}
+        right={0}
+        // Avoids potential collision with ScrollArea scrollbar:
+        mr={5}
     >
         <Tooltip
             label={
@@ -72,13 +71,13 @@ const SqlEditorActions: FC<{
         >
             <ActionIcon onClick={onToggleSoftWrap}>
                 {isSoftWrapEnabled ? (
-                    <IconTextWrapDisabled size="1rem" />
+                    <MantineIcon icon={IconTextWrapDisabled} />
                 ) : (
-                    <IconTextWrap size="1rem" />
+                    <MantineIcon icon={IconTextWrap} />
                 )}
             </ActionIcon>
         </Tooltip>
-    </div>
+    </Box>
 );
 
 export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
