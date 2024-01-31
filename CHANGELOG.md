@@ -1,3 +1,10 @@
+## [0.972.2](https://github.com/lightdash/lightdash/compare/0.972.1...0.972.2) (2024-01-31)
+
+
+### Bug Fixes
+
+* filter configuration apply tooltip ([#8804](https://github.com/lightdash/lightdash/issues/8804)) ([a6b54ea](https://github.com/lightdash/lightdash/commit/a6b54ea7910841180b60fe01a5b689851361466e))
+
 ## [0.972.1](https://github.com/lightdash/lightdash/compare/0.972.0...0.972.1) (2024-01-31)
 
 
