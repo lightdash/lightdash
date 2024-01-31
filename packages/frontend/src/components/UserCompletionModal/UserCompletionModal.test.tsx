@@ -202,8 +202,8 @@ describe('UserCompletionModal', () => {
         const trackingCheckbox = await screen.findByRole('checkbox', {
             name: `Anonymize my usage data`,
         });
-        expect(trackingCheckbox).not.toBeChecked();
         expect(trackingCheckbox).toBeInTheDocument();
+        expect(trackingCheckbox).not.toBeChecked();
         await user.click(trackingCheckbox);
 
         // submit button should be enabled now
