@@ -1679,7 +1679,6 @@ export class ProjectService {
                                     metricQuery.metrics.includes(
                                         getFieldId(metric),
                                     ) &&
-                                    'formatOptions' in metric &&
                                     metric.formatOptions &&
                                     metric.formatOptions.type ===
                                         CustomFormatType.PERCENT,
@@ -1691,7 +1690,6 @@ export class ProjectService {
                                     metricQuery.metrics.includes(
                                         getFieldId(metric),
                                     ) &&
-                                    'formatOptions' in metric &&
                                     metric.formatOptions &&
                                     metric.formatOptions.type ===
                                         CustomFormatType.CURRENCY,
@@ -1703,7 +1701,6 @@ export class ProjectService {
                                     metricQuery.metrics.includes(
                                         getFieldId(metric),
                                     ) &&
-                                    'formatOptions' in metric &&
                                     metric.formatOptions &&
                                     metric.formatOptions.type ===
                                         CustomFormatType.NUMBER,
