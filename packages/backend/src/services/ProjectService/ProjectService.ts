@@ -124,6 +124,8 @@ import {
     wrapOtelSpan,
     wrapSentryTransaction,
 } from '../../utils';
+import { FeatureFlags } from '../FeatureFlagService/FeatureFlags';
+import { FeatureFlagService } from '../FeatureFlagService/FeatureFlagService';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -724,18 +726,10 @@ export class ProjectService {
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs =
-            (await postHogClient?.isFeatureEnabled(
-                'use-dbt-ls',
-                user.userUuid,
-                user.organizationUuid !== undefined
-                    ? {
-                          groups: {
-                              organization: user.organizationUuid,
-                          },
-                      }
-                    : {},
-            )) ?? false;
+        const useDbtLs = await FeatureFlagService.isFeatureFlagEnabled({
+            user,
+            flag: FeatureFlags.UseDbtLs,
+        });
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -801,18 +795,11 @@ export class ProjectService {
             await this.projectModel.getWarehouseFromCache(projectUuid);
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs =
-            (await postHogClient?.isFeatureEnabled(
-                'use-dbt-ls',
-                user.userUuid,
-                user.organizationUuid !== undefined
-                    ? {
-                          groups: {
-                              organization: user.organizationUuid,
-                          },
-                      }
-                    : {},
-            )) ?? false;
+        const useDbtLs = await FeatureFlagService.isFeatureFlagEnabled({
+            user,
+            flag: FeatureFlags.UseDbtLs,
+        });
+
         console.log(await postHogClient?.getAllFlags(user.userUuid));
         console.log('projectservice', useDbtLs);
         const adapter = await projectAdapterFromConfig(
