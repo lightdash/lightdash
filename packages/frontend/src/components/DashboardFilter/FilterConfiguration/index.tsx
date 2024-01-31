@@ -356,7 +356,7 @@ const FilterConfiguration: FC<Props> = ({
 
                 <Tooltip
                     label="Filter field and value required"
-                    disabled={isApplyDisabled}
+                    disabled={!isApplyDisabled}
                 >
                     <Box>
                         <Button
