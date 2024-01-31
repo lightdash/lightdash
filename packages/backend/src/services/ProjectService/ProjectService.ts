@@ -32,6 +32,7 @@ import {
     DimensionType,
     Explore,
     ExploreError,
+    FeatureFlags,
     fieldId as getFieldId,
     FilterableField,
     FilterGroupItem,
@@ -114,7 +115,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { postHogClient } from '../../postHog';
+import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -124,8 +125,6 @@ import {
     wrapOtelSpan,
     wrapSentryTransaction,
 } from '../../utils';
-import { FeatureFlags } from '../FeatureFlagService/FeatureFlags';
-import { FeatureFlagService } from '../FeatureFlagService/FeatureFlagService';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -726,10 +725,10 @@ export class ProjectService {
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs = await FeatureFlagService.isFeatureFlagEnabled({
+        const useDbtLs = await isFeatureFlagEnabled(
+            FeatureFlags.UseDbtLs,
             user,
-            flag: FeatureFlags.UseDbtLs,
-        });
+        );
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -795,10 +794,10 @@ export class ProjectService {
             await this.projectModel.getWarehouseFromCache(projectUuid);
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs = await FeatureFlagService.isFeatureFlagEnabled({
+        const useDbtLs = await isFeatureFlagEnabled(
+            FeatureFlags.UseDbtLs,
             user,
-            flag: FeatureFlags.UseDbtLs,
-        });
+        );
 
         console.log(await postHogClient?.getAllFlags(user.userUuid));
         console.log('projectservice', useDbtLs);
