@@ -169,6 +169,9 @@ type QueryExecutionEvent = BaseTrack & {
         hasExampleMetric: boolean;
         additionalMetricsCount: number;
         additionalMetricsFilterCount: number;
+        additionalMetricsPercentFormatCount: number;
+        additionalMetricsCurrencyFormatCount: number;
+        additionalMetricsNumberFormatCount: number;
         context: QueryExecutionContext;
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
