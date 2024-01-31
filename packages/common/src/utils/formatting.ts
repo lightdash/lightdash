@@ -9,17 +9,12 @@ import {
     findCompactConfig,
     Format,
     isDimension,
-    isField,
     isTableCalculation,
     MetricType,
     NumberSeparator,
     TableCalculation,
 } from '../types/field';
-import {
-    AdditionalMetric,
-    hasFormatOptions,
-    isAdditionalMetric,
-} from '../types/metricQuery';
+import { AdditionalMetric, hasFormatOptions } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 
@@ -81,26 +76,6 @@ export const getDateFormat = (
     }
 };
 
-export const isMomentInput = (value: unknown): value is MomentInput =>
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    value instanceof Date ||
-    value instanceof moment;
-
-export function formatDate(
-    date: MomentInput,
-    timeInterval: TimeFrames | undefined = TimeFrames.DAY,
-    convertToUTC: boolean = false,
-): string {
-    const momentDate = convertToUTC ? moment(date).utc() : moment(date);
-    return momentDate.format(getDateFormat(timeInterval));
-}
-
-export const parseDate = (
-    str: string,
-    timeInterval: TimeFrames | undefined = TimeFrames.DAY,
-): Date => moment(str, getDateFormat(timeInterval)).toDate();
-
 const getTimeFormat = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): string => {
@@ -122,6 +97,21 @@ const getTimeFormat = (
     return `YYYY-MM-DD, ${timeFormat} (Z)`;
 };
 
+export const isMomentInput = (value: unknown): value is MomentInput =>
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    value instanceof Date ||
+    value instanceof moment;
+
+export function formatDate(
+    date: MomentInput,
+    timeInterval: TimeFrames = TimeFrames.DAY,
+    convertToUTC: boolean = false,
+): string {
+    const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+    return momentDate.format(getDateFormat(timeInterval));
+}
+
 export function formatTimestamp(
     value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
@@ -130,6 +120,11 @@ export function formatTimestamp(
     const momentDate = convertToUTC ? moment(value).utc() : moment(value);
     return momentDate.format(getTimeFormat(timeInterval));
 }
+
+export const parseDate = (
+    str: string,
+    timeInterval: TimeFrames | undefined = TimeFrames.DAY,
+): Date => moment(str, getDateFormat(timeInterval)).toDate();
 
 export const parseTimestamp = (
     str: string,
@@ -146,211 +141,53 @@ export function isNumber(value: unknown): value is number {
     return !valueIsNaN(value);
 }
 
-function roundNumber(
+export function formatNumberValue(
     value: number,
-    options?: {
-        format?: Format;
-        round?: number;
-        compact?: CompactOrAlias;
-    },
-): string {
-    const { format, round, compact } = options || {};
-
-    const invalidRound = round === undefined || round < 0;
-    if (invalidRound && !format) {
-        return compact && !Number.isInteger(value)
-            ? `${value}`
-            : new Intl.NumberFormat('en-US').format(Number(value));
-    }
-
-    const isValidCurrencyFormat =
-        !!format && currencies.includes(format.toUpperCase());
-
-    const validFractionDigits = invalidRound
-        ? {}
-        : { maximumFractionDigits: round, minimumFractionDigits: round };
-
-    if (isValidCurrencyFormat) {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: format?.toUpperCase(),
-            ...validFractionDigits,
-        }).format(Number(value));
-    }
-
-    return new Intl.NumberFormat('en-US', validFractionDigits).format(
-        Number(value),
-    );
-}
-
-function styleNumber(
-    value: number,
-    options?: {
-        format?: Format;
-        round?: number;
-        compact?: CompactOrAlias;
-    },
-): string {
-    const { format, round, compact } = options || {};
-    if (compact) {
-        const compactRound =
-            compact && round === undefined && format === undefined ? 2 : round;
-        const compactConfig = findCompactConfig(compact);
-        if (compactConfig) {
-            return `${roundNumber(compactConfig.convertFn(Number(value)), {
-                format,
-                round: compactRound,
-                compact,
-            })}${compactConfig.suffix}`;
-        }
-    }
-    return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
-}
-
-export function formatValue(
-    value: unknown,
-    options?: {
-        format?: Format;
-        round?: number;
-        compact?: CompactOrAlias;
-    },
-): string {
-    if (value === null) return '∅';
-    if (value === undefined) return '-';
-    if (!isNumber(value)) {
-        return `${value}`;
-    }
-    const { format, round, compact } = options || {};
-
-    const styledValue = compact
-        ? styleNumber(value, options)
-        : roundNumber(value, { round, format });
-    switch (format) {
-        case Format.KM:
-        case Format.MI:
-            return `${styledValue} ${format}`;
-        case Format.USD:
-        case Format.GBP:
-        case Format.EUR:
-            return `${styledValue}`;
-        case Format.ID:
-            return `${value}`;
-        case Format.PERCENT:
-            if (valueIsNaN(value)) {
-                return `${value}`;
-            }
-
-            const invalidRound = round === undefined || round < 0;
-            const roundBy = invalidRound ? 0 : round;
-            // Fix rounding issue
-            return `${(Number(value) * 100).toFixed(roundBy)}%`;
-        default:
-            // unrecognized format
-            return styledValue;
-    }
-}
-
-export function formatFieldValue(
-    field: Field | AdditionalMetric | undefined,
-    value: unknown,
-    convertToUTC?: boolean,
-): string {
-    if (value === null) return '∅';
-    if (value === undefined) return '-';
-    if (!field) {
-        return `${value}`;
-    }
-    const { type, round, format, compact } = field;
-
-    switch (type) {
-        case DimensionType.STRING:
-        case MetricType.STRING:
-            return `${value}`;
-        case DimensionType.NUMBER:
-        case MetricType.NUMBER:
-        case MetricType.PERCENTILE:
-        case MetricType.MEDIAN:
-        case MetricType.AVERAGE:
-        case MetricType.COUNT:
-        case MetricType.COUNT_DISTINCT:
-        case MetricType.SUM:
-            return formatValue(value, { format, round, compact });
-        case DimensionType.BOOLEAN:
-        case MetricType.BOOLEAN:
-            return formatBoolean(value);
-        case DimensionType.DATE:
-        case MetricType.DATE:
-            return isMomentInput(value)
-                ? formatDate(
-                      value,
-                      isDimension(field) ? field.timeInterval : undefined,
-                      convertToUTC,
-                  )
-                : 'NaT';
-        case DimensionType.TIMESTAMP:
-        case MetricType.TIMESTAMP:
-            return isMomentInput(value)
-                ? formatTimestamp(
-                      value,
-                      isDimension(field) ? field.timeInterval : undefined,
-                      convertToUTC,
-                  )
-                : 'NaT';
-        case MetricType.MAX:
-        case MetricType.MIN: {
-            if (value instanceof Date) {
-                return formatTimestamp(
-                    value,
-                    isDimension(field) ? field.timeInterval : undefined,
-                    convertToUTC,
-                );
-            }
-            return formatValue(value, { format, round, compact });
-        }
-        default: {
-            return `${value}`;
-        }
-    }
-}
-
-export function formatTableCalculationNumber(
-    value: number,
-    format: CustomFormat,
+    format?: CustomFormat,
 ): string {
     const getFormatOptions = () => {
-        const currencyOptions =
-            format.type === CustomFormatType.CURRENCY &&
-            format.currency !== undefined
-                ? { style: 'currency', currency: format.currency }
-                : {};
+        const hasCurrency =
+            format?.type === CustomFormatType.CURRENCY && format?.currency;
+        const currencyOptions = hasCurrency
+            ? { style: 'currency', currency: format.currency }
+            : {};
 
-        if (
-            format.round === undefined &&
-            format.type === CustomFormatType.CURRENCY &&
-            format.currency !== undefined
-        ) {
-            // We apply the default round and separator from the currency
-            return currencyOptions;
+        let round = format?.round;
+
+        if (format?.compact && round === undefined) {
+            round = 2;
         }
-        const round = format.round || 0;
-        return round <= 0
-            ? {
-                  maximumSignificantDigits: Math.max(
-                      Math.floor(value).toString().length + round,
-                      1,
-                  ),
-                  maximumFractionDigits: 0,
-                  ...currencyOptions,
-              }
-            : {
-                  maximumFractionDigits: Math.min(round, 20),
-                  minimumFractionDigits: Math.min(round, 20),
-                  ...currencyOptions,
-              };
+
+        if (format?.type === CustomFormatType.PERCENT && round === undefined) {
+            round = 0;
+        }
+
+        if (round === undefined || round < 0) {
+            return hasCurrency ? currencyOptions : {};
+        }
+
+        if (round === 0) {
+            return {
+                maximumSignificantDigits: Math.max(
+                    Math.floor(value).toString().length + round,
+                    1,
+                ),
+                maximumFractionDigits: 0,
+                ...currencyOptions,
+            };
+        }
+
+        const fractionDigits = Math.min(round, 20);
+        return {
+            maximumFractionDigits: fractionDigits,
+            minimumFractionDigits: fractionDigits,
+            ...currencyOptions,
+        };
     };
 
     const options = getFormatOptions();
-    const separator = format.separator || NumberSeparator.DEFAULT;
+    const separator = format?.separator || NumberSeparator.DEFAULT;
+
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:
             return value.toLocaleString('en-US', options);
@@ -372,9 +209,95 @@ export function formatTableCalculationNumber(
     }
 }
 
-export function formatTableCalculationValue(
-    format: CustomFormat | undefined,
+function formatValue(value: unknown) {
+    if (value === null) return '∅';
+    if (value === undefined) return '-';
+    if (!isNumber(value)) {
+        return `${value}`;
+    }
+
+    return formatNumberValue(value);
+}
+
+export function getCustomFormatFromLegacy({
+    format,
+    compact,
+    round,
+}: {
+    format?: Format;
+    compact?: CompactOrAlias;
+    round?: number;
+}): CustomFormat {
+    switch (format) {
+        case Format.EUR:
+        case Format.GBP:
+        case Format.USD:
+            return {
+                type: CustomFormatType.CURRENCY,
+                currency: format.toUpperCase(),
+                compact,
+                round,
+            };
+        case Format.KM:
+        case Format.MI:
+            return {
+                type: CustomFormatType.NUMBER,
+                suffix: ` ${format}`,
+                compact,
+                round,
+            };
+        case Format.PERCENT:
+            return {
+                type: CustomFormatType.PERCENT,
+                compact,
+                round,
+            };
+        case Format.ID:
+            return {
+                type: CustomFormatType.ID,
+            };
+        default:
+            return {
+                type: CustomFormatType.NUMBER,
+                round,
+                compact,
+            };
+    }
+}
+
+export function getCustomFormat(
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
+) {
+    if (!item) return undefined;
+
+    if (hasFormatOptions(item)) {
+        return item.formatOptions;
+    }
+
+    if (isTableCalculation(item)) {
+        return item.format;
+    }
+
+    if ('format' in item && typeof item.format === 'string') {
+        // This converts legacy format type (which is Format), to CustomFormat
+        return getCustomFormatFromLegacy({
+            format: item.format,
+            compact: item.compact,
+            round: item.round,
+        });
+    }
+
+    return undefined;
+}
+
+export function applyCustomFormat(
     value: unknown,
+    format?: CustomFormat | undefined,
 ): string {
     if (format?.type === undefined) return formatValue(value);
 
@@ -396,27 +319,30 @@ export function formatTableCalculationValue(
 
         return { compactValue: Number(value), compactSuffix: '' };
     };
+
     if (value === '') return '';
+
     if (value instanceof Date) {
         return formatTimestamp(value, undefined, false);
     }
+
     if (valueIsNaN(value) || value === null) {
         return formatValue(value);
     }
+
     switch (format.type) {
+        case CustomFormatType.ID:
+            return `${value}`;
         case CustomFormatType.DEFAULT:
             return formatValue(value);
 
         case CustomFormatType.PERCENT:
-            const formatted = formatTableCalculationNumber(
-                Number(value) * 100,
-                format,
-            );
+            const formatted = formatNumberValue(Number(value) * 100, format);
             return `${formatted}%`;
         case CustomFormatType.CURRENCY:
             const { compactValue, compactSuffix } = applyCompact();
 
-            const currencyFormatted = formatTableCalculationNumber(
+            const currencyFormatted = formatNumberValue(
                 compactValue,
                 format,
             ).replace(/\u00A0/, ' ');
@@ -430,10 +356,7 @@ export function formatTableCalculationValue(
                 compactSuffix: compactNumberSuffix,
             } = applyCompact();
 
-            const numberFormatted = formatTableCalculationNumber(
-                compactNumber,
-                format,
-            );
+            const numberFormatted = formatNumberValue(compactNumber, format);
 
             return `${prefix}${numberFormatted}${compactNumberSuffix}${suffix}`;
         default:
@@ -458,17 +381,46 @@ export function formatItemValue(
     if (value === undefined) return '-';
 
     if (item) {
-        if (hasFormatOptions(item)) {
-            return formatTableCalculationValue(item.formatOptions, value);
+        if ('type' in item) {
+            switch (item.type) {
+                case DimensionType.BOOLEAN:
+                case MetricType.BOOLEAN:
+                    return formatBoolean(value);
+                case DimensionType.DATE:
+                case MetricType.DATE:
+                    return isMomentInput(value)
+                        ? formatDate(
+                              value,
+                              isDimension(item) ? item.timeInterval : undefined,
+                              convertToUTC,
+                          )
+                        : 'NaT';
+                case DimensionType.TIMESTAMP:
+                case MetricType.TIMESTAMP:
+                    return isMomentInput(value)
+                        ? formatTimestamp(
+                              value,
+                              isDimension(item) ? item.timeInterval : undefined,
+                              convertToUTC,
+                          )
+                        : 'NaT';
+                case MetricType.MAX:
+                case MetricType.MIN:
+                    if (value instanceof Date) {
+                        return formatTimestamp(
+                            value,
+                            isDimension(item) ? item.timeInterval : undefined,
+                            convertToUTC,
+                        );
+                    }
+                    break;
+                default:
+            }
         }
 
-        if (isField(item) || isAdditionalMetric(item)) {
-            return formatFieldValue(item, value, convertToUTC);
-        }
-
-        if (isTableCalculation(item)) {
-            return formatTableCalculationValue(item.format, value);
-        }
+        const customFormat = getCustomFormat(item);
+        return applyCustomFormat(value, customFormat);
     }
+
     return formatValue(value);
 }
