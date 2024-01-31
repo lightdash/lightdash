@@ -2,11 +2,10 @@ import {
     Compact,
     CompactConfigMap,
     currencies,
-    CustomMetricFormat,
+    CustomFormat,
+    CustomFormatType,
     formatTableCalculationValue,
     NumberSeparator,
-    TableCalculationFormat,
-    TableCalculationFormatType,
 } from '@lightdash/common';
 import {
     Flex,
@@ -22,20 +21,20 @@ import { ValueOf } from 'type-fest';
 
 type Props = {
     formatInputProps: (
-        path: keyof TableCalculationFormat | keyof CustomMetricFormat,
-    ) => ReturnType<GetInputProps<TableCalculationFormat | CustomMetricFormat>>;
-    format: TableCalculationFormat;
+        path: keyof CustomFormat,
+    ) => ReturnType<GetInputProps<CustomFormat>>;
+    format: CustomFormat;
     setFormatFieldValue: (
-        path: keyof TableCalculationFormat | keyof CustomMetricFormat,
-        value: ValueOf<TableCalculationFormat | CustomMetricFormat>,
+        path: keyof CustomFormat,
+        value: ValueOf<CustomFormat>,
     ) => void;
 };
 
 const formatTypeOptions = [
-    TableCalculationFormatType.DEFAULT,
-    TableCalculationFormatType.PERCENT,
-    TableCalculationFormatType.CURRENCY,
-    TableCalculationFormatType.NUMBER,
+    CustomFormatType.DEFAULT,
+    CustomFormatType.PERCENT,
+    CustomFormatType.CURRENCY,
+    CustomFormatType.NUMBER,
 ];
 
 const formatSeparatorOptions = [
@@ -93,17 +92,12 @@ export const FormatForm: FC<Props> = ({
                     {...formatInputProps('type')}
                 />
 
-                {formatType !== TableCalculationFormatType.DEFAULT && (
+                {formatType !== CustomFormatType.DEFAULT && (
                     <Text ml="md" mt={30} color="gray.6">
                         {'Looks like: '}
                         {formatTableCalculationValue(
-                            {
-                                name: 'preview',
-                                sql: '',
-                                displayName: 'preview',
-                                format,
-                            },
-                            TableCalculationFormatType.PERCENT === formatType
+                            format,
+                            CustomFormatType.PERCENT === formatType
                                 ? '0.75'
                                 : '1234.56',
                         )}
@@ -111,9 +105,9 @@ export const FormatForm: FC<Props> = ({
                 )}
             </Flex>
 
-            {formatType !== TableCalculationFormatType.DEFAULT && (
+            {formatType !== CustomFormatType.DEFAULT && (
                 <Flex>
-                    {formatType === TableCalculationFormatType.CURRENCY && (
+                    {formatType === CustomFormatType.CURRENCY && (
                         <Select
                             withinPortal
                             mr="md"
@@ -152,8 +146,8 @@ export const FormatForm: FC<Props> = ({
                     />
                 </Flex>
             )}
-            {(formatType === TableCalculationFormatType.CURRENCY ||
-                formatType === TableCalculationFormatType.NUMBER) && (
+            {(formatType === CustomFormatType.CURRENCY ||
+                formatType === CustomFormatType.NUMBER) && (
                 <Flex>
                     <Select
                         withinPortal
@@ -182,7 +176,7 @@ export const FormatForm: FC<Props> = ({
                         }}
                     />
 
-                    {formatType === TableCalculationFormatType.NUMBER && (
+                    {formatType === CustomFormatType.NUMBER && (
                         <>
                             <TextInput
                                 w={200}

@@ -1,4 +1,4 @@
-import type { AdditionalMetric } from '..';
+import type { AdditionalMetric, currencies } from '..';
 import { CompileError } from './errors';
 import { MetricFilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
@@ -105,34 +105,34 @@ export type ItemsMap = Record<
 >;
 export type Item = ItemsMap[string];
 
-export type CustomMetricFormat = TableCalculationFormat;
+export interface CustomFormat {
+    type: CustomFormatType;
+    round?: number | undefined;
+    separator?: NumberSeparator;
+    currency?: typeof currencies[number] | undefined;
+    compact?: CompactOrAlias | undefined;
+    prefix?: string | undefined;
+    suffix?: string | undefined;
+}
 
-export enum TableCalculationFormatType {
+export enum CustomFormatType {
     DEFAULT = 'default',
     PERCENT = 'percent',
     CURRENCY = 'currency',
     NUMBER = 'number',
 }
-export type TableCalculationFormat = {
-    type: TableCalculationFormatType;
-    round?: number;
-    separator?: NumberSeparator;
-    currency?: string;
-    compact?: Compact;
-    prefix?: string;
-    suffix?: string;
-};
+
 export type TableCalculation = {
     index?: number;
     name: string;
     displayName: string;
     sql: string;
-    format?: TableCalculationFormat;
+    format?: CustomFormat;
 };
 
 export interface TableCalculationField extends Field {
     fieldType: FieldType.TABLE_CALCULATION;
-    type: TableCalculationFormatType;
+    type: CustomFormatType;
     index?: number;
     name: string;
     displayName: string;
@@ -402,6 +402,7 @@ export interface Metric extends Field {
     showUnderlyingValues?: string[];
     filters?: MetricFilterRule[];
     percentile?: number;
+    formatOptions?: CustomFormat;
 }
 
 export const defaultSql = (columnName: string): string =>

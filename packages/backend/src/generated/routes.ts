@@ -644,7 +644,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableCalculationFormatType: {
+    CustomFormatType: {
         dataType: 'refEnum',
         enums: ['default', 'percent', 'currency', 'number'],
     },
@@ -665,21 +665,60 @@ const models: TsoaRoute.Models = {
         enums: ['thousands', 'millions', 'billions', 'trillions'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableCalculationFormat: {
+    CompactOrAlias: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                suffix: { dataType: 'string' },
-                prefix: { dataType: 'string' },
-                compact: { ref: 'Compact' },
-                currency: { dataType: 'string' },
-                separator: { ref: 'NumberSeparator' },
-                round: { dataType: 'double' },
-                type: { ref: 'TableCalculationFormatType', required: true },
-            },
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'Compact' },
+                {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['K'] },
+                        { dataType: 'enum', enums: ['thousand'] },
+                        { dataType: 'enum', enums: ['M'] },
+                        { dataType: 'enum', enums: ['million'] },
+                        { dataType: 'enum', enums: ['B'] },
+                        { dataType: 'enum', enums: ['billion'] },
+                        { dataType: 'enum', enums: ['T'] },
+                        { dataType: 'enum', enums: ['trillion'] },
+                    ],
+                },
+            ],
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomFormat: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'CustomFormatType', required: true },
+            round: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'double' }, { dataType: 'undefined' }],
+            },
+            separator: { ref: 'NumberSeparator' },
+            currency: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            compact: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'CompactOrAlias' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            prefix: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            suffix: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+        },
+        additionalProperties: false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculation: {
@@ -687,7 +726,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                format: { ref: 'TableCalculationFormat' },
+                format: { ref: 'CustomFormat' },
                 sql: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
@@ -714,30 +753,6 @@ const models: TsoaRoute.Models = {
             'timestamp',
             'boolean',
         ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CompactOrAlias: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'Compact' },
-                {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['K'] },
-                        { dataType: 'enum', enums: ['thousand'] },
-                        { dataType: 'enum', enums: ['M'] },
-                        { dataType: 'enum', enums: ['million'] },
-                        { dataType: 'enum', enums: ['B'] },
-                        { dataType: 'enum', enums: ['billion'] },
-                        { dataType: 'enum', enums: ['T'] },
-                        { dataType: 'enum', enums: ['trillion'] },
-                    ],
-                },
-            ],
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Format: {
@@ -791,6 +806,7 @@ const models: TsoaRoute.Models = {
                 ],
             },
             percentile: { dataType: 'double' },
+            formatOptions: { ref: 'CustomFormat' },
         },
         additionalProperties: false,
     },

@@ -1,11 +1,11 @@
 import {
     Compact,
+    CustomFormat,
+    CustomFormatType,
     DimensionType,
     Format,
     MetricType,
     NumberSeparator,
-    TableCalculationFormat,
-    TableCalculationFormatType,
 } from '../types/field';
 import {
     currencies,
@@ -483,7 +483,7 @@ describe('Formatting', () => {
         test('table calculation with default format', async () => {
             const defaultFormat = {
                 ...tableCalculation,
-                format: { type: TableCalculationFormatType.DEFAULT },
+                format: { type: CustomFormatType.DEFAULT },
             };
             expect(formatItemValue(defaultFormat, undefined)).toEqual('-');
             expect(formatItemValue(defaultFormat, null)).toEqual('∅');
@@ -495,7 +495,7 @@ describe('Formatting', () => {
             const withExtraFormat = {
                 ...tableCalculation,
                 format: {
-                    type: TableCalculationFormatType.DEFAULT,
+                    type: CustomFormatType.DEFAULT,
                     round: 2,
                     separator: NumberSeparator.COMMA_PERIOD,
                 },
@@ -509,7 +509,7 @@ describe('Formatting', () => {
         test('table calculation with percent format', async () => {
             const percentFormat = {
                 ...tableCalculation,
-                format: { type: TableCalculationFormatType.PERCENT },
+                format: { type: CustomFormatType.PERCENT },
             };
             expect(formatItemValue(percentFormat, undefined)).toEqual('-');
             expect(formatItemValue(percentFormat, null)).toEqual('∅');
@@ -522,7 +522,7 @@ describe('Formatting', () => {
         test('table calculation with percent format and round', async () => {
             const percentFormat = {
                 ...tableCalculation,
-                format: { type: TableCalculationFormatType.PERCENT, round: 1 },
+                format: { type: CustomFormatType.PERCENT, round: 1 },
             };
             expect(formatItemValue(percentFormat, undefined)).toEqual('-');
             expect(formatItemValue(percentFormat, null)).toEqual('∅');
@@ -536,7 +536,7 @@ describe('Formatting', () => {
             const percentFormat = {
                 ...tableCalculation,
                 format: {
-                    type: TableCalculationFormatType.PERCENT,
+                    type: CustomFormatType.PERCENT,
                     round: 2,
                     separator: NumberSeparator.PERIOD_COMMA,
                 },
@@ -551,28 +551,28 @@ describe('Formatting', () => {
             const number = 123456789.12345;
             expect(
                 formatTableCalculationNumber(number, {
-                    type: TableCalculationFormatType.DEFAULT,
+                    type: CustomFormatType.DEFAULT,
                     round: 0,
                     separator: NumberSeparator.COMMA_PERIOD,
                 }),
             ).toEqual('123,456,789');
             expect(
                 formatTableCalculationNumber(number, {
-                    type: TableCalculationFormatType.DEFAULT,
+                    type: CustomFormatType.DEFAULT,
                     round: 0,
                     separator: NumberSeparator.PERIOD_COMMA,
                 }),
             ).toEqual('123.456.789');
             expect(
                 formatTableCalculationNumber(number, {
-                    type: TableCalculationFormatType.DEFAULT,
+                    type: CustomFormatType.DEFAULT,
                     round: 2,
                     separator: NumberSeparator.SPACE_PERIOD,
                 }),
             ).toEqual('123 456 789.12');
             expect(
                 formatTableCalculationNumber(number, {
-                    type: TableCalculationFormatType.DEFAULT,
+                    type: CustomFormatType.DEFAULT,
                     round: 2,
                     separator: NumberSeparator.NO_SEPARATOR_PERIOD,
                 }),
@@ -583,28 +583,28 @@ describe('Formatting', () => {
             const number = 123456789.12345;
             expect(
                 formatTableCalculationNumber(number, {
-                    type: TableCalculationFormatType.DEFAULT,
+                    type: CustomFormatType.DEFAULT,
                     round: -1,
                     separator: NumberSeparator.COMMA_PERIOD,
                 }),
             ).toEqual('123,456,790');
             expect(
                 formatTableCalculationNumber(number, {
-                    type: TableCalculationFormatType.DEFAULT,
+                    type: CustomFormatType.DEFAULT,
                     round: -2,
                     separator: NumberSeparator.PERIOD_COMMA,
                 }),
             ).toEqual('123.456.800');
             expect(
                 formatTableCalculationNumber(number, {
-                    type: TableCalculationFormatType.DEFAULT,
+                    type: CustomFormatType.DEFAULT,
                     round: -3,
                     separator: NumberSeparator.SPACE_PERIOD,
                 }),
             ).toEqual('123 457 000');
             expect(
                 formatTableCalculationNumber(number, {
-                    type: TableCalculationFormatType.DEFAULT,
+                    type: CustomFormatType.DEFAULT,
                     round: -99,
                     separator: NumberSeparator.NO_SEPARATOR_PERIOD,
                 }),
@@ -662,11 +662,8 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: TableCalculationFormatType.CURRENCY,
-                                currency,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
                         },
                         12345.1235,
                     ),
@@ -678,11 +675,8 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: TableCalculationFormatType.CURRENCY,
-                                currency,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
                         },
                         '12345.1235',
                     ),
@@ -694,12 +688,9 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: TableCalculationFormatType.CURRENCY,
-                                currency,
-                                round: 3,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
+                            round: 3,
                         },
                         12345.1235,
                     ),
@@ -717,12 +708,9 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: TableCalculationFormatType.CURRENCY,
-                                currency,
-                                separator: NumberSeparator.PERIOD_COMMA,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
+                            separator: NumberSeparator.PERIOD_COMMA,
                         },
                         12345.1235,
                     ),
@@ -739,12 +727,9 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: TableCalculationFormatType.CURRENCY,
-                                currency,
-                                compact: Compact.THOUSANDS,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
+                            compact: Compact.THOUSANDS,
                         },
                         12345.1235,
                     ),
@@ -755,13 +740,10 @@ describe('Formatting', () => {
                 currencies.slice(0, 4).map((currency) =>
                     formatTableCalculationValue(
                         {
-                            ...tableCalculation,
-                            format: {
-                                type: TableCalculationFormatType.CURRENCY,
-                                currency,
-                                compact: Compact.MILLIONS,
-                                round: 0,
-                            },
+                            type: CustomFormatType.CURRENCY,
+                            currency,
+                            compact: Compact.MILLIONS,
+                            round: 0,
                         },
                         123456789.1235,
                     ),
@@ -773,10 +755,7 @@ describe('Formatting', () => {
             expect(
                 formatTableCalculationValue(
                     {
-                        ...tableCalculation,
-                        format: {
-                            type: TableCalculationFormatType.NUMBER,
-                        },
+                        type: CustomFormatType.NUMBER,
                     },
                     12345.56789,
                 ),
@@ -784,14 +763,11 @@ describe('Formatting', () => {
             expect(
                 formatTableCalculationValue(
                     {
-                        ...tableCalculation,
-                        format: {
-                            type: TableCalculationFormatType.NUMBER,
-                            round: 2,
-                            prefix: 'foo ',
-                            suffix: ' bar',
-                            compact: Compact.THOUSANDS,
-                        },
+                        type: CustomFormatType.NUMBER,
+                        round: 2,
+                        prefix: 'foo ',
+                        suffix: ' bar',
+                        compact: Compact.THOUSANDS,
                     },
                     12345.1235,
                 ),
@@ -801,29 +777,17 @@ describe('Formatting', () => {
             expect(
                 formatTableCalculationValue(
                     {
-                        ...tableCalculation,
-                        format: {
-                            type: TableCalculationFormatType.NUMBER,
-                            prefix: 'foo ',
-                            suffix: ' bar',
-                        },
+                        type: CustomFormatType.NUMBER,
+                        prefix: 'foo ',
+                        suffix: ' bar',
                     },
                     '12345.1235',
                 ),
             ).toEqual('foo 12,345 bar');
         });
         test('convert table calculation formats with invalid numbers', async () => {
-            const formatTableCalculation = (
-                value: any,
-                format: TableCalculationFormat,
-            ) =>
-                formatTableCalculationValue(
-                    {
-                        ...tableCalculation,
-                        format,
-                    },
-                    value,
-                );
+            const formatTableCalculation = (value: any, format: CustomFormat) =>
+                formatTableCalculationValue(format, value);
             // This method should return the original value if the value is not a number
 
             const values = [
@@ -845,7 +809,7 @@ describe('Formatting', () => {
             values.map((value, i) =>
                 expect(
                     formatTableCalculation(value, {
-                        type: TableCalculationFormatType.DEFAULT,
+                        type: CustomFormatType.DEFAULT,
                     }),
                 ).toEqual(expectedValue[i]),
             );
@@ -853,7 +817,7 @@ describe('Formatting', () => {
             values.map((value, i) =>
                 expect(
                     formatTableCalculation(value, {
-                        type: TableCalculationFormatType.CURRENCY,
+                        type: CustomFormatType.CURRENCY,
                         currency: Format.USD,
                     }),
                 ).toEqual(expectedValue[i]),
@@ -861,7 +825,7 @@ describe('Formatting', () => {
             values.map((value, i) =>
                 expect(
                     formatTableCalculation(value, {
-                        type: TableCalculationFormatType.CURRENCY,
+                        type: CustomFormatType.CURRENCY,
                         currency: Format.USD,
                         round: 2,
                         compact: Compact.THOUSANDS,
@@ -873,14 +837,14 @@ describe('Formatting', () => {
             values.map((value, i) =>
                 expect(
                     formatTableCalculation(value, {
-                        type: TableCalculationFormatType.NUMBER,
+                        type: CustomFormatType.NUMBER,
                     }),
                 ).toEqual(expectedValue[i]),
             );
             values.map((value, i) =>
                 expect(
                     formatTableCalculation(value, {
-                        type: TableCalculationFormatType.NUMBER,
+                        type: CustomFormatType.NUMBER,
                         prefix: 'foo',
                         suffix: 'bar',
                         round: 2,
@@ -893,14 +857,14 @@ describe('Formatting', () => {
             values.map((value, i) =>
                 expect(
                     formatTableCalculation(value, {
-                        type: TableCalculationFormatType.PERCENT,
+                        type: CustomFormatType.PERCENT,
                     }),
                 ).toEqual(expectedValue[i]),
             );
             values.map((value, i) =>
                 expect(
                     formatTableCalculation(value, {
-                        type: TableCalculationFormatType.PERCENT,
+                        type: CustomFormatType.PERCENT,
                         round: 2,
                         separator: NumberSeparator.PERIOD_COMMA,
                     }),

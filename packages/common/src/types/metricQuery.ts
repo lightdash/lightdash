@@ -5,6 +5,7 @@ import {
     CompiledMetric,
     CompiledTableCalculation,
     CustomDimension,
+    CustomFormat,
     FieldId,
     Format,
     friendlyName,
@@ -30,6 +31,7 @@ export interface AdditionalMetric {
     baseDimensionName?: string;
     uuid?: string | null;
     percentile?: number;
+    formatOptions?: CustomFormat;
 }
 
 export const getCustomDimensionId = (dimension: CustomDimension) =>
@@ -37,6 +39,11 @@ export const getCustomDimensionId = (dimension: CustomDimension) =>
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
     value?.table && value?.name && !value?.fieldType && !value.binType;
+
+export const hasFormatOptions = (
+    value: any,
+): value is AdditionalMetric & { formatOptions: CustomFormat } =>
+    !!value.formatOptions;
 
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;

@@ -25,5 +25,8 @@ export const convertAdditionalMetric = ({
         ...(additionalMetric.filters && {
             filters: additionalMetric.filters,
         }),
+        ...(additionalMetric.formatOptions && {
+            formatOptions: additionalMetric.formatOptions,
+        }),
     };
 };

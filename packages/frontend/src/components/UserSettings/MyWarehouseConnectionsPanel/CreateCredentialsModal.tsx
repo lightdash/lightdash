@@ -14,12 +14,15 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC } from 'react';
+import React, { FC } from 'react';
 import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/SelectWarehouse';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+    title?: React.ReactNode;
+    description?: React.ReactNode;
+    nameValue?: string;
     warehouseType?: WarehouseTypes;
     onSuccess?: (data: UserWarehouseCredentials) => void;
 };
@@ -61,6 +64,9 @@ const defaultCredentials: Record<
 export const CreateCredentialsModal: FC<Props> = ({
     opened,
     onClose,
+    title,
+    description,
+    nameValue,
     warehouseType,
     onSuccess,
 }) => {
@@ -77,24 +83,31 @@ export const CreateCredentialsModal: FC<Props> = ({
     });
     return (
         <Modal
-            title={<Title order={4}>Add new credentials</Title>}
+            title={title || <Title order={4}>Add new credentials</Title>}
             opened={opened}
             onClose={onClose}
         >
             <form
                 onSubmit={form.onSubmit(async (formData) => {
-                    await mutateAsync(formData);
+                    await mutateAsync({
+                        ...formData,
+                        name: nameValue || formData.name,
+                    });
                     onClose();
                 })}
             >
                 <Stack spacing="xs">
-                    <TextInput
-                        required
-                        size="xs"
-                        label="Name"
-                        disabled={isSaving}
-                        {...form.getInputProps('name')}
-                    />
+                    {description}
+
+                    {!nameValue && (
+                        <TextInput
+                            required
+                            size="xs"
+                            label="Name"
+                            disabled={isSaving}
+                            {...form.getInputProps('name')}
+                        />
+                    )}
 
                     {!warehouseType && (
                         <Select

@@ -82,9 +82,9 @@ export default defineConfig({
         },
     },
     test: {
-        environment: 'jsdom',
         globals: true,
-        setupFiles: './setupVitest.ts',
+        environment: 'jsdom',
+        setupFiles: './src/testing/vitest.setup.ts',
     },
     server: {
         port: 3000,

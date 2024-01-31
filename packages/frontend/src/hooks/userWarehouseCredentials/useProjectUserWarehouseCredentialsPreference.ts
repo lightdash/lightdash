@@ -1,5 +1,10 @@
 import { ApiError, UserWarehouseCredentials } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    UseMutationOptions,
+    useQuery,
+    useQueryClient,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -42,7 +47,9 @@ type UpdateCredentialsPreference = {
     userWarehouseCredentialsUuid: string;
 };
 
-export const useProjectUserWarehouseCredentialsPreferenceMutation = () => {
+export const useProjectUserWarehouseCredentialsPreferenceMutation = (
+    options?: UseMutationOptions<null, ApiError, UpdateCredentialsPreference>,
+) => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, UpdateCredentialsPreference>(
@@ -53,13 +60,14 @@ export const useProjectUserWarehouseCredentialsPreferenceMutation = () => {
             ),
         {
             mutationKey: ['update-project-user-credentials-preference'],
-            onSuccess: async () => {
+            onSuccess: async (...args) => {
                 await queryClient.invalidateQueries([
                     'project-user-warehouse-credentials-preference',
                 ]);
                 showToastSuccess({
                     title: 'Credentials preference saved successfully',
                 });
+                options?.onSuccess?.(...args);
             },
             onError: (error) => {
                 showToastError({
@@ -67,6 +75,7 @@ export const useProjectUserWarehouseCredentialsPreferenceMutation = () => {
                     subtitle: error.error.message,
                 });
             },
+            ...options,
         },
     );
 };

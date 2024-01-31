@@ -1,6 +1,8 @@
 import {
+    AdditionalMetric,
     canApplyFormattingToCustomMetric,
-    CustomMetricFormat,
+    CustomFormat,
+    CustomFormatType,
     Dimension,
     fieldId as getFieldId,
     friendlyName,
@@ -8,10 +10,7 @@ import {
     isDimension,
     MetricType,
     NumberSeparator,
-    // NOTE: The types are the same, but we can't derive enums from other enums
-    TableCalculationFormatType as CustomMetricFormatType,
 } from '@lightdash/common';
-
 import {
     Accordion,
     Button,
@@ -24,7 +23,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ValueOf } from 'type-fest';
 import { v4 as uuidv4 } from 'uuid';
 import { FormatForm } from '../../../features/tableCalculation/components/FormatForm';
@@ -92,16 +91,21 @@ export const CustomMetricModal = () => {
 
     const { projectUuid, fieldsMap, startOfWeek } = useDataForFiltersProvider();
 
-    const form = useForm({
+    const form = useForm<
+        Pick<AdditionalMetric, 'percentile'> & {
+            format: CustomFormat;
+            customMetricLabel: string;
+        }
+    >({
         validateInputOnChange: true,
         initialValues: {
             customMetricLabel: '',
             percentile: 50,
             format: {
-                type: CustomMetricFormatType.DEFAULT,
+                type: CustomFormatType.DEFAULT,
                 round: undefined,
                 separator: NumberSeparator.DEFAULT,
-                currency: 'USD',
+                currency: undefined,
                 compact: undefined,
                 prefix: undefined,
                 suffix: undefined,
@@ -133,7 +137,7 @@ export const CustomMetricModal = () => {
                     ? 'Metric with this label already exists'
                     : null;
             },
-            percentile: (percentile: number) => {
+            percentile: (percentile) => {
                 if (!percentile) return null;
                 if (percentile < 0 || percentile > 100) {
                     return 'Percentile must be a number between 0 and 100';
@@ -156,14 +160,6 @@ export const CustomMetricModal = () => {
                     : '',
             );
         }
-
-        if (
-            isEditing &&
-            isAdditionalMetric(item) &&
-            item.percentile !== undefined
-        ) {
-            setFieldValue('percentile', item.percentile);
-        }
     }, [setFieldValue, item, customMetricType, isEditing]);
 
     const initialCustomMetricFiltersWithIds = useMemo(() => {
@@ -185,8 +181,27 @@ export const CustomMetricModal = () => {
         setCustomMetricFiltersWithIds(initialCustomMetricFiltersWithIds);
     }, [initialCustomMetricFiltersWithIds]);
 
+    useEffect(
+        function populateForm() {
+            if (isEditing && isAdditionalMetric(item)) {
+                if (item.percentile)
+                    setFieldValue('percentile', item.percentile);
+
+                if (isCustomMetricFormattingEnabled && item.formatOptions) {
+                    setFieldValue('format', item.formatOptions);
+                }
+            }
+        },
+        [isEditing, item, setFieldValue, isCustomMetricFormattingEnabled],
+    );
+
+    const handleClose = useCallback(() => {
+        form.reset();
+        toggleModal();
+    }, [form, toggleModal]);
+
     const handleOnSubmit = form.onSubmit(
-        ({ customMetricLabel, percentile }) => {
+        ({ customMetricLabel, percentile, format }) => {
             if (!item || !customMetricType) return;
 
             const data = prepareCustomMetricData({
@@ -197,6 +212,9 @@ export const CustomMetricModal = () => {
                 isEditingCustomMetric: !!isEditing,
                 exploreData,
                 percentile,
+                ...(isCustomMetricFormattingEnabled && {
+                    formatOptions: format,
+                }),
             });
 
             if (isEditing && isAdditionalMetric(item)) {
@@ -220,7 +238,7 @@ export const CustomMetricModal = () => {
                     title: 'Custom metric added successfully',
                 });
             }
-            toggleModal();
+            handleClose();
         },
     );
 
@@ -238,12 +256,12 @@ export const CustomMetricModal = () => {
         }
     }, [isEditing, item]);
 
-    const getFormatInputProps = (path: keyof CustomMetricFormat) =>
+    const getFormatInputProps = (path: keyof CustomFormat) =>
         form.getInputProps(`format.${path}`);
 
     const setFormatFieldValue = (
-        path: keyof CustomMetricFormat,
-        value: ValueOf<CustomMetricFormat>,
+        path: keyof CustomFormat,
+        value: ValueOf<CustomFormat>,
     ) => form.setFieldValue(`format.${path}`, value);
 
     return item ? (
@@ -251,7 +269,7 @@ export const CustomMetricModal = () => {
             size="xl"
             onClick={(e) => e.stopPropagation()}
             opened={isOpen}
-            onClose={() => toggleModal(undefined)}
+            onClose={handleClose}
             title={
                 <Title order={4}>
                     {isEditing ? 'Edit' : 'Create'} Custom Metric

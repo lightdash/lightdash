@@ -1,3 +1,39 @@
+# [0.971.0](https://github.com/lightdash/lightdash/compare/0.970.0...0.971.0) (2024-01-31)
+
+
+### Features
+
+* finalise editing of custom metric format ([#8777](https://github.com/lightdash/lightdash/issues/8777)) ([c54c701](https://github.com/lightdash/lightdash/commit/c54c7016440215147b80f5d2717fa1fbac8f908a))
+
+# [0.970.0](https://github.com/lightdash/lightdash/compare/0.969.0...0.970.0) (2024-01-30)
+
+
+### Features
+
+* add format options to custom metrics ([#8768](https://github.com/lightdash/lightdash/issues/8768)) ([e8a269a](https://github.com/lightdash/lightdash/commit/e8a269aa1897e64c1ac8d3d92d4eb9701d2191a5))
+
+# [0.969.0](https://github.com/lightdash/lightdash/compare/0.968.1...0.969.0) (2024-01-30)
+
+
+### Features
+
+* access all attribute values when filtering rows ([#8769](https://github.com/lightdash/lightdash/issues/8769)) ([7e06467](https://github.com/lightdash/lightdash/commit/7e0646777e937d1dc9075ad2f4e6f8eaebbe44ec))
+
+## [0.968.1](https://github.com/lightdash/lightdash/compare/0.968.0...0.968.1) (2024-01-30)
+
+
+### Bug Fixes
+
+* TableHeader empty tooltip on results ([#8770](https://github.com/lightdash/lightdash/issues/8770)) ([7b1c71d](https://github.com/lightdash/lightdash/commit/7b1c71df2dc980765a3cafd8ef2b6ce5a6af3dad))
+
+# [0.968.0](https://github.com/lightdash/lightdash/compare/0.967.0...0.968.0) (2024-01-30)
+
+
+### Features
+
+* automatically show modal to add user warehouse credentials ([#8758](https://github.com/lightdash/lightdash/issues/8758)) ([6bdedcd](https://github.com/lightdash/lightdash/commit/6bdedcd3af9bd6a30f49a718cc04d291ca666874))
+* save custom metric percent format ([#8756](https://github.com/lightdash/lightdash/issues/8756)) ([746cd45](https://github.com/lightdash/lightdash/commit/746cd45d5fbc59cfdbe33c6126a5606ee162d1bf))
+
 # [0.967.0](https://github.com/lightdash/lightdash/compare/0.966.1...0.967.0) (2024-01-30)
 
 

@@ -1,8 +1,8 @@
 import {
+    CustomFormat,
+    CustomFormatType,
     NumberSeparator,
     TableCalculation,
-    TableCalculationFormat,
-    TableCalculationFormatType,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -36,7 +36,7 @@ type Props = ModalProps & {
 type TableCalculationFormInputs = {
     name: string;
     sql: string;
-    format: TableCalculationFormat;
+    format: CustomFormat;
 };
 
 const TableCalculationModal: FC<Props> = ({
@@ -61,8 +61,7 @@ const TableCalculationModal: FC<Props> = ({
             sql: tableCalculation?.sql || '',
             format: {
                 type:
-                    tableCalculation?.format?.type ||
-                    TableCalculationFormatType.DEFAULT,
+                    tableCalculation?.format?.type || CustomFormatType.DEFAULT,
                 round: tableCalculation?.format?.round,
                 separator:
                     tableCalculation?.format?.separator ||
@@ -92,13 +91,13 @@ const TableCalculationModal: FC<Props> = ({
         }
     });
 
-    const getFormatInputProps = (path: keyof TableCalculationFormat) => {
+    const getFormatInputProps = (path: keyof CustomFormat) => {
         return form.getInputProps(`format.${path}`);
     };
 
     const setFormatFieldValue = (
-        path: keyof TableCalculationFormat,
-        value: ValueOf<TableCalculationFormat>,
+        path: keyof CustomFormat,
+        value: ValueOf<CustomFormat>,
     ) => {
         return form.setFieldValue(`format.${path}`, value);
     };

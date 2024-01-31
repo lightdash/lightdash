@@ -1,8 +1,9 @@
 import moment, { MomentInput } from 'moment';
 import {
-    CompactConfigMap,
     CompactOrAlias,
     CustomDimension,
+    CustomFormat,
+    CustomFormatType,
     DimensionType,
     Field,
     findCompactConfig,
@@ -13,10 +14,12 @@ import {
     MetricType,
     NumberSeparator,
     TableCalculation,
-    TableCalculationFormat,
-    TableCalculationFormatType,
 } from '../types/field';
-import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
+import {
+    AdditionalMetric,
+    hasFormatOptions,
+    isAdditionalMetric,
+} from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 
@@ -258,6 +261,7 @@ export function formatFieldValue(
         return `${value}`;
     }
     const { type, round, format, compact } = field;
+
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -311,18 +315,18 @@ export function formatFieldValue(
 
 export function formatTableCalculationNumber(
     value: number,
-    format: TableCalculationFormat,
+    format: CustomFormat,
 ): string {
     const getFormatOptions = () => {
         const currencyOptions =
-            format.type === TableCalculationFormatType.CURRENCY &&
+            format.type === CustomFormatType.CURRENCY &&
             format.currency !== undefined
                 ? { style: 'currency', currency: format.currency }
                 : {};
 
         if (
             format.round === undefined &&
-            format.type === TableCalculationFormatType.CURRENCY &&
+            format.type === CustomFormatType.CURRENCY &&
             format.currency !== undefined
         ) {
             // We apply the default round and separator from the currency
@@ -369,25 +373,28 @@ export function formatTableCalculationNumber(
 }
 
 export function formatTableCalculationValue(
-    field: TableCalculation,
+    format: CustomFormat | undefined,
     value: unknown,
 ): string {
-    if (field.format?.type === undefined) return formatValue(value);
+    if (format?.type === undefined) return formatValue(value);
 
     const applyCompact = (): {
         compactValue: number;
         compactSuffix: string;
     } => {
-        if (field.format?.compact === undefined)
+        if (format?.compact === undefined)
             return { compactValue: Number(value), compactSuffix: '' };
-        const compactValue = CompactConfigMap[field.format.compact].convertFn(
-            Number(value),
-        );
-        const compactSuffix = field.format.compact
-            ? CompactConfigMap[field.format.compact].suffix
-            : '';
 
-        return { compactValue, compactSuffix };
+        const compactConfig = findCompactConfig(format.compact);
+
+        if (compactConfig) {
+            const compactValue = compactConfig.convertFn(Number(value));
+            const compactSuffix = format.compact ? compactConfig.suffix : '';
+
+            return { compactValue, compactSuffix };
+        }
+
+        return { compactValue: Number(value), compactSuffix: '' };
     };
     if (value === '') return '';
     if (value instanceof Date) {
@@ -396,28 +403,28 @@ export function formatTableCalculationValue(
     if (valueIsNaN(value) || value === null) {
         return formatValue(value);
     }
-    switch (field.format.type) {
-        case TableCalculationFormatType.DEFAULT:
+    switch (format.type) {
+        case CustomFormatType.DEFAULT:
             return formatValue(value);
 
-        case TableCalculationFormatType.PERCENT:
+        case CustomFormatType.PERCENT:
             const formatted = formatTableCalculationNumber(
                 Number(value) * 100,
-                field.format,
+                format,
             );
             return `${formatted}%`;
-        case TableCalculationFormatType.CURRENCY:
+        case CustomFormatType.CURRENCY:
             const { compactValue, compactSuffix } = applyCompact();
 
             const currencyFormatted = formatTableCalculationNumber(
                 compactValue,
-                field.format,
+                format,
             ).replace(/\u00A0/, ' ');
 
             return `${currencyFormatted}${compactSuffix}`;
-        case TableCalculationFormatType.NUMBER:
-            const prefix = field.format.prefix || '';
-            const suffix = field.format.suffix || '';
+        case CustomFormatType.NUMBER:
+            const prefix = format.prefix || '';
+            const suffix = format.suffix || '';
             const {
                 compactValue: compactNumber,
                 compactSuffix: compactNumberSuffix,
@@ -425,14 +432,14 @@ export function formatTableCalculationValue(
 
             const numberFormatted = formatTableCalculationNumber(
                 compactNumber,
-                field.format,
+                format,
             );
 
             return `${prefix}${numberFormatted}${compactNumberSuffix}${suffix}`;
         default:
             return assertUnreachable(
-                field.format.type,
-                `Table calculation format type ${field.format.type} is not valid`,
+                format.type,
+                `Table calculation format type ${format.type} is not valid`,
             );
     }
 }
@@ -450,11 +457,18 @@ export function formatItemValue(
     if (value === null) return '∅';
     if (value === undefined) return '-';
 
-    if (isField(item) || isAdditionalMetric(item)) {
-        return formatFieldValue(item, value, convertToUTC);
-    }
-    if (item !== undefined && isTableCalculation(item)) {
-        return formatTableCalculationValue(item, value);
+    if (item) {
+        if (hasFormatOptions(item)) {
+            return formatTableCalculationValue(item.formatOptions, value);
+        }
+
+        if (isField(item) || isAdditionalMetric(item)) {
+            return formatFieldValue(item, value, convertToUTC);
+        }
+
+        if (isTableCalculation(item)) {
+            return formatTableCalculationValue(item.format, value);
+        }
     }
     return formatValue(value);
 }

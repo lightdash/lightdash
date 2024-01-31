@@ -1,6 +1,7 @@
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
+    CustomFormatType,
     Dimension,
     DimensionType,
     Field,
@@ -13,7 +14,6 @@ import {
     isTableCalculation,
     isTableCalculationField,
     MetricType,
-    TableCalculationFormatType,
 } from '../types/field';
 import {
     DashboardFieldTarget,
@@ -128,11 +128,11 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
             return FilterType.BOOLEAN;
-        case TableCalculationFormatType.DEFAULT:
+        case CustomFormatType.DEFAULT:
             return FilterType.STRING;
-        case TableCalculationFormatType.CURRENCY:
-        case TableCalculationFormatType.PERCENT:
-        case TableCalculationFormatType.NUMBER:
+        case CustomFormatType.CURRENCY:
+        case CustomFormatType.PERCENT:
+        case CustomFormatType.NUMBER:
             return FilterType.NUMBER;
         default: {
             return assertUnreachable(

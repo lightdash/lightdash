@@ -19,6 +19,7 @@ import {
     CreateProject,
     CreateProjectMember,
     CreateWarehouseCredentials,
+    CustomFormatType,
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
@@ -77,7 +78,6 @@ import {
     SpaceQuery,
     SpaceSummary,
     SummaryExplore,
-    TableCalculationFormatType,
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
@@ -1641,19 +1641,19 @@ export class ProjectService {
                                 metricQuery.tableCalculations.filter(
                                     (tableCalculation) =>
                                         tableCalculation.format?.type ===
-                                        TableCalculationFormatType.PERCENT,
+                                        CustomFormatType.PERCENT,
                                 ).length,
                             tableCalculationsCurrencyFormatCount:
                                 metricQuery.tableCalculations.filter(
                                     (tableCalculation) =>
                                         tableCalculation.format?.type ===
-                                        TableCalculationFormatType.CURRENCY,
+                                        CustomFormatType.CURRENCY,
                                 ).length,
                             tableCalculationsNumberFormatCount:
                                 metricQuery.tableCalculations.filter(
                                     (tableCalculation) =>
                                         tableCalculation.format?.type ===
-                                        TableCalculationFormatType.NUMBER,
+                                        CustomFormatType.NUMBER,
                                 ).length,
                             additionalMetricsCount: (
                                 metricQuery.additionalMetrics || []
@@ -1671,6 +1671,39 @@ export class ProjectService {
                                     ) &&
                                     metric.filters &&
                                     metric.filters.length > 0,
+                            ).length,
+                            additionalMetricsPercentFormatCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter(
+                                (metric) =>
+                                    metricQuery.metrics.includes(
+                                        getFieldId(metric),
+                                    ) &&
+                                    metric.formatOptions &&
+                                    metric.formatOptions.type ===
+                                        CustomFormatType.PERCENT,
+                            ).length,
+                            additionalMetricsCurrencyFormatCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter(
+                                (metric) =>
+                                    metricQuery.metrics.includes(
+                                        getFieldId(metric),
+                                    ) &&
+                                    metric.formatOptions &&
+                                    metric.formatOptions.type ===
+                                        CustomFormatType.CURRENCY,
+                            ).length,
+                            additionalMetricsNumberFormatCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter(
+                                (metric) =>
+                                    metricQuery.metrics.includes(
+                                        getFieldId(metric),
+                                    ) &&
+                                    metric.formatOptions &&
+                                    metric.formatOptions.type ===
+                                        CustomFormatType.NUMBER,
                             ).length,
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),

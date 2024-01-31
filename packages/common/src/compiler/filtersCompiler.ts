@@ -3,11 +3,11 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import {
     CompiledField,
     CompiledTableCalculation,
+    CustomFormatType,
     DimensionType,
     fieldId,
     isMetric,
     MetricType,
-    TableCalculationFormatType,
 } from '../types/field';
 import {
     DateFilterRule,
@@ -314,16 +314,16 @@ export const renderTableCalculationFilterRuleSql = (
     const fieldSql = `${fieldQuoteChar}${getItemId(field)}${fieldQuoteChar}`;
 
     switch (field.format?.type) {
-        case TableCalculationFormatType.DEFAULT:
+        case CustomFormatType.DEFAULT:
             return renderStringFilterSql(
                 fieldSql,
                 filterRule,
                 stringQuoteChar,
                 escapeStringQuoteChar,
             );
-        case TableCalculationFormatType.PERCENT:
-        case TableCalculationFormatType.CURRENCY:
-        case TableCalculationFormatType.NUMBER: {
+        case CustomFormatType.PERCENT:
+        case CustomFormatType.CURRENCY:
+        case CustomFormatType.NUMBER: {
             return renderNumberFilterSql(fieldSql, filterRule);
         }
         default: {

@@ -13,12 +13,12 @@ import {
     ConditionalRuleLabels,
 } from '../types/conditionalRule';
 import {
+    CustomFormatType,
     FilterableItem,
     Format,
     isField,
     isFilterableItem,
     isTableCalculation,
-    TableCalculationFormatType,
 } from '../types/field';
 import { FieldTarget } from '../types/filter';
 import assertUnreachable from './assertUnreachable';
@@ -62,7 +62,7 @@ export const hasPercentageFormat = (field: ItemsMap[string] | undefined) => {
     return (
         (isField(field) && field?.format === Format.PERCENT) ||
         (isTableCalculation(field) &&
-            field.format?.type === TableCalculationFormatType.PERCENT)
+            field.format?.type === CustomFormatType.PERCENT)
     );
 };
 

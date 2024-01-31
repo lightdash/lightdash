@@ -2,6 +2,7 @@ import {
     AdditionalMetric,
     ApiQueryResults,
     convertAdditionalMetric,
+    CustomFormatType,
     DimensionType,
     Explore,
     fieldId,
@@ -12,7 +13,6 @@ import {
     Metric,
     TableCalculation,
     TableCalculationField,
-    TableCalculationFormatType,
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
 import { FieldsWithSuggestions } from '../../common/Filters/FiltersProvider';
@@ -60,7 +60,7 @@ export const useFieldsWithSuggestions = ({
                         fieldType: FieldType.TABLE_CALCULATION,
                         type: cal.format?.type
                             ? cal.format.type
-                            : TableCalculationFormatType.DEFAULT,
+                            : CustomFormatType.DEFAULT,
                         table: 'table_calculation',
                         label: cal.name,
                         tableLabel: 'Table Calculation',

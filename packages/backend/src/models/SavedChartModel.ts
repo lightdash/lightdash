@@ -255,6 +255,9 @@ const createSavedChartVersion = async (
                             : null,
                     base_dimension_name:
                         additionalMetric.baseDimensionName ?? null,
+                    format_options: additionalMetric.formatOptions
+                        ? JSON.stringify(additionalMetric.formatOptions)
+                        : null,
                 }),
             );
         });
@@ -690,6 +693,7 @@ export class SavedChartModel {
                     'base_dimension_name',
                     'uuid',
                     'compact',
+                    'format_options',
                 ])
                 .where('saved_queries_version_id', savedQueriesVersionId);
 
@@ -743,6 +747,9 @@ export class SavedChartModel {
                     }),
                     ...(additionalMetric.filters && {
                         filters: additionalMetric.filters,
+                    }),
+                    ...(additionalMetric.format_options && {
+                        formatOptions: additionalMetric.format_options,
                     }),
                 }));
 
