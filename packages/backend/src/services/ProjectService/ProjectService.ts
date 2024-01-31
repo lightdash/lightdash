@@ -1699,10 +1699,11 @@ export class ProjectService {
                      * the impact of upcoming table calculation handling changes.
                      */
                     if (useNewTableCalculationsEngine) {
-                        span.setAttribute(
-                            'tableCalculationsNum',
-                            metricQuery.tableCalculations.length,
-                        );
+                        span.setAttributes({
+                            tableCalculationsNum:
+                                metricQuery.tableCalculations.length,
+                            newTableCalculations: useNewTableCalculationsEngine,
+                        });
                     }
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
