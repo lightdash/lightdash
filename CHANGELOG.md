@@ -1,3 +1,11 @@
+# [0.972.0](https://github.com/lightdash/lightdash/compare/0.971.0...0.972.0) (2024-01-31)
+
+
+### Features
+
+* Add additional attribute for # of table calculations in `ProjectService.runMetricQuery` trace ([#8780](https://github.com/lightdash/lightdash/issues/8780)) ([08bab43](https://github.com/lightdash/lightdash/commit/08bab43c1429a2067b27e501b96f5ef95690f11d))
+* Support soft-wrapping in SqlEditor for table calculations ([#8771](https://github.com/lightdash/lightdash/issues/8771)) ([db05740](https://github.com/lightdash/lightdash/commit/db05740383e2af5eb09de88e31188e92009ba175))
+
 # [0.971.0](https://github.com/lightdash/lightdash/compare/0.970.0...0.971.0) (2024-01-31)
 
 
