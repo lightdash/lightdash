@@ -23,7 +23,7 @@ describe('UserCompletionModal', () => {
         const welcomeModal = await screen.findByRole('dialog', {
             name: 'Nearly there... Tell us a bit more about yourself',
         });
-        expect(welcomeModel).toBeInTheDocument();
+        expect(welcomeModal).toBeInTheDocument();
     });
 
     it('should not show organization name input if organization already has organization name', async () => {
@@ -37,7 +37,7 @@ describe('UserCompletionModal', () => {
         const welcomeModal = await screen.findByRole('dialog', {
             name: 'Nearly there... Tell us a bit more about yourself',
         });
-        expect(welcomeModel).toBeInTheDocument();
+        expect(welcomeModal).toBeInTheDocument();
 
         const nameInput = screen.queryByPlaceholderText('Enter company name');
         expect(nameInput).not.toBeInTheDocument();
@@ -51,10 +51,10 @@ describe('UserCompletionModal', () => {
             },
         });
 
-        const welcomeModel = await screen.findByRole('dialog', {
+        const welcomeModal = await screen.findByRole('dialog', {
             name: 'Nearly there... Tell us a bit more about yourself',
         });
-        expect(welcomeModel).toBeInTheDocument();
+        expect(welcomeModal).toBeInTheDocument();
 
         const nameInput = await screen.findByPlaceholderText(
             'Enter company name',
@@ -74,7 +74,7 @@ describe('UserCompletionModal', () => {
         const welcomeModal = await screen.findByRole('dialog', {
             name: 'Nearly there... Tell us a bit more about yourself',
         });
-        expect(welcomeModel).toBeInTheDocument();
+        expect(welcomeModal).toBeInTheDocument();
 
         const emailDomainCheckbox = screen.queryByRole('checkbox', {
             name: `Allow users with @gmail.com to join the organization as a viewer`,
@@ -91,10 +91,10 @@ describe('UserCompletionModal', () => {
             },
         });
 
-        const welcomeModel = await screen.findByRole('dialog', {
+        const welcomeModal = await screen.findByRole('dialog', {
             name: 'Nearly there... Tell us a bit more about yourself',
         });
-        expect(welcomeModel).toBeInTheDocument();
+        expect(welcomeModal).toBeInTheDocument();
 
         const emailDomainCheckbox = await screen.findByRole('checkbox', {
             name: `Allow users with @lightdash.com to join the organization as a viewer`,
@@ -113,10 +113,10 @@ describe('UserCompletionModal', () => {
             },
         });
 
-        const welcomeModel = await screen.findByRole('dialog', {
+        const welcomeModal = await screen.findByRole('dialog', {
             name: 'Nearly there... Tell us a bit more about yourself',
         });
-        expect(welcomeModel).toBeInTheDocument();
+        expect(welcomeModal).toBeInTheDocument();
 
         const anonymizeTrackingCheckbox = screen.queryByRole('checkbox', {
             name: `Anonymize my usage data`,
@@ -135,10 +135,10 @@ describe('UserCompletionModal', () => {
             },
         });
 
-        const welcomeModel = await screen.findByRole('dialog', {
+        const welcomeModal = await screen.findByRole('dialog', {
             name: 'Nearly there... Tell us a bit more about yourself',
         });
-        expect(welcomeModel).toBeInTheDocument();
+        expect(welcomeModal).toBeInTheDocument();
 
         const anonymizeTrackingCheckbox = await screen.findByRole('checkbox', {
             name: `Anonymize my usage data`,
