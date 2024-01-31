@@ -20,7 +20,7 @@ describe('UserCompletionModal', () => {
             },
         });
 
-        const welcomeModel = await screen.findByRole('dialog', {
+        const welcomeModal = await screen.findByRole('dialog', {
             name: 'Nearly there... Tell us a bit more about yourself',
         });
         expect(welcomeModel).toBeInTheDocument();
