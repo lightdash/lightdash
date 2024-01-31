@@ -20,20 +20,18 @@ export const isCustomVisualizationConfig = (
 type VisualizationCustomConfigProps =
     VisualizationConfigCommon<VisualizationCustomConfigType> & {
         // TODO: shared prop once all visualizations are converted
-        itemsMap: ItemsMap | undefined;
+        itemsMap?: ItemsMap | undefined;
     };
 
 const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
     initialChartConfig,
     resultsData,
-    itemsMap,
     onChartConfigChange,
     children,
 }) => {
     const customVisConfig = useCustomVisualizationConfig(
         initialChartConfig,
         resultsData,
-        itemsMap,
     );
 
     useEffect(() => {

@@ -1,9 +1,4 @@
-import {
-    ApiQueryResults,
-    CustomVis,
-    ItemsMap,
-    ResultRow,
-} from '@lightdash/common';
+import { ApiQueryResults, CustomVis, ResultRow } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 
 const convertRowsToSeries = (rows: ResultRow[]) => {
@@ -30,10 +25,7 @@ export interface CustomVisualizationProps {
 const useCustomVisualizationConfig = (
     chartConfig: CustomVis | undefined,
     resultsData: ApiQueryResults | undefined,
-    itemsMap: ItemsMap | undefined,
 ): CustomVisualizationProps => {
-    console.log('chartConfig', { chartConfig, resultsData, itemsMap });
-
     const [visSpec, setVisSpec] = useState<string | undefined>(
         chartConfig?.spec,
     );
