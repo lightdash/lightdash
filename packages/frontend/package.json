@@ -90,7 +90,7 @@
         "zod": "^3.22.3"
     },
     "devDependencies": {
-        "@testing-library/jest-dom": "^6.3.0",
+        "@testing-library/jest-dom": "^6.4.0",
         "@testing-library/react": "^14.1.2",
         "@testing-library/user-event": "^14.5.2",
         "@types/canvas-confetti": "^1.6.0",
@@ -108,9 +108,11 @@
         "@types/uuid": "^8.3.4",
         "@vitejs/plugin-react": "^4.2.1",
         "eslint-plugin-css-modules": "^2.11.0",
+        "eslint-plugin-jest-dom": "^5.1.0",
         "eslint-plugin-jsx-a11y": "^6.6.1",
         "eslint-plugin-react": "^7.31.8",
         "eslint-plugin-react-hooks": "^4.6.0",
+        "eslint-plugin-testing-library": "^6.2.0",
         "isomorphic-fetch": "^3.0.0",
         "jsdom": "^24.0.0",
         "lightningcss": "^1.22.0",

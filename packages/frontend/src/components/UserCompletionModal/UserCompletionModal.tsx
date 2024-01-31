@@ -65,11 +65,6 @@ const UserCompletionModal: FC = () => {
 
     const { setFieldValue } = form;
 
-    useEffect(() => {
-        if (!user.data) return;
-        setFieldValue('organizationName', user.data.organizationName);
-    }, [setFieldValue, user.data]);
-
     const isValidOrganizationDomain = useMemo(() => {
         if (!user.data?.email) return false;
 
@@ -78,10 +73,20 @@ const UserCompletionModal: FC = () => {
         ]);
     }, [user.data?.email]);
 
+    const canEnterOrganizationName = user.data?.organizationName === '';
+
+    const canEnableEmailDomainAccess =
+        canEnterOrganizationName && isValidOrganizationDomain;
+
     useEffect(() => {
-        if (!isValidOrganizationDomain) return;
+        if (!user.data) return;
+        setFieldValue('organizationName', user.data.organizationName);
+    }, [setFieldValue, user.data]);
+
+    useEffect(() => {
+        if (!canEnableEmailDomainAccess) return;
         setFieldValue('enableEmailDomainAccess', true);
-    }, [isValidOrganizationDomain, setFieldValue]);
+    }, [canEnableEmailDomainAccess, setFieldValue]);
 
     if (!user.data || user.data.isSetupComplete) {
         return null;
@@ -112,7 +117,7 @@ const UserCompletionModal: FC = () => {
                 <Stack>
                     <form name="complete_user" onSubmit={handleSubmit}>
                         <Stack>
-                            {user.data?.organizationName === '' && (
+                            {canEnterOrganizationName && (
                                 <TextInput
                                     label="Organization name"
                                     placeholder="Enter company name"
@@ -132,19 +137,18 @@ const UserCompletionModal: FC = () => {
                             />
 
                             <Stack spacing="xs">
-                                {user.data?.organizationName === '' &&
-                                    isValidOrganizationDomain && (
-                                        <Checkbox
-                                            label={`Allow users with @${getEmailDomain(
-                                                user.data?.email || '',
-                                            )} to join the organization as a viewer`}
-                                            disabled={isLoading}
-                                            {...form.getInputProps(
-                                                'enableEmailDomainAccess',
-                                                { type: 'checkbox' },
-                                            )}
-                                        />
-                                    )}
+                                {canEnableEmailDomainAccess && (
+                                    <Checkbox
+                                        label={`Allow users with @${getEmailDomain(
+                                            user.data?.email || '',
+                                        )} to join the organization as a viewer`}
+                                        disabled={isLoading}
+                                        {...form.getInputProps(
+                                            'enableEmailDomainAccess',
+                                            { type: 'checkbox' },
+                                        )}
+                                    />
+                                )}
 
                                 <Checkbox
                                     label="Keep me updated on new Lightdash features"

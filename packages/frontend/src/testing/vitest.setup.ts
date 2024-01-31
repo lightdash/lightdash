@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
 import nock from 'nock';
 import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import mockMatchMedia from './__mocks__/implementations/matchMedia.mock';
+import mockResizeObserver from './__mocks__/implementations/resizeObserver.mock';
 import ReactMarkdownPreview from './__mocks__/modules/ReactMarkdwnPreview.mock';
 
 beforeAll(() => {
@@ -13,6 +13,7 @@ beforeAll(() => {
     }));
 
     mockMatchMedia();
+    mockResizeObserver();
 });
 
 // Disable all network requests by default
@@ -30,9 +31,6 @@ const nockCleanup = () => {
 };
 
 afterEach(() => {
-    // Unmounts React trees that were mounted with render.
-    cleanup();
-
     // Check if all nock interceptors were used
     if (!nock.isDone()) {
         console.table(

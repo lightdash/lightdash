@@ -9,7 +9,6 @@ import {
     RenderResult,
 } from '@testing-library/react';
 import { FC, PropsWithChildren, ReactElement } from 'react';
-import { BrowserRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import MantineProvider from '../providers/MantineProvider';
 import ReactQueryProvider from '../providers/ReactQueryProvider';
@@ -27,9 +26,7 @@ const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
             <ReactQueryProvider>
                 <MantineProvider>
                     <AppProviderMock mocks={appMocks}>
-                        <BrowserRouter>
-                            <TrackingProvider>{children}</TrackingProvider>
-                        </BrowserRouter>
+                        <TrackingProvider>{children}</TrackingProvider>
                     </AppProviderMock>
                 </MantineProvider>
             </ReactQueryProvider>
@@ -48,7 +45,10 @@ export function renderWithProviders<
     appMocks?: AppProviderMockProps['mocks'],
     options?: RenderOptions<Q, Container, BaseElement>,
 ): RenderResult<Q, Container, BaseElement> {
-    return render(ui, { wrapper: getMockedProviders(appMocks), ...options });
+    return render(ui, {
+        wrapper: getMockedProviders(appMocks),
+        ...options,
+    });
 }
 
 export function renderHookWithProviders<
@@ -64,6 +64,7 @@ export function renderHookWithProviders<
 ): RenderHookResult<Result, Props> {
     return renderHook(hook, {
         wrapper: getMockedProviders(appMocks),
+        container: document.body,
         ...options,
     });
 }
