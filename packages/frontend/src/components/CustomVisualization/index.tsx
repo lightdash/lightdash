@@ -14,7 +14,6 @@ type Props = {
 };
 
 const CustomVisualization: FC<Props> = (props) => {
-    // TODO: isSqlRunner
     const { isLoading, visualizationConfig } = useVisualizationContext();
 
     const [spec, error] = useMemo(() => {

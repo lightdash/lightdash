@@ -27,7 +27,7 @@ const useCustomVisualizationConfig = (
     resultsData: ApiQueryResults | undefined,
 ): CustomVisualizationProps => {
     const [visSpec, setVisSpec] = useState<string | undefined>(
-        chartConfig?.spec,
+        chartConfig?.spec || '{}',
     );
 
     const rows = useMemo(() => resultsData?.rows, [resultsData]);
