@@ -47,4 +47,12 @@ describe('FeatureFlagService', () => {
             ),
         ).toStrictEqual(false);
     });
+
+    test('isUsingMockedResults returns true if a mockFn is provided', async () => {
+        const svc = new FeatureFlagService({
+            mockFn: ({ flag }) => flag !== FeatureFlags._Test_,
+        });
+
+        expect(svc.isUsingMockedResults()).toStrictEqual(true);
+    });
 });
