@@ -18,338 +18,310 @@ import { dimension, metric, tableCalculation } from './formatting.mock';
 describe('Formatting', () => {
     describe('convert legacy Format type', () => {
         [Format.KM, Format.MI].forEach((format) => {
-            describe(`when it is ${format.toUpperCase()}`, () => {
-                test('getCustomFormatFromLegacy should return the correct CustomFormat options', () => {
-                    expect(getCustomFormatFromLegacy({ format })).toEqual({
-                        type: CustomFormatType.NUMBER,
-                        suffix: ` ${format}`,
-                        compact: undefined,
-                        round: undefined,
-                    });
-                });
-            });
-        });
-
-        [Format.EUR, Format.GBP, Format.USD].forEach((format) => {
-            describe(`when it is ${format.toUpperCase()}`, () => {
-                test('getCustomFormatFromLegacy should return the correct CustomFormat options', () => {
-                    expect(getCustomFormatFromLegacy({ format })).toEqual({
-                        type: CustomFormatType.CURRENCY,
-                        currency: format.toUpperCase(),
-                        compact: undefined,
-                        round: undefined,
-                    });
-                });
-            });
-        });
-
-        describe(`when it is ${Format.PERCENT.toUpperCase()}`, () => {
-            test('getCustomFormatFromLegacy should return the correct CustomFormat options', () => {
-                expect(
-                    getCustomFormatFromLegacy({ format: Format.PERCENT }),
-                ).toEqual({
-                    type: CustomFormatType.PERCENT,
+            test(`when it is ${format.toUpperCase()} getCustomFormatFromLegacy should return the correct CustomFormat options`, () => {
+                expect(getCustomFormatFromLegacy({ format })).toEqual({
+                    type: CustomFormatType.NUMBER,
+                    suffix: ` ${format}`,
                     compact: undefined,
                     round: undefined,
                 });
             });
         });
 
-        describe(`when it is ${Format.ID.toUpperCase()}`, () => {
-            test('getCustomFormatFromLegacy should return the correct CustomFormat options', () => {
-                expect(
-                    getCustomFormatFromLegacy({ format: Format.ID }),
-                ).toEqual({
-                    type: CustomFormatType.ID,
+        [Format.EUR, Format.GBP, Format.USD].forEach((format) => {
+            test(`when it is ${format.toUpperCase()} getCustomFormatFromLegacy should return the correct CustomFormat options`, () => {
+                expect(getCustomFormatFromLegacy({ format })).toEqual({
+                    type: CustomFormatType.CURRENCY,
+                    currency: format.toUpperCase(),
+                    compact: undefined,
+                    round: undefined,
                 });
+            });
+        });
+
+        test(`when it is ${Format.PERCENT.toUpperCase()} getCustomFormatFromLegacy should return the correct CustomFormat options`, () => {
+            expect(
+                getCustomFormatFromLegacy({ format: Format.PERCENT }),
+            ).toEqual({
+                type: CustomFormatType.PERCENT,
+                compact: undefined,
+                round: undefined,
+            });
+        });
+
+        test(`when it is ${Format.ID.toUpperCase()} getCustomFormatFromLegacy should return the correct CustomFormat options`, () => {
+            expect(getCustomFormatFromLegacy({ format: Format.ID })).toEqual({
+                type: CustomFormatType.ID,
             });
         });
     });
 
     describe('applying CustomFormat to value', () => {
         describe('when using legacy format', () => {
-            describe('if Format is distance unit', () => {
-                test('it should return the right format', () => {
-                    expect(
-                        applyCustomFormat(
-                            5,
-                            getCustomFormatFromLegacy({ format: Format.KM }),
-                        ),
-                    ).toEqual('5 km');
+            test('if Format is distance unit it should return the right format', () => {
+                expect(
+                    applyCustomFormat(
+                        5,
+                        getCustomFormatFromLegacy({ format: Format.KM }),
+                    ),
+                ).toEqual('5 km');
 
-                    expect(
-                        applyCustomFormat(
-                            5,
-                            getCustomFormatFromLegacy({
-                                format: Format.MI,
-                            }),
-                        ),
-                    ).toEqual('5 mi');
-                });
+                expect(
+                    applyCustomFormat(
+                        5,
+                        getCustomFormatFromLegacy({
+                            format: Format.MI,
+                        }),
+                    ),
+                ).toEqual('5 mi');
             });
 
-            describe('if Format is currency unit', () => {
-                test('it should return the right format', () => {
-                    expect(
-                        applyCustomFormat(
-                            5,
-                            getCustomFormatFromLegacy({ format: Format.USD }),
-                        ),
-                    ).toEqual('$5.00');
-                    expect(
-                        applyCustomFormat(
-                            5,
-                            getCustomFormatFromLegacy({ format: Format.GBP }),
-                        ),
-                    ).toEqual('£5.00');
-                    expect(
-                        applyCustomFormat(
-                            5,
-                            getCustomFormatFromLegacy({ format: Format.EUR }),
-                        ),
-                    ).toEqual('€5.00');
-                });
+            test('if Format is currency unit it should return the right format', () => {
+                expect(
+                    applyCustomFormat(
+                        5,
+                        getCustomFormatFromLegacy({ format: Format.USD }),
+                    ),
+                ).toEqual('$5.00');
+                expect(
+                    applyCustomFormat(
+                        5,
+                        getCustomFormatFromLegacy({ format: Format.GBP }),
+                    ),
+                ).toEqual('£5.00');
+                expect(
+                    applyCustomFormat(
+                        5,
+                        getCustomFormatFromLegacy({ format: Format.EUR }),
+                    ),
+                ).toEqual('€5.00');
             });
 
-            describe('if Format is percent', () => {
-                test('it should return the right format', () => {
-                    const percentageOptions = {
-                        format: Format.PERCENT,
-                    };
+            test('if Format is percent it should return the right format', () => {
+                const percentageOptions = {
+                    format: Format.PERCENT,
+                };
 
-                    expect(
-                        applyCustomFormat(
-                            5,
-                            getCustomFormatFromLegacy(percentageOptions),
-                        ),
-                    ).toEqual('500%');
-                    expect(
-                        applyCustomFormat(
-                            0.05,
-                            getCustomFormatFromLegacy(percentageOptions),
-                        ),
-                    ).toEqual('5%');
-                    expect(
-                        applyCustomFormat(
-                            '5',
-                            getCustomFormatFromLegacy(percentageOptions),
-                        ),
-                    ).toEqual('500%');
-                    expect(
-                        applyCustomFormat(
-                            'foo',
-                            getCustomFormatFromLegacy(percentageOptions),
-                        ),
-                    ).toEqual('foo');
-                    expect(
-                        applyCustomFormat(
-                            false,
-                            getCustomFormatFromLegacy(percentageOptions),
-                        ),
-                    ).toEqual('false');
-                });
+                expect(
+                    applyCustomFormat(
+                        5,
+                        getCustomFormatFromLegacy(percentageOptions),
+                    ),
+                ).toEqual('500%');
+                expect(
+                    applyCustomFormat(
+                        0.05,
+                        getCustomFormatFromLegacy(percentageOptions),
+                    ),
+                ).toEqual('5%');
+                expect(
+                    applyCustomFormat(
+                        '5',
+                        getCustomFormatFromLegacy(percentageOptions),
+                    ),
+                ).toEqual('500%');
+                expect(
+                    applyCustomFormat(
+                        'foo',
+                        getCustomFormatFromLegacy(percentageOptions),
+                    ),
+                ).toEqual('foo');
+                expect(
+                    applyCustomFormat(
+                        false,
+                        getCustomFormatFromLegacy(percentageOptions),
+                    ),
+                ).toEqual('false');
             });
 
-            describe('if Format is undefined', () => {
-                test('it should return the right format', () => {
-                    expect(applyCustomFormat(1103)).toEqual('1,103');
-                    expect(applyCustomFormat(5)).toEqual('5');
-                });
+            test('if Format is undefined it should return the right format', () => {
+                expect(applyCustomFormat(1103)).toEqual('1,103');
+                expect(applyCustomFormat(5)).toEqual('5');
             });
 
-            describe('if Format is id', () => {
-                test('it should return the right format', () => {
-                    // ids are not comma separated
-                    expect(
-                        applyCustomFormat(
-                            1019,
-                            getCustomFormatFromLegacy({ format: Format.ID }),
-                        ),
-                    ).toEqual('1019');
-                });
+            test('if Format is id it should return the right format', () => {
+                // ids are not comma separated
+                expect(
+                    applyCustomFormat(
+                        1019,
+                        getCustomFormatFromLegacy({ format: Format.ID }),
+                    ),
+                ).toEqual('1019');
             });
         });
 
         describe('when applying round', () => {
-            describe('if round is undefined', () => {
-                test('it should keep up to 3 decimal places', () => {
-                    expect(applyCustomFormat(5.9)).toEqual('5.9');
-                    expect(applyCustomFormat(5.99)).toEqual('5.99');
-                    expect(applyCustomFormat(5.999)).toEqual('5.999');
-                    expect(applyCustomFormat(5.9999)).toEqual('6');
-                    expect(applyCustomFormat(5.99999)).toEqual('6');
-                });
+            test('if round is undefined it should keep up to 3 decimal places', () => {
+                expect(applyCustomFormat(5.9)).toEqual('5.9');
+                expect(applyCustomFormat(5.99)).toEqual('5.99');
+                expect(applyCustomFormat(5.999)).toEqual('5.999');
+                expect(applyCustomFormat(5.9999)).toEqual('6');
+                expect(applyCustomFormat(5.99999)).toEqual('6');
             });
 
-            describe('when round zero', () => {
-                test('it should return the right round', () => {
-                    const roundZeroOptions = {
-                        round: 0,
-                    };
-                    expect(
-                        applyCustomFormat(
-                            1,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('1');
-                    expect(
-                        applyCustomFormat(
-                            10,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('10');
-                    expect(
-                        applyCustomFormat(
-                            100,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('100');
-                    expect(
-                        applyCustomFormat(
-                            1000,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('1,000');
-                    expect(
-                        applyCustomFormat(
-                            10000,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('10,000');
-                    expect(
-                        applyCustomFormat(
-                            100000,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('100,000');
-                    expect(
-                        applyCustomFormat(
-                            1000000,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('1,000,000');
-                    expect(
-                        applyCustomFormat(
-                            5,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('5');
-                    expect(
-                        applyCustomFormat(
-                            5.001,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('5');
-                    expect(
-                        applyCustomFormat(
-                            5.9999999,
-                            getCustomFormatFromLegacy(roundZeroOptions),
-                        ),
-                    ).toEqual('6');
-                });
+            test('when round zero it should return the right round', () => {
+                const roundZeroOptions = {
+                    round: 0,
+                };
+                expect(
+                    applyCustomFormat(
+                        1,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('1');
+                expect(
+                    applyCustomFormat(
+                        10,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('10');
+                expect(
+                    applyCustomFormat(
+                        100,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('100');
+                expect(
+                    applyCustomFormat(
+                        1000,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('1,000');
+                expect(
+                    applyCustomFormat(
+                        10000,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('10,000');
+                expect(
+                    applyCustomFormat(
+                        100000,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('100,000');
+                expect(
+                    applyCustomFormat(
+                        1000000,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('1,000,000');
+                expect(
+                    applyCustomFormat(
+                        5,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('5');
+                expect(
+                    applyCustomFormat(
+                        5.001,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('5');
+                expect(
+                    applyCustomFormat(
+                        5.9999999,
+                        getCustomFormatFromLegacy(roundZeroOptions),
+                    ),
+                ).toEqual('6');
             });
 
-            describe('when round is positive number', () => {
-                test('it should return the right round', () => {
-                    const roundTwoOptions = {
-                        round: 2,
-                    };
-                    expect(
-                        applyCustomFormat(
-                            5,
-                            getCustomFormatFromLegacy(roundTwoOptions),
-                        ),
-                    ).toEqual('5.00');
-                    expect(
-                        applyCustomFormat(
-                            5.001,
-                            getCustomFormatFromLegacy(roundTwoOptions),
-                        ),
-                    ).toEqual('5.00');
-                    expect(
-                        applyCustomFormat(
-                            5.555,
-                            getCustomFormatFromLegacy(roundTwoOptions),
-                        ),
-                    ).toEqual('5.56');
-                    expect(
-                        applyCustomFormat(
-                            5.5555,
-                            getCustomFormatFromLegacy(roundTwoOptions),
-                        ),
-                    ).toEqual('5.56');
-                    expect(
-                        applyCustomFormat(
-                            5.9999999,
-                            getCustomFormatFromLegacy(roundTwoOptions),
-                        ),
-                    ).toEqual('6.00');
-                    expect(
-                        applyCustomFormat(
-                            'foo',
-                            getCustomFormatFromLegacy(roundTwoOptions),
-                        ),
-                    ).toEqual('foo');
-                    expect(
-                        applyCustomFormat(
-                            false,
-                            getCustomFormatFromLegacy(roundTwoOptions),
-                        ),
-                    ).toEqual('false');
+            test('when round is positive number it should return the right round', () => {
+                const roundTwoOptions = {
+                    round: 2,
+                };
+                expect(
+                    applyCustomFormat(
+                        5,
+                        getCustomFormatFromLegacy(roundTwoOptions),
+                    ),
+                ).toEqual('5.00');
+                expect(
+                    applyCustomFormat(
+                        5.001,
+                        getCustomFormatFromLegacy(roundTwoOptions),
+                    ),
+                ).toEqual('5.00');
+                expect(
+                    applyCustomFormat(
+                        5.555,
+                        getCustomFormatFromLegacy(roundTwoOptions),
+                    ),
+                ).toEqual('5.56');
+                expect(
+                    applyCustomFormat(
+                        5.5555,
+                        getCustomFormatFromLegacy(roundTwoOptions),
+                    ),
+                ).toEqual('5.56');
+                expect(
+                    applyCustomFormat(
+                        5.9999999,
+                        getCustomFormatFromLegacy(roundTwoOptions),
+                    ),
+                ).toEqual('6.00');
+                expect(
+                    applyCustomFormat(
+                        'foo',
+                        getCustomFormatFromLegacy(roundTwoOptions),
+                    ),
+                ).toEqual('foo');
+                expect(
+                    applyCustomFormat(
+                        false,
+                        getCustomFormatFromLegacy(roundTwoOptions),
+                    ),
+                ).toEqual('false');
 
-                    const roundTenOptions = {
-                        round: 10,
-                    };
-                    expect(
-                        applyCustomFormat(
-                            5,
-                            getCustomFormatFromLegacy(roundTenOptions),
-                        ),
-                    ).toEqual('5.0000000000');
-                    expect(
-                        applyCustomFormat(
-                            5.001,
-                            getCustomFormatFromLegacy(roundTenOptions),
-                        ),
-                    ).toEqual('5.0010000000');
-                    expect(
-                        applyCustomFormat(
-                            5.9999999,
-                            getCustomFormatFromLegacy(roundTenOptions),
-                        ),
-                    ).toEqual('5.9999999000');
-                });
+                const roundTenOptions = {
+                    round: 10,
+                };
+                expect(
+                    applyCustomFormat(
+                        5,
+                        getCustomFormatFromLegacy(roundTenOptions),
+                    ),
+                ).toEqual('5.0000000000');
+                expect(
+                    applyCustomFormat(
+                        5.001,
+                        getCustomFormatFromLegacy(roundTenOptions),
+                    ),
+                ).toEqual('5.0010000000');
+                expect(
+                    applyCustomFormat(
+                        5.9999999,
+                        getCustomFormatFromLegacy(roundTenOptions),
+                    ),
+                ).toEqual('5.9999999000');
             });
 
-            describe('when round is negative number', () => {
-                test('it should return the right round', () => {
-                    const number = 123456789.12345;
+            test('when round is negative number it should return the right round', () => {
+                const number = 123456789.12345;
 
-                    expect(
-                        formatNumberValue(number, {
-                            type: CustomFormatType.DEFAULT,
-                            round: -1,
-                        }),
-                    ).toEqual('123,456,790');
-                    expect(
-                        formatNumberValue(number, {
-                            type: CustomFormatType.DEFAULT,
-                            round: -2,
-                        }),
-                    ).toEqual('123,456,800');
-                    expect(
-                        formatNumberValue(number, {
-                            type: CustomFormatType.DEFAULT,
-                            round: -3,
-                        }),
-                    ).toEqual('123,457,000');
-                    expect(
-                        formatNumberValue(number, {
-                            type: CustomFormatType.DEFAULT,
-                            round: -99,
-                        }),
-                    ).toEqual('100,000,000');
-                });
+                expect(
+                    formatNumberValue(number, {
+                        type: CustomFormatType.DEFAULT,
+                        round: -1,
+                    }),
+                ).toEqual('123,456,790');
+                expect(
+                    formatNumberValue(number, {
+                        type: CustomFormatType.DEFAULT,
+                        round: -2,
+                    }),
+                ).toEqual('123,456,800');
+                expect(
+                    formatNumberValue(number, {
+                        type: CustomFormatType.DEFAULT,
+                        round: -3,
+                    }),
+                ).toEqual('123,457,000');
+                expect(
+                    formatNumberValue(number, {
+                        type: CustomFormatType.DEFAULT,
+                        round: -99,
+                    }),
+                ).toEqual('100,000,000');
             });
         });
 
@@ -610,181 +582,175 @@ describe('Formatting', () => {
                 );
             });
 
-            describe('with legacy distance format', () => {
-                test('it should return the right format', () => {
-                    expect(
-                        applyCustomFormat(
-                            5000,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 2,
-                                format: Format.KM,
-                            }),
-                        ),
-                    ).toEqual('5.00K km');
+            test('with legacy distance format it should return the right format', () => {
+                expect(
+                    applyCustomFormat(
+                        5000,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 2,
+                            format: Format.KM,
+                        }),
+                    ),
+                ).toEqual('5.00K km');
 
-                    expect(
-                        applyCustomFormat(
-                            50000,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 4,
-                                format: Format.MI,
-                            }),
-                        ),
-                    ).toEqual('50.0000K mi');
-                });
+                expect(
+                    applyCustomFormat(
+                        50000,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 4,
+                            format: Format.MI,
+                        }),
+                    ),
+                ).toEqual('50.0000K mi');
             });
 
-            describe('with legacy currency format', () => {
-                test('it should return the right format', () => {
-                    expect(
-                        applyCustomFormat(
-                            5000,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 2,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$5.00K');
+            test('with legacy currency format it should return the right format', () => {
+                expect(
+                    applyCustomFormat(
+                        5000,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 2,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$5.00K');
 
-                    expect(
-                        applyCustomFormat(
-                            5000000,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 2,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$5,000.00K');
+                expect(
+                    applyCustomFormat(
+                        5000000,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 2,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$5,000.00K');
 
-                    expect(
-                        applyCustomFormat(
-                            5000000,
-                            getCustomFormatFromLegacy({
-                                compact: M,
-                                round: 2,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$5.00M');
+                expect(
+                    applyCustomFormat(
+                        5000000,
+                        getCustomFormatFromLegacy({
+                            compact: M,
+                            round: 2,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$5.00M');
 
-                    expect(
-                        applyCustomFormat(
-                            4,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 2,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$0.00K');
+                expect(
+                    applyCustomFormat(
+                        4,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 2,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$0.00K');
 
-                    expect(
-                        applyCustomFormat(
-                            4,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 3,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$0.004K');
+                expect(
+                    applyCustomFormat(
+                        4,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 3,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$0.004K');
 
-                    expect(
-                        applyCustomFormat(
-                            5000000,
-                            getCustomFormatFromLegacy({
-                                compact: M,
-                                round: 2,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$5.00M');
+                expect(
+                    applyCustomFormat(
+                        5000000,
+                        getCustomFormatFromLegacy({
+                            compact: M,
+                            round: 2,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$5.00M');
 
-                    expect(
-                        applyCustomFormat(
-                            5000000000,
-                            getCustomFormatFromLegacy({
-                                compact: M,
-                                round: 2,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$5,000.00M');
+                expect(
+                    applyCustomFormat(
+                        5000000000,
+                        getCustomFormatFromLegacy({
+                            compact: M,
+                            round: 2,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$5,000.00M');
 
-                    expect(
-                        applyCustomFormat(
-                            5000000000,
-                            getCustomFormatFromLegacy({
-                                compact: B,
-                                round: 2,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$5.00B');
+                expect(
+                    applyCustomFormat(
+                        5000000000,
+                        getCustomFormatFromLegacy({
+                            compact: B,
+                            round: 2,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$5.00B');
 
-                    expect(
-                        applyCustomFormat(
-                            5000.0,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 0,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$5K');
+                expect(
+                    applyCustomFormat(
+                        5000.0,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 0,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$5K');
 
-                    expect(
-                        applyCustomFormat(
-                            '5000',
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 2,
-                                format: Format.USD,
-                            }),
-                        ),
-                    ).toEqual('$5.00K');
+                expect(
+                    applyCustomFormat(
+                        '5000',
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 2,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$5.00K');
 
-                    expect(
-                        applyCustomFormat(
-                            5000,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 2,
-                                format: Format.GBP,
-                            }),
-                        ),
-                    ).toEqual('£5.00K');
+                expect(
+                    applyCustomFormat(
+                        5000,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 2,
+                            format: Format.GBP,
+                        }),
+                    ),
+                ).toEqual('£5.00K');
 
-                    expect(
-                        applyCustomFormat(
-                            5000,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 2,
-                                format: Format.EUR,
-                            }),
-                        ),
-                    ).toEqual('€5.00K');
-                });
+                expect(
+                    applyCustomFormat(
+                        5000,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 2,
+                            format: Format.EUR,
+                        }),
+                    ),
+                ).toEqual('€5.00K');
             });
 
-            describe('with legacy percent format', () => {
-                test('it should return the right format', () => {
-                    expect(
-                        applyCustomFormat(
-                            0.05,
-                            getCustomFormatFromLegacy({
-                                compact: K,
-                                round: 2,
-                                format: Format.PERCENT,
-                            }),
-                        ),
-                    ).toEqual('5.00%');
-                });
+            test('with legacy percent format it should return the right format', () => {
+                expect(
+                    applyCustomFormat(
+                        0.05,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            round: 2,
+                            format: Format.PERCENT,
+                        }),
+                    ),
+                ).toEqual('5.00%');
             });
 
             test('suports compact alias', () => {
