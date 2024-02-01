@@ -1,3 +1,10 @@
+# [0.974.0](https://github.com/lightdash/lightdash/compare/0.973.4...0.974.0) (2024-02-01)
+
+
+### Features
+
+* save custom visualizations ([#8776](https://github.com/lightdash/lightdash/issues/8776)) ([63ce828](https://github.com/lightdash/lightdash/commit/63ce82879e5a806ce7b8cef36d1d9c0b7afc816f))
+
 ## [0.973.4](https://github.com/lightdash/lightdash/compare/0.973.3...0.973.4) (2024-02-01)
 
 
