@@ -22,6 +22,7 @@ type Props = {
     missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
     missingFields?: string[];
+    selectedDimensions?: string[];
 };
 const TableTreeSections: FC<Props> = ({
     searchQuery,
@@ -31,6 +32,7 @@ const TableTreeSections: FC<Props> = ({
     selectedItems,
     missingCustomMetrics,
     missingFields,
+    selectedDimensions,
     onSelectedNodeChange,
 }) => {
     const dimensions = useMemo(() => {
@@ -95,14 +97,13 @@ const TableTreeSections: FC<Props> = ({
                             >
                                 <Group
                                     onClick={() => {
-                                        // We don't know if the missing field is a metric or a dimension, so we remove both
+                                        const isDimension =
+                                            !!selectedDimensions?.includes(
+                                                missingField,
+                                            );
                                         onSelectedNodeChange(
                                             missingField,
-                                            true,
-                                        );
-                                        onSelectedNodeChange(
-                                            missingField,
-                                            false,
+                                            isDimension,
                                         );
                                     }}
                                     ml={12}

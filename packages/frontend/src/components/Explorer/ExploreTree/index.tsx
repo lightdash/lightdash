@@ -22,6 +22,7 @@ type ExploreTreeProps = {
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
     selectedNodes: Set<string>;
     customDimensions?: CustomDimension[];
+    selectedDimensions?: string[];
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -32,6 +33,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     selectedNodes,
     onSelectedFieldChange,
     customDimensions,
+    selectedDimensions,
 }) => {
     const [search, setSearch] = useState<string>('');
     const isSearching = !!search && search !== '';
@@ -117,6 +119,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                                     : []
                             }
                             missingFields={missingFields}
+                            selectedDimensions={selectedDimensions}
                         />
                     ))
                 ) : (
