@@ -131,7 +131,7 @@ export const parseTimestamp = (
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
 ): Date => moment(str, getTimeFormat(timeInterval)).toDate();
 
-function getFormatOptions(value: number, format?: CustomFormat) {
+function getFormatNumberOptions(value: number, format?: CustomFormat) {
     const hasCurrency =
         format?.type === CustomFormatType.CURRENCY && format?.currency;
     const currencyOptions = hasCurrency
@@ -178,7 +178,7 @@ export function formatNumberValue(
     value: number,
     format?: CustomFormat,
 ): string {
-    const options = getFormatOptions(value, format);
+    const options = getFormatNumberOptions(value, format);
     const separator = format?.separator || NumberSeparator.DEFAULT;
 
     switch (separator) {
@@ -288,30 +288,33 @@ export function getCustomFormat(
     return undefined;
 }
 
+function applyCompact(
+    value: unknown,
+    format?: CustomFormat,
+): {
+    compactValue: number;
+    compactSuffix: string;
+} {
+    if (format?.compact === undefined)
+        return { compactValue: Number(value), compactSuffix: '' };
+
+    const compactConfig = findCompactConfig(format.compact);
+
+    if (compactConfig) {
+        const compactValue = compactConfig.convertFn(Number(value));
+        const compactSuffix = format.compact ? compactConfig.suffix : '';
+
+        return { compactValue, compactSuffix };
+    }
+
+    return { compactValue: Number(value), compactSuffix: '' };
+}
+
 export function applyCustomFormat(
     value: unknown,
     format?: CustomFormat | undefined,
 ): string {
     if (format?.type === undefined) return applyDefaultFormat(value);
-
-    const applyCompact = (): {
-        compactValue: number;
-        compactSuffix: string;
-    } => {
-        if (format?.compact === undefined)
-            return { compactValue: Number(value), compactSuffix: '' };
-
-        const compactConfig = findCompactConfig(format.compact);
-
-        if (compactConfig) {
-            const compactValue = compactConfig.convertFn(Number(value));
-            const compactSuffix = format.compact ? compactConfig.suffix : '';
-
-            return { compactValue, compactSuffix };
-        }
-
-        return { compactValue: Number(value), compactSuffix: '' };
-    };
 
     if (value === '') return '';
 
@@ -333,7 +336,7 @@ export function applyCustomFormat(
             const formatted = formatNumberValue(Number(value) * 100, format);
             return `${formatted}%`;
         case CustomFormatType.CURRENCY:
-            const { compactValue, compactSuffix } = applyCompact();
+            const { compactValue, compactSuffix } = applyCompact(value, format);
 
             const currencyFormatted = formatNumberValue(
                 compactValue,
@@ -347,7 +350,7 @@ export function applyCustomFormat(
             const {
                 compactValue: compactNumber,
                 compactSuffix: compactNumberSuffix,
-            } = applyCompact();
+            } = applyCompact(value, format);
 
             const numberFormatted = formatNumberValue(compactNumber, format);
 
