@@ -87,17 +87,12 @@ export class SchedulerService {
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;
         if (
-            isChartScheduler(scheduler) &&
             user.ability.cannot(
-                'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        } else if (
-            user.ability.cannot(
-                'update',
-                subject('Dashboard', { organizationUuid, projectUuid }),
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();

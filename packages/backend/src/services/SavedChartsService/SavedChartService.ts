@@ -80,8 +80,11 @@ export class SavedChartService {
         const { organizationUuid, projectUuid } = savedChart;
         if (
             user.ability.cannot(
-                'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();

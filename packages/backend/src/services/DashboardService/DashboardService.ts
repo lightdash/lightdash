@@ -665,8 +665,11 @@ export class DashboardService {
         const { organizationUuid, projectUuid } = dashboard;
         if (
             user.ability.cannot(
-                'update',
-                subject('Dashboard', { organizationUuid, projectUuid }),
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();

@@ -42,6 +42,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'ChangeCsvResults', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'ScheduledDeliveries', {
+            projectUuid: member.projectUuid,
+        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
