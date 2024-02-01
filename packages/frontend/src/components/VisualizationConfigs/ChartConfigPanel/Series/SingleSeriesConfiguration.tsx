@@ -37,7 +37,7 @@ type Props = {
     updateSingleSeries: (updatedSeries: Series) => void;
     isOpen?: boolean;
     toggleIsOpen?: () => void;
-    dragHandleProps?: DraggableProvidedDragHandleProps;
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
