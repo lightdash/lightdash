@@ -1,3 +1,10 @@
+## [0.973.4](https://github.com/lightdash/lightdash/compare/0.973.3...0.973.4) (2024-02-01)
+
+
+### Bug Fixes
+
+* dropColumn format_options on down ([#8829](https://github.com/lightdash/lightdash/issues/8829)) ([091ad09](https://github.com/lightdash/lightdash/commit/091ad09922c9e93e5f367c4fedb0a1436e4c8e9c))
+
 ## [0.973.3](https://github.com/lightdash/lightdash/compare/0.973.2...0.973.3) (2024-02-01)
 
 
