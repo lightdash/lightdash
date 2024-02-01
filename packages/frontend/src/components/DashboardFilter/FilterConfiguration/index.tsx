@@ -6,6 +6,7 @@ import {
     Field,
     fieldId,
     FilterableField,
+    getFilterRuleWithDefaultValue,
     isField,
     isFilterableField,
     matchFieldByType,
@@ -19,6 +20,7 @@ import {
     Group,
     PopoverProps,
     Stack,
+    Switch,
     Tabs,
     Text,
     Tooltip,
@@ -58,6 +60,7 @@ interface Props {
     originalFilterRule?: DashboardFilterRule;
     defaultFilterRule?: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
+    userCanManageExplore: boolean;
     isEditMode: boolean;
     isCreatingNew?: boolean;
     isTemporary?: boolean;
@@ -82,6 +85,7 @@ const FilterConfiguration: FC<Props> = ({
     tiles,
     field,
     fields,
+    userCanManageExplore,
     availableTileFilters,
     originalFilterRule,
     defaultFilterRule,
@@ -104,22 +108,25 @@ const FilterConfiguration: FC<Props> = ({
         return hasSavedFilterValueChanged(originalFilterRule, draftFilterRule);
     }, [originalFilterRule, draftFilterRule]);
 
-    const handleChangeField = (newField: FilterableField) => {
-        const isCreatingTemporary = isCreatingNew && !isEditMode;
+    const handleChangeField = useCallback(
+        (newField: FilterableField) => {
+            const isCreatingTemporary = isCreatingNew && !isEditMode;
 
-        if (newField && isField(newField) && isFilterableField(newField)) {
-            setDraftFilterRule(
-                createDashboardFilterRuleFromField(
-                    newField,
-                    availableTileFilters,
-                    false,
-                    isCreatingTemporary,
-                ),
-            );
+            if (newField && isField(newField) && isFilterableField(newField)) {
+                setDraftFilterRule(
+                    createDashboardFilterRuleFromField(
+                        newField,
+                        availableTileFilters,
+                        false,
+                        isCreatingTemporary,
+                    ),
+                );
 
-            setSelectedField(newField);
-        }
-    };
+                setSelectedField(newField);
+            }
+        },
+        [availableTileFilters, isCreatingNew, isEditMode],
+    );
 
     const handleRevert = useCallback(() => {
         if (!originalFilterRule) return;
@@ -233,6 +240,30 @@ const FilterConfiguration: FC<Props> = ({
         ],
     );
 
+    const handleToggleFilterDisabled = useCallback(
+        (toggle: boolean) => {
+            if (!draftFilterRule || !selectedField) return;
+
+            const newFilter: DashboardFilterRule = {
+                ...draftFilterRule,
+                disabled: toggle,
+            };
+
+            handleChangeFilterRule(
+                toggle
+                    ? newFilter
+                    : getFilterRuleWithDefaultValue(
+                          selectedField,
+                          newFilter,
+                          null,
+                      ),
+            );
+        },
+        [selectedField, draftFilterRule, handleChangeFilterRule],
+    );
+
+    const isFilterDisabled = !!draftFilterRule?.disabled;
+
     const isApplyDisabled = !isFilterEnabled(
         draftFilterRule,
         isEditMode,
@@ -332,7 +363,69 @@ const FilterConfiguration: FC<Props> = ({
                 )}
             </Tabs>
 
-            <Flex gap="sm">
+            <Flex gap="sm" align="center">
+                {selectedField && selectedTabId === FilterTabs.SETTINGS && (
+                    <>
+                        {isCreatingNew && (
+                            <Tooltip
+                                withinPortal
+                                position="right"
+                                label={
+                                    isFilterDisabled
+                                        ? 'Toggle on to set a default filter value'
+                                        : 'Toggle off to leave the filter value empty, allowing users to populate it in view mode'
+                                }
+                            >
+                                <div>
+                                    <Switch
+                                        label={
+                                            <Text size="xs" mt="two" fw={500}>
+                                                Provide default value
+                                            </Text>
+                                        }
+                                        labelPosition="right"
+                                        checked={!isFilterDisabled}
+                                        onChange={(e) =>
+                                            handleToggleFilterDisabled(
+                                                !e.currentTarget.checked,
+                                            )
+                                        }
+                                    />
+                                </div>
+                            </Tooltip>
+                        )}
+
+                        {!isCreatingNew && userCanManageExplore && (
+                            <Tooltip
+                                withinPortal
+                                position="right"
+                                label={
+                                    isFilterDisabled
+                                        ? 'Toggle off to set to a default value'
+                                        : 'Toggle on to set to any value'
+                                }
+                            >
+                                <div>
+                                    <Switch
+                                        label={
+                                            <Text size="xs" mt="two" fw={500}>
+                                                Set to any value
+                                            </Text>
+                                        }
+                                        labelPosition="right"
+                                        checked={isFilterDisabled}
+                                        onChange={(e) => {
+                                            handleToggleFilterDisabled(
+                                                e.currentTarget.checked,
+                                            );
+                                        }}
+                                    />
+                                </div>
+                            </Tooltip>
+                        )}
+                    </>
+                )}
+
                 <Box sx={{ flexGrow: 1 }} />
 
                 {!isTemporary &&

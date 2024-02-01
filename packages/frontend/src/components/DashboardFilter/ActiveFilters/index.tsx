@@ -7,6 +7,7 @@ import InvalidFilter from '../InvalidFilter';
 
 interface ActiveFiltersProps {
     isEditMode: boolean;
+    userCanManageExplore: boolean;
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
@@ -14,6 +15,7 @@ interface ActiveFiltersProps {
 
 const ActiveFilters: FC<ActiveFiltersProps> = ({
     isEditMode,
+    userCanManageExplore,
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
@@ -62,6 +64,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     <Filter
                         key={item.id}
                         isEditMode={isEditMode}
+                        userCanManageExplore={userCanManageExplore}
                         field={field}
                         filterRule={item}
                         openPopoverId={openPopoverId}
@@ -100,6 +103,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         key={item.id}
                         isTemporary
                         isEditMode={isEditMode}
+                        userCanManageExplore={userCanManageExplore}
                         field={field}
                         filterRule={item}
                         openPopoverId={openPopoverId}

@@ -19,6 +19,7 @@ type Props = {
     isEditMode: boolean;
     isCreatingNew?: boolean;
     isTemporary?: boolean;
+    userCanManageExplore: boolean;
     field?: FilterableField;
     filterRule?: DashboardFilterRule;
     openPopoverId: string | undefined;
@@ -33,6 +34,7 @@ const Filter: FC<Props> = ({
     isEditMode,
     isCreatingNew,
     isTemporary,
+    userCanManageExplore,
     field,
     filterRule,
     openPopoverId,
@@ -240,6 +242,7 @@ const Filter: FC<Props> = ({
                         isCreatingNew={isCreatingNew}
                         isEditMode={isEditMode}
                         isTemporary={isTemporary}
+                        userCanManageExplore={userCanManageExplore}
                         field={field}
                         fields={allFilterableFields || []}
                         tiles={dashboardTiles}

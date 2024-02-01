@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     DashboardFieldTarget,
     DashboardFilterRule,
@@ -7,6 +8,7 @@ import { Flex } from '@mantine/core';
 import { FC, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
+import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -20,10 +22,20 @@ interface Props {
 
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { track } = useTracking();
+    const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [openPopoverId, setPopoverId] = useState<string>();
 
     const project = useProject(projectUuid);
+
+    const canManageExplore =
+        user.data?.ability?.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid: project.data?.organizationUuid,
+                projectUuid: project.data?.projectUuid,
+            }),
+        ) ?? false;
 
     const allFilters = useDashboardContext((c) => c.allFilters);
     const fieldsWithSuggestions = useDashboardContext(
@@ -78,6 +90,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                 <Filter
                     isCreatingNew
                     isEditMode={isEditMode}
+                    userCanManageExplore={canManageExplore}
                     openPopoverId={openPopoverId}
                     onPopoverOpen={handlePopoverOpen}
                     onPopoverClose={handlePopoverClose}
@@ -86,6 +99,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
 
                 <ActiveFilters
                     isEditMode={isEditMode}
+                    userCanManageExplore={canManageExplore}
                     openPopoverId={openPopoverId}
                     onPopoverOpen={handlePopoverOpen}
                     onPopoverClose={handlePopoverClose}
