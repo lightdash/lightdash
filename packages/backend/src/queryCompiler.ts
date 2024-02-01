@@ -105,6 +105,7 @@ export const compileMetricQuery = ({
                 warehouseClient,
             }),
     );
+
     return {
         ...metricQuery,
         compiledTableCalculations,

@@ -11,6 +11,8 @@ import {
     CalculateTotalFromQuery,
     ChartSummary,
     CompiledDimension,
+    CompiledMetricQuery,
+    CompiledTableCalculation,
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
@@ -80,6 +82,7 @@ import {
     SpaceQuery,
     SpaceSummary,
     SummaryExplore,
+    TableCalculation,
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
@@ -878,6 +881,7 @@ export class ProjectService {
         warehouseClient: WarehouseClient,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
+        isolatedTableCalculations: boolean = false,
     ): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithGranularity(
             explore,
@@ -885,17 +889,68 @@ export class ProjectService {
             warehouseClient,
             granularity,
         );
+
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
             metricQuery,
             warehouseClient,
         });
-        return buildQuery({
+
+        const isolatedCompiledMetricQuery = isolatedTableCalculations
+            ? ProjectService.isolateTableCalculationsFromCompiledMetricsQuery(
+                  compiledMetricQuery,
+              ).compiledMetricQuery
+            : compiledMetricQuery;
+
+        const buildQueryResult = buildQuery({
             explore: exploreWithOverride,
-            compiledMetricQuery,
+            compiledMetricQuery: isolatedCompiledMetricQuery,
             warehouseClient,
             userAttributes,
         });
+
+        return buildQueryResult;
+    }
+
+    /**
+     * Modifies a compiled metric query to remove any references to table calculations, and
+     * returns the isolated portions separately.
+     *
+     * This is a temporary approach to avoid poluting the query compiler while rolling-out
+     * improvements to table calculations handling.
+     */
+    private static isolateTableCalculationsFromCompiledMetricsQuery(
+        compiledMetricQuery: CompiledMetricQuery,
+    ): {
+        originalMetricQuery: CompiledMetricQuery;
+        compiledMetricQuery: CompiledMetricQuery;
+        tableCalculationFilters?: FilterGroupItem;
+        tableCalculations: TableCalculation[];
+        compiledTableCalculations: CompiledTableCalculation[];
+    } {
+        const {
+            filters,
+            tableCalculations,
+            compiledTableCalculations,
+            ...otherProps
+        } = compiledMetricQuery;
+
+        return {
+            originalMetricQuery: compiledMetricQuery,
+            compiledMetricQuery: {
+                ...otherProps,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                filters: {
+                    ...filters,
+                    tableCalculations: undefined,
+                },
+            },
+
+            tableCalculationFilters: filters.tableCalculations,
+            tableCalculations,
+            compiledTableCalculations,
+        };
     }
 
     async compileQuery(
@@ -1607,6 +1662,9 @@ export class ProjectService {
                             warehouseClient,
                             userAttributes,
                             granularity,
+
+                            // If true, we get additional table calculations stuff to compile ourselves
+                            useNewTableCalculationsEngine,
                         );
 
                     const onboardingRecord =
