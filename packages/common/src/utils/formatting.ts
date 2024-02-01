@@ -152,21 +152,14 @@ export function formatNumberValue(
             ? { style: 'currency', currency: format.currency }
             : {};
 
-        let round = format?.round;
+        const round = format?.round;
 
-        if (format?.compact && round === undefined) {
-            round = 2;
-        }
-
-        if (format?.type === CustomFormatType.PERCENT && round === undefined) {
-            round = 0;
-        }
-
-        if (round === undefined || round < 0) {
+        if (round === undefined) {
+            // When round is not defined, keep up to 3 decimal places
             return hasCurrency ? currencyOptions : {};
         }
 
-        if (round === 0) {
+        if (round <= 0) {
             return {
                 maximumSignificantDigits: Math.max(
                     Math.floor(value).toString().length + round,
