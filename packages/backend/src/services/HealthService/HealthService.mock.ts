@@ -41,6 +41,7 @@ export const BaseResponse = {
     staticIp: undefined,
     hasDbtSemanticLayer: false,
     hasGroups: false,
+    hasExtendedUsageAnalytics: false,
 };
 
 export const Config = {
@@ -64,6 +65,9 @@ export const Config = {
         },
     },
     groups: {
+        enabled: false,
+    },
+    extendedUsageAnalytics: {
         enabled: false,
     },
 } as LightdashConfig; // TODO: Refactor this to be a mock of the actual configuration, rather than a partial that might contain incorrect properties.

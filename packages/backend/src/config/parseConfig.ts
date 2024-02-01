@@ -129,6 +129,9 @@ export type LightdashConfig = {
     groups: {
         enabled: boolean;
     };
+    extendedUsageAnalytics: {
+        enabled: boolean;
+    };
     logging: LoggingConfig;
 };
 
@@ -443,6 +446,9 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         },
         groups: {
             enabled: process.env.GROUPS_ENABLED === 'true',
+        },
+        extendedUsageAnalytics: {
+            enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',
         },
         logging: {
             level: parseLoggingLevel(
