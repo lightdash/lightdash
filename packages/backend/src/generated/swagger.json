@@ -628,7 +628,7 @@
                 "type": "object"
             },
             "CustomFormatType": {
-                "enum": ["default", "percent", "currency", "number"],
+                "enum": ["default", "percent", "currency", "number", "id"],
                 "type": "string"
             },
             "NumberSeparator": {
