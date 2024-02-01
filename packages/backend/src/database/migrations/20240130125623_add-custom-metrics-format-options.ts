@@ -14,5 +14,6 @@ export async function down(knex: Knex): Promise<void> {
         tableBuilder.string('prefix').nullable();
         tableBuilder.string('suffix').nullable();
         tableBuilder.string('separator').nullable();
+        tableBuilder.dropColumn('format_options');
     });
 }
