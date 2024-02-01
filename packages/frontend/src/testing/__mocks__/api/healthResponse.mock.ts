@@ -66,6 +66,7 @@ export default function mockHealthResponse(
         hasHeadlessBrowser: false,
         hasDbtSemanticLayer: false,
         hasGroups: false,
+        hasExtendedUsageAnalytics: false,
         ...overrides,
     };
 }
