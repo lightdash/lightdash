@@ -1,6 +1,5 @@
 import {
     Compact,
-    CustomFormat,
     CustomFormatType,
     DimensionType,
     Format,
