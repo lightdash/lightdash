@@ -36,10 +36,11 @@ const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
 
     useEffect(() => {
         if (!onChartConfigChange || !customVisConfig) return;
-
         onChartConfigChange({
             type: ChartType.CUSTOM,
-            config: customVisConfig.validConfig,
+            config: {
+                spec: customVisConfig.validConfig.spec,
+            },
         });
     }, [customVisConfig, onChartConfigChange]);
 

@@ -1,6 +1,6 @@
-import { Center, Code, Loader, Text } from '@mantine/core';
-import { FC, lazy, Suspense, useMemo } from 'react';
-import { CustomVisualizationProps } from '../../hooks/useCustomVisualizationConfig';
+import { Center, Loader, Text } from '@mantine/core';
+import { FC, lazy, Suspense } from 'react';
+import { CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/VisualizationCustomConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
@@ -16,34 +16,17 @@ type Props = {
 const CustomVisualization: FC<Props> = (props) => {
     const { isLoading, visualizationConfig } = useVisualizationContext();
 
-    const [spec, error] = useMemo(() => {
-        try {
-            if (!isCustomVisualizationConfig(visualizationConfig))
-                return [null, 'Invalid config for custom visualization'];
-            return [
-                {
-                    ...JSON.parse(
-                        visualizationConfig.chartConfig.validConfig.spec || '',
-                    ),
-                },
-                null,
-            ];
-        } catch (e) {
-            return [null, e];
-        }
-    }, [visualizationConfig]);
-
-    if (error) {
-        return <Code>{error.toString()}</Code>;
-    }
-
     if (isLoading) {
         return <Text>Loading...</Text>;
     }
 
+    if (!isCustomVisualizationConfig(visualizationConfig)) return null;
+    const spec = visualizationConfig.chartConfig.validConfig.spec;
+
     if (
         !visualizationConfig ||
-        !isCustomVisualizationConfig(visualizationConfig)
+        !isCustomVisualizationConfig(visualizationConfig) ||
+        !spec
     ) {
         return null;
     }
@@ -51,9 +34,9 @@ const CustomVisualization: FC<Props> = (props) => {
     // TODO: 'chartConfig' is more props than config. It has data and
     // configuration for the chart. We should consider renaming it generally.
     const visProps =
-        visualizationConfig.chartConfig as CustomVisualizationProps;
+        visualizationConfig.chartConfig as CustomVisualizationConfigAndData;
 
-    const data = { table: visProps.series };
+    const data = { values: visProps.series };
 
     return (
         <div
@@ -84,11 +67,20 @@ const CustomVisualization: FC<Props> = (props) => {
                             type: 'fit',
                         },
                     }}
+                    // TODO: We are ignoring some typescript errors here because the type
+                    // that vegalite expects doesn't include a few of the properties
+                    // that are required to make data and layout properties work. This
+                    // might be a mismatch in which of the vega spec union types gets
+                    // picked, or a bug in the vegalite typescript definitions.
+                    // @ts-ignore
                     spec={{
                         ...spec,
+                        // @ts-ignore, see above
                         width: 'container',
+                        // @ts-ignore, see above
                         height: 'container',
-                        data: { name: 'table' },
+
+                        data: { name: 'values' },
                     }}
                     data={data}
                 />

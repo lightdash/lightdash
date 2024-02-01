@@ -1,5 +1,5 @@
 import { ApiQueryResults, CustomVis, ResultRow } from '@lightdash/common';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const convertRowsToSeries = (rows: ResultRow[]) => {
     return rows.map((row) => {
@@ -12,8 +12,9 @@ const convertRowsToSeries = (rows: ResultRow[]) => {
     });
 };
 
-export interface CustomVisualizationProps {
+export interface CustomVisualizationConfigAndData {
     validConfig: CustomVis;
+    visSpec?: string;
     setVisSpec: (spec: string) => void;
     // TODO: do we need to type this better?
     series: {
@@ -25,10 +26,31 @@ export interface CustomVisualizationProps {
 const useCustomVisualizationConfig = (
     chartConfig: CustomVis | undefined,
     resultsData: ApiQueryResults | undefined,
-): CustomVisualizationProps => {
-    const [visSpec, setVisSpec] = useState<string | undefined>(
-        chartConfig?.spec || '{}',
-    );
+): CustomVisualizationConfigAndData => {
+    const [visSpec, setVisSpec] = useState<string | undefined>();
+    const [visSpecObject, setVisSpecObject] = useState();
+
+    // Set initial value
+    useEffect(() => {
+        try {
+            if (chartConfig?.spec && !visSpec) {
+                setVisSpec(JSON.stringify(chartConfig?.spec, null, 2));
+            }
+        } catch (e) {
+            //TODO: handle error
+        }
+    }, [chartConfig?.spec, visSpec]);
+
+    // Update object when spec changes
+    useEffect(() => {
+        try {
+            if (visSpec) {
+                setVisSpecObject(JSON.parse(visSpec));
+            }
+        } catch (e) {
+            //TODO: handle error
+        }
+    }, [visSpec]);
 
     const rows = useMemo(() => resultsData?.rows, [resultsData]);
 
@@ -41,7 +63,8 @@ const useCustomVisualizationConfig = (
     }, [rows]);
 
     return {
-        validConfig: { spec: visSpec },
+        validConfig: { spec: visSpecObject },
+        visSpec: visSpec,
         setVisSpec,
         series: convertedRows,
         fields,

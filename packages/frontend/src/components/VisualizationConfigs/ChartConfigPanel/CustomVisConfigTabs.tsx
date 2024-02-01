@@ -87,7 +87,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
     }
 
     if (!isCustomConfig) return null;
-    const { validConfig, setVisSpec, series } = visualizationConfig.chartConfig;
+    const { visSpec, setVisSpec, series } = visualizationConfig.chartConfig;
 
     return (
         <Tabs
@@ -116,7 +116,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                     }
                     defaultLanguage="json"
                     options={{ ...MONACO_DEFAULT_OPTIONS }}
-                    value={validConfig.spec}
+                    value={visSpec}
                     onChange={(config) => setVisSpec(config ?? '')}
                 />
             </Tabs.Panel>

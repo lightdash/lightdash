@@ -240,7 +240,7 @@ export type CompleteCartesianChartLayout = {
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
 
 export type CustomVis = {
-    spec?: string;
+    spec?: object;
 };
 
 export type CartesianChart = {
