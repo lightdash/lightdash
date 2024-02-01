@@ -420,9 +420,6 @@ describe('Formatting', () => {
             test('it should return the right style', () => {
                 expect(applyCustomFormat(5, thousandsConfig)).toEqual('0.005K');
                 expect(applyCustomFormat(5, millionsConfig)).toEqual('0M');
-                expect(
-                    applyCustomFormat(5, { ...millionsConfig, round: 2 }),
-                ).toEqual('0.00M');
                 expect(applyCustomFormat(500000, billionsConfig)).toEqual(
                     '0.001B',
                 );
@@ -430,6 +427,21 @@ describe('Formatting', () => {
                 expect(applyCustomFormat(5000000000, trillionsConfig)).toEqual(
                     '0.005T',
                 );
+            });
+
+            test('when applying round it should return the right style', () => {
+                expect(
+                    applyCustomFormat(5, { ...millionsConfig, round: 2 }),
+                ).toEqual('0.00M');
+                expect(
+                    applyCustomFormat(5400000, { ...millionsConfig, round: 0 }),
+                ).toEqual('5M');
+                expect(
+                    applyCustomFormat(4956789123, {
+                        ...trillionsConfig,
+                        round: -1,
+                    }),
+                ).toEqual('0.005T');
             });
 
             test('with legacy distance format it should return the right format', () => {
