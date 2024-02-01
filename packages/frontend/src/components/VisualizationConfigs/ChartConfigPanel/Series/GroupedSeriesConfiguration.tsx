@@ -16,6 +16,14 @@ import React, { FC, useCallback } from 'react';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 import {
+    DragDropContext,
+    Draggable,
+    DraggableProvidedDragHandleProps,
+    DraggableStateSnapshot,
+    Droppable,
+    DropResult,
+} from '@hello-pangea/dnd';
+import {
     Box,
     Checkbox,
     Group,
@@ -25,14 +33,6 @@ import {
     Text,
 } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
-import {
-    DragDropContext,
-    Draggable,
-    DraggableProvidedDragHandleProps,
-    DraggableStateSnapshot,
-    Droppable,
-    DropResult,
-} from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../../common/MantineIcon';
 
@@ -89,7 +89,7 @@ type GroupedSeriesConfigurationProps = {
     seriesGroup: Series[];
     item: Field | TableCalculation | CustomDimension;
     items: Array<Field | TableCalculation | CustomDimension>;
-    dragHandleProps?: DraggableProvidedDragHandleProps;
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
     getSeriesColor: (key: string) => string | undefined;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
     updateSingleSeries: (series: Series) => void;

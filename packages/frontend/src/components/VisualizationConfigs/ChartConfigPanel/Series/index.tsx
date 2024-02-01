@@ -1,4 +1,11 @@
 import {
+    DragDropContext,
+    Draggable,
+    DraggableStateSnapshot,
+    Droppable,
+    DropResult,
+} from '@hello-pangea/dnd';
+import {
     CustomDimension,
     Field,
     getDefaultSeriesColor,
@@ -10,13 +17,6 @@ import {
 import { Divider } from '@mantine/core';
 import produce from 'immer';
 import React, { FC, useCallback, useMemo } from 'react';
-import {
-    DragDropContext,
-    Draggable,
-    DraggableStateSnapshot,
-    Droppable,
-    DropResult,
-} from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';

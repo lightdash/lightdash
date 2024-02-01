@@ -1,4 +1,10 @@
 import {
+    DragDropContext,
+    Draggable,
+    Droppable,
+    DropResult,
+} from '@hello-pangea/dnd';
+import {
     assertUnreachable,
     ResourceViewItem,
     ResourceViewItemType,
@@ -9,12 +15,6 @@ import { IconGripVertical } from '@tabler/icons-react';
 import produce from 'immer';
 import orderBy from 'lodash/orderBy';
 import { FC, useMemo } from 'react';
-import {
-    DragDropContext,
-    Draggable,
-    Droppable,
-    DropResult,
-} from 'react-beautiful-dnd';
 import { Link, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { usePinnedItemsContext } from '../../../../providers/PinnedItemsProvider';

@@ -1,7 +1,7 @@
+import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { getCustomDimensionId } from '@lightdash/common';
 import { Box, Checkbox, Stack, Title, Tooltip } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
-import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';

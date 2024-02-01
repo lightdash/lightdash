@@ -1,3 +1,4 @@
+import { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     CartesianChartLayout,
     CustomDimension,
@@ -10,7 +11,6 @@ import {
 import { Box, Group, Stack, Text } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import React, { FC } from 'react';
-import { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
 import MantineIcon from '../../../common/MantineIcon';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
@@ -21,7 +21,7 @@ type BasicSeriesConfigurationProps = {
     item: Field | TableCalculation | CustomDimension;
     getSeriesColor: (key: string) => string | undefined;
     updateSingleSeries: (series: Series) => void;
-    dragHandleProps?: DraggableProvidedDragHandleProps;
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
 };
 
 const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({

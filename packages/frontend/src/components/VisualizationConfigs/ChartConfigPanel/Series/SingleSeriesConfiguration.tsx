@@ -1,3 +1,4 @@
+import { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
@@ -21,7 +22,6 @@ import {
     IconGripVertical,
 } from '@tabler/icons-react';
 import React, { FC } from 'react';
-import { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
@@ -37,7 +37,7 @@ type Props = {
     updateSingleSeries: (updatedSeries: Series) => void;
     isOpen?: boolean;
     toggleIsOpen?: () => void;
-    dragHandleProps?: DraggableProvidedDragHandleProps;
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({

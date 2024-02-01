@@ -1,4 +1,11 @@
 import {
+    DragDropContext,
+    Draggable,
+    DraggableProvidedDragHandleProps,
+    Droppable,
+    DropResult,
+} from '@hello-pangea/dnd';
+import {
     PieChartValueLabel,
     PieChartValueLabels,
     PieChartValueOptions,
@@ -22,13 +29,6 @@ import {
     IconGripVertical,
 } from '@tabler/icons-react';
 import { FC, forwardRef, useCallback } from 'react';
-import {
-    DragDropContext,
-    Draggable,
-    DraggableProvidedDragHandleProps,
-    Droppable,
-    DropResult,
-} from 'react-beautiful-dnd';
 import MantineIcon from '../../common/MantineIcon';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
@@ -121,7 +121,7 @@ const ValueOptions: FC<ValueOptionsProps> = ({
 type GroupItemProps = {
     isOnlyItem: boolean;
 
-    dragHandleProps?: DraggableProvidedDragHandleProps;
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
 
     defaultColor: string;
     defaultLabel: string;
