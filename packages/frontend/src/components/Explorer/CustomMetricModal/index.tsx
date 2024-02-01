@@ -22,7 +22,6 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ValueOf } from 'type-fest';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,10 +45,6 @@ export const CustomMetricModal = () => {
         item,
         type: customMetricType,
     } = useExplorerContext((context) => context.state.modals.additionalMetric);
-
-    const isCustomMetricFormattingEnabled = useFeatureFlagEnabled(
-        'custom-metrics-formatting',
-    );
 
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
@@ -79,7 +74,6 @@ export const CustomMetricModal = () => {
     }
 
     const canApplyFormatting =
-        isCustomMetricFormattingEnabled &&
         dimensionToCheck &&
         customMetricType &&
         canApplyFormattingToCustomMetric(dimensionToCheck, customMetricType);
@@ -187,12 +181,12 @@ export const CustomMetricModal = () => {
                 if (item.percentile)
                     setFieldValue('percentile', item.percentile);
 
-                if (isCustomMetricFormattingEnabled && item.formatOptions) {
+                if (item.formatOptions) {
                     setFieldValue('format', item.formatOptions);
                 }
             }
         },
-        [isEditing, item, setFieldValue, isCustomMetricFormattingEnabled],
+        [isEditing, item, setFieldValue],
     );
 
     const handleClose = useCallback(() => {
@@ -212,9 +206,7 @@ export const CustomMetricModal = () => {
                 isEditingCustomMetric: !!isEditing,
                 exploreData,
                 percentile,
-                ...(isCustomMetricFormattingEnabled && {
-                    formatOptions: format,
-                }),
+                formatOptions: format,
             });
 
             if (isEditing && isAdditionalMetric(item)) {
