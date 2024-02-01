@@ -1,5 +1,5 @@
 import { CartesianSeriesType, getItemMap } from '@lightdash/common';
-import { renderHook } from '@testing-library/react-hooks';
+import { renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import useCartesianChartConfig from './useCartesianChartConfig';
 import {

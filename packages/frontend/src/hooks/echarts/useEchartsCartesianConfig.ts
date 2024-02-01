@@ -25,7 +25,6 @@ import {
     PivotReference,
     ResultRow,
     Series,
-    TableCalculation,
     timeFrameConfigs,
     TimeFrames,
 } from '@lightdash/common';
@@ -603,7 +602,7 @@ const getPivotSeries = ({
                             }
                             if (isTableCalculation(field)) {
                                 return formatTableCalculationValue(
-                                    field as TableCalculation,
+                                    field.format,
                                     value?.value?.[yFieldHash],
                                 );
                             } else {
@@ -678,7 +677,7 @@ const getSimpleSeries = ({
                         }
                         if (isTableCalculation(field)) {
                             return formatTableCalculationValue(
-                                field as TableCalculation,
+                                field.format,
                                 value?.value?.[yFieldHash],
                             );
                         } else {
@@ -873,14 +872,14 @@ const getEchartAxes = ({
         } else if (axisItem !== undefined && isTableCalculation(axisItem)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
-                    return formatTableCalculationValue(axisItem, value);
+                    return formatTableCalculationValue(axisItem.format, value);
                 },
             };
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
                         return formatTableCalculationValue(
-                            axisItem,
+                            axisItem.format,
                             value.value,
                         );
                     },
@@ -1573,7 +1572,7 @@ const useEchartsCartesianConfig = (
                     const field = itemsMap[dimensionId];
                     if (isTableCalculation(field)) {
                         const tooltipHeader = formatTableCalculationValue(
-                            field as TableCalculation,
+                            field.format,
                             params[0].axisValueLabel,
                         );
 

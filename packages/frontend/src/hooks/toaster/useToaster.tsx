@@ -7,7 +7,7 @@ import {
     IconCircleCheckFilled,
     IconInfoCircleFilled,
 } from '@tabler/icons-react';
-import MDEditor from '@uiw/react-md-editor';
+import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useCallback, useRef } from 'react';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -58,7 +58,7 @@ const useToaster = () => {
                     subtitle || action ? (
                         <Stack spacing="xs" align="flex-start">
                             {typeof subtitle == 'string' ? (
-                                <MDEditor.Markdown
+                                <MarkdownPreview
                                     source={subtitle}
                                     linkTarget="_blank"
                                     style={{

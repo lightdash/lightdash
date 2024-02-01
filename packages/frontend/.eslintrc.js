@@ -23,6 +23,9 @@ module.exports = {
         'plugin:react/recommended',
         'airbnb-typescript',
         'prettier',
+
+        'plugin:jest-dom/recommended',
+        'plugin:testing-library/react',
     ],
     plugins: [
         '@typescript-eslint',
@@ -33,6 +36,9 @@ module.exports = {
         'prettier',
         'react-hooks',
         'react',
+
+        'jest-dom',
+        'testing-library',
     ],
 
     settings: {
@@ -76,5 +82,15 @@ module.exports = {
         'react/no-unescaped-entities': 'off',
         'react/react-in-jsx-scope': 'off',
         eqeqeq: 'off',
+
+        // testing
+        'jest-dom/prefer-checked': 'error',
+        'jest-dom/prefer-enabled-disabled': 'error',
+        'jest-dom/prefer-required': 'error',
+        'jest-dom/prefer-to-have-attribute': 'error',
+        'testing-library/await-async-queries': 'error',
+        'testing-library/no-await-sync-queries': 'error',
+        'testing-library/no-debugging-utils': 'warn',
+        'testing-library/no-dom-import': 'off',
     },
 };

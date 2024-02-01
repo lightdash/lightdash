@@ -15,8 +15,7 @@ import {
 import { Filters, MetricFilterRule } from './filter';
 import { DateGranularity } from './timeFrames';
 
-export interface AdditionalMetric
-    extends Pick<CustomFormat, 'prefix' | 'suffix' | 'separator'> {
+export interface AdditionalMetric {
     label?: string;
     type: MetricType;
     description?: string;
@@ -32,6 +31,7 @@ export interface AdditionalMetric
     baseDimensionName?: string;
     uuid?: string | null;
     percentile?: number;
+    formatOptions?: CustomFormat;
 }
 
 export const getCustomDimensionId = (dimension: CustomDimension) =>
@@ -39,6 +39,11 @@ export const getCustomDimensionId = (dimension: CustomDimension) =>
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
     value?.table && value?.name && !value?.fieldType && !value.binType;
+
+export const hasFormatOptions = (
+    value: any,
+): value is AdditionalMetric & { formatOptions: CustomFormat } =>
+    !!value.formatOptions;
 
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;

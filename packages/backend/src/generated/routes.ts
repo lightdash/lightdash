@@ -693,12 +693,30 @@ const models: TsoaRoute.Models = {
         dataType: 'refObject',
         properties: {
             type: { ref: 'CustomFormatType', required: true },
-            round: { dataType: 'double' },
+            round: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'double' }, { dataType: 'undefined' }],
+            },
             separator: { ref: 'NumberSeparator' },
-            currency: { dataType: 'string' },
-            compact: { ref: 'CompactOrAlias' },
-            prefix: { dataType: 'string' },
-            suffix: { dataType: 'string' },
+            currency: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            compact: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'CompactOrAlias' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            prefix: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            suffix: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
         },
         additionalProperties: false,
     },
@@ -764,9 +782,6 @@ const models: TsoaRoute.Models = {
     AdditionalMetric: {
         dataType: 'refObject',
         properties: {
-            prefix: { dataType: 'string' },
-            suffix: { dataType: 'string' },
-            separator: { ref: 'NumberSeparator' },
             label: { dataType: 'string' },
             type: { ref: 'MetricType', required: true },
             description: { dataType: 'string' },
@@ -791,6 +806,7 @@ const models: TsoaRoute.Models = {
                 ],
             },
             percentile: { dataType: 'double' },
+            formatOptions: { ref: 'CustomFormat' },
         },
         additionalProperties: false,
     },

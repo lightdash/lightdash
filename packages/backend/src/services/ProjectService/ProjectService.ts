@@ -1558,6 +1558,19 @@ export class ProjectService {
                         );
                     }
 
+                    const useNewTableCalculationsEngine =
+                        (await postHogClient?.isFeatureEnabled(
+                            'new-table-calculations-engine',
+                            user.userUuid,
+                            user.organizationUuid !== undefined
+                                ? {
+                                      groups: {
+                                          organization: user.organizationUuid,
+                                      },
+                                  }
+                                : {},
+                        )) ?? false;
+
                     const { organizationUuid } =
                         await this.projectModel.getSummary(projectUuid);
 
@@ -1672,6 +1685,39 @@ export class ProjectService {
                                     metric.filters &&
                                     metric.filters.length > 0,
                             ).length,
+                            additionalMetricsPercentFormatCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter(
+                                (metric) =>
+                                    metricQuery.metrics.includes(
+                                        getFieldId(metric),
+                                    ) &&
+                                    metric.formatOptions &&
+                                    metric.formatOptions.type ===
+                                        CustomFormatType.PERCENT,
+                            ).length,
+                            additionalMetricsCurrencyFormatCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter(
+                                (metric) =>
+                                    metricQuery.metrics.includes(
+                                        getFieldId(metric),
+                                    ) &&
+                                    metric.formatOptions &&
+                                    metric.formatOptions.type ===
+                                        CustomFormatType.CURRENCY,
+                            ).length,
+                            additionalMetricsNumberFormatCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter(
+                                (metric) =>
+                                    metricQuery.metrics.includes(
+                                        getFieldId(metric),
+                                    ) &&
+                                    metric.formatOptions &&
+                                    metric.formatOptions.type ===
+                                        CustomFormatType.NUMBER,
+                            ).length,
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),
                             dateZoomGranularity: granularity || null,
@@ -1680,6 +1726,18 @@ export class ProjectService {
 
                     Logger.debug(`Fetch query results from cache or warehouse`);
                     span.setAttribute('generatedSql', query);
+
+                    /**
+                     * If enabled, we include additional attributes for this span allowing us to measure
+                     * the impact of upcoming table calculation handling changes.
+                     */
+                    if (useNewTableCalculationsEngine) {
+                        span.setAttributes({
+                            tableCalculationsNum:
+                                metricQuery.tableCalculations.length,
+                            newTableCalculations: useNewTableCalculationsEngine,
+                        });
+                    }
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
                         'warehouse.type',

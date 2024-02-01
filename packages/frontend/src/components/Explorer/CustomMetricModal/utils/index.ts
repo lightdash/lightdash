@@ -1,13 +1,11 @@
 import {
     AdditionalMetric,
     CustomFormat,
-    CustomFormatType,
     Dimension,
     DimensionType,
     Explore,
     Field,
     FilterRule,
-    Format,
     friendlyName,
     isAdditionalMetric,
     isDimension,
@@ -109,7 +107,7 @@ export const prepareCustomMetricData = ({
     isEditingCustomMetric,
     exploreData,
     percentile: metricPercentile,
-    customMetricFormat,
+    formatOptions,
 }: {
     item: Dimension | AdditionalMetric;
     type: MetricType;
@@ -118,7 +116,7 @@ export const prepareCustomMetricData = ({
     isEditingCustomMetric: boolean;
     exploreData?: Explore;
     percentile?: number;
-    customMetricFormat?: CustomFormat;
+    formatOptions?: CustomFormat;
 }): AdditionalMetric => {
     const shouldCopyFormatting = [
         MetricType.PERCENTILE,
@@ -129,21 +127,16 @@ export const prepareCustomMetricData = ({
         MetricType.MAX,
     ].includes(type);
 
-    const defaultRound = type === MetricType.AVERAGE ? 2 : undefined;
-    const baseDimensionRound =
-        shouldCopyFormatting && item.round ? item.round : defaultRound;
-    const round = customMetricFormat?.round || baseDimensionRound;
-
-    const baseDimensionCompact =
-        shouldCopyFormatting && item.compact ? item.compact : undefined;
-    const compact = customMetricFormat?.compact || baseDimensionCompact;
-
-    const baseDimensionFormat =
-        shouldCopyFormatting && item.format ? item.format : undefined;
+    const compact =
+        shouldCopyFormatting && item.compact ? { compact: item.compact } : {};
     const format =
-        customMetricFormat?.type === CustomFormatType.PERCENT
-            ? Format.PERCENT
-            : baseDimensionFormat;
+        shouldCopyFormatting && item.format ? { format: item.format } : {};
+
+    const defaultRound = type === MetricType.AVERAGE ? { round: 2 } : {};
+    const round =
+        shouldCopyFormatting && item.round
+            ? { round: item.round }
+            : defaultRound;
 
     const percentile =
         type === MetricType.PERCENTILE ? metricPercentile || 50 : undefined;
@@ -165,12 +158,10 @@ export const prepareCustomMetricData = ({
         table: item.table,
         sql: item.sql,
         type,
-        format,
-        round,
-        compact,
-        prefix: customMetricFormat?.prefix,
-        suffix: customMetricFormat?.suffix,
-        separator: customMetricFormat?.separator,
+        ...format,
+        ...round,
+        ...compact,
+        formatOptions,
         percentile,
         filters: customMetricFilters.length > 0 ? customMetricFilters : [],
         label: customMetricLabel,

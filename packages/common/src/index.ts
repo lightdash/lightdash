@@ -579,9 +579,9 @@ type ApiResults =
     | Record<string, DbtExposure>
     | ApiSuccessEmpty;
 
-export type ApiResponse = {
+export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
-    results: ApiResults;
+    results: T;
 };
 
 type ApiErrorDetail = {
