@@ -325,7 +325,7 @@ describe('Lightdash API tests for an project admin accessing other private space
         });
     });
 
-    it('Should list private spaces or content in global search', () => {
+    it('Should not list private spaces or content in global search', () => {
         cy.request({
             url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/search/private`,
             failOnStatusCode: false,
@@ -335,17 +335,17 @@ describe('Lightdash API tests for an project admin accessing other private space
                 resp.body.results.spaces.find(
                     (space) => space.name === 'private space',
                 ),
-            ).to.not.eq(undefined);
+            ).to.eq(undefined);
             expect(
                 resp.body.results.savedCharts.find(
                     (chart) => chart.name === 'private chart',
                 ),
-            ).to.not.eq(undefined);
+            ).to.eq(undefined);
             expect(
                 resp.body.results.dashboards.find(
                     (dashboard) => dashboard.name === 'private dashboard',
                 ),
-            ).to.not.eq(undefined);
+            ).to.eq(undefined);
         });
     });
     it('Should list private spaces', () => {
