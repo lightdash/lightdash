@@ -109,6 +109,7 @@ import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
+import { runQueryInMemoryDatabaseContext } from '../../inMemoryAnalytics';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -875,13 +876,69 @@ export class ProjectService {
         return explore;
     }
 
+    /**
+     * Based on _compileQuery, this -temporary- method handles isolating and generating
+     * a separate query for table calculations.
+     *
+     * Once the feature is proven and ready to be rolled out, _compileQuery will be
+     * expanded to support this behavior natively.
+     */
+    private static async _compileMetricQueryWithNewTableCalculationsEngine(
+        metricQuery: MetricQuery,
+        explore: Explore,
+        warehouseClient: WarehouseClient,
+        userAttributes: UserAttributeValueMap,
+        granularity?: DateGranularity,
+    ): Promise<[CompiledQuery, CompiledQuery]> {
+        const exploreWithOverride = ProjectService.updateExploreWithGranularity(
+            explore,
+            metricQuery,
+            warehouseClient,
+            granularity,
+        );
+
+        const {
+            compiledMetricQuery,
+            compiledTableCalculations,
+            tableCalculations,
+            tableCalculationFilters,
+        } = ProjectService.isolateTableCalculationsFromCompiledMetricsQuery(
+            compileMetricQuery({
+                explore: exploreWithOverride,
+                metricQuery,
+                warehouseClient,
+            }),
+        );
+
+        const primaryQuery = buildQuery({
+            explore: exploreWithOverride,
+            compiledMetricQuery,
+            warehouseClient,
+            userAttributes,
+        });
+
+        const selectFrom = [
+            '*',
+            ...compiledTableCalculations.map(
+                ({ name, compiledSql }) => `${compiledSql} AS ${name}`,
+            ),
+        ];
+
+        const tableCalculationsSubQuery: CompiledQuery = {
+            fields: {},
+            query: `SELECT ${selectFrom.join(',\n')}\n FROM _parent_results_;`,
+            hasExampleMetric: false,
+        };
+
+        return [primaryQuery, tableCalculationsSubQuery];
+    }
+
     private static async _compileQuery(
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
-        isolatedTableCalculations: boolean = false,
     ): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithGranularity(
             explore,
@@ -896,15 +953,9 @@ export class ProjectService {
             warehouseClient,
         });
 
-        const isolatedCompiledMetricQuery = isolatedTableCalculations
-            ? ProjectService.isolateTableCalculationsFromCompiledMetricsQuery(
-                  compiledMetricQuery,
-              ).compiledMetricQuery
-            : compiledMetricQuery;
-
         const buildQueryResult = buildQuery({
             explore: exploreWithOverride,
-            compiledMetricQuery: isolatedCompiledMetricQuery,
+            compiledMetricQuery,
             warehouseClient,
             userAttributes,
         });
@@ -1466,6 +1517,7 @@ export class ProjectService {
         metricQuery,
         queryTags,
         invalidateCache,
+        tableCalculationsSubQuery,
     }: {
         projectUuid: string;
         context: QueryExecutionContext;
@@ -1474,6 +1526,7 @@ export class ProjectService {
         metricQuery: MetricQuery;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
+        tableCalculationsSubQuery?: CompiledQuery;
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -1542,6 +1595,15 @@ export class ProjectService {
                     async () => warehouseClient.runQuery(query, queryTags),
                 );
 
+                const mergedResults = tableCalculationsSubQuery
+                    ? await runQueryInMemoryDatabaseContext({
+                          query: tableCalculationsSubQuery.query,
+                          tables: {
+                              _parent_results_: warehouseResults.rows,
+                          },
+                      })
+                    : warehouseResults.rows;
+
                 if (lightdashConfig.resultsCache?.enabled) {
                     Logger.debug(`Writing data to cache with key ${queryHash}`);
                     const buffer = Buffer.from(
@@ -1554,7 +1616,7 @@ export class ProjectService {
                 }
 
                 return {
-                    rows: warehouseResults.rows,
+                    rows: mergedResults,
                     cacheMetadata: { cacheHit: false },
                 };
             },
@@ -1600,6 +1662,7 @@ export class ProjectService {
                     }
 
                     const useNewTableCalculationsEngine =
+                        true ??
                         (await postHogClient?.isFeatureEnabled(
                             'new-table-calculations-engine',
                             user.userUuid,
@@ -1610,7 +1673,8 @@ export class ProjectService {
                                       },
                                   }
                                 : {},
-                        )) ?? false;
+                        )) ??
+                        false;
 
                     const { organizationUuid } =
                         await this.projectModel.getSummary(projectUuid);
@@ -1655,17 +1719,48 @@ export class ProjectService {
                             },
                         );
 
-                    const { query, hasExampleMetric, fields } =
-                        await ProjectService._compileQuery(
-                            metricQueryWithLimit,
-                            explore,
-                            warehouseClient,
-                            userAttributes,
-                            granularity,
+                    let fields: ItemsMap;
+                    let query: string;
+                    let hasExampleMetric: boolean;
+                    let tableCalculationsCompiledQuery:
+                        | undefined
+                        | CompiledQuery;
 
-                            // If true, we get additional table calculations stuff to compile ourselves
-                            useNewTableCalculationsEngine,
+                    const compileQueryArgs = [
+                        metricQueryWithLimit,
+                        explore,
+                        warehouseClient,
+                        userAttributes,
+                        granularity,
+                    ] as const;
+
+                    /**
+                     * If we're using the new table calculations engine, we're actually going to be
+                     * doing two separate queries - the parent query which excludes table calculations,
+                     * and a separate query that runs against the result of the parent query, exclusively
+                     * to generate table calculation values, and apply table calculation filters.
+                     */
+                    if (useNewTableCalculationsEngine) {
+                        const [parentQuery, tableCalculationsSubQuery] =
+                            await ProjectService._compileMetricQueryWithNewTableCalculationsEngine(
+                                ...compileQueryArgs,
+                            );
+
+                        fields = parentQuery.fields;
+                        query = parentQuery.query;
+                        hasExampleMetric = parentQuery.hasExampleMetric;
+
+                        tableCalculationsCompiledQuery =
+                            tableCalculationsSubQuery;
+                    } else {
+                        const fullQuery = await ProjectService._compileQuery(
+                            ...compileQueryArgs,
                         );
+
+                        fields = fullQuery.fields;
+                        query = fullQuery.query;
+                        hasExampleMetric = fullQuery.hasExampleMetric;
+                    }
 
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
@@ -1797,6 +1892,8 @@ export class ProjectService {
                             query,
                             queryTags,
                             invalidateCache,
+                            tableCalculationsSubQuery:
+                                tableCalculationsCompiledQuery,
                         });
                     await sshTunnel.disconnect();
                     return { rows, cacheMetadata, fields };
