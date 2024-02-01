@@ -1,3 +1,10 @@
+# [0.973.0](https://github.com/lightdash/lightdash/compare/0.972.2...0.973.0) (2024-02-01)
+
+
+### Features
+
+* remove flag check for custom metrics formatting ([#8798](https://github.com/lightdash/lightdash/issues/8798)) ([ba8b8ca](https://github.com/lightdash/lightdash/commit/ba8b8ca1f29612471690dae4f1e665e8bb3a7c8f))
+
 ## [0.972.2](https://github.com/lightdash/lightdash/compare/0.972.1...0.972.2) (2024-01-31)
 
 
