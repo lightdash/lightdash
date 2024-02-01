@@ -202,7 +202,7 @@ export function formatNumberValue(
     }
 }
 
-function defaultFormat(value: unknown) {
+function applyDefaultFormat(value: unknown) {
     if (value === null) return '∅';
     if (value === undefined) return '-';
     if (!isNumber(value)) {
@@ -292,7 +292,7 @@ export function applyCustomFormat(
     value: unknown,
     format?: CustomFormat | undefined,
 ): string {
-    if (format?.type === undefined) return defaultFormat(value);
+    if (format?.type === undefined) return applyDefaultFormat(value);
 
     const applyCompact = (): {
         compactValue: number;
@@ -320,14 +320,14 @@ export function applyCustomFormat(
     }
 
     if (valueIsNaN(value) || value === null) {
-        return defaultFormat(value);
+        return applyDefaultFormat(value);
     }
 
     switch (format.type) {
         case CustomFormatType.ID:
             return `${value}`;
         case CustomFormatType.DEFAULT:
-            return defaultFormat(value);
+            return applyDefaultFormat(value);
 
         case CustomFormatType.PERCENT:
             const formatted = formatNumberValue(Number(value) * 100, format);
@@ -415,5 +415,5 @@ export function formatItemValue(
         return applyCustomFormat(value, customFormat);
     }
 
-    return defaultFormat(value);
+    return applyDefaultFormat(value);
 }
