@@ -1,3 +1,10 @@
+## [0.973.2](https://github.com/lightdash/lightdash/compare/0.973.1...0.973.2) (2024-02-01)
+
+
+### Bug Fixes
+
+* extended usage analytics env variable ([#8774](https://github.com/lightdash/lightdash/issues/8774)) ([9b20da6](https://github.com/lightdash/lightdash/commit/9b20da6d6989d9ce663658f2924f46b6f4d220b5))
+
 ## [0.973.1](https://github.com/lightdash/lightdash/compare/0.973.0...0.973.1) (2024-02-01)
 
 
