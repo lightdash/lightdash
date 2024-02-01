@@ -1,11 +1,11 @@
-import { mergeRefs } from '@mantine/hooks';
-import { forwardRef } from 'react';
 import {
     DragDropContext,
     Draggable,
     Droppable,
     DropResult,
-} from 'react-beautiful-dnd';
+} from '@hello-pangea/dnd';
+import { mergeRefs } from '@mantine/hooks';
+import { forwardRef } from 'react';
 import { Props } from '.';
 import { useColumns } from '../../hooks/useColumns';
 import { useExplorerContext } from '../../providers/ExplorerProvider';

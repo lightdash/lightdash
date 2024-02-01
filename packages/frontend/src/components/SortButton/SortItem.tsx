@@ -1,11 +1,11 @@
+import {
+    DraggableProvidedDraggableProps,
+    DraggableProvidedDragHandleProps,
+} from '@hello-pangea/dnd';
 import { isField, SortField } from '@lightdash/common';
 import { ActionIcon, Box, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { forwardRef } from 'react';
-import {
-    DraggableProvidedDraggableProps,
-    DraggableProvidedDragHandleProps,
-} from 'react-beautiful-dnd';
 import { ExplorerContext } from '../../providers/ExplorerProvider';
 import {
     getSortDirectionOrder,
@@ -23,7 +23,7 @@ interface SortItemProps {
     sort: SortField;
     column?: TableColumn;
     draggableProps: DraggableProvidedDraggableProps;
-    dragHandleProps?: DraggableProvidedDragHandleProps;
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
     onAddSortField: (
         options: Parameters<ExplorerContext['actions']['addSortField']>[1],
     ) => void;
