@@ -70,6 +70,7 @@ type Props = {
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
     missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
+    missingFields: string[];
 };
 
 const EmptyWrapper: FC<React.PropsWithChildren<{}>> = ({ children }) => (
@@ -101,6 +102,7 @@ const TableTree: FC<Props> = ({
     customDimensions,
     missingCustomMetrics,
     searchQuery,
+    missingFields,
     ...rest
 }) => {
     const Wrapper = showTableLabel ? TableTreeWrapper : EmptyWrapper;
@@ -120,6 +122,7 @@ const TableTree: FC<Props> = ({
                         additionalMetrics={additionalMetrics}
                         customDimensions={customDimensions}
                         missingCustomMetrics={missingCustomMetrics}
+                        missingFields={missingFields}
                         {...rest}
                     />
                 </Wrapper>
