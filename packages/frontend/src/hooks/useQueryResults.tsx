@@ -18,7 +18,6 @@ import {
     convertDateFilters,
 } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
-import useQueryError from './useQueryError';
 
 type QueryResultsProps = {
     projectUuid: string;
@@ -102,7 +101,6 @@ export const useQueryResults = (props?: {
     dateZoomGranularity?: DateGranularity;
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const setErrorResponse = useQueryError();
     const { showToastError } = useToaster();
     const fetchQuery =
         props?.isViewOnly === true ? getChartResults : getQueryResults;
@@ -115,8 +113,6 @@ export const useQueryResults = (props?: {
                     title: 'Error running query',
                     subtitle: error.error.message,
                 });
-
-                return setErrorResponse(error);
             },
         },
     );
