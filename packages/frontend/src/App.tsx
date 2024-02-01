@@ -6,7 +6,6 @@ import { AbilityContext } from './components/common/Authorization';
 import MobileRoutes from './MobileRoutes';
 import { ActiveJobProvider } from './providers/ActiveJobProvider';
 import { AppProvider } from './providers/AppProvider';
-import { ErrorLogsProvider } from './providers/ErrorLogsProvider';
 import MantineProvider from './providers/MantineProvider';
 import ReactQueryProvider from './providers/ReactQueryProvider';
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
@@ -42,13 +41,11 @@ const App = () => (
                             >
                                 <AbilityContext.Provider value={defaultAbility}>
                                     <ActiveJobProvider>
-                                        <ErrorLogsProvider>
-                                            {isMobile ? (
-                                                <MobileRoutes />
-                                            ) : (
-                                                <Routes />
-                                            )}
-                                        </ErrorLogsProvider>
+                                        {isMobile ? (
+                                            <MobileRoutes />
+                                        ) : (
+                                            <Routes />
+                                        )}
                                     </ActiveJobProvider>
                                 </AbilityContext.Provider>
                             </TrackingProvider>

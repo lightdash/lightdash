@@ -8,7 +8,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
-import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import useToaster from '../toaster/useToaster';
 import { useProject } from '../useProject';
 import useUser from '../user/useUser';
@@ -74,8 +73,7 @@ export const useValidationMutation = (
     onComplete: () => void,
 ) => {
     const queryClient = useQueryClient();
-    const { appendError } = useErrorLogs();
-    const { showToastSuccess } = useToaster();
+    const { showToastSuccess, showToastError } = useToaster();
 
     return useMutation<ApiJobScheduledResponse['results'], ApiError>({
         mutationKey: ['validation', projectUuid],
@@ -90,17 +88,17 @@ export const useValidationMutation = (
                     showToastSuccess({ title: 'Validation completed' });
                 })
                 .catch((error: Error) => {
-                    appendError({
+                    showToastError({
                         title: 'Unable to update validation',
-                        body: error.message,
+                        subtitle: error.message,
                     });
                 });
         },
         onError: (error) => {
             const [title, ...rest] = error.error.message.split('\n');
-            appendError({
+            showToastError({
                 title,
-                body: rest.join('\n'),
+                subtitle: rest.join('\n'),
             });
         },
     });
