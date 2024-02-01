@@ -1,3 +1,10 @@
+## [0.973.3](https://github.com/lightdash/lightdash/compare/0.973.2...0.973.3) (2024-02-01)
+
+
+### Bug Fixes
+
+* replace react-beautiful-dnd with @hello-pangea/dnd ([#8828](https://github.com/lightdash/lightdash/issues/8828)) ([db419b9](https://github.com/lightdash/lightdash/commit/db419b91f9dcb053d2cc97c9f2879d6d7107983a))
+
 ## [0.973.2](https://github.com/lightdash/lightdash/compare/0.973.1...0.973.2) (2024-02-01)
 
 
