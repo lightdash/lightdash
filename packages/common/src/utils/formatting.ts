@@ -131,6 +131,39 @@ export const parseTimestamp = (
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
 ): Date => moment(str, getTimeFormat(timeInterval)).toDate();
 
+function getFormatOptions(value: number, format?: CustomFormat) {
+    const hasCurrency =
+        format?.type === CustomFormatType.CURRENCY && format?.currency;
+    const currencyOptions = hasCurrency
+        ? { style: 'currency', currency: format.currency }
+        : {};
+
+    const round = format?.round;
+
+    if (round === undefined) {
+        // When round is not defined, keep up to 3 decimal places
+        return hasCurrency ? currencyOptions : {};
+    }
+
+    if (round <= 0) {
+        return {
+            maximumSignificantDigits: Math.max(
+                Math.floor(value).toString().length + round,
+                1,
+            ),
+            maximumFractionDigits: 0,
+            ...currencyOptions,
+        };
+    }
+
+    const fractionDigits = Math.min(round, 20);
+    return {
+        maximumFractionDigits: fractionDigits,
+        minimumFractionDigits: fractionDigits,
+        ...currencyOptions,
+    };
+}
+
 export function valueIsNaN(value: unknown) {
     if (typeof value === 'boolean') return true;
 
@@ -145,40 +178,7 @@ export function formatNumberValue(
     value: number,
     format?: CustomFormat,
 ): string {
-    const getFormatOptions = () => {
-        const hasCurrency =
-            format?.type === CustomFormatType.CURRENCY && format?.currency;
-        const currencyOptions = hasCurrency
-            ? { style: 'currency', currency: format.currency }
-            : {};
-
-        const round = format?.round;
-
-        if (round === undefined) {
-            // When round is not defined, keep up to 3 decimal places
-            return hasCurrency ? currencyOptions : {};
-        }
-
-        if (round <= 0) {
-            return {
-                maximumSignificantDigits: Math.max(
-                    Math.floor(value).toString().length + round,
-                    1,
-                ),
-                maximumFractionDigits: 0,
-                ...currencyOptions,
-            };
-        }
-
-        const fractionDigits = Math.min(round, 20);
-        return {
-            maximumFractionDigits: fractionDigits,
-            minimumFractionDigits: fractionDigits,
-            ...currencyOptions,
-        };
-    };
-
-    const options = getFormatOptions();
+    const options = getFormatOptions(value, format);
     const separator = format?.separator || NumberSeparator.DEFAULT;
 
     switch (separator) {
