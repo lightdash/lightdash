@@ -1,3 +1,10 @@
+## [0.973.1](https://github.com/lightdash/lightdash/compare/0.973.0...0.973.1) (2024-02-01)
+
+
+### Bug Fixes
+
+* required attributes json schema ([#8812](https://github.com/lightdash/lightdash/issues/8812)) ([39e3c48](https://github.com/lightdash/lightdash/commit/39e3c48bc3b8255d1d66d1d5ba0eaedd80ed0ba2))
+
 # [0.973.0](https://github.com/lightdash/lightdash/compare/0.972.2...0.973.0) (2024-02-01)
 
 
