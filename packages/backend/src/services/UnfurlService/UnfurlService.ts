@@ -25,6 +25,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { postHogClient } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { VERSION } from '../../version';
 import { EncryptionService } from '../EncryptionService/EncryptionService';
@@ -256,6 +257,7 @@ export class UnfurlService {
             lightdashPage,
             chartType: details?.chartType,
             organizationUuid: details?.organizationUuid,
+            userUuid: authUserUuid,
             gridWidth,
         });
 
@@ -326,6 +328,7 @@ export class UnfurlService {
         lightdashPage,
         chartType,
         organizationUuid,
+        userUuid,
         gridWidth = undefined,
     }: {
         imageId: string;
@@ -334,6 +337,7 @@ export class UnfurlService {
         lightdashPage: LightdashPage;
         chartType?: string;
         organizationUuid?: string;
+        userUuid: string;
         gridWidth?: number | undefined;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
@@ -346,6 +350,32 @@ export class UnfurlService {
         }
         const startTime = Date.now();
         let hasError = false;
+
+        const isPuppeteerSetViewportDinamicallyEnabled =
+            (await postHogClient?.isFeatureEnabled(
+                'puppeteer-set-viewport-dinamically',
+                userUuid,
+                organizationUuid !== undefined
+                    ? {
+                          groups: {
+                              organization: organizationUuid,
+                          },
+                      }
+                    : {},
+            )) ?? false;
+
+        const isPuppeteerScrollElementIntoViewEnabled =
+            (await postHogClient?.isFeatureEnabled(
+                'puppeteer-scroll-element-into-view',
+                userUuid,
+                organizationUuid !== undefined
+                    ? {
+                          groups: {
+                              organization: organizationUuid,
+                          },
+                      }
+                    : {},
+            )) ?? false;
 
         return tracer.startActiveSpan(
             'UnfurlService.saveScreenshot',
@@ -460,10 +490,13 @@ export class UnfurlService {
                         });
 
                     const path = `/tmp/${imageId}.png`;
-                    const selector =
+                    let selector =
                         lightdashPage === LightdashPage.EXPLORE
                             ? `[data-testid="visualization"]`
                             : 'body';
+                    if (isPuppeteerSetViewportDinamicallyEnabled) {
+                        selector = '.react-grid-layout';
+                    }
 
                     await page.waitForNetworkIdle({
                         timeout: 30000,
@@ -472,6 +505,17 @@ export class UnfurlService {
                     const element = await page.waitForSelector(selector, {
                         timeout: 60000,
                     });
+
+                    if (isPuppeteerSetViewportDinamicallyEnabled) {
+                        const fullPage = await page.$('.react-grid-layout');
+                        const fullPageSize = await fullPage?.boundingBox();
+                        await page.setViewport({
+                            width: gridWidth ?? viewport.width,
+                            height: fullPageSize?.height
+                                ? parseInt(fullPageSize.height.toString(), 10)
+                                : viewport.height,
+                        });
+                    }
 
                     if (!element) {
                         Logger.warn(`Can't find element on page`);
@@ -516,8 +560,17 @@ export class UnfurlService {
                         });
                     }
 
+                    if (isPuppeteerScrollElementIntoViewEnabled) {
+                        await element.scrollIntoView();
+                    }
+
                     const imageBuffer = await element.screenshot({
                         path,
+                        ...(isPuppeteerScrollElementIntoViewEnabled
+                            ? {
+                                  scrollIntoView: true,
+                              }
+                            : {}),
                     });
 
                     return imageBuffer;
