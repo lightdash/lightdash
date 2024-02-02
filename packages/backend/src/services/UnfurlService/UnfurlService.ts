@@ -494,19 +494,21 @@ export class UnfurlService {
                         lightdashPage === LightdashPage.EXPLORE
                             ? `[data-testid="visualization"]`
                             : 'body';
-                    if (isPuppeteerSetViewportDinamicallyEnabled) {
+                    if (
+                        isPuppeteerSetViewportDinamicallyEnabled &&
+                        lightdashPage === LightdashPage.DASHBOARD
+                    ) {
                         selector = '.react-grid-layout';
                     }
-
-                    await page.waitForNetworkIdle({
-                        timeout: 30000,
-                    });
 
                     const element = await page.waitForSelector(selector, {
                         timeout: 60000,
                     });
 
-                    if (isPuppeteerSetViewportDinamicallyEnabled) {
+                    if (
+                        isPuppeteerSetViewportDinamicallyEnabled &&
+                        lightdashPage === LightdashPage.DASHBOARD
+                    ) {
                         const fullPage = await page.$('.react-grid-layout');
                         const fullPageSize = await fullPage?.boundingBox();
                         await page.setViewport({
@@ -566,7 +568,8 @@ export class UnfurlService {
 
                     const imageBuffer = await element.screenshot({
                         path,
-                        ...(isPuppeteerScrollElementIntoViewEnabled
+                        ...(isPuppeteerScrollElementIntoViewEnabled &&
+                        lightdashPage === LightdashPage.DASHBOARD
                             ? {
                                   scrollIntoView: true,
                               }
