@@ -10,14 +10,16 @@ const Projects: FC = () => {
     const { isLoading: isActiveProjectLoading, activeProjectUuid } =
         useActiveProjectUuid();
 
+    if (!isInitialLoading && data && data.length === 0) {
+        return <Redirect to="/no-access" />;
+    }
+
     if (isInitialLoading || isActiveProjectLoading || !activeProjectUuid) {
         return <PageSpinner />;
     }
+
     if (error && error.error) {
         return <ErrorState error={error.error} />;
-    }
-    if (!data || data.length <= 0) {
-        return <Redirect to="/no-access" />;
     }
 
     return <Redirect to={`/projects/${activeProjectUuid}/home`} />;
