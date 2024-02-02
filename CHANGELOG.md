@@ -1,3 +1,10 @@
+# [0.975.0](https://github.com/lightdash/lightdash/compare/0.974.1...0.975.0) (2024-02-02)
+
+
+### Features
+
+* unify legacy Format with CustomFormat functions ([#8807](https://github.com/lightdash/lightdash/issues/8807)) ([d6b89dd](https://github.com/lightdash/lightdash/commit/d6b89dd376890aeb5e57120e05dc65f3ab66e508))
+
 ## [0.974.1](https://github.com/lightdash/lightdash/compare/0.974.0...0.974.1) (2024-02-02)
 
 
