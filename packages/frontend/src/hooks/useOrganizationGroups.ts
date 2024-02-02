@@ -11,6 +11,7 @@ import {
     useQueryClient,
     UseQueryOptions,
 } from '@tanstack/react-query';
+import Fuse from 'fuse.js';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -24,15 +25,37 @@ const getOrganizationGroupsQuery = async (includeMembers?: number) =>
         body: undefined,
     });
 
-export const useOrganizationGroups = (
-    includeMembers?: number,
-    queryOptions?: UseQueryOptions<GroupWithMembers[], ApiError>,
-) => {
+export const useOrganizationGroups = ({
+    search,
+    includeMembers,
+    queryOptions,
+}: {
+    search?: string;
+    includeMembers?: number;
+    queryOptions?: UseQueryOptions<GroupWithMembers[], ApiError>;
+}) => {
     const setErrorResponse = useQueryError();
     return useQuery<GroupWithMembers[], ApiError>({
         queryKey: ['organization_groups', includeMembers],
         queryFn: () => getOrganizationGroupsQuery(includeMembers),
         onError: (result) => setErrorResponse(result),
+        select: (data) => {
+            if (search) {
+                return new Fuse(Object.values(data), {
+                    keys: [
+                        'name',
+                        'members.firstName',
+                        'members.lastName',
+                        'members.email',
+                    ],
+                    ignoreLocation: true,
+                    threshold: 0.3,
+                })
+                    .search(search)
+                    .map((result) => result.item);
+            }
+            return data;
+        },
         ...queryOptions,
     });
 };

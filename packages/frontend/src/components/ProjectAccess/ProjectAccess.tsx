@@ -44,7 +44,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
         isInitialLoading: isOrganizationUsersLoading,
     } = useOrganizationUsers({ searchInput: search });
 
-    const { data: groups } = useOrganizationGroups(5);
+    const { data: groups } = useOrganizationGroups({ includeMembers: 5 });
 
     const { data: projectAccess, isInitialLoading: isProjectAccessLoading } =
         useProjectAccess(projectUuid);
