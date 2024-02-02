@@ -1,77 +1,55 @@
 import { tableFromJSON, tableToIPC } from 'apache-arrow';
-import duckdb from 'duckdb';
-import { promisify as nodePromisify } from 'util';
+import { Database } from 'duckdb-async';
 import Logger from './logging/logger';
 
 type InMemoryJSONRow = Record<string, unknown>;
 type InMemoryJSONTableMap = Record<string, InMemoryJSONRow[]>;
 
 export interface InMemoryDatabaseProvisioningOptions {
-    tables: InMemoryJSONTableMap;
+    tables?: InMemoryJSONTableMap;
 }
 
 /**
- * Creates a new in-memory DuckDB instance, and exposes the instance itself
- * alongside some convenience wrappers.
+ * Creates, and optionally provisions a new in-memory DuckDB instance.
  *
- * The following is a potential alternative that includes an async version of the client,
- * but for now we're opting for convenience + avoiding version lock from a third-party package:
+ * If table information is provided for provisioning, we use apache-arrow to load
+ * said table information into DuckDB, in the format { tableName: rows[] }
  *
- * https://www.npmjs.com/package/duckdb-async
+ * We use a thin wrapper around DuckDB that exposes its methods as promises.
+ * See: https://www.npmjs.com/package/duckdb-async
  */
-function newMemoryDuckDb() {
-    const db = new duckdb.Database(':memory:');
-
-    const promisify = (method: typeof db[keyof typeof db]) =>
-        nodePromisify(method).bind(db);
-
-    return {
-        db,
-        exec: promisify(db.exec),
-        registerBuffer: promisify(db.register_buffer),
-        all: promisify(db.all),
-    };
-}
-
-/**
- * Creates and prepares a DuckDB context. For now this is a straight-forward setup
- * for in-memory usage + arrow support, but it's a good place to introduce further
- * configuration options down the line if necessary.
- */
-async function getInMemoryDatabaseContext({
+async function createDuckDbDatabase({
     tables,
 }: InMemoryDatabaseProvisioningOptions) {
-    const dbHandle = newMemoryDuckDb();
-    const { exec, registerBuffer } = dbHandle;
+    const db = await Database.create(':memory:');
+    await db.exec('INSTALL arrow; LOAD arrow;');
 
-    await exec('INSTALL arrow; LOAD arrow;');
+    if (tables) {
+        await Promise.all(
+            Object.entries(tables).map(([tableName, rows]) => {
+                const arrowTableIPC = tableToIPC(tableFromJSON(rows));
+                return db.register_buffer(tableName, [arrowTableIPC], true);
+            }),
+        );
 
-    await Promise.all(
-        Object.entries(tables).map(([tableName, rows]) => {
-            const arrowTableIPC = tableToIPC(tableFromJSON(rows));
-            return registerBuffer(tableName, [arrowTableIPC], true);
-        }),
-    );
+        Logger.debug(
+            `Loaded ${Object.keys(tables).length} arrow tables into DuckDB`,
+        );
+    }
 
-    Logger.debug(
-        `Loaded ${Object.keys(tables).length} arrow tables into DuckDB`,
-    );
-
-    return dbHandle;
+    return db;
 }
 
 /**
  * Convenience method that runs a single query against a single-use
- * db instance, and returns the results.
+ * db instance, and returns all results.
  */
-export async function runQueryInMemoryDatabaseContext(
-    args: InMemoryDatabaseProvisioningOptions & {
-        query: string;
-    },
-) {
-    const { query, ...provisioningArgs } = args;
-    const { all } = await getInMemoryDatabaseContext(provisioningArgs);
-    const queryResult = await all(query);
-
-    return queryResult;
+export async function runQueryInMemoryDatabaseContext({
+    tables,
+    query,
+}: InMemoryDatabaseProvisioningOptions & {
+    query: string;
+}) {
+    const db = await createDuckDbDatabase({ tables });
+    return db.all(query);
 }
