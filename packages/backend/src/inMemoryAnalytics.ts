@@ -1,6 +1,7 @@
 import { tableFromJSON, tableToIPC } from 'apache-arrow';
 import { Database } from 'duckdb-async';
 import Logger from './logging/logger';
+import { wrapOtelSpan } from './utils';
 
 type InMemoryJSONRow = Record<string, unknown>;
 type InMemoryJSONTableMap = Record<string, InMemoryJSONRow[]>;
@@ -22,18 +23,28 @@ async function createDuckDbDatabase({
     tables,
 }: InMemoryDatabaseProvisioningOptions) {
     const db = await Database.create(':memory:');
-    await db.exec('INSTALL arrow; LOAD arrow;');
+    await db.exec(`
+        INSTALL arrow;
+        LOAD arrow;
+
+        SET threads TO 1;
+        SET memory_limit = '512MB';
+        SET enable_external_access = false;
+    `);
 
     if (tables) {
-        await Promise.all(
-            Object.entries(tables).map(([tableName, rows]) => {
+        const loadedTableNames = await Promise.all(
+            Object.entries(tables).map(async ([tableName, rows]) => {
+                console.log('ROWS', rows);
                 const arrowTableIPC = tableToIPC(tableFromJSON(rows));
-                return db.register_buffer(tableName, [arrowTableIPC], true);
+                await db.register_buffer(tableName, [arrowTableIPC], true);
+
+                return tableName;
             }),
         );
 
         Logger.debug(
-            `Loaded ${Object.keys(tables).length} arrow tables into DuckDB`,
+            `Loaded ${loadedTableNames.length} arrow tables into DuckDB`,
         );
     }
 
@@ -50,6 +61,17 @@ export async function runQueryInMemoryDatabaseContext({
 }: InMemoryDatabaseProvisioningOptions & {
     query: string;
 }) {
-    const db = await createDuckDbDatabase({ tables });
-    return db.all(query);
+    return wrapOtelSpan(
+        'runQueryInMemoryDatabaseContext',
+        {
+            query,
+            ...(tables ? { tables: Object.keys(tables).join(',') } : {}),
+        },
+        async () => {
+            const db = await createDuckDbDatabase({ tables });
+            const results = await db.all(query);
+
+            return results;
+        },
+    );
 }
