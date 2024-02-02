@@ -233,8 +233,8 @@ const SavedChartsHeader: FC = () => {
         }),
     );
 
-    const userCanManageDeliveries = user.data?.ability?.can(
-        'manage',
+    const userCanCreateDeliveries = user.data?.ability?.can(
+        'create',
         subject('ScheduledDeliveries', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
@@ -384,7 +384,7 @@ const SavedChartsHeader: FC = () => {
                     )}
                 </PageTitleAndDetailsContainer>
 
-                {(userCanManageCharts || userCanManageDeliveries) && (
+                {(userCanManageCharts || userCanCreateDeliveries) && (
                     <PageActionsContainer>
                         {userCanManageCharts && (
                             <>
@@ -636,7 +636,7 @@ const SavedChartsHeader: FC = () => {
                                             </Menu>
                                         </Menu.Item>
                                     )}
-                                {userCanManageDeliveries && (
+                                {userCanCreateDeliveries && (
                                     <Menu.Item
                                         icon={<MantineIcon icon={IconSend} />}
                                         onClick={() =>

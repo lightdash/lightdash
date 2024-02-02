@@ -130,8 +130,8 @@ const DashboardHeader = ({
         'manage',
         'Dashboard',
     );
-    const userCanManageDeliveries = user.data?.ability?.can(
-        'manage',
+    const userCanCreateDeliveries = user.data?.ability?.can(
+        'create',
         subject('ScheduledDeliveries', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
@@ -407,7 +407,7 @@ const DashboardHeader = ({
                                 </>
                             )}
 
-                            {!!userCanManageDeliveries && (
+                            {!!userCanCreateDeliveries && (
                                 <Menu.Item
                                     icon={<MantineIcon icon={IconSend} />}
                                     onClick={() => {

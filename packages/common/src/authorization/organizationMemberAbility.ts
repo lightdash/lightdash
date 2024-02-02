@@ -64,7 +64,7 @@ export const organizationMemberAbilities: Record<
         can('manage', 'Explore', {
             organizationUuid: member.organizationUuid,
         });
-        can('manage', 'ScheduledDeliveries', {
+        can('create', 'ScheduledDeliveries', {
             organizationUuid: member.organizationUuid,
         });
     },
@@ -84,6 +84,9 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('update', 'Project', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'ScheduledDeliveries', {
             organizationUuid: member.organizationUuid,
         });
     },

@@ -105,7 +105,7 @@ export class SavedChartService {
         const { organizationUuid, projectUuid } = savedChart;
         if (
             user.ability.cannot(
-                'manage',
+                'create',
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
