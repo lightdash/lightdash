@@ -120,6 +120,7 @@ export enum CustomFormatType {
     PERCENT = 'percent',
     CURRENCY = 'currency',
     NUMBER = 'number',
+    ID = 'id',
 }
 
 export type TableCalculation = {
@@ -139,7 +140,9 @@ export interface TableCalculationField extends Field {
     sql: string;
 }
 
-export const isTableCalculation = (item: Item): item is TableCalculation =>
+export const isTableCalculation = (
+    item: Item | AdditionalMetric,
+): item is TableCalculation =>
     item
         ? !('binType' in item) &&
           !!item.sql &&

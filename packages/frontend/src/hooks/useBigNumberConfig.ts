@@ -1,13 +1,14 @@
 import {
     ApiQueryResults,
+    applyCustomFormat,
     BigNumber,
     CompactOrAlias,
     ComparisonDiffTypes,
     ComparisonFormatTypes,
-    Format,
-    formatTableCalculationValue,
-    formatValue,
+    CustomFormatType,
+    formatItemValue,
     friendlyName,
+    getCustomFormatFromLegacy,
     getItemId,
     getItemLabel,
     isField,
@@ -54,39 +55,42 @@ const formatComparisonValue = (
     }
     switch (format) {
         case ComparisonFormatTypes.PERCENTAGE:
-            return `${prefix}${formatValue(value, {
-                format: Format.PERCENT,
+            return `${prefix}${applyCustomFormat(value, {
                 round: 0,
+                type: CustomFormatType.PERCENT,
             })}`;
         case ComparisonFormatTypes.RAW:
             if (item !== undefined && isTableCalculation(item)) {
-                return `${prefix}${formatTableCalculationValue(
-                    item.format,
-                    value,
-                )}`;
+                return `${prefix}${formatItemValue(item, value)}`;
             }
-            return `${prefix}${formatValue(value, {
-                format: isField(item) ? item.format : undefined,
-                round: bigNumberComparisonStyle
-                    ? 2
-                    : isField(item)
-                    ? item.round
-                    : undefined,
-                compact: bigNumberComparisonStyle,
-            })}`;
+            return `${prefix}${applyCustomFormat(
+                value,
+                getCustomFormatFromLegacy({
+                    format: isField(item) ? item.format : undefined,
+                    round: bigNumberComparisonStyle
+                        ? 2
+                        : isField(item)
+                        ? item.round
+                        : undefined,
+                    compact: bigNumberComparisonStyle,
+                }),
+            )}`;
         default:
             if (item !== undefined && isTableCalculation(item)) {
-                return formatTableCalculationValue(item.format, value);
+                return formatItemValue(item, value);
             }
-            return formatValue(value, {
-                format: isField(item) ? item.format : undefined,
-                round: bigNumberComparisonStyle
-                    ? 2
-                    : isField(item)
-                    ? item.round
-                    : undefined,
-                compact: bigNumberComparisonStyle,
-            });
+            return applyCustomFormat(
+                value,
+                getCustomFormatFromLegacy({
+                    format: isField(item) ? item.format : undefined,
+                    round: bigNumberComparisonStyle
+                        ? 2
+                        : isField(item)
+                        ? item.round
+                        : undefined,
+                    compact: bigNumberComparisonStyle,
+                }),
+            );
     }
 };
 
@@ -224,17 +228,20 @@ const useBigNumberConfig = (
                 resultsData?.rows?.[0]?.[selectedField]?.value.formatted
             );
         } else if (item !== undefined && isTableCalculation(item)) {
-            return formatTableCalculationValue(item.format, firstRowValueRaw);
+            return formatItemValue(item, firstRowValueRaw);
         } else {
-            return formatValue(firstRowValueRaw, {
-                format: isField(item) ? item.format : undefined,
-                round: bigNumberStyle
-                    ? 2
-                    : isField(item)
-                    ? item.round
-                    : undefined,
-                compact: bigNumberStyle,
-            });
+            return applyCustomFormat(
+                firstRowValueRaw,
+                getCustomFormatFromLegacy({
+                    format: isField(item) ? item.format : undefined,
+                    round: bigNumberStyle
+                        ? 2
+                        : isField(item)
+                        ? item.round
+                        : undefined,
+                    compact: bigNumberStyle,
+                }),
+            );
         }
     }, [item, firstRowValueRaw, selectedField, bigNumberStyle, resultsData]);
 

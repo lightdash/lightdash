@@ -1,10 +1,10 @@
 import {
+    applyCustomFormat,
     Compact,
     CompactConfigMap,
     currencies,
     CustomFormat,
     CustomFormatType,
-    formatTableCalculationValue,
     NumberSeparator,
 } from '@lightdash/common';
 import {
@@ -95,11 +95,11 @@ export const FormatForm: FC<Props> = ({
                 {formatType !== CustomFormatType.DEFAULT && (
                     <Text ml="md" mt={30} color="gray.6">
                         {'Looks like: '}
-                        {formatTableCalculationValue(
-                            format,
+                        {applyCustomFormat(
                             CustomFormatType.PERCENT === formatType
                                 ? '0.75'
                                 : '1234.56',
+                            format,
                         )}
                     </Text>
                 )}

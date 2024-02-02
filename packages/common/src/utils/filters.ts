@@ -129,6 +129,7 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
         case MetricType.BOOLEAN:
             return FilterType.BOOLEAN;
         case CustomFormatType.DEFAULT:
+        case CustomFormatType.ID:
             return FilterType.STRING;
         case CustomFormatType.CURRENCY:
         case CustomFormatType.PERCENT:

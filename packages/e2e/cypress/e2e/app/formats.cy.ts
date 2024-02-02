@@ -98,7 +98,7 @@ describe('Explore', () => {
             '£1,999,000',
             '1,999,000 km',
             '1,999,000 mi',
-            '199900000%',
+            '199,900,000%',
         ];
         body.forEach((field, i) => {
             cy.get(`tbody > tr > :nth-child(${i + 2})`).contains(field);
