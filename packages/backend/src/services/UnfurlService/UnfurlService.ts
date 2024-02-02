@@ -351,9 +351,9 @@ export class UnfurlService {
         const startTime = Date.now();
         let hasError = false;
 
-        const isPuppeteerSetViewportDinamicallyEnabled =
+        const isPuppeteerSetViewportDynamicallyEnabled =
             (await postHogClient?.isFeatureEnabled(
-                'puppeteer-set-viewport-dinamically',
+                'puppeteer-set-viewport-dynamically',
                 userUuid,
                 organizationUuid !== undefined
                     ? {
@@ -495,7 +495,7 @@ export class UnfurlService {
                             ? `[data-testid="visualization"]`
                             : 'body';
                     if (
-                        isPuppeteerSetViewportDinamicallyEnabled &&
+                        isPuppeteerSetViewportDynamicallyEnabled &&
                         lightdashPage === LightdashPage.DASHBOARD
                     ) {
                         selector = '.react-grid-layout';
@@ -506,7 +506,7 @@ export class UnfurlService {
                     });
 
                     if (
-                        isPuppeteerSetViewportDinamicallyEnabled &&
+                        isPuppeteerSetViewportDynamicallyEnabled &&
                         lightdashPage === LightdashPage.DASHBOARD
                     ) {
                         const fullPage = await page.$('.react-grid-layout');
