@@ -25,7 +25,7 @@ export interface InMemoryDatabaseProvisioningOptions {
  * via a schema or other type inference override, but that would likely
  * be the best approach, if possible.
  */
-function castValueToType(value: unknown, fieldType: DimensionType) {
+export const castValueToType = (value: unknown, fieldType: DimensionType) => {
     if (value === null) {
         return null;
     }
@@ -50,7 +50,7 @@ function castValueToType(value: unknown, fieldType: DimensionType) {
         default:
             throw new Error(`Unable to cast value to type ${fieldType}`);
     }
-}
+};
 
 /**
  * Creates, and optionally provisions a new in-memory DuckDB instance.
@@ -61,9 +61,9 @@ function castValueToType(value: unknown, fieldType: DimensionType) {
  * We use a thin wrapper around DuckDB that exposes its methods as promises.
  * See: https://www.npmjs.com/package/duckdb-async
  */
-async function createDuckDbDatabase({
+export const createDuckDbDatabase = async ({
     tables,
-}: InMemoryDatabaseProvisioningOptions) {
+}: InMemoryDatabaseProvisioningOptions) => {
     const db = await Database.create(':memory:');
     await db.exec(`
         INSTALL arrow;
@@ -105,19 +105,19 @@ async function createDuckDbDatabase({
     }
 
     return db;
-}
+};
 
 /**
  * Convenience method that runs a single query against a single-use
  * db instance, and returns all results.
  */
-export async function runQueryInMemoryDatabaseContext({
+export const runQueryInMemoryDatabaseContext = async ({
     tables,
     query,
 }: InMemoryDatabaseProvisioningOptions & {
     query: string;
-}) {
-    return wrapOtelSpan(
+}) =>
+    wrapOtelSpan(
         'runQueryInMemoryDatabaseContext',
         {
             query,
@@ -128,4 +128,3 @@ export async function runQueryInMemoryDatabaseContext({
             return db.all(query);
         },
     );
-}
