@@ -526,6 +526,16 @@ describe('Formatting', () => {
 
                 expect(
                     applyCustomFormat(
+                        4000,
+                        getCustomFormatFromLegacy({
+                            compact: K,
+                            format: Format.USD,
+                        }),
+                    ),
+                ).toEqual('$4.00K');
+
+                expect(
+                    applyCustomFormat(
                         5000000,
                         getCustomFormatFromLegacy({
                             compact: M,
