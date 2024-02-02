@@ -80,6 +80,31 @@ export class SavedChartService {
         const { organizationUuid, projectUuid } = savedChart;
         if (
             user.ability.cannot(
+                'update',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (!(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+        return savedChart;
+    }
+
+    private async checkCreateScheduledDeliveryAccess(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<ChartSummary> {
+        const savedChart = await this.savedChartModel.getSummary(chartUuid);
+        const { organizationUuid, projectUuid } = savedChart;
+        if (
+            user.ability.cannot(
                 'manage',
                 subject('ScheduledDeliveries', {
                     organizationUuid,
@@ -622,7 +647,7 @@ export class SavedChartService {
         user: SessionUser,
         chartUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        await this.checkUpdateAccess(user, chartUuid);
+        await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
         return this.schedulerModel.getChartSchedulers(chartUuid);
     }
 
@@ -634,10 +659,8 @@ export class SavedChartService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { projectUuid, organizationUuid } = await this.checkUpdateAccess(
-            user,
-            chartUuid,
-        );
+        const { projectUuid, organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,

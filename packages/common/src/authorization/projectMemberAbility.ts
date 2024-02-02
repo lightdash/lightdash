@@ -42,7 +42,7 @@ export const projectMemberAbilities: Record<
         can('manage', 'ChangeCsvResults', {
             projectUuid: member.projectUuid,
         });
-        can('manage', 'ScheduledDeliveries', {
+        can('create', 'ScheduledDeliveries', {
             projectUuid: member.projectUuid,
         });
     },
@@ -62,6 +62,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('update', 'Project', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'ScheduledDeliveries', {
             projectUuid: member.projectUuid,
         });
     },
