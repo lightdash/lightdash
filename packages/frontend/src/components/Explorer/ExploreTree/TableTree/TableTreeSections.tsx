@@ -5,8 +5,10 @@ import {
     getCustomDimensionId,
     getItemId,
 } from '@lightdash/common';
-import { Center, Group, Text } from '@mantine/core';
+import { Center, Group, Text, Tooltip } from '@mantine/core';
+import { IconAlertTriangle } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
+import MantineIcon from '../../../common/MantineIcon';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
 import TreeRoot from './Tree/TreeRoot';
@@ -19,6 +21,8 @@ type Props = {
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
     missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
+    missingFields?: string[];
+    selectedDimensions?: string[];
 };
 const TableTreeSections: FC<Props> = ({
     searchQuery,
@@ -27,6 +31,8 @@ const TableTreeSections: FC<Props> = ({
     customDimensions,
     selectedItems,
     missingCustomMetrics,
+    missingFields,
+    selectedDimensions,
     onSelectedNodeChange,
 }) => {
     const dimensions = useMemo(() => {
@@ -71,6 +77,50 @@ const TableTreeSections: FC<Props> = ({
 
     return (
         <>
+            {missingFields && missingFields.length > 0 && (
+                <>
+                    {' '}
+                    <Group mt="sm" mb="xs">
+                        <Text fw={600} color="gray.6">
+                            Missing fields
+                        </Text>
+                    </Group>
+                    {missingFields.map((missingField) => {
+                        return (
+                            <Tooltip
+                                key={missingField}
+                                withinPortal
+                                sx={{ whiteSpace: 'normal' }}
+                                label={`Field ${missingField} not found on this chart. Click here to remove it.`}
+                                position="bottom-start"
+                                maw={700}
+                            >
+                                <Group
+                                    onClick={() => {
+                                        const isDimension =
+                                            !!selectedDimensions?.includes(
+                                                missingField,
+                                            );
+                                        onSelectedNodeChange(
+                                            missingField,
+                                            isDimension,
+                                        );
+                                    }}
+                                    ml={12}
+                                    sx={{ cursor: 'pointer' }}
+                                >
+                                    <MantineIcon
+                                        icon={IconAlertTriangle}
+                                        color="yellow.9"
+                                        style={{ flexShrink: 0 }}
+                                    />
+                                    <Text>{missingField}</Text>
+                                </Group>
+                            </Tooltip>
+                        );
+                    })}
+                </>
+            )}
             {isSearching &&
             getSearchResults(dimensions, searchQuery).size === 0 ? null : (
                 <Group mt="sm" mb="xs">
