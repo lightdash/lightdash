@@ -1,3 +1,10 @@
+## [0.975.1](https://github.com/lightdash/lightdash/compare/0.975.0...0.975.1) (2024-02-02)
+
+
+### Bug Fixes
+
+* missing metrics and dimensions on charts ([#8823](https://github.com/lightdash/lightdash/issues/8823)) ([59491f6](https://github.com/lightdash/lightdash/commit/59491f69b396f9fc2e20327d0e303b64da4997cc))
+
 # [0.975.0](https://github.com/lightdash/lightdash/compare/0.974.1...0.975.0) (2024-02-02)
 
 
