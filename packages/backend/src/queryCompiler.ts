@@ -8,7 +8,6 @@ import {
     convertFieldRefToFieldId,
     Explore,
     ExploreCompiler,
-    FieldId,
     lightdashVariablePattern,
     MetricQuery,
     TableCalculation,
