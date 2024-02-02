@@ -1,3 +1,10 @@
+# [0.976.0](https://github.com/lightdash/lightdash/compare/0.975.1...0.976.0) (2024-02-02)
+
+
+### Features
+
+* add scheduled delivieres interactive users ([#8810](https://github.com/lightdash/lightdash/issues/8810)) ([37f72fa](https://github.com/lightdash/lightdash/commit/37f72faec673128a5ad88897dc95afc88efe8b13))
+
 ## [0.975.1](https://github.com/lightdash/lightdash/compare/0.975.0...0.975.1) (2024-02-02)
 
 
