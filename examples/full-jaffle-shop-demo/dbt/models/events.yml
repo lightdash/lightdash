@@ -48,7 +48,15 @@ models:
             urls:
               - label: Open in Google Calendar
                 url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
-
+      - name: event
+        description: ""
+        meta:
+          dimension:
+            type: string
+            group_label: 'Events'
+          metrics:
+            count:
+              type: count
       - name: event_id
         description: ""
         meta:
@@ -119,3 +127,4 @@ models:
               filters:
               - event_id: "!null"
               - event_id: ">5"
+              - event: "song_played"
