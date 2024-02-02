@@ -1,3 +1,10 @@
+## [0.974.1](https://github.com/lightdash/lightdash/compare/0.974.0...0.974.1) (2024-02-02)
+
+
+### Bug Fixes
+
+* dont show duplicate error when running a query ([#8826](https://github.com/lightdash/lightdash/issues/8826)) ([c5c1cd3](https://github.com/lightdash/lightdash/commit/c5c1cd3030ad81b470d649671f2371bd2def3379))
+
 # [0.974.0](https://github.com/lightdash/lightdash/compare/0.973.4...0.974.0) (2024-02-01)
 
 
