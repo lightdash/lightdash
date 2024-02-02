@@ -22,10 +22,10 @@ import { FC } from 'react';
 import { useToggle } from 'react-use';
 import { ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { FormatForm } from '../../../components/Explorer/FormatForm';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { getUniqueTableCalculationName } from '../utils';
-import { FormatForm } from './FormatForm';
 import { SqlForm } from './SqlForm';
 
 type Props = ModalProps & {

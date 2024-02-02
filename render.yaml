@@ -56,3 +56,5 @@ services:
           property: host
       - key: GROUPS_ENABLED
         value: true
+      - key: EXTENDED_USAGE_ANALYTICS
+        value: true

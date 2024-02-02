@@ -9,13 +9,13 @@ import EChartsReact from 'echarts-for-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 
-import posthog from 'posthog-js';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
+import useHealth from '../hooks/health/useHealth';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 
@@ -177,6 +177,7 @@ const UserActivity: FC = () => {
     const params = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(params.projectUuid);
     const { user: sessionUser } = useApp();
+    const { data: health } = useHealth();
 
     const { data, isInitialLoading } = useUserActivity(params.projectUuid);
     if (sessionUser.data?.ability?.cannot('view', 'Analytics')) {
@@ -361,7 +362,7 @@ const UserActivity: FC = () => {
                     </Table>
                 </VisualizationCard>
 
-                {posthog.isFeatureEnabled('extended-usage-analytics') ? (
+                {health?.hasExtendedUsageAnalytics ? (
                     <>
                         <VisualizationCard
                             grid="table-dashboard-views"

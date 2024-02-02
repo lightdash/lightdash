@@ -156,6 +156,11 @@ models:
               round: 2
               filters:
                 - is_completed: "true"
+            total_completed_order_amount_eur:
+              type: sum
+              format: eur
+              filters:
+                - is_completed: "true"
             total_non_completed_order_amount:
               type: number
               format: usd

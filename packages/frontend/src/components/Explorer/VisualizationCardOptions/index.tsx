@@ -29,7 +29,7 @@ import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/Vis
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
-import { isCustomVisualizationConfig } from '../../LightdashVisualization/VisualizationCustomConfigProps';
+import { isCustomVisualizationConfig } from '../../LightdashVisualization/VisualizationCustomConfig';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = memo(() => {

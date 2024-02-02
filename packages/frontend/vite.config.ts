@@ -36,8 +36,8 @@ export default defineConfig({
                         'react-router-dom',
                         'react-hook-form',
                         'react-use',
-                        'react-beautiful-dnd',
                         'react-draggable',
+                        '@hello-pangea/dnd',
                         '@tanstack/react-query',
                         '@tanstack/react-table',
                         '@tanstack/react-virtual',
@@ -82,6 +82,7 @@ export default defineConfig({
         },
     },
     test: {
+        globals: true,
         environment: 'jsdom',
         setupFiles: './src/testing/vitest.setup.ts',
     },

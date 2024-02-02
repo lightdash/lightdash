@@ -17,7 +17,6 @@ import {
 } from '../../../hooks/useEmailVerification';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import { useApp } from '../../../providers/AppProvider';
-import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import MantineIcon from '../../common/MantineIcon';
 
 const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
@@ -31,7 +30,6 @@ const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
     const { user, health } = useApp();
     const { showToastSuccess, showToastError } = useToaster();
-    const { appendError } = useErrorLogs();
 
     const isEmailServerConfigured = health.data?.hasEmailClient;
     const { data, isInitialLoading: statusLoading } = useEmailStatus();
@@ -68,12 +66,12 @@ const ProfilePanel: FC = () => {
         onError: useCallback(
             (error: ApiError) => {
                 const [title, ...rest] = error.error.message.split('\n');
-                appendError({
+                showToastError({
                     title,
-                    body: rest.join('\n'),
+                    subtitle: rest.join('\n'),
                 });
             },
-            [appendError],
+            [showToastError],
         ),
     });
 

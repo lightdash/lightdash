@@ -1,4 +1,4 @@
-import type { AdditionalMetric } from '..';
+import type { AdditionalMetric, currencies } from '..';
 import { CompileError } from './errors';
 import { MetricFilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
@@ -107,12 +107,12 @@ export type Item = ItemsMap[string];
 
 export interface CustomFormat {
     type: CustomFormatType;
-    round?: number;
+    round?: number | undefined;
     separator?: NumberSeparator;
-    currency?: string;
-    compact?: CompactOrAlias;
-    prefix?: string;
-    suffix?: string;
+    currency?: typeof currencies[number] | undefined;
+    compact?: CompactOrAlias | undefined;
+    prefix?: string | undefined;
+    suffix?: string | undefined;
 }
 
 export enum CustomFormatType {
@@ -120,6 +120,7 @@ export enum CustomFormatType {
     PERCENT = 'percent',
     CURRENCY = 'currency',
     NUMBER = 'number',
+    ID = 'id',
 }
 
 export type TableCalculation = {
@@ -139,7 +140,9 @@ export interface TableCalculationField extends Field {
     sql: string;
 }
 
-export const isTableCalculation = (item: Item): item is TableCalculation =>
+export const isTableCalculation = (
+    item: Item | AdditionalMetric,
+): item is TableCalculation =>
     item
         ? !('binType' in item) &&
           !!item.sql &&

@@ -1,12 +1,12 @@
 import { ApiError } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { useErrorLogs } from '../providers/ErrorLogsProvider';
+import useToaster from './toaster/useToaster';
 
 const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
-    const { appendError } = useErrorLogs();
+    const { showToastError } = useToaster();
     useEffect(() => {
         (async function doIfError() {
             const { error } = errorResponse || {};
@@ -22,11 +22,11 @@ const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
                 } else {
                     const { message } = error;
                     const [first, ...rest] = message.split('\n');
-                    appendError({ title: first, body: rest.join('\n') });
+                    showToastError({ title: first, subtitle: rest.join('\n') });
                 }
             }
         })();
-    }, [errorResponse, queryClient, appendError]);
+    }, [errorResponse, queryClient, showToastError]);
     return setErrorResponse;
 };
 

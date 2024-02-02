@@ -126,6 +126,9 @@ export const lightdashConfigMock: LightdashConfig = {
     groups: {
         enabled: false,
     },
+    extendedUsageAnalytics: {
+        enabled: false,
+    },
 };
 
 type VersionSummaryRow = {

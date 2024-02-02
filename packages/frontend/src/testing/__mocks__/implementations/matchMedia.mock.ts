@@ -1,17 +1,18 @@
 import { vi } from 'vitest';
 
 function mockMatchMedia() {
-    window.matchMedia = vi.fn().mockImplementation((query) => {
-        return {
+    Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation((query) => ({
             matches: false,
             media: query,
             onchange: null,
-            addListener: vi.fn(), // Deprecated but included for completeness
-            removeListener: vi.fn(), // Deprecated but included for completeness
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
             addEventListener: vi.fn(),
             removeEventListener: vi.fn(),
             dispatchEvent: vi.fn(),
-        };
+        })),
     });
 }
 

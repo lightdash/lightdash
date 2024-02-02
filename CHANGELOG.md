@@ -1,3 +1,88 @@
+# [0.975.0](https://github.com/lightdash/lightdash/compare/0.974.1...0.975.0) (2024-02-02)
+
+
+### Features
+
+* unify legacy Format with CustomFormat functions ([#8807](https://github.com/lightdash/lightdash/issues/8807)) ([d6b89dd](https://github.com/lightdash/lightdash/commit/d6b89dd376890aeb5e57120e05dc65f3ab66e508))
+
+## [0.974.1](https://github.com/lightdash/lightdash/compare/0.974.0...0.974.1) (2024-02-02)
+
+
+### Bug Fixes
+
+* dont show duplicate error when running a query ([#8826](https://github.com/lightdash/lightdash/issues/8826)) ([c5c1cd3](https://github.com/lightdash/lightdash/commit/c5c1cd3030ad81b470d649671f2371bd2def3379))
+
+# [0.974.0](https://github.com/lightdash/lightdash/compare/0.973.4...0.974.0) (2024-02-01)
+
+
+### Features
+
+* save custom visualizations ([#8776](https://github.com/lightdash/lightdash/issues/8776)) ([63ce828](https://github.com/lightdash/lightdash/commit/63ce82879e5a806ce7b8cef36d1d9c0b7afc816f))
+
+## [0.973.4](https://github.com/lightdash/lightdash/compare/0.973.3...0.973.4) (2024-02-01)
+
+
+### Bug Fixes
+
+* dropColumn format_options on down ([#8829](https://github.com/lightdash/lightdash/issues/8829)) ([091ad09](https://github.com/lightdash/lightdash/commit/091ad09922c9e93e5f367c4fedb0a1436e4c8e9c))
+
+## [0.973.3](https://github.com/lightdash/lightdash/compare/0.973.2...0.973.3) (2024-02-01)
+
+
+### Bug Fixes
+
+* replace react-beautiful-dnd with @hello-pangea/dnd ([#8828](https://github.com/lightdash/lightdash/issues/8828)) ([db419b9](https://github.com/lightdash/lightdash/commit/db419b91f9dcb053d2cc97c9f2879d6d7107983a))
+
+## [0.973.2](https://github.com/lightdash/lightdash/compare/0.973.1...0.973.2) (2024-02-01)
+
+
+### Bug Fixes
+
+* extended usage analytics env variable ([#8774](https://github.com/lightdash/lightdash/issues/8774)) ([9b20da6](https://github.com/lightdash/lightdash/commit/9b20da6d6989d9ce663658f2924f46b6f4d220b5))
+
+## [0.973.1](https://github.com/lightdash/lightdash/compare/0.973.0...0.973.1) (2024-02-01)
+
+
+### Bug Fixes
+
+* required attributes json schema ([#8812](https://github.com/lightdash/lightdash/issues/8812)) ([39e3c48](https://github.com/lightdash/lightdash/commit/39e3c48bc3b8255d1d66d1d5ba0eaedd80ed0ba2))
+
+# [0.973.0](https://github.com/lightdash/lightdash/compare/0.972.2...0.973.0) (2024-02-01)
+
+
+### Features
+
+* remove flag check for custom metrics formatting ([#8798](https://github.com/lightdash/lightdash/issues/8798)) ([ba8b8ca](https://github.com/lightdash/lightdash/commit/ba8b8ca1f29612471690dae4f1e665e8bb3a7c8f))
+
+## [0.972.2](https://github.com/lightdash/lightdash/compare/0.972.1...0.972.2) (2024-01-31)
+
+
+### Bug Fixes
+
+* filter configuration apply tooltip ([#8804](https://github.com/lightdash/lightdash/issues/8804)) ([a6b54ea](https://github.com/lightdash/lightdash/commit/a6b54ea7910841180b60fe01a5b689851361466e))
+
+## [0.972.1](https://github.com/lightdash/lightdash/compare/0.972.0...0.972.1) (2024-01-31)
+
+
+### Bug Fixes
+
+* search admin access ([#8784](https://github.com/lightdash/lightdash/issues/8784)) ([04e13f9](https://github.com/lightdash/lightdash/commit/04e13f90ae14a5272147079b0a2d66ca92e8e305))
+
+# [0.972.0](https://github.com/lightdash/lightdash/compare/0.971.0...0.972.0) (2024-01-31)
+
+
+### Features
+
+* Add additional attribute for # of table calculations in `ProjectService.runMetricQuery` trace ([#8780](https://github.com/lightdash/lightdash/issues/8780)) ([08bab43](https://github.com/lightdash/lightdash/commit/08bab43c1429a2067b27e501b96f5ef95690f11d))
+* Support soft-wrapping in SqlEditor for table calculations ([#8771](https://github.com/lightdash/lightdash/issues/8771)) ([db05740](https://github.com/lightdash/lightdash/commit/db05740383e2af5eb09de88e31188e92009ba175))
+
+# [0.971.0](https://github.com/lightdash/lightdash/compare/0.970.0...0.971.0) (2024-01-31)
+
+
+### Features
+
+* finalise editing of custom metric format ([#8777](https://github.com/lightdash/lightdash/issues/8777)) ([c54c701](https://github.com/lightdash/lightdash/commit/c54c7016440215147b80f5d2717fa1fbac8f908a))
+
 # [0.970.0](https://github.com/lightdash/lightdash/compare/0.969.0...0.970.0) (2024-01-30)
 
 

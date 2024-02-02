@@ -37,13 +37,13 @@ import VisualizationTableConfig, {
     VisualizationConfigTable,
 } from './VisualizationConfigTable';
 import VisualizationCustomConfig, {
-    VisualizationConfigCustom,
-} from './VisualizationCustomConfigProps';
+    VisualizationCustomConfigType,
+} from './VisualizationCustomConfig';
 
 export type VisualizationConfig =
     | VisualizationConfigBigNumber
     | VisualizationConfigCartesian
-    | VisualizationConfigCustom
+    | VisualizationCustomConfigType
     | VisualizationConfigPie
     | VisualizationConfigTable;
 
@@ -302,6 +302,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
             return (
                 <VisualizationCustomConfig
                     resultsData={lastValidResultsData}
+                    itemsMap={itemsMap}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                 >

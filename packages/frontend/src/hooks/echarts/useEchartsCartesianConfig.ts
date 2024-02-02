@@ -1,13 +1,13 @@
 import {
     ApiQueryResults,
+    applyCustomFormat,
     CartesianChart,
     CartesianSeriesType,
     DimensionType,
     formatItemValue,
-    formatTableCalculationValue,
-    formatValue,
     friendlyName,
     getAxisName,
+    getCustomFormatFromLegacy,
     getDateGroupLabel,
     getDefaultSeriesColor,
     getItemLabelWithoutTableName,
@@ -601,16 +601,19 @@ const getPivotSeries = ({
                                 return value;
                             }
                             if (isTableCalculation(field)) {
-                                return formatTableCalculationValue(
-                                    field.format,
+                                return formatItemValue(
+                                    field,
                                     value?.value?.[yFieldHash],
                                 );
                             } else {
-                                return formatValue(value?.value?.[yFieldHash], {
-                                    format: field.format,
-                                    round: field.round,
-                                    compact: field.compact,
-                                });
+                                return applyCustomFormat(
+                                    value?.value?.[yFieldHash],
+                                    getCustomFormatFromLegacy({
+                                        format: field.format,
+                                        round: field.round,
+                                        compact: field.compact,
+                                    }),
+                                );
                             }
                         },
                     }),
@@ -676,16 +679,19 @@ const getSimpleSeries = ({
                             return value;
                         }
                         if (isTableCalculation(field)) {
-                            return formatTableCalculationValue(
-                                field.format,
+                            return formatItemValue(
+                                field,
                                 value?.value?.[yFieldHash],
                             );
                         } else {
-                            return formatValue(value?.value?.[yFieldHash], {
-                                format: field.format,
-                                round: field.round,
-                                compact: field.compact,
-                            });
+                            return applyCustomFormat(
+                                value?.value?.[yFieldHash],
+                                getCustomFormatFromLegacy({
+                                    format: field.format,
+                                    round: field.round,
+                                    compact: field.compact,
+                                }),
+                            );
                         }
                     },
                 }),
@@ -872,16 +878,13 @@ const getEchartAxes = ({
         } else if (axisItem !== undefined && isTableCalculation(axisItem)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
-                    return formatTableCalculationValue(axisItem.format, value);
+                    return formatItemValue(axisItem, value);
                 },
             };
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatTableCalculationValue(
-                            axisItem.format,
-                            value.value,
-                        );
+                        return formatItemValue(axisItem, value.value);
                     },
                 },
             };
@@ -1571,8 +1574,8 @@ const useEchartsCartesianConfig = (
                 if (dimensionId !== undefined) {
                     const field = itemsMap[dimensionId];
                     if (isTableCalculation(field)) {
-                        const tooltipHeader = formatTableCalculationValue(
-                            field.format,
+                        const tooltipHeader = formatItemValue(
+                            field,
                             params[0].axisValueLabel,
                         );
 

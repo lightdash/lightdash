@@ -646,7 +646,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CustomFormatType: {
         dataType: 'refEnum',
-        enums: ['default', 'percent', 'currency', 'number'],
+        enums: ['default', 'percent', 'currency', 'number', 'id'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     NumberSeparator: {
@@ -693,12 +693,30 @@ const models: TsoaRoute.Models = {
         dataType: 'refObject',
         properties: {
             type: { ref: 'CustomFormatType', required: true },
-            round: { dataType: 'double' },
+            round: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'double' }, { dataType: 'undefined' }],
+            },
             separator: { ref: 'NumberSeparator' },
-            currency: { dataType: 'string' },
-            compact: { ref: 'CompactOrAlias' },
-            prefix: { dataType: 'string' },
-            suffix: { dataType: 'string' },
+            currency: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            compact: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'CompactOrAlias' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            prefix: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            suffix: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
         },
         additionalProperties: false,
     },
@@ -3589,7 +3607,7 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { code: { dataType: 'string' } },
+            nestedProperties: { spec: { dataType: 'object' } },
             validators: {},
         },
     },
