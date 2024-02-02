@@ -140,7 +140,9 @@ export interface TableCalculationField extends Field {
     sql: string;
 }
 
-export const isTableCalculation = (item: any): item is TableCalculation =>
+export const isTableCalculation = (
+    item: Item | AdditionalMetric,
+): item is TableCalculation =>
     item
         ? !('binType' in item) &&
           !!item.sql &&
