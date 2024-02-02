@@ -1,0 +1,49 @@
+import { IconReload } from '@tabler/icons-react';
+import { FC, useEffect, useState } from 'react';
+import { useRouteMatch } from 'react-router-dom';
+import useHealth from '../../hooks/health/useHealth';
+import useToaster from '../../hooks/toaster/useToaster';
+
+const routesThatCantBeAutoRefreshed = [
+    '/projects/:projectUuid/tables/:tableId',
+    '/projects/:projectUuid/saved/:savedQueryUuid/edit',
+    '/projects/:projectUuid/dashboards/:dashboardUuid/edit',
+    '/projects/:projectUuid/sqlRunner',
+];
+const VersionAutoUpdater: FC = () => {
+    const [version, setVersion] = useState<string>();
+    const { showToastInfo } = useToaster();
+    const { data: healthData } = useHealth({
+        refetchInterval: 600000, // 10 minutes in milliseconds
+    });
+    const isRouteThatCantBeAutoRefreshed = useRouteMatch({
+        path: routesThatCantBeAutoRefreshed,
+    });
+
+    useEffect(() => {
+        if (healthData) {
+            if (!version) {
+                setVersion(healthData.version);
+            } else if (version !== healthData.version) {
+                if (isRouteThatCantBeAutoRefreshed) {
+                    showToastInfo({
+                        key: 'new-version-available',
+                        autoClose: false,
+                        title: 'New version available',
+                        subtitle: 'A new version is ready for you to use.',
+                        action: {
+                            children: 'Use new version',
+                            icon: IconReload,
+                            onClick: () => window.location.reload(),
+                        },
+                    });
+                } else {
+                    window.location.reload();
+                }
+            }
+        }
+    }, [version, isRouteThatCantBeAutoRefreshed, healthData, showToastInfo]);
+
+    return null;
+};
+export default VersionAutoUpdater;

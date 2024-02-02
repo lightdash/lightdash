@@ -3,6 +3,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Helmet } from 'react-helmet';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AbilityContext } from './components/common/Authorization';
+import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
 import MobileRoutes from './MobileRoutes';
 import { ActiveJobProvider } from './providers/ActiveJobProvider';
 import { AppProvider } from './providers/AppProvider';
@@ -34,6 +35,7 @@ const App = () => (
             <MantineProvider>
                 <AppProvider>
                     <Router>
+                        <VersionAutoUpdater />
                         <ThirdPartyProvider
                             enabled={isMobile || !isMinimalPage}
                         >
