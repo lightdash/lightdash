@@ -35,7 +35,6 @@ async function createDuckDbDatabase({
     if (tables) {
         const loadedTableNames = await Promise.all(
             Object.entries(tables).map(async ([tableName, rows]) => {
-                console.log('ROWS', rows);
                 const arrowTableIPC = tableToIPC(tableFromJSON(rows));
                 await db.register_buffer(tableName, [arrowTableIPC], true);
 
