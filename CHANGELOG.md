@@ -1,3 +1,10 @@
+## [0.976.1](https://github.com/lightdash/lightdash/compare/0.976.0...0.976.1) (2024-02-02)
+
+
+### Bug Fixes
+
+* no project access redirect ([#8843](https://github.com/lightdash/lightdash/issues/8843)) ([41beb5a](https://github.com/lightdash/lightdash/commit/41beb5ae6d91af50c91c2e7b3c0e9ea5389397eb))
+
 # [0.976.0](https://github.com/lightdash/lightdash/compare/0.975.1...0.976.0) (2024-02-02)
 
 
