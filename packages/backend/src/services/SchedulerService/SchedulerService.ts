@@ -83,26 +83,35 @@ export class SchedulerService {
         user: SessionUser,
         schedulerUuid: string,
     ): Promise<{ scheduler: Scheduler; resource: ChartSummary | Dashboard }> {
+        // editors can "manage" scheduled deliveries,
+        // which means they can edit scheduled deliveries created from other users, even admins
+        // however, interactive users can only "create" scheduled deliveries,
+        // which means they can only edit their own scheduled deliveries
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;
-        if (
-            isChartScheduler(scheduler) &&
-            user.ability.cannot(
-                'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        } else if (
-            user.ability.cannot(
-                'update',
-                subject('Dashboard', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
+
+        const canManageDeliveries = user.ability.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+        const canCreateDeliveries = user.ability.can(
+            'create',
+            subject('ScheduledDeliveries', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+        const isDeliveryOwner = scheduler.createdBy === user.userUuid;
+
+        if (canManageDeliveries || (canCreateDeliveries && isDeliveryOwner)) {
+            return { scheduler, resource };
         }
-        return { scheduler, resource };
+
+        throw new ForbiddenError();
     }
 
     private async checkViewResource(

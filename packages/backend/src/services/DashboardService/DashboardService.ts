@@ -596,7 +596,7 @@ export class DashboardService {
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        await this.checkUpdateAccess(user, dashboardUuid);
+        await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);
         return this.schedulerModel.getDashboardSchedulers(dashboardUuid);
     }
 
@@ -608,10 +608,8 @@ export class DashboardService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { projectUuid, organizationUuid } = await this.checkUpdateAccess(
-            user,
-            dashboardUuid,
-        );
+        const { projectUuid, organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
@@ -657,7 +655,7 @@ export class DashboardService {
         return scheduler;
     }
 
-    private async checkUpdateAccess(
+    private async checkCreateScheduledDeliveryAccess(
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {
@@ -665,8 +663,11 @@ export class DashboardService {
         const { organizationUuid, projectUuid } = dashboard;
         if (
             user.ability.cannot(
-                'update',
-                subject('Dashboard', { organizationUuid, projectUuid }),
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
