@@ -1660,20 +1660,23 @@ export class ProjectService {
                  * database, essentially generating a new result set based on the upstream
                  * warehouse results.
                  */
-                const warehouseRowsWithTableCalculations =
+                const warehouseResultsWithTableCalculations =
                     tableCalculationsSubQuery
-                        ? await runQueryInMemoryDatabaseContext({
-                              query: tableCalculationsSubQuery.query,
-                              tables: {
-                                  _: warehouseResults.rows,
-                              },
-                          })
-                        : warehouseResults.rows;
+                        ? {
+                              rows: await runQueryInMemoryDatabaseContext({
+                                  query: tableCalculationsSubQuery.query,
+                                  tables: {
+                                      _: warehouseResults,
+                                  },
+                              }),
+                              fields: warehouseResults.fields,
+                          }
+                        : warehouseResults;
 
                 if (lightdashConfig.resultsCache?.enabled) {
                     Logger.debug(`Writing data to cache with key ${queryHash}`);
                     const buffer = Buffer.from(
-                        JSON.stringify(warehouseRowsWithTableCalculations),
+                        JSON.stringify(warehouseResultsWithTableCalculations),
                     );
                     // fire and forget
                     this.s3CacheClient
@@ -1682,7 +1685,7 @@ export class ProjectService {
                 }
 
                 return {
-                    rows: warehouseRowsWithTableCalculations,
+                    rows: warehouseResultsWithTableCalculations.rows,
                     cacheMetadata: { cacheHit: false },
                 };
             },

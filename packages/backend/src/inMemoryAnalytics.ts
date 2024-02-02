@@ -1,13 +1,55 @@
+import { DimensionType } from '@lightdash/common';
 import { tableFromJSON, tableToIPC } from 'apache-arrow';
 import { Database } from 'duckdb-async';
 import Logger from './logging/logger';
 import { wrapOtelSpan } from './utils';
 
 type InMemoryJSONRow = Record<string, unknown>;
-type InMemoryJSONTableMap = Record<string, InMemoryJSONRow[]>;
+type InMemoryJSONTableMap = Record<
+    string,
+    {
+        fields: Record<string, { type: DimensionType }>;
+        rows: InMemoryJSONRow[];
+    }
+>;
 
 export interface InMemoryDatabaseProvisioningOptions {
     tables?: InMemoryJSONTableMap;
+}
+
+/**
+ * Use field information to cast individual row values, so that they are
+ * represented with the correct type in-memory.
+ *
+ * The js SDK for arrow seems to be pretty limited as far handling this
+ * via a schema or other type inference override, but that would likely
+ * be the best approach, if possible.
+ */
+function castValueToType(value: unknown, fieldType: DimensionType) {
+    if (value === null) {
+        return null;
+    }
+
+    switch (fieldType) {
+        case DimensionType.BOOLEAN:
+            if (value === 'true') {
+                return true;
+            }
+
+            if (value === 'false') {
+                return false;
+            }
+
+            throw new Error('DimensionType.BOOLEAN value cannot be cast');
+        case DimensionType.NUMBER:
+            return (value as unknown as number) * 1;
+        case DimensionType.DATE:
+        case DimensionType.TIMESTAMP:
+        case DimensionType.STRING:
+            return value;
+        default:
+            throw new Error(`Unable to cast value to type ${fieldType}`);
+    }
 }
 
 /**
@@ -34,12 +76,27 @@ async function createDuckDbDatabase({
 
     if (tables) {
         const loadedTableNames = await Promise.all(
-            Object.entries(tables).map(async ([tableName, rows]) => {
-                const arrowTableIPC = tableToIPC(tableFromJSON(rows));
-                await db.register_buffer(tableName, [arrowTableIPC], true);
+            Object.entries(tables).map(
+                async ([tableName, { rows, fields }]) => {
+                    const rowsWithFieldCasts = rows.map((row) =>
+                        Object.fromEntries(
+                            Object.entries(row).map(([columnName, value]) => {
+                                const fieldType = fields[columnName].type;
+                                return [
+                                    columnName,
+                                    castValueToType(value, fieldType),
+                                ];
+                            }),
+                        ),
+                    );
 
-                return tableName;
-            }),
+                    const arrowTableIPC = tableToIPC(
+                        tableFromJSON(rowsWithFieldCasts),
+                    );
+                    await db.register_buffer(tableName, [arrowTableIPC], true);
+                    return tableName;
+                },
+            ),
         );
 
         Logger.debug(
@@ -68,9 +125,7 @@ export async function runQueryInMemoryDatabaseContext({
         },
         async () => {
             const db = await createDuckDbDatabase({ tables });
-            const results = await db.all(query);
-
-            return results;
+            return db.all(query);
         },
     );
 }
