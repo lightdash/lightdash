@@ -3607,7 +3607,7 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { code: { dataType: 'string' } },
+            nestedProperties: { spec: { dataType: 'object' } },
             validators: {},
         },
     },
