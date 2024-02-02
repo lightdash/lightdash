@@ -30,7 +30,8 @@ const VersionAutoUpdater: FC = () => {
                         key: 'new-version-available',
                         autoClose: false,
                         title: 'New version available',
-                        subtitle: 'A new version is ready for you to use.',
+                        subtitle:
+                            'A new version of Lightdash is ready for you!',
                         action: {
                             children: 'Use new version',
                             icon: IconReload,
