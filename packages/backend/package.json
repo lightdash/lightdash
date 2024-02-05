@@ -85,7 +85,7 @@
         "nanoid": "^3.1.31",
         "node-cache": "^5.1.2",
         "node-fetch": "^2.6.1",
-        "nodemailer": "^6.9.5",
+        "nodemailer": "^6.9.9",
         "nodemailer-express-handlebars": "^6.1.0",
         "openid-client": "^5.6.4",
         "passport": "^0.6.0",
