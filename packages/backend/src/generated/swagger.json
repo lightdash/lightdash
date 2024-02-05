@@ -965,11 +965,6 @@
                 ],
                 "type": "object"
             },
-            "Record_string.string_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "ApiGdriveAccessTokenResponse": {
                 "properties": {
                     "results": {
@@ -4085,6 +4080,11 @@
                 "enum": ["hidden", "inside", "outside"],
                 "nullable": false
             },
+            "Record_string.string_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "Record_string.Partial_PieChartValueOptions__": {
                 "properties": {},
                 "type": "object",
@@ -6323,7 +6323,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.974.0",
+        "version": "0.976.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -6805,7 +6805,11 @@
                                                 "type": "array"
                                             },
                                             "customLabels": {
-                                                "$ref": "#/components/schemas/Record_string.string_"
+                                                "properties": {},
+                                                "additionalProperties": {
+                                                    "type": "string"
+                                                },
+                                                "type": "object"
                                             },
                                             "showTableNames": {
                                                 "type": "boolean"

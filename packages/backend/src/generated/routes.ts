@@ -922,15 +922,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGdriveAccessTokenResponse: {
         dataType: 'refAlias',
         type: {
@@ -3638,6 +3629,15 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Record_string.Partial_PieChartValueOptions__': {
         dataType: 'refAlias',
         type: {
@@ -6045,7 +6045,13 @@ export function RegisterRoutes(app: express.Router) {
                                     array: { dataType: 'string' },
                                     required: true,
                                 },
-                                customLabels: { ref: 'Record_string.string_' },
+                                customLabels: {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {},
+                                    additionalProperties: {
+                                        dataType: 'string',
+                                    },
+                                },
                                 showTableNames: {
                                     dataType: 'boolean',
                                     required: true,
