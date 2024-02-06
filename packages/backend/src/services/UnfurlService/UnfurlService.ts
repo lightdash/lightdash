@@ -562,10 +562,6 @@ export class UnfurlService {
                         });
                     }
 
-                    if (isPuppeteerScrollElementIntoViewEnabled) {
-                        await element.scrollIntoView();
-                    }
-
                     const imageBuffer = await element.screenshot({
                         path,
                         ...(isPuppeteerScrollElementIntoViewEnabled &&
