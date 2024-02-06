@@ -12,7 +12,6 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { has } from 'lodash';
 import { getSpaceRoleInfo } from '../controllers/authenticationRoles';
 import {
     AnalyticsChartViewsTableName,
@@ -405,12 +404,11 @@ export class SpaceModel {
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
-                `${SpaceShareTableName}.user_id as user_id_with_direct_access`, // `has_direct_access` is a boolean that is true if the user has direct access to the space
+                `${SpaceShareTableName}.user_id as user_id_with_direct_access`,
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
             ])
             .distinctOn(`users.user_uuid`);
-        // .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
         return access.reduce<SpaceShare[]>(
             (
