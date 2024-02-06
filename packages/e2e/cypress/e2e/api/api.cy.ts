@@ -244,7 +244,7 @@ describe('Lightdash API', () => {
         );
     });
 
-    it.only('Should get metric filters from events', () => {
+    it('Should get metric filters from events', () => {
         cy.request({
             url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/explores/events`,
             headers: { 'Content-type': 'application/json' },
