@@ -1,3 +1,10 @@
+# [0.977.0](https://github.com/lightdash/lightdash/compare/0.976.3...0.977.0) (2024-02-06)
+
+
+### Features
+
+* version auto updater ([#8842](https://github.com/lightdash/lightdash/issues/8842)) ([b98f931](https://github.com/lightdash/lightdash/commit/b98f931a9b19bdb5c3312a933dc9076ecec6c776))
+
 ## [0.976.3](https://github.com/lightdash/lightdash/compare/0.976.2...0.976.3) (2024-02-06)
 
 
