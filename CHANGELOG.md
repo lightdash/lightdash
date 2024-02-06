@@ -1,3 +1,10 @@
+## [0.977.1](https://github.com/lightdash/lightdash/compare/0.977.0...0.977.1) (2024-02-06)
+
+
+### Bug Fixes
+
+* always return default format when item doesn't have format property ([#8853](https://github.com/lightdash/lightdash/issues/8853)) ([4904f53](https://github.com/lightdash/lightdash/commit/4904f5359251ba1ed90d063a211983bb7b34d324))
+
 # [0.977.0](https://github.com/lightdash/lightdash/compare/0.976.3...0.977.0) (2024-02-06)
 
 
