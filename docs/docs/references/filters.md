@@ -40,7 +40,7 @@ To learn more about using filters, check out our docs on limiting data using fil
 ### Boolean filters
 
 | Filter      | logic                                                                    |
-|-------------|--------------------------------------------------------------------------|
+| ----------- | ------------------------------------------------------------------------ |
 | is null     | Only pulls in rows where the values are null for the field selected.     |
 | is not null | Only pulls in rows where the values are not null for the field selected. |
 | is          | Only pulls in rows where the values are equal to the values listed.      |
