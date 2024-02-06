@@ -770,6 +770,26 @@ describe('Formatting', () => {
                     new Date('2021-03-10T00:00:00.000Z'),
                 ),
             ).toEqual('2021-03-10, 00:00:00:000 (+00:00)');
+            expect(
+                formatItemValue(
+                    {
+                        ...metric,
+                        type: MetricType.NUMBER,
+                        round: 2,
+                    },
+                    '1.123456123123',
+                ),
+            ).toEqual('1.12');
+            expect(
+                formatItemValue(
+                    {
+                        ...metric,
+                        type: MetricType.NUMBER,
+                        compact: Compact.THOUSANDS,
+                    },
+                    1000,
+                ),
+            ).toEqual('1K');
         });
     });
 

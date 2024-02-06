@@ -276,16 +276,12 @@ export function getCustomFormat(
         return item.format;
     }
 
-    if ('format' in item && typeof item.format === 'string') {
-        // This converts legacy format type (which is Format), to CustomFormat
-        return getCustomFormatFromLegacy({
-            format: item.format,
-            compact: item.compact,
-            round: item.round,
-        });
-    }
-
-    return undefined;
+    // This converts legacy format type (which is Format), to CustomFormat
+    return getCustomFormatFromLegacy({
+        ...('format' in item && { format: item.format }),
+        ...('compact' in item && { compact: item.compact }),
+        ...('round' in item && { round: item.round }),
+    });
 }
 
 function applyCompact(
