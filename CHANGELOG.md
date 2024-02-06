@@ -1,3 +1,10 @@
+## [0.976.2](https://github.com/lightdash/lightdash/compare/0.976.1...0.976.2) (2024-02-06)
+
+
+### Bug Fixes
+
+* custom label csv export ([#8845](https://github.com/lightdash/lightdash/issues/8845)) ([c4cf59b](https://github.com/lightdash/lightdash/commit/c4cf59be9cec0a061c8760a41fc0daa4830f1285))
+
 ## [0.976.1](https://github.com/lightdash/lightdash/compare/0.976.0...0.976.1) (2024-02-02)
 
 
