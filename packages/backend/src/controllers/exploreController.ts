@@ -143,13 +143,12 @@ export class ExploreController extends Controller {
             onlyRaw: boolean;
             csvLimit: number | null | undefined;
             showTableNames: boolean;
-            customLabels?: Record<string, string>;
+            customLabels?: { [key: string]: string };
             columnOrder: string[];
             hiddenFields?: string[];
         },
     ): Promise<{ status: 'ok'; results: { jobId: string } }> {
         this.setStatus(200);
-
         const {
             onlyRaw,
             csvLimit,
