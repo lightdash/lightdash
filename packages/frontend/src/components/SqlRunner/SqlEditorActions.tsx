@@ -30,7 +30,7 @@ export const SqlEditorActions: FC<{
                 withArrow
                 position="left"
             >
-                <ActionIcon onClick={onToggleSoftWrap}>
+                <ActionIcon onClick={onToggleSoftWrap} color="gray">
                     {isSoftWrapEnabled ? (
                         <MantineIcon icon={IconTextWrapDisabled} />
                     ) : (
