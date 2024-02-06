@@ -1,3 +1,10 @@
+## [0.976.3](https://github.com/lightdash/lightdash/compare/0.976.2...0.976.3) (2024-02-06)
+
+
+### Bug Fixes
+
+* table calculation missing fields ([#8848](https://github.com/lightdash/lightdash/issues/8848)) ([37ccf32](https://github.com/lightdash/lightdash/commit/37ccf325c5a8550108d044317eea93c37f2282f4))
+
 ## [0.976.2](https://github.com/lightdash/lightdash/compare/0.976.1...0.976.2) (2024-02-06)
 
 
