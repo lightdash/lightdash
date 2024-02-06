@@ -12,9 +12,9 @@ const routesThatCantBeAutoRefreshed = [
 ];
 const VersionAutoUpdater: FC = () => {
     const [version, setVersion] = useState<string>();
-    const { showToastInfo } = useToaster();
+    const { showToastPrimary } = useToaster();
     const { data: healthData } = useHealth({
-        refetchInterval: 600000, // 10 minutes in milliseconds
+        refetchInterval: 1200000, // 20 minutes in milliseconds
     });
     const isRouteThatCantBeAutoRefreshed = useRouteMatch({
         path: routesThatCantBeAutoRefreshed,
@@ -26,12 +26,10 @@ const VersionAutoUpdater: FC = () => {
                 setVersion(healthData.version);
             } else if (version !== healthData.version) {
                 if (isRouteThatCantBeAutoRefreshed) {
-                    showToastInfo({
+                    showToastPrimary({
                         key: 'new-version-available',
                         autoClose: false,
-                        title: 'New version available',
-                        subtitle:
-                            'A new version of Lightdash is ready for you!',
+                        title: 'A new version of Lightdash is ready for you!',
                         action: {
                             children: 'Use new version',
                             icon: IconReload,
@@ -43,7 +41,7 @@ const VersionAutoUpdater: FC = () => {
                 }
             }
         }
-    }, [version, isRouteThatCantBeAutoRefreshed, healthData, showToastInfo]);
+    }, [version, isRouteThatCantBeAutoRefreshed, healthData, showToastPrimary]);
 
     return null;
 };
