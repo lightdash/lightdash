@@ -1,10 +1,15 @@
+import {
+    fieldId as getFieldId,
+    getVisibleFields,
+    isAdditionalMetric,
+    isField,
+} from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine/core';
-import { FC, memo } from 'react';
+import { FC, memo, useMemo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
-
 const LoadingSkeleton = () => (
     <Stack>
         <Skeleton h="md" />
@@ -38,6 +43,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         (context) =>
             context.state.unsavedChartVersion.metricQuery.customDimensions,
     );
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
     );
@@ -45,6 +54,31 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         (context) => context.actions.toggleActiveField,
     );
     const { data, status } = useExplore(activeTableName);
+
+    const missingFields = useMemo(() => {
+        if (data) {
+            const visibleFields = getVisibleFields(data);
+            const allFields = [
+                ...visibleFields,
+                ...tableCalculations,
+                ...(customDimensions || []),
+                ...(additionalMetrics || []),
+            ];
+
+            const fieldIds = allFields.map((item) =>
+                isField(item) || isAdditionalMetric(item)
+                    ? getFieldId(item)
+                    : item.name,
+            );
+            return [...activeFields].filter((node) => !fieldIds.includes(node));
+        }
+    }, [
+        data,
+        activeFields,
+        tableCalculations,
+        customDimensions,
+        additionalMetrics,
+    ]);
 
     if (status === 'loading') {
         return <LoadingSkeleton />;
@@ -90,6 +124,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 onSelectedFieldChange={toggleActiveField}
                 customDimensions={customDimensions}
                 selectedDimensions={dimensions}
+                missingFields={missingFields}
             />
         </>
     );

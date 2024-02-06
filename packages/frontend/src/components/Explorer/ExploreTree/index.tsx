@@ -4,9 +4,7 @@ import {
     CustomDimension,
     Dimension,
     Explore,
-    fieldId as getFieldId,
     getItemId,
-    getVisibleFields,
     Metric,
 } from '@lightdash/common';
 import { ActionIcon, Box, Center, Text, TextInput } from '@mantine/core';
@@ -23,6 +21,7 @@ type ExploreTreeProps = {
     selectedNodes: Set<string>;
     customDimensions?: CustomDimension[];
     selectedDimensions?: string[];
+    missingFields?: string[];
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -34,6 +33,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     onSelectedFieldChange,
     customDimensions,
     selectedDimensions,
+    missingFields,
 }) => {
     const [search, setSearch] = useState<string>('');
     const isSearching = !!search && search !== '';
@@ -76,11 +76,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
             (metric) => !allTables.includes(metric.table),
         );
     }, [explore, additionalMetrics]);
-    const missingFields = useMemo(() => {
-        const visibleFields = getVisibleFields(explore);
-        const fieldIds = visibleFields.map(getFieldId);
-        return [...selectedNodes].filter((node) => !fieldIds.includes(node));
-    }, [explore, selectedNodes]);
 
     return (
         <>
