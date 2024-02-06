@@ -91,14 +91,13 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             setSelectedAccess={setSelectedAccess}
                         />
 
-                        {selectedAccess.value === SpaceAccessType.PRIVATE && (
-                            <ShareSpaceUserList
-                                projectUuid={projectUuid}
-                                space={space}
-                                sessionUser={sessionUser.data}
-                                organizationUsers={organizationUsers}
-                            />
-                        )}
+                        <ShareSpaceUserList
+                            projectUuid={projectUuid}
+                            space={space}
+                            sessionUser={sessionUser.data}
+                            organizationUsers={organizationUsers}
+                            spaceAccessType={selectedAccess.value}
+                        />
                     </Stack>
 
                     <Box

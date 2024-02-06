@@ -12,7 +12,8 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { getProjectRoleOrInheritedFromOrganization } from '../controllers/authenticationRoles';
+import { has } from 'lodash';
+import { getSpaceRoleInfo } from '../controllers/authenticationRoles';
 import {
     AnalyticsChartViewsTableName,
     AnalyticsDashboardViewsTableName,
@@ -362,7 +363,7 @@ export class SpaceModel {
                 `${SpaceShareTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
             )
-            .leftJoin(
+            .rightJoin(
                 UserTableName,
                 `${UserTableName}.user_id`,
                 `${SpaceShareTableName}.user_id`,
@@ -397,18 +398,19 @@ export class SpaceModel {
                     first_name: string;
                     last_name: string;
                     project_role: ProjectMemberRole | null;
+                    user_id_with_direct_access: boolean;
                     organization_role: OrganizationMemberRole;
                 }[]
             >([
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
-
+                `${SpaceShareTableName}.user_id as user_id_with_direct_access`, // `has_direct_access` is a boolean that is true if the user has direct access to the space
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
             ])
-            .distinctOn(`users.user_uuid`)
-            .where(`${SpaceTableName}.space_uuid`, spaceUuid);
+            .distinctOn(`users.user_uuid`);
+        // .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
         return access.reduce<SpaceShare[]>(
             (
@@ -417,14 +419,12 @@ export class SpaceModel {
                     user_uuid,
                     first_name,
                     last_name,
+                    user_id_with_direct_access,
                     project_role,
                     organization_role,
                 },
             ) => {
-                const role = getProjectRoleOrInheritedFromOrganization(
-                    project_role,
-                    organization_role,
-                );
+                const role = getSpaceRoleInfo(project_role, organization_role);
                 // exclude all users that were converted to organization members and have no space access
                 if (!role) {
                     this.removeSpaceAccess(spaceUuid, user_uuid);
@@ -436,7 +436,10 @@ export class SpaceModel {
                         userUuid: user_uuid,
                         firstName: first_name,
                         lastName: last_name,
-                        role,
+                        role: role.role,
+                        hasDirectAccess: !!user_id_with_direct_access,
+                        inheritedRole: role.inheritedRole,
+                        inheritedFrom: role.inheritedFrom,
                     },
                 ];
             },

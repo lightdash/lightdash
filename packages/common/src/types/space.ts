@@ -1,4 +1,5 @@
 import { SpaceDashboard } from './dashboard';
+import { OrganizationMemberRole } from './organizationMemberProfile';
 import { ProjectMemberRole } from './projectMemberRole';
 import { SpaceQuery } from './savedCharts';
 
@@ -10,7 +11,7 @@ export type Space = {
     queries: SpaceQuery[];
     projectUuid: string;
     dashboards: SpaceDashboard[];
-    access: SpaceShare[] | undefined;
+    access: SpaceShare[];
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
 };
@@ -45,7 +46,22 @@ export type SpaceShare = {
     userUuid: string;
     firstName: string;
     lastName: string;
-    role: ProjectMemberRole;
+    role: SpaceMemberRole;
+    hasDirectAccess: boolean;
+    inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
+    inheritedFrom: 'organization' | 'project' | 'group' | undefined;
+};
+
+export enum SpaceMemberRole {
+    VIEWER = 'viewer',
+    EDITOR = 'editor',
+}
+
+export type SpaceRoleInfo = {
+    role: SpaceMemberRole;
+    hasDirectAccess: boolean;
+    inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
+    inheritedFrom: 'organization' | 'project' | 'group' | undefined;
 };
 
 export type ApiSpaceSummaryListResponse = {

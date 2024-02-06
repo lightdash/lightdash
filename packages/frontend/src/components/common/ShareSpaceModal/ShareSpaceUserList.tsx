@@ -6,12 +6,12 @@ import {
     Space,
     SpaceShare,
 } from '@lightdash/common';
-import { Avatar, Group, Select, Stack, Text } from '@mantine/core';
+import { Avatar, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import upperFirst from 'lodash/upperFirst';
 import { FC, forwardRef, useMemo } from 'react';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
-import { AccessOption } from './ShareSpaceSelect';
+import { AccessOption, SpaceAccessType } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 export interface ShareSpaceUserListProps {
@@ -19,6 +19,7 @@ export interface ShareSpaceUserListProps {
     sessionUser: LightdashUser | undefined;
     projectUuid: string;
     organizationUsers: OrganizationMemberProfile[] | undefined;
+    spaceAccessType: string;
 }
 
 const enum UserAccessAction {
@@ -62,6 +63,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     projectUuid,
     sessionUser,
     organizationUsers,
+    spaceAccessType,
 }) => {
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
         projectUuid,
@@ -115,6 +117,11 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     if (!userIsYou(a) && userIsYou(b)) return 1;
                     return 0;
                 })
+                .filter((sharedUser) =>
+                    spaceAccessType === SpaceAccessType.PRIVATE
+                        ? sharedUser.hasDirectAccess
+                        : true,
+                )
                 .map((sharedUser) => {
                     const isYou = userIsYou(sharedUser);
                     const role = upperFirst(sharedUser.role?.toString() || '');
@@ -161,36 +168,48 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                     ) : null}
                                 </Text>
                             </Group>
-
-                            {isYou ||
-                            role === upperFirst(ProjectMemberRole.ADMIN) ? (
-                                <Text fw={600} fz="xs">
-                                    {role}
-                                </Text>
-                            ) : (
-                                <Select
-                                    styles={{
-                                        input: {
-                                            fontWeight: 500,
-                                        },
-                                    }}
-                                    size="xs"
-                                    withinPortal
-                                    data={userAccessTypes.map((u) => ({
-                                        label: u.title,
-                                        ...u,
-                                    }))}
-                                    value={roleType}
-                                    itemComponent={UserAccessSelectItem}
-                                    onChange={(item) => {
-                                        if (item === UserAccessAction.DELETE) {
-                                            unshareSpaceMutation(
-                                                sharedUser.userUuid,
-                                            );
-                                        }
-                                    }}
-                                />
-                            )}
+                            <Tooltip
+                                disabled={
+                                    spaceAccessType === SpaceAccessType.PRIVATE
+                                }
+                                label={
+                                    <Text>
+                                        {`This user has ${role} role for this space because they are an ${sharedUser.inheritedFrom} ${sharedUser.inheritedRole}`}
+                                    </Text>
+                                }
+                            >
+                                {isYou ||
+                                role === upperFirst(ProjectMemberRole.ADMIN) ? (
+                                    <Text fw={600} fz="xs">
+                                        {role}
+                                    </Text>
+                                ) : (
+                                    <Select
+                                        styles={{
+                                            input: {
+                                                fontWeight: 500,
+                                            },
+                                        }}
+                                        size="xs"
+                                        withinPortal
+                                        data={userAccessTypes.map((u) => ({
+                                            label: u.title,
+                                            ...u,
+                                        }))}
+                                        value={roleType}
+                                        itemComponent={UserAccessSelectItem}
+                                        onChange={(item) => {
+                                            if (
+                                                item === UserAccessAction.DELETE
+                                            ) {
+                                                unshareSpaceMutation(
+                                                    sharedUser.userUuid,
+                                                );
+                                            }
+                                        }}
+                                    />
+                                )}
+                            </Tooltip>
                         </Group>
                     );
                 })}

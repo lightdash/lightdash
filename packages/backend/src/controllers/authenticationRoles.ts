@@ -2,35 +2,80 @@ import {
     assertUnreachable,
     OrganizationMemberRole,
     ProjectMemberRole,
+    SpaceMemberRole,
+    SpaceRoleInfo,
 } from '@lightdash/common';
 
-const inheritedProjectRoleFromOrgRole = (
+const inheritedSpaceRoleFromOrgRole = (
     orgRole: OrganizationMemberRole,
-): ProjectMemberRole | null => {
+): SpaceMemberRole | null => {
     switch (orgRole) {
         case OrganizationMemberRole.MEMBER:
             return null;
         case OrganizationMemberRole.VIEWER:
-            return ProjectMemberRole.VIEWER;
+            return SpaceMemberRole.VIEWER;
         case OrganizationMemberRole.INTERACTIVE_VIEWER:
-            return ProjectMemberRole.INTERACTIVE_VIEWER;
+            return SpaceMemberRole.VIEWER;
         case OrganizationMemberRole.EDITOR:
-            return ProjectMemberRole.EDITOR;
+            return SpaceMemberRole.EDITOR;
         case OrganizationMemberRole.DEVELOPER:
-            return ProjectMemberRole.DEVELOPER;
+            return SpaceMemberRole.EDITOR;
         case OrganizationMemberRole.ADMIN:
-            return ProjectMemberRole.ADMIN;
+            return SpaceMemberRole.EDITOR;
         default:
             return assertUnreachable(
                 orgRole,
-                `Organization role ${orgRole} does not match Project roles`,
+                `Organization role ${orgRole} does not match Space roles`,
             );
     }
 };
 
-export const getProjectRoleOrInheritedFromOrganization = (
+const inheritedSpaceRoleFromProjectRole = (
+    projRole: ProjectMemberRole,
+): SpaceMemberRole => {
+    switch (projRole) {
+        case ProjectMemberRole.VIEWER:
+            return SpaceMemberRole.VIEWER;
+        case ProjectMemberRole.INTERACTIVE_VIEWER:
+            return SpaceMemberRole.VIEWER;
+        case ProjectMemberRole.EDITOR:
+            return SpaceMemberRole.EDITOR;
+        case ProjectMemberRole.DEVELOPER:
+            return SpaceMemberRole.EDITOR;
+        case ProjectMemberRole.ADMIN:
+            return SpaceMemberRole.EDITOR;
+        default:
+            return assertUnreachable(
+                projRole,
+                `Project role ${projRole} does not match Space roles`,
+            );
+    }
+};
+
+export const getSpaceRoleInfo = (
     projectRole: ProjectMemberRole | null | undefined,
     organizationRole: OrganizationMemberRole,
-): ProjectMemberRole | null =>
-    // if user has not project role, it inherits rol from org
-    projectRole || inheritedProjectRoleFromOrgRole(organizationRole);
+): SpaceRoleInfo | null => {
+    if (projectRole) {
+        return {
+            role: inheritedSpaceRoleFromProjectRole(projectRole),
+            hasDirectAccess: false,
+            inheritedRole: projectRole,
+            inheritedFrom: 'project',
+        };
+    }
+
+    if (organizationRole) {
+        const inheritedRole = inheritedSpaceRoleFromOrgRole(organizationRole);
+        return inheritedRole
+            ? {
+                  role: inheritedRole,
+                  hasDirectAccess: false,
+                  inheritedRole: organizationRole,
+                  inheritedFrom: 'organization',
+              }
+            : null;
+    }
+
+    return null;
+};
