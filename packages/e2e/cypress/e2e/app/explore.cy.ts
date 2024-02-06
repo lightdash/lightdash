@@ -50,7 +50,7 @@ describe('Explore', () => {
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
-        cy.findByTestId('Charts-card-expand').click();
+        cy.findByTestId('Chart-card-expand').click();
 
         cy.findByText('Save chart').click();
         cy.findByTestId('ChartCreateModal/NameInput').type('My chart');
