@@ -2,6 +2,7 @@ import {
     OrganizationMemberRole,
     ProjectMemberRole,
     Space,
+    SpaceMemberRole,
 } from '@lightdash/common';
 import {
     Avatar,
@@ -121,10 +122,13 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
             onChange={(newUserIds) => {
                 form?.setValues({
                     access: newUserIds.map((userUuid) => ({
-                        userUuid,
+                        userUuid: userUuid,
                         firstName: '',
                         lastName: '',
-                        role: ProjectMemberRole.VIEWER,
+                        role: SpaceMemberRole.VIEWER,
+                        hasDirectAccess: true,
+                        inheritedRole: undefined,
+                        inheritedFrom: undefined,
                     })),
                 });
             }}

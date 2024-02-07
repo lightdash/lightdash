@@ -1,15 +1,13 @@
 import {
     LightdashUser,
     OrganizationMemberProfile,
-    OrganizationMemberRole,
     ProjectMemberRole,
     Space,
     SpaceShare,
 } from '@lightdash/common';
 import { Avatar, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import upperFirst from 'lodash/upperFirst';
-import { FC, forwardRef, useMemo } from 'react';
-import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { FC, forwardRef } from 'react';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
 import { AccessOption, SpaceAccessType } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
@@ -70,48 +68,12 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
         space.uuid,
     );
 
-    const { data: projectAccess } = useProjectAccess(projectUuid);
-
-    const adminUsers = useMemo(() => {
-        const projectUserUuids =
-            projectAccess
-                ?.filter((access) => access.role === ProjectMemberRole.ADMIN)
-                .map((access) => access.userUuid) || [];
-        const organizationUserUuids =
-            organizationUsers
-                ?.filter(
-                    (access) => access.role === OrganizationMemberRole.ADMIN,
-                )
-                .map((access) => access.userUuid) || [];
-
-        const userUuids = [
-            ...new Set([...projectUserUuids, ...organizationUserUuids]),
-        ];
-        return userUuids.reduce<SpaceShare[]>((acc, userUuid) => {
-            if (space.access?.find((access) => access.userUuid === userUuid))
-                return acc;
-            const user = organizationUsers?.find(
-                (orgUser) => orgUser.userUuid === userUuid,
-            );
-            if (user) {
-                return [
-                    ...acc,
-                    {
-                        ...user,
-                        firstName: user.firstName || user.email,
-                        role: ProjectMemberRole.ADMIN,
-                    },
-                ];
-            } else return acc;
-        }, []);
-    }, [organizationUsers, projectAccess, space.access]);
-
     const userIsYou = (spaceShare: SpaceShare) =>
         spaceShare.userUuid === sessionUser?.userUuid;
 
     return (
         <>
-            {[...(space.access ?? []), ...adminUsers]
+            {[...(space.access ?? [])]
                 .sort((a, b) => {
                     if (userIsYou(a) && !userIsYou(b)) return -1;
                     if (!userIsYou(a) && userIsYou(b)) return 1;
@@ -124,7 +86,9 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                 )
                 .map((sharedUser) => {
                     const isYou = userIsYou(sharedUser);
-                    const role = upperFirst(sharedUser.role?.toString() || '');
+                    const role = upperFirst(
+                        sharedUser.inheritedRole?.toString() || '',
+                    );
 
                     const userAccessTypes = UserAccessOptions.map(
                         (accessType) =>
@@ -174,7 +138,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 }
                                 label={
                                     <Text>
-                                        {`This user has ${role} role for this space because they are an ${sharedUser.inheritedFrom} ${sharedUser.inheritedRole}`}
+                                        {`This user has ${sharedUser.role} role for this space because they are an ${sharedUser.inheritedFrom} ${sharedUser.inheritedRole}`}
                                     </Text>
                                 }
                             >
