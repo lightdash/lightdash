@@ -5,7 +5,10 @@ const usersTable = 'users';
 
 export async function up(knex: Knex): Promise<void> {
     return knex.schema.createTable(dashboardTileCommentsTable, (table) => {
-        table.uuid('comment_id').primary();
+        table
+            .uuid('comment_id')
+            .primary()
+            .defaultTo(knex.raw('uuid_generate_v4()'));
         table
             .timestamp('created_at', { useTz: false })
             .notNullable()
@@ -19,6 +22,7 @@ export async function up(knex: Knex): Promise<void> {
         table.uuid('dashboard_tile_uuid').index();
         table.uuid('user_uuid');
         table.foreign('user_uuid').references(`${usersTable}.user_uuid`);
+        table.boolean('resolved').defaultTo(false);
     });
 }
 
