@@ -5,12 +5,17 @@ import {
     GitIntegrationConfiguration,
     lightdashDbtYamlSchema,
     ParseError,
+    PullRequestCreated,
     SessionUser,
 } from '@lightdash/common';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
-import { get } from 'lodash';
-import { getFileContent } from '../../clients/github/Github';
+import { get, update } from 'lodash';
+import {
+    createBranch,
+    getFileContent,
+    updateFile,
+} from '../../clients/github/Github';
 import { LightdashConfig } from '../../config/parseConfig';
 import { SavedChartModel } from '../../models/SavedChartModel';
 
@@ -91,47 +96,61 @@ export class GitIntegrationService {
         user: SessionUser,
         projectUuid: string,
         chartUuid: string,
-    ): Promise<any> {
+    ): Promise<PullRequestCreated> {
         // TODO: check user permissions, only editors and above?
         // get chart -> get custom metrics
-
-        console.log('chartUuid', chartUuid);
-
         const chart = await this.savedChartModel.get(chartUuid);
         const customMetrics = chart.metricQuery.additionalMetrics;
 
         if (customMetrics === undefined || customMetrics?.length === 0)
             throw new Error('No custom metrics found');
-        console.log('customMetrics', customMetrics);
 
         // get yml from github
-        const fileContent = await getFileContent('models/schema.yml'); // TODO hardcoded: replace with the right file
-        console.log('fileContent', fileContent);
+        const { content: fileContent, sha: fileSha } = await getFileContent(
+            'models/schema.yml',
+        ); // TODO hardcoded: replace with the right file
 
-        const fileYaml = yaml.load(fileContent);
-        console.log('fileYaml', fileYaml);
         const yamlSchema = await GitIntegrationService.loadYamlSchema(
             fileContent,
         );
 
-        console.log('nodes', yamlSchema);
-
-        // call util function findAndUpdateModelNodes()
-        // update yml
-        // create PR
         if (!yamlSchema.models)
             throw new Error(`Models not found ${yamlSchema}`);
+
+        // call util function findAndUpdateModelNodes()
         const updatedModels = findAndUpdateModelNodes(
             yamlSchema.models,
             customMetrics,
         );
-        // to remove
-        console.log('updatedModels', updatedModels);
 
-        const results = {
-            prTitle: '',
-            prUrl: '',
+        // update yml
+        const updatedYml = yaml.dump(
+            { ...yamlSchema, models: updatedModels },
+            {
+                quotingType: "'",
+            },
+        );
+
+        // create branch in git
+        const branchName = `add-custom-metrics-${Date.now()}`;
+        const branch = await createBranch(branchName);
+        const prTitle = `Added ${customMetrics.length} custom metrics from chart ${chart.name}`;
+        const fileUpdated = await updateFile(
+            'models/schema.yml',
+            updatedYml,
+            fileSha,
+            branchName,
+            prTitle,
+        );
+
+        const owner = 'rephus'; // TODO hardcoded
+        const repo = 'jaffle_shop'; // TODO hardcoded
+
+        // TODO should we use the api to get the link to the PR ?
+        const prUrl = `https://github.com/${owner}/${repo}/compare/main...${owner}:${repo}:${branchName}?expand=1`;
+        return {
+            prTitle,
+            prUrl,
         };
-        return updatedModels;
     }
 }

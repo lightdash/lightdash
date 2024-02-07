@@ -4,6 +4,7 @@ import {
     DbtModelColumn,
     DbtModelNode,
 } from '../types/dbt';
+import { ColumnInfo } from '../types/dbtFromSchema';
 import {
     CustomFormat,
     CustomFormatType,
@@ -86,26 +87,44 @@ function updateModelNode(
         customMetricsToAdd,
         (metric) => metric.baseDimensionName,
     );
+    console.log(
+        'Object.entries(modelNode.columns)',
+        Object.entries(modelNode.columns),
+    );
+
     return {
         ...modelNode,
-        columns: Object.entries(modelNode.columns).reduce<
-            DbtModelNode['columns']
-        >((acc, [name, columnNode]) => {
+        columns: Object.values(modelNode.columns).map((columnNode) => {
             if (groupedMetricsByDimension[columnNode.name]) {
+                return updateColumnNode(
+                    columnNode,
+                    groupedMetricsByDimension[columnNode.name],
+                );
+            }
+            return columnNode;
+        }) as any,
+    };
+    /*
+   return {
+        ...modelNode,
+        columns: Object.values(modelNode.columns).reduce<
+            DbtModelNode['columns']
+        >((acc, node) => {
+            if (groupedMetricsByDimension[node.name]) {
                 return {
                     ...acc,
-                    [name]: updateColumnNode(
-                        columnNode,
-                        groupedMetricsByDimension[columnNode.name],
+                     updateColumnNode(
+                        node,
+                        groupedMetricsByDimension[node.name],
                     ),
                 };
             }
             return {
                 ...acc,
-                [name]: columnNode,
+                 node,
             };
         }, {}),
-    };
+    }; */
 }
 
 export function findAndUpdateModelNodes(

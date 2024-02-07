@@ -11,7 +11,12 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { nanoid } from 'nanoid';
-import { getFileContent, githubApp } from '../clients/github/Github';
+import {
+    createBranch,
+    getFileContent,
+    githubApp,
+    updateFile,
+} from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 
 const githubAppName = 'lightdash-dev';
@@ -186,26 +191,7 @@ export class GithubInstallController extends Controller {
     async createBranch(@Request() req: express.Request): Promise<any> {
         this.setStatus(200);
 
-        console.log('req', req);
-        const appOctokit = new OktokitRest({
-            authStrategy: createAppAuth,
-            auth: {
-                appId: 703670,
-                privateKey: process.env.GITHUB_PRIVATE_KEY,
-                // optional: this will make appOctokit authenticate as app (JWT)
-                //           or installation (access token), depending on the request URL
-                installationId,
-            },
-        });
-
-        const results = appOctokit.rest.git.createRef({
-            owner: 'rephus',
-            repo: 'jaffle_shop',
-            ref: 'refs/heads/new-branch',
-            sha: '5ade538a80d6d638031069d7d8bafde2d2c2b567',
-        });
-
-        console.log('update file ', results);
+        const results = await createBranch('new-branch');
         return results;
     }
 
@@ -214,41 +200,13 @@ export class GithubInstallController extends Controller {
     @OperationId('updateFile')
     async updateFile(@Request() req: express.Request): Promise<any> {
         this.setStatus(200);
-
-        console.log('req', req);
-
-        const appOctokit = new OktokitRest({
-            authStrategy: createAppAuth,
-            auth: {
-                appId: 703670,
-                privateKey: process.env.GITHUB_PRIVATE_KEY,
-                // optional: this will make appOctokit authenticate as app (JWT)
-                //           or installation (access token), depending on the request URL
-                installationId,
-            },
-        });
-        // convert strint to base64
-        const s = 'foo';
-
-        const response = appOctokit.rest.repos.createOrUpdateFileContents({
-            owner: 'rephus',
-            repo: 'jaffle_shop',
-            path: 'new_file3.md.',
-            message: 'Update dbt project from octokit',
-            content: Buffer.from(s, 'utf-8').toString('base64'),
-            sha: '5ade538a80d6d638031069d7d8bafde2d2c2b567',
-            branch: 'new-branch',
-            committer: {
-                name: 'Javier Rengel',
-                email: 'rephus@gmail.com',
-            },
-            author: {
-                name: 'Javier Rengel',
-                email: 'rephus@gmail.com',
-            },
-        });
-        console.log('update file ', response);
-        return response;
+        return updateFile(
+            'models/schema.yml',
+            'new content',
+            '',
+            'new-branch',
+            '',
+        );
     }
 
     @SuccessResponse('201')
