@@ -6323,7 +6323,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.976.1",
+        "version": "0.977.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -6835,6 +6835,139 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/github/install": {
+            "get": {
+                "operationId": "githubAppInstall",
+                "responses": {
+                    "302": {
+                        "description": "Not found"
+                    }
+                },
+                "description": "Install the Lightdash GitHub App and link to a project",
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project",
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The url to redirect to after installation",
+                        "in": "query",
+                        "name": "redirect",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/github/oauth/callback": {
+            "get": {
+                "operationId": "githubOauthCallback",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "Callback URL for GitHub App Authorization also used for GitHub App Installation with combined Authorization",
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "authorization code from GitHub",
+                        "in": "query",
+                        "name": "code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "oauth state parameter",
+                        "in": "query",
+                        "name": "state",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "installation id from GitHub",
+                        "in": "query",
+                        "name": "installation_id",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "setup action from GitHub",
+                        "in": "query",
+                        "name": "setup_action",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/github/list": {
+            "get": {
+                "operationId": "githubList",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/github/create-branch": {
+            "get": {
+                "operationId": "createBranch",
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/github/update-file": {
+            "get": {
+                "operationId": "updateFile",
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/gdrive/get-access-token": {
