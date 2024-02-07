@@ -145,7 +145,7 @@ function getFormatNumberOptions(value: number, format?: CustomFormat) {
         return hasCurrency ? currencyOptions : {};
     }
 
-    if (round <= 0) {
+    if (round < 0) {
         return {
             maximumSignificantDigits: Math.max(
                 Math.floor(value).toString().length + round,
