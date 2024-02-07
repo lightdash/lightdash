@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { ApiError, GitIntegrationConfiguration } from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -19,6 +20,7 @@ import {
     IconCircleFilled,
     IconCirclePlus,
     IconCirclesRelation,
+    IconCodePlus,
     IconCopy,
     IconDots,
     IconFolder,
@@ -29,9 +31,11 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { FC, Fragment, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { lightdashApi } from '../../../api';
 import { ChartSchedulersModal } from '../../../features/scheduler';
 import {
     getSchedulerUuidFromUrlParams,
@@ -78,6 +82,39 @@ const SpaceTypeLabels = {
     [SpaceType.SharedWithMe]: 'Shared with me',
     [SpaceType.AdminContentView]: 'Admin content view',
 };
+
+const getGitIntegration = async (projectUuid: string) =>
+    lightdashApi<any>({
+        url: `/projects/${projectUuid}/git-integration`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const useGitIntegration = (projectUuid: string) =>
+    useQuery<GitIntegrationConfiguration, ApiError>({
+        queryKey: ['git-integration'],
+        queryFn: () => getGitIntegration(projectUuid),
+        retry: false,
+    });
+
+const createPullRequestForChartFields = async (
+    projectUuid: string,
+    chartUuid: string,
+) =>
+    lightdashApi<any>({
+        url: `/projects/${projectUuid}/git-integration/pull-requests/chart/${chartUuid}/fields`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const useCreatePullRequestForChartFieldsMutation = (
+    projectUuid: string,
+    chartUuid?: string,
+) =>
+    useMutation<GitIntegrationConfiguration, ApiError>(
+        ['git-integration', 'pull-request'],
+        () => createPullRequestForChartFields(projectUuid, chartUuid!),
+    );
 
 const SavedChartsHeader: FC = () => {
     const { search } = useLocation();
@@ -131,7 +168,11 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
-
+    const { data: gitIntegration } = useGitIntegration(projectUuid);
+    const createPullRequest = useCreatePullRequestForChartFieldsMutation(
+        projectUuid,
+        savedChart?.uuid,
+    );
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
@@ -675,6 +716,18 @@ const SavedChartsHeader: FC = () => {
                                         }
                                     >
                                         Version history
+                                    </Menu.Item>
+                                )}
+                                {gitIntegration?.enabled && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon icon={IconCodePlus} />
+                                        }
+                                        onClick={() =>
+                                            createPullRequest.mutate()
+                                        }
+                                    >
+                                        Add custom metrics to dbt project
                                     </Menu.Item>
                                 )}
                                 {userCanManageCharts && (

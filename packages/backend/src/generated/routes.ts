@@ -6140,12 +6140,6 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
-                projectUuid: {
-                    in: 'query',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
                 redirect: { in: 'query', name: 'redirect', dataType: 'string' },
             };
 

@@ -6870,15 +6870,6 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "The uuid of the project",
-                        "in": "query",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
                         "description": "The url to redirect to after installation",
                         "in": "query",
                         "name": "redirect",
