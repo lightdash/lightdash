@@ -1,3 +1,10 @@
+# [0.978.0](https://github.com/lightdash/lightdash/compare/0.977.2...0.978.0) (2024-02-07)
+
+
+### Features
+
+* Add `isFeatureFlagEnabled` utility ([#8795](https://github.com/lightdash/lightdash/issues/8795)) ([a31c644](https://github.com/lightdash/lightdash/commit/a31c6449c4785484b528a1056880504aff5c6a4b))
+
 ## [0.977.2](https://github.com/lightdash/lightdash/compare/0.977.1...0.977.2) (2024-02-07)
 
 
