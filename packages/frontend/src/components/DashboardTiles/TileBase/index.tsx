@@ -87,6 +87,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         dashboardUuid: string;
     }>();
 
+    const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+
     return (
         <Card
             component={Flex}
@@ -174,12 +176,18 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 )}
 
                 <Comments
+                    visible={containerHovered || isCommentsOpen}
+                    opened={isCommentsOpen}
+                    onOpen={() => setIsCommentsOpen(true)}
+                    onClose={() => setIsCommentsOpen(false)}
                     projectUuid={projectUuid}
                     dashboardTileUuid={tile.uuid}
                     dashboardUuid={dashboardUuid}
                 />
 
-                {(containerHovered && !titleHovered) || isMenuOpen ? (
+                {(containerHovered && !titleHovered) ||
+                isMenuOpen ||
+                isCommentsOpen ? (
                     <ButtonsWrapper className="non-draggable">
                         {extraHeaderElement}
                         {(isEditMode || (!isEditMode && extraMenuItems)) && (

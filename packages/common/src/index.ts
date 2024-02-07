@@ -528,6 +528,7 @@ export type Comment = {
     replyTo: string | undefined;
     replies?: Comment[];
     resolved: boolean;
+    canRemove: boolean;
 };
 
 export type ApiCommentsResults = Comment[];

@@ -893,7 +893,10 @@ export class DashboardModel {
         });
     }
 
-    async getComments(dashboardTileUuid: string): Promise<Comment[]> {
+    async getComments(
+        dashboardTileUuid: string,
+        userUuid: string,
+    ): Promise<Comment[]> {
         // TODO: ensure uniqueness with project uuid and dashboard uuid
 
         const rows: DbDashboardTileComments[] = await this.database(
@@ -920,9 +923,10 @@ export class DashboardModel {
             text: comment.text,
             replyTo: comment.reply_to ?? undefined,
             userUuid: comment.user_uuid,
-            user: { name: userMap[comment.user_uuid] }, // Append user name from the map
+            user: { name: userMap[comment.user_uuid] },
             createdAt: comment.created_at,
             resolved: comment.resolved,
+            canRemove: comment.user_uuid === userUuid,
         }));
 
         const commentMap: Record<string, Comment> = {};
@@ -930,7 +934,6 @@ export class DashboardModel {
             commentMap[comment.commentId] = { ...comment, replies: [] };
         });
 
-        // Step 2: Build the tree structure
         const topLevelComments: Comment[] = [];
         flatComments.forEach((comment) => {
             if (comment.replyTo) {
@@ -948,6 +951,15 @@ export class DashboardModel {
     async resolveComment(commentId: string): Promise<void> {
         await this.database('dashboard_tile_comments')
             .update({ resolved: true })
+            .where('comment_id', commentId);
+    }
+
+    async deleteComment(commentId: string): Promise<void> {
+        await this.database('dashboard_tile_comments')
+            .delete()
+            .where('reply_to', commentId);
+        await this.database('dashboard_tile_comments')
+            .delete()
             .where('comment_id', commentId);
     }
 }

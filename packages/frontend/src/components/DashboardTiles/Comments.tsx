@@ -6,9 +6,12 @@ import {
     Button,
     Collapse,
     Divider,
+    Grid,
     Group,
+    Loader,
     LoadingOverlay,
     Popover,
+    PopoverProps,
     Stack,
     Text,
     TextInput,
@@ -20,12 +23,16 @@ import {
     IconCircleCheck,
     IconMessage,
     IconMessageReply,
+    IconTrash,
 } from '@tabler/icons-react';
+import moment from 'moment';
 import { FC, useCallback, useState } from 'react';
+import { useTimeAgo } from '../../hooks/useTimeAgo';
 import MantineIcon from '../common/MantineIcon';
 import {
     useCreateComment,
     useGetComments,
+    useRemoveComment,
     useResolveComment,
 } from './useComments';
 
@@ -40,6 +47,86 @@ const getNameInitials = (name: string) => {
         .split(' ')
         .map((n) => n[0])
         .join('');
+};
+
+const CommentTimestamp: FC<{ commentTimestamp: Date }> = ({
+    commentTimestamp,
+}) => {
+    const timeAgo = useTimeAgo(commentTimestamp);
+
+    return (
+        <Tooltip
+            position="top-start"
+            label={moment(commentTimestamp).format('YYYY-MM-DD HH:mm:ss')}
+        >
+            <Text fz="xs" color="gray.5">
+                {timeAgo}
+            </Text>
+        </Tooltip>
+    );
+};
+
+const Reply: FC<{ reply: Comment } & Props> = ({
+    reply,
+    dashboardTileUuid,
+    dashboardUuid,
+}) => {
+    const { mutateAsync: removeComment } = useRemoveComment();
+    const { ref, hovered } = useHover();
+    const handleRemove = useCallback(
+        async (commentId: string) => {
+            await removeComment({
+                dashboardUuid,
+                dashboardTileUuid,
+                commentId,
+            });
+        },
+        [dashboardTileUuid, dashboardUuid, removeComment],
+    );
+
+    return (
+        <Box key={reply.commentId} ref={ref}>
+            <Grid columns={24}>
+                <Grid.Col span={2}>
+                    <Avatar radius="xl" size="sm">
+                        {getNameInitials(reply.user.name)}
+                    </Avatar>
+                </Grid.Col>
+                <Grid.Col span={22}>
+                    <Group position="apart">
+                        <Group spacing="xs">
+                            <Text fz="sm" fw={500}>
+                                {reply.user.name}
+                            </Text>
+                            <CommentTimestamp
+                                commentTimestamp={reply.createdAt}
+                            />
+                        </Group>
+                        <Group spacing="two">
+                            {reply.canRemove && (
+                                <Tooltip label="Remove">
+                                    <ActionIcon
+                                        size="xs"
+                                        opacity={hovered ? 1 : 0}
+                                        onClick={() =>
+                                            handleRemove(reply.commentId)
+                                        }
+                                        variant="light"
+                                        color="gray"
+                                    >
+                                        <MantineIcon icon={IconTrash} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </Group>
+                    </Group>
+                    <Box fz="sm" mb="xs">
+                        <Text>{reply.text}</Text>
+                    </Box>
+                </Grid.Col>
+            </Grid>
+        </Box>
+    );
 };
 
 const CommentDetail: FC<{ comment: Comment } & Props> = ({
@@ -58,6 +145,7 @@ const CommentDetail: FC<{ comment: Comment } & Props> = ({
         useCreateComment();
     const { mutateAsync: resolveComment, isLoading: isResolvingComment } =
         useResolveComment();
+    const { mutateAsync: removeComment } = useRemoveComment();
 
     const handleReply = useCallback(async () => {
         await createReply({
@@ -65,17 +153,17 @@ const CommentDetail: FC<{ comment: Comment } & Props> = ({
             dashboardUuid,
             dashboardTileUuid,
             text: replyText,
-            replyTo: isReplyingTo,
+            replyTo: comment.commentId,
         });
         setIsReplyingTo(undefined);
         setReplyText('');
     }, [
         dashboardTileUuid,
         dashboardUuid,
-        isReplyingTo,
         createReply,
         projectUuid,
         replyText,
+        comment,
     ]);
 
     const handleResolve = useCallback(
@@ -89,61 +177,105 @@ const CommentDetail: FC<{ comment: Comment } & Props> = ({
         [dashboardTileUuid, dashboardUuid, resolveComment],
     );
 
+    const handleRemove = useCallback(
+        async (commentId: string) => {
+            await removeComment({
+                dashboardUuid,
+                dashboardTileUuid,
+                commentId,
+            });
+        },
+        [dashboardTileUuid, dashboardUuid, removeComment],
+    );
+
     return (
         <Stack spacing="two">
             <LoadingOverlay visible={isResolvingComment} />
             <Box ref={ref}>
-                <Group spacing="xs">
-                    <Avatar radius="xl" size="sm">
-                        {getNameInitials(comment.user.name)}
-                    </Avatar>
-                    <Text fz="xs" fw={500}>
-                        {comment.user.name}
-                    </Text>
-
-                    <Group spacing="one">
-                        <Tooltip label="Reply">
-                            <ActionIcon
-                                opacity={hovered ? 1 : 0}
-                                onClick={() =>
-                                    setIsReplyingTo((prev) =>
-                                        prev === comment.commentId
-                                            ? undefined
-                                            : comment.commentId,
-                                    )
-                                }
-                            >
-                                <MantineIcon
-                                    color="blue.4"
-                                    icon={IconMessageReply}
+                <Grid columns={24}>
+                    <Grid.Col span={2}>
+                        <Avatar radius="xl" size="sm">
+                            {getNameInitials(comment.user.name)}
+                        </Avatar>
+                    </Grid.Col>
+                    <Grid.Col span={22}>
+                        <Group position="apart">
+                            <Group spacing="xs">
+                                <Text fz="sm" fw={500}>
+                                    {comment.user.name}
+                                </Text>
+                                <CommentTimestamp
+                                    commentTimestamp={comment.createdAt}
                                 />
-                            </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Resolve">
-                            <ActionIcon
-                                opacity={hovered ? 1 : 0}
-                                onClick={() => handleResolve(comment.commentId)}
-                            >
-                                <MantineIcon
-                                    color="green.4"
-                                    icon={IconCircleCheck}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
-                </Group>
-                <Box fz="sm" mb="xs">
-                    <Text>{comment.text}</Text>
-                </Box>
+                            </Group>
+                            <Group spacing="two">
+                                {comment.canRemove && (
+                                    <Tooltip label="Remove">
+                                        <ActionIcon
+                                            size="xs"
+                                            opacity={hovered ? 1 : 0}
+                                            onClick={() =>
+                                                handleRemove(comment.commentId)
+                                            }
+                                            variant="light"
+                                            color="gray"
+                                        >
+                                            <MantineIcon icon={IconTrash} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
+                                <Tooltip label="Reply">
+                                    <ActionIcon
+                                        size="xs"
+                                        opacity={hovered ? 1 : 0}
+                                        onClick={() => {
+                                            setIsReplyingTo((prev) =>
+                                                prev === comment.commentId
+                                                    ? undefined
+                                                    : comment.commentId,
+                                            );
+                                            if (!isRepliesOpen) {
+                                                toggleReplies();
+                                            }
+                                        }}
+                                        variant="light"
+                                        color="blue"
+                                    >
+                                        <MantineIcon icon={IconMessageReply} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Resolve">
+                                    <ActionIcon
+                                        size="xs"
+                                        opacity={hovered ? 1 : 0}
+                                        onClick={() =>
+                                            handleResolve(comment.commentId)
+                                        }
+                                        variant="light"
+                                        color="green"
+                                    >
+                                        <MantineIcon icon={IconCircleCheck} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
+                        </Group>
+                        <Box fz="sm" mb="xs">
+                            <Text>{comment.text}</Text>
+                        </Box>
+                    </Grid.Col>
+                </Grid>
             </Box>
             {comment.replies && comment.replies.length > 0 && (
-                <Box ml="lg">
+                <Box ml="xl">
                     <Divider
-                        labelPosition="center"
+                        size="xs"
+                        labelPosition="right"
                         label={
                             <Button
+                                compact
                                 size="xs"
                                 variant="subtle"
+                                fz="xs"
                                 onClick={toggleReplies}
                             >
                                 {comment.replies.length}{' '}
@@ -157,19 +289,13 @@ const CommentDetail: FC<{ comment: Comment } & Props> = ({
                     <Collapse in={isRepliesOpen}>
                         <Stack spacing="xs">
                             {comment.replies.map((reply) => (
-                                <Box key={reply.commentId}>
-                                    <Group spacing="xs">
-                                        <Avatar radius="xl" size="sm">
-                                            {getNameInitials(reply.user.name)}
-                                        </Avatar>
-                                        <Text fz="xs" fw={500}>
-                                            {reply.user.name}
-                                        </Text>
-                                    </Group>
-                                    <Box fz="sm" mb="xs">
-                                        <Text>{reply.text}</Text>
-                                    </Box>
-                                </Box>
+                                <Reply
+                                    key={reply.commentId}
+                                    reply={reply}
+                                    projectUuid={projectUuid}
+                                    dashboardUuid={dashboardUuid}
+                                    dashboardTileUuid={dashboardTileUuid}
+                                />
                             ))}
                         </Stack>
                     </Collapse>
@@ -199,16 +325,23 @@ const CommentDetail: FC<{ comment: Comment } & Props> = ({
                     </Button>
                 </Stack>
             )}
-
-            <Divider color="gray.1" />
         </Stack>
     );
 };
 
-export const Comments: FC<Props> = ({
+export const Comments: FC<
+    Props &
+        Pick<PopoverProps, 'opened' | 'onClose' | 'onOpen'> & {
+            visible: boolean;
+        }
+> = ({
     projectUuid,
     dashboardTileUuid,
     dashboardUuid,
+    opened,
+    onClose,
+    onOpen,
+    visible,
 }) => {
     const commentForm = useForm<Pick<Comment, 'text' | 'replyTo'>>({
         initialValues: {
@@ -216,7 +349,7 @@ export const Comments: FC<Props> = ({
             replyTo: '',
         },
     });
-    const { data: comments } = useGetComments(
+    const { data: comments, isRefetching } = useGetComments(
         projectUuid,
         dashboardUuid,
         dashboardTileUuid,
@@ -242,13 +375,17 @@ export const Comments: FC<Props> = ({
             position="bottom-end"
             offset={4}
             arrowOffset={10}
-            opened
-            zIndex={10000}
-            width={500}
+            opened={opened}
+            onOpen={() => {
+                onOpen?.();
+                commentForm.reset();
+            }}
+            onClose={() => {
+                commentForm.reset();
+                onClose?.();
+            }}
         >
-            <Popover.Dropdown onMouseOver={(e) => e.stopPropagation()}>
-                {/* Add comments list */}
-
+            <Popover.Dropdown miw={400}>
                 <Stack spacing="xs">
                     {comments?.map((comment) => {
                         return (
@@ -289,8 +426,18 @@ export const Comments: FC<Props> = ({
             </Popover.Dropdown>
 
             <Popover.Target>
-                <ActionIcon size="sm" onMouseOver={(e) => e.stopPropagation()}>
-                    <MantineIcon icon={IconMessage} />
+                <ActionIcon
+                    sx={{
+                        visibility: visible ? 'visible' : 'hidden',
+                    }}
+                    size="sm"
+                    onClick={() => onOpen?.()}
+                >
+                    {isRefetching ? (
+                        <Loader size="xs" />
+                    ) : (
+                        <MantineIcon icon={IconMessage} />
+                    )}
                 </ActionIcon>
             </Popover.Target>
         </Popover>

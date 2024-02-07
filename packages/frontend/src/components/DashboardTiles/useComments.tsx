@@ -60,6 +60,9 @@ export const useGetComments = (
     return useQuery<ApiCommentsResults, ApiError>(
         ['comments', dashboardUuid, dashboardTileUuid],
         () => getDashboardTileComments({ dashboardTileUuid, dashboardUuid }),
+        {
+            refetchInterval: 10000,
+        },
     );
 };
 
@@ -88,6 +91,42 @@ export const useResolveComment = () => {
         >
     >((data) => resolveComment(data), {
         mutationKey: ['resolve-comment'],
+        onSuccess: async (_, { dashboardTileUuid, dashboardUuid }) => {
+            await queryClient.invalidateQueries([
+                'comments',
+                dashboardUuid,
+                dashboardTileUuid,
+            ]);
+        },
+    });
+};
+
+const removeComment = async ({
+    commentId,
+    dashboardTileUuid,
+    dashboardUuid,
+}: { commentId: string } & Pick<
+    CreateDashboardTileComment,
+    'dashboardTileUuid' | 'dashboardUuid'
+>) =>
+    lightdashApi<null>({
+        url: `/dashboards/${dashboardUuid}/${dashboardTileUuid}/comments/${commentId}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useRemoveComment = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        null,
+        ApiError,
+        { commentId: string } & Pick<
+            CreateDashboardTileComment,
+            'dashboardTileUuid' | 'dashboardUuid'
+        >
+    >((data) => removeComment(data), {
+        mutationKey: ['remove-comment'],
         onSuccess: async (_, { dashboardTileUuid, dashboardUuid }) => {
             await queryClient.invalidateQueries([
                 'comments',
