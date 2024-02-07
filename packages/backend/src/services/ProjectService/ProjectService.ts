@@ -32,6 +32,7 @@ import {
     DimensionType,
     Explore,
     ExploreError,
+    FeatureFlags,
     fieldId as getFieldId,
     FilterableField,
     FilterGroupItem,
@@ -114,7 +115,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { postHogClient } from '../../postHog';
+import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -724,18 +725,10 @@ export class ProjectService {
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs =
-            (await postHogClient?.isFeatureEnabled(
-                'use-dbt-ls',
-                user.userUuid,
-                user.organizationUuid !== undefined
-                    ? {
-                          groups: {
-                              organization: user.organizationUuid,
-                          },
-                      }
-                    : {},
-            )) ?? false;
+        const useDbtLs = await isFeatureFlagEnabled(
+            FeatureFlags.UseDbtLs,
+            user,
+        );
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -801,18 +794,11 @@ export class ProjectService {
             await this.projectModel.getWarehouseFromCache(projectUuid);
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs =
-            (await postHogClient?.isFeatureEnabled(
-                'use-dbt-ls',
-                user.userUuid,
-                user.organizationUuid !== undefined
-                    ? {
-                          groups: {
-                              organization: user.organizationUuid,
-                          },
-                      }
-                    : {},
-            )) ?? false;
+        const useDbtLs = await isFeatureFlagEnabled(
+            FeatureFlags.UseDbtLs,
+            user,
+        );
+
         console.log(await postHogClient?.getAllFlags(user.userUuid));
         console.log('projectservice', useDbtLs);
         const adapter = await projectAdapterFromConfig(
