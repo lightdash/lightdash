@@ -16,6 +16,7 @@ import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { ReactNode, useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
+import { Comments } from '../Comments';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
@@ -165,6 +166,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         </TitleWrapper>
                     </Tooltip>
                 )}
+
+                <Comments />
+
                 {(containerHovered && !titleHovered) || isMenuOpen ? (
                     <ButtonsWrapper className="non-draggable">
                         {extraHeaderElement}
