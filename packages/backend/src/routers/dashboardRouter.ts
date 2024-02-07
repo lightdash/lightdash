@@ -192,3 +192,66 @@ dashboardRouter.post(
         }
     },
 );
+
+dashboardRouter.post(
+    '/:dashboardUuid/:dashboardTileUuid/comments',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await dashboardService.createComment(
+                    req.user!,
+                    req.params.dashboardUuid,
+                    req.params.dashboardTileUuid,
+                    req.body.text,
+                    req.body.replyTo ?? null,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dashboardRouter.get(
+    '/:dashboardUuid/:dashboardTileUuid/comments',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await dashboardService.getComments(
+                    req.user!,
+                    req.params.dashboardUuid,
+                    req.params.dashboardTileUuid,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dashboardRouter.patch(
+    '/:dashboardUuid/:dashboardTileUuid/comments/:commentId',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await dashboardService.resolveComment(
+                    req.user!,
+                    req.params.dashboardUuid,
+                    req.params.dashboardTileUuid,
+                    req.params.commentId,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
