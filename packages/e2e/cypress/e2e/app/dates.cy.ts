@@ -55,7 +55,7 @@ describe('Date tests', () => {
         cy.get('tbody td').contains('$415.00');
         cy.get('tbody td').contains('26');
 
-        cy.findByTestId('Charts-card-expand').click(); // Collapse charts
+        cy.findByTestId('Chart-card-expand').click(); // Collapse charts
         cy.findByTestId('SQL-card-expand').click();
 
         cy.get('.mantine-Prism-root').within(() => {
@@ -204,7 +204,7 @@ describe('Date tests', () => {
 
         cy.findByTestId('Filters-card-expand').click();
         cy.findByTestId('SQL-card-expand').click();
-        cy.findByTestId('Charts-card-expand').click(); // Close chart
+        cy.findByTestId('Chart-card-expand').click(); // Close chart
 
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by raw
@@ -338,7 +338,7 @@ describe('Date tests', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/customers`);
 
         cy.findByTestId('page-spinner').should('not.exist');
-        cy.get('[data-testid=Charts-card-expand]').click(); // Close chart
+        cy.get('[data-testid=Chart-card-expand]').click(); // Close chart
         cy.contains('No data available').should('be.visible');
         cy.contains('Pick a metric & select its dimensions').should(
             'be.visible',
@@ -397,7 +397,7 @@ describe('Date tests', () => {
         );
 
         cy.findByTestId('page-spinner').should('not.exist');
-        cy.get('[data-testid=Charts-card-expand]').click(); // Close chart
+        cy.get('[data-testid=Chart-card-expand]').click(); // Close chart
 
         cy.contains('Filters').should('be.visible');
 

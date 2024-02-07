@@ -268,7 +268,7 @@ const SqlRunnerPage = () => {
                     colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
                 >
                     <CollapsableCard
-                        title="Charts"
+                        title="Chart"
                         rightHeaderElement={
                             expandedCards.get(SqlRunnerCards.CHART) && (
                                 <>
