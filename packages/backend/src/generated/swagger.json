@@ -965,6 +965,21 @@
                 ],
                 "type": "object"
             },
+            "GitRepo": {
+                "properties": {
+                    "ownerLogin": {
+                        "type": "string"
+                    },
+                    "fullName": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["ownerLogin", "fullName", "name"],
+                "type": "object"
+            },
             "GitIntegrationConfiguration": {
                 "properties": {
                     "enabled": {
@@ -6929,6 +6944,39 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/github/repos/list": {
+            "get": {
+                "operationId": "getGithubListRepositories",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/GitRepo"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/github/list": {

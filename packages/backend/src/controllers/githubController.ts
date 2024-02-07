@@ -1,3 +1,4 @@
+import { GitRepo } from '@lightdash/common';
 import { createAppAuth } from '@octokit/auth-app';
 import { Octokit as OktokitRest } from '@octokit/rest';
 import {
@@ -156,6 +157,39 @@ export class GithubInstallController extends Controller {
         req.session.oauth = {};
         this.setStatus(302);
         this.setHeader('Location', redirectUrl.href);
+    }
+
+    @SuccessResponse('200')
+    @Get('/repos/list')
+    @OperationId('getGithubListRepositories')
+    async getGithubListRepositories(@Request() req: express.Request): Promise<{
+        status: 'ok';
+        results: Array<GitRepo>;
+    }> {
+        this.setStatus(200);
+
+        const appOctokit = new OktokitRest({
+            authStrategy: createAppAuth,
+            auth: {
+                appId: 703670,
+                privateKey: process.env.GITHUB_PRIVATE_KEY,
+                // optional: this will make appOctokit authenticate as app (JWT)
+                //           or installation (access token), depending on the request URL
+                installationId,
+            },
+        });
+
+        const { data } =
+            await appOctokit.apps.listReposAccessibleToInstallation();
+
+        return {
+            status: 'ok',
+            results: data.repositories.map((repo) => ({
+                name: repo.name,
+                ownerLogin: repo.owner.login,
+                fullName: repo.full_name,
+            })),
+        };
     }
 
     @SuccessResponse('200')

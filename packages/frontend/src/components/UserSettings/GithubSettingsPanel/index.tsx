@@ -1,4 +1,4 @@
-import { ApiError } from '@lightdash/common';
+import { ApiError, GitRepo } from '@lightdash/common';
 import {
     Alert,
     Avatar,
@@ -20,14 +20,14 @@ import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 
 const getGithubRepositories = async () =>
-    lightdashApi<any>({
-        url: `/github/list`,
+    lightdashApi<GitRepo[]>({
+        url: `/github/repos/list`,
         method: 'GET',
         body: undefined,
     });
 
 const useGitHubRepositories = () =>
-    useQuery<any, ApiError>({
+    useQuery<GitRepo[], ApiError>({
         queryKey: ['github', 'branches'],
         queryFn: () => getGithubRepositories(),
         retry: false,
@@ -37,7 +37,6 @@ const GITHUB_INSTALL_URL = `/api/v1/github/install/`;
 
 const GithubSettingsPanel: FC = () => {
     const { data, isError, isInitialLoading } = useGitHubRepositories();
-    console.log('data', data);
     const isValidGithubInstallation = data !== undefined && !isError;
     if (isInitialLoading) {
         return <Loader />;
@@ -57,6 +56,27 @@ const GithubSettingsPanel: FC = () => {
                     Installing GitHub App allows Lightdash to access your GitHub
                     repositories and create pull requests.
                 </Text>
+
+                {isValidGithubInstallation && data.length === 0 && (
+                    <Alert
+                        color="blue"
+                        icon={<MantineIcon icon={IconAlertCircle} />}
+                    >
+                        Your GitHub integration doesn't have access to any
+                        repository.
+                    </Alert>
+                )}
+                {isValidGithubInstallation && data && data.length > 0 && (
+                    <Text color="dimmed" fz="xs">
+                        Your GitHub integration has access to the following
+                        repositories:
+                        <ul>
+                            {data.map((repo) => (
+                                <li key={repo.fullName}>{repo.fullName}</li>
+                            ))}
+                        </ul>
+                    </Text>
+                )}
 
                 {isValidGithubInstallation ? (
                     <Stack align="end">
@@ -82,16 +102,6 @@ const GithubSettingsPanel: FC = () => {
                                 Delete
                             </Button>
                         </Group>
-
-                        {data && data.length <= 0 && (
-                            <Alert
-                                color="blue"
-                                icon={<MantineIcon icon={IconAlertCircle} />}
-                            >
-                                Your GitHub integration doesn't have access to
-                                any repository.
-                            </Alert>
-                        )}
                     </Stack>
                 ) : (
                     <Flex justify="end">

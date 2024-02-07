@@ -60,6 +60,11 @@ import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
 import { DashboardFilters } from './types/filter';
 import {
+    GitIntegrationConfiguration,
+    GitRepo,
+    PullRequestCreated,
+} from './types/gitIntegration';
+import {
     DeleteOpenIdentity,
     OpenIdIdentitySummary,
 } from './types/openIdIdentity';
@@ -572,6 +577,9 @@ type ApiResults =
     | ValidationResponse[]
     | ChartHistory
     | ChartVersion
+    | Array<GitRepo>
+    | PullRequestCreated
+    | GitIntegrationConfiguration
     | UserWarehouseCredentials
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
