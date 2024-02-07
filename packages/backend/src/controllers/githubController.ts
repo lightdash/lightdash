@@ -1,8 +1,5 @@
-import { createTokenAuth } from '@octokit/auth-token';
-import { Octokit } from '@octokit/core';
-import { request } from '@octokit/request';
+import { createAppAuth } from '@octokit/auth-app';
 import { Octokit as OktokitRest } from '@octokit/rest';
-
 import {
     Controller,
     Get,
@@ -14,10 +11,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { nanoid } from 'nanoid';
-import { githubApp } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
-
-const { createAppAuth } = require('@octokit/auth-app');
 
 const githubAppName = 'lightdash-dev';
 const githubClientId = 'aaaa';
@@ -51,7 +45,6 @@ export class GithubInstallController extends Controller {
     @OperationId('githubAppInstall')
     async getGithubInstallOnProject(
         @Request() req: express.Request,
-        @Query() projectUuid: string,
         @Query() redirect?: string,
     ): Promise<void> {
         const redirectUrl = new URL(redirect || '/', lightdashConfig.siteUrl);
@@ -59,7 +52,6 @@ export class GithubInstallController extends Controller {
         req.session.oauth = {};
         req.session.oauth.returnTo = redirectUrl.href;
         req.session.oauth.state = state;
-        req.session.oauth.projectUuid = projectUuid;
         this.setStatus(302);
         this.setHeader(
             'Location',
