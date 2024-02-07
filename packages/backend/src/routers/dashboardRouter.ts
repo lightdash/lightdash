@@ -255,3 +255,25 @@ dashboardRouter.patch(
         }
     },
 );
+
+dashboardRouter.delete(
+    '/:dashboardUuid/:dashboardTileUuid/comments/:commentId',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            await dashboardService.deleteComment(
+                req.user!,
+                req.params.dashboardUuid,
+                req.params.dashboardTileUuid,
+                req.params.commentId,
+            );
+            res.json({
+                status: 'ok',
+                results: undefined,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);

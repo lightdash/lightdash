@@ -734,7 +734,10 @@ export class DashboardService {
             );
         }
 
-        return this.dashboardModel.getComments(dashboardTileUuid);
+        return this.dashboardModel.getComments(
+            dashboardTileUuid,
+            user.userUuid,
+        );
     }
 
     async resolveComment(
@@ -755,5 +758,26 @@ export class DashboardService {
         }
 
         return this.dashboardModel.resolveComment(commentId);
+    }
+
+    async deleteComment(
+        user: SessionUser,
+        dashboardUuid: string,
+        dashboardTileUuid: string,
+        commentId: string,
+    ): Promise<void> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        // TODO: implement ability
+        // if (user.ability.cannot('comment', subject('Dashboard', dashboard))) {
+        //     throw new ForbiddenError();
+        // }
+        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return this.dashboardModel.deleteComment(commentId);
     }
 }
