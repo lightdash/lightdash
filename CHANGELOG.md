@@ -1,3 +1,10 @@
+## [0.977.2](https://github.com/lightdash/lightdash/compare/0.977.1...0.977.2) (2024-02-07)
+
+
+### Bug Fixes
+
+* experiment with 2 approaches when taking screenshot of dashboard ([#8775](https://github.com/lightdash/lightdash/issues/8775)) ([712f206](https://github.com/lightdash/lightdash/commit/712f206ee0dca44ff9ceecb16edb46501365c06a))
+
 ## [0.977.1](https://github.com/lightdash/lightdash/compare/0.977.0...0.977.1) (2024-02-06)
 
 
