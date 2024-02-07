@@ -5,6 +5,7 @@ import {
     CompleteCartesianChartLayout,
     EchartsGrid,
     EchartsLegend,
+    FeatureFlags,
     getCustomDimensionId,
     getSeriesId,
     isCompleteEchartsConfig,
@@ -13,6 +14,7 @@ import {
     MarkLineData,
     Series,
 } from '@lightdash/common';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getMarkLineAxis,
@@ -43,6 +45,7 @@ type Args = {
     itemsMap: ItemsMap | undefined;
     stacking: boolean | undefined;
     cartesianType: CartesianTypeOptions | undefined;
+    colorPalette: string[];
 };
 
 const applyReferenceLines = (
@@ -117,6 +120,7 @@ const useCartesianChartConfig = ({
     itemsMap,
     stacking,
     cartesianType,
+    colorPalette,
 }: Args) => {
     // FIXME: this might not be necessary
     const hasInitialValue =
@@ -129,6 +133,9 @@ const useCartesianChartConfig = ({
     const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
         Partial<CartesianChart['eChartsConfig']> | undefined
     >(initialChartConfig?.eChartsConfig);
+    const useSharedColors = useFeatureFlagEnabled(
+        FeatureFlags.UseSharedColorAssignment,
+    );
 
     const isInitiallyStacked = (dirtyEchartsConfig?.series || []).some(
         (series: Series) => series.stack !== undefined,
@@ -700,12 +707,71 @@ const useCartesianChartConfig = ({
         referenceLines,
     ]);
 
+    /**
+     * Given the org's color palette, and a dimension identifier, return the color
+     * in the palette assigned to that identifier.
+     *
+     * This works by hashing the identifier into an integer value, and then projecting
+     * that value into the org's color space - effectivelly getting a number from 0 to
+     * <number of colors in palette>.
+     *
+     * This is a straight-forward way to handle hashing dimensions into colors, with
+     * two major caveats:
+     *
+     * - We're no longer cycling over colors in the palette, potentially not following
+     *   an intentionally-designed best-neighbor-color approach.
+     * - We have no guarantee different dimensions won't be assigned the same color due
+     *   to the narrow color space - we can fix this by shifting colors aside when
+     *   compiling the chart config.
+     */
+    const calculateDimensionColorAssignment = useCallback(
+        (dimensionIdent: string) => {
+            const hashedValue = Math.abs(
+                dimensionIdent.split('').reduce(function (a, b) {
+                    a = (a << 5) - a + b.charCodeAt(0);
+                    return a & a;
+                }, 0),
+            );
+
+            const colorIdx = hashedValue % colorPalette.length;
+            return colorPalette[colorIdx];
+        },
+        [colorPalette],
+    );
+
     const validConfig: CartesianChart = useMemo(() => {
+        /**
+         * If enabled, we try to apply consistent colors to the same dimension every
+         * time, at the point we're rendering the chart.
+         */
+        const dirtyConfigMaybeWithSharedColors = useSharedColors
+            ? {
+                  ...(dirtyEchartsConfig ?? {}),
+                  series:
+                      dirtyEchartsConfig?.series?.map((series) => ({
+                          ...series,
+                          color:
+                              series.color ??
+                              calculateDimensionColorAssignment(
+                                  series.encode.xRef.field,
+                              ),
+                      })) ?? [],
+              }
+            : dirtyEchartsConfig;
+
         return isCompleteLayout(dirtyLayout) &&
-            isCompleteEchartsConfig(dirtyEchartsConfig)
-            ? { layout: dirtyLayout, eChartsConfig: dirtyEchartsConfig }
+            isCompleteEchartsConfig(dirtyConfigMaybeWithSharedColors)
+            ? {
+                  layout: dirtyLayout,
+                  eChartsConfig: dirtyConfigMaybeWithSharedColors,
+              }
             : EMPTY_CARTESIAN_CHART_CONFIG;
-    }, [dirtyLayout, dirtyEchartsConfig]);
+    }, [
+        dirtyLayout,
+        dirtyEchartsConfig,
+        calculateDimensionColorAssignment,
+        useSharedColors,
+    ]);
 
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
