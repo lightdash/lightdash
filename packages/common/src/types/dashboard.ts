@@ -79,6 +79,7 @@ export type CreateDashboard = {
     filters?: DashboardFilters;
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
     spaceUuid?: string;
+    embedding?: string;
 };
 
 export type DashboardTile =
@@ -106,6 +107,7 @@ export type Dashboard = {
     firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    embedding?: string;
 };
 
 export type DashboardBasicDetails = Pick<
@@ -128,7 +130,7 @@ export type SpaceDashboard = DashboardBasicDetails;
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
-    'name' | 'description' | 'spaceUuid'
+    'name' | 'description' | 'spaceUuid' | 'embedding'
 >;
 
 export type DashboardVersionedFields = Pick<
