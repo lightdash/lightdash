@@ -66,6 +66,7 @@ export class HealthService {
                 this.lightdashConfig.customVisualizations &&
                 this.lightdashConfig.customVisualizations.enabled,
             hasSlack: this.hasSlackConfig(),
+            hasGithub: process.env.GITHUB_PRIVATE_KEY !== undefined,
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,

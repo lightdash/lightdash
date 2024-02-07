@@ -675,6 +675,7 @@ export type HealthState = {
     };
     customVisualizationsEnabled: boolean;
     hasSlack: boolean;
+    hasGithub: boolean;
     hasHeadlessBrowser: boolean;
     hasDbtSemanticLayer: boolean;
     hasGroups: boolean;
