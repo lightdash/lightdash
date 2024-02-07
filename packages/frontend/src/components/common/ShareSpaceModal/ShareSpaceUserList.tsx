@@ -5,7 +5,15 @@ import {
     Space,
     SpaceShare,
 } from '@lightdash/common';
-import { Avatar, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
+import {
+    Avatar,
+    Badge,
+    Group,
+    Select,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import upperFirst from 'lodash/upperFirst';
 import { FC, forwardRef } from 'react';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
@@ -143,10 +151,11 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 }
                             >
                                 {isYou ||
-                                role === upperFirst(ProjectMemberRole.ADMIN) ? (
-                                    <Text fw={600} fz="xs">
+                                role === upperFirst(ProjectMemberRole.ADMIN) ||
+                                spaceAccessType === SpaceAccessType.PUBLIC ? (
+                                    <Badge size="md" color="gray.6" radius="xs">
                                         {role}
-                                    </Text>
+                                    </Badge>
                                 ) : (
                                     <Select
                                         styles={{

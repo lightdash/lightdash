@@ -100,9 +100,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     user.role === OrganizationMemberRole.ADMIN ||
                     projectUser?.role === ProjectMemberRole.ADMIN;
 
-                const hasAccess = space.access
-                    ?.map((access) => access.userUuid)
-                    .includes(userUuid);
+                const hasAccess = space.access?.find(
+                    (access) => access.userUuid == userUuid,
+                )?.hasDirectAccess;
 
                 if (isAdmin || hasAccess) return null;
 
