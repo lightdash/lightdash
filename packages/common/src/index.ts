@@ -168,6 +168,7 @@ export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
+export * from './utils/convertToDbt';
 export * from './utils/email';
 export * from './utils/fields';
 export * from './utils/filters';

@@ -222,4 +222,5 @@ export const downloadFileService = new DownloadFileService({
 
 export const gitIntegrationService = new GitIntegrationService({
     lightdashConfig,
+    savedChartModel,
 });

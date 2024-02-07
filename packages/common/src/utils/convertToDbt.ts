@@ -60,12 +60,13 @@ function updateColumnNode(
     columnNode: DbtModelColumn,
     customMetricsToAdd: AdditionalMetric[],
 ): DbtModelColumn {
+    console.log('updateColumnNode', columnNode, customMetricsToAdd);
     return {
         ...columnNode,
         meta: {
             ...columnNode.meta,
             metrics: {
-                ...(columnNode.meta.metrics || {}),
+                ...(columnNode.meta?.metrics || {}),
                 ...Object.fromEntries(
                     customMetricsToAdd.map((customMetric) => [
                         customMetric.name,

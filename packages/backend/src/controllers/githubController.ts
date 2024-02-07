@@ -11,6 +11,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { nanoid } from 'nanoid';
+import { getFileContent, githubApp } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 
 const githubAppName = 'lightdash-dev';
@@ -246,6 +247,17 @@ export class GithubInstallController extends Controller {
                 email: 'rephus@gmail.com',
             },
         });
+        console.log('update file ', response);
+        return response;
+    }
+
+    @SuccessResponse('201')
+    @Get('/get-file')
+    @OperationId('getFile')
+    async getFile(@Request() req: express.Request): Promise<any> {
+        this.setStatus(200);
+
+        const response = await getFileContent('models/schema.yml');
         console.log('update file ', response);
         return response;
     }
