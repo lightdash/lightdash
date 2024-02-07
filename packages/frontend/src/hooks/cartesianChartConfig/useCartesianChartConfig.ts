@@ -3,6 +3,7 @@ import {
     CartesianChart,
     CartesianSeriesType,
     CompleteCartesianChartLayout,
+    CompleteEChartsConfig,
     EchartsGrid,
     EchartsLegend,
     FeatureFlags,
@@ -724,53 +725,114 @@ const useCartesianChartConfig = ({
      *   to the narrow color space - we can fix this by shifting colors aside when
      *   compiling the chart config.
      */
-    const calculateDimensionColorAssignment = useCallback(
-        (dimensionIdent: string) => {
+    const calculateSeriesColorAssignment = useCallback(
+        (
+            layout: CompleteCartesianChartLayout,
+            series: Series,
+            colorsToAvoid: Set<string>,
+        ) => {
+            const { field: xField } = series.encode.xRef;
+            const { field: yField, pivotValues: yPivotValues } =
+                series.encode.yRef;
+
+            const baseDimension = layout.yField.length > 1 ? yField : xField;
+            const pivotValueSubPaths =
+                yPivotValues && yPivotValues.length > 0
+                    ? yPivotValues.map((v) => `${v.field}_${v.value}`).sort()
+                    : [];
+
+            const completeDimension = [
+                baseDimension,
+                ...pivotValueSubPaths,
+            ].join('_');
+
             const hashedValue = Math.abs(
-                dimensionIdent.split('').reduce(function (a, b) {
+                completeDimension.split('').reduce(function (a, b) {
                     a = (a << 5) - a + b.charCodeAt(0);
                     return a & a;
                 }, 0),
             );
 
             const colorIdx = hashedValue % colorPalette.length;
-            return colorPalette[colorIdx];
+            const colorHex = colorPalette[colorIdx];
+
+            // Intersect colors we've already used with our color palette, and try to find the
+            // next available color on the list.
+            if (colorsToAvoid.has(colorHex)) {
+                const intersection = colorPalette.filter(
+                    (v) => !colorsToAvoid.has(v),
+                );
+
+                if (intersection.length > 0) {
+                    return intersection[0];
+                } else {
+                    return colorHex;
+                }
+            }
+
+            return colorHex;
         },
         [colorPalette],
     );
 
-    const validConfig: CartesianChart = useMemo(() => {
-        /**
-         * If enabled, we try to apply consistent colors to the same dimension every
-         * time, at the point we're rendering the chart.
-         */
-        const dirtyConfigMaybeWithSharedColors = useSharedColors
-            ? {
-                  ...(dirtyEchartsConfig ?? {}),
-                  series:
-                      dirtyEchartsConfig?.series?.map((series) => ({
-                          ...series,
-                          color:
-                              series.color ??
-                              calculateDimensionColorAssignment(
-                                  series.encode.xRef.field,
-                              ),
-                      })) ?? [],
-              }
-            : dirtyEchartsConfig;
+    const compileChartConfigWithColorAssignments = useCallback(
+        (
+            fullLayout: CompleteCartesianChartLayout,
+            fullConfig: CompleteEChartsConfig,
+        ) => {
+            if (!useSharedColors) {
+                return fullConfig;
+            }
 
+            /**
+             * As a final safeguard against neighboring colors in a series,
+             * we keep track of any colors we've seen in this chart, and for
+             * any repeat offenders, we attempt to introduce a local offset.
+             *
+             * This means for this specific dimension, in this specific chart,
+             * this color will be predictably offset every time, but will go
+             * out of sync with surrounding charts in a dashboard.
+             */
+            const colorsInChart = new Set<string>();
+
+            return {
+                ...fullConfig,
+                series: fullConfig.series.map((series) => {
+                    const calculatedColor =
+                        series.color ??
+                        calculateSeriesColorAssignment(
+                            fullLayout,
+                            series,
+                            colorsInChart,
+                        );
+
+                    colorsInChart.add(calculatedColor);
+
+                    return {
+                        ...series,
+                        color: calculatedColor,
+                    };
+                }),
+            };
+        },
+        [useSharedColors, calculateSeriesColorAssignment],
+    );
+
+    const validConfig: CartesianChart = useMemo(() => {
         return isCompleteLayout(dirtyLayout) &&
-            isCompleteEchartsConfig(dirtyConfigMaybeWithSharedColors)
+            isCompleteEchartsConfig(dirtyEchartsConfig)
             ? {
                   layout: dirtyLayout,
-                  eChartsConfig: dirtyConfigMaybeWithSharedColors,
+                  eChartsConfig: compileChartConfigWithColorAssignments(
+                      dirtyLayout,
+                      dirtyEchartsConfig,
+                  ),
               }
             : EMPTY_CARTESIAN_CHART_CONFIG;
     }, [
         dirtyLayout,
         dirtyEchartsConfig,
-        calculateDimensionColorAssignment,
-        useSharedColors,
+        compileChartConfigWithColorAssignments,
     ]);
 
     const { dirtyChartType } = useMemo(() => {
