@@ -73,19 +73,14 @@ export class SearchModel {
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { spaceUuid: 'space_uuid' },
+                this.database.raw(
+                    `ts_rank(${DashboardsTableName}.search_vector, websearch_to_tsquery(?), 0) as search_rank`,
+                    [query],
+                ),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .andWhere((qB) =>
-                qB
-                    .whereRaw(
-                        `LOWER(${DashboardsTableName}.name) like LOWER(?)`,
-                        [`%${query}%`],
-                    )
-                    .orWhereRaw(
-                        `LOWER(${DashboardsTableName}.description) like LOWER(?)`,
-                        [`%${query}%`],
-                    ),
-            );
+            .orderBy('search_rank', 'desc')
+            .limit(10);
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
 
