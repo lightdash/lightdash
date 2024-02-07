@@ -32,7 +32,17 @@ const octokit = new OktokitRest({
     },
 });
 
-export const getFileContent = async (fileName: string) => {
+export const getFileContent = async ({
+    fileName,
+    owner,
+    repo,
+    branch,
+}: {
+    fileName: string;
+    owner: string;
+    repo: string;
+    branch: string;
+}) => {
     const response = await octokit.rest.repos.getContent({
         owner: 'rephus', // TODO hardcoded : replace
         repo: 'jaffle_shop', // TODO hardcoded : replace
@@ -53,23 +63,39 @@ export const getFileContent = async (fileName: string) => {
     throw new NotFoundError('file not found');
 };
 
-export const createBranch = async (branchName: string) => {
+export const createBranch = async ({
+    owner,
+    repo,
+    sha,
+    branchName,
+}: {
+    owner: string;
+    repo: string;
+    sha: string;
+    branchName: string;
+}) => {
     const response = await octokit.rest.git.createRef({
-        owner: 'rephus', // TODO hardcoded : replace
-        repo: 'jaffle_shop', // TODO hardcoded : replace
+        owner,
+        repo,
         ref: `refs/heads/${branchName}`,
         sha: 'a0f63994e1d857fe5fdf280a159e20a95bf75b50', // TODO hardcoded : replace
     });
     return response;
 };
 
-export const updateFile = async (
-    fileName: string,
-    content: string,
-    fileSha: string,
-    branchName: string,
-    message: string,
-) => {
+export const updateFile = async ({
+    fileName,
+    content,
+    fileSha,
+    branchName,
+    message,
+}: {
+    fileName: string;
+    content: string;
+    fileSha: string;
+    branchName: string;
+    message: string;
+}) => {
     const response = await octokit.rest.repos.createOrUpdateFileContents({
         owner: 'rephus', // TODO hardcoded : replace
         repo: 'jaffle_shop', // TODO hardcoded : replace

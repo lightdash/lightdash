@@ -1,5 +1,6 @@
 import {
     DbtModelNode,
+    DbtProjectType,
     DimensionType,
     findAndUpdateModelNodes,
     GitIntegrationConfiguration,
@@ -17,11 +18,13 @@ import {
     updateFile,
 } from '../../clients/github/Github';
 import { LightdashConfig } from '../../config/parseConfig';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
     savedChartModel: SavedChartModel;
+    projectModel: ProjectModel;
 };
 
 // TODO move this to common and refactor cli
@@ -54,9 +57,16 @@ export class GitIntegrationService {
 
     private readonly savedChartModel: SavedChartModel;
 
-    constructor({ lightdashConfig, savedChartModel }: Dependencies) {
+    private readonly projectModel: ProjectModel;
+
+    constructor({
+        lightdashConfig,
+        savedChartModel,
+        projectModel,
+    }: Dependencies) {
         this.lightdashConfig = lightdashConfig;
         this.savedChartModel = savedChartModel;
+        this.projectModel = projectModel;
     }
 
     async getConfiguration(
@@ -99,16 +109,29 @@ export class GitIntegrationService {
     ): Promise<PullRequestCreated> {
         // TODO: check user permissions, only editors and above?
         // get chart -> get custom metrics
+        const project = await this.projectModel.get(projectUuid);
+
+        if (project.dbtConnection.type !== DbtProjectType.GITHUB)
+            throw new Error(
+                `invalid dbt connection type ${project.dbtConnection.type} for project ${project.name}`,
+            );
+
+        const [owner, repo] = project.dbtConnection.repository.split('/');
+        const { branch } = project.dbtConnection;
         const chart = await this.savedChartModel.get(chartUuid);
         const customMetrics = chart.metricQuery.additionalMetrics;
+        const fileName = 'models/schema.yml'; // TODO hardcoded: replace with the right file
 
         if (customMetrics === undefined || customMetrics?.length === 0)
             throw new Error('No custom metrics found');
 
         // get yml from github
-        const { content: fileContent, sha: fileSha } = await getFileContent(
-            'models/schema.yml',
-        ); // TODO hardcoded: replace with the right file
+        const { content: fileContent, sha: fileSha } = await getFileContent({
+            fileName,
+            owner,
+            repo,
+            branch,
+        });
 
         const yamlSchema = await GitIntegrationService.loadYamlSchema(
             fileContent,
@@ -133,18 +156,22 @@ export class GitIntegrationService {
 
         // create branch in git
         const branchName = `add-custom-metrics-${Date.now()}`;
-        const branch = await createBranch(branchName);
+        const newBranch = await createBranch({
+            branchName,
+            owner,
+            repo,
+            sha: fileSha,
+        });
         const prTitle = `Added ${customMetrics.length} custom metrics from chart ${chart.name}`;
-        const fileUpdated = await updateFile(
-            'models/schema.yml',
-            updatedYml,
+
+        console.log('update', updatedYml);
+        const fileUpdated = await updateFile({
+            fileName,
+            content: updatedYml,
             fileSha,
             branchName,
-            prTitle,
-        );
-
-        const owner = 'rephus'; // TODO hardcoded
-        const repo = 'jaffle_shop'; // TODO hardcoded
+            message: prTitle,
+        });
 
         // TODO should we use the api to get the link to the PR ?
         const prUrl = `https://github.com/${owner}/${repo}/compare/main...${owner}:${repo}:${branchName}?expand=1`;
