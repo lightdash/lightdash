@@ -726,16 +726,11 @@ const useCartesianChartConfig = ({
      *   compiling the chart config.
      */
     const calculateSeriesColorAssignment = useCallback(
-        (
-            layout: CompleteCartesianChartLayout,
-            series: Series,
-            colorsToAvoid: Set<string>,
-        ) => {
-            const { field: xField } = series.encode.xRef;
+        (series: Series, colorsToAvoid: Set<string>) => {
             const { field: yField, pivotValues: yPivotValues } =
                 series.encode.yRef;
 
-            const baseDimension = layout.yField.length > 1 ? yField : xField;
+            const baseDimension = yField;
             const pivotValueSubPaths =
                 yPivotValues && yPivotValues.length > 0
                     ? yPivotValues.map((v) => `${v.field}_${v.value}`).sort()
@@ -776,10 +771,7 @@ const useCartesianChartConfig = ({
     );
 
     const compileChartConfigWithColorAssignments = useCallback(
-        (
-            fullLayout: CompleteCartesianChartLayout,
-            fullConfig: CompleteEChartsConfig,
-        ) => {
+        (fullConfig: CompleteEChartsConfig) => {
             if (!useSharedColors) {
                 return fullConfig;
             }
@@ -800,11 +792,7 @@ const useCartesianChartConfig = ({
                 series: fullConfig.series.map((series) => {
                     const calculatedColor =
                         series.color ??
-                        calculateSeriesColorAssignment(
-                            fullLayout,
-                            series,
-                            colorsInChart,
-                        );
+                        calculateSeriesColorAssignment(series, colorsInChart);
 
                     colorsInChart.add(calculatedColor);
 
@@ -823,10 +811,10 @@ const useCartesianChartConfig = ({
             isCompleteEchartsConfig(dirtyEchartsConfig)
             ? {
                   layout: dirtyLayout,
-                  eChartsConfig: compileChartConfigWithColorAssignments(
-                      dirtyLayout,
-                      dirtyEchartsConfig,
-                  ),
+                  eChartsConfig:
+                      compileChartConfigWithColorAssignments(
+                          dirtyEchartsConfig,
+                      ),
               }
             : EMPTY_CARTESIAN_CHART_CONFIG;
     }, [
