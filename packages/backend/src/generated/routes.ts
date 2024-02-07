@@ -6125,10 +6125,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/github/install',
         ...fetchMiddlewares<RequestHandler>(GithubInstallController),
         ...fetchMiddlewares<RequestHandler>(
-            GithubInstallController.prototype.getGithubInstallOnProject,
+            GithubInstallController.prototype.installGithubAppForOrganization,
         ),
 
-        function GithubInstallController_getGithubInstallOnProject(
+        function GithubInstallController_installGithubAppForOrganization(
             request: any,
             response: any,
             next: any,
@@ -6151,10 +6151,11 @@ export function RegisterRoutes(app: express.Router) {
 
                 const controller = new GithubInstallController();
 
-                const promise = controller.getGithubInstallOnProject.apply(
-                    controller,
-                    validatedArgs as any,
-                );
+                const promise =
+                    controller.installGithubAppForOrganization.apply(
+                        controller,
+                        validatedArgs as any,
+                    );
                 promiseHandler(controller, promise, response, 302, next);
             } catch (err) {
                 return next(err);
