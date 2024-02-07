@@ -36,6 +36,7 @@ import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EncryptionService } from './EncryptionService/EncryptionService';
 import { GdriveService } from './GdriveService/GdriveService';
+import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
@@ -217,4 +218,8 @@ export const gdriveService = new GdriveService({
 export const downloadFileService = new DownloadFileService({
     lightdashConfig,
     downloadFileModel,
+});
+
+export const gitIntegrationService = new GitIntegrationService({
+    lightdashConfig,
 });
