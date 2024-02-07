@@ -44,7 +44,7 @@ services:
     command: ""
     entrypoint: [ "/bin/sh", "-c", "sleep infinity" ]
   db-dev:
-    image: postgres:15.4
+    image: pgvector/pgvector:pg15
     restart: always
     environment:
       POSTGRES_PASSWORD: password
