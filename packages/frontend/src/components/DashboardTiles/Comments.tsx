@@ -101,28 +101,36 @@ const CommentDetail: FC<{ comment: Comment } & Props> = ({
                         {comment.user.name}
                     </Text>
 
-                    <Tooltip label="Reply">
-                        <ActionIcon
-                            opacity={hovered ? 1 : 0}
-                            onClick={() =>
-                                setIsReplyingTo((prev) =>
-                                    prev === comment.commentId
-                                        ? undefined
-                                        : comment.commentId,
-                                )
-                            }
-                        >
-                            <MantineIcon icon={IconMessageReply} />
-                        </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Resolve">
-                        <ActionIcon
-                            opacity={hovered ? 1 : 0}
-                            onClick={() => handleResolve(comment.commentId)}
-                        >
-                            <MantineIcon icon={IconCircleCheck} />
-                        </ActionIcon>
-                    </Tooltip>
+                    <Group spacing="one">
+                        <Tooltip label="Reply">
+                            <ActionIcon
+                                opacity={hovered ? 1 : 0}
+                                onClick={() =>
+                                    setIsReplyingTo((prev) =>
+                                        prev === comment.commentId
+                                            ? undefined
+                                            : comment.commentId,
+                                    )
+                                }
+                            >
+                                <MantineIcon
+                                    color="blue.4"
+                                    icon={IconMessageReply}
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Resolve">
+                            <ActionIcon
+                                opacity={hovered ? 1 : 0}
+                                onClick={() => handleResolve(comment.commentId)}
+                            >
+                                <MantineIcon
+                                    color="green.4"
+                                    icon={IconCircleCheck}
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Group>
                 </Group>
                 <Box fz="sm" mb="xs">
                     <Text>{comment.text}</Text>
@@ -169,7 +177,7 @@ const CommentDetail: FC<{ comment: Comment } & Props> = ({
             )}
 
             {(isReplyingTo || isRepliesOpen) && (
-                <Stack spacing="xs" ml="lg">
+                <Stack spacing="xs" ml="lg" mb="sm">
                     <TextInput
                         placeholder="Type your reply here..."
                         size="xs"
