@@ -14,6 +14,7 @@ import {
 import { useHover, useToggle } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { ReactNode, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
 import { Comments } from '../Comments';
@@ -80,6 +81,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;
+
+    const { projectUuid, dashboardUuid } = useParams<{
+        projectUuid: string;
+        dashboardUuid: string;
+    }>();
 
     return (
         <Card
@@ -167,7 +173,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     </Tooltip>
                 )}
 
-                <Comments />
+                <Comments
+                    projectUuid={projectUuid}
+                    dashboardTileUuid={tile.uuid}
+                    dashboardUuid={dashboardUuid}
+                />
 
                 {(containerHovered && !titleHovered) || isMenuOpen ? (
                     <ButtonsWrapper className="non-draggable">

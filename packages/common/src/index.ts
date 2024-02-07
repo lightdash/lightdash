@@ -518,6 +518,20 @@ export type ProjectSavedChartStatus = boolean;
 
 export type ApiFlashResults = Record<string, string[]>;
 
+export type Comment = {
+    commentId: string;
+    text: string;
+    createdAt: Date;
+    user: {
+        name: string;
+    };
+    replyTo: string | undefined;
+    replies?: Comment[];
+    resolved: boolean;
+};
+
+export type ApiCommentsResults = Comment[];
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -589,6 +603,7 @@ type ApiResults =
     | MostPopularAndRecentlyUpdated
     | ApiCalculateTotalResponse['results']
     | Record<string, DbtExposure>
+    | ApiCommentsResults
     | ApiSuccessEmpty;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {

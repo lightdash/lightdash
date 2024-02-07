@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    Comment,
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
@@ -29,6 +30,7 @@ import {
     DashboardVersionsTableName,
     DashboardVersionTable,
     DashboardViewsTableName,
+    DbDashboardTileComments,
 } from '../../database/entities/dashboards';
 import {
     OrganizationTable,
@@ -875,5 +877,77 @@ export class DashboardModel {
             )
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
+    }
+
+    async createComment(
+        dashboardTileUuid: string,
+        text: string,
+        replyTo: string | null,
+        user: LightdashUser,
+    ): Promise<void> {
+        await this.database('dashboard_tile_comments').insert({
+            text,
+            dashboard_tile_uuid: dashboardTileUuid,
+            reply_to: replyTo ?? null,
+            user_uuid: user.userUuid,
+        });
+    }
+
+    async getComments(dashboardTileUuid: string): Promise<Comment[]> {
+        // TODO: ensure uniqueness with project uuid and dashboard uuid
+
+        const rows: DbDashboardTileComments[] = await this.database(
+            'dashboard_tile_comments',
+        )
+            .select('*')
+            .where('dashboard_tile_uuid', dashboardTileUuid)
+            // TODO: get all comments later to show resolved comments sidebar
+            .andWhere('resolved', false);
+
+        const userUuids = [...new Set(rows.map((row) => row.user_uuid))];
+
+        const users = await this.database('users')
+            .select('user_uuid', 'first_name', 'last_name')
+            .whereIn('user_uuid', userUuids);
+
+        const userMap = users.reduce<Record<string, string>>((acc, user) => {
+            acc[user.user_uuid] = `${user.first_name} ${user.last_name}`;
+            return acc;
+        }, {});
+
+        const flatComments: Comment[] = rows.map((comment) => ({
+            commentId: comment.comment_id,
+            text: comment.text,
+            replyTo: comment.reply_to ?? undefined,
+            userUuid: comment.user_uuid,
+            user: { name: userMap[comment.user_uuid] }, // Append user name from the map
+            createdAt: comment.created_at,
+            resolved: comment.resolved,
+        }));
+
+        const commentMap: Record<string, Comment> = {};
+        flatComments.forEach((comment) => {
+            commentMap[comment.commentId] = { ...comment, replies: [] };
+        });
+
+        // Step 2: Build the tree structure
+        const topLevelComments: Comment[] = [];
+        flatComments.forEach((comment) => {
+            if (comment.replyTo) {
+                commentMap[comment.replyTo]?.replies?.push(
+                    commentMap[comment.commentId],
+                );
+            } else {
+                topLevelComments.push(commentMap[comment.commentId]);
+            }
+        });
+
+        return topLevelComments;
+    }
+
+    async resolveComment(commentId: string): Promise<void> {
+        await this.database('dashboard_tile_comments')
+            .update({ resolved: true })
+            .where('comment_id', commentId);
     }
 }
