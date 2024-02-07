@@ -736,10 +736,10 @@ const useCartesianChartConfig = ({
                     ? yPivotValues.map((v) => `${v.field}_${v.value}`).sort()
                     : [];
 
-            const completeDimension = [
-                baseDimension,
-                ...pivotValueSubPaths,
-            ].join('_');
+            const completeDimension =
+                pivotValueSubPaths.length > 0
+                    ? pivotValueSubPaths.join('_')
+                    : baseDimension;
 
             const hashedValue = Math.abs(
                 completeDimension.split('').reduce(function (a, b) {
