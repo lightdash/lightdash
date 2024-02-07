@@ -5,6 +5,7 @@ import {
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
+    DashboardUnversionedFields,
     ForbiddenError,
     hasChartsInDashboard,
     isChartScheduler,
@@ -40,6 +41,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import { embedText } from '../utils/langchain';
 
 type Dependencies = {
     dashboardModel: DashboardModel;
@@ -77,6 +79,14 @@ export class DashboardService {
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
         this.savedChartModel = savedChartModel;
+    }
+
+    private static async createDashboardEmbedding(
+        dashboard: CreateDashboard | DashboardUnversionedFields,
+    ) {
+        return embedText(
+            `dashboard - ${dashboard.name} - ${dashboard.description}`,
+        );
     }
 
     static getCreateEventProperties(
@@ -262,7 +272,12 @@ export class DashboardService {
         }
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
-            dashboard,
+            {
+                ...dashboard,
+                embedding: await DashboardService.createDashboardEmbedding(
+                    dashboard,
+                ),
+            },
             user,
             projectUuid,
         );
@@ -422,6 +437,9 @@ export class DashboardService {
                     name: dashboard.name,
                     description: dashboard.description,
                     spaceUuid: dashboard.spaceUuid,
+                    embedding: await DashboardService.createDashboardEmbedding(
+                        dashboard,
+                    ),
                 },
             );
 

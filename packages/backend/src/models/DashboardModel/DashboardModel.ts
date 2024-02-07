@@ -684,6 +684,7 @@ export class DashboardModel {
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
+                    embedding: dashboard.embedding,
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 
@@ -708,6 +709,7 @@ export class DashboardModel {
             .update({
                 name: dashboard.name,
                 description: dashboard.description,
+                embedding: dashboard.embedding,
                 ...withSpaceId,
             })
             .where('dashboard_uuid', dashboardUuid);
