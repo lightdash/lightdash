@@ -26,8 +26,8 @@ const installationId = 47029382; // replace this once it is installed
 
 /** HOW it works
  *
- * First install the app in the project
- * using /api/v1/github/install?projectUuid=3675b69e-8324-4110-bdca-059031aa8da3
+ * First install the app in the org
+ * using /api/v1/github/install
  *
  * This will redirect to the github app to the callback page
  * Write down the refresh token (not sure if we need it) and installation_id (currently hardcoded)
@@ -40,16 +40,15 @@ const installationId = 47029382; // replace this once it is installed
 @Route('/api/v1/github')
 export class GithubInstallController extends Controller {
     /**
-     * Install the Lightdash GitHub App and link to a project
+     * Install the Lightdash GitHub App and link to an organization
      *
-     * @param projectUuid The uuid of the project
      * @param redirect The url to redirect to after installation
      * @param req express request
      */
     @SuccessResponse('302', 'Not found')
     @Get('/install')
-    @OperationId('githubAppInstall')
-    async getGithubInstallOnProject(
+    @OperationId('installGithubAppForOrganization')
+    async installGithubAppForOrganization(
         @Request() req: express.Request,
         @Query() redirect?: string,
     ): Promise<void> {

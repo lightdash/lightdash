@@ -6860,13 +6860,13 @@
         },
         "/api/v1/github/install": {
             "get": {
-                "operationId": "githubAppInstall",
+                "operationId": "installGithubAppForOrganization",
                 "responses": {
                     "302": {
                         "description": "Not found"
                     }
                 },
-                "description": "Install the Lightdash GitHub App and link to a project",
+                "description": "Install the Lightdash GitHub App and link to an organization",
                 "security": [],
                 "parameters": [
                     {
