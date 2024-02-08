@@ -22,6 +22,7 @@ import {
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { embedText } from '../../services/utils/langchain';
 
 type ModelDependencies = {
     database: Knex;
@@ -77,8 +78,14 @@ export class SearchModel {
                     `ts_rank(${DashboardsTableName}.search_vector, websearch_to_tsquery(?), 0) as search_rank`,
                     [query],
                 ),
+                // TODO: Move this to a helper, also we should have the other comparison operators for vectors
+                this.database.raw('1 - (?? <=> ?) as cosine_similarity', [
+                    'embedding',
+                    await embedText(query),
+                ]),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .orderBy('cosine_similarity', 'desc')
             .orderBy('search_rank', 'desc')
             .limit(10);
 
