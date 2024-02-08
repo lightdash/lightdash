@@ -163,6 +163,7 @@ export class GithubInstallController extends Controller {
     }> {
         this.setStatus(200);
 
+        // todo: move all to service
         const installationId = await githubAppService.getInstallationId(
             req.user!,
         );
