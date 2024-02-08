@@ -20,7 +20,7 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
-import { useIntersection } from 'react-use';
+import { useIntersection, useToggle } from 'react-use';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -169,6 +169,7 @@ const Dashboard: FC = () => {
     );
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
+    const [isFullscreen, toggleFullscreen] = useToggle(false);
     const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();
@@ -272,6 +273,40 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged,
         setHaveTilesChanged,
     ]);
+
+    const handleToggleFullscreen = () => {
+        const willBeFullscreen = !isFullscreen;
+
+        if (document.fullscreenElement && !willBeFullscreen) {
+            document.exitFullscreen();
+        } else if (
+            document.fullscreenEnabled &&
+            !document.fullscreenElement &&
+            willBeFullscreen
+        ) {
+            document.documentElement.requestFullscreen();
+        }
+
+        toggleFullscreen();
+    };
+
+    useEffect(() => {
+        const onFullscreenChange = () => {
+            if (isFullscreen && !document.fullscreenElement) {
+                toggleFullscreen(false);
+            } else if (!isFullscreen && document.fullscreenElement) {
+                toggleFullscreen(true);
+            }
+        };
+
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+
+        return () =>
+            document.removeEventListener(
+                'fullscreenchange',
+                onFullscreenChange,
+            );
+    });
 
     const handleUpdateTiles = useCallback(
         async (layout: Layout[]) => {
@@ -559,6 +594,8 @@ const Dashboard: FC = () => {
                         isEditMode={isEditMode}
                         isSaving={isSaving}
                         oldestCacheTime={oldestCacheTime}
+                        isFullscreen={isFullscreen}
+                        onToggleFullscreen={handleToggleFullscreen}
                         hasDashboardChanged={
                             haveTilesChanged ||
                             haveFiltersChanged ||
