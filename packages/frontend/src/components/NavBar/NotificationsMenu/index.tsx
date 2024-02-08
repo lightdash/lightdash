@@ -27,9 +27,11 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     );
     const { data: dashboardCommentsNotifications } =
         useGetDashboardCommentsNotifications(
-            !userCanManageDashboardComments &&
+            !!userCanManageDashboardComments &&
                 !!isDashboardTileCommentsFeatureEnabled,
         );
+
+    console.log(dashboardCommentsNotifications);
 
     const { data: validationData } = useValidation(projectUuid, false);
     const canUserManageValidations = useValidationUserAbility(projectUuid);
