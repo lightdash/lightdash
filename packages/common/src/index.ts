@@ -533,6 +533,25 @@ export type Comment = {
 
 export type ApiCommentsResults = Comment[];
 
+export type Notification = {
+    notificationId: string;
+    user: {
+        name: string;
+    };
+    author: {
+        name: string;
+    };
+    dashboard?: {
+        uuid: string | null;
+        name: string;
+        tileUuid: string | null;
+    };
+    viewed: boolean;
+    createdAt: Date;
+};
+
+export type ApiNotificationsResults = Notification[];
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -605,6 +624,7 @@ type ApiResults =
     | ApiCalculateTotalResponse['results']
     | Record<string, DbtExposure>
     | ApiCommentsResults
+    | ApiNotificationsResults
     | ApiSuccessEmpty;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {

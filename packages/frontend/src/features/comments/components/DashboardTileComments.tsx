@@ -27,14 +27,14 @@ import {
 } from '@tabler/icons-react';
 import moment from 'moment';
 import { FC, useCallback, useState } from 'react';
-import { useTimeAgo } from '../../hooks/useTimeAgo';
-import MantineIcon from '../common/MantineIcon';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import {
     useCreateComment,
     useGetComments,
     useRemoveComment,
     useResolveComment,
-} from './useComments';
+} from '../hooks/useComments';
 
 type Props = {
     projectUuid: string;
@@ -329,7 +329,7 @@ const CommentDetail: FC<{ comment: Comment } & Props> = ({
     );
 };
 
-export const Comments: FC<
+export const DashboardTileComments: FC<
     Props &
         Pick<PopoverProps, 'opened' | 'onClose' | 'onOpen'> & {
             visible: boolean;
@@ -350,7 +350,6 @@ export const Comments: FC<
         },
     });
     const { data: comments, isRefetching } = useGetComments(
-        projectUuid,
         dashboardUuid,
         dashboardTileUuid,
     );
@@ -378,6 +377,9 @@ export const Comments: FC<
             opened={opened}
             onOpen={() => {
                 onOpen?.();
+
+                // TODO: markDashboardCommentNotificationAsRead();
+
                 commentForm.reset();
             }}
             onClose={() => {

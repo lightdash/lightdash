@@ -7,6 +7,7 @@ import {
 import {
     analyticsService,
     dashboardService,
+    notificationsService,
     projectService,
     unfurlService,
 } from '../services/services';
@@ -199,15 +200,24 @@ dashboardRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
+            const commentId = await dashboardService.createComment(
+                req.user!,
+                req.params.dashboardUuid,
+                req.params.dashboardTileUuid,
+                req.body.text,
+                req.body.replyTo ?? null,
+            );
+
+            await notificationsService.createDashboardCommentNotification(
+                req.user!.userUuid,
+                commentId,
+                req.params.dashboardUuid,
+                req.params.dashboardTileUuid,
+            );
+
             res.json({
                 status: 'ok',
-                results: await dashboardService.createComment(
-                    req.user!,
-                    req.params.dashboardUuid,
-                    req.params.dashboardTileUuid,
-                    req.body.text,
-                    req.body.replyTo ?? null,
-                ),
+                results: commentId,
             });
         } catch (e) {
             next(e);

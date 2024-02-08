@@ -15,9 +15,9 @@ import { useHover, useToggle } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { DashboardTileComments } from '../../../features/comments';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
-import { Comments } from '../Comments';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
@@ -175,7 +175,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     </Tooltip>
                 )}
 
-                <Comments
+                <DashboardTileComments
                     visible={containerHovered || isCommentsOpen}
                     opened={isCommentsOpen}
                     onOpen={() => setIsCommentsOpen(true)}

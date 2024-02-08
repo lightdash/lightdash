@@ -1,6 +1,11 @@
-import { Button, Indicator, Menu } from '@mantine/core';
-import { IconBell } from '@tabler/icons-react';
+import { Anchor, Button, Indicator, Menu } from '@mantine/core';
+import { IconBell, IconMessage2Exclamation } from '@tabler/icons-react';
 import { FC } from 'react';
+import { useHistory } from 'react-router-dom';
+import {
+    useGetDashboardCommentsNotifications,
+    useMarkDashboardCommentNotificationAsRead,
+} from '../../../features/comments/hooks/useComments';
 import {
     useValidation,
     useValidationNotificationChecker,
@@ -12,6 +17,12 @@ import { ValidationErrorNotification } from './ValidationErrorNotification';
 export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const history = useHistory();
+    const { data: dashboardCommentsNotifications } =
+        useGetDashboardCommentsNotifications();
+    const { mutate: markDashboardCommentNotificationAsRead } =
+        useMarkDashboardCommentNotificationAsRead();
+
     const { data: validationData } = useValidation(projectUuid, false);
     const canUserManageValidations = useValidationUserAbility(projectUuid);
     const [hasReadValidationNotification, setHasReadValidationNotification] =
@@ -22,7 +33,14 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     const disableBadge =
         !canUserManageValidations ||
         !hasValidationErrors ||
-        hasReadValidationNotification;
+        hasReadValidationNotification ||
+        !dashboardCommentsNotifications?.length;
+
+    const hasValidationNotifications =
+        canUserManageValidations && hasValidationErrors;
+
+    const hasDashboardCommentsNotifications =
+        !!dashboardCommentsNotifications?.length;
 
     return validationData ? (
         <Menu
@@ -56,14 +74,42 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
             </Menu.Target>
 
             <Menu.Dropdown>
-                {canUserManageValidations && hasValidationErrors ? (
+                {hasValidationNotifications && (
                     <ValidationErrorNotification
                         projectUuid={projectUuid}
                         validationData={validationData}
                     />
-                ) : (
-                    <Menu.Item>No notifications</Menu.Item>
                 )}
+
+                {hasDashboardCommentsNotifications &&
+                    dashboardCommentsNotifications.map((notification) => (
+                        <Menu.Item
+                            key={notification.notificationId}
+                            icon={
+                                <MantineIcon icon={IconMessage2Exclamation} />
+                            }
+                            onClick={() => {
+                                markDashboardCommentNotificationAsRead(
+                                    notification.notificationId,
+                                );
+                                history.push(
+                                    `/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`,
+                                );
+                            }}
+                        >
+                            {notification.author.name} commented on{' '}
+                            <Anchor
+                                href={`/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`}
+                            >
+                                {notification.dashboard?.name}
+                            </Anchor>
+                        </Menu.Item>
+                    ))}
+
+                {!hasValidationNotifications &&
+                    !hasDashboardCommentsNotifications && (
+                        <Menu.Item>No notifications</Menu.Item>
+                    )}
             </Menu.Dropdown>
         </Menu>
     ) : null;

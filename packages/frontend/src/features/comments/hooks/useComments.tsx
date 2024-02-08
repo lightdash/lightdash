@@ -1,6 +1,10 @@
-import { ApiCommentsResults, ApiError } from '@lightdash/common';
+import {
+    ApiCommentsResults,
+    ApiError,
+    ApiNotificationsResults,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { lightdashApi } from '../../../api';
 
 type CreateDashboardTileComment = {
     projectUuid: string;
@@ -53,16 +57,12 @@ const getDashboardTileComments = async ({
     });
 
 export const useGetComments = (
-    projectUuid: string,
     dashboardUuid: string,
     dashboardTileUuid: string,
 ) => {
     return useQuery<ApiCommentsResults, ApiError>(
         ['comments', dashboardUuid, dashboardTileUuid],
         () => getDashboardTileComments({ dashboardTileUuid, dashboardUuid }),
-        {
-            refetchInterval: 10000,
-        },
     );
 };
 
@@ -135,4 +135,41 @@ export const useRemoveComment = () => {
             ]);
         },
     });
+};
+
+const getDashboardCommentsNotifications = async () =>
+    lightdashApi<ApiNotificationsResults>({
+        url: `/notifications/?type=dashboardComments`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useGetDashboardCommentsNotifications = () => {
+    return useQuery<ApiNotificationsResults, ApiError>(
+        ['comments-notifications'],
+        () => getDashboardCommentsNotifications(),
+        {
+            refetchInterval: 10000,
+        },
+    );
+};
+
+const markNotificationAsRead = async (notificationId: string) =>
+    lightdashApi<null>({
+        url: `/notifications/dashboards/comments/${notificationId}`,
+        method: 'PATCH',
+        body: undefined,
+    });
+
+export const useMarkDashboardCommentNotificationAsRead = () => {
+    const queryClient = useQueryClient();
+    return useMutation<null, ApiError, string>(
+        (data) => markNotificationAsRead(data),
+        {
+            mutationKey: ['mark-notification-as-read'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['comments-notifications']);
+            },
+        },
+    );
 };

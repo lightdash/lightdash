@@ -685,15 +685,7 @@ export class DashboardService {
         dashboardTileUuid: string,
         text: string,
         replyTo: string | null,
-    ): Promise<void> {
-        console.log(
-            'createComment',
-            user,
-            dashboardUuid,
-            dashboardTileUuid,
-            text,
-            replyTo,
-        );
+    ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         // TODO: implement ability
         // if (
