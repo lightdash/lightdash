@@ -3,7 +3,7 @@ import { Anchor, Menu } from '@mantine/core';
 import { IconMessage2Exclamation } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useMarkDashboardCommentNotificationAsRead } from '../../../features/comments/hooks/useComments';
+import { useMarkDashboardCommentNotificationAsRead } from '../../../features/dashboardTilecomments/hooks/useComments';
 import MantineIcon from '../../common/MantineIcon';
 
 type Props = {

@@ -21,7 +21,7 @@ import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { DashboardTileComments } from '../../../features/comments';
+import { DashboardTileComments } from '../../../features/dashboardTilecomments';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
