@@ -154,22 +154,28 @@ export class GitIntegrationService {
         owner: string;
         repo: string;
         branchName: string;
-        chart: SavedChart;
+        chart?: SavedChart;
         projectUuid: string;
     }): Promise<PullRequestCreated> {
-        const prTitle = `Added ${customMetrics.length} custom metrics from chart ${chart.name}`;
+        const prTitle = chart
+            ? `Added ${customMetrics.length} custom metrics from chart ${chart.name}`
+            : `Added ${customMetrics.length} custom metrics`;
 
         // TODO should we use the api to get the link to the PR ?
-        const prBody = `Created by Lightdash, this PR adds ${customMetrics.length} custom metrics to the dbt model for the chart ${chart.name}
+        const prBody = `Created by Lightdash, this PR adds ${customMetrics.length} custom metrics to the dbt model
             
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+`;
 
+        const chartDetails = chart
+            ? `
 Affected charts: 
 - [${chart.name}](${this.lightdashConfig.siteUrl}/projects/${projectUuid}/charts/${chart.uuid})
-        `;
+        `
+            : ``;
 
         const prUrl = `https://github.com/${owner}/${repo}/compare/main...${owner}:${repo}:${branchName}?expand=1&body=${encodeURIComponent(
-            prBody,
+            prBody + chartDetails,
         )}`;
         return {
             prTitle,
@@ -197,7 +203,6 @@ Affected charts:
         const tables = [
             ...new Set(customMetrics.map((metric) => metric.table)),
         ];
-        // throw new Error('test');
 
         tables.map(async (table) => {
             const customMetricsForTable = customMetrics.filter(
@@ -303,6 +308,40 @@ Affected charts:
             repo,
             branchName,
             chart,
+            projectUuid,
+        });
+    }
+
+    async createPullRequestForCustomMetrics(
+        user: SessionUser,
+        projectUuid: string,
+        customMetrics: AdditionalMetric[],
+    ): Promise<PullRequestCreated> {
+        // TODO: check user permissions, only editors and above?
+
+        const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
+        const branchName = await GitIntegrationService.createBranch({
+            owner,
+            repo,
+            mainBranch: branch,
+        });
+
+        await this.updateFileForCustomMetrics({
+            user,
+            owner,
+            customMetrics,
+            repo,
+            projectUuid,
+            branchName,
+        });
+
+        return this.getPullRequestDetails({
+            user,
+            customMetrics: customMetrics || [],
+            owner,
+            repo,
+            branchName,
+            chart: undefined,
             projectUuid,
         });
     }

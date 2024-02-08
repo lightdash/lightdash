@@ -3441,4 +3441,54 @@ export class ProjectService {
             userWarehouseCredentialsUuid,
         );
     }
+
+    async getCustomMetrics(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<
+        {
+            name: string;
+            label: string;
+            modelName: string;
+            yml: string;
+            chartLabel: string;
+            chartUrl: string;
+        }[]
+    > {
+        // TODO implement permissions
+        const chartSummaries = await this.savedChartModel.find({
+            projectUuid,
+        });
+        const chartPromises = chartSummaries.map((summary) =>
+            this.savedChartModel.get(summary.uuid, undefined),
+        );
+
+        const charts = await Promise.all(chartPromises);
+
+        // TODO get explores for all metrics to know the yml location
+        /* const tables = [
+            ...new Set(customMetrics.map((metric) => metric.table)),
+        ];
+        const explore = await this.getExplore(user, projectUuid, metric.table) //TODO do this outside loop
+*/
+        return charts.reduce<any[]>((acc, chart) => {
+            const customMetrics = chart.metricQuery.additionalMetrics;
+
+            if (customMetrics === undefined || customMetrics.length === 0)
+                return acc;
+            const metrics = [
+                ...acc,
+                ...customMetrics.map((metric) => ({
+                    name: metric.name,
+                    label: metric.label,
+                    modelName: metric.table,
+                    yml: 'TODO.yml',
+                    chartLabel: chart.name,
+                    chartUrl: `${lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
+                })),
+            ];
+            console.log('metrics', metrics);
+            return metrics;
+        }, []);
+    }
 }

@@ -8985,6 +8985,87 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/custom-metrics": {
+            "get": {
+                "operationId": "getCustomMetrics",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "properties": {
+                                                    "chartUrl": {
+                                                        "type": "string"
+                                                    },
+                                                    "chartLabel": {
+                                                        "type": "string"
+                                                    },
+                                                    "yml": {
+                                                        "type": "string"
+                                                    },
+                                                    "modelName": {
+                                                        "type": "string"
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "chartUrl",
+                                                    "chartLabel",
+                                                    "yml",
+                                                    "modelName",
+                                                    "label",
+                                                    "name"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {
             "post": {
                 "operationId": "postRunUnderlyingDataQuery",
