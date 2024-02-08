@@ -45,7 +45,7 @@ const ColorSelector: FC<Props> = ({
                         size="md"
                         format="hex"
                         swatches={swatches}
-                        swatchesPerRow={swatches.length}
+                        swatchesPerRow={8}
                         value={color ?? defaultColor}
                         onChange={(newColor) => onColorChange(newColor)}
                     />
