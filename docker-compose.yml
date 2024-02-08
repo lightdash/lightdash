@@ -4,6 +4,10 @@ services:
     image: lightdash/lightdash:latest
     depends_on:
       - db
+    build:
+      args:
+        - EMBEDDING_MODELS_PATH=${EMBEDDING_MODELS_PATH}
+        - EMBEDDING_MODEL=${EMBEDDING_MODEL}
     environment:
       - PGHOST=${PGHOST:-db}
       - PGPORT=${PGPORT:-5432}
@@ -39,6 +43,8 @@ services:
       - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
       - SCHEDULER_ENABLED=true
       - GROUPS_ENABLED=${GROUPS_ENABLED:-false}
+      - EMBEDDING_MODELS_PATH=${EMBEDDING_MODELS_PATH}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
     volumes:
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
     ports:
