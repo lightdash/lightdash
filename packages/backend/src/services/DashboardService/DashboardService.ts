@@ -81,12 +81,14 @@ export class DashboardService {
         this.savedChartModel = savedChartModel;
     }
 
-    private static async createDashboardEmbedding(
+    private static createDashboardEmbedding(
         dashboard: CreateDashboard | DashboardUnversionedFields,
     ) {
-        return embedText(
-            `dashboard - ${dashboard.name} - ${dashboard.description}`,
-        );
+        const text = dashboard.description
+            ? `${dashboard.name}. ${dashboard.description}`
+            : dashboard.name;
+
+        return embedText(text);
     }
 
     static getCreateEventProperties(
@@ -484,6 +486,22 @@ export class DashboardService {
             await this.deleteOrphanedChartsInDashboards(user, dashboardUuid);
         }
         return this.dashboardModel.getById(dashboardUuid);
+    }
+
+    async createEmbedding(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<void> {
+        const dashboard = await this.getById(user, dashboardUuid);
+
+        const embedding = await DashboardService.createDashboardEmbedding(
+            dashboard,
+        );
+
+        await this.dashboardModel.update(dashboard.uuid, {
+            ...dashboard,
+            embedding,
+        });
     }
 
     async togglePinning(
