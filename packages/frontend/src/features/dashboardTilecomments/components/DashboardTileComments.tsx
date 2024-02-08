@@ -80,18 +80,22 @@ export const DashboardTileComments: FC<
             }}
         >
             <Popover.Dropdown miw={400}>
-                <Stack spacing="xs">
-                    {comments?.map((comment) => {
-                        return (
-                            <CommentDetail
-                                key={comment.commentId}
-                                comment={comment}
-                                projectUuid={projectUuid}
-                                dashboardUuid={dashboardUuid}
-                                dashboardTileUuid={dashboardTileUuid}
-                            />
-                        );
-                    })}
+                <Stack
+                    spacing="xs"
+                    sx={{
+                        maxHeight: 300,
+                        overflowY: 'auto',
+                    }}
+                >
+                    {comments?.map((comment) => (
+                        <CommentDetail
+                            key={comment.commentId}
+                            comment={comment}
+                            projectUuid={projectUuid}
+                            dashboardUuid={dashboardUuid}
+                            dashboardTileUuid={dashboardTileUuid}
+                        />
+                    ))}
                 </Stack>
 
                 <form onSubmit={handleSubmit}>
