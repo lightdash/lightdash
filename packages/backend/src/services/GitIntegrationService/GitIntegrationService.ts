@@ -190,6 +190,7 @@ Affected charts:
         projectUuid,
         customMetrics,
         branchName,
+        quoteChar = `'`,
     }: {
         user: SessionUser;
         owner: string;
@@ -197,6 +198,7 @@ Affected charts:
         projectUuid: string;
         customMetrics: AdditionalMetric[] | undefined;
         branchName: string;
+        quoteChar?: `"` | `'`;
     }): Promise<any> {
         if (customMetrics === undefined || customMetrics?.length === 0)
             throw new Error('No custom metrics found');
@@ -247,7 +249,7 @@ Affected charts:
             const updatedYml = yaml.dump(
                 { ...yamlSchema, models: updatedModels },
                 {
-                    quotingType: "'",
+                    quotingType: quoteChar,
                 },
             );
 
@@ -315,9 +317,30 @@ Affected charts:
     async createPullRequestForCustomMetrics(
         user: SessionUser,
         projectUuid: string,
-        customMetrics: AdditionalMetric[],
+        customMetricsIds: string[],
+        quoteChar: `"` | `'`,
     ): Promise<PullRequestCreated> {
         // TODO: check user permissions, only editors and above?
+
+        const chartSummaries = await this.savedChartModel.find({
+            projectUuid,
+        });
+        const chartPromises = chartSummaries.map((summary) =>
+            this.savedChartModel.get(summary.uuid, undefined),
+        );
+        const charts = await Promise.all(chartPromises);
+        const allCustomMetrics = charts.reduce<AdditionalMetric[]>(
+            (acc, chart) => [
+                ...acc,
+                ...(chart.metricQuery.additionalMetrics || []),
+            ],
+            [],
+        );
+
+        // TODO does metrics have uuid ?
+        const customMetrics = allCustomMetrics.filter(
+            (metric) => !customMetricsIds.includes(metric.uuid || metric.name),
+        );
 
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
         const branchName = await GitIntegrationService.createBranch({
@@ -333,6 +356,7 @@ Affected charts:
             repo,
             projectUuid,
             branchName,
+            quoteChar,
         });
 
         return this.getPullRequestDetails({

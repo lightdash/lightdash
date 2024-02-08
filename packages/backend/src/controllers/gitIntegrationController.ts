@@ -4,11 +4,13 @@ import {
     PullRequestCreated,
 } from '@lightdash/common';
 import {
+    Body,
     Controller,
     Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
@@ -66,6 +68,36 @@ export class GitIntegrationController extends Controller {
                     req.user!,
                     projectUuid,
                     chartUuid,
+                ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/pull-requests/custom-metrics')
+    @OperationId('CreatePullRequestForChartFields')
+    async CreatePullRequestForCustomMetrics(
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            customMetrics: string[];
+            quoteChar: `"` | `'`; // to be used in the yml dump options
+        },
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await gitIntegrationService.createPullRequestForCustomMetrics(
+                    req.user!,
+                    projectUuid,
+                    body.customMetrics,
+                    body.quoteChar,
                 ),
         };
     }
