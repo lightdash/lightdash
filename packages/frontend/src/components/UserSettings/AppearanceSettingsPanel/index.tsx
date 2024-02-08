@@ -2,11 +2,13 @@ import { subject } from '@casl/ability';
 import {
     ActionIcon,
     Button,
+    Card,
     ColorInput,
     ColorSwatch,
     Flex,
     Group,
     Loader,
+    Popover,
     SimpleGrid,
     Stack,
     Text,
@@ -14,9 +16,19 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconInfoCircle, IconRestore } from '@tabler/icons-react';
+import {
+    IconBolt,
+    IconChevronDown,
+    IconColorFilter,
+    IconDirections,
+    IconInfoCircle,
+    IconLeaf,
+    IconRestore,
+    IconRipple,
+    IconSunglasses,
+} from '@tabler/icons-react';
 import { isEqual } from 'lodash';
-import { FC, useCallback, useEffect } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { isHexCodeColor } from '../../../utils/colorUtils';
@@ -27,11 +39,13 @@ import { SettingsCard } from '../../common/Settings/SettingsCard';
 interface ColorPalette {
     name: string;
     colors: string[];
+    icon: typeof IconBolt;
 }
 
 const defaultColorPalettes: ColorPalette[] = [
     {
-        name: 'Lightdash Defaults',
+        name: 'Default Colors',
+        icon: IconColorFilter,
         colors: [
             '#ff5733',
             '#ff8933',
@@ -56,7 +70,34 @@ const defaultColorPalettes: ColorPalette[] = [
         ],
     },
     {
+        name: 'Lightdash of Color',
+        icon: IconBolt,
+        colors: [
+            '#7162FF',
+            '#1A1B1E',
+            '#E8DDFB',
+            '#D4F7E9',
+            '#F0A3FF',
+            '#00FFEA',
+            '#FFEA00',
+            '#00FF7A',
+            '#FF0080',
+            '#FF6A00',
+            '#6A00FF',
+            '#00FF00',
+            '#FF0000',
+            '#FF00FF',
+            '#00FFFF',
+            '#7A00FF',
+            '#FF7A00',
+            '#00FFAA',
+            '#FF00AA',
+            '#FFAA00',
+        ],
+    },
+    {
         name: 'Sunrise Serenity Palette',
+        icon: IconSunglasses,
         colors: [
             '#FF6464',
             '#FF6F6F',
@@ -81,32 +122,8 @@ const defaultColorPalettes: ColorPalette[] = [
         ],
     },
     {
-        name: 'Pastel Dream Palette',
-        colors: [
-            '#A8C1B4',
-            '#ACC6B8',
-            '#B0CBBB',
-            '#B5D0BF',
-            '#B9D5C3',
-            '#BDDAC6',
-            '#C1DFCA',
-            '#C5E4CE',
-            '#CAE8D2',
-            '#CEECD5',
-            '#D2F1D9',
-            '#D6F6DD',
-            '#DBFAE1',
-            '#DFFEE5',
-            '#E3FFE9',
-            '#E7FFED',
-            '#ECFFF1',
-            '#F0FFF4',
-            '#F4FFF8',
-            '#F8FFFC',
-        ],
-    },
-    {
         name: 'Autumn Sunset Palette',
+        icon: IconLeaf,
         colors: [
             '#C2590F',
             '#CB650F',
@@ -132,6 +149,7 @@ const defaultColorPalettes: ColorPalette[] = [
     },
     {
         name: 'Oceanic Blues Palette',
+        icon: IconRipple,
         colors: [
             '#0D4F8B',
             '#195A96',
@@ -157,6 +175,7 @@ const defaultColorPalettes: ColorPalette[] = [
     },
     {
         name: 'Earthy Tones Palette',
+        icon: IconDirections,
         colors: [
             '#594E42',
             '#6D6155',
@@ -220,22 +239,25 @@ const ColorPalettePreview: FC<{
     isActive: boolean;
     onSelect: () => void;
 }> = ({ palette, isActive, onSelect }) => {
-    const stops = getColorPaletteColorStops(palette, 5);
-    const { name } = palette;
+    const stops = getColorPaletteColorStops(palette, 4);
+    const { name, icon } = palette;
 
     return (
-        <Group key={name} spacing="lg">
-            <Text size="sm">{name}</Text>
-
-            <Group spacing={'xxs'}>
-                {stops.map((color) => (
-                    <ColorSwatch color={color} key={color} />
-                ))}
+        <Flex align="center" justify="space-between" gap="xl">
+            <Group spacing="xs">
+                <Group spacing="xxs">
+                    {stops.map((color) => (
+                        <ColorSwatch key={color} color={color} />
+                    ))}
+                </Group>
+                <MantineIcon icon={icon} />
+                <Text size="xs">{name}</Text>
             </Group>
-            <Button size="xs" disabled={isActive} onClick={onSelect}>
-                Use this theme
+
+            <Button size="xs" ml="xs" onClick={onSelect} disabled={isActive}>
+                Use theme
             </Button>
-        </Group>
+        </Flex>
     );
 };
 
@@ -244,6 +266,14 @@ const AppearanceColorSettings: FC = () => {
     const { isInitialLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
     const colorFormFields = getColorFormFields(defaultColorPalettes[0].colors);
+
+    /**
+     * We keep track of color palettes manually selected by the user, so that if
+     * they're customizing it further we can quickly reference the starting point
+     * again.
+     */
+    const [startingColorPalette, setStartingColorPalette] =
+        useState<ColorPalette>();
 
     const form = useForm({
         initialValues: colorFormFields,
@@ -259,15 +289,20 @@ const AppearanceColorSettings: FC = () => {
         ),
     });
 
-    const activeColorPalette = findMatchingDefaultColorPalette(
-        Object.values(form.values),
-    );
+    /**
+     * At any point, we try to match the current color palette based on the list of colors.
+     * This allows us to reference an existing theme just based on the available state.
+     */
+    const activeColorPalette =
+        startingColorPalette ??
+        findMatchingDefaultColorPalette(Object.values(form.values));
 
     const activeColorPaletteOrDefault =
         activeColorPalette ?? defaultColorPalettes[0];
 
     const setFormValuesFromColorPalette = useCallback(
         (palette: ColorPalette) => {
+            setStartingColorPalette(palette);
             const paletteColors = getColorFormFields(palette.colors);
 
             form.reset();
@@ -343,21 +378,50 @@ const AppearanceColorSettings: FC = () => {
 
     return (
         <Stack spacing="md">
-            <Title order={5}>Default chart colors</Title>
-            <Stack spacing={'sm'}>
-                {defaultColorPalettes.map((palette) => (
-                    <ColorPalettePreview
-                        palette={palette}
-                        key={palette.name}
-                        onSelect={() => setFormValuesFromColorPalette(palette)}
-                        isActive={activeColorPalette?.name === palette.name}
-                    />
-                ))}
-            </Stack>
+            <Flex justify="space-between">
+                <Stack spacing="xs">
+                    <Title order={5}>Default chart colors</Title>
+                    <Text c="gray.6" fz="xs">
+                        Start from a pre-defined theme, or create your own color
+                        palette.
+                    </Text>
+                </Stack>
+                <Popover position="bottom-end">
+                    <Popover.Target>
+                        <Button
+                            size="sm"
+                            leftIcon={<MantineIcon icon={IconChevronDown} />}
+                        >
+                            Color themes
+                        </Button>
+                    </Popover.Target>
+                    <Popover.Dropdown>
+                        <Card>
+                            <Stack spacing={'xs'}>
+                                {defaultColorPalettes.map((palette) => (
+                                    <ColorPalettePreview
+                                        palette={palette}
+                                        key={palette.name}
+                                        onSelect={() =>
+                                            setFormValuesFromColorPalette(
+                                                palette,
+                                            )
+                                        }
+                                        isActive={
+                                            activeColorPalette?.name ===
+                                            palette.name
+                                        }
+                                    />
+                                ))}
+                            </Stack>
+                        </Card>
+                    </Popover.Dropdown>
+                </Popover>
+            </Flex>
 
             <form onSubmit={handleOnSubmit}>
-                <Stack spacing="xs">
-                    <SimpleGrid cols={3}>
+                <Stack spacing="md" mb="lg">
+                    <SimpleGrid cols={4}>
                         {Object.values(form.values).map((_color, index) => (
                             <ColorInput
                                 key={index}
