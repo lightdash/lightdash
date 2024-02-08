@@ -8,6 +8,7 @@ import {
     groupsModel,
     inviteLinkModel,
     jobModel,
+    notificationsModel,
     onboardingModel,
     openIdIdentityModel,
     organizationAllowedEmailDomainsModel,
@@ -38,6 +39,7 @@ import { EncryptionService } from './EncryptionService/EncryptionService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
@@ -113,6 +115,11 @@ export const dashboardService = new DashboardService({
     pinnedListModel,
     schedulerModel,
     savedChartModel,
+});
+
+export const notificationsService = new NotificationsService({
+    dashboardModel,
+    notificationsModel,
 });
 
 export const savedChartsService = new SavedChartService({

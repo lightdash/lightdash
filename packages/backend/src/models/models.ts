@@ -9,6 +9,7 @@ import { EmailModel } from './EmailModel';
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
+import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
@@ -38,6 +39,7 @@ export const organizationModel = new OrganizationModel(database);
 export const userModel = new UserModel(database);
 export const sessionModel = new SessionModel(database);
 export const dashboardModel = new DashboardModel({ database });
+export const notificationsModel = new NotificationsModel({ database });
 export const projectModel = new ProjectModel({
     database,
     lightdashConfig,

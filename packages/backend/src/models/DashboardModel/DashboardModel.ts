@@ -884,13 +884,19 @@ export class DashboardModel {
         text: string,
         replyTo: string | null,
         user: LightdashUser,
-    ): Promise<void> {
-        await this.database('dashboard_tile_comments').insert({
-            text,
-            dashboard_tile_uuid: dashboardTileUuid,
-            reply_to: replyTo ?? null,
-            user_uuid: user.userUuid,
-        });
+    ): Promise<string> {
+        const [{ comment_id: commentId }] = await this.database(
+            'dashboard_tile_comments',
+        )
+            .insert({
+                text,
+                dashboard_tile_uuid: dashboardTileUuid,
+                reply_to: replyTo ?? null,
+                user_uuid: user.userUuid,
+            })
+            .returning('comment_id');
+
+        return commentId;
     }
 
     async getComments(
