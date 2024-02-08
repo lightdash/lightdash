@@ -93,6 +93,7 @@ import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
+import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -3477,11 +3478,9 @@ export class ProjectService {
                     name: metric.name,
                     label: metric.label,
                     modelName: metric.table,
-                    yml: JSON.stringify(
-                        convertCustomMetricToDbt(metric),
-                        null,
-                        2,
-                    ),
+                    yml: yaml.dump(convertCustomMetricToDbt(metric), {
+                        quotingType: "'",
+                    }),
                     chartLabel: chart.name,
                     chartUrl: `${lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 })),
