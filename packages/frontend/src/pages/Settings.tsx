@@ -12,6 +12,7 @@ import {
     IconPalette,
     IconPlug,
     IconReportAnalytics,
+    IconSql,
     IconTableOptions,
     IconUserCircle,
     IconUserPlus,
@@ -382,6 +383,13 @@ const Settings: FC = () => {
                                         }
                                     />
                                 ) : null}
+
+                                <RouterNavLink
+                                    label="Custom SQL"
+                                    exact
+                                    to={`/generalSettings/projectManagement/${project.projectUuid}/customSql`}
+                                    icon={<MantineIcon icon={IconSql} />}
+                                />
                             </Box>
                         ) : null}
                     </Stack>

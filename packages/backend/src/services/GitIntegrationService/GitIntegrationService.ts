@@ -322,12 +322,15 @@ Affected charts:
     ): Promise<PullRequestCreated> {
         // TODO: check user permissions, only editors and above?
 
+        console.log('1');
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
         });
+        console.log('2');
         const chartPromises = chartSummaries.map((summary) =>
             this.savedChartModel.get(summary.uuid, undefined),
         );
+        console.log('3');
         const charts = await Promise.all(chartPromises);
         const allCustomMetrics = charts.reduce<AdditionalMetric[]>(
             (acc, chart) => [
@@ -341,14 +344,15 @@ Affected charts:
         const customMetrics = allCustomMetrics.filter(
             (metric) => !customMetricsIds.includes(metric.uuid || metric.name),
         );
-
+        console.log('4');
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
+        console.log('5');
         const branchName = await GitIntegrationService.createBranch({
             owner,
             repo,
             mainBranch: branch,
         });
-
+        console.log('6');
         await this.updateFileForCustomMetrics({
             user,
             owner,
@@ -358,7 +362,7 @@ Affected charts:
             branchName,
             quoteChar,
         });
-
+        console.log('7');
         return this.getPullRequestDetails({
             user,
             customMetrics: customMetrics || [],

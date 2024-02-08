@@ -143,7 +143,7 @@ const useCreatePullRequestForChartFieldsMutation = (
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to update group`,
+                    title: `Failed to create pull request`,
                     subtitle: error.error.message,
                 });
             },
