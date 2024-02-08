@@ -57,6 +57,13 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<DashboardSearchResult[]> {
+        const measureLabel = `embed query: (${query})`;
+
+        if (process.env.AI_SEARCH === 'true') console.time(measureLabel);
+        const embedQuery = await embedText(query);
+        if (process.env.AI_SEARCH === 'true') console.timeEnd(measureLabel);
+
+        if (process.env.AI_SEARCH === 'true') console.time('query');
         const dashboards = await this.database(DashboardsTableName)
             .select()
             .leftJoin(
@@ -74,22 +81,16 @@ export class SearchModel {
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { spaceUuid: 'space_uuid' },
-                this.database.raw(
-                    `ts_rank(${DashboardsTableName}.search_vector, websearch_to_tsquery(?), 0) as search_rank`,
-                    [query],
-                ),
                 // TODO: Move this to a helper, also we should have the other comparison operators for vectors
-                this.database.raw('1 - (?? <=> ?) as cosine_similarity', [
-                    'embedding',
-                    await embedText(query),
-                ]),
+                this.database.raw(
+                    `(1 - (${DashboardsTableName}.embedding <=> ?)) + (ts_rank(${DashboardsTableName}.search_vector, websearch_to_tsquery(?), 0)) as rank`,
+                    [embedQuery, query],
+                ),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .orderBy('cosine_similarity', 'desc')
-            .orderBy('search_rank', 'desc')
+            .orderByRaw('rank DESC NULLS LAST')
             .limit(10);
-
-        const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
+        if (process.env.AI_SEARCH === 'true') console.timeEnd('query');
 
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
