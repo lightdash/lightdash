@@ -206,10 +206,13 @@ Affected charts:
             ...new Set(customMetrics.map((metric) => metric.table)),
         ];
 
-        tables.map(async (table) => {
+        // use reduce to add files one by one
+        await tables.reduce<Promise<void>>(async (acc, table) => {
+            await acc;
             const customMetricsForTable = customMetrics.filter(
                 (metric) => metric.table === table,
             );
+
             const explore = await this.projectModel.getExploreFromCache(
                 projectUuid,
                 table,
@@ -262,7 +265,9 @@ Affected charts:
                 branchName,
                 message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
             });
-        });
+            console.log('fileUpdated', fileUpdated);
+            return acc;
+        }, Promise.resolve());
     }
 
     async getProjectRepo(projectUuid: string) {
@@ -341,9 +346,10 @@ Affected charts:
         );
 
         // TODO does metrics have uuid ?
-        const customMetrics = allCustomMetrics.filter(
-            (metric) => !customMetricsIds.includes(metric.uuid || metric.name),
+        const customMetrics = allCustomMetrics.filter((metric) =>
+            customMetricsIds.includes(metric.uuid!),
         );
+
         console.log('4');
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
         console.log('5');

@@ -3475,7 +3475,7 @@ export class ProjectService {
             const metrics = [
                 ...acc,
                 ...customMetrics.map((metric) => ({
-                    name: metric.name,
+                    name: metric.uuid,
                     label: metric.label,
                     modelName: metric.table,
                     yml: yaml.dump(convertCustomMetricToDbt(metric), {
