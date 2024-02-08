@@ -20,7 +20,7 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
-import { useIntersection, useToggle } from 'react-use';
+import { useIntersection } from 'react-use';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -46,6 +46,7 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
+import { useApp } from '../providers/AppProvider';
 import {
     DashboardProvider,
     useDashboardContext,
@@ -169,7 +170,7 @@ const Dashboard: FC = () => {
     );
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
-    const [isFullscreen, toggleFullscreen] = useToggle(false);
+    const { isFullscreen, toggleFullscreen } = useApp();
     const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();
