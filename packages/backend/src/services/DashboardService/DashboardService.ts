@@ -81,16 +81,14 @@ export class DashboardService {
         this.savedChartModel = savedChartModel;
     }
 
-    private static async createDashboardEmbedding(
+    private static createDashboardEmbedding(
         dashboard: CreateDashboard | DashboardUnversionedFields,
     ) {
         const text = dashboard.description
             ? `${dashboard.name}. ${dashboard.description}`
             : dashboard.name;
 
-        const embeddingVector = embedText(text);
-
-        return embeddingVector;
+        return embedText(text);
     }
 
     static getCreateEventProperties(
