@@ -144,12 +144,13 @@ const getDashboardCommentsNotifications = async () =>
         body: undefined,
     });
 
-export const useGetDashboardCommentsNotifications = () => {
+export const useGetDashboardCommentsNotifications = (enabled: boolean) => {
     return useQuery<ApiNotificationsResults, ApiError>(
         ['comments-notifications'],
         () => getDashboardCommentsNotifications(),
         {
             refetchInterval: 10000,
+            enabled,
         },
     );
 };

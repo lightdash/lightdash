@@ -1,4 +1,9 @@
-import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
+import {
+    Dashboard,
+    DashboardTileTypes,
+    FeatureFlags,
+    isChartTile,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -13,6 +18,7 @@ import {
 } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DashboardTileComments } from '../../../features/comments';
@@ -62,6 +68,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     titleHref,
     minimal = false,
 }: Props<T>) => {
+    const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardTileComments,
+    );
     const [isEditingTileContent, setIsEditingTileContent] = useState(false);
     const [
         isDeletingChartThatBelongsToDashboard,
@@ -175,15 +184,17 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     </Tooltip>
                 )}
 
-                <DashboardTileComments
-                    visible={containerHovered || isCommentsOpen}
-                    opened={isCommentsOpen}
-                    onOpen={() => setIsCommentsOpen(true)}
-                    onClose={() => setIsCommentsOpen(false)}
-                    projectUuid={projectUuid}
-                    dashboardTileUuid={tile.uuid}
-                    dashboardUuid={dashboardUuid}
-                />
+                {isDashboardTileCommentsFeatureEnabled && !minimal && (
+                    <DashboardTileComments
+                        visible={containerHovered || isCommentsOpen}
+                        opened={isCommentsOpen}
+                        onOpen={() => setIsCommentsOpen(true)}
+                        onClose={() => setIsCommentsOpen(false)}
+                        projectUuid={projectUuid}
+                        dashboardTileUuid={tile.uuid}
+                        dashboardUuid={dashboardUuid}
+                    />
+                )}
 
                 {(containerHovered && !titleHovered) ||
                 isMenuOpen ||

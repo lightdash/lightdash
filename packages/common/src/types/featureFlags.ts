@@ -29,4 +29,9 @@ export enum FeatureFlags {
     CustomVisualizationsEnabled = 'custom-visualizations-enabled',
 
     ShowDbtCloudProjectOption = 'show-dbt-cloud-project-option',
+    /**
+     * Use the new dashboard comments feature. Users can add/resolve/delete comments
+     * in a tile. This also includes the new notifications feature.
+     */
+    DashboardTileComments = 'dashboard-tile-comments',
 }
