@@ -50,7 +50,6 @@ export class NotificationsModel {
                 'comment_authors.first_name as author_first_name',
                 'comment_authors.last_name as author_last_name',
             )
-            .where('notifications.viewed', false)
             .where('notifications.user_uuid', userUuid)
             .orderBy('notifications.created_at', 'desc');
 
