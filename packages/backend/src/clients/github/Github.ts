@@ -32,6 +32,24 @@ const octokit = new OktokitRest({
     },
 });
 
+export const getLastCommit = async ({
+    owner,
+    repo,
+    branch,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+}) => {
+    const response = await octokit.rest.repos.listCommits({
+        owner,
+        repo,
+        ref: branch,
+    });
+
+    return response.data[0];
+};
+
 export const getFileContent = async ({
     fileName,
     owner,
@@ -44,19 +62,16 @@ export const getFileContent = async ({
     branch: string;
 }) => {
     const response = await octokit.rest.repos.getContent({
-        owner: 'rephus', // TODO hardcoded : replace
-        repo: 'jaffle_shop', // TODO hardcoded : replace
+        owner,
+        repo,
         path: fileName,
-        ref: 'main', // TODO hardcoded : replace
+        ref: branch,
     });
-
-    console.log('file content', response);
 
     if ('content' in response.data) {
         const content = Buffer.from(response.data.content, 'base64').toString(
             'utf-8',
         );
-        console.log('file content ', content);
         return { content, sha: response.data.sha };
     }
 
@@ -78,18 +93,22 @@ export const createBranch = async ({
         owner,
         repo,
         ref: `refs/heads/${branchName}`,
-        sha: 'a0f63994e1d857fe5fdf280a159e20a95bf75b50', // TODO hardcoded : replace
+        sha,
     });
     return response;
 };
 
 export const updateFile = async ({
+    owner,
+    repo,
     fileName,
     content,
     fileSha,
     branchName,
     message,
 }: {
+    owner: string;
+    repo: string;
     fileName: string;
     content: string;
     fileSha: string;
@@ -97,21 +116,20 @@ export const updateFile = async ({
     message: string;
 }) => {
     const response = await octokit.rest.repos.createOrUpdateFileContents({
-        owner: 'rephus', // TODO hardcoded : replace
-        repo: 'jaffle_shop', // TODO hardcoded : replace
+        owner,
+        repo,
         path: fileName,
         message,
         content: Buffer.from(content, 'utf-8').toString('base64'),
         sha: fileSha,
         branch: branchName,
         committer: {
-            // TODO hardcoded : replace
-            name: 'Javier Rengel',
-            email: 'rephus@gmail.com',
+            name: 'Lightdash',
+            email: 'developers@glightdash.com',
         },
         author: {
-            name: 'Javier Rengel',
-            email: 'rephus@gmail.com',
+            name: 'Lightdash',
+            email: 'developers@glightdash.com',
         },
     });
     return response;

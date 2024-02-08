@@ -17,6 +17,7 @@ import { get, update } from 'lodash';
 import {
     createBranch,
     getFileContent,
+    getLastCommit,
     updateFile,
 } from '../../clients/github/Github';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -135,6 +136,14 @@ export class GitIntegrationService {
 
         const { manifest } = await adapter.dbtClient.getDbtManifest();
         */
+
+        const { sha: commitSha } = await getLastCommit({
+            owner,
+            repo,
+            branch,
+        });
+
+        // throw new Error('test');
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
             chart.tableName,
@@ -185,12 +194,14 @@ export class GitIntegrationService {
             branchName,
             owner,
             repo,
-            sha: fileSha,
+            sha: commitSha,
         });
         const prTitle = `Added ${customMetrics.length} custom metrics from chart ${chart.name}`;
 
         console.log('update', updatedYml);
         const fileUpdated = await updateFile({
+            owner,
+            repo,
             fileName,
             content: updatedYml,
             fileSha,
