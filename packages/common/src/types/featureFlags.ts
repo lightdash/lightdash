@@ -17,4 +17,10 @@ export enum FeatureFlags {
      * color in the org's color palette every time.
      */
     UseSharedColorAssignment = 'use-shared-color-assignment',
+
+    /**
+     * Use the new dashboard comments feature. Users can add/resolve/delete comments
+     * in a tile. This also includes the new notifications feature.
+     */
+    DashboardTileComments = 'dashboard-tile-comments',
 }

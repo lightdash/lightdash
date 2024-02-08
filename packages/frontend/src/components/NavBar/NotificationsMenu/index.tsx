@@ -1,27 +1,28 @@
-import { Anchor, Button, Indicator, Menu } from '@mantine/core';
-import { IconBell, IconMessage2Exclamation } from '@tabler/icons-react';
+import { FeatureFlags } from '@lightdash/common';
+import { Button, Indicator, Menu } from '@mantine/core';
+import { IconBell } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC } from 'react';
-import { useHistory } from 'react-router-dom';
-import {
-    useGetDashboardCommentsNotifications,
-    useMarkDashboardCommentNotificationAsRead,
-} from '../../../features/comments/hooks/useComments';
+import { useGetDashboardCommentsNotifications } from '../../../features/comments/hooks/useComments';
 import {
     useValidation,
     useValidationNotificationChecker,
     useValidationUserAbility,
 } from '../../../hooks/validation/useValidation';
 import MantineIcon from '../../common/MantineIcon';
+import { DashboardTileCommentsNotifications } from './DashboardTileCommentsNotifications';
 import { ValidationErrorNotification } from './ValidationErrorNotification';
 
 export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
-    const history = useHistory();
+    const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardTileComments,
+    );
     const { data: dashboardCommentsNotifications } =
-        useGetDashboardCommentsNotifications();
-    const { mutate: markDashboardCommentNotificationAsRead } =
-        useMarkDashboardCommentNotificationAsRead();
+        useGetDashboardCommentsNotifications(
+            !!isDashboardTileCommentsFeatureEnabled,
+        );
 
     const { data: validationData } = useValidation(projectUuid, false);
     const canUserManageValidations = useValidationUserAbility(projectUuid);
@@ -81,30 +82,12 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                     />
                 )}
 
-                {hasDashboardCommentsNotifications &&
-                    dashboardCommentsNotifications.map((notification) => (
-                        <Menu.Item
-                            key={notification.notificationId}
-                            icon={
-                                <MantineIcon icon={IconMessage2Exclamation} />
-                            }
-                            onClick={() => {
-                                markDashboardCommentNotificationAsRead(
-                                    notification.notificationId,
-                                );
-                                history.push(
-                                    `/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`,
-                                );
-                            }}
-                        >
-                            {notification.author.name} commented on{' '}
-                            <Anchor
-                                href={`/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`}
-                            >
-                                {notification.dashboard?.name}
-                            </Anchor>
-                        </Menu.Item>
-                    ))}
+                {isDashboardTileCommentsFeatureEnabled && (
+                    <DashboardTileCommentsNotifications
+                        notifications={dashboardCommentsNotifications}
+                        projectUuid={projectUuid}
+                    />
+                )}
 
                 {!hasValidationNotifications &&
                     !hasDashboardCommentsNotifications && (
