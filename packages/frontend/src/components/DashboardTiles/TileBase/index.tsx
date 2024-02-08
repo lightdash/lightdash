@@ -50,6 +50,7 @@ type Props<T> = {
     children?: ReactNode;
     extraHeaderElement?: ReactNode;
     minimal?: boolean;
+    userCanManageDashboardComments?: boolean;
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -67,6 +68,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     extraHeaderElement,
     titleHref,
     minimal = false,
+    userCanManageDashboardComments = false,
 }: Props<T>) => {
     const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.DashboardTileComments,
@@ -184,17 +186,19 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     </Tooltip>
                 )}
 
-                {isDashboardTileCommentsFeatureEnabled && !minimal && (
-                    <DashboardTileComments
-                        visible={containerHovered || isCommentsOpen}
-                        opened={isCommentsOpen}
-                        onOpen={() => setIsCommentsOpen(true)}
-                        onClose={() => setIsCommentsOpen(false)}
-                        projectUuid={projectUuid}
-                        dashboardTileUuid={tile.uuid}
-                        dashboardUuid={dashboardUuid}
-                    />
-                )}
+                {!minimal &&
+                    userCanManageDashboardComments &&
+                    isDashboardTileCommentsFeatureEnabled && (
+                        <DashboardTileComments
+                            visible={containerHovered || isCommentsOpen}
+                            opened={isCommentsOpen}
+                            onOpen={() => setIsCommentsOpen(true)}
+                            onClose={() => setIsCommentsOpen(false)}
+                            projectUuid={projectUuid}
+                            dashboardTileUuid={tile.uuid}
+                            dashboardUuid={dashboardUuid}
+                        />
+                    )}
 
                 {(containerHovered && !titleHovered) ||
                 isMenuOpen ||

@@ -67,6 +67,9 @@ export const organizationMemberAbilities: Record<
         can('create', 'ScheduledDeliveries', {
             organizationUuid: member.organizationUuid,
         });
+        can('create', 'DashboardComments', {
+            projectUuid: member.organizationUuid,
+        });
     },
     editor(member, { can }) {
         organizationMemberAbilities.interactive_viewer(member, { can });
@@ -88,6 +91,9 @@ export const organizationMemberAbilities: Record<
         });
         can('manage', 'ScheduledDeliveries', {
             organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'DashboardComments', {
+            projectUuid: member.organizationUuid,
         });
     },
     developer(member, { can }) {

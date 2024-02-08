@@ -687,15 +687,19 @@ export class DashboardService {
         replyTo: string | null,
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        // TODO: implement ability
-        // if (
-        //     user.ability.cannot(
-        //         'comment',
-        //         subject('Dashboard', dashboard),
-        //     )
-        // ) {
-        //     throw new ForbiddenError();
-        // }
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('DashboardComments', {
+                    projectUuid: dashboard.projectUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
@@ -716,10 +720,19 @@ export class DashboardService {
         dashboardTileUuid: string,
     ): Promise<Record<string, any>[]> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        // TODO: implement ability
-        // if (user.ability.cannot('comment', subject('Dashboard', dashboard))) {
-        //     throw new ForbiddenError();
-        // }
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('DashboardComments', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
@@ -735,14 +748,21 @@ export class DashboardService {
     async resolveComment(
         user: SessionUser,
         dashboardUuid: string,
-        dashboardTileUuid: string,
         commentId: string,
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        // TODO: implement ability
-        // if (user.ability.cannot('comment', subject('Dashboard', dashboard))) {
-        //     throw new ForbiddenError();
-        // }
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DashboardComments', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
@@ -755,15 +775,22 @@ export class DashboardService {
     async deleteComment(
         user: SessionUser,
         dashboardUuid: string,
-        dashboardTileUuid: string,
         commentId: string,
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
-        // TODO: implement ability
-        // if (user.ability.cannot('comment', subject('Dashboard', dashboard))) {
-        //     throw new ForbiddenError();
-        // }
+        if (
+            user.ability.cannot(
+                'create',
+                subject('DashboardComments', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",

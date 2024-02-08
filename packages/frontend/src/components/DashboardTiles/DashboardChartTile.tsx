@@ -271,6 +271,7 @@ interface DashboardChartTileMainProps
     > {
     tile: IDashboardChartTile;
     chartAndResults: ApiChartAndResults;
+    userCanManageDashboardComments?: boolean;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
@@ -600,6 +601,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={chart.description}
                 belongsToDashboard={belongsToDashboard}
+                userCanManageDashboardComments={
+                    props.userCanManageDashboardComments
+                }
                 extraMenuItems={
                     savedChartUuid !== null &&
                     user.data?.ability?.can('manage', 'Explore') && (
@@ -874,6 +878,7 @@ type DashboardChartTileProps = Omit<
     'chartAndResults'
 > & {
     minimal?: boolean;
+    userCanManageDashboardComments?: boolean;
 };
 
 // Abstraction needed for enterprise version

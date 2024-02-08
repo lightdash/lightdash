@@ -9,6 +9,7 @@ import {
     useValidationNotificationChecker,
     useValidationUserAbility,
 } from '../../../hooks/validation/useValidation';
+import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 import { DashboardTileCommentsNotifications } from './DashboardTileCommentsNotifications';
 import { ValidationErrorNotification } from './ValidationErrorNotification';
@@ -16,12 +17,18 @@ import { ValidationErrorNotification } from './ValidationErrorNotification';
 export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const app = useApp();
+    const userCanManageDashboardComments = app.user.data?.ability?.can(
+        'manage',
+        'DashboardComments',
+    );
     const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.DashboardTileComments,
     );
     const { data: dashboardCommentsNotifications } =
         useGetDashboardCommentsNotifications(
-            !!isDashboardTileCommentsFeatureEnabled,
+            !userCanManageDashboardComments &&
+                !!isDashboardTileCommentsFeatureEnabled,
         );
 
     const { data: validationData } = useValidation(projectUuid, false);
