@@ -102,6 +102,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     return (
         <Card
+            id={tile.uuid}
             component={Flex}
             className="tile-base"
             ref={containerRef}

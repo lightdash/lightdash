@@ -30,9 +30,10 @@ export const DashboardTileCommentsNotifications: FC<Props> = ({
                                   notification.notificationId,
                               );
                               history.push(
-                                  `/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`,
+                                  `/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}?dashboardTileUuid=${notification.dashboard?.tileUuid}`,
                               );
                           }}
+                          fz="xs"
                       >
                           {notification.author.name} commented on{' '}
                           <Anchor

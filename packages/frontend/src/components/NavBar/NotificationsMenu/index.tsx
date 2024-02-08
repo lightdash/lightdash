@@ -31,8 +31,6 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                 !!isDashboardTileCommentsFeatureEnabled,
         );
 
-    console.log(dashboardCommentsNotifications);
-
     const { data: validationData } = useValidation(projectUuid, false);
     const canUserManageValidations = useValidationUserAbility(projectUuid);
     const [hasReadValidationNotification, setHasReadValidationNotification] =
@@ -41,9 +39,9 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     const hasValidationErrors = validationData && validationData?.length > 0;
 
     const disableBadge =
-        !canUserManageValidations ||
-        !hasValidationErrors ||
-        hasReadValidationNotification ||
+        (!canUserManageValidations ||
+            !hasValidationErrors ||
+            hasReadValidationNotification) &&
         !dashboardCommentsNotifications?.length;
 
     const hasValidationNotifications =
