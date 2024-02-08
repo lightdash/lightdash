@@ -162,7 +162,7 @@ export const useGetDashboardCommentsNotifications = (enabled: boolean) => {
 
 const markNotificationAsRead = async (notificationId: string) =>
     lightdashApi<null>({
-        url: `/notifications/dashboards/comments/${notificationId}`,
+        url: `/notifications/${notificationId}`,
         method: 'PATCH',
         body: undefined,
     });
