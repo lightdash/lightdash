@@ -68,7 +68,7 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('create', 'DashboardComments', {
-            projectUuid: member.organizationUuid,
+            organizationUuid: member.organizationUuid,
         });
     },
     editor(member, { can }) {
@@ -93,7 +93,7 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'DashboardComments', {
-            projectUuid: member.organizationUuid,
+            organizationUuid: member.organizationUuid,
         });
     },
     developer(member, { can }) {
