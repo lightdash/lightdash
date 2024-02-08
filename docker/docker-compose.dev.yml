@@ -8,6 +8,9 @@ services:
       context: ..
       dockerfile: dockerfile
       target: dev
+      args:
+        - EMBEDDING_MODELS_PATH=${EMBEDDING_MODELS_PATH}
+        - EMBEDDING_MODEL=${EMBEDDING_MODEL}
     depends_on:
       - db-dev
     environment:
@@ -34,6 +37,8 @@ services:
       - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
       - GROUPS_ENABLED=${GROUPS_ENABLED}
       - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
+      - EMBEDDING_MODELS_PATH=${EMBEDDING_MODELS_PATH}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
     volumes:
       - "../:/usr/app"
       - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"

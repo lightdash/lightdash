@@ -4,6 +4,10 @@
 FROM node:20-bookworm-slim AS base
 WORKDIR /usr/app
 
+# Arguments for embedding model download
+ARG EMBEDDING_MODELS_PATH=/usr/models
+ARG EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     g++ \
@@ -16,7 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     unzip \
     wget \
-    git \ 
+    git \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,6 +30,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgnutls28-dev=3.7.9-2+deb12u2  \
     tar=1.34+dfsg-1.2+deb12u1 \ 
     libsystemd0=252.22-1~deb12u1
+
+# Adding packagecloud repository needed for git-lfs (to download embedding model)
+RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash
+RUN apt-get install -y --no-install-recommends git-lfs
+
+# Cloning embedding model
+RUN git lfs install
+RUN git clone https://huggingface.co/${EMBEDDING_MODEL} ${EMBEDDING_MODELS_PATH}/${EMBEDDING_MODEL}
 
 # Installing multiple versions of dbt
 # dbt 1.4 is the default

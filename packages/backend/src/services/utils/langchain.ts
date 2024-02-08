@@ -1,11 +1,23 @@
+const EMBEDDING_MODEL =
+    process.env.EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
+
+// Need to use dynamic imports to avoid problems when running knex commands
+
+async function setupXenova() {
+    const { env } = await import('@xenova/transformers');
+
+    env.localModelPath = process.env.EMBEDDING_MODELS_PATH || '/usr/models';
+    env.allowRemoteModels = false;
+}
+
 async function getmodel() {
-    // Need to use a dynamic import here to avoid problems when running knex commands
+    await setupXenova();
     const { HuggingFaceTransformersEmbeddings } = await import(
         '@langchain/community/embeddings/hf_transformers'
     );
 
     return new HuggingFaceTransformersEmbeddings({
-        modelName: 'Xenova/all-MiniLM-L6-v2', // check whether this is good for our use case (semantic search)
+        modelName: EMBEDDING_MODEL,
     });
 }
 

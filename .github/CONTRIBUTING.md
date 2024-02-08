@@ -303,29 +303,35 @@ brew update
 brew install nvm
 
 # 3 Install specified node version using NVM (https://github.com/nvm-sh/nvm)
-
 nvm install v20.8.0
 nvm alias default v20.8.0
 
-# 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew)
+# 4 Install git-lfs (needed for embedding model download)
+brew install git-lfs
+
+# 5 Download the embedding model
+git lfs install
+git clone https://huggingface.co/Xenova/all-MiniLM-L6-v2 /usr/models/Xenova/all-MiniLM-L6-v2
+
+# 6 Install postgres (https://wiki.postgresql.org/wiki/Homebrew)
 brew install postgresql@14
 brew services start postgresql@14
 
-# 5 Install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
+# 7 Install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
 brew tap dbt-labs/dbt
 brew install dbt-postgres@1.5.4
 
-# 6 Clone the repo and open it in your IDE
+# 8 Clone the repo and open it in your IDE
 git clone https://github.com/lightdash/lightdash.git
 cd lightdash
 
-# 7 Copy `.env.development` to `.env.development.local`
+# 9 Copy `.env.development` to `.env.development.local`
 cp .env.development .env.development.local
 
-# 8 Edit some environment variables to match your setup
+# 10 Edit some environment variables to match your setup
 open .env.development.local -t
 
-# 8.1 You may need to edit the following variables:
+# 10.1 You may need to edit the following variables:
 PGHOST=localhost
 PGPORT=5432
 PGUSER=pg_user *OR* machine username if no prior postgres set up
@@ -333,11 +339,13 @@ PGPASSWORD=pg_password *OR* blank if no prior postgres set up
 PGDATABASE=postgres
 DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
 LIGHTDASH_CONFIG_FILE=$PWD/lightdash.yml
+EMBEDDING_MODELS_PATH=/usr/models # when changing this path, make sure it points to where you cloned the model
+EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
 
-# 9 Install packages
+# 11 Install packages
 yarn
 
-# 10 Build / migrate / seed
+# 12 Build / migrate / seed
 yarn load:env ./scripts/build.sh
 yarn load:env ./scripts/seed-jaffle.sh
 yarn load:env ./scripts/migrate.sh
