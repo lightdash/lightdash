@@ -20,7 +20,7 @@ import {
     IconBolt,
     IconChevronDown,
     IconColorFilter,
-    IconDirections,
+    IconCubeUnfolded,
     IconInfoCircle,
     IconLeaf,
     IconRestore,
@@ -174,29 +174,29 @@ const defaultColorPalettes: ColorPalette[] = [
         ],
     },
     {
-        name: 'Earthy Tones Palette',
-        icon: IconDirections,
+        name: 'Data Matrix',
+        icon: IconCubeUnfolded,
         colors: [
-            '#594E42',
-            '#6D6155',
-            '#816B68',
-            '#957E7B',
-            '#A9928E',
-            '#BDA5A1',
-            '#D1B9B4',
-            '#E5CCC7',
-            '#F9E0DA',
-            '#FFEBE4',
-            '#FFF5EE',
-            '#FFFAF7',
-            '#FAF5EF',
-            '#EDE8E0',
-            '#E0DCD2',
-            '#D3D0C5',
-            '#C6C1B8',
-            '#B9B4AA',
-            '#ACA89D',
-            '#9F9F91',
+            '#FF00FF',
+            '#00FFFF',
+            '#FFFF00',
+            '#FF0080',
+            '#00FF00',
+            '#00FF80',
+            '#8000FF',
+            '#FF8000',
+            '#FF0088',
+            '#00FF88',
+            '#0088FF',
+            '#88FF00',
+            '#FF8800',
+            '#FF8800',
+            '#FF0088',
+            '#8800FF',
+            '#0088FF',
+            '#8800FF',
+            '#00FF88',
+            '#FF8800',
         ],
     },
 ];
@@ -418,7 +418,6 @@ const AppearanceColorSettings: FC = () => {
                     </Popover.Dropdown>
                 </Popover>
             </Flex>
-
             <form onSubmit={handleOnSubmit}>
                 <Stack spacing="md" mb="lg">
                     <SimpleGrid cols={4}>
@@ -443,7 +442,6 @@ const AppearanceColorSettings: FC = () => {
                             />
                         ))}
                     </SimpleGrid>
-
                     <Can
                         I={'update'}
                         this={subject('Organization', {
