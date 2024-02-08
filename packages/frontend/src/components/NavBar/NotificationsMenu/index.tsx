@@ -25,7 +25,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.DashboardTileComments,
     );
-    const { data: dashboardCommentsNotifications } =
+    const { data: dashboardCommentsNotifications, refetch } =
         useGetDashboardCommentsNotifications(
             !!userCanManageDashboardComments &&
                 !!isDashboardTileCommentsFeatureEnabled,
@@ -57,6 +57,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
             position="bottom-end"
             arrowOffset={16}
             offset={-2}
+            onOpen={refetch}
         >
             <Menu.Target>
                 <Button
