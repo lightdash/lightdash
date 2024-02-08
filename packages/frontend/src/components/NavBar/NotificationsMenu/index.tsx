@@ -3,7 +3,7 @@ import { Button, Indicator, Menu } from '@mantine/core';
 import { IconBell } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC } from 'react';
-import { useGetDashboardCommentsNotifications } from '../../../features/comments/hooks/useComments';
+import { useGetDashboardCommentsNotifications } from '../../../features/dashboardTilecomments/hooks/useComments';
 import {
     useValidation,
     useValidationNotificationChecker,
