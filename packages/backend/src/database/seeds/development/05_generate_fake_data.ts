@@ -16,7 +16,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_ORG_1_ADMIN.user_uuid,
     );
 
-    const promises = Array.from({ length: 1000 }, () =>
+    const promises = Array.from({ length: 10000 }, () =>
         dashboardModel.create(
             spaceUuid,
             {
