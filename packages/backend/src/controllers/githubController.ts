@@ -3,6 +3,7 @@ import { createAppAuth } from '@octokit/auth-app';
 import { Octokit as OktokitRest } from '@octokit/rest';
 import {
     Controller,
+    Delete,
     Get,
     Middlewares,
     OperationId,
@@ -47,8 +48,8 @@ export class GithubInstallController extends Controller {
         @Request() req: express.Request,
     ): Promise<void> {
         const redirectUrl = new URL(
-            lightdashConfig.siteUrl,
             '/generalSettings/integrations',
+            lightdashConfig.siteUrl,
         );
         const state = req.user!.userUuid; // todo: encrypt this?
         req.session.oauth = {};
@@ -138,7 +139,7 @@ export class GithubInstallController extends Controller {
     }
 
     @Middlewares([isAuthenticated, unauthorisedInDemo])
-    @Get('/uninstall')
+    @Delete('/uninstall')
     @OperationId('uninstallGithubAppForOrganization')
     async uninstallGithubAppForOrganization(
         @Request() req: express.Request,

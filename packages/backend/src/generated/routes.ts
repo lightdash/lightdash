@@ -484,6 +484,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                sqlPath: { dataType: 'string' },
+                ymlPath: { dataType: 'string' },
                 warehouse: { dataType: 'string' },
                 targetDatabase: { ref: 'SupportedDbtAdapter', required: true },
                 tables: {
@@ -6227,7 +6229,7 @@ export function RegisterRoutes(app: express.Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.get(
+    app.delete(
         '/api/v1/github/uninstall',
         ...fetchMiddlewares<RequestHandler>(GithubInstallController),
         ...fetchMiddlewares<RequestHandler>(

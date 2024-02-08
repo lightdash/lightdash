@@ -12,9 +12,10 @@ import {
     Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FC } from 'react';
 import { lightdashApi } from '../../../api';
+import useToaster from '../../../hooks/toaster/useToaster';
 import githubIcon from '../../../svgs/github-icon.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
@@ -28,15 +29,49 @@ const getGithubRepositories = async () =>
 
 const useGitHubRepositories = () =>
     useQuery<GitRepo[], ApiError>({
-        queryKey: ['github', 'branches'],
+        queryKey: ['github_branches'],
         queryFn: () => getGithubRepositories(),
         retry: false,
     });
 
-const GITHUB_INSTALL_URL = `/api/v1/github/install/`;
+const deleteGithubInstallation = async () =>
+    lightdashApi<null>({
+        url: `/github/uninstall`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+const useDeleteGithubInstallationMutation = () => {
+    const { showToastSuccess, showToastError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<null, ApiError>(
+        ['delete_github_installation'],
+        () => deleteGithubInstallation(),
+        {
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['github_branches']);
+                showToastSuccess({
+                    title: 'GitHub integration deleted',
+                    subtitle:
+                        'You have successfully deleted your GitHub integration.',
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: 'Failed to delete GitHub integration',
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
+const GITHUB_INSTALL_URL = `/api/v1/github/install`;
 
 const GithubSettingsPanel: FC = () => {
     const { data, isError, isInitialLoading } = useGitHubRepositories();
+    const deleteGithubInstallationMutation =
+        useDeleteGithubInstallationMutation();
     const isValidGithubInstallation = data !== undefined && !isError;
     if (isInitialLoading) {
         return <Loader />;
@@ -96,7 +131,9 @@ const GithubSettingsPanel: FC = () => {
                                 px="xs"
                                 color="red"
                                 variant="outline"
-                                onClick={() => undefined} // todo
+                                onClick={() =>
+                                    deleteGithubInstallationMutation.mutate()
+                                }
                                 leftIcon={<MantineIcon icon={IconTrash} />}
                             >
                                 Delete

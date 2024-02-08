@@ -438,6 +438,12 @@
             },
             "Explore": {
                 "properties": {
+                    "sqlPath": {
+                        "type": "string"
+                    },
+                    "ymlPath": {
+                        "type": "string"
+                    },
                     "warehouse": {
                         "type": "string"
                     },
@@ -6937,7 +6943,7 @@
             }
         },
         "/api/v1/github/uninstall": {
-            "get": {
+            "delete": {
                 "operationId": "uninstallGithubAppForOrganization",
                 "responses": {
                     "200": {
