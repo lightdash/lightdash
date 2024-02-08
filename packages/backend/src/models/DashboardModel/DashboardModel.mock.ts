@@ -146,6 +146,7 @@ export const dashboardEntry: DashboardTable['base'] = {
     description: 'description',
     space_id: 0,
     created_at: new Date(),
+    search_vector: [],
 };
 
 export const dashboardVersionEntry: DashboardVersionTable['base'] = {
