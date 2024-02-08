@@ -86,6 +86,8 @@ export class SearchModel {
             .orderByRaw('rank DESC NULLS LAST')
             .limit(10);
 
+        const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
+
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
             .whereIn('dashboard_uuid', dashboardUuids)
