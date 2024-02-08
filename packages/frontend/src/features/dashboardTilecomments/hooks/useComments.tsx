@@ -42,7 +42,7 @@ export const useCreateComment = () => {
                     dashboardTileUuid,
                 ]);
             },
-            retry: false,
+            retry: (_, error) => error.error.statusCode !== 403,
         },
     );
 };
@@ -65,7 +65,7 @@ export const useGetComments = (
         ['comments', dashboardUuid, dashboardTileUuid],
         () => getDashboardTileComments({ dashboardTileUuid, dashboardUuid }),
         {
-            retry: false,
+            retry: (_, error) => error.error.statusCode !== 403,
         },
     );
 };
@@ -154,7 +154,7 @@ export const useGetDashboardCommentsNotifications = (enabled: boolean) => {
         () => getDashboardCommentsNotifications(),
         {
             refetchInterval: 100000,
-            retry: false,
+            retry: (_, error) => error.error.statusCode !== 403,
             enabled,
         },
     );
