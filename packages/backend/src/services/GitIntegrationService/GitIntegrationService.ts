@@ -1,19 +1,18 @@
 import {
-    CreateWarehouseCredentials,
     DbtModelNode,
     DbtProjectType,
     DimensionType,
     findAndUpdateModelNodes,
     GitIntegrationConfiguration,
+    isUserWithOrg,
     lightdashDbtYamlSchema,
     ParseError,
     PullRequestCreated,
     SessionUser,
-    UpdateProject,
+    UnexpectedServerError,
 } from '@lightdash/common';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
-import { get, update } from 'lodash';
 import {
     createBranch,
     getFileContent,
@@ -21,6 +20,7 @@ import {
     updateFile,
 } from '../../clients/github/Github';
 import { LightdashConfig } from '../../config/parseConfig';
+import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ProjectService } from '../ProjectService/ProjectService';
@@ -29,6 +29,7 @@ type Dependencies = {
     lightdashConfig: LightdashConfig;
     savedChartModel: SavedChartModel;
     projectModel: ProjectModel;
+    githubAppInstallationsModel: GithubAppInstallationsModel;
 };
 
 // TODO move this to common and refactor cli
@@ -63,27 +64,32 @@ export class GitIntegrationService {
 
     private readonly projectModel: ProjectModel;
 
-    constructor({
-        lightdashConfig,
-        savedChartModel,
-        projectModel,
-    }: Dependencies) {
-        this.lightdashConfig = lightdashConfig;
-        this.savedChartModel = savedChartModel;
-        this.projectModel = projectModel;
+    private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
+
+    constructor(deps: Dependencies) {
+        this.lightdashConfig = deps.lightdashConfig;
+        this.savedChartModel = deps.savedChartModel;
+        this.projectModel = deps.projectModel;
+        this.githubAppInstallationsModel = deps.githubAppInstallationsModel;
     }
 
     async getConfiguration(
         user: SessionUser,
         projectUuid: string,
     ): Promise<GitIntegrationConfiguration> {
-        // to remove
-        console.log(this.lightdashConfig);
-        // TODO: check if git integration is enabled
-        const configuration = {
-            enabled: true,
+        if (!isUserWithOrg(user)) {
+            throw new UnexpectedServerError(
+                'User is not part of an organization.',
+            );
+        }
+        const installationId =
+            await this.githubAppInstallationsModel.getInstallationId(
+                user.organizationUuid,
+            );
+        // todo: check if installation has access to the project repository
+        return {
+            enabled: !!installationId,
         };
-        return configuration;
     }
 
     private static async loadYamlSchema(content: any): Promise<YamlSchema> {
