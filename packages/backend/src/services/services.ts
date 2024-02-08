@@ -231,4 +231,5 @@ export const gitIntegrationService = new GitIntegrationService({
 
 export const githubAppService = new GithubAppService({
     githubAppInstallationsModel,
+    userModel,
 });

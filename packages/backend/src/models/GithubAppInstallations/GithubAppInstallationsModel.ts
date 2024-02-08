@@ -1,4 +1,8 @@
-import { LightdashUserWithOrg, UnexpectedServerError } from '@lightdash/common';
+import {
+    LightdashUserWithOrg,
+    NotFoundError,
+    UnexpectedServerError,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { GithubAppInstallationTableName } from '../../database/entities/githubAppInstallation';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
@@ -18,7 +22,7 @@ export class GithubAppInstallationsModel {
         this.encryptionService = deps.encryptionService;
     }
 
-    async getInstallationId(
+    async findInstallationId(
         organizationUuid: string,
     ): Promise<string | undefined> {
         const installation = await this.database(GithubAppInstallationTableName)
@@ -38,6 +42,18 @@ export class GithubAppInstallationsModel {
             throw new UnexpectedServerError(
                 'Failed to decrypt installation id',
             );
+        }
+
+        return installationId;
+    }
+
+    async getInstallationId(
+        organizationUuid: string,
+    ): Promise<string | undefined> {
+        const installationId = this.findInstallationId(organizationUuid);
+
+        if (!installationId) {
+            throw new NotFoundError('Installation not found');
         }
 
         return installationId;

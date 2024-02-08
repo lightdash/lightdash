@@ -1,9 +1,10 @@
-import { GitRepo } from '@lightdash/common';
+import { ApiSuccessEmpty, GitRepo } from '@lightdash/common';
 import { createAppAuth } from '@octokit/auth-app';
 import { Octokit as OktokitRest } from '@octokit/rest';
 import {
     Controller,
     Get,
+    Middlewares,
     OperationId,
     Query,
     Request,
@@ -11,19 +12,11 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { nanoid } from 'nanoid';
-import {
-    createBranch,
-    getFileContent,
-    githubApp,
-    updateFile,
-} from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { githubAppService } from '../services/services';
+import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 const githubAppName = 'lightdash-dev';
-const githubClientId = 'aaaa';
-
-const installationId = 47029382; // replace this once it is installed
 
 /** HOW it works
  *
@@ -46,15 +39,18 @@ export class GithubInstallController extends Controller {
      * @param redirect The url to redirect to after installation
      * @param req express request
      */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('302', 'Not found')
     @Get('/install')
     @OperationId('installGithubAppForOrganization')
     async installGithubAppForOrganization(
         @Request() req: express.Request,
-        @Query() redirect?: string,
     ): Promise<void> {
-        const redirectUrl = new URL(redirect || '/', lightdashConfig.siteUrl);
-        const state = nanoid();
+        const redirectUrl = new URL(
+            lightdashConfig.siteUrl,
+            '/generalSettings/integrations',
+        );
+        const state = req.user!.userUuid; // todo: encrypt this?
         req.session.oauth = {};
         req.session.oauth.returnTo = redirectUrl.href;
         req.session.oauth.state = state;
@@ -62,30 +58,6 @@ export class GithubInstallController extends Controller {
         this.setHeader(
             'Location',
             `https://github.com/apps/${githubAppName}/installations/new?state=${state}`,
-        );
-    }
-
-    /**
-     * Login to GitHub and authorize (not install) GitHub App
-     *
-     * @param req express request
-     * @param redirect The url to redirect to after authorization
-     */
-    @SuccessResponse('302', 'Not found')
-    @OperationId('githubOauthLogin')
-    async githubOauthLogin(
-        @Request() req: express.Request,
-        @Query() redirect?: string,
-    ): Promise<void> {
-        const state = nanoid();
-        const redirectUrl = new URL(redirect || '/', lightdashConfig.siteUrl);
-        req.session.oauth = {};
-        req.session.oauth.state = state;
-        req.session.oauth.returnTo = redirectUrl.href;
-        this.setStatus(302);
-        this.setHeader(
-            'Location',
-            `https://github.com/login/oauth/authorize?client_id=${githubClientId}&state=${state}`,
         );
     }
 
@@ -112,7 +84,7 @@ export class GithubInstallController extends Controller {
         console.log('installation_id', installation_id);
         console.log('setup_action', setup_action);
 
-        if (state !== req.session.oauth?.state) {
+        if (!state || state !== req.session.oauth?.state) {
             this.setStatus(400);
             throw new Error('State does not match');
         }
@@ -120,6 +92,11 @@ export class GithubInstallController extends Controller {
             // User attempted to setup the app, didn't have permission in GitHub and sent a request to the admins
             // We can't do anything at this point
             this.setStatus(200);
+        }
+
+        if (!installation_id) {
+            this.setStatus(400);
+            throw new Error('Installation id not provided');
         }
 
         /*   if (code) {
@@ -153,12 +130,29 @@ export class GithubInstallController extends Controller {
             });
             // store userToServerToken
         } */
+        await githubAppService.upsertInstallation(state, installation_id);
         const redirectUrl = new URL(req.session.oauth?.returnTo || '/');
         req.session.oauth = {};
         this.setStatus(302);
         this.setHeader('Location', redirectUrl.href);
     }
 
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Get('/uninstall')
+    @OperationId('uninstallGithubAppForOrganization')
+    async uninstallGithubAppForOrganization(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await githubAppService.deleteAppInstallation(req.user!);
+        // todo: uninstall app with octokit
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200')
     @Get('/repos/list')
     @OperationId('getGithubListRepositories')
@@ -167,6 +161,10 @@ export class GithubInstallController extends Controller {
         results: Array<GitRepo>;
     }> {
         this.setStatus(200);
+
+        const installationId = await githubAppService.getInstallationId(
+            req.user!,
+        );
 
         const appOctokit = new OktokitRest({
             authStrategy: createAppAuth,
@@ -190,66 +188,5 @@ export class GithubInstallController extends Controller {
                 fullName: repo.full_name,
             })),
         };
-    }
-
-    @SuccessResponse('200')
-    @Get('/list')
-    @OperationId('githubList')
-    async getGithubListBranches(@Request() req: express.Request): Promise<any> {
-        console.log('req', req);
-        this.setStatus(200);
-
-        const appOctokit = new OktokitRest({
-            authStrategy: createAppAuth,
-            auth: {
-                appId: 703670,
-                privateKey: process.env.GITHUB_PRIVATE_KEY,
-                // optional: this will make appOctokit authenticate as app (JWT)
-                //           or installation (access token), depending on the request URL
-                installationId,
-            },
-        });
-
-        const { data } = await appOctokit.rest.repos.listBranches({
-            owner: 'rephus',
-            repo: 'jaffle_shop',
-        });
-
-        return data;
-    }
-
-    @SuccessResponse('201')
-    @Get('/create-branch')
-    @OperationId('createBranch')
-    async createBranch(@Request() req: express.Request): Promise<any> {
-        this.setStatus(200);
-
-        const results = await createBranch('new-branch');
-        return results;
-    }
-
-    @SuccessResponse('201')
-    @Get('/update-file')
-    @OperationId('updateFile')
-    async updateFile(@Request() req: express.Request): Promise<any> {
-        this.setStatus(200);
-        return updateFile(
-            'models/schema.yml',
-            'new content',
-            '',
-            'new-branch',
-            '',
-        );
-    }
-
-    @SuccessResponse('201')
-    @Get('/get-file')
-    @OperationId('getFile')
-    async getFile(@Request() req: express.Request): Promise<any> {
-        this.setStatus(200);
-
-        const response = await getFileContent('models/schema.yml');
-        console.log('update file ', response);
-        return response;
     }
 }

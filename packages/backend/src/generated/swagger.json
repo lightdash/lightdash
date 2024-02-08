@@ -6883,17 +6883,7 @@
                 },
                 "description": "Install the Lightdash GitHub App and link to an organization",
                 "security": [],
-                "parameters": [
-                    {
-                        "description": "The url to redirect to after installation",
-                        "in": "query",
-                        "name": "redirect",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
+                "parameters": []
             }
         },
         "/api/v1/github/oauth/callback": {
@@ -6946,6 +6936,25 @@
                 ]
             }
         },
+        "/api/v1/github/uninstall": {
+            "get": {
+                "operationId": "uninstallGithubAppForOrganization",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/github/repos/list": {
             "get": {
                 "operationId": "getGithubListRepositories",
@@ -6971,74 +6980,6 @@
                                     "required": ["results", "status"],
                                     "type": "object"
                                 }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/github/list": {
-            "get": {
-                "operationId": "githubList",
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/github/create-branch": {
-            "get": {
-                "operationId": "createBranch",
-                "responses": {
-                    "201": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/github/update-file": {
-            "get": {
-                "operationId": "updateFile",
-                "responses": {
-                    "201": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/github/get-file": {
-            "get": {
-                "operationId": "getFile",
-                "responses": {
-                    "201": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
                             }
                         }
                     }
