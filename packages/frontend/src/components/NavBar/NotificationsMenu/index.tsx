@@ -42,7 +42,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
         (!canUserManageValidations ||
             !hasValidationErrors ||
             hasReadValidationNotification) &&
-        !dashboardCommentsNotifications?.length;
+        !dashboardCommentsNotifications?.filter((n) => !n.viewed)?.length;
 
     const hasValidationNotifications =
         canUserManageValidations && hasValidationErrors;
