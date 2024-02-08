@@ -25,6 +25,7 @@ import pick from 'lodash/pick';
 import pickBy from 'lodash/pickBy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isHexCodeColor } from '../utils/colorUtils';
+import { useChartColorConfig } from './useChartColorConfig';
 
 type PieChartConfig = {
     validConfig: PieChart;
@@ -105,6 +106,9 @@ const usePieChartConfig: PieChartConfigFn = (
     const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
 
     const [isDonut, setIsDonut] = useState(pieChartConfig?.isDonut ?? true);
+    const { calculateDimensionColorAssignment } = useChartColorConfig({
+        colorPalette,
+    });
 
     const [valueLabel, setValueLabel] = useState(
         pieChartConfig?.valueLabel ?? 'hidden',
@@ -285,13 +289,20 @@ const usePieChartConfig: PieChartConfigFn = (
     }, [groupSortOverrides, groupLabels]);
 
     const groupColorDefaults = useMemo(() => {
+        const colorsUsedInChart = new Set<string>();
+
         return Object.fromEntries(
-            groupLabels.map((name, index) => [
-                name,
-                colorPalette[index % colorPalette.length],
-            ]),
+            groupLabels.map((name) => {
+                const generatedColor = calculateDimensionColorAssignment(
+                    name,
+                    colorsUsedInChart,
+                );
+                colorsUsedInChart.add(generatedColor);
+
+                return [name, generatedColor];
+            }),
         );
-    }, [groupLabels, colorPalette]);
+    }, [groupLabels, calculateDimensionColorAssignment]);
 
     const handleGroupChange = useCallback(
         (prevDimensionId: string, newDimensionId: string) => {
