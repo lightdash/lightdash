@@ -1,4 +1,6 @@
+import { LightdashMode } from '@lightdash/common';
 import express from 'express';
+import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -193,7 +195,7 @@ dashboardRouter.post(
     },
 );
 
-if (process.env.AI_SEARCH) {
+if (lightdashConfig.mode === LightdashMode.DEV) {
     dashboardRouter.get(
         '/:projectUuid/backfill-embeddings',
         isAuthenticated,

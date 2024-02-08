@@ -57,13 +57,8 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<DashboardSearchResult[]> {
-        const measureLabel = `embed query: (${query})`;
-
-        if (process.env.AI_SEARCH === 'true') console.time(measureLabel);
         const embedQuery = await embedText(query);
-        if (process.env.AI_SEARCH === 'true') console.timeEnd(measureLabel);
 
-        if (process.env.AI_SEARCH === 'true') console.time('query');
         const dashboards = await this.database(DashboardsTableName)
             .select()
             .leftJoin(
@@ -90,7 +85,6 @@ export class SearchModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderByRaw('rank DESC NULLS LAST')
             .limit(10);
-        if (process.env.AI_SEARCH === 'true') console.timeEnd('query');
 
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
