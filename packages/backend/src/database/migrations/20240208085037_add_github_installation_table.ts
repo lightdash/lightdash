@@ -10,7 +10,7 @@ export async function up(knex: Knex): Promise<void> {
                 .defaultTo(knex.raw('uuid_generate_v4()'))
                 .primary();
             tableBuilder
-                .string('organization_uuid')
+                .uuid('organization_uuid')
                 .unique()
                 .notNullable()
                 .references('organization_uuid')
