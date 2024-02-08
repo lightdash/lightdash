@@ -1,4 +1,5 @@
 import {
+    CreateWarehouseCredentials,
     DbtModelNode,
     DbtProjectType,
     DimensionType,
@@ -8,6 +9,7 @@ import {
     ParseError,
     PullRequestCreated,
     SessionUser,
+    UpdateProject,
 } from '@lightdash/common';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
@@ -20,6 +22,7 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { ProjectService } from '../ProjectService/ProjectService';
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
@@ -120,7 +123,29 @@ export class GitIntegrationService {
         const { branch } = project.dbtConnection;
         const chart = await this.savedChartModel.get(chartUuid);
         const customMetrics = chart.metricQuery.additionalMetrics;
-        const fileName = 'models/schema.yml'; // TODO hardcoded: replace with the right file
+        /*
+        let credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const {adapter } = await ProjectService.testProjectAdapter(
+            {warehouseConnection: credentials } as UpdateProject,
+            user,
+        )
+
+        const { manifest } = await adapter.dbtClient.getDbtManifest();
+        */
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            chart.tableName,
+        );
+
+        if (!explore.ymlPath)
+            throw new Error(
+                'Explore is missing path, compile the project again to fix this issue',
+            );
+
+        const fileName = explore.ymlPath;
 
         if (customMetrics === undefined || customMetrics?.length === 0)
             throw new Error('No custom metrics found');
