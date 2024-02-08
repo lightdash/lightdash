@@ -11,6 +11,7 @@ import {
     CalculateTotalFromQuery,
     ChartSummary,
     CompiledDimension,
+    convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
@@ -3465,12 +3466,6 @@ export class ProjectService {
 
         const charts = await Promise.all(chartPromises);
 
-        // TODO get explores for all metrics to know the yml location
-        /* const tables = [
-            ...new Set(customMetrics.map((metric) => metric.table)),
-        ];
-        const explore = await this.getExplore(user, projectUuid, metric.table) //TODO do this outside loop
-*/
         return charts.reduce<any[]>((acc, chart) => {
             const customMetrics = chart.metricQuery.additionalMetrics;
 
@@ -3482,7 +3477,11 @@ export class ProjectService {
                     name: metric.name,
                     label: metric.label,
                     modelName: metric.table,
-                    yml: 'TODO.yml',
+                    yml: JSON.stringify(
+                        convertCustomMetricToDbt(metric),
+                        null,
+                        2,
+                    ),
                     chartLabel: chart.name,
                     chartUrl: `${lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 })),
