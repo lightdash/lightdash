@@ -106,9 +106,10 @@ const usePieChartConfig: PieChartConfigFn = (
     const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
 
     const [isDonut, setIsDonut] = useState(pieChartConfig?.isDonut ?? true);
-    const { calculateDimensionColorAssignment } = useChartColorConfig({
-        colorPalette,
-    });
+    const { calculateDimensionColorAssignment, useSharedColors } =
+        useChartColorConfig({
+            colorPalette,
+        });
 
     const [valueLabel, setValueLabel] = useState(
         pieChartConfig?.valueLabel ?? 'hidden',
@@ -292,17 +293,22 @@ const usePieChartConfig: PieChartConfigFn = (
         const colorsUsedInChart = new Set<string>();
 
         return Object.fromEntries(
-            groupLabels.map((name) => {
-                const generatedColor = calculateDimensionColorAssignment(
-                    name,
-                    colorsUsedInChart,
-                );
+            groupLabels.map((name, index) => {
+                const generatedColor = useSharedColors
+                    ? calculateDimensionColorAssignment(name, colorsUsedInChart)
+                    : colorPalette[index % colorPalette.length];
+
                 colorsUsedInChart.add(generatedColor);
 
                 return [name, generatedColor];
             }),
         );
-    }, [groupLabels, calculateDimensionColorAssignment]);
+    }, [
+        groupLabels,
+        calculateDimensionColorAssignment,
+        colorPalette,
+        useSharedColors,
+    ]);
 
     const handleGroupChange = useCallback(
         (prevDimensionId: string, newDimensionId: string) => {

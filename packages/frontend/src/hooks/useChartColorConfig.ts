@@ -122,5 +122,6 @@ export const useChartColorConfig = ({
         calculateDimensionColorAssignment,
         calculateSeriesColorAssignment,
         compileChartConfigWithColorAssignments,
+        useSharedColors,
     };
 };
