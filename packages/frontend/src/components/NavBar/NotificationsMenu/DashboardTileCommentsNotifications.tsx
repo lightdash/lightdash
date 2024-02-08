@@ -1,6 +1,6 @@
 import { Notification } from '@lightdash/common';
-import { Anchor, Menu } from '@mantine/core';
-import { IconMessage2Exclamation } from '@tabler/icons-react';
+import { Anchor, Divider, Menu, Text, useMantineTheme } from '@mantine/core';
+import { IconCircleFilled } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useMarkDashboardCommentNotificationAsRead } from '../../../features/dashboardTilecomments/hooks/useComments';
@@ -15,6 +15,7 @@ export const DashboardTileCommentsNotifications: FC<Props> = ({
     projectUuid,
     notifications,
 }) => {
+    const theme = useMantineTheme();
     const history = useHistory();
     const { mutate: markDashboardCommentNotificationAsRead } =
         useMarkDashboardCommentNotificationAsRead();
@@ -24,7 +25,17 @@ export const DashboardTileCommentsNotifications: FC<Props> = ({
                 ? notifications.map((notification) => (
                       <Menu.Item
                           key={notification.notificationId}
-                          icon={<MantineIcon icon={IconMessage2Exclamation} />}
+                          icon={
+                              <MantineIcon
+                                  size={10}
+                                  icon={IconCircleFilled}
+                                  style={{
+                                      color: notification.viewed
+                                          ? 'transparent'
+                                          : theme.colors.blue[4],
+                                  }}
+                              />
+                          }
                           onClick={() => {
                               markDashboardCommentNotificationAsRead(
                                   notification.notificationId,
@@ -35,12 +46,14 @@ export const DashboardTileCommentsNotifications: FC<Props> = ({
                           }}
                           fz="xs"
                       >
-                          {notification.author.name} commented on{' '}
+                          <Text fw={500}>{notification.author.name}</Text>
+                          commented on{' '}
                           <Anchor
                               href={`/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`}
                           >
                               {notification.dashboard?.name}
                           </Anchor>
+                          <Divider mt="xs" />
                       </Menu.Item>
                   ))
                 : null}
