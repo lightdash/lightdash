@@ -20,9 +20,10 @@ import {
     createBranch,
     getFileContent,
     getLastCommit,
+    getToken,
     updateFile,
 } from '../../clients/github/Github';
-import { LightdashConfig } from '../../config/parseConfig';
+import { LightdashConfig, SentryConfig } from '../../config/parseConfig';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -119,15 +120,18 @@ export class GitIntegrationService {
         owner,
         repo,
         mainBranch,
+        token,
     }: {
         owner: string;
         repo: string;
         mainBranch: string;
+        token: string;
     }): Promise<string> {
         const { sha: commitSha } = await getLastCommit({
             owner,
             repo,
             branch: mainBranch,
+            token,
         });
         // create branch in git
         const branchName = `add-custom-metrics-${Date.now()}`;
@@ -136,6 +140,7 @@ export class GitIntegrationService {
             owner,
             repo,
             sha: commitSha,
+            token,
         });
         return branchName;
     }
@@ -145,6 +150,7 @@ export class GitIntegrationService {
         customMetrics,
         owner,
         repo,
+        mainBranch,
         branchName,
         chart,
         projectUuid,
@@ -153,6 +159,7 @@ export class GitIntegrationService {
         customMetrics: AdditionalMetric[];
         owner: string;
         repo: string;
+        mainBranch: string;
         branchName: string;
         chart?: SavedChart;
         projectUuid: string;
@@ -174,7 +181,7 @@ Affected charts:
         `
             : ``;
 
-        const prUrl = `https://github.com/${owner}/${repo}/compare/main...${owner}:${repo}:${branchName}?expand=1&body=${encodeURIComponent(
+        const prUrl = `https://github.com/${owner}/${repo}/compare/${mainBranch}...${owner}:${repo}:${branchName}?expand=1&title=${prTitle}&body=${encodeURIComponent(
             prBody + chartDetails,
         )}`;
         return {
@@ -190,6 +197,7 @@ Affected charts:
         projectUuid,
         customMetrics,
         branchName,
+        token,
         quoteChar = `'`,
     }: {
         user: SessionUser;
@@ -198,6 +206,7 @@ Affected charts:
         projectUuid: string;
         customMetrics: AdditionalMetric[] | undefined;
         branchName: string;
+        token: string;
         quoteChar?: `"` | `'`;
     }): Promise<any> {
         if (customMetrics === undefined || customMetrics?.length === 0)
@@ -232,6 +241,7 @@ Affected charts:
                     owner,
                     repo,
                     branch: branchName,
+                    token,
                 },
             );
 
@@ -263,6 +273,7 @@ Affected charts:
                 content: updatedYml,
                 fileSha,
                 branchName,
+                token,
                 message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
             });
             console.log('fileUpdated', fileUpdated);
@@ -290,10 +301,14 @@ Affected charts:
         // TODO: check user permissions, only editors and above?
 
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
+
+        const token = await getToken();
+
         const branchName = await GitIntegrationService.createBranch({
             owner,
             repo,
             mainBranch: branch,
+            token,
         });
 
         const chart = await this.savedChartModel.get(chartUuid);
@@ -306,6 +321,7 @@ Affected charts:
             repo,
             projectUuid,
             branchName,
+            token,
         });
 
         return this.getPullRequestDetails({
@@ -313,6 +329,7 @@ Affected charts:
             customMetrics: customMetrics || [],
             owner,
             repo,
+            mainBranch: branch,
             branchName,
             chart,
             projectUuid,
@@ -353,10 +370,14 @@ Affected charts:
         console.log('4');
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
         console.log('5');
+
+        const token = await getToken();
+
         const branchName = await GitIntegrationService.createBranch({
             owner,
             repo,
             mainBranch: branch,
+            token,
         });
         console.log('6');
         await this.updateFileForCustomMetrics({
@@ -366,6 +387,7 @@ Affected charts:
             repo,
             projectUuid,
             branchName,
+            token,
             quoteChar,
         });
         console.log('7');
@@ -374,6 +396,7 @@ Affected charts:
             customMetrics: customMetrics || [],
             owner,
             repo,
+            mainBranch: branch,
             branchName,
             chart: undefined,
             projectUuid,

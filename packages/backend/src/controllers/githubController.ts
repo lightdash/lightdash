@@ -1,6 +1,7 @@
 import { ApiSuccessEmpty, GitRepo } from '@lightdash/common';
 import { createAppAuth } from '@octokit/auth-app';
-import { Octokit as OktokitRest } from '@octokit/rest';
+import { createTokenAuth } from '@octokit/auth-token';
+import { Octokit, Octokit as OktokitRest } from '@octokit/rest';
 import {
     Controller,
     Delete,
@@ -13,6 +14,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { githubApp } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { githubAppService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
@@ -99,7 +101,17 @@ export class GithubInstallController extends Controller {
             this.setStatus(400);
             throw new Error('Installation id not provided');
         }
-
+        if (code) {
+            const userToServerToken = await githubApp.oauth.createToken({
+                code,
+            });
+            console.log('userToServerToken', userToServerToken);
+            const userOctokit = new Octokit({
+                authStrategy: createTokenAuth,
+                auth: userToServerToken.authentication.token,
+            });
+            console.log('userOctokit', userOctokit);
+        }
         /*   if (code) {
         }if (setup_action === 'install' && installation_id && code) {
             // User successfully installed the app
