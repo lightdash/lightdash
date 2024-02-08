@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     DbtModelNode,
     DbtProjectType,
     DimensionType,
@@ -7,7 +8,9 @@ import {
     isUserWithOrg,
     lightdashDbtYamlSchema,
     ParseError,
+    Project,
     PullRequestCreated,
+    SavedChart,
     SessionUser,
     UnexpectedServerError,
 } from '@lightdash/common';
@@ -88,7 +91,7 @@ export class GitIntegrationService {
             );
         // todo: check if installation has access to the project repository
         return {
-            enabled: !!installationId,
+            enabled: true,
         };
     }
 
@@ -112,88 +115,20 @@ export class GitIntegrationService {
         return schemaFile;
     }
 
-    async createPullRequestForChartFields(
-        user: SessionUser,
-        projectUuid: string,
-        chartUuid: string,
-    ): Promise<PullRequestCreated> {
-        // TODO: check user permissions, only editors and above?
-        // get chart -> get custom metrics
-        const project = await this.projectModel.get(projectUuid);
-
-        if (project.dbtConnection.type !== DbtProjectType.GITHUB)
-            throw new Error(
-                `invalid dbt connection type ${project.dbtConnection.type} for project ${project.name}`,
-            );
-
-        const [owner, repo] = project.dbtConnection.repository.split('/');
-        const { branch } = project.dbtConnection;
-        const chart = await this.savedChartModel.get(chartUuid);
-        const customMetrics = chart.metricQuery.additionalMetrics;
-        /*
-        let credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
-        const {adapter } = await ProjectService.testProjectAdapter(
-            {warehouseConnection: credentials } as UpdateProject,
-            user,
-        )
-
-        const { manifest } = await adapter.dbtClient.getDbtManifest();
-        */
-
+    static async createBranch({
+        owner,
+        repo,
+        mainBranch,
+    }: {
+        owner: string;
+        repo: string;
+        mainBranch: string;
+    }): Promise<string> {
         const { sha: commitSha } = await getLastCommit({
             owner,
             repo,
-            branch,
+            branch: mainBranch,
         });
-
-        // throw new Error('test');
-        const explore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            chart.tableName,
-        );
-
-        if (!explore.ymlPath)
-            throw new Error(
-                'Explore is missing path, compile the project again to fix this issue',
-            );
-
-        const fileName = explore.ymlPath;
-
-        if (customMetrics === undefined || customMetrics?.length === 0)
-            throw new Error('No custom metrics found');
-
-        // get yml from github
-        const { content: fileContent, sha: fileSha } = await getFileContent({
-            fileName,
-            owner,
-            repo,
-            branch,
-        });
-
-        const yamlSchema = await GitIntegrationService.loadYamlSchema(
-            fileContent,
-        );
-
-        if (!yamlSchema.models)
-            throw new Error(`Models not found ${yamlSchema}`);
-
-        // call util function findAndUpdateModelNodes()
-        const updatedModels = findAndUpdateModelNodes(
-            yamlSchema.models,
-            customMetrics,
-        );
-
-        // update yml
-        const updatedYml = yaml.dump(
-            { ...yamlSchema, models: updatedModels },
-            {
-                quotingType: "'",
-            },
-        );
-
         // create branch in git
         const branchName = `add-custom-metrics-${Date.now()}`;
         const newBranch = await createBranch({
@@ -202,24 +137,173 @@ export class GitIntegrationService {
             repo,
             sha: commitSha,
         });
+        return branchName;
+    }
+
+    async getPullRequestDetails({
+        user,
+        customMetrics,
+        owner,
+        repo,
+        branchName,
+        chart,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        customMetrics: AdditionalMetric[];
+        owner: string;
+        repo: string;
+        branchName: string;
+        chart: SavedChart;
+        projectUuid: string;
+    }): Promise<PullRequestCreated> {
         const prTitle = `Added ${customMetrics.length} custom metrics from chart ${chart.name}`;
 
-        console.log('update', updatedYml);
-        const fileUpdated = await updateFile({
-            owner,
-            repo,
-            fileName,
-            content: updatedYml,
-            fileSha,
-            branchName,
-            message: prTitle,
-        });
-
         // TODO should we use the api to get the link to the PR ?
-        const prUrl = `https://github.com/${owner}/${repo}/compare/main...${owner}:${repo}:${branchName}?expand=1`;
+        const prBody = `Created by Lightdash, this PR adds ${customMetrics.length} custom metrics to the dbt model for the chart ${chart.name}
+            
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+
+Affected charts: 
+- [${chart.name}](${this.lightdashConfig.siteUrl}/projects/${projectUuid}/charts/${chart.uuid})
+        `;
+
+        const prUrl = `https://github.com/${owner}/${repo}/compare/main...${owner}:${repo}:${branchName}?expand=1&body=${encodeURIComponent(
+            prBody,
+        )}`;
         return {
             prTitle,
             prUrl,
         };
+    }
+
+    async updateFileForCustomMetrics({
+        user,
+        owner,
+        repo,
+        projectUuid,
+        customMetrics,
+        branchName,
+    }: {
+        user: SessionUser;
+        owner: string;
+        repo: string;
+        projectUuid: string;
+        customMetrics: AdditionalMetric[] | undefined;
+        branchName: string;
+    }): Promise<any> {
+        if (customMetrics === undefined || customMetrics?.length === 0)
+            throw new Error('No custom metrics found');
+        const tables = [
+            ...new Set(customMetrics.map((metric) => metric.table)),
+        ];
+        // throw new Error('test');
+
+        tables.map(async (table) => {
+            const customMetricsForTable = customMetrics.filter(
+                (metric) => metric.table === table,
+            );
+            const explore = await this.projectModel.getExploreFromCache(
+                projectUuid,
+                table,
+            );
+
+            if (!explore.ymlPath)
+                throw new Error(
+                    'Explore is missing path, compile the project again to fix this issue',
+                );
+
+            const fileName = explore.ymlPath;
+
+            // get yml from github
+            const { content: fileContent, sha: fileSha } = await getFileContent(
+                {
+                    fileName,
+                    owner,
+                    repo,
+                    branch: branchName,
+                },
+            );
+
+            const yamlSchema = await GitIntegrationService.loadYamlSchema(
+                fileContent,
+            );
+
+            if (!yamlSchema.models)
+                throw new Error(`Models not found ${yamlSchema}`);
+
+            // call util function findAndUpdateModelNodes()
+            const updatedModels = findAndUpdateModelNodes(
+                yamlSchema.models,
+                customMetricsForTable,
+            );
+
+            // update yml
+            const updatedYml = yaml.dump(
+                { ...yamlSchema, models: updatedModels },
+                {
+                    quotingType: "'",
+                },
+            );
+
+            const fileUpdated = await updateFile({
+                owner,
+                repo,
+                fileName,
+                content: updatedYml,
+                fileSha,
+                branchName,
+                message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
+            });
+        });
+    }
+
+    async getProjectRepo(projectUuid: string) {
+        const project = await this.projectModel.get(projectUuid);
+
+        if (project.dbtConnection.type !== DbtProjectType.GITHUB)
+            throw new Error(
+                `invalid dbt connection type ${project.dbtConnection.type} for project ${project.name}`,
+            );
+        const [owner, repo] = project.dbtConnection.repository.split('/');
+        const { branch } = project.dbtConnection;
+        return { owner, repo, branch };
+    }
+
+    async createPullRequestForChartFields(
+        user: SessionUser,
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<PullRequestCreated> {
+        // TODO: check user permissions, only editors and above?
+
+        const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
+        const branchName = await GitIntegrationService.createBranch({
+            owner,
+            repo,
+            mainBranch: branch,
+        });
+
+        const chart = await this.savedChartModel.get(chartUuid);
+        const customMetrics = chart.metricQuery.additionalMetrics;
+
+        await this.updateFileForCustomMetrics({
+            user,
+            owner,
+            customMetrics,
+            repo,
+            projectUuid,
+            branchName,
+        });
+
+        return this.getPullRequestDetails({
+            user,
+            customMetrics: customMetrics || [],
+            owner,
+            repo,
+            branchName,
+            chart,
+            projectUuid,
+        });
     }
 }

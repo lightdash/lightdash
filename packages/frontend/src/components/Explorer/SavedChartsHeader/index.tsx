@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { ApiError, GitIntegrationConfiguration } from '@lightdash/common';
+import {
+    ApiError,
+    GitIntegrationConfiguration,
+    PullRequestCreated,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -15,6 +19,7 @@ import {
 import {
     IconAlertTriangle,
     IconArrowBack,
+    IconArrowRight,
     IconCheck,
     IconChevronRight,
     IconCircleFilled,
@@ -44,6 +49,7 @@ import {
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -110,11 +116,40 @@ const createPullRequestForChartFields = async (
 const useCreatePullRequestForChartFieldsMutation = (
     projectUuid: string,
     chartUuid?: string,
-) =>
-    useMutation<GitIntegrationConfiguration, ApiError>(
+) => {
+    /* useMutation<GitIntegrationConfiguration, ApiError>(
         ['git-integration', 'pull-request'],
         () => createPullRequestForChartFields(projectUuid, chartUuid!),
+        
+    );*/
+    const { showToastSuccess, showToastError } = useToaster();
+
+    return useMutation<PullRequestCreated, ApiError>(
+        () => createPullRequestForChartFields(projectUuid, chartUuid!),
+        {
+            mutationKey: ['git-integration', 'pull-request'],
+            retry: false,
+            onSuccess: async (pullRequest) => {
+                showToastSuccess({
+                    title: `Success! Create branch with changes: '${pullRequest.prTitle}'`,
+                    action: {
+                        children: 'Open Pull Request',
+                        icon: IconArrowRight,
+                        onClick: () => {
+                            window.open(pullRequest.prUrl, '_blank');
+                        },
+                    },
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to update group`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
     );
+};
 
 const SavedChartsHeader: FC = () => {
     const { search } = useLocation();
