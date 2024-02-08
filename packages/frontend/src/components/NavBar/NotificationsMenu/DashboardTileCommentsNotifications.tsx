@@ -19,27 +19,30 @@ export const DashboardTileCommentsNotifications: FC<Props> = ({
     const { mutate: markDashboardCommentNotificationAsRead } =
         useMarkDashboardCommentNotificationAsRead();
     return (
-        !!notifications?.length &&
-        notifications.map((notification) => (
-            <Menu.Item
-                key={notification.notificationId}
-                icon={<MantineIcon icon={IconMessage2Exclamation} />}
-                onClick={() => {
-                    markDashboardCommentNotificationAsRead(
-                        notification.notificationId,
-                    );
-                    history.push(
-                        `/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`,
-                    );
-                }}
-            >
-                {notification.author.name} commented on{' '}
-                <Anchor
-                    href={`/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`}
-                >
-                    {notification.dashboard?.name}
-                </Anchor>
-            </Menu.Item>
-        ))
+        <>
+            {!!notifications?.length
+                ? notifications.map((notification) => (
+                      <Menu.Item
+                          key={notification.notificationId}
+                          icon={<MantineIcon icon={IconMessage2Exclamation} />}
+                          onClick={() => {
+                              markDashboardCommentNotificationAsRead(
+                                  notification.notificationId,
+                              );
+                              history.push(
+                                  `/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`,
+                              );
+                          }}
+                      >
+                          {notification.author.name} commented on{' '}
+                          <Anchor
+                              href={`/projects/${projectUuid}/dashboards/${notification.dashboard?.uuid}`}
+                          >
+                              {notification.dashboard?.name}
+                          </Anchor>
+                      </Menu.Item>
+                  ))
+                : null}
+        </>
     );
 };
