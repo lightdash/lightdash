@@ -42,6 +42,7 @@ export const useCreateComment = () => {
                     dashboardTileUuid,
                 ]);
             },
+            retry: false,
         },
     );
 };
@@ -63,6 +64,9 @@ export const useGetComments = (
     return useQuery<ApiCommentsResults, ApiError>(
         ['comments', dashboardUuid, dashboardTileUuid],
         () => getDashboardTileComments({ dashboardTileUuid, dashboardUuid }),
+        {
+            retry: false,
+        },
     );
 };
 
@@ -149,7 +153,8 @@ export const useGetDashboardCommentsNotifications = (enabled: boolean) => {
         ['comments-notifications'],
         () => getDashboardCommentsNotifications(),
         {
-            refetchInterval: 10000,
+            refetchInterval: 100000,
+            retry: false,
             enabled,
         },
     );

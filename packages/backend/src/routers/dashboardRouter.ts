@@ -256,7 +256,6 @@ dashboardRouter.patch(
                 results: await dashboardService.resolveComment(
                     req.user!,
                     req.params.dashboardUuid,
-                    req.params.dashboardTileUuid,
                     req.params.commentId,
                 ),
             });
@@ -275,7 +274,6 @@ dashboardRouter.delete(
             await dashboardService.deleteComment(
                 req.user!,
                 req.params.dashboardUuid,
-                req.params.dashboardTileUuid,
                 req.params.commentId,
             );
             res.json({

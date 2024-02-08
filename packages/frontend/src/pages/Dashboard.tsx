@@ -87,6 +87,11 @@ const GridTile: FC<
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > & { isLazyLoadEnabled: boolean; index: number }
 > = memo((props) => {
+    const app = useApp();
+    const userCanManageDashboardComments = app.user.data?.ability?.can(
+        'manage',
+        'DashboardComments',
+    );
     const { tile, isLazyLoadEnabled, index } = props;
     useProfiler(`Dashboard-${tile.type}`);
     const [isTiledViewed, setIsTiledViewed] = useState(false);
@@ -115,11 +120,35 @@ const GridTile: FC<
 
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
-            return <ChartTile {...props} tile={tile} />;
+            return (
+                <ChartTile
+                    {...props}
+                    userCanManageDashboardComments={
+                        userCanManageDashboardComments
+                    }
+                    tile={tile}
+                />
+            );
         case DashboardTileTypes.MARKDOWN:
-            return <MarkdownTile {...props} tile={tile} />;
+            return (
+                <MarkdownTile
+                    {...props}
+                    userCanManageDashboardComments={
+                        userCanManageDashboardComments
+                    }
+                    tile={tile}
+                />
+            );
         case DashboardTileTypes.LOOM:
-            return <LoomTile {...props} tile={tile} />;
+            return (
+                <LoomTile
+                    {...props}
+                    userCanManageDashboardComments={
+                        userCanManageDashboardComments
+                    }
+                    tile={tile}
+                />
+            );
         default: {
             return assertUnreachable(
                 tile,
