@@ -1,3 +1,10 @@
+## [0.979.1](https://github.com/lightdash/lightdash/compare/0.979.0...0.979.1) (2024-02-09)
+
+
+### Bug Fixes
+
+* update scheduled delivery preview copy to be more user-friendly ([#8871](https://github.com/lightdash/lightdash/issues/8871)) ([5fa743d](https://github.com/lightdash/lightdash/commit/5fa743db4e7ea2be385b3044c5dde3e2840b255a))
+
 # [0.979.0](https://github.com/lightdash/lightdash/compare/0.978.0...0.979.0) (2024-02-07)
 
 
