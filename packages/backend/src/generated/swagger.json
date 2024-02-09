@@ -559,7 +559,7 @@
                 },
                 "required": ["operator", "id", "target"],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "FilterGroupItem": {
                 "anyOf": [
@@ -692,7 +692,7 @@
                 },
                 "required": ["type"],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "TableCalculation": {
                 "properties": {
@@ -766,7 +766,7 @@
                 },
                 "required": ["operator", "id", "target"],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "AdditionalMetric": {
                 "properties": {
@@ -828,7 +828,7 @@
                 },
                 "required": ["type", "sql", "table", "name"],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "BinType": {
                 "enum": ["fixed_number", "fixed_width", "custom_range"],
@@ -881,7 +881,7 @@
                 },
                 "required": ["id", "name", "dimensionId", "table", "binType"],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "Pick_CompiledDimension.label-or-name_": {
                 "properties": {
@@ -1841,7 +1841,7 @@
                 },
                 "required": ["userUuid", "firstName", "lastName"],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "Pick_ValidationResponse.error-or-createdAt-or-validationId_": {
                 "properties": {
@@ -2252,7 +2252,7 @@
                 },
                 "required": ["type"],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "DbtProjectType.DBT_CLOUD_IDE": {
                 "enum": ["dbt_cloud_ide"],
@@ -2308,7 +2308,7 @@
                     "project_id"
                 ],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "DbtProjectType.GITHUB": {
                 "enum": ["github"],
@@ -2352,7 +2352,7 @@
                     "project_sub_path"
                 ],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "DbtProjectType.BITBUCKET": {
                 "enum": ["bitbucket"],
@@ -2400,7 +2400,7 @@
                     "project_sub_path"
                 ],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "DbtProjectType.GITLAB": {
                 "enum": ["gitlab"],
@@ -2444,7 +2444,7 @@
                     "project_sub_path"
                 ],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "DbtProjectType.AZURE_DEVOPS": {
                 "enum": ["azure_devops"],
@@ -2493,7 +2493,7 @@
                     "project_sub_path"
                 ],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "DbtProjectType.NONE": {
                 "enum": ["none"],
@@ -2519,7 +2519,7 @@
                 },
                 "required": ["type"],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "DbtProjectConfig": {
                 "anyOf": [
@@ -4053,7 +4053,7 @@
             "CustomVis": {
                 "properties": {
                     "spec": {
-                        "additionalProperties": false,
+                        "additionalProperties": true,
                         "type": "object"
                     }
                 },
@@ -4678,7 +4678,7 @@
                 },
                 "required": ["operator", "id", "target"],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "Record_string.DashboardTileTarget_": {
                 "properties": {},
@@ -5751,7 +5751,7 @@
                     "isActive"
                 ],
                 "type": "object",
-                "additionalProperties": false
+                "additionalProperties": true
             },
             "ApiGetAuthenticatedUserResponse": {
                 "properties": {
@@ -6323,7 +6323,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.976.1",
+        "version": "0.979.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
