@@ -1,3 +1,10 @@
+## [0.979.2](https://github.com/lightdash/lightdash/compare/0.979.1...0.979.2) (2024-02-09)
+
+
+### Bug Fixes
+
+* using zero in conditional formatting ([#8881](https://github.com/lightdash/lightdash/issues/8881)) ([626715f](https://github.com/lightdash/lightdash/commit/626715f790437fb5531936c91d766e9dad0a3ebc))
+
 ## [0.979.1](https://github.com/lightdash/lightdash/compare/0.979.0...0.979.1) (2024-02-09)
 
 
