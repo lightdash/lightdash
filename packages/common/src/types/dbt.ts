@@ -17,6 +17,7 @@ import { parseFilters } from './filterGrammar';
 import { OrderFieldsByStrategy } from './table';
 import { TimeFrames } from './timeFrames';
 
+// TODO: this is IDENTICAL to enum WarehouseTypes in projects.ts
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
     DATABRICKS = 'databricks',

@@ -16,6 +16,7 @@ import {
     projectModel,
     savedChartModel,
     spaceModel,
+    sqlRunModel,
     sshKeyPairModel,
     userAttributesModel,
     userWarehouseCredentialsModel,
@@ -97,6 +98,7 @@ jest.mock('../../models/models', () => ({
     analyticsModel: {},
     dashboardModel: {},
     userWarehouseCredentialsModel: {},
+    sqlRunModel: {},
 }));
 
 describe('ProjectService', () => {
@@ -116,6 +118,7 @@ describe('ProjectService', () => {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
+        sqlRunModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

@@ -527,6 +527,7 @@ export class CsvService {
         return csvUrls;
     }
 
+    // TODO: no longer needed for the SQL Runner - delete it
     async downloadSqlCsv({
         user,
         projectUuid,

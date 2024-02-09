@@ -24,6 +24,7 @@ import {
     sessionModel,
     shareModel,
     spaceModel,
+    sqlRunModel,
     sshKeyPairModel,
     userAttributesModel,
     userModel,
@@ -94,6 +95,7 @@ export const projectService = new ProjectService({
     analyticsModel,
     dashboardModel,
     userWarehouseCredentialsModel,
+    sqlRunModel,
 });
 
 export const shareService = new ShareService({
@@ -206,6 +208,7 @@ export const userAttributesService = new UserAttributesService({
     userAttributesModel,
 });
 
+// TODO - this isn't used?!
 export const gdriveService = new GdriveService({
     lightdashConfig,
     userModel,

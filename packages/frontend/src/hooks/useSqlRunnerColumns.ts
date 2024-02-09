@@ -1,26 +1,13 @@
-import {
-    ApiQueryResults,
-    Field,
-    FieldId,
-    fieldId as getFieldId,
-} from '@lightdash/common';
+import { Field, FieldId, fieldId as getFieldId } from '@lightdash/common';
 import { useMemo } from 'react';
 import { columnHelper, TableColumn } from '../components/common/Table/types';
-import useColumnTotals from './useColumnTotals';
 
 type Args = {
-    resultsData: ApiQueryResults | undefined;
-    fieldsMap: Record<FieldId, Field>;
+    fieldsMap: Record<FieldId, Field> | undefined;
     columnHeader?: (dimension: Field) => JSX.Element;
 };
 
-const useSqlRunnerColumns = ({
-    resultsData,
-    fieldsMap,
-    columnHeader,
-}: Args) => {
-    const totals = useColumnTotals({ resultsData, itemsMap: fieldsMap });
-
+const useSqlRunnerColumns = ({ fieldsMap, columnHeader }: Args) => {
     return useMemo(() => {
         if (fieldsMap) {
             return Object.values(fieldsMap).map<TableColumn>((dimension) => {
@@ -47,7 +34,6 @@ const useSqlRunnerColumns = ({
                         if (raw instanceof Date) return raw.toISOString();
                         return `${raw}`;
                     },
-                    footer: () => (totals[fieldId] ? totals[fieldId] : null),
                     meta: {
                         item: dimension,
                     },
@@ -55,7 +41,7 @@ const useSqlRunnerColumns = ({
             });
         }
         return [];
-    }, [fieldsMap, totals, columnHeader]);
+    }, [fieldsMap, columnHeader]);
 };
 
 export default useSqlRunnerColumns;

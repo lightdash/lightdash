@@ -156,6 +156,10 @@ import {
     SchedulerTableName,
 } from '../database/entities/scheduler';
 import {
+    SqlRunHistoryTable,
+    SqlRunTableName,
+} from '../database/entities/sqlRun';
+import {
     SshKeyPairTable,
     SshKeyPairTableName,
 } from '../database/entities/sshKeyPairs';
@@ -243,5 +247,6 @@ declare module 'knex/types/tables' {
         [GroupUserAttributesTable]: DbGroupUserAttribute;
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
+        [SqlRunTableName]: SqlRunHistoryTable;
     }
 }

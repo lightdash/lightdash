@@ -1,43 +1,64 @@
 import { ProjectCatalog } from '@lightdash/common';
-import { ActionIcon, CopyButton, Tooltip } from '@mantine/core';
+import { ActionIcon, CopyButton, Loader, Tooltip } from '@mantine/core';
+import Editor, { EditorProps } from '@monaco-editor/react';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
 import React, { FC } from 'react';
-import AceEditor from 'react-ace';
-import { useProjectCatalogAceEditorCompleter } from '../../hooks/useProjectCatalogAceEditorCompleter';
+
+const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
+    cursorBlinking: 'smooth',
+    folding: true,
+    lineNumbersMinChars: 1,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    wordWrap: 'off',
+    quickSuggestions: true,
+    contextmenu: false,
+};
 
 const SqlRunnerInput: FC<{
     sql: string;
     isDisabled: boolean;
     onChange: (value: string) => void;
     projectCatalog: ProjectCatalog | undefined;
-}> = ({ sql, onChange, isDisabled, projectCatalog }) => {
-    const { setAceEditor } =
-        useProjectCatalogAceEditorCompleter(projectCatalog);
-
+}> = ({ sql, onChange }) => {
     return (
         <div
             style={{
-                padding: 10,
+                padding: 0,
                 position: 'relative',
             }}
         >
-            <AceEditor
-                mode="sql"
-                theme="github"
-                readOnly={isDisabled}
-                value={sql}
-                height="300px"
-                width="100%"
-                editorProps={{ $blockScrolling: true }}
-                enableBasicAutocompletion
-                enableLiveAutocompletion
-                onChange={(value: string) => {
-                    onChange(value);
+            <Editor
+                width={'100%'}
+                height={'300px'}
+                loading={<Loader color="gray" size="xs" />}
+                defaultLanguage="sql"
+                options={{
+                    ...MONACO_DEFAULT_OPTIONS,
                 }}
-                onLoad={setAceEditor}
+                value={sql}
+                onChange={(value) => {
+                    onChange(value || '');
+                }}
+                defaultValue={'-- Write some sql'}
             />
+            {/*<AceEditor*/}
+            {/*    mode="sql"*/}
+            {/*    theme="github"*/}
+            {/*    readOnly={isDisabled}*/}
+            {/*    value={sql}*/}
+            {/*    height="300px"*/}
+            {/*    width="100%"*/}
+            {/*    editorProps={{ $blockScrolling: true }}*/}
+            {/*    enableBasicAutocompletion*/}
+            {/*    enableLiveAutocompletion*/}
+            {/*    onChange={(value: string) => {*/}
+            {/*        onChange(value);*/}
+            {/*    }}*/}
+            {/*    onLoad={setAceEditor}*/}
+            {/*/>*/}
             <div
                 style={{
                     position: 'absolute',

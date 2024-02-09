@@ -78,6 +78,7 @@ import {
     SpaceQuery,
     SpaceSummary,
     SummaryExplore,
+    SupportedDbtAdapter,
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
@@ -111,6 +112,7 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { SqlRunModel } from '../../models/SqlRunModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -152,6 +154,7 @@ type ProjectServiceDependencies = {
     analyticsModel: AnalyticsModel;
     dashboardModel: DashboardModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    sqlRunModel: SqlRunModel;
 };
 
 export class ProjectService {
@@ -181,6 +184,8 @@ export class ProjectService {
 
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
+    sqlRunModel: SqlRunModel;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -194,6 +199,7 @@ export class ProjectService {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
+        sqlRunModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -208,6 +214,7 @@ export class ProjectService {
         this.analyticsModel = analyticsModel;
         this.dashboardModel = dashboardModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.sqlRunModel = sqlRunModel;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -1636,7 +1643,7 @@ export class ProjectService {
                         );
                     }
 
-                    await analytics.track({
+                    analytics.track({
                         userId: user.userUuid,
                         event: 'query.executed',
                         properties: {
@@ -1787,7 +1794,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        await analytics.track({
+        analytics.track({
             userId: user.userUuid,
             event: 'sql.executed',
             properties: {
@@ -1805,7 +1812,27 @@ export class ProjectService {
         };
         const results = await warehouseClient.runQuery(sql, queryTags);
         await sshTunnel.disconnect();
-        return results;
+        const { sqlRunUuid, createdAt } = await this.sqlRunModel.create({
+            sql,
+            projectUuid,
+            createdByUserUuid: user.userUuid,
+            createdByOrganizationUuid: user.organizationUuid,
+            resultsPreview: {
+                columns: Object.entries(results.fields).map(
+                    ([name, { type }]) => ({ name, dimensionType: type }),
+                ),
+                rows: results.rows.slice(0, 10),
+            },
+            // TODO - stupid cast because these types are actually identical
+            targetDatabase: warehouseClient.credentials
+                .type as string as SupportedDbtAdapter,
+        });
+        return {
+            ...results,
+            sqlRunUuid,
+            createdAt,
+            sql,
+        };
     }
 
     async searchFieldUniqueValues(
@@ -1836,6 +1863,7 @@ export class ProjectService {
             );
         }
 
+        // TODO - should this work with custom charts?
         const explore = await this.projectModel.findExploreByTableName(
             projectUuid,
             table,
@@ -2368,10 +2396,16 @@ export class ProjectService {
                     ) {
                         throw new ForbiddenError();
                     }
-                    const explore = await this.projectModel.getExploreFromCache(
-                        projectUuid,
-                        exploreName,
-                    );
+                    // TODO: add API with switching behaviour based on explore attribute
+                    const explore = exploreName.startsWith('hack')
+                        ? await this.projectModel.getExploreBySqlRunUuid(
+                              projectUuid,
+                              exploreName.slice(4),
+                          )
+                        : await this.projectModel.getExploreFromCache(
+                              projectUuid,
+                              exploreName,
+                          );
 
                     if (isExploreError(explore)) {
                         throw new NotExistsError(

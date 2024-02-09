@@ -1,5 +1,7 @@
 import {
     AlreadyExistsError,
+    Column,
+    CompiledDimension,
     CreateDbtCloudIntegration,
     CreateProject,
     CreateWarehouseCredentials,
@@ -7,6 +9,8 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    FieldType,
+    friendlyName,
     isExploreError,
     NotExistsError,
     OrganizationProject,
@@ -59,6 +63,7 @@ import { DbSavedChart } from '../../database/entities/savedCharts';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
+import { COMPILED_DIMENSION } from '../../queryBuilder.mock';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import { wrapOtelSpan } from '../../utils';
 import Transaction = Knex.Transaction;
@@ -602,6 +607,59 @@ export class ProjectModel {
             .first();
     }
 
+    async getExploreBySqlRunUuid(
+        projectUuid: string,
+        sqlRunUuid: string,
+    ): Promise<Explore> {
+        const row = await this.database('sql_run_history')
+            .select(['sql', 'results_preview', 'target_database'])
+            .where('sql_run_uuid', sqlRunUuid)
+            .andWhere('project_uuid', projectUuid)
+            .first();
+        if (row === undefined) {
+            throw new NotExistsError(
+                `Cannot find sql history entry with id: ${sqlRunUuid}`,
+            );
+        }
+        return {
+            name: `hack${sqlRunUuid}`,
+            label: 'Custom SQL table',
+            tags: [],
+            baseTable: `hack${sqlRunUuid}`,
+            joinedTables: [],
+            tables: {
+                [`hack${sqlRunUuid}`]: {
+                    name: `hack${sqlRunUuid}`,
+                    label: 'Custom SQL table',
+                    database: '',
+                    schema: '',
+                    sqlTable: `(${row.sql})`,
+                    dimensions: Object.fromEntries(
+                        row.results_preview.columns.map((column: Column) => {
+                            const { name } = column;
+                            const dim: CompiledDimension = {
+                                name: column.name,
+                                label: friendlyName(column.name),
+                                table: `hack${sqlRunUuid}`,
+                                tableLabel: 'Custom SQL table',
+                                sql: column.name,
+                                hidden: false,
+                                fieldType: FieldType.DIMENSION,
+                                type: column.dimensionType,
+                                compiledSql: `${column.name}`,
+                                tablesReferences: [`hack${sqlRunUuid}`],
+                            };
+                            return [name, dim];
+                        }),
+                    ),
+                    metrics: {},
+                    lineageGraph: {},
+                },
+            },
+            targetDatabase: row.target_database,
+        };
+    }
+
     async getExploreFromCache(
         projectUuid: string,
         exploreName: string,
@@ -754,7 +812,8 @@ export class ProjectModel {
             const projectLock = await trx.raw(`
                 SELECT pg_try_advisory_xact_lock(${CACHED_EXPLORES_PG_LOCK_NAMESPACE}, project_id)
                 FROM projects
-                WHERE project_uuid = '${projectUuid}' LIMIT 1  `);
+                WHERE project_uuid = '${projectUuid}'
+                LIMIT 1  `);
 
             if (projectLock.rows.length === 0) return; // No project with uuid in DB
             const acquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
@@ -919,12 +978,14 @@ export class ProjectModel {
         await this.database.raw<(DbProjectMembership & DbProject & DbUser)[]>(
             `
                 UPDATE project_memberships AS m
-                SET role = :role FROM projects AS p, users AS u
+                SET role = :role
+                FROM projects AS p,
+                     users AS u
                 WHERE p.project_id = m.project_id
                   AND u.user_id = m.user_id
                   AND user_uuid = :userUuid
                   AND p.project_uuid = :projectUuid
-                    RETURNING *
+                RETURNING *
             `,
             { projectUuid, userUuid, role },
         );

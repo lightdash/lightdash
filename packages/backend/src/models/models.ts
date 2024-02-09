@@ -25,6 +25,7 @@ import { SessionModel } from './SessionModel';
 import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SpaceModel } from './SpaceModel';
+import { SqlRunModel } from './SqlRunModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { UserAttributesModel } from './UserAttributesModel';
 import { UserModel } from './UserModel';
@@ -106,3 +107,5 @@ export const userWarehouseCredentialsModel = new UserWarehouseCredentialsModel({
     database,
     encryptionService,
 });
+
+export const sqlRunModel = new SqlRunModel({ database });

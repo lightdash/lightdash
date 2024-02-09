@@ -155,6 +155,7 @@ export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
 export * from './types/space';
+export * from './types/sqlRun';
 export * from './types/SshKeyPair';
 export * from './types/table';
 export * from './types/timeFrames';
@@ -363,6 +364,9 @@ export type ApiChartAndResults = {
 export type ApiSqlQueryResults = {
     fields: Record<string, { type: DimensionType }>;
     rows: Record<string, unknown>[];
+    sqlRunUuid: string;
+    createdAt: Date;
+    sql: string;
 };
 
 export type ApiScheduledDownloadCsv = {

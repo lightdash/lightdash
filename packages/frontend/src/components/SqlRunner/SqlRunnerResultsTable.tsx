@@ -1,4 +1,4 @@
-import { ApiQueryResults, Field } from '@lightdash/common';
+import { Field } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import React, { FC } from 'react';
@@ -18,9 +18,9 @@ const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
     </TrackSection>
 );
 
-const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
-    props,
-) => (
+export const ResultsIdleState: FC<
+    React.ComponentProps<typeof RunSqlQueryButton>
+> = (props) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
             <SuboptimalState
@@ -32,18 +32,19 @@ const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
 );
 
 const SqlRunnerResultsTable: FC<{
+    sqlRunUuid: string;
     onSubmit: () => void;
-    fieldsMap: Record<string, Field>;
-    resultsData: ApiQueryResults | undefined;
+    fieldsMap: Record<string, Field> | undefined;
+    rows: Record<string, unknown>[] | undefined;
     sqlQueryMutation: ReturnType<typeof useSqlQueryMutation>;
 }> = ({
+    sqlRunUuid,
     onSubmit,
     fieldsMap,
-    resultsData,
+    rows,
     sqlQueryMutation: { status, error },
 }) => {
     const columns = useSqlRunnerColumns({
-        resultsData,
         fieldsMap,
     });
 
@@ -55,12 +56,26 @@ const SqlRunnerResultsTable: FC<{
         <ResultsIdleState onSubmit={onSubmit} isLoading={false} />
     );
 
+    const data = (rows || []).map((row) =>
+        Object.fromEntries(
+            Object.entries(row).map(([key, val]) => [
+                `hack${sqlRunUuid}_${key}`,
+                {
+                    value: {
+                        raw: val,
+                        formatted: `${val}`,
+                    },
+                },
+            ]),
+        ),
+    );
+
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Box px="xs" pt="sm">
                 <Table
                     status={status}
-                    data={resultsData?.rows || []}
+                    data={data}
                     columns={columns}
                     idleState={IdleState}
                     pagination={{

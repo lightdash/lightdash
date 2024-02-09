@@ -1,11 +1,9 @@
-import { CreateSavedChartVersion } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import useToaster from './toaster/useToaster';
 import { parseExplorerSearchParams } from './useExplorerRoute';
 
 export type SqlRunnerState = {
-    createSavedChart: CreateSavedChartVersion | undefined;
     sqlRunner: { sql: string } | undefined;
 };
 
@@ -14,12 +12,6 @@ const getSqlRunnerUrlFromCreateSavedChartVersion = (
     sqlRunnerState: SqlRunnerState,
 ): { pathname: string; search: string } => {
     const newParams = new URLSearchParams();
-    if (sqlRunnerState.createSavedChart) {
-        newParams.set(
-            'create_saved_chart_version',
-            JSON.stringify(sqlRunnerState.createSavedChart),
-        );
-    }
     if (sqlRunnerState.sqlRunner) {
         newParams.set('sql_runner', JSON.stringify(sqlRunnerState.sqlRunner));
     }

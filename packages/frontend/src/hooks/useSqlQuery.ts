@@ -11,7 +11,9 @@ const runSqlQuery = async (projectUuid: string, sql: string) =>
         body: JSON.stringify({ sql }),
     });
 
-export const useSqlQueryMutation = () => {
+export const useSqlQueryMutation = (
+    onSuccess: (results: ApiSqlQueryResults) => void,
+) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { showToastError } = useToaster();
     return useMutation<ApiSqlQueryResults, ApiError, string>(
@@ -24,6 +26,7 @@ export const useSqlQueryMutation = () => {
                     subtitle: error.error.message,
                 });
             },
+            onSuccess,
         },
     );
 };
