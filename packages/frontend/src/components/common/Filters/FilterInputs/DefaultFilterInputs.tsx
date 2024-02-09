@@ -128,7 +128,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     onChange={(newValue) => {
                         onChange({
                             ...rule,
-                            values: newValue ? [newValue] : [],
+                            values: newValue !== null ? [newValue] : [],
                         });
                     }}
                 />
