@@ -50,6 +50,13 @@ function parseStartOfWeekArgument(value: string) {
     return number;
 }
 
+function parseUseDbtListOption(value: string | undefined) {
+    if (value === undefined) {
+        return true;
+    }
+    return value.toLowerCase() !== 'false';
+}
+
 program
     .version(VERSION)
     .name(styles.title('⚡️lightdash'))
@@ -334,9 +341,10 @@ program
         false,
     )
     .option(
-        '--use-dbt-list',
+        '--use-dbt-list [use dbt list]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
-        false,
+        parseUseDbtListOption,
+        true,
     )
     .action(previewHandler);
 
@@ -395,9 +403,10 @@ program
         false,
     )
     .option(
-        '--use-dbt-list',
+        '--use-dbt-list [use dbt list]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
-        false,
+        parseUseDbtListOption,
+        true,
     )
     .action(startPreviewHandler);
 
@@ -469,9 +478,10 @@ program
         false,
     )
     .option(
-        '--use-dbt-list',
+        '--use-dbt-list [use dbt list]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
-        false,
+        parseUseDbtListOption,
+        true,
     )
     .action(deployHandler);
 
@@ -539,9 +549,10 @@ program
         false,
     )
     .option(
-        '--use-dbt-list',
+        '--use-dbt-list [use dbt list]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
-        false,
+        parseUseDbtListOption,
+        true,
     )
     .action(validateHandler);
 
