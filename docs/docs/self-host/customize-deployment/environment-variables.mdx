@@ -82,3 +82,11 @@ These variables enable you to control Single Sign On (SSO) functionality.
 | `LIGHTDASH_LOG_FILE_FORMAT`    | The format of log messages in the log file                  |           | `LIGHTDASH_LOG_FORMAT` |
 | `LIGHTDASH_LOG_FILE_PATH`      | The path to the log file                                    |           | `./logs/all.log`       |
 
+# dbt semantic layer environment variables
+
+| Variable                                     | Description                            | Required? | Default                                                         |
+|----------------------------------------------|----------------------------------------|-----------|-----------------------------------------------------------------|
+| `DBT_CLOUD_DOMAIN`                           | dbt cloud domain                       |           | https://semantic-layer.cloud.getdbt.com                         |
+| `DBT_CLOUD_ENVIRONMENT_ID`                   | dbt environment ID                     | ✅        |                                                                 |
+| `DBT_CLOUD_BEARER_TOKEN`                     | dbt cloud bearer token                 | ✅        |                                                                 |
+
