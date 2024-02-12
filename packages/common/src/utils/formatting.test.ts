@@ -145,6 +145,7 @@ describe('Formatting', () => {
                 expect(applyCustomFormat(100, roundZeroFormat)).toEqual('100');
                 expect(applyCustomFormat(5, roundZeroFormat)).toEqual('5');
                 expect(applyCustomFormat(5.001, roundZeroFormat)).toEqual('5');
+                expect(applyCustomFormat(0.001, roundZeroFormat)).toEqual('0');
                 expect(applyCustomFormat(1000, roundZeroFormat)).toEqual(
                     '1,000',
                 );
