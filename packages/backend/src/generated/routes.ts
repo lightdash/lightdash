@@ -575,7 +575,7 @@ const models: TsoaRoute.Models = {
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FilterGroupItem: {
@@ -718,7 +718,7 @@ const models: TsoaRoute.Models = {
                 subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
             },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculation: {
@@ -776,7 +776,7 @@ const models: TsoaRoute.Models = {
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AdditionalMetric: {
@@ -808,7 +808,7 @@ const models: TsoaRoute.Models = {
             percentile: { dataType: 'double' },
             formatOptions: { ref: 'CustomFormat' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BinType: {
@@ -857,7 +857,7 @@ const models: TsoaRoute.Models = {
                 array: { dataType: 'refAlias', ref: 'BinRange' },
             },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CompiledDimension.label-or-name_': {
@@ -1692,7 +1692,7 @@ const models: TsoaRoute.Models = {
             firstName: { dataType: 'string', required: true },
             lastName: { dataType: 'string', required: true },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_ValidationResponse.error-or-createdAt-or-validationId_': {
@@ -2073,7 +2073,7 @@ const models: TsoaRoute.Models = {
             profiles_dir: { dataType: 'string' },
             project_dir: { dataType: 'string' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.DBT_CLOUD_IDE': {
@@ -2102,7 +2102,7 @@ const models: TsoaRoute.Models = {
                 required: true,
             },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.GITHUB': {
@@ -2128,7 +2128,7 @@ const models: TsoaRoute.Models = {
             project_sub_path: { dataType: 'string', required: true },
             host_domain: { dataType: 'string' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.BITBUCKET': {
@@ -2155,7 +2155,7 @@ const models: TsoaRoute.Models = {
             project_sub_path: { dataType: 'string', required: true },
             host_domain: { dataType: 'string' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.GITLAB': {
@@ -2181,7 +2181,7 @@ const models: TsoaRoute.Models = {
             project_sub_path: { dataType: 'string', required: true },
             host_domain: { dataType: 'string' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.AZURE_DEVOPS': {
@@ -2208,7 +2208,7 @@ const models: TsoaRoute.Models = {
             branch: { dataType: 'string', required: true },
             project_sub_path: { dataType: 'string', required: true },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.NONE': {
@@ -2230,7 +2230,7 @@ const models: TsoaRoute.Models = {
             },
             hideRefreshButton: { dataType: 'boolean' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DbtProjectConfig: {
@@ -4132,7 +4132,7 @@ const models: TsoaRoute.Models = {
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Record_string.DashboardTileTarget_': {
@@ -5100,7 +5100,7 @@ const models: TsoaRoute.Models = {
             role: { ref: 'OrganizationMemberRole' },
             isActive: { dataType: 'boolean', required: true },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetAuthenticatedUserResponse: {
@@ -10374,7 +10374,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         undefined,
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'path':
                     return validationService.ValidateParam(
@@ -10383,7 +10383,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         undefined,
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'header':
                     return validationService.ValidateParam(
@@ -10392,7 +10392,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         undefined,
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'body':
                     return validationService.ValidateParam(
@@ -10401,7 +10401,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         undefined,
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'body-prop':
                     return validationService.ValidateParam(
@@ -10410,7 +10410,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         'body.',
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'formData':
                     if (args[key].dataType === 'file') {
@@ -10420,10 +10420,7 @@ export function RegisterRoutes(app: express.Router) {
                             name,
                             fieldErrors,
                             undefined,
-                            {
-                                noImplicitAdditionalProperties:
-                                    'throw-on-extras',
-                            },
+                            { noImplicitAdditionalProperties: 'ignore' },
                         );
                     } else if (
                         args[key].dataType === 'array' &&
@@ -10435,10 +10432,7 @@ export function RegisterRoutes(app: express.Router) {
                             name,
                             fieldErrors,
                             undefined,
-                            {
-                                noImplicitAdditionalProperties:
-                                    'throw-on-extras',
-                            },
+                            { noImplicitAdditionalProperties: 'ignore' },
                         );
                     } else {
                         return validationService.ValidateParam(
@@ -10447,10 +10441,7 @@ export function RegisterRoutes(app: express.Router) {
                             name,
                             fieldErrors,
                             undefined,
-                            {
-                                noImplicitAdditionalProperties:
-                                    'throw-on-extras',
-                            },
+                            { noImplicitAdditionalProperties: 'ignore' },
                         );
                     }
                 case 'res':
