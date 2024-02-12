@@ -50,7 +50,7 @@ function parseStartOfWeekArgument(value: string) {
     return number;
 }
 
-function parseUseDbtListOption(value: string | undefined) {
+function parseUseDbtListOption(value: string | undefined): boolean {
     if (value === undefined) {
         return true;
     }
@@ -341,7 +341,7 @@ program
         false,
     )
     .option(
-        '--use-dbt-list [use dbt list]',
+        '--use-dbt-list [true|false]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         parseUseDbtListOption,
         true,
@@ -403,7 +403,7 @@ program
         false,
     )
     .option(
-        '--use-dbt-list [use dbt list]',
+        '--use-dbt-list [true|false]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         parseUseDbtListOption,
         true,
@@ -478,7 +478,7 @@ program
         false,
     )
     .option(
-        '--use-dbt-list [use dbt list]',
+        '--use-dbt-list [true|false]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         parseUseDbtListOption,
         true,
@@ -549,7 +549,7 @@ program
         false,
     )
     .option(
-        '--use-dbt-list [use dbt list]',
+        '--use-dbt-list [true|false]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         parseUseDbtListOption,
         true,
