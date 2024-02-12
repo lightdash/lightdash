@@ -19,9 +19,10 @@ import {
 import { useHover, useToggle } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DashboardTileComments } from '../../../features/dashboardTilecomments';
+import { useScrollToComment } from '../../../features/dashboardTilecomments/hooks/useScrollToComment';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
@@ -70,6 +71,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     minimal = false,
     userCanManageDashboardComments = false,
 }: Props<T>) => {
+    const ref = useRef<HTMLDivElement>(null);
+    useScrollToComment(ref);
     const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.DashboardTileComments,
     );
@@ -102,7 +105,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     return (
         <Card
-            id={tile.uuid}
             component={Flex}
             className="tile-base"
             ref={containerRef}
@@ -302,7 +304,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 ) : null}
             </HeaderContainer>
 
-            <ChartContainer className="non-draggable sentry-block ph-no-capture">
+            <ChartContainer
+                id={`container-${tile.uuid}`}
+                ref={ref}
+                className="non-draggable sentry-block ph-no-capture"
+            >
                 {children}
             </ChartContainer>
 

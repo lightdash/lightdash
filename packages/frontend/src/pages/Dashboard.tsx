@@ -34,7 +34,7 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
-import { useScrollToComment } from '../features/dashboardTilecomments/hooks/useScrollToComment';
+// import { useScrollToComment } from '../features/dashboardTilecomments/hooks/useScrollToComment';
 import { DateZoom } from '../features/dateZoom';
 import {
     appendNewTilesToBottom,
@@ -163,8 +163,6 @@ const Dashboard: FC = () => {
     const isLazyLoadFeatureFlagEnabled = useFeatureFlagEnabled(
         'lazy-load-dashboard-tiles',
     );
-
-    useScrollToComment();
 
     const isLazyLoadEnabled =
         !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test

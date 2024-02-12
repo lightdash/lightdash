@@ -2,6 +2,7 @@ import { Comment } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
+    Indicator,
     Loader,
     Popover,
     PopoverProps,
@@ -12,7 +13,11 @@ import { useForm } from '@mantine/form';
 import { IconMessage } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useCreateComment, useGetComments } from '../hooks/useComments';
+import {
+    useCreateComment,
+    useGetComments,
+    useGetDashboardCommentsNotifications,
+} from '../hooks/useComments';
 import { CommentDetail } from './CommentDetail';
 
 type Props = {
@@ -35,6 +40,12 @@ export const DashboardTileComments: FC<
     onOpen,
     visible,
 }) => {
+    const { data: dashboardCommentsNotifications } =
+        useGetDashboardCommentsNotifications(true);
+
+    const isIndicatorDisabled = !dashboardCommentsNotifications?.filter(
+        (n) => !n.viewed && n.dashboard?.tileUuid === dashboardTileUuid,
+    )?.length;
     const commentForm = useForm<Pick<Comment, 'text' | 'replyTo'>>({
         initialValues: {
             text: '',
@@ -124,19 +135,26 @@ export const DashboardTileComments: FC<
             </Popover.Dropdown>
 
             <Popover.Target>
-                <ActionIcon
-                    sx={{
-                        visibility: visible ? 'visible' : 'hidden',
-                    }}
-                    size="sm"
-                    onClick={() => onOpen?.()}
+                <Indicator
+                    size={12}
+                    color="red"
+                    offset={1}
+                    disabled={isIndicatorDisabled}
                 >
-                    {isRefetching ? (
-                        <Loader size="xs" />
-                    ) : (
-                        <MantineIcon icon={IconMessage} />
-                    )}
-                </ActionIcon>
+                    <ActionIcon
+                        sx={{
+                            visibility: visible ? 'visible' : 'hidden',
+                        }}
+                        size="sm"
+                        onClick={() => onOpen?.()}
+                    >
+                        {isRefetching ? (
+                            <Loader size="xs" />
+                        ) : (
+                            <MantineIcon icon={IconMessage} />
+                        )}
+                    </ActionIcon>
+                </Indicator>
             </Popover.Target>
         </Popover>
     );

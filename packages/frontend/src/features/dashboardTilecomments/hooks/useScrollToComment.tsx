@@ -1,34 +1,62 @@
 import { useMantineTheme } from '@mantine/core';
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { RefObject, useEffect, useMemo, useState } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 
-export const useScrollToComment = () => {
+export const useScrollToComment = (ref: RefObject<HTMLDivElement>) => {
+    const [hasScrolledToElement, setHasScrolledToElement] = useState(false);
     const theme = useMantineTheme();
+    const history = useHistory();
     const location = useLocation();
 
+    const queryParams = useMemo(
+        () => new URLSearchParams(location.search),
+        [location.search],
+    );
+
     useEffect(() => {
-        const queryParams = new URLSearchParams(location.search);
-        const dashboardTileUuid = queryParams.get('dashboardTileUuid');
+        // if (isDashboardLoading) return;
 
-        if (dashboardTileUuid) {
-            const element = document.getElementById(dashboardTileUuid);
+        setTimeout(() => {
+            const dashboardTileUuid = queryParams.get('dashboardTileUuid');
 
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (dashboardTileUuid) {
+                // const element = document.getElementById(
+                //     `container-${dashboardTileUuid}`,
+                // );
 
-                element.animate(
-                    [
-                        { borderColor: 'white' },
-                        { borderColor: theme.colors.blue[4] },
-                        { borderColor: 'white' },
-                    ],
-                    {
-                        duration: 1500,
-                        iterations: 4,
-                    },
-                );
+                if (ref.current) {
+                    ref.current.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                    });
+
+                    setHasScrolledToElement(true);
+
+                    ref.current.animate(
+                        [
+                            { borderColor: 'white' },
+                            {
+                                borderColor: theme.colors.blue[4],
+                            },
+                            { borderColor: 'white' },
+                        ],
+                        {
+                            duration: 2500,
+                            iterations: 4,
+                        },
+                    );
+                }
             }
+        }, 2000);
+    }, [location, queryParams, ref, theme.colors.blue]);
+
+    useEffect(() => {
+        if (hasScrolledToElement) {
             queryParams.delete('dashboardTileUuid');
+            history.replace({
+                pathname: location.pathname,
+                search: queryParams.toString(),
+            });
         }
-    }, [location, theme.colors.blue]);
+    }, [hasScrolledToElement, history, location.pathname, queryParams]);
 };
