@@ -1,3 +1,10 @@
+## [0.979.3](https://github.com/lightdash/lightdash/compare/0.979.2...0.979.3) (2024-02-12)
+
+
+### Bug Fixes
+
+* allow additional properties tsoa ([#8883](https://github.com/lightdash/lightdash/issues/8883)) ([3693ce2](https://github.com/lightdash/lightdash/commit/3693ce25c55ce58c10de86214e497e275591dc57))
+
 ## [0.979.2](https://github.com/lightdash/lightdash/compare/0.979.1...0.979.2) (2024-02-09)
 
 
