@@ -64,7 +64,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         if (health.data?.localDbtEnabled) {
             enabledTypes.push(DbtProjectType.DBT);
         }
-        if (type === DbtProjectType.DBT_CLOUD_IDE) {
+        if (true || type === DbtProjectType.DBT_CLOUD_IDE) {
             enabledTypes.push(DbtProjectType.DBT_CLOUD_IDE);
         }
 
