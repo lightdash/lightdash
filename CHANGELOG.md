@@ -1,3 +1,10 @@
+## [0.979.5](https://github.com/lightdash/lightdash/compare/0.979.4...0.979.5) (2024-02-12)
+
+
+### Bug Fixes
+
+* return correct cast when type string ([#8884](https://github.com/lightdash/lightdash/issues/8884)) ([71440a6](https://github.com/lightdash/lightdash/commit/71440a66626e2eb79fdb249163d8352e95938968))
+
 ## [0.979.4](https://github.com/lightdash/lightdash/compare/0.979.3...0.979.4) (2024-02-12)
 
 
