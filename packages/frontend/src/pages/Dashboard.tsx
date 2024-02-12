@@ -1,13 +1,31 @@
 import {
     assertUnreachable,
     Dashboard as IDashboard,
+    DashboardTab,
     DashboardTile,
     DashboardTileTypes,
     isDashboardChartTileType,
 } from '@lightdash/common';
-import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Group,
+    Modal,
+    Stack,
+    Tabs,
+    Text,
+    TextInput,
+    Tooltip,
+} from '@mantine/core';
 import { captureException, useProfiler } from '@sentry/react';
-import { IconAlertCircle } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconCheck,
+    IconEdit,
+    IconPlus,
+    IconX,
+} from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, {
     FC,
@@ -21,6 +39,7 @@ import React, {
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
 import { useIntersection } from 'react-use';
+import { v4 as uuid4 } from 'uuid';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -84,7 +103,7 @@ const GridTile: FC<
     Pick<
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    > & { isLazyLoadEnabled: boolean; index: number }
+    > & { isLazyLoadEnabled: boolean; index: number; tabs?: DashboardTab[] }
 > = memo((props) => {
     const { tile, isLazyLoadEnabled, index } = props;
     useProfiler(`Dashboard-${tile.type}`);
@@ -192,6 +211,13 @@ const Dashboard: FC = () => {
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+    // TODO put this in context
+    const [tabs, setTabs] = useState<DashboardTab[]>([]);
+    const [addingTab, setAddingTab] = useState<boolean>(false);
+    const [isEditingTabs, setEditingTabs] = useState<boolean>(false);
+
+    const [activeTab, setActiveTab] = useState<DashboardTab>();
+
     const layouts = useMemo(
         () => ({
             lg:
@@ -201,6 +227,13 @@ const Dashboard: FC = () => {
         }),
         [dashboardTiles, isEditMode],
     );
+
+    const defaultTabUuid = useMemo(() => {
+        if (tabs.length > 0) {
+            return tabs[0].uuid;
+        }
+        return undefined;
+    }, [tabs]);
 
     useEffect(() => {
         if (isDashboardLoading) return;
@@ -304,13 +337,23 @@ const Dashboard: FC = () => {
 
     const handleAddTiles = useCallback(
         async (tiles: IDashboard['tiles'][number][]) => {
+            let newTiles = tiles;
+            if (activeTab?.uuid) {
+                newTiles = tiles.map((tile: DashboardTile) => ({
+                    ...tile,
+                    tabUuid: activeTab?.uuid,
+                }));
+            }
+
+            console.log('newTiles', newTiles, activeTab, defaultTabUuid);
+
             setDashboardTiles((currentDashboardTiles) =>
-                appendNewTilesToBottom(currentDashboardTiles, tiles),
+                appendNewTilesToBottom(currentDashboardTiles, newTiles),
             );
 
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles, setHaveTilesChanged],
+        [activeTab, defaultTabUuid, setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleDeleteTile = useCallback(
@@ -499,6 +542,58 @@ const Dashboard: FC = () => {
 
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
 
+    const currentTabHasTiles = sortedTiles?.some((tile) => {
+        return (
+            tile.tabUuid === activeTab?.uuid ||
+            (!tile.tabUuid && activeTab?.uuid === defaultTabUuid) ||
+            (tile.tabUuid && !tabs.find((t) => t.uuid === tile.tabUuid))
+        );
+    });
+
+    const handleAddTab = (name: string) => {
+        if (name) {
+            if (!tabs.length) {
+                setTabs((currentTabs) => [
+                    ...currentTabs,
+                    { name: 'Tab 1', uuid: uuid4() },
+                ]);
+            }
+            const newTab = { uuid: uuid4(), name: name };
+
+            setTabs((currentTabs) => [...currentTabs, newTab]);
+            setActiveTab(newTab);
+        }
+        setAddingTab(false);
+    };
+
+    const handleEditTab = (name: string, changedTabUuid: string) => {
+        if (name && changedTabUuid) {
+            setTabs((currentTabs) => {
+                const newTabs: DashboardTab[] = currentTabs.map((tab) => {
+                    if (tab.uuid === changedTabUuid) {
+                        return { ...tab, name };
+                    }
+                    return tab;
+                });
+                return newTabs;
+            });
+        }
+    };
+
+    const handleDeleteTab = (tabUuid: string) => {
+        setTabs((currentTabs) => {
+            const newTabs: DashboardTab[] = currentTabs.filter(
+                (tab) => tab.uuid !== tabUuid,
+            );
+            return newTabs;
+        });
+        setActiveTab(tabs[0]);
+    };
+
+    // TODO: context
+    // tslint:disable-next-line: no-unused-variable
+    dashboard.tabs = tabs;
+
     return (
         <>
             <Modal
@@ -600,41 +695,207 @@ const Dashboard: FC = () => {
                     {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>
 
-                <ResponsiveGridLayout
-                    {...getResponsiveGridLayoutProps()}
-                    className="react-grid-layout-dashboard"
-                    onDragStop={handleUpdateTiles}
-                    onResizeStop={handleUpdateTiles}
-                    onWidthChange={(cw) => setGridWidth(cw)}
-                    layouts={layouts}
+                <Tabs
+                    value={activeTab?.uuid}
+                    onTabChange={(e) => {
+                        const tab = tabs.find((t) => t.uuid === e);
+                        setActiveTab(tab);
+                    }}
                 >
-                    {sortedTiles?.map((tile, idx) => {
-                        return (
-                            <div key={tile.uuid}>
-                                <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                    <GridTile
-                                        isLazyLoadEnabled={
-                                            isLazyLoadEnabled ?? true
-                                        }
-                                        index={idx}
-                                        isEditMode={isEditMode}
-                                        tile={tile}
-                                        onDelete={handleDeleteTile}
-                                        onEdit={handleEditTiles}
-                                    />
-                                </TrackSection>
-                            </div>
-                        );
-                    })}
-                </ResponsiveGridLayout>
-
-                {!hasDashboardTiles && (
-                    <EmptyStateNoTiles
-                        onAddTiles={handleAddTiles}
-                        isEditMode={isEditMode}
-                    />
-                )}
-
+                    <Group
+                        w="100%"
+                        noWrap
+                        position="apart"
+                        spacing="xs"
+                        style={
+                            (dashboard.tabs && dashboard.tabs.length > 0) ||
+                            isEditMode
+                                ? {
+                                      background: 'white',
+                                      padding: 5,
+                                      borderRadius: 3,
+                                  }
+                                : undefined
+                        }
+                    >
+                        <Group>
+                            {dashboard.tabs && dashboard.tabs.length > 0 && (
+                                <Group spacing="xs">
+                                    {isEditingTabs && isEditMode ? (
+                                        <>
+                                            {dashboard.tabs.map((tab, idx) => {
+                                                return (
+                                                    <Group
+                                                        key={idx}
+                                                        spacing="xxs"
+                                                    >
+                                                        <TextInput
+                                                            key={idx}
+                                                            size="xs"
+                                                            defaultValue={
+                                                                tab.name
+                                                            }
+                                                            onBlur={(e) =>
+                                                                handleEditTab(
+                                                                    e.target
+                                                                        .value,
+                                                                    tab.uuid,
+                                                                )
+                                                            }
+                                                        />
+                                                        <Tooltip
+                                                            label="Delete tab - Contents will move to the first tab"
+                                                            multiline
+                                                        >
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                onClick={() =>
+                                                                    handleDeleteTab(
+                                                                        tab.uuid,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={IconX}
+                                                                />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                    </Group>
+                                                );
+                                            })}
+                                        </>
+                                    ) : (
+                                        <Tabs.List>
+                                            {dashboard.tabs.map((tab, idx) => {
+                                                return (
+                                                    <Tabs.Tab
+                                                        key={idx}
+                                                        value={tab.uuid}
+                                                        mx="md"
+                                                    >
+                                                        {tab.name}
+                                                    </Tabs.Tab>
+                                                );
+                                            })}
+                                        </Tabs.List>
+                                    )}
+                                </Group>
+                            )}
+                            {isEditMode && (
+                                <Group>
+                                    {addingTab && (
+                                        <TextInput
+                                            autoFocus
+                                            size="xs"
+                                            placeholder="Tab name"
+                                            onBlur={(e) =>
+                                                handleAddTab(e.target.value)
+                                            }
+                                        />
+                                    )}
+                                    {tabs.length === 0 ? (
+                                        <Button
+                                            compact
+                                            variant="light"
+                                            disabled={addingTab}
+                                            leftIcon={
+                                                <MantineIcon icon={IconPlus} />
+                                            }
+                                            onClick={() => setAddingTab(true)}
+                                        >
+                                            Add tab
+                                        </Button>
+                                    ) : (
+                                        <ActionIcon
+                                            onClick={() => setAddingTab(true)}
+                                            color="blue"
+                                            variant="subtle"
+                                            disabled={addingTab}
+                                        >
+                                            <MantineIcon icon={IconPlus} />
+                                        </ActionIcon>
+                                    )}
+                                </Group>
+                            )}
+                        </Group>
+                        {dashboard.tabs &&
+                            dashboard.tabs.length > 0 &&
+                            isEditMode && (
+                                <Button
+                                    compact
+                                    variant="subtle"
+                                    disabled={addingTab}
+                                    leftIcon={
+                                        <MantineIcon
+                                            icon={
+                                                isEditingTabs
+                                                    ? IconCheck
+                                                    : IconEdit
+                                            }
+                                        />
+                                    }
+                                    onClick={() =>
+                                        setEditingTabs((old) => !old)
+                                    }
+                                    sx={{ justifySelf: 'end' }}
+                                >
+                                    {isEditingTabs
+                                        ? 'Done editing'
+                                        : `Edit tabs`}
+                                </Button>
+                            )}
+                    </Group>
+                    <ResponsiveGridLayout
+                        {...getResponsiveGridLayoutProps()}
+                        className="react-grid-layout-dashboard"
+                        onDragStop={handleUpdateTiles}
+                        onResizeStop={handleUpdateTiles}
+                        onWidthChange={(cw) => setGridWidth(cw)}
+                        layouts={layouts}
+                        key={activeTab?.uuid ?? defaultTabUuid}
+                    >
+                        {sortedTiles?.map((tile, idx) => {
+                            // TODO: refactor this
+                            if (
+                                !activeTab || // If no active tab
+                                tile.tabUuid === activeTab?.uuid || // Or the tile uuid matches the active tab
+                                (!tile.tabUuid && // Or the tile has no tab and the active tab is the default tab
+                                    activeTab?.uuid === defaultTabUuid) ||
+                                (tile.tabUuid && // Or the tile has an ID that doesn't exist
+                                    !tabs.find((t) => t.uuid === tile.tabUuid))
+                            ) {
+                                return (
+                                    <div key={tile.uuid}>
+                                        <TrackSection
+                                            name={SectionName.DASHBOARD_TILE}
+                                        >
+                                            <GridTile
+                                                isLazyLoadEnabled={
+                                                    isLazyLoadEnabled ?? true
+                                                }
+                                                index={idx}
+                                                isEditMode={isEditMode}
+                                                tile={tile}
+                                                onDelete={handleDeleteTile}
+                                                onEdit={handleEditTiles}
+                                                tabs={tabs}
+                                            />
+                                        </TrackSection>
+                                    </div>
+                                );
+                            }
+                        })}
+                    </ResponsiveGridLayout>
+                    {(!hasDashboardTiles || !currentTabHasTiles) && (
+                        <EmptyStateNoTiles
+                            onAddTiles={handleAddTiles}
+                            emptyContainerType={
+                                tabs && tabs.length ? 'tab' : 'dashboard'
+                            }
+                            isEditMode={isEditMode}
+                        />
+                    )}
+                </Tabs>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened
