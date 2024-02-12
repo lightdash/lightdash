@@ -375,6 +375,9 @@ export function formatItemValue(
     if (item) {
         if ('type' in item) {
             switch (item.type) {
+                case DimensionType.STRING:
+                case MetricType.STRING:
+                    return `${value}`;
                 case DimensionType.BOOLEAN:
                 case MetricType.BOOLEAN:
                     return formatBoolean(value);

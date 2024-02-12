@@ -711,6 +711,12 @@ describe('Formatting', () => {
             ).toEqual('5');
             expect(
                 formatItemValue(
+                    { ...dimension, type: DimensionType.STRING },
+                    132323123,
+                ),
+            ).toEqual('132323123');
+            expect(
+                formatItemValue(
                     { ...dimension, type: DimensionType.BOOLEAN },
                     true,
                 ),
