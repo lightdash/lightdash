@@ -1,3 +1,10 @@
+## [0.979.4](https://github.com/lightdash/lightdash/compare/0.979.3...0.979.4) (2024-02-12)
+
+
+### Bug Fixes
+
+* round with no decimals in table calculations ([#8862](https://github.com/lightdash/lightdash/issues/8862)) ([fb0687d](https://github.com/lightdash/lightdash/commit/fb0687d7c466d669a8ed7adcfcf02315c5578f8a))
+
 ## [0.979.3](https://github.com/lightdash/lightdash/compare/0.979.2...0.979.3) (2024-02-12)
 
 
