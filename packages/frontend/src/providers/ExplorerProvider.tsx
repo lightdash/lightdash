@@ -14,6 +14,7 @@ import {
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
+    getFieldRef,
     lightdashVariablePattern,
     MetricQuery,
     MetricType,
@@ -925,14 +926,10 @@ function reducer(
                                                     action.payload
                                                         .previousAdditionalMetricName
                                                 ) {
-                                                    const [tableName] =
-                                                        fieldRef.split('.');
-                                                    const newFieldName =
-                                                        additionalMetricFieldId.replace(
-                                                            `${tableName}_`,
-                                                            '',
-                                                        );
-                                                    return `\${${tableName}.${newFieldName}}`;
+                                                    return `\${${getFieldRef(
+                                                        action.payload
+                                                            .additionalMetric,
+                                                    )}}`;
                                                 }
                                                 return `\${${fieldRef}}`;
                                             },
