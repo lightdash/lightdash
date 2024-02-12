@@ -42,7 +42,7 @@ const UsersAndGroupsPanel: FC = () => {
 
             <Tabs defaultValue={'users'}>
                 {isGroupManagementEnabled && (
-                    <Tabs.List mb="xs">
+                    <Tabs.List mx="one">
                         <Tabs.Tab value="users">Users</Tabs.Tab>
                         <Tabs.Tab value="groups">Groups</Tabs.Tab>
                     </Tabs.List>
