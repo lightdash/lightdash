@@ -604,7 +604,7 @@ export class UnfurlService {
                         title: resourceName ?? 'undefined',
                         is_viewport_dynamically_enabled: `${isPuppeteerSetViewportDynamicallyEnabled}`,
                         is_scroll_into_view_enabled: `${isPuppeteerScrollElementIntoViewEnabled}`,
-                        customWidth: `${gridWidth}`,
+                        custom_width: `${gridWidth}`,
                     });
                     span.setStatus({
                         code: SpanStatusCode.ERROR,
