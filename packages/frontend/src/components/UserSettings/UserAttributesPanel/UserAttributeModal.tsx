@@ -123,8 +123,10 @@ const UserAttributeModal: FC<{
     };
 
     const { data: orgUsers } = useOrganizationUsers();
-    const { data: groups } = useOrganizationGroups(undefined, {
-        enabled: !!health.data?.hasGroups,
+    const { data: groups } = useOrganizationGroups({
+        queryOptions: {
+            enabled: !!health.data?.hasGroups,
+        },
     });
 
     if (!health.data) return null;

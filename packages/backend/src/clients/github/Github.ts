@@ -1,7 +1,6 @@
 import { NotFoundError } from '@lightdash/common';
-import { App, createNodeMiddleware } from '@octokit/app';
-import { createTokenAuth } from '@octokit/auth-token';
-import { Octokit, Octokit as OktokitRest } from '@octokit/rest';
+import { App } from '@octokit/app';
+import { Octokit as OctokitRest } from '@octokit/rest';
 
 const { createAppAuth } = require('@octokit/auth-app');
 
@@ -18,7 +17,7 @@ export const githubApp =
                   clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
               },
               webhooks: {
-                  secret: 'Test',
+                  secret: process.env.GITHUB_WEBHOOK_SECRET || 'secret',
               },
           })
         : undefined;
@@ -30,7 +29,7 @@ export const getGithubApp = () => {
 };
 
 export const getOctokitRestForUser = (authToken: string) => {
-    const octokit = new OktokitRest();
+    const octokit = new OctokitRest();
     const headers = {
         authorization: `Bearer ${authToken}`,
     };
@@ -43,7 +42,7 @@ export const getOctokitRestForApp = (installationId: string) => {
     if (appId === undefined)
         throw new Error('Github integration not configured');
 
-    return new OktokitRest({
+    return new OctokitRest({
         authStrategy: createAppAuth,
         auth: {
             appId,
@@ -52,13 +51,6 @@ export const getOctokitRestForApp = (installationId: string) => {
         },
     });
 };
-/*
-export const githubAppMiddleware = createNodeMiddleware(githubApp, {
-    pathPrefix: '/api/v1/github',
-}); */
-
-// This will request stuff as the app, it won't be able to access private content
-/**/
 
 export const getOrRefreshToken = async (
     token: string,
@@ -97,7 +89,7 @@ export const getLastCommit = async ({
     branch: string;
     token: string;
 }) => {
-    const response = await new OktokitRest().rest.repos.listCommits({
+    const response = await new OctokitRest().rest.repos.listCommits({
         owner,
         repo,
         ref: branch,

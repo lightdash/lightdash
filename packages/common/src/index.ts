@@ -134,6 +134,7 @@ export * from './types/downloadFile';
 export * from './types/email';
 export * from './types/errors';
 export * from './types/explore';
+export * from './types/featureFlags';
 export * from './types/field';
 export * from './types/fieldMatch';
 export * from './types/filter';
