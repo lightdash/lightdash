@@ -17,6 +17,8 @@ export async function up(knex: Knex): Promise<void> {
                 .inTable('organizations')
                 .onDelete('CASCADE');
             tableBuilder.binary('encrypted_installation_id').notNullable();
+            tableBuilder.string('auth_token').notNullable();
+            tableBuilder.string('refresh_token').notNullable();
             tableBuilder
                 .timestamp('created_at', { useTz: false })
                 .notNullable()

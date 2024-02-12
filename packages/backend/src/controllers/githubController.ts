@@ -1,7 +1,7 @@
-import { ApiSuccessEmpty, GitRepo } from '@lightdash/common';
+import { ApiSuccessEmpty, ForbiddenError, GitRepo } from '@lightdash/common';
 import { createAppAuth } from '@octokit/auth-app';
 import { createTokenAuth } from '@octokit/auth-token';
-import { Octokit, Octokit as OktokitRest } from '@octokit/rest';
+import { Octokit, Octokit as OctokitRest } from '@octokit/rest';
 import {
     Controller,
     Delete,
@@ -14,7 +14,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { githubApp } from '../clients/github/Github';
+import { getGithubApp, getOctokitRestForApp } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { githubAppService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
@@ -82,11 +82,6 @@ export class GithubInstallController extends Controller {
         @Query() installation_id?: string,
         @Query() setup_action?: string,
     ): Promise<void> {
-        console.log('code', code);
-        console.log('state', state);
-        console.log('installation_id', installation_id);
-        console.log('setup_action', setup_action);
-
         if (!state || state !== req.session.oauth?.state) {
             this.setStatus(400);
             throw new Error('State does not match');
@@ -102,52 +97,40 @@ export class GithubInstallController extends Controller {
             throw new Error('Installation id not provided');
         }
         if (code) {
-            const userToServerToken = await githubApp.oauth.createToken({
+            const userToServerToken = await getGithubApp().oauth.createToken({
                 code,
             });
-            console.log('userToServerToken', userToServerToken);
-            const userOctokit = new Octokit({
-                authStrategy: createTokenAuth,
-                auth: userToServerToken.authentication.token,
-            });
-            console.log('userOctokit', userOctokit);
-        }
-        /*   if (code) {
-        }if (setup_action === 'install' && installation_id && code) {
-            // User successfully installed the app
-            console.log('installation_id', installation_id)
-            const userToServerToken = await githubApp.oauth.createToken({
-                code,
-            });
-            console.log('userToServerToken', userToServerToken)
-            const userOctokit = new Octokit({
-                authStrategy: createTokenAuth,
-                auth: userToServerToken.authentication.token,
-            });
-            const response = await userOctokit.request(
-                'GET /user/installations',
-            );
+
+            const { token, refreshToken } = userToServerToken.authentication;
+            if (refreshToken === undefined)
+                throw new ForbiddenError('Invalid authentication token');
+
+            // Verify installation
+            const response =
+                await new OctokitRest().apps.listInstallationsForAuthenticatedUser(
+                    {
+                        headers: {
+                            authorization: `Bearer ${token}`,
+                        },
+                    },
+                );
             const installation = response.data.installations.find(
                 (i) => `${i.id}` === installation_id,
             );
-            if (installation === undefined) {
-                this.setStatus(400);
-                throw new Error('Installation not found');
-            }
+            if (installation === undefined)
+                throw new Error('Invalid installation id');
 
-            // store installation id
+            await githubAppService.upsertInstallation(
+                state,
+                installation_id,
+                token,
+                refreshToken,
+            );
+            const redirectUrl = new URL(req.session.oauth?.returnTo || '/');
+            req.session.oauth = {};
+            this.setStatus(302);
+            this.setHeader('Location', redirectUrl.href);
         }
-        if (code && !installation_id) {
-            const userToServerToken = await githubApp.oauth.createToken({
-                code,
-            });
-            // store userToServerToken
-        } */
-        await githubAppService.upsertInstallation(state, installation_id);
-        const redirectUrl = new URL(req.session.oauth?.returnTo || '/');
-        req.session.oauth = {};
-        this.setStatus(302);
-        this.setHeader('Location', redirectUrl.href);
     }
 
     @Middlewares([isAuthenticated, unauthorisedInDemo])
@@ -180,16 +163,9 @@ export class GithubInstallController extends Controller {
             req.user!,
         );
 
-        const appOctokit = new OktokitRest({
-            authStrategy: createAppAuth,
-            auth: {
-                appId: 703670,
-                privateKey: process.env.GITHUB_PRIVATE_KEY,
-                // optional: this will make appOctokit authenticate as app (JWT)
-                //           or installation (access token), depending on the request URL
-                installationId,
-            },
-        });
+        if (installationId === undefined)
+            throw new Error('Invalid Github installation id');
+        const appOctokit = getOctokitRestForApp(installationId);
 
         const { data } =
             await appOctokit.apps.listReposAccessibleToInstallation();

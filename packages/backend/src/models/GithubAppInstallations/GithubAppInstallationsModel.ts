@@ -62,6 +62,8 @@ export class GithubAppInstallationsModel {
     async createInstallation(
         user: LightdashUserWithOrg,
         installationId: string,
+        token: string,
+        refreshToken: string,
     ) {
         await this.database(GithubAppInstallationTableName).insert({
             organization_uuid: user.organizationUuid,
@@ -69,6 +71,8 @@ export class GithubAppInstallationsModel {
                 this.encryptionService.encrypt(installationId),
             created_by_user_uuid: user.userUuid,
             updated_by_user_uuid: user.userUuid,
+            auth_token: token,
+            refresh_token: refreshToken,
         });
     }
 
@@ -82,6 +86,36 @@ export class GithubAppInstallationsModel {
                 encrypted_installation_id:
                     this.encryptionService.encrypt(installationId),
                 updated_by_user_uuid: user.userUuid,
+                updated_at: new Date(),
+            });
+    }
+
+    async getAuth(organizationUuid: string) {
+        const auth = await this.database(GithubAppInstallationTableName)
+            .where({ organization_uuid: organizationUuid })
+            .select(['auth_token', 'refresh_token'])
+            .first();
+
+        if (auth === undefined)
+            throw new NotFoundError(
+                `Unable to find Github authentication for organization ${organizationUuid}`,
+            );
+        return {
+            token: auth.auth_token,
+            refreshToken: auth.refresh_token,
+        };
+    }
+
+    async updateAuth(
+        organizationUuid: string,
+        token: string,
+        refreshToken: string,
+    ) {
+        await this.database(GithubAppInstallationTableName)
+            .where({ organization_uuid: organizationUuid })
+            .update({
+                auth_token: token,
+                refresh_token: refreshToken,
                 updated_at: new Date(),
             });
     }

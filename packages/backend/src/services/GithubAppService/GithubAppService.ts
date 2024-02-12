@@ -37,7 +37,12 @@ export class GithubAppService {
         );
     }
 
-    async upsertInstallation(userUuid: string, installationId: string) {
+    async upsertInstallation(
+        userUuid: string,
+        installationId: string,
+        token: string,
+        refreshToken: string,
+    ) {
         const user = await this.userModel.findSessionUserByUUID(userUuid);
 
         if (!user || !isUserWithOrg(user)) {
@@ -66,6 +71,8 @@ export class GithubAppService {
             await this.githubAppInstallationsModel.createInstallation(
                 user,
                 installationId,
+                token,
+                refreshToken,
             );
         }
     }

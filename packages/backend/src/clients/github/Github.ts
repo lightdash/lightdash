@@ -5,42 +5,86 @@ import { Octokit, Octokit as OktokitRest } from '@octokit/rest';
 
 const { createAppAuth } = require('@octokit/auth-app');
 
-const privateKey = process.env.GITHUB_PRIVATE_KEY || '';
-const installationId = 47029382; // replace this once it is installed
+const privateKey = process.env.GITHUB_PRIVATE_KEY;
+const appId = process.env.GITHUB_APP_ID;
 
-export const githubApp = new App({
-    appId: '703670',
-    privateKey,
-    oauth: {
-        clientId: process.env.GITHUB_CLIENT_ID || '',
-        clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-    },
-    webhooks: {
-        secret: 'Test',
-    },
-});
+export const githubApp =
+    privateKey && appId
+        ? new App({
+              appId,
+              privateKey,
+              oauth: {
+                  clientId: process.env.GITHUB_CLIENT_ID || '',
+                  clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+              },
+              webhooks: {
+                  secret: 'Test',
+              },
+          })
+        : undefined;
 
+export const getGithubApp = () => {
+    if (githubApp === undefined)
+        throw new Error('Github integration not configured');
+    return githubApp;
+};
+
+export const getOctokitRestForUser = (authToken: string) => {
+    const octokit = new OktokitRest();
+    const headers = {
+        authorization: `Bearer ${authToken}`,
+    };
+    return {
+        octokit,
+        headers,
+    };
+};
+export const getOctokitRestForApp = (installationId: string) => {
+    if (appId === undefined)
+        throw new Error('Github integration not configured');
+
+    return new OktokitRest({
+        authStrategy: createAppAuth,
+        auth: {
+            appId,
+            privateKey: process.env.GITHUB_PRIVATE_KEY,
+            installationId,
+        },
+    });
+};
+/*
 export const githubAppMiddleware = createNodeMiddleware(githubApp, {
     pathPrefix: '/api/v1/github',
-});
+}); */
 
-const octokit = new OktokitRest({
-    authStrategy: createAppAuth,
-    auth: {
-        appId: 703670,
-        privateKey: process.env.GITHUB_PRIVATE_KEY,
-        installationId,
-    },
-});
+// This will request stuff as the app, it won't be able to access private content
+/**/
 
-export const getToken = async () => {
-    if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
-    // TODO refresh token in db
-    const auth = await githubApp.oauth.refreshToken({
-        refreshToken: process.env.GITHUB_REFRESH_TOKEN!,
+export const getOrRefreshToken = async (
+    token: string,
+    refreshToken: string,
+) => {
+    // check if token expired and refresh if needed
+    try {
+        const tokenResponse = await getGithubApp().oauth.checkToken({
+            token,
+        });
+        if (tokenResponse.status === 200) return { token, refreshToken };
+    } catch {
+        console.debug(
+            'Refreshing expired or invalid github token',
+            refreshToken,
+        );
+    }
+
+    const auth = await getGithubApp().oauth.refreshToken({
+        refreshToken,
     });
 
-    return auth.data.access_token;
+    return {
+        token: auth.data.access_token,
+        refreshToken: auth.data.refresh_token,
+    };
 };
 export const getLastCommit = async ({
     owner,
@@ -78,14 +122,13 @@ export const getFileContent = async ({
     branch: string;
     token: string;
 }) => {
-    const response = await new OktokitRest().rest.repos.getContent({
+    const { octokit, headers } = getOctokitRestForUser(token);
+    const response = await octokit.rest.repos.getContent({
         owner,
         repo,
         path: fileName,
         ref: branch,
-        headers: {
-            authorization: `Bearer ${token}`,
-        },
+        headers,
     });
 
     if ('content' in response.data) {
@@ -111,14 +154,14 @@ export const createBranch = async ({
     branchName: string;
     token: string;
 }) => {
-    const response = await new OktokitRest().rest.git.createRef({
+    const { octokit, headers } = getOctokitRestForUser(token);
+
+    const response = await octokit.rest.git.createRef({
         owner,
         repo,
         ref: `refs/heads/${branchName}`,
         sha,
-        headers: {
-            authorization: `Bearer ${token}`,
-        },
+        headers,
     });
     return response;
 };
@@ -142,26 +185,25 @@ export const updateFile = async ({
     message: string;
     token: string;
 }) => {
-    const response =
-        await new OktokitRest().rest.repos.createOrUpdateFileContents({
-            owner,
-            repo,
-            path: fileName,
-            message,
-            content: Buffer.from(content, 'utf-8').toString('base64'),
-            sha: fileSha,
-            branch: branchName,
-            headers: {
-                authorization: `Bearer ${token}`,
-            },
-            committer: {
-                name: 'Lightdash',
-                email: 'developers@glightdash.com',
-            },
-            author: {
-                name: 'Lightdash',
-                email: 'developers@glightdash.com',
-            },
-        });
+    const { octokit, headers } = getOctokitRestForUser(token);
+
+    const response = await octokit.rest.repos.createOrUpdateFileContents({
+        owner,
+        repo,
+        path: fileName,
+        message,
+        content: Buffer.from(content, 'utf-8').toString('base64'),
+        sha: fileSha,
+        branch: branchName,
+        headers,
+        committer: {
+            name: 'Lightdash',
+            email: 'developers@glightdash.com',
+        },
+        author: {
+            name: 'Lightdash',
+            email: 'developers@glightdash.com',
+        },
+    });
     return response;
 };

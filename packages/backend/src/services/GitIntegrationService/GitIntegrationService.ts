@@ -20,7 +20,7 @@ import {
     createBranch,
     getFileContent,
     getLastCommit,
-    getToken,
+    getOrRefreshToken,
     updateFile,
 } from '../../clients/github/Github';
 import { LightdashConfig, SentryConfig } from '../../config/parseConfig';
@@ -276,7 +276,6 @@ Affected charts:
                 token,
                 message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
             });
-            console.log('fileUpdated', fileUpdated);
             return acc;
         }, Promise.resolve());
     }
@@ -293,16 +292,34 @@ Affected charts:
         return { owner, repo, branch };
     }
 
+    async getOrUpdateToken(organizationUuid: string) {
+        const { token, refreshToken } =
+            await this.githubAppInstallationsModel.getAuth(organizationUuid);
+        const { token: newToken, refreshToken: newRefreshToken } =
+            await getOrRefreshToken(token, refreshToken);
+        if (newToken !== token) {
+            await this.githubAppInstallationsModel.updateAuth(
+                organizationUuid,
+                newToken,
+                newRefreshToken,
+            );
+        }
+        return newToken;
+    }
+
     async createPullRequestForChartFields(
         user: SessionUser,
         projectUuid: string,
         chartUuid: string,
     ): Promise<PullRequestCreated> {
         // TODO: check user permissions, only editors and above?
+        const chart = await this.savedChartModel.get(chartUuid);
+        const customMetrics = chart.metricQuery.additionalMetrics;
+        if (customMetrics === undefined || customMetrics.length === 0)
+            throw new Error('Missing custom metrics');
 
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
-
-        const token = await getToken();
+        const token = await this.getOrUpdateToken(user.organizationUuid!);
 
         const branchName = await GitIntegrationService.createBranch({
             owner,
@@ -310,9 +327,6 @@ Affected charts:
             mainBranch: branch,
             token,
         });
-
-        const chart = await this.savedChartModel.get(chartUuid);
-        const customMetrics = chart.metricQuery.additionalMetrics;
 
         await this.updateFileForCustomMetrics({
             user,
@@ -366,12 +380,14 @@ Affected charts:
         const customMetrics = allCustomMetrics.filter((metric) =>
             customMetricsIds.includes(metric.uuid!),
         );
+        if (customMetrics.length === 0)
+            throw new Error('Missing custom metrics');
 
         console.log('4');
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
         console.log('5');
 
-        const token = await getToken();
+        const token = await this.getOrUpdateToken(user.organizationUuid!);
 
         const branchName = await GitIntegrationService.createBranch({
             owner,
