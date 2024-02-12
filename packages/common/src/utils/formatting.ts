@@ -145,7 +145,7 @@ function getFormatNumberOptions(value: number, format?: CustomFormat) {
         return hasCurrency ? currencyOptions : {};
     }
 
-    if (round <= 0) {
+    if (round < 0) {
         return {
             maximumSignificantDigits: Math.max(
                 Math.floor(value).toString().length + round,
@@ -375,6 +375,9 @@ export function formatItemValue(
     if (item) {
         if ('type' in item) {
             switch (item.type) {
+                case DimensionType.STRING:
+                case MetricType.STRING:
+                    return `${value}`;
                 case DimensionType.BOOLEAN:
                 case MetricType.BOOLEAN:
                     return formatBoolean(value);

@@ -230,6 +230,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                     cartesianType={cartesianType}
                     setPivotDimensions={setPivotDimensions}
                     onChartConfigChange={handleChartConfigChange}
+                    colorPalette={colorPalette}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

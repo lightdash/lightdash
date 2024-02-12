@@ -213,6 +213,7 @@ export const DrillDownModal: FC = () => {
                     item={selectedDimension}
                     items={dimensionsAvailable}
                     onChange={setSelectedDimension}
+                    hasGrouping
                 />
                 <Group position="right">
                     <Button variant="outline" onClick={onClose}>

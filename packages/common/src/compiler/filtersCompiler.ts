@@ -291,6 +291,9 @@ const renderBooleanFilterSql = (
     switch (filter.operator) {
         case 'equals':
             return `(${dimensionSql}) = ${!!filter.values?.[0]}`;
+        case 'notEquals':
+            return `((${dimensionSql}) != ${!!filter
+                .values?.[0]} OR (${dimensionSql}) IS NULL)`;
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':

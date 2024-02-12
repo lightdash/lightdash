@@ -29,6 +29,7 @@ type VisualizationCartesianConfigProps =
         setPivotDimensions: React.Dispatch<
             React.SetStateAction<string[] | undefined>
         >;
+        colorPalette: string[];
     };
 
 const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
@@ -41,6 +42,7 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     onChartConfigChange,
     stacking,
     cartesianType,
+    colorPalette,
     children,
 }) => {
     const cartesianConfig = useCartesianChartConfig({
@@ -52,6 +54,7 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         itemsMap,
         stacking,
         cartesianType,
+        colorPalette,
     });
 
     useEffect(() => {

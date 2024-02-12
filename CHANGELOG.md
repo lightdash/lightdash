@@ -1,3 +1,67 @@
+# [0.981.0](https://github.com/lightdash/lightdash/compare/0.980.0...0.981.0) (2024-02-12)
+
+
+### Features
+
+* group search and users-group styles ([#8838](https://github.com/lightdash/lightdash/issues/8838)) ([69445b1](https://github.com/lightdash/lightdash/commit/69445b1bfbbe72a5bbd7623f5f4449a2546aa64d))
+
+# [0.980.0](https://github.com/lightdash/lightdash/compare/0.979.6...0.980.0) (2024-02-12)
+
+
+### Features
+
+* Render not equals SQL for boolean filter ([#8729](https://github.com/lightdash/lightdash/issues/8729)) ([b4f3658](https://github.com/lightdash/lightdash/commit/b4f36581b2e44c990fcaa7fb5f4890149c2e14e4))
+* set --use-dbt-list as default in cli ([#8889](https://github.com/lightdash/lightdash/issues/8889)) ([71f730f](https://github.com/lightdash/lightdash/commit/71f730fa54a36e2d7de5886f0bcdc4073bfb537b))
+
+## [0.979.6](https://github.com/lightdash/lightdash/compare/0.979.5...0.979.6) (2024-02-12)
+
+
+### Bug Fixes
+
+* drill menus table names as headers ([#8887](https://github.com/lightdash/lightdash/issues/8887)) ([ba26f9e](https://github.com/lightdash/lightdash/commit/ba26f9e7eb4a3524920297563c5b50de1710a244))
+
+## [0.979.5](https://github.com/lightdash/lightdash/compare/0.979.4...0.979.5) (2024-02-12)
+
+
+### Bug Fixes
+
+* return correct cast when type string ([#8884](https://github.com/lightdash/lightdash/issues/8884)) ([71440a6](https://github.com/lightdash/lightdash/commit/71440a66626e2eb79fdb249163d8352e95938968))
+
+## [0.979.4](https://github.com/lightdash/lightdash/compare/0.979.3...0.979.4) (2024-02-12)
+
+
+### Bug Fixes
+
+* round with no decimals in table calculations ([#8862](https://github.com/lightdash/lightdash/issues/8862)) ([fb0687d](https://github.com/lightdash/lightdash/commit/fb0687d7c466d669a8ed7adcfcf02315c5578f8a))
+
+## [0.979.3](https://github.com/lightdash/lightdash/compare/0.979.2...0.979.3) (2024-02-12)
+
+
+### Bug Fixes
+
+* allow additional properties tsoa ([#8883](https://github.com/lightdash/lightdash/issues/8883)) ([3693ce2](https://github.com/lightdash/lightdash/commit/3693ce25c55ce58c10de86214e497e275591dc57))
+
+## [0.979.2](https://github.com/lightdash/lightdash/compare/0.979.1...0.979.2) (2024-02-09)
+
+
+### Bug Fixes
+
+* using zero in conditional formatting ([#8881](https://github.com/lightdash/lightdash/issues/8881)) ([626715f](https://github.com/lightdash/lightdash/commit/626715f790437fb5531936c91d766e9dad0a3ebc))
+
+## [0.979.1](https://github.com/lightdash/lightdash/compare/0.979.0...0.979.1) (2024-02-09)
+
+
+### Bug Fixes
+
+* update scheduled delivery preview copy to be more user-friendly ([#8871](https://github.com/lightdash/lightdash/issues/8871)) ([5fa743d](https://github.com/lightdash/lightdash/commit/5fa743db4e7ea2be385b3044c5dde3e2840b255a))
+
+# [0.979.0](https://github.com/lightdash/lightdash/compare/0.978.0...0.979.0) (2024-02-07)
+
+
+### Features
+
+* add shared chart color support under feature flag ([#8856](https://github.com/lightdash/lightdash/issues/8856)) ([9a4fdd0](https://github.com/lightdash/lightdash/commit/9a4fdd0a0663d25334bf61c9ee7fcd6e3bc2c5d5))
+
 # [0.978.0](https://github.com/lightdash/lightdash/compare/0.977.2...0.978.0) (2024-02-07)
 
 
