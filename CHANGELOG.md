@@ -1,3 +1,10 @@
+# [0.981.0](https://github.com/lightdash/lightdash/compare/0.980.0...0.981.0) (2024-02-12)
+
+
+### Features
+
+* group search and users-group styles ([#8838](https://github.com/lightdash/lightdash/issues/8838)) ([69445b1](https://github.com/lightdash/lightdash/commit/69445b1bfbbe72a5bbd7623f5f4449a2546aa64d))
+
 # [0.980.0](https://github.com/lightdash/lightdash/compare/0.979.6...0.980.0) (2024-02-12)
 
 
