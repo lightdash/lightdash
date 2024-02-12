@@ -115,7 +115,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,
     chartType,
 }) => {
-    const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
+    const [type, setType] = useState<DownloadType>(DownloadType.PNG);
     const isTable = chartType === ChartType.TABLE;
     const onDownload = useCallback(async () => {
         const echartsInstance = chartRef.current?.getEchartsInstance();
