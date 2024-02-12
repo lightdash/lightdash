@@ -1,9 +1,11 @@
+import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
     DbtModelNode,
     DbtProjectType,
     DimensionType,
     findAndUpdateModelNodes,
+    ForbiddenError,
     GitIntegrationConfiguration,
     isUserWithOrg,
     lightdashDbtYamlSchema,
@@ -109,7 +111,6 @@ export class GitIntegrationService {
                 version: 2,
             };
         }
-        console.log('schema file', schemaFile);
         if (!validate(schemaFile)) {
             throw new ParseError(`Not valid schema ${validate}`);
         }
@@ -312,7 +313,17 @@ Affected charts:
         projectUuid: string,
         chartUuid: string,
     ): Promise<PullRequestCreated> {
-        // TODO: check user permissions, only editors and above?
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SavedChart', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const chart = await this.savedChartModel.get(chartUuid);
         const customMetrics = chart.metricQuery.additionalMetrics;
         if (customMetrics === undefined || customMetrics.length === 0)
@@ -356,17 +367,23 @@ Affected charts:
         customMetricsIds: string[],
         quoteChar: `"` | `'`,
     ): Promise<PullRequestCreated> {
-        // TODO: check user permissions, only editors and above?
-
-        console.log('1');
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SavedChart', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
         });
-        console.log('2');
         const chartPromises = chartSummaries.map((summary) =>
             this.savedChartModel.get(summary.uuid, undefined),
         );
-        console.log('3');
         const charts = await Promise.all(chartPromises);
         const allCustomMetrics = charts.reduce<AdditionalMetric[]>(
             (acc, chart) => [
@@ -383,9 +400,7 @@ Affected charts:
         if (customMetrics.length === 0)
             throw new Error('Missing custom metrics');
 
-        console.log('4');
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
-        console.log('5');
 
         const token = await this.getOrUpdateToken(user.organizationUuid!);
 
@@ -395,7 +410,6 @@ Affected charts:
             mainBranch: branch,
             token,
         });
-        console.log('6');
         await this.updateFileForCustomMetrics({
             user,
             owner,
@@ -406,7 +420,6 @@ Affected charts:
             token,
             quoteChar,
         });
-        console.log('7');
         return this.getPullRequestDetails({
             user,
             customMetrics: customMetrics || [],

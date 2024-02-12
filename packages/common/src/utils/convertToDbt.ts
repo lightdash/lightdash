@@ -61,7 +61,6 @@ function updateColumnNode(
     columnNode: DbtModelColumn,
     customMetricsToAdd: AdditionalMetric[],
 ): DbtModelColumn {
-    console.log('updateColumnNode', columnNode, customMetricsToAdd);
     return {
         ...columnNode,
         meta: {
@@ -87,10 +86,6 @@ function updateModelNode(
         customMetricsToAdd,
         (metric) => metric.baseDimensionName,
     );
-    console.log(
-        'Object.entries(modelNode.columns)',
-        Object.entries(modelNode.columns),
-    );
 
     return {
         ...modelNode,
@@ -104,27 +99,6 @@ function updateModelNode(
             return columnNode;
         }) as any,
     };
-    /*
-   return {
-        ...modelNode,
-        columns: Object.values(modelNode.columns).reduce<
-            DbtModelNode['columns']
-        >((acc, node) => {
-            if (groupedMetricsByDimension[node.name]) {
-                return {
-                    ...acc,
-                     updateColumnNode(
-                        node,
-                        groupedMetricsByDimension[node.name],
-                    ),
-                };
-            }
-            return {
-                ...acc,
-                 node,
-            };
-        }, {}),
-    }; */
 }
 
 export function findAndUpdateModelNodes(
