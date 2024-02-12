@@ -4,12 +4,12 @@ export type DbGithubAppInstallation = {
     github_app_installation_uuid: string;
     organization_uuid: string;
     encrypted_installation_id: Buffer;
+    auth_token: string;
+    refresh_token: string;
     created_at: Date;
     created_by_user_uuid: string | null;
     updated_at: Date;
     updated_by_user_uuid: string | null;
-    auth_token: string;
-    refresh_token: string;
 };
 
 type DbGithubAppInstallationIn = Pick<
@@ -35,8 +35,7 @@ type DbGithubAppTokenUpdate = Pick<
 export type GithubAppInstallationTable = Knex.CompositeTableType<
     DbGithubAppInstallation,
     DbGithubAppInstallationIn,
-    DbGithubAppInstallationUpdate,
-    DbGithubAppTokenUpdate
+    DbGithubAppInstallationUpdate | DbGithubAppTokenUpdate
 >;
 
 export const GithubAppInstallationTableName = 'github_app_installations';
