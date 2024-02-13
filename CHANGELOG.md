@@ -1,3 +1,10 @@
+## [0.981.2](https://github.com/lightdash/lightdash/compare/0.981.1...0.981.2) (2024-02-13)
+
+
+### Bug Fixes
+
+* upgrade bookworm packages ([#8909](https://github.com/lightdash/lightdash/issues/8909)) ([5c44bb5](https://github.com/lightdash/lightdash/commit/5c44bb5079596664ffc3154ff67d5dc42726b297))
+
 ## [0.981.1](https://github.com/lightdash/lightdash/compare/0.981.0...0.981.1) (2024-02-12)
 
 
