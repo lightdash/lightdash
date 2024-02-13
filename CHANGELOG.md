@@ -1,3 +1,10 @@
+# [0.984.0](https://github.com/lightdash/lightdash/compare/0.983.0...0.984.0) (2024-02-13)
+
+
+### Features
+
+* TV/Fullscreen mode for dashboards ([#8874](https://github.com/lightdash/lightdash/issues/8874)) ([08d22d5](https://github.com/lightdash/lightdash/commit/08d22d5468eb9d516f2ab7a0ad25a878f0f942ca))
+
 # [0.983.0](https://github.com/lightdash/lightdash/compare/0.982.0...0.983.0) (2024-02-13)
 
 
