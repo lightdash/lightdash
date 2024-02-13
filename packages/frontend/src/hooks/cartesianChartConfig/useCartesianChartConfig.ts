@@ -19,7 +19,6 @@ import {
     getMarkLineAxis,
     ReferenceLineField,
 } from '../../components/common/ReferenceLine';
-import { useChartColorConfig } from '../useChartColorConfig';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
@@ -120,7 +119,6 @@ const useCartesianChartConfig = ({
     itemsMap,
     stacking,
     cartesianType,
-    colorPalette,
 }: Args) => {
     // FIXME: this might not be necessary
     const hasInitialValue =
@@ -137,9 +135,6 @@ const useCartesianChartConfig = ({
         (series: Series) => series.stack !== undefined,
     );
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
-    const { compileChartConfigWithColorAssignments } = useChartColorConfig({
-        colorPalette,
-    });
 
     const setLegend = useCallback((legend: EchartsLegend) => {
         const removePropertiesWithAuto = Object.entries(
@@ -711,17 +706,10 @@ const useCartesianChartConfig = ({
             isCompleteEchartsConfig(dirtyEchartsConfig)
             ? {
                   layout: dirtyLayout,
-                  eChartsConfig:
-                      compileChartConfigWithColorAssignments(
-                          dirtyEchartsConfig,
-                      ),
+                  eChartsConfig: dirtyEchartsConfig,
               }
             : EMPTY_CARTESIAN_CHART_CONFIG;
-    }, [
-        dirtyLayout,
-        dirtyEchartsConfig,
-        compileChartConfigWithColorAssignments,
-    ]);
+    }, [dirtyLayout, dirtyEchartsConfig]);
 
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =

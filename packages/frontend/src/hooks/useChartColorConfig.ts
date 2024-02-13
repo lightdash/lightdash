@@ -1,6 +1,16 @@
-import { CompleteEChartsConfig, FeatureFlags, Series } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback } from 'react';
+
+/**
+ * Generic series-like object that contains the relevant portions used
+ * for color assignment. Requires the caller to unpack whatever series
+ * format it has into this compatible one.
+ */
+interface SeriesLike {
+    yField: string;
+    yPivotValues?: string[];
+}
 
 export const useChartColorConfig = ({
     colorPalette,
@@ -12,8 +22,8 @@ export const useChartColorConfig = ({
     );
 
     /**
-     * Given the org's color palette, and a dimension identifier, return the color
-     * in the palette assigned to that identifier.
+     * Given the org's color palette, and an identifier, return the color palette value
+     * for said identifier.
      *
      * This works by hashing the identifier into an integer value, and then projecting
      * that value into the org's color space - effectivelly getting a number from 0 to
@@ -28,10 +38,10 @@ export const useChartColorConfig = ({
      *   to the narrow color space - we can fix this by shifting colors aside when
      *   compiling the chart config.
      */
-    const calculateDimensionColorAssignment = useCallback(
-        (dimensionIdentifier: string, colorsToAvoid: Set<string>) => {
+    const calculateKeyColorAssignment = useCallback(
+        (identifier: string, colorsToAvoid: Set<string>) => {
             const hashedValue = Math.abs(
-                dimensionIdentifier.split('').reduce(function (a, b) {
+                identifier.split('').reduce(function (a, b) {
                     a = (a << 5) - a + b.charCodeAt(0);
                     return a & a;
                 }, 0),
@@ -60,68 +70,28 @@ export const useChartColorConfig = ({
     );
 
     const calculateSeriesColorAssignment = useCallback(
-        (series: Series, colorsToAvoid: Set<string>) => {
-            const { field: yField, pivotValues: yPivotValues } =
-                series.encode.yRef;
-
-            const baseDimension = yField;
+        ({ yField, yPivotValues }: SeriesLike, colorsToAvoid: Set<string>) => {
+            const baseIdentifier = yField;
             const pivotValuesSubPath =
                 yPivotValues && yPivotValues.length > 0
-                    ? `${yPivotValues[0].value}`
+                    ? `${yPivotValues[0]}`
                     : null;
 
-            const completeDimension = pivotValuesSubPath
+            const completeIdentifier = pivotValuesSubPath
                 ? pivotValuesSubPath
-                : baseDimension;
+                : baseIdentifier;
 
-            return calculateDimensionColorAssignment(
-                completeDimension,
+            return calculateKeyColorAssignment(
+                completeIdentifier,
                 colorsToAvoid,
             );
         },
-        [calculateDimensionColorAssignment],
-    );
-
-    const compileChartConfigWithColorAssignments = useCallback(
-        (fullConfig: CompleteEChartsConfig) => {
-            if (!useSharedColors) {
-                return fullConfig;
-            }
-
-            /**
-             * As a final safeguard against neighboring colors in a series,
-             * we keep track of any colors we've seen in this chart, and for
-             * any repeat offenders, we attempt to introduce a local offset.
-             *
-             * This means for this specific dimension, in this specific chart,
-             * this color will be predictably offset every time, but will go
-             * out of sync with surrounding charts in a dashboard.
-             */
-            const colorsInChart = new Set<string>();
-
-            return {
-                ...fullConfig,
-                series: fullConfig.series.map((series) => {
-                    const calculatedColor =
-                        series.color ??
-                        calculateSeriesColorAssignment(series, colorsInChart);
-
-                    colorsInChart.add(calculatedColor);
-
-                    return {
-                        ...series,
-                        color: calculatedColor,
-                    };
-                }),
-            };
-        },
-        [useSharedColors, calculateSeriesColorAssignment],
+        [calculateKeyColorAssignment],
     );
 
     return {
-        calculateDimensionColorAssignment,
-        calculateSeriesColorAssignment,
-        compileChartConfigWithColorAssignments,
         useSharedColors,
+        calculateKeyColorAssignment,
+        calculateSeriesColorAssignment,
     };
 };

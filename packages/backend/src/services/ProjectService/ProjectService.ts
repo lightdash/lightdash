@@ -801,8 +801,6 @@ export class ProjectService {
             user,
         );
 
-        console.log(await postHogClient?.getAllFlags(user.userUuid));
-        console.log('projectservice', useDbtLs);
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
             sshTunnel.overrideCredentials,

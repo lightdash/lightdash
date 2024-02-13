@@ -43,6 +43,7 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import getPlottedData from '../plottedData/getPlottedData';
+import { useChartColorConfig } from '../useChartColorConfig';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -1311,6 +1312,11 @@ const useEchartsCartesianConfig = (
         colorPalette,
     } = useVisualizationContext();
 
+    const { useSharedColors, calculateSeriesColorAssignment } =
+        useChartColorConfig({
+            colorPalette,
+        });
+
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
@@ -1376,12 +1382,36 @@ const useEchartsCartesianConfig = (
         });
     }, [itemsMap, series, validCartesianConfig, resultsData]);
 
-    const stackedSeries = useMemo(() => {
+    const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
-        const seriesWithValidStack = series.map<EChartSeries>((serie) => ({
-            ...serie,
-            stack: getValidStack(serie),
-        }));
+
+        const colorsToAvoid = new Set<string>();
+        const seriesWithValidStack = series.map<EChartSeries>((serie, i) => {
+            const color =
+                serie.color ??
+                (useSharedColors
+                    ? calculateSeriesColorAssignment(
+                          {
+                              yField: serie.encode?.y ?? `${i}`,
+                              yPivotValues:
+                                  serie.pivotReference?.pivotValues?.map(
+                                      ({ value }) => `${value}`,
+                                  ),
+                          },
+                          colorsToAvoid,
+                      )
+                    : undefined);
+
+            if (color) {
+                colorsToAvoid.add(color);
+            }
+
+            return {
+                ...serie,
+                color,
+                stack: getValidStack(serie),
+            };
+        });
         return [
             ...seriesWithValidStack,
             ...getStackTotalSeries(
@@ -1398,6 +1428,8 @@ const useEchartsCartesianConfig = (
         itemsMap,
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfigLegend,
+        calculateSeriesColorAssignment,
+        useSharedColors,
     ]);
 
     const colors = useMemo<string[]>(() => {
@@ -1607,7 +1639,7 @@ const useEchartsCartesianConfig = (
             xAxis: axes.xAxis,
             yAxis: axes.yAxis,
             useUTC: true,
-            series: stackedSeries,
+            series: stackedSeriesWithColorAssignments,
             animation: !isInDashboard,
             legend: mergeLegendSettings(
                 validCartesianConfig?.eChartsConfig.legend,
@@ -1625,12 +1657,14 @@ const useEchartsCartesianConfig = (
                     validCartesianConfig?.eChartsConfig.grid,
                 ),
             },
-            color: colors,
+            // If using shared chart colors, we don't specify any colors at the top level,
+            // and instead assign them per-series.
+            color: useSharedColors ? [] : colors,
         }),
         [
             axes.xAxis,
             axes.yAxis,
-            stackedSeries,
+            stackedSeriesWithColorAssignments,
             isInDashboard,
             validCartesianConfig?.eChartsConfig.legend,
             validCartesianConfig?.eChartsConfig.grid,
@@ -1639,6 +1673,7 @@ const useEchartsCartesianConfig = (
             sortedResults,
             tooltip,
             colors,
+            useSharedColors,
         ],
     );
 
