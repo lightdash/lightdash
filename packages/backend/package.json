@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.981.2",
+    "version": "0.981.1",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -33,8 +33,8 @@
         "@aws-sdk/s3-request-presigner": "^3.272.0",
         "@casl/ability": "^5.4.3",
         "@godaddy/terminus": "^4.12.0",
-        "@lightdash/common": "^0.981.2",
-        "@lightdash/warehouses": "^0.981.2",
+        "@lightdash/common": "^0.981.1",
+        "@lightdash/warehouses": "^0.981.1",
         "@opentelemetry/api": "^1.4.1",
         "@opentelemetry/auto-instrumentations-node": "^0.37.0",
         "@opentelemetry/exporter-metrics-otlp-http": "^0.39.1",
@@ -46,7 +46,7 @@
         "@opentelemetry/sdk-node": "^0.39.1",
         "@opentelemetry/sdk-trace-node": "^1.13.0",
         "@opentelemetry/semantic-conventions": "^1.13.0",
-        "@rudderstack/rudder-sdk-node": "^2.0.7",
+        "@rudderstack/rudder-sdk-node": "^1.1.3",
         "@sentry/node": "^7.37.2",
         "@sentry/tracing": "^7.37.2",
         "@sentry/types": "^7.37.2",
