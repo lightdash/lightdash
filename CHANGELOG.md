@@ -1,3 +1,24 @@
+# [0.984.0](https://github.com/lightdash/lightdash/compare/0.983.0...0.984.0) (2024-02-13)
+
+
+### Features
+
+* TV/Fullscreen mode for dashboards ([#8874](https://github.com/lightdash/lightdash/issues/8874)) ([08d22d5](https://github.com/lightdash/lightdash/commit/08d22d5468eb9d516f2ab7a0ad25a878f0f942ca))
+
+# [0.983.0](https://github.com/lightdash/lightdash/compare/0.982.0...0.983.0) (2024-02-13)
+
+
+### Features
+
+* searchable table and tags in table config ([#8847](https://github.com/lightdash/lightdash/issues/8847)) ([ede32ce](https://github.com/lightdash/lightdash/commit/ede32ce4cb8433ae1d9c461b58e3b6e2a997a0bc))
+
+# [0.982.0](https://github.com/lightdash/lightdash/compare/0.981.2...0.982.0) (2024-02-13)
+
+
+### Features
+
+* Allow adding the same chart to a dashboard more than once ([#8880](https://github.com/lightdash/lightdash/issues/8880)) ([22cb65d](https://github.com/lightdash/lightdash/commit/22cb65d093cfe074ef029a34e3b49a3957a48cb2))
+
 ## [0.981.2](https://github.com/lightdash/lightdash/compare/0.981.1...0.981.2) (2024-02-13)
 
 
