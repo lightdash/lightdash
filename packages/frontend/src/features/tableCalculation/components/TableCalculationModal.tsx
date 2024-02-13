@@ -13,7 +13,6 @@ import {
     Stack,
     Tabs,
     TextInput,
-    Title,
     useMantineTheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -108,12 +107,16 @@ const TableCalculationModal: FC<Props> = ({
             onClose={() => onClose()}
             size="xl"
             title={
-                <Title order={5}>
-                    {tableCalculation
-                        ? 'Edit table calculation'
-                        : 'Add table calculation'}
-                </Title>
+                tableCalculation
+                    ? 'Edit table calculation'
+                    : 'Add table calculation'
             }
+            styles={{
+                title: {
+                    fontSize: theme.fontSizes.md,
+                    fontWeight: 700,
+                },
+            }}
             fullScreen={isFullscreen}
         >
             <form name="table_calculation" onSubmit={handleSubmit}>
