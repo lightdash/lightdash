@@ -126,16 +126,14 @@ const AllowedDomainsPanel: FC = () => {
 
     const setFormValuesFromData = useCallback(() => {
         if (allowedEmailDomainsData) {
-            form.setValues({
+            const formValues = {
                 emailDomains: allowedEmailDomainsData.emailDomains,
                 role: allowedEmailDomainsData.role,
                 projects: allowedEmailDomainsData.projects,
-            });
-            form.resetDirty({
-                emailDomains: allowedEmailDomainsData.emailDomains,
-                role: allowedEmailDomainsData.role,
-                projects: allowedEmailDomainsData.projects,
-            });
+            };
+
+            form.setValues(formValues);
+            form.resetDirty(formValues);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allowedEmailDomainsData]);

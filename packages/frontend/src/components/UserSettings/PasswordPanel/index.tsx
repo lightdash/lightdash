@@ -53,21 +53,20 @@ const PasswordPanel: FC = () => {
             },
         });
 
-    const setFormValuesFromData = useCallback(() => {
-        form.setValues({
+    const handleFormReset = useCallback(() => {
+        const resetValues = {
             currentPassword: '',
             newPassword: '',
-        });
-        form.resetDirty({
-            currentPassword: '',
-            newPassword: '',
-        });
+        };
+
+        form.setValues(resetValues);
+        form.resetDirty(resetValues);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
-        setFormValuesFromData();
-    }, [setFormValuesFromData]);
+        handleFormReset();
+    }, [handleFormReset]);
 
     const handleOnSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
         if (hasPassword) {
@@ -107,7 +106,7 @@ const PasswordPanel: FC = () => {
                         <Button
                             variant="outline"
                             onClick={() => {
-                                setFormValuesFromData();
+                                handleFormReset();
                             }}
                         >
                             Cancel

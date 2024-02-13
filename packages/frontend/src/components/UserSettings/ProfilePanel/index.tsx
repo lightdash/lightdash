@@ -95,16 +95,14 @@ const ProfilePanel: FC = () => {
 
     const setFormValuesFromData = useCallback(() => {
         if (user.data?.firstName || user.data?.lastName || user.data?.email) {
-            form.setValues({
+            const formValues = {
                 firstName: user.data?.firstName,
                 lastName: user.data?.lastName,
                 email: user.data?.email,
-            });
-            form.resetDirty({
-                firstName: user.data?.firstName,
-                lastName: user.data?.lastName,
-                email: user.data?.email,
-            });
+            };
+
+            form.setValues(formValues);
+            form.resetDirty(formValues);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user.data?.firstName, user.data?.lastName, user.data?.email]);

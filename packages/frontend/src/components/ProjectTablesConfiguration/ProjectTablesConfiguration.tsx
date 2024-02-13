@@ -5,6 +5,7 @@ import {
     Box,
     Button,
     Collapse,
+    Flex,
     Highlight,
     Loader,
     MultiSelect,
@@ -146,35 +147,19 @@ const ProjectTablesConfiguration: FC<{
 
     const setFormValuesFromData = useCallback(() => {
         if (data) {
-            form.setValues({
-                type: data.tableSelection.type,
-                tags:
-                    data.tableSelection.type === TableSelectionType.WITH_TAGS &&
-                    data.tableSelection.value
-                        ? data.tableSelection.value
-                        : [],
-                names:
-                    data.tableSelection.type ===
-                        TableSelectionType.WITH_NAMES &&
-                    data.tableSelection.value
-                        ? data.tableSelection.value
-                        : [],
-            });
+            const { type, value } = data.tableSelection;
 
-            form.resetDirty({
-                type: data.tableSelection.type,
-                tags:
-                    data.tableSelection.type === TableSelectionType.WITH_TAGS &&
-                    data.tableSelection.value
-                        ? data.tableSelection.value
-                        : [],
-                names:
-                    data.tableSelection.type ===
-                        TableSelectionType.WITH_NAMES &&
-                    data.tableSelection.value
-                        ? data.tableSelection.value
-                        : [],
-            });
+            const getValueBasedOnType = (selectionType: TableSelectionType) =>
+                type === selectionType && value ? value : [];
+
+            const formValues = {
+                type: type,
+                tags: getValueBasedOnType(TableSelectionType.WITH_TAGS),
+                names: getValueBasedOnType(TableSelectionType.WITH_NAMES),
+            };
+
+            form.setValues(formValues);
+            form.resetDirty(formValues);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data]);
