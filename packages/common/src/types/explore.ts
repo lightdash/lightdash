@@ -42,6 +42,8 @@ export type Explore = {
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore
     targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/databricks
     warehouse?: string;
+    ymlPath?: string;
+    sqlPath?: string;
 };
 
 export enum InlineErrorType {
