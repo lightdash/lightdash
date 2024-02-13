@@ -1,3 +1,10 @@
+# [0.982.0](https://github.com/lightdash/lightdash/compare/0.981.2...0.982.0) (2024-02-13)
+
+
+### Features
+
+* Allow adding the same chart to a dashboard more than once ([#8880](https://github.com/lightdash/lightdash/issues/8880)) ([22cb65d](https://github.com/lightdash/lightdash/commit/22cb65d093cfe074ef029a34e3b49a3957a48cb2))
+
 ## [0.981.2](https://github.com/lightdash/lightdash/compare/0.981.1...0.981.2) (2024-02-13)
 
 
