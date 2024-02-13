@@ -14,7 +14,7 @@ import simpleGit, {
     SimpleGit,
     SimpleGitProgressEvent,
 } from 'simple-git';
-import tempy from 'tempy';
+import { temporaryDirectory } from 'tempy';
 import Logger from '../logging/logger';
 import { CachedWarehouse } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
@@ -75,7 +75,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         dbtVersion,
         useDbtLs,
     }: DbtGitProjectAdapterArgs) {
-        const localRepositoryDir = tempy.directory({
+        const localRepositoryDir = temporaryDirectory({
             prefix: 'git_',
         });
         const projectDir = path.join(
