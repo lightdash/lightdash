@@ -1,3 +1,10 @@
+# [0.986.0](https://github.com/lightdash/lightdash/compare/0.985.0...0.986.0) (2024-02-13)
+
+
+### Features
+
+* add github integration and promote custom metric yml ([#8892](https://github.com/lightdash/lightdash/issues/8892)) ([ccd5c7a](https://github.com/lightdash/lightdash/commit/ccd5c7a5034d045d5c88a96f4804fef0ff36df11))
+
 # [0.985.0](https://github.com/lightdash/lightdash/compare/0.984.0...0.985.0) (2024-02-13)
 
 
