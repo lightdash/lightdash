@@ -41,7 +41,14 @@ const AppProviderMock: FC<PropsWithChildren<AppProviderMockProps>> = ({
     });
 
     return (
-        <AppProviderContext.Provider value={{ health, user }}>
+        <AppProviderContext.Provider
+            value={{
+                health,
+                user,
+                isFullscreen: false,
+                toggleFullscreen: () => {},
+            }}
+        >
             {children}
         </AppProviderContext.Provider>
     );

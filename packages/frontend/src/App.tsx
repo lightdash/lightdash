@@ -32,8 +32,8 @@ const App = () => (
 
         <ReactQueryProvider>
             <MantineProvider>
-                <AppProvider>
-                    <Router>
+                <Router>
+                    <AppProvider>
                         <VersionAutoUpdater />
                         <ThirdPartyProvider
                             enabled={isMobile || !isMinimalPage}
@@ -52,8 +52,8 @@ const App = () => (
                                 </AbilityContext.Provider>
                             </TrackingProvider>
                         </ThirdPartyProvider>
-                    </Router>
-                </AppProvider>
+                    </AppProvider>
+                </Router>
             </MantineProvider>
 
             <ReactQueryDevtools initialIsOpen={false} />
