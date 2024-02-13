@@ -42,6 +42,7 @@ export const BaseResponse = {
     hasDbtSemanticLayer: false,
     hasGroups: false,
     hasExtendedUsageAnalytics: false,
+    hasGithub: false,
 };
 
 export const Config = {

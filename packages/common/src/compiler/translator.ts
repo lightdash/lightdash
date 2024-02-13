@@ -560,6 +560,8 @@ export const convertExplores = async (
                 tables: tableLookup,
                 targetDatabase: adapterType,
                 warehouse: model.config?.snowflake_warehouse,
+                ymlPath: model.patch_path?.split('://')?.[1],
+                sqlPath: model.path,
             });
         } catch (e) {
             return {

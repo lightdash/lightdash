@@ -67,6 +67,8 @@ export type UncompiledExplore = {
     targetDatabase: SupportedDbtAdapter;
     sqlWhere?: string;
     warehouse?: string;
+    ymlPath?: string;
+    sqlPath?: string;
 };
 
 export class ExploreCompiler {
@@ -86,6 +88,8 @@ export class ExploreCompiler {
         targetDatabase,
         groupLabel,
         warehouse,
+        ymlPath,
+        sqlPath,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -217,6 +221,8 @@ export class ExploreCompiler {
             targetDatabase,
             groupLabel,
             warehouse,
+            ymlPath,
+            sqlPath,
         };
     }
 

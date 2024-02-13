@@ -12,6 +12,7 @@ import {
     IconPalette,
     IconPlug,
     IconReportAnalytics,
+    IconSql,
     IconTableOptions,
     IconUserCircle,
     IconUserPlus,
@@ -34,6 +35,7 @@ import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel'
 import AppearancePanel from '../components/UserSettings/AppearancePanel';
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
+import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
@@ -245,20 +247,14 @@ const Settings: FC = () => {
                                     />
                                 )}
 
-                                {health.hasSlack &&
-                                    user.ability.can(
-                                        'manage',
-                                        'Organization',
-                                    ) && (
-                                        <RouterNavLink
-                                            label="Integrations"
-                                            exact
-                                            to="/generalSettings/integrations/slack"
-                                            icon={
-                                                <MantineIcon icon={IconPlug} />
-                                            }
-                                        />
-                                    )}
+                                {user.ability.can('manage', 'Organization') && (
+                                    <RouterNavLink
+                                        label="Integrations"
+                                        exact
+                                        to="/generalSettings/integrations"
+                                        icon={<MantineIcon icon={IconPlug} />}
+                                    />
+                                )}
 
                                 {organization &&
                                     !organization.needsProject &&
@@ -387,6 +383,13 @@ const Settings: FC = () => {
                                         }
                                     />
                                 ) : null}
+
+                                <RouterNavLink
+                                    label="Custom SQL"
+                                    exact
+                                    to={`/generalSettings/projectManagement/${project.projectUuid}/customSql`}
+                                    icon={<MantineIcon icon={IconSql} />}
+                                />
                             </Box>
                         ) : null}
                     </Stack>
@@ -537,14 +540,16 @@ const Settings: FC = () => {
                     <AccessTokensPanel />
                 </Route>
 
-                {health.hasSlack && user.ability.can('manage', 'Organization') && (
-                    <Route exact path="/generalSettings/integrations/slack">
-                        <Stack>
-                            <Title order={4}>Integrations</Title>
-                            <SlackSettingsPanel />
-                        </Stack>
-                    </Route>
-                )}
+                {(health.hasSlack || health.hasGithub) &&
+                    user.ability.can('manage', 'Organization') && (
+                        <Route exact path="/generalSettings/integrations">
+                            <Stack>
+                                <Title order={4}>Integrations</Title>
+                                {health.hasSlack && <SlackSettingsPanel />}
+                                {health.hasGithub && <GithubSettingsPanel />}
+                            </Stack>
+                        </Route>
+                    )}
 
                 <Route exact path="/generalSettings">
                     <SettingsGridCard>

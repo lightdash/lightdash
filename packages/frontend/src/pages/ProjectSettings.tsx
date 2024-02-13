@@ -5,6 +5,7 @@ import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import CustomSqlPanel from '../components/CustomSqlPanel/CustomSqlPanel';
 import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
@@ -101,6 +102,13 @@ const ProjectSettings: FC = () => {
                         path={`/generalSettings/projectManagement/${projectUuid}/validator`}
                     >
                         <SettingsValidator projectUuid={projectUuid} />
+                    </Route>
+
+                    <Route
+                        exact
+                        path={`/generalSettings/projectManagement/${projectUuid}/customSql`}
+                    >
+                        <CustomSqlPanel projectUuid={projectUuid} />
                     </Route>
 
                     <Redirect to={`/generalSettings/`} />

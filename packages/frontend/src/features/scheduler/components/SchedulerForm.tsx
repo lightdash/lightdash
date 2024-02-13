@@ -158,7 +158,7 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({ slackState }) => {
                 <Text pb="sm">Slack integration needs to be reinstalled</Text>
                 <Text>
                     To create a slack scheduled delivery, you need to
-                    <Anchor href="/generalSettings/integrations/slack">
+                    <Anchor href="/generalSettings/integrations">
                         {' '}
                         reinstall the Slack integration{' '}
                     </Anchor>

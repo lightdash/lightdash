@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
 import {
+    ApiError,
+    GitIntegrationConfiguration,
+    PullRequestCreated,
+} from '@lightdash/common';
+import {
     ActionIcon,
     Alert,
     Box,
@@ -14,11 +19,13 @@ import {
 import {
     IconAlertTriangle,
     IconArrowBack,
+    IconArrowRight,
     IconCheck,
     IconChevronRight,
     IconCircleFilled,
     IconCirclePlus,
     IconCirclesRelation,
+    IconCodePlus,
     IconCopy,
     IconDots,
     IconFolder,
@@ -29,9 +36,11 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { FC, Fragment, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { lightdashApi } from '../../../api';
 import { ChartSchedulersModal } from '../../../features/scheduler';
 import {
     getSchedulerUuidFromUrlParams,
@@ -40,6 +49,7 @@ import {
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -77,6 +87,68 @@ enum SpaceType {
 const SpaceTypeLabels = {
     [SpaceType.SharedWithMe]: 'Shared with me',
     [SpaceType.AdminContentView]: 'Admin content view',
+};
+
+const getGitIntegration = async (projectUuid: string) =>
+    lightdashApi<any>({
+        url: `/projects/${projectUuid}/git-integration`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const useGitIntegration = (projectUuid: string) =>
+    useQuery<GitIntegrationConfiguration, ApiError>({
+        queryKey: ['git-integration'],
+        queryFn: () => getGitIntegration(projectUuid),
+        retry: false,
+    });
+
+const createPullRequestForChartFields = async (
+    projectUuid: string,
+    chartUuid: string,
+) =>
+    lightdashApi<any>({
+        url: `/projects/${projectUuid}/git-integration/pull-requests/chart/${chartUuid}/fields`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const useCreatePullRequestForChartFieldsMutation = (
+    projectUuid: string,
+    chartUuid?: string,
+) => {
+    /* useMutation<GitIntegrationConfiguration, ApiError>(
+        ['git-integration', 'pull-request'],
+        () => createPullRequestForChartFields(projectUuid, chartUuid!),
+        
+    );*/
+    const { showToastSuccess, showToastError } = useToaster();
+
+    return useMutation<PullRequestCreated, ApiError>(
+        () => createPullRequestForChartFields(projectUuid, chartUuid!),
+        {
+            mutationKey: ['git-integration', 'pull-request'],
+            retry: false,
+            onSuccess: async (pullRequest) => {
+                showToastSuccess({
+                    title: `Success! Create branch with changes: '${pullRequest.prTitle}'`,
+                    action: {
+                        children: 'Open Pull Request',
+                        icon: IconArrowRight,
+                        onClick: () => {
+                            window.open(pullRequest.prUrl, '_blank');
+                        },
+                    },
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to create pull request`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
 };
 
 const SavedChartsHeader: FC = () => {
@@ -131,7 +203,11 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
-
+    const { data: gitIntegration } = useGitIntegration(projectUuid);
+    const createPullRequest = useCreatePullRequestForChartFieldsMutation(
+        projectUuid,
+        savedChart?.uuid,
+    );
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
@@ -675,6 +751,18 @@ const SavedChartsHeader: FC = () => {
                                         }
                                     >
                                         Version history
+                                    </Menu.Item>
+                                )}
+                                {gitIntegration?.enabled && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon icon={IconCodePlus} />
+                                        }
+                                        onClick={() =>
+                                            createPullRequest.mutate()
+                                        }
+                                    >
+                                        Add custom metrics to dbt project
                                     </Menu.Item>
                                 )}
                                 {userCanManageCharts && (

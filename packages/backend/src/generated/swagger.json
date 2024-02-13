@@ -438,6 +438,12 @@
             },
             "Explore": {
                 "properties": {
+                    "sqlPath": {
+                        "type": "string"
+                    },
+                    "ymlPath": {
+                        "type": "string"
+                    },
                     "warehouse": {
                         "type": "string"
                     },
@@ -963,6 +969,42 @@
                     "dimensions",
                     "exploreName"
                 ],
+                "type": "object"
+            },
+            "GitRepo": {
+                "properties": {
+                    "ownerLogin": {
+                        "type": "string"
+                    },
+                    "fullName": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["ownerLogin", "fullName", "name"],
+                "type": "object"
+            },
+            "GitIntegrationConfiguration": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["enabled"],
+                "type": "object"
+            },
+            "PullRequestCreated": {
+                "properties": {
+                    "prUrl": {
+                        "type": "string"
+                    },
+                    "prTitle": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prUrl", "prTitle"],
                 "type": "object"
             },
             "ApiGdriveAccessTokenResponse": {
@@ -6323,7 +6365,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.979.0",
+        "version": "0.981.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -6831,6 +6873,302 @@
                                         "type": "object"
                                     }
                                 ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/github/install": {
+            "get": {
+                "operationId": "installGithubAppForOrganization",
+                "responses": {
+                    "302": {
+                        "description": "Not found"
+                    }
+                },
+                "description": "Install the Lightdash GitHub App and link to an organization",
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/github/oauth/callback": {
+            "get": {
+                "operationId": "githubOauthCallback",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "Callback URL for GitHub App Authorization also used for GitHub App Installation with combined Authorization",
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "authorization code from GitHub",
+                        "in": "query",
+                        "name": "code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "oauth state parameter",
+                        "in": "query",
+                        "name": "state",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "installation id from GitHub",
+                        "in": "query",
+                        "name": "installation_id",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "setup action from GitHub",
+                        "in": "query",
+                        "name": "setup_action",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/github/uninstall": {
+            "delete": {
+                "operationId": "uninstallGithubAppForOrganization",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/github/repos/list": {
+            "get": {
+                "operationId": "getGithubListRepositories",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/GitRepo"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git-integration": {
+            "get": {
+                "operationId": "GetConfiguration",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/GitIntegrationConfiguration"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Git Integration"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git-integration/pull-requests/chart/{chartUuid}/fields": {
+            "get": {
+                "operationId": "CreatePullRequestForChartFields",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/PullRequestCreated"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Git Integration"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git-integration/pull-requests/custom-metrics": {
+            "post": {
+                "operationId": "CreatePullRequestForChartFields",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/PullRequestCreated"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Git Integration"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "quoteChar": {
+                                        "type": "string",
+                                        "enum": ["\"", "'"]
+                                    },
+                                    "customMetrics": {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["quoteChar", "customMetrics"],
+                                "type": "object"
                             }
                         }
                     }
@@ -8712,6 +9050,87 @@
                     {
                         "in": "path",
                         "name": "userWarehouseCredentialsUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/custom-metrics": {
+            "get": {
+                "operationId": "getCustomMetrics",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "properties": {
+                                                    "chartUrl": {
+                                                        "type": "string"
+                                                    },
+                                                    "chartLabel": {
+                                                        "type": "string"
+                                                    },
+                                                    "yml": {
+                                                        "type": "string"
+                                                    },
+                                                    "modelName": {
+                                                        "type": "string"
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "chartUrl",
+                                                    "chartLabel",
+                                                    "yml",
+                                                    "modelName",
+                                                    "label",
+                                                    "name"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
