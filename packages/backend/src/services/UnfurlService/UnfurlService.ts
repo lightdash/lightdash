@@ -71,6 +71,7 @@ export type Unfurl = {
     pageType: LightdashPage;
     minimalUrl: string;
     organizationUuid: string;
+    resourceUuid: string | undefined;
 };
 
 export type ParsedUrl = {
@@ -137,10 +138,13 @@ export class UnfurlService {
         this.downloadFileModel = downloadFileModel;
     }
 
-    async getTitleAndDescription(
-        parsedUrl: ParsedUrl,
-    ): Promise<
-        Pick<Unfurl, 'title' | 'description' | 'chartType' | 'organizationUuid'>
+    async getTitleAndDescription(parsedUrl: ParsedUrl): Promise<
+        Pick<
+            Unfurl,
+            'title' | 'description' | 'chartType' | 'organizationUuid'
+        > & {
+            resourceUuid?: string;
+        }
     > {
         switch (parsedUrl.lightdashPage) {
             case LightdashPage.DASHBOARD:
@@ -155,6 +159,7 @@ export class UnfurlService {
                     title: dashboard.name,
                     description: dashboard.description,
                     organizationUuid: dashboard.organizationUuid,
+                    resourceUuid: dashboard.uuid,
                 };
             case LightdashPage.CHART:
                 if (!parsedUrl.chartUuid)
@@ -169,6 +174,7 @@ export class UnfurlService {
                     description: chart.description,
                     organizationUuid: chart.organizationUuid,
                     chartType: chart.chartType,
+                    resourceUuid: chart.uuid,
                 };
             case LightdashPage.EXPLORE:
                 const project = await this.projectModel.getSummary(
@@ -203,8 +209,13 @@ export class UnfurlService {
             return undefined;
         }
 
-        const { title, description, organizationUuid, chartType } =
-            await this.getTitleAndDescription(parsedUrl);
+        const {
+            title,
+            description,
+            organizationUuid,
+            chartType,
+            resourceUuid,
+        } = await this.getTitleAndDescription(parsedUrl);
 
         return {
             title,
@@ -214,6 +225,7 @@ export class UnfurlService {
             minimalUrl: parsedUrl.minimalUrl,
             organizationUuid,
             chartType,
+            resourceUuid,
         };
     }
 
@@ -259,6 +271,8 @@ export class UnfurlService {
             organizationUuid: details?.organizationUuid,
             userUuid: authUserUuid,
             gridWidth,
+            resourceUuid: details?.resourceUuid,
+            resourceName: details?.title,
         });
 
         let imageUrl;
@@ -330,6 +344,8 @@ export class UnfurlService {
         organizationUuid,
         userUuid,
         gridWidth = undefined,
+        resourceUuid = undefined,
+        resourceName = undefined,
     }: {
         imageId: string;
         cookie: string;
@@ -339,6 +355,8 @@ export class UnfurlService {
         organizationUuid?: string;
         userUuid: string;
         gridWidth?: number | undefined;
+        resourceUuid?: string;
+        resourceName?: string;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             Logger.error(
@@ -402,14 +420,14 @@ export class UnfurlService {
                             width: gridWidth ?? viewport.width,
                         });
                     }
-                    await page.on('requestfailed', (request) => {
+                    page.on('requestfailed', (request) => {
                         Logger.warn(
                             `Headless browser request error - method: ${request.method()}, url: ${request.url()}, text: ${
                                 request.failure()?.errorText
                             }`,
                         );
                     });
-                    await page.on('console', (msg) => {
+                    page.on('console', (msg) => {
                         const type = msg.type();
                         if (type === 'error') {
                             Logger.warn(
@@ -437,7 +455,7 @@ export class UnfurlService {
                     let chartRequests = 0;
                     let chartRequestErrors = 0;
 
-                    await page.on('response', (response) => {
+                    page.on('response', (response) => {
                         const responseUrl = response.url();
                         const regexUrlToMatch =
                             lightdashPage === LightdashPage.EXPLORE
@@ -582,13 +600,18 @@ export class UnfurlService {
                         url,
                         chartType: chartType || 'undefined',
                         organization_uuid: organizationUuid || 'undefined',
+                        uuid: resourceUuid ?? 'undefined',
+                        title: resourceName ?? 'undefined',
+                        is_viewport_dynamically_enabled: `${isPuppeteerSetViewportDynamicallyEnabled}`,
+                        is_scroll_into_view_enabled: `${isPuppeteerScrollElementIntoViewEnabled}`,
+                        custom_width: `${gridWidth}`,
                     });
                     span.setStatus({
                         code: SpanStatusCode.ERROR,
                     });
 
                     Logger.error(
-                        `Unable to fetch screenshots from headless chrome ${e.message}`,
+                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
                     );
                     throw e;
                 } finally {
