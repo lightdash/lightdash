@@ -5,6 +5,8 @@ import {
     Box,
     Button,
     Collapse,
+    Highlight,
+    Loader,
     MultiSelect,
     Radio,
     ScrollArea,
@@ -13,7 +15,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useEffect, useMemo } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useToggle } from 'react-use';
 import { useExplores } from '../../hooks/useExplores';
 import {
@@ -41,6 +43,7 @@ const ProjectTablesConfiguration: FC<{
     const { user } = useApp();
     const ability = useAbilityContext();
     const [isListOpen, toggleList] = useToggle(false);
+    const [search, setSearch] = useState('');
 
     const { data: explores, isInitialLoading: isLoadingExplores } =
         useExplores(projectUuid);
@@ -109,6 +112,11 @@ const ProjectTablesConfiguration: FC<{
             ),
         [explores],
     );
+
+    const handleResetSearch = useCallback(() => {
+        setTimeout(() => setSearch(() => ''), 0);
+    }, [setSearch]);
+
     const { setFieldValue } = form;
     useEffect(() => {
         if (data) {
@@ -234,6 +242,43 @@ const ProjectTablesConfiguration: FC<{
                                             availableTags.length === 0
                                         }
                                         placeholder="e.g lightdash, prod"
+                                        searchable
+                                        clearSearchOnChange={false}
+                                        searchValue={search}
+                                        onSearchChange={setSearch}
+                                        itemComponent={({ label, ...others }) =>
+                                            others.disabled ? (
+                                                <Text
+                                                    color="dimmed"
+                                                    {...others}
+                                                >
+                                                    {label}
+                                                </Text>
+                                            ) : (
+                                                <Highlight
+                                                    highlight={search}
+                                                    {...others}
+                                                >
+                                                    {label}
+                                                </Highlight>
+                                            )
+                                        }
+                                        nothingFound={
+                                            isInitialLoading
+                                                ? 'Loading...'
+                                                : 'No results found'
+                                        }
+                                        rightSection={
+                                            isInitialLoading ? (
+                                                <Loader
+                                                    size="xs"
+                                                    color="gray"
+                                                />
+                                            ) : null
+                                        }
+                                        onDropdownClose={() => {
+                                            handleResetSearch();
+                                        }}
                                         {...form.getInputProps('tags')}
                                         error={
                                             availableTags.length === 0
@@ -264,6 +309,43 @@ const ProjectTablesConfiguration: FC<{
                                         )}
                                         disabled={disabled}
                                         placeholder="e.g users, orders"
+                                        searchable
+                                        clearSearchOnChange={false}
+                                        searchValue={search}
+                                        onSearchChange={setSearch}
+                                        itemComponent={({ label, ...others }) =>
+                                            others.disabled ? (
+                                                <Text
+                                                    color="dimmed"
+                                                    {...others}
+                                                >
+                                                    {label}
+                                                </Text>
+                                            ) : (
+                                                <Highlight
+                                                    highlight={search}
+                                                    {...others}
+                                                >
+                                                    {label}
+                                                </Highlight>
+                                            )
+                                        }
+                                        nothingFound={
+                                            isInitialLoading
+                                                ? 'Loading...'
+                                                : 'No results found'
+                                        }
+                                        rightSection={
+                                            isInitialLoading ? (
+                                                <Loader
+                                                    size="xs"
+                                                    color="gray"
+                                                />
+                                            ) : null
+                                        }
+                                        onDropdownClose={() => {
+                                            handleResetSearch();
+                                        }}
                                         {...form.getInputProps('names')}
                                     />
                                 )}
