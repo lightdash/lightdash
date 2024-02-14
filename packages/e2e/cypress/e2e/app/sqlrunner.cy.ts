@@ -66,7 +66,8 @@ describe('SQL Runner', () => {
 
     it('Get error on invalid SQL', () => {
         cy.contains('SQL');
-        cy.get('.ace_content').type(`SELECT test`).type('{ctrl}{enter}');
+        cy.get('.ace_content').type(`SELECT test`);
+        cy.contains('Run query').click();
 
         cy.findByText('Failed to run sql query');
         cy.contains('column "test" does not exist');
@@ -76,6 +77,7 @@ describe('SQL Runner', () => {
         cy.contains('SQL');
         const sql = `select a from ( values ('foo'), ('bar')) s(a);`;
 
-        cy.get('.ace_content').type(sql).type('{ctrl}{enter}');
+        cy.get('.ace_content').type(sql);
+        cy.contains('Run query').click();
     });
 });
