@@ -56,8 +56,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<DashboardSearchResult[]> {
-        const dashboards = await this.database(DashboardsTableName)
-            .select()
+        const subquery = this.database(DashboardsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
@@ -79,7 +78,12 @@ export class SearchModel {
                 ),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .orderBy('search_rank', 'desc')
+            .orderBy('search_rank', 'desc');
+
+        const dashboards = await this.database(DashboardsTableName)
+            .select()
+            .from(subquery.as('dashboards_with_rank'))
+            .where('search_rank', '>', 0)
             .limit(10);
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
