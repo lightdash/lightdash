@@ -80,6 +80,7 @@ const CustomMetricsTable: FC<Props> = ({
             );
         }
     }, [checkedUuids, customMetrics]);
+    console.log('checkedUuids', checkedUuids);
 
     useEffect(() => {
         onSelectedCustomMetricsChange(Array.from(checkedUuids));
