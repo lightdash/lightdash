@@ -1,5 +1,6 @@
 import {
     getRequestMethod,
+    LightdashMode,
     LightdashRequestMethodHeader,
     NotFoundError,
     ProjectCatalog,
@@ -8,6 +9,7 @@ import {
 import express from 'express';
 
 import path from 'path';
+import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -434,3 +436,35 @@ projectRouter.get(
         }
     },
 );
+
+if (lightdashConfig.mode === LightdashMode.DEV) {
+    projectRouter.get(
+        '/backfill-embeddings',
+        isAuthenticated,
+        async (req, res, next) => {
+            try {
+                const { projectUuid } = req.params;
+                const dashboards = await dashboardService.getAllByProject(
+                    req.user!,
+                    projectUuid,
+                );
+
+                await dashboards.reduce(
+                    (promiseChain, d) =>
+                        promiseChain.then(() =>
+                            dashboardService.createEmbedding(req.user!, d.uuid),
+                        ),
+                    Promise.resolve(),
+                );
+
+                res.json({
+                    status: 'ok',
+                    results: null,
+                });
+            } catch (e) {
+                console.log(e);
+                next(e);
+            }
+        },
+    );
+}

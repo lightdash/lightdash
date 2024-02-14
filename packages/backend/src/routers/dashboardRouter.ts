@@ -1,6 +1,4 @@
-import { LightdashMode } from '@lightdash/common';
 import express from 'express';
-import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -194,37 +192,3 @@ dashboardRouter.post(
         }
     },
 );
-
-if (lightdashConfig.mode === LightdashMode.DEV) {
-    dashboardRouter.get(
-        '/:projectUuid/backfill-embeddings',
-        isAuthenticated,
-        async (req, res, next) => {
-            res.setTimeout(60 * 1000 * 60);
-
-            try {
-                const { projectUuid } = req.params;
-                const dashboards = await dashboardService.getAllByProject(
-                    req.user!,
-                    projectUuid,
-                );
-
-                await dashboards.reduce(
-                    (promiseChain, d) =>
-                        promiseChain.then(() =>
-                            dashboardService.createEmbedding(req.user!, d.uuid),
-                        ),
-                    Promise.resolve(),
-                );
-
-                res.json({
-                    status: 'ok',
-                    results: null,
-                });
-            } catch (e) {
-                console.log(e);
-                next(e);
-            }
-        },
-    );
-}
