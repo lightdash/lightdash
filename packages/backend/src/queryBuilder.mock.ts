@@ -1259,7 +1259,7 @@ export const METRIC_QUERY_WITH_SQL_FILTER = `SELECT
   MAX("table1".number_column) AS "table1_metric1"
 FROM "db"."schema"."table1" AS "table1"
 
-WHERE 'EU' = 'US'
+WHERE ('EU' = 'US')
 GROUP BY 1
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;

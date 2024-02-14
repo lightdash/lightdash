@@ -106,31 +106,38 @@ export const replaceUserAttributes = (
         return sqlFilter;
     }
 
-    return sqlAttributes.reduce<string>((acc, sqlAttribute) => {
-        const attribute = sqlAttribute.replace(userAttributeRegex, '$1');
-        const attributeValues: string[] | undefined = userAttributes[attribute];
+    const replacedUserAttributesSql = sqlAttributes.reduce<string>(
+        (acc, sqlAttribute) => {
+            const attribute = sqlAttribute.replace(userAttributeRegex, '$1');
+            const attributeValues: string[] | undefined =
+                userAttributes[attribute];
 
-        if (attributeValues === undefined) {
-            throw new ForbiddenError(
-                `Missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
-            );
-        }
-        if (attributeValues.length === 0) {
-            throw new ForbiddenError(
-                `Invalid or missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
-            );
-        }
+            if (attributeValues === undefined) {
+                throw new ForbiddenError(
+                    `Missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
+                );
+            }
+            if (attributeValues.length === 0) {
+                throw new ForbiddenError(
+                    `Invalid or missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
+                );
+            }
 
-        return acc.replace(
-            sqlAttribute,
-            attributeValues
-                .map(
-                    (attributeValue) =>
-                        `${stringQuoteChar}${attributeValue}${stringQuoteChar}`,
-                )
-                .join(', '),
-        );
-    }, sqlFilter);
+            return acc.replace(
+                sqlAttribute,
+                attributeValues
+                    .map(
+                        (attributeValue) =>
+                            `${stringQuoteChar}${attributeValue}${stringQuoteChar}`,
+                    )
+                    .join(', '),
+            );
+        },
+        sqlFilter,
+    );
+
+    // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
+    return `(${replacedUserAttributesSql})`;
 };
 
 export const assertValidDimensionRequiredAttribute = (
