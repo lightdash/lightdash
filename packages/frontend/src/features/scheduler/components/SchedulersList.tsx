@@ -12,12 +12,23 @@ import SchedulersListItem from './SchedulersListItem';
 
 type Props = {
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
+    isAlertList?: boolean;
     onEdit: (schedulerUuid: string) => void;
 };
 
-const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
+const SchedulersList: FC<Props> = ({
+    schedulersQuery,
+    onEdit,
+    isAlertList,
+}) => {
     const { data: schedulers, isInitialLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
+
+    const alertSchedulers =
+        schedulers?.filter(
+            (scheduler) =>
+                scheduler.thresholds && scheduler.thresholds.length > 0,
+        ) || [];
 
     if (isInitialLoading) {
         return (
@@ -30,11 +41,16 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
     if (error) {
         return <ErrorState error={error.error} />;
     }
-    if (!schedulers || schedulers.length <= 0) {
+    if (
+        ((!schedulers || schedulers.length <= 0) && !isAlertList) ||
+        (isAlertList && alertSchedulers.length <= 0)
+    ) {
         return (
             <Stack color="gray" align="center" mt="xxl">
                 <Title order={4} color="gray.6">
-                    There are no existing scheduled deliveries
+                    {`There are no existing ${
+                        isAlertList ? 'alerts' : 'scheduled deliveries'
+                    }`}
                 </Title>
                 <Text color="gray.6">
                     Add one by clicking on "Create new" below
@@ -44,17 +60,27 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
     }
     return (
         <div>
-            {schedulers.map(
-                (scheduler) =>
-                    scheduler.format !== SchedulerFormat.GSHEETS && (
-                        <SchedulersListItem
-                            key={scheduler.schedulerUuid}
-                            scheduler={scheduler}
-                            onEdit={onEdit}
-                            onDelete={setSchedulerUuid}
-                        />
-                    ),
-            )}
+            {isAlertList
+                ? alertSchedulers?.map((alertScheduler) => (
+                      <SchedulersListItem
+                          key={alertScheduler.schedulerUuid}
+                          scheduler={alertScheduler}
+                          onEdit={onEdit}
+                          onDelete={setSchedulerUuid}
+                      />
+                  ))
+                : schedulers &&
+                  schedulers.map(
+                      (scheduler) =>
+                          scheduler.format !== SchedulerFormat.GSHEETS && (
+                              <SchedulersListItem
+                                  key={scheduler.schedulerUuid}
+                                  scheduler={scheduler}
+                                  onEdit={onEdit}
+                                  onDelete={setSchedulerUuid}
+                              />
+                          ),
+                  )}
             {schedulerUuid && (
                 <SchedulerDeleteModal
                     opened={true}

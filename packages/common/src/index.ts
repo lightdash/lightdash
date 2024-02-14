@@ -22,6 +22,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    isTableCalculation,
     ItemsMap,
     Metric,
     TableCalculation,
@@ -848,6 +849,17 @@ export const getMetricsFromItemsMap = (
     Object.entries(itemsMap).reduce<Record<string, Metric>>(
         (acc, [key, value]) => {
             if (isField(value) && isMetric(value) && filter(value)) {
+                return { ...acc, [key]: value };
+            }
+            return acc;
+        },
+        {},
+    );
+
+export const getTableCalculationsFromItemsMap = (itemsMap?: ItemsMap) =>
+    Object.entries(itemsMap ?? {}).reduce<Record<string, TableCalculation>>(
+        (acc, [key, value]) => {
+            if (isTableCalculation(value)) {
                 return { ...acc, [key]: value };
             }
             return acc;

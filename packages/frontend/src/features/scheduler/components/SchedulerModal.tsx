@@ -1,5 +1,6 @@
+import { ItemsMap } from '@lightdash/common';
 import { Group, Modal, Text } from '@mantine/core';
-import { IconFlag, IconSend } from '@tabler/icons-react';
+import { IconBell, IconSend } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SchedulerModalContent from './SchedulerModalContent';
@@ -10,6 +11,7 @@ const SchedulersModal: FC<
         onClose?: () => void;
         isOpen?: boolean;
         isAlert?: boolean;
+        itemsMap?: ItemsMap;
     }
 > = ({
     resourceUuid,
@@ -18,6 +20,7 @@ const SchedulersModal: FC<
     isOpen = false,
     isChart,
     isAlert,
+    itemsMap,
     onClose = () => {},
 }) => {
     return (
@@ -29,7 +32,7 @@ const SchedulersModal: FC<
             title={
                 isAlert ? (
                     <Group spacing="xs">
-                        <MantineIcon icon={IconFlag} size="lg" color="gray.7" />
+                        <MantineIcon icon={IconBell} size="lg" color="gray.7" />
                         <Text fw={600}>Threshold alerts</Text>
                     </Group>
                 ) : (
@@ -51,6 +54,7 @@ const SchedulersModal: FC<
                 onClose={onClose}
                 isChart={isChart}
                 isAlert={isAlert}
+                itemsMap={itemsMap}
             />
         </Modal>
     );

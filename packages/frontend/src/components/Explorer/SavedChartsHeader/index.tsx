@@ -21,6 +21,7 @@ import {
     IconAlertTriangle,
     IconArrowBack,
     IconArrowRight,
+    IconBell,
     IconCheck,
     IconChevronRight,
     IconCircleFilled,
@@ -29,7 +30,6 @@ import {
     IconCodePlus,
     IconCopy,
     IconDots,
-    IconFlag,
     IconFolder,
     IconFolders,
     IconHistory,
@@ -182,6 +182,14 @@ const SavedChartsHeader: FC = () => {
         (context) => context.state.savedChart,
     );
     const reset = useExplorerContext((context) => context.actions.reset);
+
+    const resultsData = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+
+    const itemsMap = useMemo(() => {
+        return resultsData?.fields;
+    }, [resultsData]);
 
     const { clearIsEditingDashboardChart, getIsEditingDashboardChart } =
         useDashboardStorage();
@@ -736,7 +744,7 @@ const SavedChartsHeader: FC = () => {
                                     alertsEnabled && (
                                         <Menu.Item
                                             icon={
-                                                <MantineIcon icon={IconFlag} />
+                                                <MantineIcon icon={IconBell} />
                                             }
                                             onClick={() =>
                                                 toggleThresholdAlertsModal(true)
@@ -894,6 +902,7 @@ const SavedChartsHeader: FC = () => {
                     chartUuid={savedChart.uuid}
                     name={savedChart.name}
                     isAlert
+                    itemsMap={itemsMap}
                     isOpen={isThresholdAlertsModalOpen}
                     onClose={() => toggleThresholdAlertsModal(false)}
                 />

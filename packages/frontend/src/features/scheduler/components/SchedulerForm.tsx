@@ -1,12 +1,18 @@
 import {
     CreateSchedulerAndTargetsWithoutIds,
     CreateSchedulerTarget,
+    getItemId,
+    getMetricsFromItemsMap,
+    getTableCalculationsFromItemsMap,
     isDashboardScheduler,
+    isNumericItem,
     isSchedulerCsvOptions,
     isSchedulerImageOptions,
     isSlackTarget,
+    ItemsMap,
     SchedulerAndTargets,
     SchedulerFormat,
+    ThresoldOperator,
     validateEmail,
 } from '@lightdash/common';
 import {
@@ -39,7 +45,7 @@ import {
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { FC, useCallback, useMemo, useState } from 'react';
-// import FieldSelect from '../../../components/common/FieldSelect';
+import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
@@ -86,8 +92,26 @@ const DEFAULT_VALUES = {
     slackTargets: [] as string[],
     filters: undefined,
     customViewportWidth: undefined,
-    alerts: undefined,
+    thresholds: [],
 };
+
+const DEFAULT_VALUES_ALERT = {
+    ...DEFAULT_VALUES,
+    thresholds: [
+        {
+            fieldId: '',
+            operator: ThresoldOperator.GREATER_THAN,
+            value: 0,
+        },
+    ],
+};
+
+const thresholdOperatorOptions = [
+    { label: 'Greater than', value: ThresoldOperator.GREATER_THAN },
+    { label: 'Less than', value: ThresoldOperator.LESS_THAN },
+    { label: 'Increased by', value: ThresoldOperator.INCREASED_BY },
+    { label: 'Decreased by', value: ThresoldOperator.DECREASED_BY },
+];
 
 const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
     const options = schedulerData.options;
@@ -134,6 +158,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
             filters: schedulerData.filters,
             customViewportWidth: schedulerData.customViewportWidth,
         }),
+        thresholds: schedulerData.thresholds,
     };
 };
 
@@ -186,6 +211,7 @@ type Props = {
     loading?: boolean;
     confirmText?: string;
     isAlert?: boolean;
+    itemsMap?: ItemsMap;
 };
 
 const SchedulerForm: FC<Props> = ({
@@ -198,11 +224,14 @@ const SchedulerForm: FC<Props> = ({
     loading,
     confirmText,
     isAlert,
+    itemsMap,
 }) => {
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
                 ? getFormValuesFromScheduler(savedSchedulerData)
+                : isAlert
+                ? DEFAULT_VALUES_ALERT
                 : DEFAULT_VALUES,
         validateInputOnBlur: ['options.customLimit'],
 
@@ -223,6 +252,7 @@ const SchedulerForm: FC<Props> = ({
                     cronExpression,
                 );
             },
+            // TODO: validate thresholds
         },
 
         transformValues: (values): CreateSchedulerAndTargetsWithoutIds => {
@@ -266,6 +296,7 @@ const SchedulerForm: FC<Props> = ({
                     filters: values.filters,
                     customViewportWidth: values.customViewportWidth,
                 }),
+                thresholds: values.thresholds,
             };
         },
     });
@@ -282,6 +313,11 @@ const SchedulerForm: FC<Props> = ({
     >([]);
 
     const [showFormatting, setShowFormatting] = useState(false);
+
+    const numericMetrics = {
+        ...getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem),
+        ...getTableCalculationsFromItemsMap(itemsMap),
+    };
 
     const isDashboard = resource && resource.type === 'dashboard';
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
@@ -393,8 +429,7 @@ const SchedulerForm: FC<Props> = ({
                         />
                         {isAlert && (
                             <Stack spacing="xs">
-                                {/* <FieldSelect
-                                    size="xs"
+                                <FieldSelect
                                     label={
                                         <Text>
                                             Alert field{' '}
@@ -405,19 +440,39 @@ const SchedulerForm: FC<Props> = ({
                                     }
                                     withinPortal
                                     hasGrouping
-                                    item={selectedField}
-                                    items={fields}
-                                    onChange={(newField) => {
-                                        if (!newField) return;
-                                        console.log('newField', newField);
-                                        
-                                        // handleChangeField(newField);
-                                    }}
+                                    items={Object.values(numericMetrics)}
                                     data-testid="Alert/FieldSelect"
-                                /> */}
+                                    {...{
+                                        // TODO: the field select doesn't work great
+                                        // with use form, so we provide our own on change here
+                                        // we could definitely make this easier to work with
+                                        ...form.getInputProps(
+                                            `thresholds.0.fieldId`,
+                                        ),
+                                        onChange: (value) => {
+                                            if (!value) return;
+                                            form.setFieldValue(
+                                                'thresholds.0.fieldId',
+                                                getItemId(value),
+                                            );
+                                        },
+                                    }}
+                                />
                                 <Group noWrap grow>
-                                    <Select label="Condition" data={[]} />
-                                    <TextInput label="Threshold" />
+                                    <Select
+                                        required
+                                        label="Condition"
+                                        data={thresholdOperatorOptions}
+                                        {...form.getInputProps(
+                                            `thresholds.0.operator`,
+                                        )}
+                                    />
+                                    <NumberInput
+                                        label="Threshold"
+                                        {...form.getInputProps(
+                                            `thresholds.0.value`,
+                                        )}
+                                    />
                                 </Group>
                             </Stack>
                         )}
