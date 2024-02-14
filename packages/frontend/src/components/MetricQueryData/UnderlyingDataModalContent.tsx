@@ -15,9 +15,10 @@ import {
     Metric,
     MetricQuery,
 } from '@lightdash/common';
-import { Box, Group, Modal, Title } from '@mantine/core';
+import { Box, Button, Group, Modal, Title } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
-import { FC, useCallback, useMemo } from 'react';
+import { IconShare2 } from '@tabler/icons-react';
+import { FC, useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
@@ -28,8 +29,9 @@ import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
+import MantineIcon from '../common/MantineIcon';
 import { TableColumn } from '../common/Table/types';
-import DownloadCsvButton from '../DownloadCsvButton';
+import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 
@@ -305,18 +307,20 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         isInitialLoading,
     } = useUnderlyingDataResults(tableName, underlyingDataMetricQuery);
 
-    const getCsvLink = async () => {
+    const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
         const csvResponse = await downloadCsv({
             projectUuid,
             tableId: tableName,
             query: underlyingDataMetricQuery,
-            csvLimit: resultsData?.rows.length,
-            onlyRaw: false,
+            csvLimit: limit,
+            onlyRaw,
             showTableNames: true,
             columnOrder: [],
         });
         return csvResponse;
     };
+
+    const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
 
     return (
         <Modal.Content
@@ -340,12 +344,27 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                     projectUuid: projectUuid,
                                 })}
                             >
-                                <DownloadCsvButton
-                                    getCsvLink={getCsvLink}
-                                    disabled={
-                                        !resultsData?.rows ||
-                                        resultsData?.rows.length <= 0
+                                <Button
+                                    leftIcon={<MantineIcon icon={IconShare2} />}
+                                    variant="subtle"
+                                    compact
+                                    onClick={() =>
+                                        setIsCSVExportModalOpen(true)
                                     }
+                                >
+                                    Export CSV
+                                </Button>
+                                <ExportCSVModal
+                                    getCsvLink={getCsvLink}
+                                    onClose={() =>
+                                        setIsCSVExportModalOpen(false)
+                                    }
+                                    onConfirm={() =>
+                                        setIsCSVExportModalOpen(false)
+                                    }
+                                    opened={isCSVExportModalOpen}
+                                    projectUuid={projectUuid}
+                                    rows={resultsData?.rows}
                                 />
                             </Can>
                             <Can
