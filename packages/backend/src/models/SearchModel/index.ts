@@ -22,6 +22,7 @@ import {
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { getFullTextSearchRankColumn } from './utils/fullTextSearch';
 
 type ModelDependencies = {
     database: Knex;
@@ -56,6 +57,14 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<DashboardSearchResult[]> {
+        const { searchRankRawSql, searchRankColumnName } =
+            getFullTextSearchRankColumn(
+                this.database,
+                DashboardsTableName,
+                'search_vector',
+                query,
+            );
+
         const subquery = this.database(DashboardsTableName)
             .leftJoin(
                 SpaceTableName,
@@ -72,18 +81,15 @@ export class SearchModel {
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { spaceUuid: 'space_uuid' },
-                this.database.raw(
-                    `ts_rank(${DashboardsTableName}.search_vector, websearch_to_tsquery(?), 0) as search_rank`,
-                    [query],
-                ),
+                searchRankRawSql,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .orderBy('search_rank', 'desc');
+            .orderBy(searchRankColumnName, 'desc');
 
         const dashboards = await this.database(DashboardsTableName)
             .select()
             .from(subquery.as('dashboards_with_rank'))
-            .where('search_rank', '>', 0)
+            .where(searchRankColumnName, '>', 0)
             .limit(10);
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
