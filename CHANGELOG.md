@@ -1,3 +1,10 @@
+## [0.989.2](https://github.com/lightdash/lightdash/compare/0.989.1...0.989.2) (2024-02-14)
+
+
+### Bug Fixes
+
+* sqlrunner.cy.ts tests ([#8930](https://github.com/lightdash/lightdash/issues/8930)) ([0743153](https://github.com/lightdash/lightdash/commit/0743153d13f9458e49f289c910004d9dafd394e7))
+
 ## [0.989.1](https://github.com/lightdash/lightdash/compare/0.989.0...0.989.1) (2024-02-14)
 
 
