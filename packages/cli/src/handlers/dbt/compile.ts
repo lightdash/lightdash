@@ -1,5 +1,6 @@
 import { ParseError } from '@lightdash/common';
 import execa from 'execa';
+import { gte } from 'semver';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 
@@ -80,13 +81,8 @@ export const dbtList = async (
             'unique_id',
         ];
         const version = await getDbtVersion();
-        // older dbt versions don't support --quiet flag - only use it if the version is 1.6.6 or higher
-        if (
-            version.localeCompare('1.6.6', undefined, {
-                numeric: true,
-                sensitivity: 'base',
-            }) >= 0
-        ) {
+        // Only use --quiet flag for dbt versions >= 1.6.6
+        if (gte(version, '1.6.6')) {
             args.push('--quiet');
         }
         GlobalState.debug(`> Running: dbt ls ${args.join(' ')}`);
