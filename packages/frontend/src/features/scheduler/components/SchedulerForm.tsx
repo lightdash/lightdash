@@ -493,102 +493,90 @@ const SchedulerForm: FC<Props> = ({
                                 </Box>
                             </Input.Wrapper>
                         )}
-                        <Stack spacing={0}>
-                            <Input.Label mb="xxs"> Format </Input.Label>
-                            <Group spacing="xs" noWrap>
-                                <SegmentedControl
-                                    data={[
-                                        {
-                                            label: '.csv',
-                                            value: SchedulerFormat.CSV,
-                                        },
-                                        {
-                                            label: 'Image',
-                                            value: SchedulerFormat.IMAGE,
-                                            disabled: isImageDisabled,
-                                        },
-                                    ]}
-                                    w="50%"
-                                    mb="xs"
-                                    {...form.getInputProps('format')}
-                                />
-                                {isImageDisabled && (
-                                    <Text
-                                        size="xs"
-                                        color="gray.6"
-                                        w="30%"
-                                        sx={{ alignSelf: 'start' }}
-                                    >
-                                        You must enable the
-                                        <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
-                                            {' '}
-                                            headless browser{' '}
-                                        </Anchor>
-                                        to send images
-                                    </Text>
-                                )}
-                            </Group>
-                            <Space h="xxs" />
-                            {form.getInputProps('format').value ===
-                            SchedulerFormat.IMAGE ? (
-                                <Checkbox
-                                    h={26}
-                                    label="Also include image as PDF attachment"
-                                    labelPosition="left"
-                                    {...form.getInputProps('options.withPdf', {
-                                        type: 'checkbox',
-                                    })}
-                                />
-                            ) : (
-                                <Stack spacing="xs">
-                                    <Button
-                                        variant="subtle"
-                                        compact
-                                        sx={{
-                                            alignSelf: 'start',
-                                        }}
-                                        leftIcon={
-                                            <MantineIcon icon={IconSettings} />
-                                        }
-                                        rightIcon={
-                                            <MantineIcon
-                                                icon={
-                                                    showFormatting
-                                                        ? IconChevronUp
-                                                        : IconChevronDown
-                                                }
-                                            />
-                                        }
-                                        onClick={() =>
-                                            setShowFormatting((old) => !old)
-                                        }
-                                    >
-                                        Formatting options
-                                    </Button>
-                                    <Collapse in={showFormatting} pl="md">
-                                        <Group align="start" spacing="xxl">
-                                            <Radio.Group
-                                                label="Values"
-                                                {...form.getInputProps(
-                                                    'options.formatted',
-                                                )}
-                                            >
-                                                <Stack spacing="xxs" pt="xs">
-                                                    <Radio
-                                                        label="Formatted"
-                                                        value={Values.FORMATTED}
-                                                    />
-                                                    <Radio
-                                                        label="Raw"
-                                                        value={Values.RAW}
-                                                    />
-                                                </Stack>
-                                            </Radio.Group>
-                                            <Stack spacing="xs">
+                        {!isAlert && (
+                            <Stack spacing={0}>
+                                <Input.Label mb="xxs"> Format </Input.Label>
+                                <Group spacing="xs" noWrap>
+                                    <SegmentedControl
+                                        data={[
+                                            {
+                                                label: '.csv',
+                                                value: SchedulerFormat.CSV,
+                                            },
+                                            {
+                                                label: 'Image',
+                                                value: SchedulerFormat.IMAGE,
+                                                disabled: isImageDisabled,
+                                            },
+                                        ]}
+                                        w="50%"
+                                        mb="xs"
+                                        {...form.getInputProps('format')}
+                                    />
+                                    {isImageDisabled && (
+                                        <Text
+                                            size="xs"
+                                            color="gray.6"
+                                            w="30%"
+                                            sx={{ alignSelf: 'start' }}
+                                        >
+                                            You must enable the
+                                            <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
+                                                {' '}
+                                                headless browser{' '}
+                                            </Anchor>
+                                            to send images
+                                        </Text>
+                                    )}
+                                </Group>
+                                <Space h="xxs" />
+                                {form.getInputProps('format').value ===
+                                SchedulerFormat.IMAGE ? (
+                                    <Checkbox
+                                        h={26}
+                                        label="Also include image as PDF attachment"
+                                        labelPosition="left"
+                                        {...form.getInputProps(
+                                            'options.withPdf',
+                                            {
+                                                type: 'checkbox',
+                                            },
+                                        )}
+                                    />
+                                ) : (
+                                    <Stack spacing="xs">
+                                        <Button
+                                            variant="subtle"
+                                            compact
+                                            sx={{
+                                                alignSelf: 'start',
+                                            }}
+                                            leftIcon={
+                                                <MantineIcon
+                                                    icon={IconSettings}
+                                                />
+                                            }
+                                            rightIcon={
+                                                <MantineIcon
+                                                    icon={
+                                                        showFormatting
+                                                            ? IconChevronUp
+                                                            : IconChevronDown
+                                                    }
+                                                />
+                                            }
+                                            onClick={() =>
+                                                setShowFormatting((old) => !old)
+                                            }
+                                        >
+                                            Formatting options
+                                        </Button>
+                                        <Collapse in={showFormatting} pl="md">
+                                            <Group align="start" spacing="xxl">
                                                 <Radio.Group
-                                                    label="Limit"
+                                                    label="Values"
                                                     {...form.getInputProps(
-                                                        'options.limit',
+                                                        'options.formatted',
                                                     )}
                                                 >
                                                     <Stack
@@ -596,52 +584,84 @@ const SchedulerForm: FC<Props> = ({
                                                         pt="xs"
                                                     >
                                                         <Radio
-                                                            label="Results in Table"
-                                                            value={Limit.TABLE}
+                                                            label="Formatted"
+                                                            value={
+                                                                Values.FORMATTED
+                                                            }
                                                         />
                                                         <Radio
-                                                            label="All Results"
-                                                            value={Limit.ALL}
-                                                        />
-                                                        <Radio
-                                                            label="Custom..."
-                                                            value={Limit.CUSTOM}
+                                                            label="Raw"
+                                                            value={Values.RAW}
                                                         />
                                                     </Stack>
                                                 </Radio.Group>
-                                                {limit === Limit.CUSTOM && (
-                                                    <NumberInput
-                                                        w={150}
-                                                        min={1}
-                                                        precision={0}
-                                                        required
+                                                <Stack spacing="xs">
+                                                    <Radio.Group
+                                                        label="Limit"
                                                         {...form.getInputProps(
-                                                            'options.customLimit',
+                                                            'options.limit',
                                                         )}
-                                                    />
-                                                )}
+                                                    >
+                                                        <Stack
+                                                            spacing="xxs"
+                                                            pt="xs"
+                                                        >
+                                                            <Radio
+                                                                label="Results in Table"
+                                                                value={
+                                                                    Limit.TABLE
+                                                                }
+                                                            />
+                                                            <Radio
+                                                                label="All Results"
+                                                                value={
+                                                                    Limit.ALL
+                                                                }
+                                                            />
+                                                            <Radio
+                                                                label="Custom..."
+                                                                value={
+                                                                    Limit.CUSTOM
+                                                                }
+                                                            />
+                                                        </Stack>
+                                                    </Radio.Group>
+                                                    {limit === Limit.CUSTOM && (
+                                                        <NumberInput
+                                                            w={150}
+                                                            min={1}
+                                                            precision={0}
+                                                            required
+                                                            {...form.getInputProps(
+                                                                'options.customLimit',
+                                                            )}
+                                                        />
+                                                    )}
 
-                                                {(form.values?.options
-                                                    ?.limit === Limit.ALL ||
-                                                    form.values?.options
-                                                        ?.limit ===
-                                                        Limit.CUSTOM) && (
-                                                    <i>
-                                                        Results are limited to{' '}
-                                                        {Number(
-                                                            health.data?.query
-                                                                .csvCellsLimit ||
-                                                                100000,
-                                                        ).toLocaleString()}{' '}
-                                                        cells for each file
-                                                    </i>
-                                                )}
-                                            </Stack>
-                                        </Group>
-                                    </Collapse>
-                                </Stack>
-                            )}
-                        </Stack>
+                                                    {(form.values?.options
+                                                        ?.limit === Limit.ALL ||
+                                                        form.values?.options
+                                                            ?.limit ===
+                                                            Limit.CUSTOM) && (
+                                                        <i>
+                                                            Results are limited
+                                                            to{' '}
+                                                            {Number(
+                                                                health.data
+                                                                    ?.query
+                                                                    .csvCellsLimit ||
+                                                                    100000,
+                                                            ).toLocaleString()}{' '}
+                                                            cells for each file
+                                                        </i>
+                                                    )}
+                                                </Stack>
+                                            </Group>
+                                        </Collapse>
+                                    </Stack>
+                                )}
+                            </Stack>
+                        )}
 
                         <Input.Wrapper label="Destinations">
                             <Stack mt="sm">
