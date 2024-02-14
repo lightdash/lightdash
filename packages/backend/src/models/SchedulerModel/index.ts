@@ -67,7 +67,7 @@ export class SchedulerModel {
             options: scheduler.options,
             filters: scheduler.filters,
             customViewportWidth: scheduler.custom_viewport_width,
-            thresholds: scheduler.threshold || undefined,
+            thresholds: scheduler.thresholds || undefined,
         } as Scheduler;
     }
 
