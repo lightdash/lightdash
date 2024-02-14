@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ApiError,
+    FeatureFlags,
     GitIntegrationConfiguration,
     PullRequestCreated,
 } from '@lightdash/common';
@@ -28,6 +29,7 @@ import {
     IconCodePlus,
     IconCopy,
     IconDots,
+    IconFlag,
     IconFolder,
     IconFolders,
     IconHistory,
@@ -37,6 +39,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, Fragment, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -152,6 +155,11 @@ const useCreatePullRequestForChartFieldsMutation = (
 };
 
 const SavedChartsHeader: FC = () => {
+    // FEATURE FLAG: enable-threshold-alerting
+    const alertsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.EnableThresholdAlerting,
+    );
+
     const { search } = useLocation();
     const { projectUuid } = useParams<{
         projectUuid: string;
@@ -186,6 +194,8 @@ const SavedChartsHeader: FC = () => {
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isMovingChart, setIsMovingChart] = useState(false);
     const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
+        useToggle(false);
+    const [isThresholdAlertsModalOpen, toggleThresholdAlertsModal] =
         useToggle(false);
     const [
         isSyncWithGoogleSheetsModalOpen,
@@ -309,7 +319,7 @@ const SavedChartsHeader: FC = () => {
         }),
     );
 
-    const userCanCreateDeliveries = user.data?.ability?.can(
+    const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
         subject('ScheduledDeliveries', {
             organizationUuid: user.data?.organizationUuid,
@@ -460,7 +470,7 @@ const SavedChartsHeader: FC = () => {
                     )}
                 </PageTitleAndDetailsContainer>
 
-                {(userCanManageCharts || userCanCreateDeliveries) && (
+                {(userCanManageCharts || userCanCreateDeliveriesAndAlerts) && (
                     <PageActionsContainer>
                         {userCanManageCharts && (
                             <>
@@ -712,7 +722,7 @@ const SavedChartsHeader: FC = () => {
                                             </Menu>
                                         </Menu.Item>
                                     )}
-                                {userCanCreateDeliveries && (
+                                {userCanCreateDeliveriesAndAlerts && (
                                     <Menu.Item
                                         icon={<MantineIcon icon={IconSend} />}
                                         onClick={() =>
@@ -722,6 +732,19 @@ const SavedChartsHeader: FC = () => {
                                         Scheduled deliveries
                                     </Menu.Item>
                                 )}
+                                {userCanCreateDeliveriesAndAlerts &&
+                                    alertsEnabled && (
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon icon={IconFlag} />
+                                            }
+                                            onClick={() =>
+                                                toggleThresholdAlertsModal(true)
+                                            }
+                                        >
+                                            Threshold alerts
+                                        </Menu.Item>
+                                    )}
                                 {userCanManageCharts &&
                                 hasGoogleDriveEnabled ? (
                                     <Menu.Item
@@ -864,6 +887,15 @@ const SavedChartsHeader: FC = () => {
                     name={savedChart.name}
                     isOpen={isScheduledDeliveriesModalOpen}
                     onClose={() => toggleScheduledDeliveriesModal(false)}
+                />
+            )}
+            {isThresholdAlertsModalOpen && savedChart?.uuid && (
+                <ChartSchedulersModal
+                    chartUuid={savedChart.uuid}
+                    name={savedChart.name}
+                    isAlert
+                    isOpen={isThresholdAlertsModalOpen}
+                    onClose={() => toggleThresholdAlertsModal(false)}
                 />
             )}
             {savedChart && (

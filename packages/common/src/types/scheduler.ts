@@ -59,6 +59,19 @@ export type SchedulerLog = {
 
 export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
 
+enum AlertOperator {
+    GREATER_THAN = 'greater_than',
+    LESS_THAN = 'less_than',
+    INCREASED_BY = 'increased_by',
+    DECREASED_BY = 'decreased_by',
+}
+
+export type AlertThreshold = {
+    fieldUuid: string;
+    threshold: number;
+    operator: AlertOperator;
+};
+
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
@@ -71,6 +84,7 @@ export type SchedulerBase = {
     savedChartUuid: string | null;
     dashboardUuid: string | null;
     options: SchedulerOptions;
+    alerts?: AlertThreshold[];
 };
 
 export type ChartScheduler = SchedulerBase & {
