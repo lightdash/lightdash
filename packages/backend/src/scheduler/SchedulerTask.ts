@@ -32,6 +32,8 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SlackNotificationPayload,
+    ThresholdOptions,
+    ThresoldOperator,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
@@ -971,6 +973,41 @@ export const sendEmailNotification = async (
     }
 };
 
+const isPositiveThesholdAlert = (
+    threshold: ThresholdOptions[],
+    results: Record<string, any>[],
+): boolean => {
+    const { fieldId, operator, value: thresholdValue } = threshold[0];
+
+    const firstResult = results[0][fieldId];
+    if (firstResult === undefined) {
+        throw new Error(
+            `Threshold alert error: Field ${fieldId} not found in results`,
+        );
+    }
+    const firstValue = parseFloat(firstResult); // This will throw an error if value is not a valid number
+    switch (operator) {
+        case ThresoldOperator.GREATER_THAN:
+            return firstValue > thresholdValue;
+        case ThresoldOperator.LESS_THAN:
+            return firstValue < thresholdValue;
+        case ThresoldOperator.INCREASED_BY:
+        case ThresoldOperator.DECREASED_BY:
+            const secondValue = parseFloat(results[1][fieldId]);
+            const increase = firstValue - secondValue;
+            if (operator === ThresoldOperator.INCREASED_BY) {
+                return thresholdValue < increase / (secondValue * 100);
+            }
+            return thresholdValue > increase / (secondValue * 100);
+
+        default:
+            assertUnreachable(
+                operator,
+                `Unknown threshold alert operator: ${operator}`,
+            );
+    }
+    return false;
+};
 export const uploadGsheets = async (
     jobId: string,
     notification: GsheetsNotificationPayload,
@@ -1000,7 +1037,7 @@ export const uploadGsheets = async (
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
             );
-        const { format, savedChartUuid, dashboardUuid } = scheduler;
+        const { format, savedChartUuid, dashboardUuid, threshold } = scheduler;
 
         const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
             ? scheduler.options.gdriveId
@@ -1035,6 +1072,20 @@ export const uploadGsheets = async (
                 user,
                 savedChartUuid,
             );
+
+            if (threshold !== undefined && threshold.length > 0) {
+                // TODO add multiple AND conditions
+                if (isPositiveThesholdAlert(threshold, rows)) {
+                    console.debug(
+                        'Positive threshold alert, continue with notification',
+                    );
+                } else {
+                    console.debug(
+                        'Negative threshold alert, skipping notification',
+                    );
+                    return;
+                }
+            }
 
             const explore = await projectService.getExplore(
                 user,
