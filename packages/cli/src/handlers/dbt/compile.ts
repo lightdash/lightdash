@@ -80,8 +80,13 @@ export const dbtList = async (
             'unique_id',
         ];
         const version = await getDbtVersion();
-        // older dbt versions don't support --quiet flag
-        if (!version.startsWith('1.3.') && !version.startsWith('1.4.')) {
+        // older dbt versions don't support --quiet flag - only use it if the version is 1.6.6 or higher
+        if (
+            version.localeCompare('1.6.6', undefined, {
+                numeric: true,
+                sensitivity: 'base',
+            }) >= 0
+        ) {
             args.push('--quiet');
         }
         GlobalState.debug(`> Running: dbt ls ${args.join(' ')}`);
