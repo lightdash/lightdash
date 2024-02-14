@@ -59,6 +59,19 @@ export type SchedulerLog = {
 
 export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
 
+export enum ThresoldOperator {
+    GREATER_THAN = 'greaterThan',
+    LESS_THAN = 'lessThan',
+    INCREASED_BY = 'increasedBy',
+    DECREASED_BY = 'decreasedBy',
+    // HAS_CHANGED = '=',
+}
+export type ThresholdOptions = {
+    operator: ThresoldOperator;
+    fieldId: string;
+    value: number;
+};
+
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
@@ -71,6 +84,7 @@ export type SchedulerBase = {
     savedChartUuid: string | null;
     dashboardUuid: string | null;
     options: SchedulerOptions;
+    threshold?: ThresholdOptions;
 };
 
 export type ChartScheduler = SchedulerBase & {
