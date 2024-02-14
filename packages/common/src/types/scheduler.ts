@@ -169,7 +169,13 @@ export type CreateSchedulerAndTargetsWithoutIds = Omit<
 
 export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
-    'schedulerUuid' | 'name' | 'message' | 'cron' | 'format' | 'options'
+    | 'schedulerUuid'
+    | 'name'
+    | 'message'
+    | 'cron'
+    | 'format'
+    | 'options'
+    | 'threshold'
 > &
     Pick<DashboardScheduler, 'filters' | 'customViewportWidth'> & {
         targets: Array<

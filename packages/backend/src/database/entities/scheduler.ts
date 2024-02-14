@@ -27,6 +27,7 @@ export type SchedulerDb = {
     options: Record<string, any>;
     filters: string | null;
     custom_viewport_width: number | null;
+    threshold: Record<string, any>[] | null;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {
@@ -70,6 +71,7 @@ export type SchedulerTable = Knex.CompositeTableType<
         | 'options'
         | 'filters'
         | 'custom_viewport_width'
+        | 'threshold'
     >
 >;
 
