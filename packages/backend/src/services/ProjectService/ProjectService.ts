@@ -36,7 +36,9 @@ import {
     Explore,
     ExploreError,
     FeatureFlags,
+    Field,
     fieldId as getFieldId,
+    FieldType,
     FilterableField,
     FilterGroup,
     FilterGroupItem,
@@ -53,6 +55,7 @@ import {
     getMetrics,
     hasIntersection,
     isDateItem,
+    isDimension,
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
@@ -1739,17 +1742,12 @@ export class ProjectService {
                      * down the stack.
                      */
                     const newTableCalculationsFeatureFlagEnabled =
-                        (await postHogClient?.isFeatureEnabled(
-                            'new-table-calculations-engine',
-                            user.userUuid,
-                            user.organizationUuid !== undefined
-                                ? {
-                                      groups: {
-                                          organization: user.organizationUuid,
-                                      },
-                                  }
-                                : {},
-                        )) ?? false;
+                        await isFeatureFlagEnabled(
+                            FeatureFlags.UseInMemoryTableCalculations,
+                            {
+                                userUuid: user.userUuid,
+                            },
+                        );
 
                     const useNewTableCalculationsEngine =
                         newTableCalculationsFeatureFlagEnabled &&
