@@ -40,6 +40,7 @@ interface ChartSchedulersProps {
     chartUuid: string;
     name: string;
     isOpen: boolean;
+    isAlert?: boolean;
     onClose: () => void;
 }
 

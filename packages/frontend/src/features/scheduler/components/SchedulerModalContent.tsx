@@ -62,8 +62,9 @@ const CreateStateContent: FC<{
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
     isChart: boolean;
+    isAlert?: boolean;
     onBack: () => void;
-}> = ({ resourceUuid, createMutation, isChart, onBack }) => {
+}> = ({ resourceUuid, createMutation, isChart, isAlert, onBack }) => {
     useEffect(() => {
         if (createMutation.isSuccess) {
             createMutation.reset();
@@ -125,6 +126,7 @@ const CreateStateContent: FC<{
                 onBack={onBack}
                 onSendNow={handleSendNow}
                 loading={createMutation.isLoading}
+                isAlert={isAlert}
             />
         </>
     );
@@ -230,6 +232,7 @@ interface Props {
     >;
     onClose: () => void;
     isChart: boolean;
+    isAlert?: boolean;
 }
 
 const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
@@ -237,6 +240,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
     schedulersQuery,
     createMutation,
     isChart,
+    isAlert,
     onClose = () => {},
 }) => {
     const [state, setState] = useState<States>(States.LIST);
@@ -280,6 +284,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                     createMutation={createMutation}
                     isChart={isChart}
                     onBack={() => setState(States.LIST)}
+                    isAlert={isAlert}
                 />
             )}
             {state === States.EDIT && schedulerUuid && (

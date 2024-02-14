@@ -17,4 +17,7 @@ export enum FeatureFlags {
      * color in the org's color palette every time.
      */
     UseSharedColorAssignment = 'use-shared-color-assignment',
+
+    /** Show the option to set up threshold alerting in the UI */
+    EnableThresholdAlerting = 'enable-threshold-alerting',
 }

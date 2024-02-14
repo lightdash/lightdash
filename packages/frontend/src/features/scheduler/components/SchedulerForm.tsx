@@ -23,6 +23,7 @@ import {
     NumberInput,
     Radio,
     SegmentedControl,
+    Select,
     Space,
     Stack,
     Tabs,
@@ -38,6 +39,7 @@ import {
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { FC, useCallback, useMemo, useState } from 'react';
+// import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
@@ -84,6 +86,7 @@ const DEFAULT_VALUES = {
     slackTargets: [] as string[],
     filters: undefined,
     customViewportWidth: undefined,
+    alerts: undefined,
 };
 
 const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
@@ -182,6 +185,7 @@ type Props = {
     onBack?: () => void;
     loading?: boolean;
     confirmText?: string;
+    isAlert?: boolean;
 };
 
 const SchedulerForm: FC<Props> = ({
@@ -193,6 +197,7 @@ const SchedulerForm: FC<Props> = ({
     onBack,
     loading,
     confirmText,
+    isAlert,
 }) => {
     const form = useForm({
         initialValues:
@@ -345,17 +350,21 @@ const SchedulerForm: FC<Props> = ({
                     {isDashboard && dashboard ? (
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
-                    <Tabs.Tab value="customization">Customization</Tabs.Tab>
-
-                    <Tabs.Tab
-                        disabled={
-                            form.values.format !== SchedulerFormat.IMAGE ||
-                            !isDashboard
-                        }
-                        value="preview"
-                    >
-                        Preview and Size
+                    <Tabs.Tab value="customization">
+                        {isAlert ? 'Alert message' : 'Customization'}
                     </Tabs.Tab>
+
+                    {!isAlert && (
+                        <Tabs.Tab
+                            disabled={
+                                form.values.format !== SchedulerFormat.IMAGE ||
+                                !isDashboard
+                            }
+                            value="preview"
+                        >
+                            Preview and Size
+                        </Tabs.Tab>
+                    )}
                 </Tabs.List>
 
                 <Tabs.Panel value="setup" mt="md">
@@ -368,8 +377,12 @@ const SchedulerForm: FC<Props> = ({
                         px="md"
                     >
                         <TextInput
-                            label="Delivery name"
-                            placeholder="Name your delivery"
+                            label={isAlert ? 'Alert name' : 'Delivery name'}
+                            placeholder={
+                                isAlert
+                                    ? 'Name your alert'
+                                    : 'Name your delivery'
+                            }
                             required
                             {...form.getInputProps('name')}
                             styles={{
@@ -378,15 +391,53 @@ const SchedulerForm: FC<Props> = ({
                                 },
                             }}
                         />
-                        <Input.Wrapper label="Delivery frequency">
-                            <Box mt="xxs">
-                                <CronInternalInputs
-                                    disabled={disabled}
-                                    {...form.getInputProps('cron')}
-                                    name="cron"
-                                />
-                            </Box>
-                        </Input.Wrapper>
+                        {isAlert && (
+                            <Stack spacing="xs">
+                                {/* <FieldSelect
+                                    size="xs"
+                                    label={
+                                        <Text>
+                                            Alert field{' '}
+                                            <Text color="red" span>
+                                                *
+                                            </Text>{' '}
+                                        </Text>
+                                    }
+                                    withinPortal
+                                    hasGrouping
+                                    item={selectedField}
+                                    items={fields}
+                                    onChange={(newField) => {
+                                        if (!newField) return;
+                                        console.log('newField', newField);
+                                        
+                                        // handleChangeField(newField);
+                                    }}
+                                    data-testid="Alert/FieldSelect"
+                                /> */}
+                                <Group noWrap grow>
+                                    <Select label="Condition" data={[]} />
+                                    <TextInput label="Threshold" />
+                                </Group>
+                            </Stack>
+                        )}
+                        {isAlert ? (
+                            <Input.Wrapper label="Frequency">
+                                <Text mt={8}>
+                                    Alerts will be processed at 10am daily
+                                </Text>
+                            </Input.Wrapper>
+                        ) : (
+                            <Input.Wrapper label="Delivery frequency">
+                                <Box mt="xxs">
+                                    <CronInternalInputs
+                                        disabled={disabled}
+                                        {...form.getInputProps('cron')}
+                                        name="cron"
+                                    />
+                                </Box>
+                            </Input.Wrapper>
+                        )}
                         <Stack spacing={0}>
                             <Input.Label mb="xxs"> Format </Input.Label>
                             <Group spacing="xs" noWrap>
