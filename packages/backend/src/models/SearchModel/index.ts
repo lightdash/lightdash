@@ -132,8 +132,8 @@ export class SearchModel {
                 query,
             );
 
-        const savedCharts = await this.database(SavedChartsTableName)
-            .select()
+        // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
+        const subquery = this.database(SavedChartsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${SavedChartsTableName}.space_id`,
@@ -156,7 +156,12 @@ export class SearchModel {
                 searchRankRawSql,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .orderBy(searchRankColumnName, 'desc')
+            .orderBy(searchRankColumnName, 'desc');
+
+        const savedCharts = await this.database(SavedChartsTableName)
+            .select()
+            .from(subquery.as('saved_charts_with_rank'))
+            .where(searchRankColumnName, '>', 0)
             .limit(10);
 
         const chartUuids = savedCharts.map((chart) => chart.uuid);
