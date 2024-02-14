@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 
-export function getFullTextSearchRankColumn(
+export function getFullTextSearchRankCalcSql(
     database: Knex,
     tableName: string,
     searchVectorColumnName: string,

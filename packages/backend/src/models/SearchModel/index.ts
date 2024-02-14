@@ -22,7 +22,7 @@ import {
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
-import { getFullTextSearchRankColumn } from './utils/fullTextSearch';
+import { getFullTextSearchRankCalcSql } from './utils/fullTextSearch';
 
 type ModelDependencies = {
     database: Knex;
@@ -58,7 +58,7 @@ export class SearchModel {
         query: string,
     ): Promise<DashboardSearchResult[]> {
         const { searchRankRawSql, searchRankColumnName } =
-            getFullTextSearchRankColumn(
+            getFullTextSearchRankCalcSql(
                 this.database,
                 DashboardsTableName,
                 'search_vector',
@@ -124,6 +124,14 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<SavedChartSearchResult[]> {
+        const { searchRankRawSql, searchRankColumnName } =
+            getFullTextSearchRankCalcSql(
+                this.database,
+                SavedChartsTableName,
+                'search_vector',
+                query,
+            );
+
         const savedCharts = await this.database(SavedChartsTableName)
             .select()
             .leftJoin(
@@ -145,19 +153,11 @@ export class SearchModel {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
                 { spaceUuid: 'space_uuid' },
+                searchRankRawSql,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .andWhere((qB) =>
-                qB
-                    .whereRaw(
-                        `LOWER(${SavedChartsTableName}.name) like LOWER(?)`,
-                        [`%${query}%`],
-                    )
-                    .orWhereRaw(
-                        `LOWER(${SavedChartsTableName}.description) like LOWER(?)`,
-                        [`%${query}%`],
-                    ),
-            );
+            .orderBy(searchRankColumnName, 'desc')
+            .limit(10);
 
         const chartUuids = savedCharts.map((chart) => chart.uuid);
 
