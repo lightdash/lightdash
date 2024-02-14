@@ -56,6 +56,7 @@ import {
 import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
+    getChartThresholdAlertBlocks,
     getDashboardCsvResultsBlocks,
     getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
@@ -338,7 +339,14 @@ export const sendSlackNotification = async (
             throw new Error('Slack app is not configured');
         }
 
-        const { format, savedChartUuid, dashboardUuid, name, cron } = scheduler;
+        const {
+            format,
+            savedChartUuid,
+            dashboardUuid,
+            name,
+            cron,
+            thresholds,
+        } = scheduler;
 
         await schedulerService.logSchedulerJob({
             task: 'sendSlackNotification',
@@ -381,7 +389,30 @@ export const sendSlackNotification = async (
             )} from Lightdash\n${s3Client.getExpirationWarning()?.slack || ''}`,
         };
 
-        if (format === SchedulerFormat.IMAGE) {
+        if (thresholds !== undefined && thresholds.length > 0) {
+            // We assume the threshold is possitive , so we don't need to get results here
+            if (savedChartUuid) {
+                const blocks = getChartThresholdAlertBlocks({
+                    ...getBlocksArgs,
+                    footerMarkdown: `This is a <${url}?threshold_uuid=${
+                        schedulerUuid || ''
+                    }|threshold alert> ${getHumanReadableCronExpression(
+                        cron,
+                    )} from Lightdash\n${
+                        s3Client.getExpirationWarning()?.slack || ''
+                    }`,
+                    thresholds,
+                });
+                await slackClient.postMessage({
+                    organizationUuid,
+                    text: name,
+                    channel,
+                    blocks,
+                });
+            } else {
+                throw new Error('Not implemented');
+            }
+        } else if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
                 throw new Error('Missing image URL');
             }
@@ -839,7 +870,8 @@ export const sendEmailNotification = async (
     });
 
     try {
-        const { format, savedChartUuid, dashboardUuid, name } = scheduler;
+        const { format, savedChartUuid, dashboardUuid, name, thresholds } =
+            scheduler;
 
         await schedulerService.logSchedulerJob({
             task: 'sendEmailNotification',
@@ -862,6 +894,13 @@ export const sendEmailNotification = async (
             notificationPageData;
 
         const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
+
+        if (thresholds !== undefined && thresholds.length > 0) {
+            // We assume the threshold is possitive , so we don't need to get results here
+            throw new Error(
+                'NOT IMPLEMENTED: Thresold alerting for emails not available',
+            );
+        }
 
         if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
