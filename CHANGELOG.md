@@ -1,3 +1,10 @@
+# [0.988.0](https://github.com/lightdash/lightdash/compare/0.987.0...0.988.0) (2024-02-14)
+
+
+### Features
+
+* export png by default ([#8908](https://github.com/lightdash/lightdash/issues/8908)) ([cd86b10](https://github.com/lightdash/lightdash/commit/cd86b10e673df83d941917d8b49b0aa7849a4adc))
+
 # [0.987.0](https://github.com/lightdash/lightdash/compare/0.986.0...0.987.0) (2024-02-14)
 
 
