@@ -974,10 +974,10 @@ export const sendEmailNotification = async (
 };
 
 const isPositiveThesholdAlert = (
-    threshold: ThresholdOptions[],
+    thresholds: ThresholdOptions[],
     results: Record<string, any>[],
 ): boolean => {
-    const { fieldId, operator, value: thresholdValue } = threshold[0];
+    const { fieldId, operator, value: thresholdValue } = thresholds[0];
 
     const firstResult = results[0][fieldId];
     if (firstResult === undefined) {
@@ -1037,7 +1037,7 @@ export const uploadGsheets = async (
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
             );
-        const { format, savedChartUuid, dashboardUuid, threshold } = scheduler;
+        const { format, savedChartUuid, dashboardUuid, thresholds } = scheduler;
 
         const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
             ? scheduler.options.gdriveId
@@ -1073,9 +1073,9 @@ export const uploadGsheets = async (
                 savedChartUuid,
             );
 
-            if (threshold !== undefined && threshold.length > 0) {
+            if (thresholds !== undefined && thresholds.length > 0) {
                 // TODO add multiple AND conditions
-                if (isPositiveThesholdAlert(threshold, rows)) {
+                if (isPositiveThesholdAlert(thresholds, rows)) {
                     console.debug(
                         'Positive threshold alert, continue with notification',
                     );

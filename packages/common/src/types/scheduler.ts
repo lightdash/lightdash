@@ -84,7 +84,7 @@ export type SchedulerBase = {
     savedChartUuid: string | null;
     dashboardUuid: string | null;
     options: SchedulerOptions;
-    threshold?: ThresholdOptions[]; // it can ben an array of AND conditions
+    thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
 };
 
 export type ChartScheduler = SchedulerBase & {
@@ -175,7 +175,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'cron'
     | 'format'
     | 'options'
-    | 'threshold'
+    | 'thresholds'
 > &
     Pick<DashboardScheduler, 'filters' | 'customViewportWidth'> & {
         targets: Array<

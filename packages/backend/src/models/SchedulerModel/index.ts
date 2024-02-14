@@ -67,7 +67,7 @@ export class SchedulerModel {
             options: scheduler.options,
             filters: scheduler.filters,
             customViewportWidth: scheduler.custom_viewport_width,
-            threshold: scheduler.threshold || undefined,
+            thresholds: scheduler.threshold || undefined,
         } as Scheduler;
     }
 
@@ -225,7 +225,7 @@ export class SchedulerModel {
                         newScheduler.customViewportWidth
                             ? newScheduler.customViewportWidth
                             : null,
-                    threshold: newScheduler.threshold || null,
+                    thresholds: newScheduler.thresholds || null,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -271,7 +271,7 @@ export class SchedulerModel {
                         scheduler.customViewportWidth
                             ? scheduler.customViewportWidth
                             : null,
-                    threshold: scheduler.threshold || null,
+                    thresholds: scheduler.thresholds || null,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 
