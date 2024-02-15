@@ -286,6 +286,13 @@ const SchedulerForm: FC<Props> = ({
                 ...emailTargets,
                 ...slackTargets,
             ];
+
+            // const thresholds = values?.thresholds?.map((threshold) => ({
+            //     fieldId: threshold.fieldId,
+            //     operator: threshold.operator,
+            //     value: threshold.value,
+            // }));
+
             return {
                 name: values.name,
                 message: values.message,
@@ -319,6 +326,14 @@ const SchedulerForm: FC<Props> = ({
         ...getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem),
         ...getTableCalculationsFromItemsMap(itemsMap),
     };
+
+    // const numericMetricSelectItems: {label: string; value: string}[] = [];
+    // Object.entries(numericMetrics).forEach(([key, value]) => {
+    //     numericMetricSelectItems.push({
+    //         label: value.name,
+    //         value: key,
+    //     });
+    // });
 
     const isDashboard = resource && resource.type === 'dashboard';
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
@@ -376,6 +391,8 @@ const SchedulerForm: FC<Props> = ({
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
     const limit = form.values?.options?.limit;
+
+    console.log('form', form.values);
 
     return (
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
@@ -442,10 +459,19 @@ const SchedulerForm: FC<Props> = ({
                                     data-testid="Alert/FieldSelect"
                                     {...{
                                         // TODO: the field select doesn't work great
-                                        // with use form, so we provide our own on change here
-                                        // we could definitely make this easier to work with
+                                        // with use form, so we provide our own on change and value here.
+                                        // The field select wants Items, but the form wants strings.
+                                        // We could definitely make this easier to work with
                                         ...form.getInputProps(
-                                            `thresholds.0.fieldId`,
+                                            `thresholds.0.field`,
+                                        ),
+                                        item: Object.values(
+                                            numericMetrics,
+                                        ).find(
+                                            (metric) =>
+                                                getItemId(metric) ===
+                                                form.values?.thresholds?.[0]
+                                                    ?.fieldId,
                                         ),
                                         onChange: (value) => {
                                             if (!value) return;
