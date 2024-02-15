@@ -232,12 +232,13 @@ export const getChartThresholdAlertBlocks = ({
                   },
               }
             : undefined,
+
         {
             type: 'section',
-            fields: getSectionFields([
-                ['name', name],
-                ['description', description],
-            ]),
+            text: {
+                type: 'mrkdwn',
+                text: `Your results for \`${name}\` met the following conditions:`,
+            },
             accessory: {
                 type: 'button',
                 text: {
@@ -247,13 +248,6 @@ export const getChartThresholdAlertBlocks = ({
                 },
                 url: ctaUrl,
                 action_id: 'button-action',
-            },
-        },
-        {
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: 'Your results met the following conditions:',
             },
         },
         ...thresholdBlocks,
