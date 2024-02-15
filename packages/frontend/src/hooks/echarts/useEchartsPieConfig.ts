@@ -38,8 +38,8 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                 showValue: showValueDefault,
                 showPercentage: showPercentageDefault,
                 groupLabelOverrides,
-                groupColorOverrides,
                 groupValueOptionOverrides,
+                groupColorOverrides,
             },
         } = chartConfig;
 
@@ -63,9 +63,10 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                     showPercentageDefault;
 
                 const itemColor =
-                    groupColorOverrides?.[name] ?? useSharedColors
+                    groupColorOverrides?.[name] ??
+                    (useSharedColors
                         ? getGroupColor(name)
-                        : groupColorDefaults?.[name];
+                        : groupColorDefaults?.[name]);
 
                 const config: PieSeriesDataPoint = {
                     id: name,
