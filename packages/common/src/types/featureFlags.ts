@@ -20,4 +20,11 @@ export enum FeatureFlags {
 
     /** Show the option to set up threshold alerting in the UI */
     EnableThresholdAlerting = 'enable-threshold-alerting',
+    /**/
+    PassthroughLogin = 'passthrough-login',
+
+    /**
+     * Enables custom visualizations when the environment variable is also enabled
+     */
+    CustomVisualizationsEnabled = 'custom-visualizations-enabled',
 }

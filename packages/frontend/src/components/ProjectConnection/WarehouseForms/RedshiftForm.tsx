@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -14,10 +14,10 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, { FC } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { useToggle } from 'react-use';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
@@ -74,8 +74,9 @@ const RedshiftForm: FC<{
             setValue('warehouse.sshTunnelPublicKey', data.publicKey);
         },
     });
-    const isPassthroughLoginFeatureEnabled =
-        useFeatureFlagEnabled('passthrough-login');
+    const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PassthroughLogin,
+    );
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
