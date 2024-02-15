@@ -1,3 +1,10 @@
+# [0.990.0](https://github.com/lightdash/lightdash/compare/0.989.5...0.990.0) (2024-02-15)
+
+
+### Features
+
+* connect project from dbt cloud ([#8904](https://github.com/lightdash/lightdash/issues/8904)) ([ce19300](https://github.com/lightdash/lightdash/commit/ce1930037fb0a67fbe543e2d401a186c7740e29f))
+
 ## [0.989.5](https://github.com/lightdash/lightdash/compare/0.989.4...0.989.5) (2024-02-15)
 
 
