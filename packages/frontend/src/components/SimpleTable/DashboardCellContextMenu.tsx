@@ -195,9 +195,9 @@ const DashboardCellContextMenu: FC<
                         >
                             {friendlyName(filter.target.fieldId)} is{' '}
                             <Text span fw={500}>
-                                {filter.values &&
-                                    filter.values[0] &&
-                                    String(filter.values[0])}
+                                {filter.values && filter.values[0] !== undefined
+                                    ? String(filter.values[0])
+                                    : ''}
                             </Text>
                         </Menu.Item>
                     ))}
