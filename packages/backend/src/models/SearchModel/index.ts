@@ -40,7 +40,7 @@ export class SearchModel {
         query: string,
     ): Promise<SpaceSearchResult[]> {
         const { searchRankRawSql, searchRankColumnName } =
-            getFullTextSearchRankColumn(
+            getFullTextSearchRankCalcSql(
                 this.database,
                 SpaceTableName,
                 'search_vector',
