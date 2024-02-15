@@ -1,3 +1,31 @@
+## [0.989.3](https://github.com/lightdash/lightdash/compare/0.989.2...0.989.3) (2024-02-15)
+
+
+### Bug Fixes
+
+* add new useFeatureFlagEnabled hook, migrate existing feature flags in frontend to FeatureFlags enum ([#8923](https://github.com/lightdash/lightdash/issues/8923)) ([3782e26](https://github.com/lightdash/lightdash/commit/3782e26073d07bd52abdd4bb6984c59a89de6a57))
+
+## [0.989.2](https://github.com/lightdash/lightdash/compare/0.989.1...0.989.2) (2024-02-14)
+
+
+### Bug Fixes
+
+* sqlrunner.cy.ts tests ([#8930](https://github.com/lightdash/lightdash/issues/8930)) ([0743153](https://github.com/lightdash/lightdash/commit/0743153d13f9458e49f289c910004d9dafd394e7))
+
+## [0.989.1](https://github.com/lightdash/lightdash/compare/0.989.0...0.989.1) (2024-02-14)
+
+
+### Bug Fixes
+
+* wrap sql_filter with () ([#8925](https://github.com/lightdash/lightdash/issues/8925)) ([b8a1f97](https://github.com/lightdash/lightdash/commit/b8a1f97dc814606df00380d984a2dc21b898cc53))
+
+# [0.989.0](https://github.com/lightdash/lightdash/compare/0.988.0...0.989.0) (2024-02-14)
+
+
+### Features
+
+* enable soft-wrapping by default, store option in local storage ([#8922](https://github.com/lightdash/lightdash/issues/8922)) ([9585b0d](https://github.com/lightdash/lightdash/commit/9585b0da4ce81f7b36c057bc1f2a95ad00b17e72))
+
 # [0.988.0](https://github.com/lightdash/lightdash/compare/0.987.0...0.988.0) (2024-02-14)
 
 

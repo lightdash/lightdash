@@ -1,11 +1,13 @@
 import { ProjectCatalog } from '@lightdash/common';
+import { useLocalStorage } from '@mantine/hooks';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
 import React, { FC } from 'react';
 import AceEditor from 'react-ace';
-import { useToggle } from 'react-use';
 import { useProjectCatalogAceEditorCompleter } from '../../hooks/useProjectCatalogAceEditorCompleter';
 import { SqlEditorActions } from './SqlEditorActions';
+
+const SOFT_WRAP_LOCAL_STORAGE_KEY = 'lightdash-sql-runner-soft-wrap';
 
 const SqlRunnerInput: FC<{
     sql: string;
@@ -16,7 +18,10 @@ const SqlRunnerInput: FC<{
     const { setAceEditor } =
         useProjectCatalogAceEditorCompleter(projectCatalog);
 
-    const [isSoftWrapEnabled, toggleSoftWrap] = useToggle(false);
+    const [isSoftWrapEnabled, setSoftWrapEnabled] = useLocalStorage({
+        key: SOFT_WRAP_LOCAL_STORAGE_KEY,
+        defaultValue: true,
+    });
 
     return (
         <div
@@ -43,7 +48,7 @@ const SqlRunnerInput: FC<{
             />
             <SqlEditorActions
                 isSoftWrapEnabled={isSoftWrapEnabled}
-                onToggleSoftWrap={toggleSoftWrap}
+                onToggleSoftWrap={() => setSoftWrapEnabled(!isSoftWrapEnabled)}
                 clipboardContent={sql}
             />
         </div>
