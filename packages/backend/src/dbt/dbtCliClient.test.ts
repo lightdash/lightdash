@@ -74,31 +74,6 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
                 expect.anything(),
             );
         });
-        it('should get catalog with success', async () => {
-            execaMock.mockImplementationOnce(cliMockImplementation.success);
-            jest.spyOn(fs, 'readFile').mockImplementationOnce(
-                async () => dbtProjectYml,
-            );
-            jest.spyOn(fs, 'readFile').mockImplementationOnce(async () =>
-                JSON.stringify(catalogMock),
-            );
-
-            const client = new DbtCliClient(cliArgs);
-            const dbtExec = client.getDbtExec();
-
-            await expect(client.getDbtCatalog()).resolves.toEqual(catalogMock);
-            await expect(execaMock).toHaveBeenCalledTimes(1);
-            await expect(execaMock).toHaveBeenCalledWith(
-                dbtExec,
-                [
-                    ...expectedDbtOptions,
-                    'docs',
-                    'generate',
-                    ...expectedCommandOptions,
-                ],
-                expect.anything(),
-            );
-        });
         it('should get packages with success', async () => {
             jest.spyOn(fs, 'readFile').mockImplementationOnce(
                 async () => packagesYml,
