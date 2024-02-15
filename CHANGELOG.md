@@ -1,3 +1,10 @@
+# [0.991.0](https://github.com/lightdash/lightdash/compare/0.990.0...0.991.0) (2024-02-15)
+
+
+### Features
+
+* threshold alerting ([#8924](https://github.com/lightdash/lightdash/issues/8924)) ([033faf1](https://github.com/lightdash/lightdash/commit/033faf1e075e51c7d26c4473c6bb7d3dd7ae75ec))
+
 # [0.990.0](https://github.com/lightdash/lightdash/compare/0.989.5...0.990.0) (2024-02-15)
 
 
