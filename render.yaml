@@ -3,6 +3,7 @@ previewsEnabled: true
 databases:
   - name: jaffle_db
     ipAllowList: []
+    postgresMajorVersion: 13
 
 services:
   - type: pserv
