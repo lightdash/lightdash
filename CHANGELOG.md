@@ -1,3 +1,17 @@
+## [0.989.5](https://github.com/lightdash/lightdash/compare/0.989.4...0.989.5) (2024-02-15)
+
+
+### Bug Fixes
+
+* upgrade connect session knex ([#8939](https://github.com/lightdash/lightdash/issues/8939)) ([4292ade](https://github.com/lightdash/lightdash/commit/4292aded781fe87f9e0689808ccd7847e653cffe))
+
+## [0.989.4](https://github.com/lightdash/lightdash/compare/0.989.3...0.989.4) (2024-02-15)
+
+
+### Bug Fixes
+
+* disable chart download in custom viz ([#8920](https://github.com/lightdash/lightdash/issues/8920)) ([867708a](https://github.com/lightdash/lightdash/commit/867708a06becc231918a56b02009e1acec2e1dbb))
+
 ## [0.989.3](https://github.com/lightdash/lightdash/compare/0.989.2...0.989.3) (2024-02-15)
 
 
