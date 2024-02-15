@@ -137,6 +137,7 @@ export const savedChartEntry: SavedChartTable['base'] = {
     last_version_updated_at: new Date(),
     last_version_updated_by_user_uuid: undefined,
     dashboard_uuid: null,
+    search_vector: [],
 };
 
 export const dashboardEntry: DashboardTable['base'] = {
