@@ -39,18 +39,29 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<SpaceSearchResult[]> {
-        return this.database(SpaceTableName)
-            .select()
+        const { searchRankRawSql, searchRankColumnName } =
+            getFullTextSearchRankColumn(
+                this.database,
+                SpaceTableName,
+                'search_vector',
+                query,
+            );
+
+        const subquery = this.database(SpaceTableName)
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .column({ uuid: 'space_uuid' }, 'spaces.name')
+            .column({ uuid: 'space_uuid' }, 'spaces.name', searchRankRawSql)
             .where('projects.project_uuid', projectUuid)
-            .andWhereRaw(`LOWER(${SpaceTableName}.name) like LOWER(?)`, [
-                `%${query}%`,
-            ]);
+            .orderBy(searchRankColumnName, 'desc');
+
+        return this.database(SpaceTableName)
+            .select()
+            .from(subquery.as('spaces_with_rank'))
+            .where(searchRankColumnName, '>', 0)
+            .limit(10);
     }
 
     private async searchDashboards(
