@@ -35,6 +35,7 @@ import {
 import { IconGripVertical } from '@tabler/icons-react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../../common/MantineIcon';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
 const VALUE_LABELS_OPTIONS = [
     { value: 'hidden', label: 'Hidden' },
@@ -90,7 +91,6 @@ type GroupedSeriesConfigurationProps = {
     item: Field | TableCalculation | CustomDimension;
     items: Array<Field | TableCalculation | CustomDimension>;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
-    getSeriesColor: (key: string) => string | undefined;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
     updateSingleSeries: (series: Series) => void;
     updateSeries: (series: Series[]) => void;
@@ -102,13 +102,13 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     seriesGroup,
     item,
     items,
-    getSeriesColor,
     updateSingleSeries,
     updateAllGroupedSeries,
     dragHandleProps,
     updateSeries,
     series,
 }) => {
+    const { getSeriesColor } = useVisualizationContext();
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
     >();
@@ -134,9 +134,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     const onDragEnd = useCallback(
         (result: DropResult) => {
             const allSerieIds = series.map(getSeriesId);
-            const seriesWithColor: Series[] = series.map((s) => ({
+            const seriesWithColor: Series[] = series.map((s, i) => ({
                 ...s,
-                color: s.color || getSeriesColor(getSeriesId(s)),
+                color: getSeriesColor(s, i),
             }));
             const serie = seriesWithColor.find(
                 (s) => getSeriesId(s) === result.draggableId,
@@ -378,6 +378,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                                 dragHandleProps={
                                                                     groupedDragHandleProps
                                                                 }
+                                                                seriesIndex={i}
                                                                 isCollapsable
                                                                 layout={layout}
                                                                 series={
@@ -394,11 +395,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                                           )}`
                                                                         : pivotLabel
                                                                 }
-                                                                fallbackColor={getSeriesColor(
-                                                                    getSeriesId(
-                                                                        singleSeries,
-                                                                    ),
-                                                                )}
                                                                 updateSingleSeries={
                                                                     updateSingleSeries
                                                                 }

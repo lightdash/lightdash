@@ -9,7 +9,6 @@ import {
     getAxisName,
     getCustomFormatFromLegacy,
     getDateGroupLabel,
-    getDefaultSeriesColor,
     getItemLabelWithoutTableName,
     getResultValueArray,
     hashFieldReference,
@@ -1310,12 +1309,12 @@ const useEchartsCartesianConfig = (
         resultsData,
         itemsMap,
         colorPalette,
+        getSeriesColor,
     } = useVisualizationContext();
 
-    const { useSharedColors, calculateSeriesColorAssignment } =
-        useChartColorConfig({
-            colorPalette,
-        });
+    const { useSharedColors } = useChartColorConfig({
+        colorPalette,
+    });
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -1385,26 +1384,8 @@ const useEchartsCartesianConfig = (
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
 
-        const colorsToAvoid = new Set<string>();
         const seriesWithValidStack = series.map<EChartSeries>((serie, i) => {
-            const color =
-                serie.color ??
-                (useSharedColors
-                    ? calculateSeriesColorAssignment(
-                          {
-                              yField: serie.encode?.y ?? `${i}`,
-                              yPivotValues:
-                                  serie.pivotReference?.pivotValues?.map(
-                                      ({ value }) => `${value}`,
-                                  ),
-                          },
-                          colorsToAvoid,
-                      )
-                    : undefined);
-
-            if (color) {
-                colorsToAvoid.add(color);
-            }
+            const color = getSeriesColor(serie, i);
 
             return {
                 ...serie,
@@ -1428,27 +1409,25 @@ const useEchartsCartesianConfig = (
         itemsMap,
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfigLegend,
-        calculateSeriesColorAssignment,
-        useSharedColors,
+        getSeriesColor,
     ]);
 
+    /**
+     * We keep this around until the shared colors feature flag is removed.
+     */
     const colors = useMemo<string[]>(() => {
         //Do not use colors from hidden series
         return validCartesianConfig?.eChartsConfig.series
             ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
-                  (acc, serie, index) => {
+                  (acc, serie, i) => {
                       if (!serie.hidden)
-                          return [
-                              ...acc,
-                              colorPalette[index] ||
-                                  getDefaultSeriesColor(index),
-                          ];
+                          return [...acc, getSeriesColor(serie, i)];
                       else return acc;
                   },
                   [],
               )
             : colorPalette;
-    }, [colorPalette, validCartesianConfig]);
+    }, [colorPalette, validCartesianConfig, getSeriesColor]);
 
     const sortedResults = useMemo(() => {
         const results =

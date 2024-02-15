@@ -8,7 +8,6 @@ import {
 import {
     CustomDimension,
     Field,
-    getDefaultSeriesColor,
     getItemId,
     getSeriesId,
     Series,
@@ -41,7 +40,7 @@ type Props = {
 };
 
 const SeriesTab: FC<Props> = ({ items }) => {
-    const { visualizationConfig, colorPalette } = useVisualizationContext();
+    const { visualizationConfig, getSeriesColor } = useVisualizationContext();
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -50,30 +49,6 @@ const SeriesTab: FC<Props> = ({ items }) => {
         if (!isCartesianChart) return;
         return visualizationConfig.chartConfig;
     }, [isCartesianChart, visualizationConfig]);
-
-    const fallbackSeriesColours = useMemo(() => {
-        if (!chartConfig) return;
-
-        const dirtyEchartsConfig = chartConfig.dirtyEchartsConfig;
-
-        return (dirtyEchartsConfig?.series || [])
-            .filter(({ color }) => !color)
-            .reduce<Record<string, string>>(
-                (sum, series, index) => ({
-                    ...sum,
-                    [getSeriesId(series)]:
-                        colorPalette[index] || getDefaultSeriesColor(index),
-                }),
-                {},
-            );
-    }, [chartConfig, colorPalette]);
-
-    const getSeriesColor = useCallback(
-        (seriesId: string) => {
-            return fallbackSeriesColours?.[seriesId];
-        },
-        [fallbackSeriesColours],
-    );
 
     const seriesGroupedByField = useMemo(() => {
         if (!isCartesianChart) return;
@@ -103,9 +78,9 @@ const SeriesTab: FC<Props> = ({ items }) => {
             const reorderedSeries = reorderedSeriesGroups.reduce<Series[]>(
                 (acc, seriesGroup) => [
                     ...acc,
-                    ...seriesGroup.value.map((s) => ({
+                    ...seriesGroup.value.map((s, i) => ({
                         ...s,
-                        color: s.color || getSeriesColor(getSeriesId(s)),
+                        color: getSeriesColor(s, i),
                     })),
                 ],
                 [],
@@ -186,9 +161,6 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                         seriesGroup={
                                                             seriesGroup.value
                                                         }
-                                                        getSeriesColor={
-                                                            getSeriesColor
-                                                        }
                                                         updateSingleSeries={
                                                             updateSingleSeries
                                                         }
@@ -215,9 +187,6 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                             1
                                                         }
                                                         series={seriesEntry}
-                                                        getSeriesColor={
-                                                            getSeriesColor
-                                                        }
                                                         updateSingleSeries={
                                                             updateSingleSeries
                                                         }

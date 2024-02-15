@@ -1,22 +1,16 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, Series } from '@lightdash/common';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { EChartSeries } from './echarts/useEchartsCartesianConfig';
 
-/**
- * Generic series-like object that contains the relevant portions used
- * for color assignment. Requires the caller to unpack whatever series
- * format it has into this compatible one.
- */
-interface SeriesLike {
-    yField: string;
-    yPivotValues?: string[];
-}
+export type SeriesLike = EChartSeries | Series;
 
 export const useChartColorConfig = ({
     colorPalette,
 }: {
     colorPalette: string[];
 }) => {
+    const [colorMappings] = useState(new Map<string, string>());
     const useSharedColors = useFeatureFlagEnabled(
         FeatureFlags.UseSharedColorAssignment,
     );
@@ -39,7 +33,11 @@ export const useChartColorConfig = ({
      *   compiling the chart config.
      */
     const calculateKeyColorAssignment = useCallback(
-        (identifier: string, colorsToAvoid: Set<string>) => {
+        (identifier: string) => {
+            if (colorMappings.has(identifier)) {
+                return colorMappings.get(identifier)!;
+            }
+
             const hashedValue = Math.abs(
                 identifier.split('').reduce(function (a, b) {
                     a = (a << 5) - a + b.charCodeAt(0);
@@ -47,31 +45,47 @@ export const useChartColorConfig = ({
                 }, 0),
             );
 
+            // Project the hashed value into the available color space:
             const colorIdx = hashedValue % colorPalette.length;
-            const colorHex = colorPalette[colorIdx];
+
+            // Look at our existing color mappings so we can figure out if we need
+            // to try and avoid any of the current colors:
+            const colorsToAvoid = [...colorMappings.values()];
+            let colorHex = colorPalette[colorIdx];
 
             // Intersect colors we've already used with our color palette, and try to find the
             // next available color on the list.
-            if (colorsToAvoid.has(colorHex)) {
+            if (colorsToAvoid.includes(colorHex)) {
                 const intersection = colorPalette.filter(
-                    (v) => !colorsToAvoid.has(v),
+                    (v) => !colorsToAvoid.includes(v),
                 );
 
                 if (intersection.length > 0) {
-                    return intersection[0];
-                } else {
-                    return colorHex;
+                    colorHex = intersection[0];
                 }
             }
 
+            // Keep track of this identifier->color pairing so we can reuse it without
+            // treating it as a collision:
+            colorMappings.set(identifier, colorHex);
+
             return colorHex;
         },
-        [colorPalette],
+        [colorPalette, colorMappings],
     );
 
     const calculateSeriesColorAssignment = useCallback(
-        ({ yField, yPivotValues }: SeriesLike, colorsToAvoid: Set<string>) => {
-            const baseIdentifier = yField;
+        (series: SeriesLike) => {
+            const baseField =
+                (series as Series).encode.yRef?.field ??
+                (series as EChartSeries).encode?.x;
+
+            const yPivotValues = (
+                (series as EChartSeries)?.pivotReference?.pivotValues ??
+                (series as Series)?.encode.yRef.pivotValues ??
+                []
+            ).map(({ value }) => `${value}`);
+
             const pivotValuesSubPath =
                 yPivotValues && yPivotValues.length > 0
                     ? `${yPivotValues[0]}`
@@ -79,12 +93,9 @@ export const useChartColorConfig = ({
 
             const completeIdentifier = pivotValuesSubPath
                 ? pivotValuesSubPath
-                : baseIdentifier;
+                : baseField;
 
-            return calculateKeyColorAssignment(
-                completeIdentifier,
-                colorsToAvoid,
-            );
+            return calculateKeyColorAssignment(completeIdentifier);
         },
         [calculateKeyColorAssignment],
     );

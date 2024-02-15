@@ -32,12 +32,12 @@ type Props = {
     layout?: CartesianChartLayout;
     series: Series;
     isSingle?: boolean;
-    fallbackColor?: string;
     isGrouped?: boolean;
     updateSingleSeries: (updatedSeries: Series) => void;
     isOpen?: boolean;
     toggleIsOpen?: () => void;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    seriesIndex: number;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
@@ -45,15 +45,15 @@ const SingleSeriesConfiguration: FC<Props> = ({
     isCollapsable,
     seriesLabel,
     series,
-    fallbackColor,
     updateSingleSeries,
     isGrouped,
     isSingle,
     isOpen,
     toggleIsOpen,
     dragHandleProps,
+    seriesIndex,
 }) => {
-    const { colorPalette } = useVisualizationContext();
+    const { colorPalette, getSeriesColor } = useVisualizationContext();
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
@@ -89,7 +89,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     </Box>
                 )}
                 <ColorSelector
-                    color={series.color || fallbackColor}
+                    color={getSeriesColor(series, seriesIndex)}
                     swatches={colorPalette}
                     onColorChange={(color) => {
                         updateSingleSeries({

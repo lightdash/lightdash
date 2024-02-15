@@ -15,12 +15,10 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const useEchartsPieConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, itemsMap, colorPalette } =
+    const { visualizationConfig, itemsMap, getGroupColor, colorPalette } =
         useVisualizationContext();
-    const { calculateKeyColorAssignment, useSharedColors } =
-        useChartColorConfig({
-            colorPalette,
-        });
+
+    const { useSharedColors } = useChartColorConfig({ colorPalette });
 
     const chartConfig = useMemo(() => {
         if (!isPieVisualizationConfig(visualizationConfig)) return;
@@ -47,8 +45,6 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
 
         if (!selectedMetric) return;
 
-        const colorsToAvoid = new Set<string>();
-
         return data
             .sort(
                 ({ name: nameA }, { name: nameB }) =>
@@ -67,14 +63,9 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                     showPercentageDefault;
 
                 const itemColor =
-                    groupColorOverrides?.[name] ??
-                    (useSharedColors
-                        ? calculateKeyColorAssignment(name, colorsToAvoid)
-                        : groupColorDefaults?.[name]);
-
-                if (itemColor) {
-                    colorsToAvoid.add(itemColor);
-                }
+                    groupColorOverrides?.[name] ?? useSharedColors
+                        ? getGroupColor(name)
+                        : groupColorDefaults?.[name];
 
                 const config: PieSeriesDataPoint = {
                     id: name,
@@ -105,7 +96,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
 
                 return config;
             });
-    }, [chartConfig, calculateKeyColorAssignment, useSharedColors]);
+    }, [chartConfig, getGroupColor, useSharedColors]);
 
     const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;
