@@ -182,6 +182,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                     <BasicSeriesConfiguration
                                                         item={field}
                                                         layout={dirtyLayout}
+                                                        seriesIndex={i}
                                                         isSingle={
                                                             seriesGroupedByField.length <=
                                                             1
