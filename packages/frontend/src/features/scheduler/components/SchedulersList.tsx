@@ -12,12 +12,32 @@ import SchedulersListItem from './SchedulersListItem';
 
 type Props = {
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
+    isThresholdAlertList?: boolean;
     onEdit: (schedulerUuid: string) => void;
 };
 
-const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
+const SchedulersList: FC<Props> = ({
+    schedulersQuery,
+    onEdit,
+    isThresholdAlertList,
+}) => {
     const { data: schedulers, isInitialLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
+
+    const { deliverySchedulers, alertSchedulers } = (schedulers || []).reduce<{
+        deliverySchedulers: SchedulerAndTargets[];
+        alertSchedulers: SchedulerAndTargets[];
+    }>(
+        (acc, scheduler) => {
+            if (scheduler.thresholds && scheduler.thresholds.length > 0) {
+                acc.alertSchedulers.push(scheduler);
+            } else {
+                acc.deliverySchedulers.push(scheduler);
+            }
+            return acc;
+        },
+        { deliverySchedulers: [], alertSchedulers: [] },
+    );
 
     if (isInitialLoading) {
         return (
@@ -30,11 +50,16 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
     if (error) {
         return <ErrorState error={error.error} />;
     }
-    if (!schedulers || schedulers.length <= 0) {
+    if (
+        (!isThresholdAlertList && deliverySchedulers.length <= 0) ||
+        (isThresholdAlertList && alertSchedulers.length <= 0)
+    ) {
         return (
             <Stack color="gray" align="center" mt="xxl">
                 <Title order={4} color="gray.6">
-                    There are no existing scheduled deliveries
+                    {`There are no existing ${
+                        isThresholdAlertList ? 'alerts' : 'scheduled deliveries'
+                    }`}
                 </Title>
                 <Text color="gray.6">
                     Add one by clicking on "Create new" below
@@ -44,17 +69,26 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
     }
     return (
         <div>
-            {schedulers.map(
-                (scheduler) =>
-                    scheduler.format !== SchedulerFormat.GSHEETS && (
-                        <SchedulersListItem
-                            key={scheduler.schedulerUuid}
-                            scheduler={scheduler}
-                            onEdit={onEdit}
-                            onDelete={setSchedulerUuid}
-                        />
-                    ),
-            )}
+            {isThresholdAlertList
+                ? alertSchedulers?.map((alertScheduler) => (
+                      <SchedulersListItem
+                          key={alertScheduler.schedulerUuid}
+                          scheduler={alertScheduler}
+                          onEdit={onEdit}
+                          onDelete={setSchedulerUuid}
+                      />
+                  ))
+                : deliverySchedulers.map(
+                      (scheduler) =>
+                          scheduler.format !== SchedulerFormat.GSHEETS && (
+                              <SchedulersListItem
+                                  key={scheduler.schedulerUuid}
+                                  scheduler={scheduler}
+                                  onEdit={onEdit}
+                                  onDelete={setSchedulerUuid}
+                              />
+                          ),
+                  )}
             {schedulerUuid && (
                 <SchedulerDeleteModal
                     opened={true}

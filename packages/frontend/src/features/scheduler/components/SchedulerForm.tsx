@@ -1,12 +1,18 @@
 import {
     CreateSchedulerAndTargetsWithoutIds,
     CreateSchedulerTarget,
+    getItemId,
+    getMetricsFromItemsMap,
+    getTableCalculationsFromItemsMap,
     isDashboardScheduler,
+    isNumericItem,
     isSchedulerCsvOptions,
     isSchedulerImageOptions,
     isSlackTarget,
+    ItemsMap,
     SchedulerAndTargets,
     SchedulerFormat,
+    ThresoldOperator,
     validateEmail,
 } from '@lightdash/common';
 import {
@@ -23,6 +29,7 @@ import {
     NumberInput,
     Radio,
     SegmentedControl,
+    Select,
     Space,
     Stack,
     Tabs,
@@ -38,6 +45,7 @@ import {
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { FC, useCallback, useMemo, useState } from 'react';
+import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
@@ -84,7 +92,27 @@ const DEFAULT_VALUES = {
     slackTargets: [] as string[],
     filters: undefined,
     customViewportWidth: undefined,
+    thresholds: [],
 };
+
+const DEFAULT_VALUES_ALERT = {
+    ...DEFAULT_VALUES,
+    cron: '0 10 * * *',
+    thresholds: [
+        {
+            fieldId: '',
+            operator: ThresoldOperator.GREATER_THAN,
+            value: 0,
+        },
+    ],
+};
+
+const thresholdOperatorOptions = [
+    { label: 'is greater than', value: ThresoldOperator.GREATER_THAN },
+    { label: 'is less than', value: ThresoldOperator.LESS_THAN },
+    { label: 'increased by', value: ThresoldOperator.INCREASED_BY },
+    { label: 'decreased by', value: ThresoldOperator.DECREASED_BY },
+];
 
 const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
     const options = schedulerData.options;
@@ -131,6 +159,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
             filters: schedulerData.filters,
             customViewportWidth: schedulerData.customViewportWidth,
         }),
+        thresholds: schedulerData.thresholds,
     };
 };
 
@@ -182,6 +211,8 @@ type Props = {
     onBack?: () => void;
     loading?: boolean;
     confirmText?: string;
+    isThresholdAlert?: boolean;
+    itemsMap?: ItemsMap;
 };
 
 const SchedulerForm: FC<Props> = ({
@@ -193,11 +224,15 @@ const SchedulerForm: FC<Props> = ({
     onBack,
     loading,
     confirmText,
+    isThresholdAlert,
+    itemsMap,
 }) => {
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
                 ? getFormValuesFromScheduler(savedSchedulerData)
+                : isThresholdAlert
+                ? DEFAULT_VALUES_ALERT
                 : DEFAULT_VALUES,
         validateInputOnBlur: ['options.customLimit'],
 
@@ -218,6 +253,7 @@ const SchedulerForm: FC<Props> = ({
                     cronExpression,
                 );
             },
+            // TODO: validate thresholds
         },
 
         transformValues: (values): CreateSchedulerAndTargetsWithoutIds => {
@@ -250,6 +286,7 @@ const SchedulerForm: FC<Props> = ({
                 ...emailTargets,
                 ...slackTargets,
             ];
+
             return {
                 name: values.name,
                 message: values.message,
@@ -261,6 +298,7 @@ const SchedulerForm: FC<Props> = ({
                     filters: values.filters,
                     customViewportWidth: values.customViewportWidth,
                 }),
+                thresholds: values.thresholds,
             };
         },
     });
@@ -277,6 +315,11 @@ const SchedulerForm: FC<Props> = ({
     >([]);
 
     const [showFormatting, setShowFormatting] = useState(false);
+
+    const numericMetrics = {
+        ...getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem),
+        ...getTableCalculationsFromItemsMap(itemsMap),
+    };
 
     const isDashboard = resource && resource.type === 'dashboard';
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
@@ -335,6 +378,9 @@ const SchedulerForm: FC<Props> = ({
 
     const limit = form.values?.options?.limit;
 
+    const isThresholdAlertWithNoFields =
+        isThresholdAlert && Object.keys(numericMetrics).length === 0;
+
     return (
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
             <Tabs defaultValue="setup">
@@ -345,17 +391,25 @@ const SchedulerForm: FC<Props> = ({
                     {isDashboard && dashboard ? (
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
-                    <Tabs.Tab value="customization">Customization</Tabs.Tab>
 
-                    <Tabs.Tab
-                        disabled={
-                            form.values.format !== SchedulerFormat.IMAGE ||
-                            !isDashboard
-                        }
-                        value="preview"
-                    >
-                        Preview and Size
-                    </Tabs.Tab>
+                    {!isThresholdAlert && (
+                        <>
+                            <Tabs.Tab value="customization">
+                                {isThresholdAlert
+                                    ? 'Alert message'
+                                    : 'Customization'}
+                            </Tabs.Tab>
+                            <Tabs.Tab
+                                disabled={
+                                    form.values.format !==
+                                        SchedulerFormat.IMAGE || !isDashboard
+                                }
+                                value="preview"
+                            >
+                                Preview and Size
+                            </Tabs.Tab>
+                        </>
+                    )}
                 </Tabs.List>
 
                 <Tabs.Panel value="setup" mt="md">
@@ -368,121 +422,186 @@ const SchedulerForm: FC<Props> = ({
                         px="md"
                     >
                         <TextInput
-                            label="Delivery name"
-                            placeholder="Name your delivery"
+                            label={
+                                isThresholdAlert
+                                    ? 'Alert name'
+                                    : 'Delivery name'
+                            }
+                            placeholder={
+                                isThresholdAlert
+                                    ? 'Name your alert'
+                                    : 'Name your delivery'
+                            }
                             required
                             {...form.getInputProps('name')}
-                            styles={{
-                                label: {
-                                    marginBottom: '0.25rem',
-                                },
-                            }}
                         />
-                        <Input.Wrapper label="Delivery frequency">
-                            <Box mt="xxs">
-                                <CronInternalInputs
-                                    disabled={disabled}
-                                    {...form.getInputProps('cron')}
-                                    name="cron"
-                                />
-                            </Box>
-                        </Input.Wrapper>
-                        <Stack spacing={0}>
-                            <Input.Label mb="xxs"> Format </Input.Label>
-                            <Group spacing="xs" noWrap>
-                                <SegmentedControl
-                                    data={[
-                                        {
-                                            label: '.csv',
-                                            value: SchedulerFormat.CSV,
+                        {isThresholdAlert && (
+                            <Stack spacing="xs">
+                                <FieldSelect
+                                    label={
+                                        <Text>
+                                            Alert field{' '}
+                                            <Text color="red" span>
+                                                *
+                                            </Text>{' '}
+                                        </Text>
+                                    }
+                                    disabled={isThresholdAlertWithNoFields}
+                                    withinPortal
+                                    hasGrouping
+                                    items={Object.values(numericMetrics)}
+                                    data-testid="Alert/FieldSelect"
+                                    {...{
+                                        // TODO: the field select doesn't work great
+                                        // with use form, so we provide our own on change and value here.
+                                        // The field select wants Items, but the form wants strings.
+                                        // We could definitely make this easier to work with
+                                        ...form.getInputProps(
+                                            `thresholds.0.field`,
+                                        ),
+                                        item: Object.values(
+                                            numericMetrics,
+                                        ).find(
+                                            (metric) =>
+                                                getItemId(metric) ===
+                                                form.values?.thresholds?.[0]
+                                                    ?.fieldId,
+                                        ),
+                                        onChange: (value) => {
+                                            if (!value) return;
+                                            form.setFieldValue(
+                                                'thresholds.0.fieldId',
+                                                getItemId(value),
+                                            );
                                         },
-                                        {
-                                            label: 'Image',
-                                            value: SchedulerFormat.IMAGE,
-                                            disabled: isImageDisabled,
-                                        },
-                                    ]}
-                                    w="50%"
-                                    mb="xs"
-                                    {...form.getInputProps('format')}
+                                    }}
                                 />
-                                {isImageDisabled && (
-                                    <Text
-                                        size="xs"
-                                        color="gray.6"
-                                        w="30%"
-                                        sx={{ alignSelf: 'start' }}
-                                    >
-                                        You must enable the
-                                        <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
-                                            {' '}
-                                            headless browser{' '}
-                                        </Anchor>
-                                        to send images
+                                {isThresholdAlertWithNoFields && (
+                                    <Text color="red" size="xs" mb="sm">
+                                        No numeric fields available. You must
+                                        have at least one numeric metric or
+                                        calculation to set an alert.
                                     </Text>
                                 )}
-                            </Group>
-                            <Space h="xxs" />
-                            {form.getInputProps('format').value ===
-                            SchedulerFormat.IMAGE ? (
-                                <Checkbox
-                                    h={26}
-                                    label="Also include image as PDF attachment"
-                                    labelPosition="left"
-                                    {...form.getInputProps('options.withPdf', {
-                                        type: 'checkbox',
-                                    })}
-                                />
-                            ) : (
-                                <Stack spacing="xs">
-                                    <Button
-                                        variant="subtle"
-                                        compact
-                                        sx={{
-                                            alignSelf: 'start',
-                                        }}
-                                        leftIcon={
-                                            <MantineIcon icon={IconSettings} />
-                                        }
-                                        rightIcon={
-                                            <MantineIcon
-                                                icon={
-                                                    showFormatting
-                                                        ? IconChevronUp
-                                                        : IconChevronDown
-                                                }
-                                            />
-                                        }
-                                        onClick={() =>
-                                            setShowFormatting((old) => !old)
-                                        }
-                                    >
-                                        Formatting options
-                                    </Button>
-                                    <Collapse in={showFormatting} pl="md">
-                                        <Group align="start" spacing="xxl">
-                                            <Radio.Group
-                                                label="Values"
-                                                {...form.getInputProps(
-                                                    'options.formatted',
-                                                )}
-                                            >
-                                                <Stack spacing="xxs" pt="xs">
-                                                    <Radio
-                                                        label="Formatted"
-                                                        value={Values.FORMATTED}
-                                                    />
-                                                    <Radio
-                                                        label="Raw"
-                                                        value={Values.RAW}
-                                                    />
-                                                </Stack>
-                                            </Radio.Group>
-                                            <Stack spacing="xs">
+                                <Group noWrap grow>
+                                    <Select
+                                        required
+                                        label="Condition"
+                                        data={thresholdOperatorOptions}
+                                        {...form.getInputProps(
+                                            `thresholds.0.operator`,
+                                        )}
+                                    />
+                                    <NumberInput
+                                        label="Threshold"
+                                        {...form.getInputProps(
+                                            `thresholds.0.value`,
+                                        )}
+                                    />
+                                </Group>
+                            </Stack>
+                        )}
+                        {isThresholdAlert ? (
+                            <Input.Wrapper label="Frequency">
+                                <Text color="gray" mt={8}>
+                                    Alerts will be processed at 10am(UTC) daily
+                                </Text>
+                            </Input.Wrapper>
+                        ) : (
+                            <Input.Wrapper label="Delivery frequency">
+                                <Box>
+                                    <CronInternalInputs
+                                        disabled={disabled}
+                                        {...form.getInputProps('cron')}
+                                        name="cron"
+                                    />
+                                </Box>
+                            </Input.Wrapper>
+                        )}
+                        {!isThresholdAlert && (
+                            <Stack spacing={0}>
+                                <Input.Label> Format </Input.Label>
+                                <Group spacing="xs" noWrap>
+                                    <SegmentedControl
+                                        data={[
+                                            {
+                                                label: '.csv',
+                                                value: SchedulerFormat.CSV,
+                                            },
+                                            {
+                                                label: 'Image',
+                                                value: SchedulerFormat.IMAGE,
+                                                disabled: isImageDisabled,
+                                            },
+                                        ]}
+                                        w="50%"
+                                        mb="xs"
+                                        {...form.getInputProps('format')}
+                                    />
+                                    {isImageDisabled && (
+                                        <Text
+                                            size="xs"
+                                            color="gray.6"
+                                            w="30%"
+                                            sx={{ alignSelf: 'start' }}
+                                        >
+                                            You must enable the
+                                            <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
+                                                {' '}
+                                                headless browser{' '}
+                                            </Anchor>
+                                            to send images
+                                        </Text>
+                                    )}
+                                </Group>
+                                <Space h="xxs" />
+                                {form.getInputProps('format').value ===
+                                SchedulerFormat.IMAGE ? (
+                                    <Checkbox
+                                        h={26}
+                                        label="Also include image as PDF attachment"
+                                        labelPosition="left"
+                                        {...form.getInputProps(
+                                            'options.withPdf',
+                                            {
+                                                type: 'checkbox',
+                                            },
+                                        )}
+                                    />
+                                ) : (
+                                    <Stack spacing="xs">
+                                        <Button
+                                            variant="subtle"
+                                            compact
+                                            sx={{
+                                                alignSelf: 'start',
+                                            }}
+                                            leftIcon={
+                                                <MantineIcon
+                                                    icon={IconSettings}
+                                                />
+                                            }
+                                            rightIcon={
+                                                <MantineIcon
+                                                    icon={
+                                                        showFormatting
+                                                            ? IconChevronUp
+                                                            : IconChevronDown
+                                                    }
+                                                />
+                                            }
+                                            onClick={() =>
+                                                setShowFormatting((old) => !old)
+                                            }
+                                        >
+                                            Formatting options
+                                        </Button>
+                                        <Collapse in={showFormatting} pl="md">
+                                            <Group align="start" spacing="xxl">
                                                 <Radio.Group
-                                                    label="Limit"
+                                                    label="Values"
                                                     {...form.getInputProps(
-                                                        'options.limit',
+                                                        'options.formatted',
                                                     )}
                                                 >
                                                     <Stack
@@ -490,131 +609,171 @@ const SchedulerForm: FC<Props> = ({
                                                         pt="xs"
                                                     >
                                                         <Radio
-                                                            label="Results in Table"
-                                                            value={Limit.TABLE}
+                                                            label="Formatted"
+                                                            value={
+                                                                Values.FORMATTED
+                                                            }
                                                         />
                                                         <Radio
-                                                            label="All Results"
-                                                            value={Limit.ALL}
-                                                        />
-                                                        <Radio
-                                                            label="Custom..."
-                                                            value={Limit.CUSTOM}
+                                                            label="Raw"
+                                                            value={Values.RAW}
                                                         />
                                                     </Stack>
                                                 </Radio.Group>
-                                                {limit === Limit.CUSTOM && (
-                                                    <NumberInput
-                                                        w={150}
-                                                        min={1}
-                                                        precision={0}
-                                                        required
+                                                <Stack spacing="xs">
+                                                    <Radio.Group
+                                                        label="Limit"
                                                         {...form.getInputProps(
-                                                            'options.customLimit',
+                                                            'options.limit',
                                                         )}
-                                                    />
-                                                )}
+                                                    >
+                                                        <Stack
+                                                            spacing="xxs"
+                                                            pt="xs"
+                                                        >
+                                                            <Radio
+                                                                label="Results in Table"
+                                                                value={
+                                                                    Limit.TABLE
+                                                                }
+                                                            />
+                                                            <Radio
+                                                                label="All Results"
+                                                                value={
+                                                                    Limit.ALL
+                                                                }
+                                                            />
+                                                            <Radio
+                                                                label="Custom..."
+                                                                value={
+                                                                    Limit.CUSTOM
+                                                                }
+                                                            />
+                                                        </Stack>
+                                                    </Radio.Group>
+                                                    {limit === Limit.CUSTOM && (
+                                                        <NumberInput
+                                                            w={150}
+                                                            min={1}
+                                                            precision={0}
+                                                            required
+                                                            {...form.getInputProps(
+                                                                'options.customLimit',
+                                                            )}
+                                                        />
+                                                    )}
 
-                                                {(form.values?.options
-                                                    ?.limit === Limit.ALL ||
-                                                    form.values?.options
-                                                        ?.limit ===
-                                                        Limit.CUSTOM) && (
-                                                    <i>
-                                                        Results are limited to{' '}
-                                                        {Number(
-                                                            health.data?.query
-                                                                .csvCellsLimit ||
-                                                                100000,
-                                                        ).toLocaleString()}{' '}
-                                                        cells for each file
-                                                    </i>
-                                                )}
-                                            </Stack>
-                                        </Group>
-                                    </Collapse>
-                                </Stack>
-                            )}
-                        </Stack>
+                                                    {(form.values?.options
+                                                        ?.limit === Limit.ALL ||
+                                                        form.values?.options
+                                                            ?.limit ===
+                                                            Limit.CUSTOM) && (
+                                                        <i>
+                                                            Results are limited
+                                                            to{' '}
+                                                            {Number(
+                                                                health.data
+                                                                    ?.query
+                                                                    .csvCellsLimit ||
+                                                                    100000,
+                                                            ).toLocaleString()}{' '}
+                                                            cells for each file
+                                                        </i>
+                                                    )}
+                                                </Stack>
+                                            </Group>
+                                        </Collapse>
+                                    </Stack>
+                                )}
+                            </Stack>
+                        )}
 
                         <Input.Wrapper label="Destinations">
                             <Stack mt="sm">
-                                <Group noWrap>
-                                    <MantineIcon
-                                        icon={IconMail}
-                                        size="xl"
-                                        color="gray.7"
-                                    />
-                                    <HoverCard
-                                        disabled={!isAddEmailDisabled}
-                                        width={300}
-                                        position="bottom-start"
-                                        shadow="md"
-                                    >
-                                        <HoverCard.Target>
-                                            <Box w="100%">
-                                                <TagInput
-                                                    clearable
-                                                    error={
-                                                        emailValidationError ||
-                                                        null
-                                                    }
-                                                    placeholder="Enter email addresses"
-                                                    disabled={
-                                                        isAddEmailDisabled
-                                                    }
-                                                    value={
-                                                        form.values.emailTargets
-                                                    }
-                                                    allowDuplicates={false}
-                                                    splitChars={[',', ' ']}
-                                                    validationFunction={
-                                                        validateEmail
-                                                    }
-                                                    onBlur={() =>
-                                                        setEmailValidationError(
-                                                            undefined,
-                                                        )
-                                                    }
-                                                    onValidationReject={(val) =>
-                                                        setEmailValidationError(
-                                                            `'${val}' doesn't appear to be an email address`,
-                                                        )
-                                                    }
-                                                    onChange={(val) => {
-                                                        setEmailValidationError(
-                                                            undefined,
-                                                        );
-                                                        form.setFieldValue(
-                                                            'emailTargets',
+                                {!isThresholdAlert && (
+                                    <Group noWrap>
+                                        <MantineIcon
+                                            icon={IconMail}
+                                            size="xl"
+                                            color="gray.7"
+                                        />
+                                        <HoverCard
+                                            disabled={!isAddEmailDisabled}
+                                            width={300}
+                                            position="bottom-start"
+                                            shadow="md"
+                                        >
+                                            <HoverCard.Target>
+                                                <Box w="100%">
+                                                    <TagInput
+                                                        clearable
+                                                        error={
+                                                            emailValidationError ||
+                                                            null
+                                                        }
+                                                        placeholder="Enter email addresses"
+                                                        disabled={
+                                                            isAddEmailDisabled
+                                                        }
+                                                        value={
+                                                            form.values
+                                                                .emailTargets
+                                                        }
+                                                        allowDuplicates={false}
+                                                        splitChars={[',', ' ']}
+                                                        validationFunction={
+                                                            validateEmail
+                                                        }
+                                                        onBlur={() =>
+                                                            setEmailValidationError(
+                                                                undefined,
+                                                            )
+                                                        }
+                                                        onValidationReject={(
                                                             val,
-                                                        );
-                                                    }}
-                                                />
-                                            </Box>
-                                        </HoverCard.Target>
-                                        <HoverCard.Dropdown>
-                                            <>
-                                                <Text pb="sm">
-                                                    No Email integration found
-                                                </Text>
-                                                <Text>
-                                                    To create an email scheduled
-                                                    delivery, you need to add
-                                                    <Anchor
-                                                        target="_blank"
-                                                        href="https://docs.lightdash.com/references/environmentVariables"
-                                                    >
-                                                        {' '}
-                                                        SMTP environment
-                                                        variables{' '}
-                                                    </Anchor>
-                                                    for your Lightdash instance
-                                                </Text>
-                                            </>
-                                        </HoverCard.Dropdown>
-                                    </HoverCard>
-                                </Group>
+                                                        ) =>
+                                                            setEmailValidationError(
+                                                                `'${val}' doesn't appear to be an email address`,
+                                                            )
+                                                        }
+                                                        onChange={(val) => {
+                                                            setEmailValidationError(
+                                                                undefined,
+                                                            );
+                                                            form.setFieldValue(
+                                                                'emailTargets',
+                                                                val,
+                                                            );
+                                                        }}
+                                                    />
+                                                </Box>
+                                            </HoverCard.Target>
+                                            <HoverCard.Dropdown>
+                                                <>
+                                                    <Text pb="sm">
+                                                        No Email integration
+                                                        found
+                                                    </Text>
+                                                    <Text>
+                                                        To create an email
+                                                        scheduled delivery, you
+                                                        need to add
+                                                        <Anchor
+                                                            target="_blank"
+                                                            href="https://docs.lightdash.com/references/environmentVariables"
+                                                        >
+                                                            {' '}
+                                                            SMTP environment
+                                                            variables{' '}
+                                                        </Anchor>
+                                                        for your Lightdash
+                                                        instance
+                                                    </Text>
+                                                </>
+                                            </HoverCard.Dropdown>
+                                        </HoverCard>
+                                    </Group>
+                                )}
                                 <Stack spacing="xs" mb="sm">
                                     <Group noWrap>
                                         <SlackSvg
@@ -755,12 +914,13 @@ const SchedulerForm: FC<Props> = ({
 
             <SchedulersModalFooter
                 confirmText={confirmText}
+                disableConfirm={isThresholdAlertWithNoFields}
                 onBack={onBack}
                 canSendNow={Boolean(
                     form.values.slackTargets.length ||
                         form.values.emailTargets.length,
                 )}
-                onSendNow={handleSendNow}
+                onSendNow={isThresholdAlert ? undefined : handleSendNow}
                 loading={loading}
             />
         </form>

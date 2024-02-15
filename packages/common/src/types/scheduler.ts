@@ -59,6 +59,19 @@ export type SchedulerLog = {
 
 export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
 
+export enum ThresoldOperator {
+    GREATER_THAN = 'greaterThan',
+    LESS_THAN = 'lessThan',
+    INCREASED_BY = 'increasedBy',
+    DECREASED_BY = 'decreasedBy',
+    // HAS_CHANGED = '=',
+}
+export type ThresholdOptions = {
+    operator: ThresoldOperator;
+    fieldId: string;
+    value: number;
+};
+
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
@@ -71,6 +84,7 @@ export type SchedulerBase = {
     savedChartUuid: string | null;
     dashboardUuid: string | null;
     options: SchedulerOptions;
+    thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
 };
 
 export type ChartScheduler = SchedulerBase & {
@@ -155,7 +169,13 @@ export type CreateSchedulerAndTargetsWithoutIds = Omit<
 
 export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
-    'schedulerUuid' | 'name' | 'message' | 'cron' | 'format' | 'options'
+    | 'schedulerUuid'
+    | 'name'
+    | 'message'
+    | 'cron'
+    | 'format'
+    | 'options'
+    | 'thresholds'
 > &
     Pick<DashboardScheduler, 'filters' | 'customViewportWidth'> & {
         targets: Array<

@@ -1,4 +1,8 @@
-import { LightdashPage } from '@lightdash/common';
+import {
+    friendlyName,
+    LightdashPage,
+    ThresholdOptions,
+} from '@lightdash/common';
 import { KnownBlock, LinkUnfurls, SectionBlock } from '@slack/bolt';
 import { Unfurl } from '../../services/UnfurlService/UnfurlService';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
@@ -179,6 +183,88 @@ export const getChartCsvResultsBlocks = ({
             : undefined,
     ]);
 
+type GetChartThresholdBlocksArgs = {
+    name: string;
+
+    title: string;
+    message?: string;
+    description: string | undefined;
+    ctaUrl: string;
+
+    footerMarkdown?: string;
+    thresholds: ThresholdOptions[];
+};
+export const getChartThresholdAlertBlocks = ({
+    name,
+    title,
+    message,
+    description,
+    ctaUrl,
+    thresholds,
+    footerMarkdown,
+}: GetChartThresholdBlocksArgs): KnownBlock[] => {
+    // TODO only pass threshold conditions met
+    // TODO send field name from explore or results (instead of friendly name)
+    // TODO better threshold.operator namign (instead of friendly name)
+    const thresholdBlocks: KnownBlock[] = thresholds.map((threshold) => ({
+        type: 'section',
+        text: {
+            type: 'mrkdwn',
+            text: `• \`${friendlyName(threshold.fieldId)}\` is *${friendlyName(
+                threshold.operator,
+            )}* \`${threshold.value}\` `,
+        },
+    }));
+    return getBlocks([
+        {
+            type: 'header',
+            text: {
+                type: 'plain_text',
+                text: title,
+            },
+        },
+        message
+            ? {
+                  type: 'section',
+                  text: {
+                      type: 'mrkdwn',
+                      text: message,
+                  },
+              }
+            : undefined,
+
+        {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `Your results for \`${name}\` met the following conditions:`,
+            },
+            accessory: {
+                type: 'button',
+                text: {
+                    type: 'plain_text',
+                    text: 'Open in Lightdash',
+                    emoji: true,
+                },
+                url: ctaUrl,
+                action_id: 'button-action',
+            },
+        },
+        ...thresholdBlocks,
+
+        footerMarkdown
+            ? {
+                  type: 'context',
+                  elements: [
+                      {
+                          type: 'mrkdwn',
+                          text: footerMarkdown,
+                      },
+                  ],
+              }
+            : undefined,
+    ]);
+};
 type GetDashboardCsvResultsBlocksArgs = {
     title: string;
     name: string;

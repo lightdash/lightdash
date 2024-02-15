@@ -4575,8 +4575,39 @@
                     }
                 ]
             },
+            "ThresoldOperator": {
+                "enum": [
+                    "greaterThan",
+                    "lessThan",
+                    "increasedBy",
+                    "decreasedBy"
+                ],
+                "type": "string"
+            },
+            "ThresholdOptions": {
+                "properties": {
+                    "value": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ThresoldOperator"
+                    }
+                },
+                "required": ["value", "fieldId", "operator"],
+                "type": "object"
+            },
             "SchedulerBase": {
                 "properties": {
+                    "thresholds": {
+                        "items": {
+                            "$ref": "#/components/schemas/ThresholdOptions"
+                        },
+                        "type": "array"
+                    },
                     "options": {
                         "$ref": "#/components/schemas/SchedulerOptions"
                     },
@@ -6329,7 +6360,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.989.3",
+        "version": "0.990.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

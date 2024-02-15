@@ -4,8 +4,8 @@ import {
     Dimension,
     getDimensionsFromItemsMap,
     getMetricsFromItemsMap,
+    getTableCalculationsFromItemsMap,
     isNumericItem,
-    isTableCalculation,
     ItemsMap,
     Metric,
     TableCalculation,
@@ -47,15 +47,7 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
 }) => {
     const { dimensions, numericMetrics } = useMemo(() => {
         const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
-        const tableCalculations = Object.entries(itemsMap ?? {}).reduce<
-            Record<string, TableCalculation>
-        >((acc, [key, value]) => {
-            if (isTableCalculation(value)) {
-                return { ...acc, [key]: value };
-            }
-            return acc;
-        }, {});
-
+        const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
         return {
             dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
             numericMetrics: { ...metrics, ...tableCalculations },

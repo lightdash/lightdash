@@ -1,5 +1,6 @@
+import { ItemsMap } from '@lightdash/common';
 import { Group, Modal, Text } from '@mantine/core';
-import { IconSend } from '@tabler/icons-react';
+import { IconBell, IconSend } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SchedulerModalContent from './SchedulerModalContent';
@@ -9,6 +10,8 @@ const SchedulersModal: FC<
         name: string;
         onClose?: () => void;
         isOpen?: boolean;
+        isThresholdAlert?: boolean;
+        itemsMap?: ItemsMap;
     }
 > = ({
     resourceUuid,
@@ -16,6 +19,8 @@ const SchedulersModal: FC<
     createMutation,
     isOpen = false,
     isChart,
+    isThresholdAlert,
+    itemsMap,
     onClose = () => {},
 }) => {
     return (
@@ -25,10 +30,17 @@ const SchedulersModal: FC<
             size="lg"
             yOffset={65}
             title={
-                <Group spacing="xs">
-                    <MantineIcon icon={IconSend} size="lg" color="gray.7" />
-                    <Text fw={600}>Scheduled deliveries</Text>
-                </Group>
+                isThresholdAlert ? (
+                    <Group spacing="xs">
+                        <MantineIcon icon={IconBell} size="lg" color="gray.7" />
+                        <Text fw={600}>Threshold alerts</Text>
+                    </Group>
+                ) : (
+                    <Group spacing="xs">
+                        <MantineIcon icon={IconSend} size="lg" color="gray.7" />
+                        <Text fw={600}>Scheduled deliveries</Text>
+                    </Group>
+                )
             }
             styles={(theme) => ({
                 header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
@@ -41,6 +53,8 @@ const SchedulersModal: FC<
                 createMutation={createMutation}
                 onClose={onClose}
                 isChart={isChart}
+                isThresholdAlert={isThresholdAlert}
+                itemsMap={itemsMap}
             />
         </Modal>
     );
