@@ -307,13 +307,11 @@ export const applyDefaultTileTargets = (
 export const createDashboardFilterRuleFromField = ({
     field,
     availableTileFilters,
-    includeDefaultValue,
     isTemporary,
     value,
 }: {
     field: FilterableField;
     availableTileFilters: Record<string, FilterableField[] | undefined>;
-    includeDefaultValue: boolean;
     isTemporary: boolean;
     value?: any;
 }): DashboardFilterRule =>
@@ -331,7 +329,7 @@ export const createDashboardFilterRuleFromField = ({
             disabled: !isTemporary,
             label: undefined,
         },
-        includeDefaultValue ? [] : null,
+        value !== undefined ? [value] : [],
     );
 
 type AddFilterRuleArgs = {

@@ -410,7 +410,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 createDashboardFilterRuleFromField({
                     field: dimension,
                     availableTileFilters: {},
-                    includeDefaultValue: true,
                     isTemporary: true,
                     value: e.data[fieldId(dimension)],
                 }),
@@ -434,7 +433,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                           createDashboardFilterRuleFromField({
                               field: pivotField,
                               availableTileFilters: {},
-                              includeDefaultValue: true,
                               isTemporary: true,
                               value: pivotValue,
                           }),

@@ -55,13 +55,14 @@ const DashboardCellContextMenu: FC<
         [cell.row.original],
     );
 
+    console.log(value);
+
     const filterField =
         isDimension(item) && !item.hidden
             ? [
                   createDashboardFilterRuleFromField({
                       field: item,
                       availableTileFilters: {},
-                      includeDefaultValue: true,
                       isTemporary: true,
                       value: value.raw,
                   }),
@@ -83,7 +84,6 @@ const DashboardCellContextMenu: FC<
             createDashboardFilterRuleFromField({
                 field: pivotField,
                 availableTileFilters: {},
-                includeDefaultValue: true,
                 isTemporary: true,
                 value: pivot.value,
             }),

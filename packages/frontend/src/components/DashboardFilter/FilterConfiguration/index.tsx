@@ -112,7 +112,6 @@ const FilterConfiguration: FC<Props> = ({
                 createDashboardFilterRuleFromField({
                     field: newField,
                     availableTileFilters,
-                    includeDefaultValue: false,
                     isTemporary: isCreatingTemporary,
                 }),
             );
