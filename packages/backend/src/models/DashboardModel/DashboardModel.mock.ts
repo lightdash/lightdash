@@ -125,6 +125,7 @@ export const spaceEntry: SpaceTable['base'] = {
     created_at: new Date(),
     project_id: 0,
     organization_uuid: 'organizationUuid',
+    search_vector: [],
 };
 export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_id: 0,
