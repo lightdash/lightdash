@@ -12,14 +12,14 @@ import SchedulersListItem from './SchedulersListItem';
 
 type Props = {
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
-    isAlertList?: boolean;
+    isThresholdAlertList?: boolean;
     onEdit: (schedulerUuid: string) => void;
 };
 
 const SchedulersList: FC<Props> = ({
     schedulersQuery,
     onEdit,
-    isAlertList,
+    isThresholdAlertList,
 }) => {
     const { data: schedulers, isInitialLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
@@ -51,14 +51,14 @@ const SchedulersList: FC<Props> = ({
         return <ErrorState error={error.error} />;
     }
     if (
-        ((!schedulers || schedulers.length <= 0) && !isAlertList) ||
-        (isAlertList && alertSchedulers.length <= 0)
+        (!isThresholdAlertList && deliverySchedulers.length <= 0) ||
+        (isThresholdAlertList && alertSchedulers.length <= 0)
     ) {
         return (
             <Stack color="gray" align="center" mt="xxl">
                 <Title order={4} color="gray.6">
                     {`There are no existing ${
-                        isAlertList ? 'alerts' : 'scheduled deliveries'
+                        isThresholdAlertList ? 'alerts' : 'scheduled deliveries'
                     }`}
                 </Title>
                 <Text color="gray.6">
@@ -69,7 +69,7 @@ const SchedulersList: FC<Props> = ({
     }
     return (
         <div>
-            {isAlertList
+            {isThresholdAlertList
                 ? alertSchedulers?.map((alertScheduler) => (
                       <SchedulersListItem
                           key={alertScheduler.schedulerUuid}

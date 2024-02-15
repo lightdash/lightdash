@@ -5,6 +5,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 
 interface FooterProps {
     confirmText?: string;
+    disableConfirm?: boolean;
     onBack?: () => void;
     onSendNow?: () => void;
     canSendNow?: boolean;
@@ -15,6 +16,7 @@ interface FooterProps {
 
 const SchedulersModalFooter = ({
     confirmText,
+    disableConfirm,
     onBack,
     onCancel,
     onSendNow,
@@ -62,7 +64,12 @@ const SchedulersModalFooter = ({
                     </Button>
                 )}
                 {!!confirmText && (
-                    <Button type="submit" loading={loading} onClick={onConfirm}>
+                    <Button
+                        type="submit"
+                        disabled={disableConfirm}
+                        loading={loading}
+                        onClick={onConfirm}
+                    >
                         {confirmText}
                     </Button>
                 )}

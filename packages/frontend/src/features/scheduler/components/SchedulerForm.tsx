@@ -108,10 +108,10 @@ const DEFAULT_VALUES_ALERT = {
 };
 
 const thresholdOperatorOptions = [
-    { label: 'Greater than', value: ThresoldOperator.GREATER_THAN },
-    { label: 'Less than', value: ThresoldOperator.LESS_THAN },
-    { label: 'Increased by', value: ThresoldOperator.INCREASED_BY },
-    { label: 'Decreased by', value: ThresoldOperator.DECREASED_BY },
+    { label: 'is greater than', value: ThresoldOperator.GREATER_THAN },
+    { label: 'is less than', value: ThresoldOperator.LESS_THAN },
+    { label: 'increased by', value: ThresoldOperator.INCREASED_BY },
+    { label: 'decreased by', value: ThresoldOperator.DECREASED_BY },
 ];
 
 const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
@@ -211,7 +211,7 @@ type Props = {
     onBack?: () => void;
     loading?: boolean;
     confirmText?: string;
-    isAlert?: boolean;
+    isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
 };
 
@@ -224,14 +224,14 @@ const SchedulerForm: FC<Props> = ({
     onBack,
     loading,
     confirmText,
-    isAlert,
+    isThresholdAlert,
     itemsMap,
 }) => {
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
                 ? getFormValuesFromScheduler(savedSchedulerData)
-                : isAlert
+                : isThresholdAlert
                 ? DEFAULT_VALUES_ALERT
                 : DEFAULT_VALUES,
         validateInputOnBlur: ['options.customLimit'],
@@ -286,6 +286,7 @@ const SchedulerForm: FC<Props> = ({
                 ...emailTargets,
                 ...slackTargets,
             ];
+
             return {
                 name: values.name,
                 message: values.message,
@@ -377,6 +378,9 @@ const SchedulerForm: FC<Props> = ({
 
     const limit = form.values?.options?.limit;
 
+    const isThresholdAlertWithNoFields =
+        isThresholdAlert && Object.keys(numericMetrics).length === 0;
+
     return (
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
             <Tabs defaultValue="setup">
@@ -388,10 +392,12 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
 
-                    {!isAlert && (
+                    {!isThresholdAlert && (
                         <>
                             <Tabs.Tab value="customization">
-                                {isAlert ? 'Alert message' : 'Customization'}
+                                {isThresholdAlert
+                                    ? 'Alert message'
+                                    : 'Customization'}
                             </Tabs.Tab>
                             <Tabs.Tab
                                 disabled={
@@ -416,16 +422,20 @@ const SchedulerForm: FC<Props> = ({
                         px="md"
                     >
                         <TextInput
-                            label={isAlert ? 'Alert name' : 'Delivery name'}
+                            label={
+                                isThresholdAlert
+                                    ? 'Alert name'
+                                    : 'Delivery name'
+                            }
                             placeholder={
-                                isAlert
+                                isThresholdAlert
                                     ? 'Name your alert'
                                     : 'Name your delivery'
                             }
                             required
                             {...form.getInputProps('name')}
                         />
-                        {isAlert && (
+                        {isThresholdAlert && (
                             <Stack spacing="xs">
                                 <FieldSelect
                                     label={
@@ -436,16 +446,26 @@ const SchedulerForm: FC<Props> = ({
                                             </Text>{' '}
                                         </Text>
                                     }
+                                    disabled={isThresholdAlertWithNoFields}
                                     withinPortal
                                     hasGrouping
                                     items={Object.values(numericMetrics)}
                                     data-testid="Alert/FieldSelect"
                                     {...{
                                         // TODO: the field select doesn't work great
-                                        // with use form, so we provide our own on change here
-                                        // we could definitely make this easier to work with
+                                        // with use form, so we provide our own on change and value here.
+                                        // The field select wants Items, but the form wants strings.
+                                        // We could definitely make this easier to work with
                                         ...form.getInputProps(
-                                            `thresholds.0.fieldId`,
+                                            `thresholds.0.field`,
+                                        ),
+                                        item: Object.values(
+                                            numericMetrics,
+                                        ).find(
+                                            (metric) =>
+                                                getItemId(metric) ===
+                                                form.values?.thresholds?.[0]
+                                                    ?.fieldId,
                                         ),
                                         onChange: (value) => {
                                             if (!value) return;
@@ -456,6 +476,13 @@ const SchedulerForm: FC<Props> = ({
                                         },
                                     }}
                                 />
+                                {isThresholdAlertWithNoFields && (
+                                    <Text color="red" size="xs" mb="sm">
+                                        No numeric fields available. You must
+                                        have at least one numeric metric or
+                                        calculation to set an alert.
+                                    </Text>
+                                )}
                                 <Group noWrap grow>
                                     <Select
                                         required
@@ -474,10 +501,10 @@ const SchedulerForm: FC<Props> = ({
                                 </Group>
                             </Stack>
                         )}
-                        {isAlert ? (
+                        {isThresholdAlert ? (
                             <Input.Wrapper label="Frequency">
                                 <Text color="gray" mt={8}>
-                                    Alerts will be processed at 10am daily
+                                    Alerts will be processed at 10am(UTC) daily
                                 </Text>
                             </Input.Wrapper>
                         ) : (
@@ -491,7 +518,7 @@ const SchedulerForm: FC<Props> = ({
                                 </Box>
                             </Input.Wrapper>
                         )}
-                        {!isAlert && (
+                        {!isThresholdAlert && (
                             <Stack spacing={0}>
                                 <Input.Label> Format </Input.Label>
                                 <Group spacing="xs" noWrap>
@@ -663,82 +690,90 @@ const SchedulerForm: FC<Props> = ({
 
                         <Input.Wrapper label="Destinations">
                             <Stack mt="sm">
-                                <Group noWrap>
-                                    <MantineIcon
-                                        icon={IconMail}
-                                        size="xl"
-                                        color="gray.7"
-                                    />
-                                    <HoverCard
-                                        disabled={!isAddEmailDisabled}
-                                        width={300}
-                                        position="bottom-start"
-                                        shadow="md"
-                                    >
-                                        <HoverCard.Target>
-                                            <Box w="100%">
-                                                <TagInput
-                                                    clearable
-                                                    error={
-                                                        emailValidationError ||
-                                                        null
-                                                    }
-                                                    placeholder="Enter email addresses"
-                                                    disabled={
-                                                        isAddEmailDisabled
-                                                    }
-                                                    value={
-                                                        form.values.emailTargets
-                                                    }
-                                                    allowDuplicates={false}
-                                                    splitChars={[',', ' ']}
-                                                    validationFunction={
-                                                        validateEmail
-                                                    }
-                                                    onBlur={() =>
-                                                        setEmailValidationError(
-                                                            undefined,
-                                                        )
-                                                    }
-                                                    onValidationReject={(val) =>
-                                                        setEmailValidationError(
-                                                            `'${val}' doesn't appear to be an email address`,
-                                                        )
-                                                    }
-                                                    onChange={(val) => {
-                                                        setEmailValidationError(
-                                                            undefined,
-                                                        );
-                                                        form.setFieldValue(
-                                                            'emailTargets',
+                                {!isThresholdAlert && (
+                                    <Group noWrap>
+                                        <MantineIcon
+                                            icon={IconMail}
+                                            size="xl"
+                                            color="gray.7"
+                                        />
+                                        <HoverCard
+                                            disabled={!isAddEmailDisabled}
+                                            width={300}
+                                            position="bottom-start"
+                                            shadow="md"
+                                        >
+                                            <HoverCard.Target>
+                                                <Box w="100%">
+                                                    <TagInput
+                                                        clearable
+                                                        error={
+                                                            emailValidationError ||
+                                                            null
+                                                        }
+                                                        placeholder="Enter email addresses"
+                                                        disabled={
+                                                            isAddEmailDisabled
+                                                        }
+                                                        value={
+                                                            form.values
+                                                                .emailTargets
+                                                        }
+                                                        allowDuplicates={false}
+                                                        splitChars={[',', ' ']}
+                                                        validationFunction={
+                                                            validateEmail
+                                                        }
+                                                        onBlur={() =>
+                                                            setEmailValidationError(
+                                                                undefined,
+                                                            )
+                                                        }
+                                                        onValidationReject={(
                                                             val,
-                                                        );
-                                                    }}
-                                                />
-                                            </Box>
-                                        </HoverCard.Target>
-                                        <HoverCard.Dropdown>
-                                            <>
-                                                <Text pb="sm">
-                                                    No Email integration found
-                                                </Text>
-                                                <Text>
-                                                    To create an email scheduled
-                                                    delivery, you need to add
-                                                    <Anchor
-                                                        target="_blank"
-                                                        href="https://docs.lightdash.com/references/environmentVariables"
-                                                    >
-                                                        {' '}
-                                                        SMTP environment
-                                                        variables{' '}
-                                                    </Anchor>
-                                                    for your Lightdash instance
-                                                </Text>
-                                            </>
-                                        </HoverCard.Dropdown>
-                                    </HoverCard>
-                                </Group>
+                                                        ) =>
+                                                            setEmailValidationError(
+                                                                `'${val}' doesn't appear to be an email address`,
+                                                            )
+                                                        }
+                                                        onChange={(val) => {
+                                                            setEmailValidationError(
+                                                                undefined,
+                                                            );
+                                                            form.setFieldValue(
+                                                                'emailTargets',
+                                                                val,
+                                                            );
+                                                        }}
+                                                    />
+                                                </Box>
+                                            </HoverCard.Target>
+                                            <HoverCard.Dropdown>
+                                                <>
+                                                    <Text pb="sm">
+                                                        No Email integration
+                                                        found
+                                                    </Text>
+                                                    <Text>
+                                                        To create an email
+                                                        scheduled delivery, you
+                                                        need to add
+                                                        <Anchor
+                                                            target="_blank"
+                                                            href="https://docs.lightdash.com/references/environmentVariables"
+                                                        >
+                                                            {' '}
+                                                            SMTP environment
+                                                            variables{' '}
+                                                        </Anchor>
+                                                        for your Lightdash
+                                                        instance
+                                                    </Text>
+                                                </>
+                                            </HoverCard.Dropdown>
+                                        </HoverCard>
+                                    </Group>
+                                )}
                                 <Stack spacing="xs" mb="sm">
                                     <Group noWrap>
                                         <SlackSvg
@@ -879,12 +914,13 @@ const SchedulerForm: FC<Props> = ({
 
             <SchedulersModalFooter
                 confirmText={confirmText}
+                disableConfirm={isThresholdAlertWithNoFields}
                 onBack={onBack}
                 canSendNow={Boolean(
                     form.values.slackTargets.length ||
                         form.values.emailTargets.length,
                 )}
-                onSendNow={isAlert ? undefined : handleSendNow}
+                onSendNow={isThresholdAlert ? undefined : handleSendNow}
                 loading={loading}
             />
         </form>
