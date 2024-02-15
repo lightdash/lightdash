@@ -1,7 +1,6 @@
 import { getDailyDatesFromCron } from './SchedulerWorker';
 
 jest.mock('../clients/clients', () => ({}));
-jest.mock('tempy', () => ({ temporaryDirectory: {} }));
 
 describe('Cron converter', () => {
     test('Should convert cron into daily dates', () => {

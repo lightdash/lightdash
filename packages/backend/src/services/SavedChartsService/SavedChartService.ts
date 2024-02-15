@@ -663,6 +663,7 @@ export class SavedChartService {
             await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
+            cron: '* * * * *',
             createdBy: user.userUuid,
             dashboardUuid: null,
             savedChartUuid: chartUuid,

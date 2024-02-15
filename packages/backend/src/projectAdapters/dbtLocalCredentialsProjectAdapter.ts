@@ -7,7 +7,7 @@ import { WarehouseClient } from '@lightdash/warehouses';
 import { writeFileSync } from 'fs';
 import * as fspromises from 'fs/promises';
 import * as path from 'path';
-import { temporaryDirectory } from 'tempy';
+import tempy from 'tempy';
 import {
     LIGHTDASH_PROFILE_NAME,
     LIGHTDASH_TARGET_NAME,
@@ -41,7 +41,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         dbtVersion,
         useDbtLs,
     }: DbtLocalCredentialsProjectAdapterArgs) {
-        const profilesDir = temporaryDirectory();
+        const profilesDir = tempy.temporaryDirectory();
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
         const {
             profile,

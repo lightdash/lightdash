@@ -47,8 +47,6 @@ import {
     validExplore,
 } from './ProjectService.mock';
 
-jest.mock('tempy', () => ({ temporaryDirectory: {} }));
-
 jest.mock('../../analytics/client', () => ({
     analytics: {
         track: jest.fn(),
