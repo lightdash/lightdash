@@ -40,9 +40,9 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         dbtVersion,
         useDbtLs,
     }: DbtLocalCredentialsProjectAdapterArgs) {
-        const profilesDir = fs.mkdtempSync('');
-
+        const profilesDir = fs.mkdtempSync('/tmp/local_');
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
+
         const {
             profile,
             environment: injectedEnvironment,

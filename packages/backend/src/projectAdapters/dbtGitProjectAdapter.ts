@@ -75,8 +75,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         dbtVersion,
         useDbtLs,
     }: DbtGitProjectAdapterArgs) {
-        const localRepositoryDir = fs.mkdtempSync('git_');
-
+        const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
             localRepositoryDir,
             projectDirectorySubPath,
