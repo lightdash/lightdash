@@ -304,17 +304,25 @@ export const applyDefaultTileTargets = (
     return filterRule;
 };
 
-export const createDashboardFilterRuleFromField = (
-    field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[] | undefined>,
-    includeDefaultValue: boolean,
-    isTemporary: boolean,
-): DashboardFilterRule =>
+export const createDashboardFilterRuleFromField = ({
+    field,
+    availableTileFilters,
+    includeDefaultValue,
+    isTemporary,
+    value,
+}: {
+    field: FilterableField;
+    availableTileFilters: Record<string, FilterableField[] | undefined>;
+    includeDefaultValue: boolean;
+    isTemporary: boolean;
+    value?: any;
+}): DashboardFilterRule =>
     getFilterRuleWithDefaultValue(
         field,
         {
             id: uuidv4(),
-            operator: FilterOperator.EQUALS,
+            operator:
+                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
             target: {
                 fieldId: fieldId(field),
                 tableName: field.table,
