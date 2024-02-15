@@ -173,7 +173,14 @@ export const findAndUpdateModelYaml = async ({
         filenames.push(expectedYamlPath);
     }
     const defaultYmlPath = path.join(
-        path.dirname(path.join(packageName, model.originalFilePath)),
+        path.dirname(
+            path.join(
+                packageName === projectName
+                    ? '.'
+                    : path.join('dbt_packages', packageName),
+                model.originalFilePath,
+            ),
+        ),
         `${model.name}.yml`,
     );
     filenames.push(defaultYmlPath);
