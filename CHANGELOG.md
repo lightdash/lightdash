@@ -1,3 +1,10 @@
+# [0.993.0](https://github.com/lightdash/lightdash/compare/0.992.0...0.993.0) (2024-02-15)
+
+
+### Features
+
+* Increase color palette size, revamp appearance settings page ([#8872](https://github.com/lightdash/lightdash/issues/8872)) ([2c26cf6](https://github.com/lightdash/lightdash/commit/2c26cf6a33da12dbb49ec9971310d17e6ff4d585))
+
 # [0.992.0](https://github.com/lightdash/lightdash/compare/0.991.1...0.992.0) (2024-02-15)
 
 
