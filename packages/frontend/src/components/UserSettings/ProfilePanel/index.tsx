@@ -1,8 +1,8 @@
 import {
     ApiError,
+    getEmailSchema,
     LightdashUser,
     UpdateUserArgs,
-    validateEmail,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -13,10 +13,11 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FC, useCallback, useEffect, useState } from 'react';
+import { z } from 'zod';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -34,10 +35,44 @@ const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
         body: JSON.stringify(data),
     });
 
+const validationSchema = z.object({
+    firstName: z.string().nonempty(),
+    lastName: z.string().nonempty(),
+    email: getEmailSchema().or(z.undefined()),
+});
+
+type FormValues = z.infer<typeof validationSchema>;
+
 const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
-    const { user, health } = useApp();
+    const {
+        user: { data: userData, isInitialLoading: isLoadingUser },
+        health,
+    } = useApp();
     const { showToastSuccess, showToastError } = useToaster();
+
+    const form = useForm<FormValues>({
+        initialValues: {
+            firstName: '',
+            lastName: '',
+            email: '',
+        },
+        validate: zodResolver(validationSchema),
+    });
+
+    useEffect(() => {
+        if (isLoadingUser || !userData) return;
+
+        const initialValues = {
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            email: userData.email,
+        };
+
+        form.setInitialValues(initialValues);
+        form.setValues(initialValues);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isLoadingUser, userData]);
 
     const isEmailServerConfigured = health.data?.hasEmailClient;
     const { data, isInitialLoading: statusLoading } = useEmailStatus();
@@ -47,18 +82,10 @@ const ProfilePanel: FC = () => {
         isLoading: emailLoading,
     } = useOneTimePassword();
 
-    const form = useForm({
-        initialValues: {
-            firstName: user.data?.firstName,
-            lastName: user.data?.lastName,
-            email: user.data?.email,
-        },
-    });
-
     const [showVerifyEmailModal, setShowVerifyEmailModal] =
         useState<boolean>(false);
 
-    const { isLoading: isUpdateUserLoading, mutate: updateUser } = useMutation<
+    const { isLoading: isUpdatingUser, mutate: updateUser } = useMutation<
         LightdashUser,
         ApiError,
         Partial<UpdateUserArgs>
@@ -93,40 +120,9 @@ const ProfilePanel: FC = () => {
         }
     }, [data?.isVerified, isEmailServerConfigured, sendVerificationEmailError]);
 
-    const setFormValuesFromData = useCallback(() => {
-        if (user.data?.firstName || user.data?.lastName || user.data?.email) {
-            const formValues = {
-                firstName: user.data?.firstName,
-                lastName: user.data?.lastName,
-                email: user.data?.email,
-            };
-
-            form.setValues(formValues);
-            form.resetDirty(formValues);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user.data?.firstName, user.data?.lastName, user.data?.email]);
-
-    useEffect(() => {
-        setFormValuesFromData();
-    }, [setFormValuesFromData]);
-
-    const handleOnSubmit = form.onSubmit(({ firstName, lastName, email }) => {
-        if (firstName && lastName && email && validateEmail(email)) {
-            updateUser({
-                firstName,
-                lastName,
-                email,
-            });
-        } else {
-            const title =
-                email && !validateEmail(email)
-                    ? 'Invalid email'
-                    : 'Required fields: first name, last name and email';
-            showToastError({
-                title,
-            });
-        }
+    const handleOnSubmit = form.onSubmit((formValues) => {
+        if (!form.isValid()) return;
+        updateUser(formValues);
     });
 
     return (
@@ -138,7 +134,7 @@ const ProfilePanel: FC = () => {
                     label="First name"
                     type="text"
                     required
-                    disabled={isUpdateUserLoading}
+                    disabled={isLoadingUser || isUpdatingUser}
                     data-cy="first-name-input"
                     {...form.getInputProps('firstName')}
                 />
@@ -149,7 +145,7 @@ const ProfilePanel: FC = () => {
                     label="Last name"
                     type="text"
                     required
-                    disabled={isUpdateUserLoading}
+                    disabled={isLoadingUser || isUpdatingUser}
                     data-cy="last-name-input"
                     {...form.getInputProps('lastName')}
                 />
@@ -160,7 +156,7 @@ const ProfilePanel: FC = () => {
                     label="Email"
                     type="email"
                     required
-                    disabled={isUpdateUserLoading}
+                    disabled={isLoadingUser || isUpdatingUser}
                     inputWrapperOrder={[
                         'label',
                         'input',
@@ -209,26 +205,22 @@ const ProfilePanel: FC = () => {
                 />
 
                 <Flex justify="flex-end" gap="sm">
-                    {form.isDirty() && (
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setFormValuesFromData();
-                            }}
-                        >
+                    {form.isDirty() && !isUpdatingUser && (
+                        <Button variant="outline" onClick={() => form.reset()}>
                             Cancel
                         </Button>
                     )}
                     <Button
                         type="submit"
                         display="block"
-                        loading={isUpdateUserLoading}
+                        loading={isLoadingUser || isUpdatingUser}
                         data-cy="update-profile-settings"
                         disabled={!form.isDirty()}
                     >
                         Update
                     </Button>
                 </Flex>
+
                 <VerifyEmailModal
                     opened={showVerifyEmailModal}
                     onClose={() => {
