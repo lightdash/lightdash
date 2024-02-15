@@ -901,7 +901,7 @@ const SavedChartsHeader: FC = () => {
                 <ChartSchedulersModal
                     chartUuid={savedChart.uuid}
                     name={savedChart.name}
-                    isAlert
+                    isThresholdAlert
                     itemsMap={itemsMap}
                     isOpen={isThresholdAlertsModalOpen}
                     onClose={() => toggleThresholdAlertsModal(false)}

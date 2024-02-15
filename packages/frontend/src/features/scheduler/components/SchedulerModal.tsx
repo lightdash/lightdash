@@ -10,7 +10,7 @@ const SchedulersModal: FC<
         name: string;
         onClose?: () => void;
         isOpen?: boolean;
-        isAlert?: boolean;
+        isThresholdAlert?: boolean;
         itemsMap?: ItemsMap;
     }
 > = ({
@@ -19,7 +19,7 @@ const SchedulersModal: FC<
     createMutation,
     isOpen = false,
     isChart,
-    isAlert,
+    isThresholdAlert,
     itemsMap,
     onClose = () => {},
 }) => {
@@ -30,7 +30,7 @@ const SchedulersModal: FC<
             size="lg"
             yOffset={65}
             title={
-                isAlert ? (
+                isThresholdAlert ? (
                     <Group spacing="xs">
                         <MantineIcon icon={IconBell} size="lg" color="gray.7" />
                         <Text fw={600}>Threshold alerts</Text>
@@ -53,7 +53,7 @@ const SchedulersModal: FC<
                 createMutation={createMutation}
                 onClose={onClose}
                 isChart={isChart}
-                isAlert={isAlert}
+                isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
             />
         </Modal>

@@ -211,7 +211,7 @@ type Props = {
     onBack?: () => void;
     loading?: boolean;
     confirmText?: string;
-    isAlert?: boolean;
+    isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
 };
 
@@ -224,14 +224,14 @@ const SchedulerForm: FC<Props> = ({
     onBack,
     loading,
     confirmText,
-    isAlert,
+    isThresholdAlert,
     itemsMap,
 }) => {
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
                 ? getFormValuesFromScheduler(savedSchedulerData)
-                : isAlert
+                : isThresholdAlert
                 ? DEFAULT_VALUES_ALERT
                 : DEFAULT_VALUES,
         validateInputOnBlur: ['options.customLimit'],
@@ -378,8 +378,8 @@ const SchedulerForm: FC<Props> = ({
 
     const limit = form.values?.options?.limit;
 
-    const isAlertWithNoFields =
-        isAlert && Object.keys(numericMetrics).length === 0;
+    const isThresholdAlertWithNoFields =
+        isThresholdAlert && Object.keys(numericMetrics).length === 0;
 
     return (
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
@@ -392,10 +392,12 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
 
-                    {!isAlert && (
+                    {!isThresholdAlert && (
                         <>
                             <Tabs.Tab value="customization">
-                                {isAlert ? 'Alert message' : 'Customization'}
+                                {isThresholdAlert
+                                    ? 'Alert message'
+                                    : 'Customization'}
                             </Tabs.Tab>
                             <Tabs.Tab
                                 disabled={
@@ -420,16 +422,20 @@ const SchedulerForm: FC<Props> = ({
                         px="md"
                     >
                         <TextInput
-                            label={isAlert ? 'Alert name' : 'Delivery name'}
+                            label={
+                                isThresholdAlert
+                                    ? 'Alert name'
+                                    : 'Delivery name'
+                            }
                             placeholder={
-                                isAlert
+                                isThresholdAlert
                                     ? 'Name your alert'
                                     : 'Name your delivery'
                             }
                             required
                             {...form.getInputProps('name')}
                         />
-                        {isAlert && (
+                        {isThresholdAlert && (
                             <Stack spacing="xs">
                                 <FieldSelect
                                     label={
@@ -440,7 +446,7 @@ const SchedulerForm: FC<Props> = ({
                                             </Text>{' '}
                                         </Text>
                                     }
-                                    disabled={isAlertWithNoFields}
+                                    disabled={isThresholdAlertWithNoFields}
                                     withinPortal
                                     hasGrouping
                                     items={Object.values(numericMetrics)}
@@ -470,7 +476,7 @@ const SchedulerForm: FC<Props> = ({
                                         },
                                     }}
                                 />
-                                {isAlertWithNoFields && (
+                                {isThresholdAlertWithNoFields && (
                                     <Text color="red" size="xs" mb="sm">
                                         No numeric fields available. You must
                                         have at least one numeric metric or
@@ -495,10 +501,10 @@ const SchedulerForm: FC<Props> = ({
                                 </Group>
                             </Stack>
                         )}
-                        {isAlert ? (
+                        {isThresholdAlert ? (
                             <Input.Wrapper label="Frequency">
                                 <Text color="gray" mt={8}>
-                                    Alerts will be processed at 10am daily
+                                    Alerts will be processed at 10am(UTC) daily
                                 </Text>
                             </Input.Wrapper>
                         ) : (
@@ -512,7 +518,7 @@ const SchedulerForm: FC<Props> = ({
                                 </Box>
                             </Input.Wrapper>
                         )}
-                        {!isAlert && (
+                        {!isThresholdAlert && (
                             <Stack spacing={0}>
                                 <Input.Label> Format </Input.Label>
                                 <Group spacing="xs" noWrap>
@@ -684,7 +690,7 @@ const SchedulerForm: FC<Props> = ({
 
                         <Input.Wrapper label="Destinations">
                             <Stack mt="sm">
-                                {!isAlert && (
+                                {!isThresholdAlert && (
                                     <Group noWrap>
                                         <MantineIcon
                                             icon={IconMail}
@@ -908,13 +914,13 @@ const SchedulerForm: FC<Props> = ({
 
             <SchedulersModalFooter
                 confirmText={confirmText}
-                disableConfirm={isAlertWithNoFields}
+                disableConfirm={isThresholdAlertWithNoFields}
                 onBack={onBack}
                 canSendNow={Boolean(
                     form.values.slackTargets.length ||
                         form.values.emailTargets.length,
                 )}
-                onSendNow={isAlert ? undefined : handleSendNow}
+                onSendNow={isThresholdAlert ? undefined : handleSendNow}
                 loading={loading}
             />
         </form>
