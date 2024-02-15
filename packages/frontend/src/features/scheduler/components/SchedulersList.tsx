@@ -51,7 +51,7 @@ const SchedulersList: FC<Props> = ({
         return <ErrorState error={error.error} />;
     }
     if (
-        ((!schedulers || schedulers.length <= 0) && !isAlertList) ||
+        (!isAlertList && deliverySchedulers.length <= 0) ||
         (isAlertList && alertSchedulers.length <= 0)
     ) {
         return (
