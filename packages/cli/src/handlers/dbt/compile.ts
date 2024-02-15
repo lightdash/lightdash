@@ -94,6 +94,8 @@ export const dbtList = async (
         console.error(stderr);
         return models;
     } catch (e: any) {
-        throw new ParseError(`Failed to run dbt ls:\n  ${e.message}`);
+        throw new ParseError(
+            `Error executing 'dbt ls':\n  ${e.message}\nEnsure you're on the latest patch version of dbt.`,
+        );
     }
 };
