@@ -17,4 +17,12 @@ export enum FeatureFlags {
      * color in the org's color palette every time.
      */
     UseSharedColorAssignment = 'use-shared-color-assignment',
+
+    /**/
+    PassthroughLogin = 'passthrough-login',
+
+    /**
+     * Enables custom visualizations when the environment variable is also enabled
+     */
+    CustomVisualizationsEnabled = 'custom-visualizations-enabled',
 }

@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Stack, Text, Title } from '@mantine/core';
 import {
     IconBuildingSkyscraper,
@@ -19,7 +20,6 @@ import {
     IconUsers,
     IconUserShield,
 } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
@@ -47,6 +47,7 @@ import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel'
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
+import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import { TrackPage, useTracking } from '../providers/TrackingProvider';
@@ -54,8 +55,9 @@ import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 
 const Settings: FC = () => {
-    const isPassthroughLoginFeatureEnabled =
-        useFeatureFlagEnabled('passthrough-login');
+    const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PassthroughLogin,
+    );
 
     const {
         health: {
