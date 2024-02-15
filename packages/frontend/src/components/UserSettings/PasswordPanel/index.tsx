@@ -1,7 +1,7 @@
 import { getPasswordSchema } from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { FC, useCallback, useEffect } from 'react';
+import { FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -36,7 +36,7 @@ const PasswordPanel: FC = () => {
         validate: zodResolver(validationSchema(!!hasPassword)),
     });
 
-    const { isLoading, mutate: updateUserPassword } =
+    const { isLoading: isUpdatingUserPassword, mutate: updateUserPassword } =
         useUserUpdatePasswordMutation({
             onSuccess: () => {
                 showToastSuccess({
@@ -53,31 +53,13 @@ const PasswordPanel: FC = () => {
             },
         });
 
-    const handleFormReset = useCallback(() => {
-        const resetValues = {
-            currentPassword: '',
-            newPassword: '',
-        };
-
-        form.setValues(resetValues);
-        form.resetDirty(resetValues);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    useEffect(() => {
-        handleFormReset();
-    }, [handleFormReset]);
-
     const handleOnSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
+        if (!form.isValid()) return;
+
         if (hasPassword) {
-            updateUserPassword({
-                password: currentPassword,
-                newPassword,
-            });
+            updateUserPassword({ password: currentPassword, newPassword });
         } else {
-            updateUserPassword({
-                newPassword,
-            });
+            updateUserPassword({ newPassword });
         }
     });
 
@@ -88,7 +70,7 @@ const PasswordPanel: FC = () => {
                     <PasswordInput
                         label="Current password"
                         placeholder="Enter your password..."
-                        disabled={isLoading}
+                        disabled={isUpdatingUserPassword}
                         {...form.getInputProps('currentPassword')}
                     />
                 )}
@@ -96,27 +78,23 @@ const PasswordPanel: FC = () => {
                     <PasswordInput
                         label="New password"
                         placeholder="Enter your new password..."
-                        disabled={isLoading}
+                        disabled={isUpdatingUserPassword}
                         {...form.getInputProps('newPassword')}
                     />
                 </PasswordTextInput>
 
                 <Flex justify="flex-end" gap="sm">
-                    {form.isDirty() && (
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                handleFormReset();
-                            }}
-                        >
+                    {form.isDirty() && !isUpdatingUserPassword && (
+                        <Button variant="outline" onClick={() => form.reset()}>
                             Cancel
                         </Button>
                     )}
+
                     <Button
                         type="submit"
                         display="block"
-                        loading={isLoading}
-                        disabled={isLoading || !form.isDirty()}
+                        loading={isUpdatingUserPassword}
+                        disabled={isUpdatingUserPassword}
                     >
                         Update
                     </Button>

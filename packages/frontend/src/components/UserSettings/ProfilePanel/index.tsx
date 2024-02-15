@@ -1,9 +1,4 @@
-import {
-    ApiError,
-    getEmailSchema,
-    LightdashUser,
-    UpdateUserArgs,
-} from '@lightdash/common';
+import { ApiError, getEmailSchema } from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -15,25 +10,17 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { z } from 'zod';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useEmailStatus,
     useOneTimePassword,
 } from '../../../hooks/useEmailVerification';
+import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
-
-const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
-    lightdashApi<LightdashUser>({
-        url: `/user/me`,
-        method: 'PATCH',
-        body: JSON.stringify(data),
-    });
 
 const validationSchema = z.object({
     firstName: z.string().nonempty(),
@@ -44,7 +31,6 @@ const validationSchema = z.object({
 type FormValues = z.infer<typeof validationSchema>;
 
 const ProfilePanel: FC = () => {
-    const queryClient = useQueryClient();
     const {
         user: { data: userData, isInitialLoading: isLoadingUser },
         health,
@@ -85,30 +71,21 @@ const ProfilePanel: FC = () => {
     const [showVerifyEmailModal, setShowVerifyEmailModal] =
         useState<boolean>(false);
 
-    const { isLoading: isUpdatingUser, mutate: updateUser } = useMutation<
-        LightdashUser,
-        ApiError,
-        Partial<UpdateUserArgs>
-    >(updateUserQuery, {
-        mutationKey: ['user_update'],
-        onSuccess: async () => {
-            await queryClient.refetchQueries(['user']);
-            await queryClient.refetchQueries(['email_status']);
-            showToastSuccess({
-                title: 'Success! User details were updated.',
-            });
-        },
-        onError: useCallback(
-            (error: ApiError) => {
+    const { isLoading: isUpdatingUser, mutate: updateUser } =
+        useUserUpdateMutation({
+            onSuccess: () => {
+                showToastSuccess({
+                    title: 'Success! User details were updated.',
+                });
+            },
+            onError: (error: ApiError) => {
                 const [title, ...rest] = error.error.message.split('\n');
                 showToastError({
                     title,
                     subtitle: rest.join('\n'),
                 });
             },
-            [showToastError],
-        ),
-    });
+        });
 
     useEffect(() => {
         if (
