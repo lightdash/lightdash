@@ -141,7 +141,8 @@ const UpdateStateContent: FC<{
     schedulerUuid: string;
     itemsMap?: ItemsMap;
     onBack: () => void;
-}> = ({ schedulerUuid, itemsMap, onBack }) => {
+    isAlert?: boolean;
+}> = ({ schedulerUuid, itemsMap, onBack, isAlert }) => {
     const scheduler = useScheduler(schedulerUuid);
 
     const mutation = useSchedulersUpdateMutation(schedulerUuid);
@@ -218,6 +219,7 @@ const UpdateStateContent: FC<{
                 }
                 disabled={mutation.isLoading}
                 savedSchedulerData={scheduler.data}
+                isAlert={isAlert}
                 onSubmit={handleSubmit}
                 confirmText="Save"
                 onBack={onBack}
@@ -303,6 +305,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                     schedulerUuid={schedulerUuid}
                     itemsMap={itemsMap}
                     onBack={() => setState(States.LIST)}
+                    isAlert={isAlert}
                 />
             )}
         </>

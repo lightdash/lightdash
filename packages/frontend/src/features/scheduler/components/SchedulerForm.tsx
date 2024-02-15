@@ -97,6 +97,7 @@ const DEFAULT_VALUES = {
 
 const DEFAULT_VALUES_ALERT = {
     ...DEFAULT_VALUES,
+    cron: '0 10 * * *',
     thresholds: [
         {
             fieldId: '',

@@ -24,11 +24,20 @@ const SchedulersList: FC<Props> = ({
     const { data: schedulers, isInitialLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
 
-    const alertSchedulers =
-        schedulers?.filter(
-            (scheduler) =>
-                scheduler.thresholds && scheduler.thresholds.length > 0,
-        ) || [];
+    const { deliverySchedulers, alertSchedulers } = (schedulers || []).reduce<{
+        deliverySchedulers: SchedulerAndTargets[];
+        alertSchedulers: SchedulerAndTargets[];
+    }>(
+        (acc, scheduler) => {
+            if (scheduler.thresholds && scheduler.thresholds.length > 0) {
+                acc.alertSchedulers.push(scheduler);
+            } else {
+                acc.deliverySchedulers.push(scheduler);
+            }
+            return acc;
+        },
+        { deliverySchedulers: [], alertSchedulers: [] },
+    );
 
     if (isInitialLoading) {
         return (
@@ -69,8 +78,7 @@ const SchedulersList: FC<Props> = ({
                           onDelete={setSchedulerUuid}
                       />
                   ))
-                : schedulers &&
-                  schedulers.map(
+                : deliverySchedulers.map(
                       (scheduler) =>
                           scheduler.format !== SchedulerFormat.GSHEETS && (
                               <SchedulersListItem
