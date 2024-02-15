@@ -96,7 +96,7 @@ const defaultColorPalettes: ColorPalette[] = [
         ],
     },
     {
-        name: 'Sunrise Serenity Palette',
+        name: 'Sunrise Serenity',
         icon: IconSunglasses,
         colors: [
             '#FF6464',
@@ -122,7 +122,7 @@ const defaultColorPalettes: ColorPalette[] = [
         ],
     },
     {
-        name: 'Autumn Sunset Palette',
+        name: 'Autumn Sunset',
         icon: IconLeaf,
         colors: [
             '#C2590F',
@@ -148,7 +148,7 @@ const defaultColorPalettes: ColorPalette[] = [
         ],
     },
     {
-        name: 'Oceanic Blues Palette',
+        name: 'Oceanic Blues',
         icon: IconRipple,
         colors: [
             '#0D4F8B',
