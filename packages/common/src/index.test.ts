@@ -85,6 +85,24 @@ describe('Common index', () => {
                 ).values,
             ).toEqual(['test1', 'test2']);
         });
+        test('should parse numbers to strings in type string', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(
+                    stringDimension,
+                    emptyValueFilter,
+                    [102],
+                ).values,
+            ).toEqual(['102']);
+        });
+        test('should parse numbers/strings to strings in type string', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(
+                    stringDimension,
+                    emptyValueFilter,
+                    [102, 'test2'],
+                ).values,
+            ).toEqual(['102', 'test2']);
+        });
     });
 });
 

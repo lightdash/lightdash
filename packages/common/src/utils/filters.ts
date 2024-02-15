@@ -227,6 +227,10 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                     values !== undefined ? values : [false];
                 break;
             }
+            case FilterType.STRING: {
+                filterRuleDefaults.values = values?.map(String) ?? [];
+                break;
+            }
             default:
                 break;
         }
