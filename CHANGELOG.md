@@ -1,3 +1,10 @@
+## [0.989.3](https://github.com/lightdash/lightdash/compare/0.989.2...0.989.3) (2024-02-15)
+
+
+### Bug Fixes
+
+* add new useFeatureFlagEnabled hook, migrate existing feature flags in frontend to FeatureFlags enum ([#8923](https://github.com/lightdash/lightdash/issues/8923)) ([3782e26](https://github.com/lightdash/lightdash/commit/3782e26073d07bd52abdd4bb6984c59a89de6a57))
+
 ## [0.989.2](https://github.com/lightdash/lightdash/compare/0.989.1...0.989.2) (2024-02-14)
 
 
