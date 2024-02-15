@@ -2,6 +2,7 @@ import {
     ApiError,
     CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
+    ItemsMap,
     SchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -28,10 +29,11 @@ enum States {
 
 const ListStateContent: FC<{
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
+    isAlertList?: boolean;
     onClose: () => void;
     onConfirm: () => void;
     onEdit: (schedulerUuid: string) => void;
-}> = ({ schedulersQuery, onClose, onConfirm, onEdit }) => {
+}> = ({ schedulersQuery, isAlertList, onClose, onConfirm, onEdit }) => {
     return (
         <>
             <Box
@@ -42,6 +44,7 @@ const ListStateContent: FC<{
             >
                 <SchedulersList
                     schedulersQuery={schedulersQuery}
+                    isAlertList={isAlertList}
                     onEdit={onEdit}
                 />
             </Box>
@@ -63,8 +66,9 @@ const CreateStateContent: FC<{
     >;
     isChart: boolean;
     isAlert?: boolean;
+    itemsMap?: ItemsMap;
     onBack: () => void;
-}> = ({ resourceUuid, createMutation, isChart, isAlert, onBack }) => {
+}> = ({ resourceUuid, createMutation, isChart, isAlert, itemsMap, onBack }) => {
     useEffect(() => {
         if (createMutation.isSuccess) {
             createMutation.reset();
@@ -127,6 +131,7 @@ const CreateStateContent: FC<{
                 onSendNow={handleSendNow}
                 loading={createMutation.isLoading}
                 isAlert={isAlert}
+                itemsMap={itemsMap}
             />
         </>
     );
@@ -134,8 +139,9 @@ const CreateStateContent: FC<{
 
 const UpdateStateContent: FC<{
     schedulerUuid: string;
+    itemsMap?: ItemsMap;
     onBack: () => void;
-}> = ({ schedulerUuid, onBack }) => {
+}> = ({ schedulerUuid, itemsMap, onBack }) => {
     const scheduler = useScheduler(schedulerUuid);
 
     const mutation = useSchedulersUpdateMutation(schedulerUuid);
@@ -217,6 +223,7 @@ const UpdateStateContent: FC<{
                 onBack={onBack}
                 onSendNow={handleSendNow}
                 loading={mutation.isLoading || scheduler.isInitialLoading}
+                itemsMap={itemsMap}
             />
         </>
     );
@@ -233,6 +240,7 @@ interface Props {
     onClose: () => void;
     isChart: boolean;
     isAlert?: boolean;
+    itemsMap?: ItemsMap;
 }
 
 const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
@@ -241,6 +249,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
     createMutation,
     isChart,
     isAlert,
+    itemsMap,
     onClose = () => {},
 }) => {
     const [state, setState] = useState<States>(States.LIST);
@@ -276,6 +285,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                         setState(States.EDIT);
                         setSchedulerUuid(schedulerUuidToUpdate);
                     }}
+                    isAlertList={isAlert}
                 />
             )}
             {state === States.CREATE && (
@@ -283,6 +293,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                     resourceUuid={resourceUuid}
                     createMutation={createMutation}
                     isChart={isChart}
+                    itemsMap={itemsMap}
                     onBack={() => setState(States.LIST)}
                     isAlert={isAlert}
                 />
@@ -290,6 +301,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
             {state === States.EDIT && schedulerUuid && (
                 <UpdateStateContent
                     schedulerUuid={schedulerUuid}
+                    itemsMap={itemsMap}
                     onBack={() => setState(States.LIST)}
                 />
             )}

@@ -1,3 +1,4 @@
+import { ItemsMap } from '@lightdash/common';
 import React, { FC } from 'react';
 import {
     useChartSchedulerCreateMutation,
@@ -41,6 +42,7 @@ interface ChartSchedulersProps {
     name: string;
     isOpen: boolean;
     isAlert?: boolean;
+    itemsMap?: ItemsMap;
     onClose: () => void;
 }
 

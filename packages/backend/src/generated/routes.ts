@@ -4118,7 +4118,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                threshold: {
+                thresholds: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'ThresholdOptions' },
                 },
