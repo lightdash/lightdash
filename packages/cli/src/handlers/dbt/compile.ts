@@ -95,7 +95,7 @@ export const dbtList = async (
         return models;
     } catch (e: any) {
         throw new ParseError(
-            `Error executing 'dbt ls':\n  ${e.message}\nEnsure you're on the latest patch version of dbt.`,
+            `Error executing 'dbt ls':\n  ${e.message}\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false`,
         );
     }
 };
