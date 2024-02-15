@@ -1,7 +1,7 @@
 previewsEnabled: true
 
 databases:
-  - name: jaffle_db
+  - name: jaffle_db_recreate_test
     ipAllowList: []
     postgresMajorVersion: 13
 
