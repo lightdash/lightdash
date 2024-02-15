@@ -26,13 +26,8 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
     if (await knex.schema.hasColumn(SpaceTableName, 'search_vector')) {
         await knex.schema.alterTable(SpaceTableName, (table) => {
+            // when column is dropped, index is dropped as well
             table.dropColumn('search_vector');
-        });
-    }
-
-    if (await knex.schema.hasTable('spaces_search_vector_idx')) {
-        await knex.schema.alterTable(SpaceTableName, (table) => {
-            table.dropIndex('spaces_search_vector_idx');
         });
     }
 }
