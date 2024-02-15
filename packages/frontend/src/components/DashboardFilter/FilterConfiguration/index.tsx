@@ -109,12 +109,12 @@ const FilterConfiguration: FC<Props> = ({
 
         if (newField && isField(newField) && isFilterableField(newField)) {
             setDraftFilterRule(
-                createDashboardFilterRuleFromField(
-                    newField,
+                createDashboardFilterRuleFromField({
+                    field: newField,
                     availableTileFilters,
-                    false,
-                    isCreatingTemporary,
-                ),
+                    includeDefaultValue: false,
+                    isTemporary: isCreatingTemporary,
+                }),
             );
 
             setSelectedField(newField);
