@@ -55,8 +55,6 @@ const DashboardCellContextMenu: FC<
         [cell.row.original],
     );
 
-    console.log(value);
-
     const filterField =
         isDimension(item) && !item.hidden
             ? [
@@ -131,8 +129,6 @@ const DashboardCellContextMenu: FC<
         value,
         fieldValues,
     ]);
-
-    console.log(filters);
 
     return (
         <>
