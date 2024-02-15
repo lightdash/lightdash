@@ -1,3 +1,10 @@
+## [0.991.1](https://github.com/lightdash/lightdash/compare/0.991.0...0.991.1) (2024-02-15)
+
+
+### Bug Fixes
+
+* use dbt model package_name for lightdash generate ([#8943](https://github.com/lightdash/lightdash/issues/8943)) ([6635fa3](https://github.com/lightdash/lightdash/commit/6635fa38fb86f46329f159dffd777e58f93475c5))
+
 # [0.991.0](https://github.com/lightdash/lightdash/compare/0.990.0...0.991.0) (2024-02-15)
 
 
