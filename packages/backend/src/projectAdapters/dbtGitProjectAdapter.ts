@@ -7,6 +7,7 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
+import fs from 'fs';
 import * as fspromises from 'fs-extra';
 import * as path from 'path';
 import simpleGit, {
@@ -14,7 +15,6 @@ import simpleGit, {
     SimpleGit,
     SimpleGitProgressEvent,
 } from 'simple-git';
-import tempy from 'tempy';
 import Logger from '../logging/logger';
 import { CachedWarehouse } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
@@ -75,9 +75,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         dbtVersion,
         useDbtLs,
     }: DbtGitProjectAdapterArgs) {
-        const localRepositoryDir = tempy.temporaryDirectory({
-            prefix: 'git_',
-        });
+        const localRepositoryDir = fs.mkdtempSync('git_');
+
         const projectDir = path.join(
             localRepositoryDir,
             projectDirectorySubPath,
