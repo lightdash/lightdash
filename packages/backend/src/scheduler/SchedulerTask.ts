@@ -1113,17 +1113,7 @@ export const uploadGsheets = async (
             );
 
             if (thresholds !== undefined && thresholds.length > 0) {
-                // TODO add multiple AND conditions
-                if (isPositiveThesholdAlert(thresholds, rows)) {
-                    console.debug(
-                        'Positive threshold alert, continue with notification',
-                    );
-                } else {
-                    console.debug(
-                        'Negative threshold alert, skipping notification',
-                    );
-                    return;
-                }
+                throw new Error('Thresholds not implemented for google sheets');
             }
 
             const explore = await projectService.getExplore(
@@ -1402,6 +1392,39 @@ export const handleScheduledDelivery = async (
             scheduledTime,
             status: SchedulerJobStatus.STARTED,
         });
+
+        const {
+            createdBy: userUuid,
+            savedChartUuid,
+            dashboardUuid,
+            thresholds,
+        } = scheduler;
+        if (thresholds !== undefined && thresholds.length > 0) {
+            // TODO add multiple AND conditions
+            if (savedChartUuid) {
+                // We are fetching here the results before getting image or CSV
+                const user = await userService.getSessionByUserUuid(userUuid);
+                const { rows } = await projectService.getResultsForChart(
+                    user,
+                    savedChartUuid,
+                );
+
+                if (isPositiveThesholdAlert(thresholds, rows)) {
+                    console.debug(
+                        'Positive threshold alert, continue with notification',
+                    );
+                } else {
+                    console.debug(
+                        'Negative threshold alert, skipping notification',
+                    );
+                    return;
+                }
+            } else if (dashboardUuid) {
+                throw new Error(
+                    'Threshold alert not implemented for dashboards',
+                );
+            }
+        }
 
         const page =
             scheduler.format === SchedulerFormat.GSHEETS
