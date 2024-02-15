@@ -1,3 +1,10 @@
+## [0.989.4](https://github.com/lightdash/lightdash/compare/0.989.3...0.989.4) (2024-02-15)
+
+
+### Bug Fixes
+
+* disable chart download in custom viz ([#8920](https://github.com/lightdash/lightdash/issues/8920)) ([867708a](https://github.com/lightdash/lightdash/commit/867708a06becc231918a56b02009e1acec2e1dbb))
+
 ## [0.989.3](https://github.com/lightdash/lightdash/compare/0.989.2...0.989.3) (2024-02-15)
 
 
