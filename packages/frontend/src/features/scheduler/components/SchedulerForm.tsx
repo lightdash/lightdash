@@ -386,20 +386,22 @@ const SchedulerForm: FC<Props> = ({
                     {isDashboard && dashboard ? (
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
-                    <Tabs.Tab value="customization">
-                        {isAlert ? 'Alert message' : 'Customization'}
-                    </Tabs.Tab>
 
                     {!isAlert && (
-                        <Tabs.Tab
-                            disabled={
-                                form.values.format !== SchedulerFormat.IMAGE ||
-                                !isDashboard
-                            }
-                            value="preview"
-                        >
-                            Preview and Size
-                        </Tabs.Tab>
+                        <>
+                            <Tabs.Tab value="customization">
+                                {isAlert ? 'Alert message' : 'Customization'}
+                            </Tabs.Tab>
+                            <Tabs.Tab
+                                disabled={
+                                    form.values.format !==
+                                        SchedulerFormat.IMAGE || !isDashboard
+                                }
+                                value="preview"
+                            >
+                                Preview and Size
+                            </Tabs.Tab>
+                        </>
                     )}
                 </Tabs.List>
 
@@ -421,11 +423,6 @@ const SchedulerForm: FC<Props> = ({
                             }
                             required
                             {...form.getInputProps('name')}
-                            styles={{
-                                label: {
-                                    marginBottom: '0.25rem',
-                                },
-                            }}
                         />
                         {isAlert && (
                             <Stack spacing="xs">
@@ -478,13 +475,13 @@ const SchedulerForm: FC<Props> = ({
                         )}
                         {isAlert ? (
                             <Input.Wrapper label="Frequency">
-                                <Text mt={8}>
+                                <Text color="gray" mt={8}>
                                     Alerts will be processed at 10am daily
                                 </Text>
                             </Input.Wrapper>
                         ) : (
                             <Input.Wrapper label="Delivery frequency">
-                                <Box mt="xxs">
+                                <Box>
                                     <CronInternalInputs
                                         disabled={disabled}
                                         {...form.getInputProps('cron')}
@@ -495,7 +492,7 @@ const SchedulerForm: FC<Props> = ({
                         )}
                         {!isAlert && (
                             <Stack spacing={0}>
-                                <Input.Label mb="xxs"> Format </Input.Label>
+                                <Input.Label> Format </Input.Label>
                                 <Group spacing="xs" noWrap>
                                     <SegmentedControl
                                         data={[
@@ -886,7 +883,7 @@ const SchedulerForm: FC<Props> = ({
                     form.values.slackTargets.length ||
                         form.values.emailTargets.length,
                 )}
-                onSendNow={handleSendNow}
+                onSendNow={isAlert ? undefined : handleSendNow}
                 loading={loading}
             />
         </form>

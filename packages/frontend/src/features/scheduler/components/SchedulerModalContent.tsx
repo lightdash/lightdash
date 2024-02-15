@@ -126,7 +126,7 @@ const CreateStateContent: FC<{
                           }
                 }
                 onSubmit={handleSubmit}
-                confirmText="Create schedule"
+                confirmText={isAlert ? 'Create alert' : 'Create schedule'}
                 onBack={onBack}
                 onSendNow={handleSendNow}
                 loading={createMutation.isLoading}
