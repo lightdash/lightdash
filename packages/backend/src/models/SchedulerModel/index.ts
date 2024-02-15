@@ -225,7 +225,9 @@ export class SchedulerModel {
                         newScheduler.customViewportWidth
                             ? newScheduler.customViewportWidth
                             : null,
-                    thresholds: newScheduler.thresholds || null,
+                    thresholds: newScheduler.thresholds
+                        ? JSON.stringify(newScheduler.thresholds)
+                        : null,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -271,7 +273,9 @@ export class SchedulerModel {
                         scheduler.customViewportWidth
                             ? scheduler.customViewportWidth
                             : null,
-                    thresholds: scheduler.thresholds || null,
+                    thresholds: scheduler.thresholds
+                        ? JSON.stringify(scheduler.thresholds)
+                        : null,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 

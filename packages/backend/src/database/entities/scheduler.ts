@@ -27,7 +27,7 @@ export type SchedulerDb = {
     options: Record<string, any>;
     filters: string | null;
     custom_viewport_width: number | null;
-    thresholds: Record<string, any>[] | null;
+    thresholds: string | null;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {
