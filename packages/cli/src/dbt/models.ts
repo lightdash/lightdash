@@ -23,6 +23,7 @@ type CompiledModel = {
     database: string;
     originalFilePath: string;
     patchPath: string | null | undefined;
+    packageName: string;
     alias?: string;
 };
 
@@ -156,7 +157,7 @@ export const findAndUpdateModelYaml = async ({
         includeMeta,
     });
     const filenames = [];
-    const { patchPath } = model;
+    const { patchPath, packageName } = model;
     if (patchPath) {
         const { project: expectedYamlProject, path: expectedYamlSubPath } =
             patchPathParts(patchPath);
@@ -172,7 +173,7 @@ export const findAndUpdateModelYaml = async ({
         filenames.push(expectedYamlPath);
     }
     const defaultYmlPath = path.join(
-        path.dirname(path.join(projectDir, model.originalFilePath)),
+        path.dirname(path.join(packageName, model.originalFilePath)),
         `${model.name}.yml`,
     );
     filenames.push(defaultYmlPath);
@@ -377,5 +378,6 @@ export const getCompiledModels = async (
         originalFilePath: modelLookup[modelId].original_file_path,
         patchPath: modelLookup[modelId].patch_path,
         alias: modelLookup[modelId].alias,
+        packageName: modelLookup[modelId].package_name,
     }));
 };
