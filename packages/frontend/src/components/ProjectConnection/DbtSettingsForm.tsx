@@ -3,10 +3,12 @@ import {
     DbtProjectType,
     DbtProjectTypeLabels,
     DefaultSupportedDbtVersion,
+    FeatureFlags,
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Select, Stack, TextInput } from '@mantine/core';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
@@ -53,6 +55,9 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     const toggleAdvancedSettingsOpen = () =>
         setIsAdvancedSettingsOpen((open) => !open);
     const { health } = useApp();
+    const isEnabled = useFeatureFlagEnabled(
+        FeatureFlags.ShowDbtCloudProjectOption,
+    );
     const options = useMemo(() => {
         const enabledTypes = [
             DbtProjectType.GITHUB,
@@ -64,7 +69,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         if (health.data?.localDbtEnabled) {
             enabledTypes.push(DbtProjectType.DBT);
         }
-        if (type === DbtProjectType.DBT_CLOUD_IDE) {
+        if (isEnabled || type === DbtProjectType.DBT_CLOUD_IDE) {
             enabledTypes.push(DbtProjectType.DBT_CLOUD_IDE);
         }
 
@@ -72,7 +77,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             value,
             label: DbtProjectTypeLabels[value],
         }));
-    }, [health, type]);
+    }, [isEnabled, health, type]);
 
     useEffect(() => {
         // Reset field validation from github form

@@ -231,12 +231,10 @@ export const projectWithSensitiveFields: Project = {
     type: ProjectType.DEFAULT,
     dbtVersion: DefaultSupportedDbtVersion,
     dbtConnection: {
-        account_id: 'account_id',
-        environment_id: 'environment_id',
-        name: 'name',
-        project_id: 'project_id',
         type: DbtProjectType.DBT_CLOUD_IDE,
-    } as any as DbtCloudIDEProjectConfig,
+        api_key: 'api_key',
+        environment_id: 'environment_id',
+    },
 };
 
 export const projectSummary: ProjectSummary = {

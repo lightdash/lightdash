@@ -289,26 +289,6 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    async getDbtCatalog(): Promise<DbtRpcDocsGenerateResults> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'dbt',
-            description: 'getDbtbCatalog',
-        });
-        const logs = await this._runDbtCommand('docs', 'generate');
-        const rawCatalog = await this.loadDbtTargetArtifact('catalog.json');
-        span?.finish();
-        if (isDbtRpcDocsGenerateResults(rawCatalog)) {
-            return rawCatalog;
-        }
-        throw new DbtError(
-            'Cannot read response from dbt, catalog.json is not a valid dbt catalog',
-            logs,
-        );
-    }
-
     async test(): Promise<void> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
