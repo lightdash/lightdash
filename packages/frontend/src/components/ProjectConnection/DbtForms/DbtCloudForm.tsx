@@ -1,7 +1,9 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Stack } from '@mantine/core';
-import { FC } from 'react';
+import { Alert, Stack } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
+import React, { FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import MantineIcon from '../../common/MantineIcon';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -13,10 +15,24 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
     return (
         <Stack>
+            <Alert
+                icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
+                title="Requirements"
+                variant="light"
+            >
+                <p>
+                    The dbt job that builds your project must also generate docs
+                    and your API key must have the access to the Discovery API.
+                </p>
+                <p>
+                    After your job finish you need to click the "refresh dbt"
+                    button in Lightdash to sync your project.
+                </p>
+            </Alert>
             <PasswordInput
                 name="dbt.api_key"
                 label="API key"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#how-to-get-your-api-key"
+                documentationUrl="https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens"
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                     validate: {
@@ -29,33 +45,9 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 disabled={disabled}
             />
             <Input
-                name="dbt.account_id"
-                label="Account ID"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#how-to-get-your-account-id-and-project-id-from-your-dbt-cloud-project"
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Account ID'),
-                    },
-                }}
-                disabled={disabled}
-            />
-            <Input
-                name="dbt.project_id"
-                label="Project ID"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#how-to-get-your-account-id-and-project-id-from-your-dbt-cloud-project"
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Project ID'),
-                    },
-                }}
-                disabled={disabled}
-            />
-            <Input
                 name="dbt.environment_id"
                 label="Environment ID"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#how-to-get-your-environment-id"
+                documentationUrl="https://docs.getdbt.com/docs/dbt-cloud-apis/sl-jdbc#connection-parameters"
                 rules={{
                     required: 'Required field',
                     validate: {

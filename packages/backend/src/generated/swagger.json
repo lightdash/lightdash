@@ -2308,47 +2308,11 @@
                     "api_key": {
                         "type": "string"
                     },
-                    "account_id": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        ]
-                    },
                     "environment_id": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        ]
-                    },
-                    "project_id": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        ]
+                        "type": "string"
                     }
                 },
-                "required": [
-                    "type",
-                    "api_key",
-                    "account_id",
-                    "environment_id",
-                    "project_id"
-                ],
+                "required": ["type", "api_key", "environment_id"],
                 "type": "object",
                 "additionalProperties": true
             },
@@ -6365,7 +6329,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.981.0",
+        "version": "0.989.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
