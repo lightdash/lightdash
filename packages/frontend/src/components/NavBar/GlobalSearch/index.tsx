@@ -287,6 +287,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
                             },
                         });
                     }}
+                    filter={(_query, actions) => actions} // always display all actions, remove any default mantine filtering
                 />
             </MantineProvider>
         </>
