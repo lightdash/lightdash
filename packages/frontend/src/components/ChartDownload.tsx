@@ -29,6 +29,7 @@ import ExportSelector from './ExportSelector';
 import { isBigNumberVisualizationConfig } from './LightdashVisualization/VisualizationBigNumberConfig';
 import { isCartesianVisualizationConfig } from './LightdashVisualization/VisualizationConfigCartesian';
 import { isTableVisualizationConfig } from './LightdashVisualization/VisualizationConfigTable';
+import { isCustomVisualizationConfig } from './LightdashVisualization/VisualizationCustomConfig';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -259,7 +260,8 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             !resultsData?.metricQuery ||
             isBigNumberVisualizationConfig(visualizationConfig) ||
             (isCartesianVisualizationConfig(visualizationConfig) &&
-                !eChartsOptions);
+                !eChartsOptions) ||
+            isCustomVisualizationConfig(visualizationConfig);
 
         const { user } = useApp();
 

@@ -301,6 +301,11 @@ export const isSupportedDbtAdapter = (
     isDbtRawManifestMetadata(x) &&
     Object.values<string>(SupportedDbtAdapter).includes(x.adapter_type);
 
+export const isSupportedDbtAdapterType = (
+    x: string,
+): x is SupportedDbtAdapter =>
+    Object.values<string>(SupportedDbtAdapter).includes(x);
+
 export interface DbtRpcGetManifestResults {
     manifest: DbtManifest;
 }

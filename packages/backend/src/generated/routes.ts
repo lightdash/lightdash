@@ -2128,21 +2128,7 @@ const models: TsoaRoute.Models = {
         properties: {
             type: { ref: 'DbtProjectType.DBT_CLOUD_IDE', required: true },
             api_key: { dataType: 'string', required: true },
-            account_id: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
-                required: true,
-            },
-            environment_id: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
-                required: true,
-            },
-            project_id: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
-                required: true,
-            },
+            environment_id: { dataType: 'string', required: true },
         },
         additionalProperties: true,
     },

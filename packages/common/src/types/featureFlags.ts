@@ -27,4 +27,6 @@ export enum FeatureFlags {
      * Enables custom visualizations when the environment variable is also enabled
      */
     CustomVisualizationsEnabled = 'custom-visualizations-enabled',
+
+    ShowDbtCloudProjectOption = 'show-dbt-cloud-project-option',
 }
