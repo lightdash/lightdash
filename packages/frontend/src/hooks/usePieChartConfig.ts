@@ -105,7 +105,6 @@ const usePieChartConfig: PieChartConfigFn = (
     const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
 
     const [isDonut, setIsDonut] = useState(pieChartConfig?.isDonut ?? true);
-
     const [valueLabel, setValueLabel] = useState(
         pieChartConfig?.valueLabel ?? 'hidden',
     );
@@ -286,10 +285,9 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const groupColorDefaults = useMemo(() => {
         return Object.fromEntries(
-            groupLabels.map((name, index) => [
-                name,
-                colorPalette[index % colorPalette.length],
-            ]),
+            groupLabels.map((name, index) => {
+                return [name, colorPalette[index % colorPalette.length]];
+            }),
         );
     }, [groupLabels, colorPalette]);
 

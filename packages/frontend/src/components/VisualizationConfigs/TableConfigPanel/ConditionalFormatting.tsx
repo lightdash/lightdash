@@ -312,7 +312,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     withEyeDropper={false}
                                     format="hex"
                                     swatches={colorPalette}
-                                    swatchesPerRow={colorPalette.length}
+                                    swatchesPerRow={8}
                                     label="Select color"
                                     value={config.color}
                                     onChange={handleChangeSingleColor}
@@ -366,7 +366,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     withEyeDropper={false}
                                     format="hex"
                                     swatches={colorPalette}
-                                    swatchesPerRow={colorPalette.length}
+                                    swatchesPerRow={8}
                                     label="Start color"
                                     value={config.color.start}
                                     onChange={(newStartColor) =>
@@ -381,7 +381,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     withEyeDropper={false}
                                     format="hex"
                                     swatches={colorPalette}
-                                    swatchesPerRow={colorPalette.length}
+                                    swatchesPerRow={8}
                                     label="End color"
                                     value={config.color.end}
                                     onChange={(newEndColor) =>
