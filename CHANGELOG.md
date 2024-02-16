@@ -1,3 +1,31 @@
+# [0.995.0](https://github.com/lightdash/lightdash/compare/0.994.1...0.995.0) (2024-02-16)
+
+
+### Features
+
+* add ability to choose alert frequency ([#8960](https://github.com/lightdash/lightdash/issues/8960)) ([8c332ec](https://github.com/lightdash/lightdash/commit/8c332ec2b9459661c773d1ea1b09c6253c4e5124))
+
+## [0.994.1](https://github.com/lightdash/lightdash/compare/0.994.0...0.994.1) (2024-02-16)
+
+
+### Bug Fixes
+
+* move to space menu click handling ([#8946](https://github.com/lightdash/lightdash/issues/8946)) ([bf2ca22](https://github.com/lightdash/lightdash/commit/bf2ca22ac8178a9a2b2ad3c845ce31f54e3651c3))
+
+# [0.994.0](https://github.com/lightdash/lightdash/compare/0.993.1...0.994.0) (2024-02-16)
+
+
+### Features
+
+* button inactive until change ([#8779](https://github.com/lightdash/lightdash/issues/8779)) ([9d6ece3](https://github.com/lightdash/lightdash/commit/9d6ece34cad060d7c6d3d08ec3ea8e519d1e7872))
+
+## [0.993.1](https://github.com/lightdash/lightdash/compare/0.993.0...0.993.1) (2024-02-16)
+
+
+### Bug Fixes
+
+* use dbt model alias from discovery api ([#8954](https://github.com/lightdash/lightdash/issues/8954)) ([d862943](https://github.com/lightdash/lightdash/commit/d862943c90c1a6ad35349e49092a0968955dfdca))
+
 # [0.993.0](https://github.com/lightdash/lightdash/compare/0.992.0...0.993.0) (2024-02-15)
 
 

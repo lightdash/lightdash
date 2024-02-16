@@ -144,7 +144,13 @@ export class DbtMetadataApiClient implements DbtClient {
                     package_name: node.packageName,
                     raw_code: node.rawCode,
                     compiled_code: node.compiledCode,
-                    relation_name: `${fieldQuoteChar}${node.database}${fieldQuoteChar}.${fieldQuoteChar}${node.schema}${fieldQuoteChar}.${fieldQuoteChar}${node.name}${fieldQuoteChar}`,
+                    relation_name: `${fieldQuoteChar}${
+                        node.database
+                    }${fieldQuoteChar}.${fieldQuoteChar}${
+                        node.schema
+                    }${fieldQuoteChar}.${fieldQuoteChar}${
+                        node.alias || node.name
+                    }${fieldQuoteChar}`,
                     config: node.config,
                 },
             ]),

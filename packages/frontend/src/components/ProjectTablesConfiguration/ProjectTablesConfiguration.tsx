@@ -5,6 +5,7 @@ import {
     Box,
     Button,
     Collapse,
+    Flex,
     Highlight,
     Loader,
     MultiSelect,
@@ -14,9 +15,10 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useToggle } from 'react-use';
+import { z } from 'zod';
 import { useExplores } from '../../hooks/useExplores';
 import {
     useProjectTablesConfiguration,
@@ -29,16 +31,20 @@ import { useAbilityContext } from '../common/Authorization';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 
-type FormData = {
-    type: TableSelectionType;
-    tags: string[];
-    names: string[];
-};
+const validationSchema = z.object({
+    type: z.nativeEnum(TableSelectionType),
+    tags: z.array(z.string()),
+    names: z.array(z.string()),
+});
 
-const ProjectTablesConfiguration: FC<{
+type FormValues = z.infer<typeof validationSchema>;
+
+type Props = {
     projectUuid: string;
     onSuccess?: () => void;
-}> = ({ projectUuid, onSuccess }) => {
+};
+
+const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
     const { track } = useTracking();
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -47,13 +53,16 @@ const ProjectTablesConfiguration: FC<{
 
     const { data: explores, isInitialLoading: isLoadingExplores } =
         useExplores(projectUuid);
-    const { data, isInitialLoading } =
+
+    const { data: tablesConfig, isInitialLoading: isLoadingTablesConfig } =
         useProjectTablesConfiguration(projectUuid);
+
     const {
         mutate: update,
         isLoading: isSaving,
         isSuccess,
     } = useUpdateProjectTablesConfiguration(projectUuid);
+
     const canUpdateTableConfiguration = ability.can(
         'update',
         subject('Project', {
@@ -62,16 +71,18 @@ const ProjectTablesConfiguration: FC<{
         }),
     );
     const disabled =
-        isInitialLoading ||
+        isLoadingTablesConfig ||
         isSaving ||
         isLoadingExplores ||
         !canUpdateTableConfiguration;
-    const form = useForm<FormData>({
+
+    const form = useForm<FormValues>({
         initialValues: {
             type: TableSelectionType.ALL,
             tags: [],
             names: [],
         },
+        validate: zodResolver(validationSchema),
     });
 
     const modelsIncluded = useMemo<string[]>(() => {
@@ -117,26 +128,25 @@ const ProjectTablesConfiguration: FC<{
         setTimeout(() => setSearch(() => ''), 0);
     }, [setSearch]);
 
-    const { setFieldValue } = form;
     useEffect(() => {
-        if (data) {
-            setFieldValue('type', data.tableSelection.type);
-            setFieldValue(
-                'tags',
-                data.tableSelection.type === TableSelectionType.WITH_TAGS &&
-                    data.tableSelection.value
-                    ? data.tableSelection.value
-                    : [],
-            );
-            setFieldValue(
-                'names',
-                data.tableSelection.type === TableSelectionType.WITH_NAMES &&
-                    data.tableSelection.value
-                    ? data.tableSelection.value
-                    : [],
-            );
-        }
-    }, [setFieldValue, data]);
+        if (!tablesConfig) return;
+
+        const { type, value } = tablesConfig.tableSelection;
+
+        const getValueBasedOnType = (selectionType: TableSelectionType) =>
+            type === selectionType && value ? value : [];
+
+        const initialValues = {
+            type: type,
+            tags: getValueBasedOnType(TableSelectionType.WITH_TAGS),
+            names: getValueBasedOnType(TableSelectionType.WITH_NAMES),
+        };
+
+        form.setInitialValues(initialValues);
+        form.setValues(initialValues);
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tablesConfig]);
 
     useEffect(() => {
         if (isSuccess && onSuccess) {
@@ -144,10 +154,13 @@ const ProjectTablesConfiguration: FC<{
         }
     }, [isSuccess, onSuccess]);
 
-    const handleSubmit = form.onSubmit(async (formData: FormData) => {
+    const handleSubmit = form.onSubmit(async (formData) => {
+        if (!form.isValid()) return;
+
         track({
             name: EventName.UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED,
         });
+
         let value: string[] | null = null;
         if (
             formData.type === TableSelectionType.WITH_TAGS &&
@@ -214,7 +227,9 @@ const ProjectTablesConfiguration: FC<{
                                 value={TableSelectionType.ALL}
                                 label="Show entire project"
                                 description="Show all of the models in your dbt project in Lightdash."
+                                disabled={disabled}
                             />
+
                             <Box>
                                 <Radio
                                     value={TableSelectionType.WITH_TAGS}
@@ -224,9 +239,10 @@ const ProjectTablesConfiguration: FC<{
                                             <DocumentationHelpButton href="https://docs.getdbt.com/reference/resource-configs/tags#examples" />
                                         </>
                                     }
-                                    description="Write a list of tags you want to include, separated
-                                    by commas."
+                                    description="Write a list of tags you want to include, separated by commas."
+                                    disabled={disabled}
                                 />
+
                                 {form.values.type ===
                                     TableSelectionType.WITH_TAGS && (
                                     <MultiSelect
@@ -264,12 +280,12 @@ const ProjectTablesConfiguration: FC<{
                                             )
                                         }
                                         nothingFound={
-                                            isInitialLoading
+                                            isLoadingTablesConfig
                                                 ? 'Loading...'
                                                 : 'No results found'
                                         }
                                         rightSection={
-                                            isInitialLoading ? (
+                                            isLoadingTablesConfig ? (
                                                 <Loader
                                                     size="xs"
                                                     color="gray"
@@ -292,9 +308,10 @@ const ProjectTablesConfiguration: FC<{
                                 <Radio
                                     value={TableSelectionType.WITH_NAMES}
                                     label="Show models in this list"
-                                    description="Write a list of models you want to include,
-                                    separated by commas."
+                                    description="Write a list of models you want to include, separated by commas."
+                                    disabled={disabled}
                                 />
+
                                 {form.values.type ===
                                     TableSelectionType.WITH_NAMES && (
                                     <MultiSelect
@@ -331,12 +348,12 @@ const ProjectTablesConfiguration: FC<{
                                             )
                                         }
                                         nothingFound={
-                                            isInitialLoading
+                                            isLoadingTablesConfig
                                                 ? 'Loading...'
                                                 : 'No results found'
                                         }
                                         rightSection={
-                                            isInitialLoading ? (
+                                            isLoadingTablesConfig ? (
                                                 <Loader
                                                     size="xs"
                                                     color="gray"
@@ -354,15 +371,24 @@ const ProjectTablesConfiguration: FC<{
                     </Radio.Group>
 
                     {canUpdateTableConfiguration && (
-                        <Button
-                            mt={'xl'}
-                            type="submit"
-                            loading={isSaving}
-                            disabled={disabled}
-                            sx={{ float: 'right' }}
-                        >
-                            Save changes
-                        </Button>
+                        <Flex justify="flex-end" gap="sm" mt="xl">
+                            {form.isDirty() && !disabled && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => form.reset()}
+                                >
+                                    Cancel
+                                </Button>
+                            )}
+
+                            <Button
+                                type="submit"
+                                loading={isSaving}
+                                disabled={disabled}
+                            >
+                                Save changes
+                            </Button>
+                        </Flex>
                     )}
                 </div>
             </SettingsGridCard>
