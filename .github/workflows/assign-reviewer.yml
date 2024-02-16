@@ -14,5 +14,4 @@ jobs:
               with:
                   script: |
                       const reviewer = context.requested_reviewer;
-
-                      console.log(reviewer)
+                      console.log(JSON.stringify(context, null, 2))
