@@ -11,7 +11,103 @@ jobs:
             - uses: actions/github-script@v7
               env:
                   SHA: '${{env.parentSHA}}'
+                  # Comma-separated list of team slugs to consider for auto-assignment
+                  TEAM_SLUGS: 'engineering'
+                  # Comma-separated list of user logins that always skip assignment
+                  SKIPPED_LOGINS: ''
               with:
                   script: |
-                      const reviewer = context.requested_reviewer;
-                      console.log(JSON.stringify(context, null, 2))
+                      const existingReviewers = context.requested_reviewers;
+                      const teams = context.requested_teams;
+                      const prNumber = context.number;
+
+                      // Team slugs for which this auto-assignment will be triggered:
+                      const teamSlugs = (process.env.TEAM_SLUGS ?? "").split(",");
+
+                      // User logins which will never be auto-assigned:
+                      const skippedLogins = (process.env.SKIPPED_LOGINS ?? "").split(",");
+
+                      // No action taken if there's already a reviewer, if the request review is for more than a
+                      // single team, or if the selected team doesn't match one of the valid team slugs:
+                      if (
+                        existingReviewers.length > 0 ||
+                        teams.length !== 1 ||
+                        !teamSlugs.includes(teams[0].slug)
+                      ) {
+                        console.log(
+                          `Skipping - more than one team assigned, already have a reviewer, or not one of ${teamSlugs}`
+                        );
+                        return;
+                      }
+
+                      const {
+                        organization: { login: repoOwner },
+                        pull_request: {
+                          base: {
+                            repo: { name: repoName },
+                          },
+                        },
+                      } = context;
+
+                      const { slug } = teams[0];
+
+                      const teamMembers = await github.rest.teams.listMembersInOrg({
+                        org: repoOwner,
+                        team_slug: slug,
+                        per_page: 100,
+                      });
+
+                      // Get a set of recent pull requests and look at assignments:
+                      const lookback = await github.rest.pulls.list({
+                        state: "all",
+                        owner: repoOwner,
+                        repo: repoName,
+                        per_page: 20,
+                      });
+
+                      // Count how many times we've seen each reviewer over a period, starting
+                      // with a list of all known users for this team sitting at 0 recent reviews:
+                      const reviewerTotals = lookback.reduce((acc, pr) => {
+                        pr.requested_reviewers.map((reviewer) => {
+                          const currentTotal = acc[reviewer.login] ?? 0;
+                          acc[reviewer.login] = currentTotal + 1;
+                        });
+
+                        return acc;
+                      }, Object.fromEntries(teamMembers.map((member) => [member.login, 0])));
+
+                      // Sort from least to most busy, extract just the user logins, and filter out
+                      // any skipped users:
+                      const sortedReviewers = Object.entries(reviewerTotals)
+                        .sort((a, b) => a[1] - b[1])
+                        .map((reviewer) => reviewer[0])
+                        .filter((reviewerLogin) => !skippedLogins.includes(reviewerLogin));
+
+                      // Finally, if we have someone to pick, get the person right at the top of the list,
+                      // and assign them as reviewer. We also remove the team assignment.
+                      if (sortedReviewers.length > 0) {
+                        const assignedLogin = sortedReviewers[0];
+
+                        console.log(
+                          `Assigning reviewer. Picked: ${assignedLogin} from (${sortedReviewers.join(
+                            ", "
+                          )}), low to high`
+                        );
+
+                        // Remove the team assignment:
+                        await github.rest.pulls.removeRequestedReviewers({
+                          owner: repoOwner,
+                          repo: repoName,
+                          pull_number: prNumber,
+                          team_reviewers: [slug],
+                          reviewers: [],
+                        });
+
+                        // Assign the new reviewer:
+                        await github.rest.pulls.requestReviewers({
+                          owner: repoOwner,
+                          repo: repoName,
+                          pull_number: prNumber,
+                          reviewers: [assignedLogin],
+                        });
+                      }
