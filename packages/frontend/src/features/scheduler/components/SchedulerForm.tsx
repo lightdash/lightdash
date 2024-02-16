@@ -501,24 +501,24 @@ const SchedulerForm: FC<Props> = ({
                                 </Group>
                             </Stack>
                         )}
-                        {isThresholdAlert ? (
-                            <Input.Wrapper label="Frequency">
-                                <Text color="gray" mt={8}>
-                                    Alerts will be processed at 10am(UTC) daily
-                                </Text>
-                            </Input.Wrapper>
-                        ) : (
-                            <Input.Wrapper label="Delivery frequency">
-                                <Box>
-                                    <CronInternalInputs
-                                        disabled={disabled}
-                                        {...form.getInputProps('cron')}
-                                        value={form.values.cron}
-                                        name="cron"
-                                    />
-                                </Box>
-                            </Input.Wrapper>
-                        )}
+
+                        <Input.Wrapper
+                            label={
+                                isThresholdAlert
+                                    ? 'Alert frequency'
+                                    : 'Delivery frequency'
+                            }
+                        >
+                            <Box>
+                                <CronInternalInputs
+                                    disabled={disabled}
+                                    {...form.getInputProps('cron')}
+                                    value={form.values.cron}
+                                    name="cron"
+                                />
+                            </Box>
+                        </Input.Wrapper>
+
                         {!isThresholdAlert && (
                             <Stack spacing={0}>
                                 <Input.Label> Format </Input.Label>
