@@ -1,5 +1,6 @@
 import {
     AllowedEmailDomains,
+    isValidEmailDomain,
     OrganizationMemberRole,
     ProjectMemberRole,
     ProjectType,
@@ -16,22 +17,15 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { IconHelpCircle, IconPlus, IconX } from '@tabler/icons-react';
-import {
-    FC,
-    ForwardedRef,
-    forwardRef,
-    useCallback,
-    useEffect,
-    useMemo,
-} from 'react';
+import { useForm, zodResolver } from '@mantine/form';
+import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import { FC, ForwardedRef, forwardRef, useEffect, useMemo } from 'react';
+import { z } from 'zod';
 import {
     useAllowedEmailDomains,
     useUpdateAllowedEmailDomains,
 } from '../../../hooks/organization/useAllowedDomains';
 import { useProjects } from '../../../hooks/useProjects';
-import { isValidEmailDomain } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
 
 const roleOptions: Array<{
@@ -83,76 +77,87 @@ const projectRoleOptions: Array<{
     },
 ];
 
-const AllowedDomainsPanel: FC = () => {
-    const form = useForm({
-        initialValues: {
-            emailDomains: [] as string[],
-            role: OrganizationMemberRole.VIEWER as AllowedEmailDomains['role'],
-            projects: [] as AllowedEmailDomains['projects'],
-        },
-    });
-    const { setFieldValue } = form;
+const validationSchema = z.object({
+    emailDomains: z.array(z.string().nonempty()),
+    role: z.nativeEnum(OrganizationMemberRole),
+    projects: z.array(
+        z.object({
+            projectUuid: z.string().nonempty(),
+            role: z.nativeEnum(ProjectMemberRole),
+        }),
+    ),
+});
 
-    const { data: projects, isInitialLoading: isLoadingProjects } =
-        useProjects();
+type FormDataType = z.infer<typeof validationSchema>;
+
+const AllowedDomainsPanel: FC = () => {
+    const form = useForm<FormDataType>({
+        initialValues: {
+            emailDomains: [],
+            role: OrganizationMemberRole.VIEWER,
+            projects: [],
+        },
+        validate: zodResolver(validationSchema),
+    });
+
+    const { data: projects, isLoading: isLoadingProjects } = useProjects();
+
     const {
         data: allowedEmailDomainsData,
-        isInitialLoading: emailDomainsLoading,
+        isLoading: isAllowedEmailDomainsDataLoading,
         isSuccess,
     } = useAllowedEmailDomains();
-    const { mutate, isLoading: updateEmailDomainsLoading } =
+
+    const { mutate, isLoading: isUpdateAllowedEmailDomainsLoading } =
         useUpdateAllowedEmailDomains();
+
     const isLoading =
-        updateEmailDomainsLoading || emailDomainsLoading || isLoadingProjects;
-
-    const projectOptions = useMemo(
-        () =>
-            (projects || [])
-                .filter(({ type }) => type !== ProjectType.PREVIEW)
-                .map((item) => ({
-                    value: item.projectUuid,
-                    label: item.name,
-                })),
-        [projects],
-    );
+        isUpdateAllowedEmailDomainsLoading ||
+        isAllowedEmailDomainsDataLoading ||
+        isLoadingProjects;
 
     useEffect(() => {
-        if (allowedEmailDomainsData) {
-            setFieldValue('emailDomains', allowedEmailDomainsData.emailDomains);
-            setFieldValue('role', allowedEmailDomainsData.role);
-            setFieldValue('projects', allowedEmailDomainsData.projects);
-        }
-    }, [allowedEmailDomainsData, projectOptions, setFieldValue]);
+        if (isAllowedEmailDomainsDataLoading || !allowedEmailDomainsData)
+            return;
 
-    const setFormValuesFromData = useCallback(() => {
-        if (allowedEmailDomainsData) {
-            const formValues = {
-                emailDomains: allowedEmailDomainsData.emailDomains,
-                role: allowedEmailDomainsData.role,
-                projects: allowedEmailDomainsData.projects,
-            };
+        const initialValues = {
+            emailDomains: allowedEmailDomainsData.emailDomains,
+            role: allowedEmailDomainsData.role,
+            projects: allowedEmailDomainsData.projects,
+        };
 
-            form.setValues(formValues);
-            form.resetDirty(formValues);
-        }
+        form.setInitialValues(initialValues);
+        form.setValues(initialValues);
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [allowedEmailDomainsData]);
+    }, [allowedEmailDomainsData, isAllowedEmailDomainsDataLoading]);
 
-    useEffect(() => {
-        setFormValuesFromData();
-    }, [setFormValuesFromData]);
+    const projectOptions = useMemo(() => {
+        if (!projects) return [];
 
-    const handleOnSubmit = form.onSubmit((values) => {
+        return projects
+            .filter(({ type }) => type !== ProjectType.PREVIEW)
+            .map((item) => ({
+                value: item.projectUuid,
+                label: item.name,
+            }));
+    }, [projects]);
+
+    const handleSubmit = form.onSubmit((values) => {
+        if (!form.isValid()) return;
+
         const role =
             values.emailDomains.length > 0
                 ? values.role
                 : OrganizationMemberRole.VIEWER;
+
         const newProjects =
             role === OrganizationMemberRole.MEMBER ? values.projects : [];
+
         mutate({
             emailDomains: values.emailDomains,
-            role,
-            projects: newProjects,
+            role: role as AllowedEmailDomains['role'],
+            projects: newProjects as AllowedEmailDomains['projects'],
         });
     });
 
@@ -177,9 +182,11 @@ const AllowedDomainsPanel: FC = () => {
     };
 
     return isSuccess ? (
-        <form name="allowedEmailDomains" onSubmit={handleOnSubmit}>
+        <form name="allowedEmailDomains" onSubmit={handleSubmit}>
             <Stack>
                 <MultiSelect
+                    creatable
+                    searchable
                     name="emailDomains"
                     label="Allowed email domains"
                     placeholder="E.g. lightdash.com"
@@ -188,10 +195,6 @@ const AllowedDomainsPanel: FC = () => {
                         value: emailDomain,
                         label: emailDomain,
                     }))}
-                    searchable
-                    creatable
-                    getCreateLabel={(query: string) => `+ Add ${query} domain`}
-                    defaultValue={form.values.emailDomains}
                     onCreate={(value) => {
                         if (!isValidEmailDomain(value)) {
                             form.setFieldError(
@@ -216,6 +219,8 @@ const AllowedDomainsPanel: FC = () => {
 
                         return value;
                     }}
+                    getCreateLabel={(query: string) => `+ Add ${query} domain`}
+                    defaultValue={form.values.emailDomains}
                     {...form.getInputProps('emailDomains')}
                 />
 
@@ -268,158 +273,168 @@ const AllowedDomainsPanel: FC = () => {
                                 <Title order={5} mb="md">
                                     Project access
                                 </Title>
-                                {form.values.projects.map(
-                                    ({ projectUuid }, index) => (
-                                        <Flex
-                                            key={projectUuid}
-                                            align="flex-end"
-                                            gap="xs"
-                                            mb="xs"
-                                        >
-                                            <Select
-                                                label={
-                                                    index === 0
-                                                        ? 'Project name'
-                                                        : undefined
-                                                }
-                                                data={projectOptions.filter(
-                                                    ({ value }) => {
-                                                        const isCurrentValue =
-                                                            value ===
-                                                            form.values
-                                                                .projects[index]
-                                                                .projectUuid;
-                                                        if (isCurrentValue) {
-                                                            return true;
-                                                        }
-                                                        const isSelected =
-                                                            form.values.projects.find(
-                                                                (project) =>
-                                                                    project.projectUuid ===
-                                                                    value,
-                                                            );
-                                                        return !isSelected;
-                                                    },
-                                                )}
-                                                {...form.getInputProps(
-                                                    `projects.${index}.projectUuid`,
-                                                )}
-                                            />
-                                            <Select
-                                                label={
-                                                    index === 0
-                                                        ? 'Project role'
-                                                        : undefined
-                                                }
-                                                disabled={isLoading}
-                                                data={projectRoleOptions}
-                                                itemComponent={forwardRef(
-                                                    (
-                                                        {
-                                                            selected,
-                                                            subLabel,
-                                                            label,
-                                                            ...others
-                                                        }: any,
-                                                        ref: ForwardedRef<HTMLDivElement>,
-                                                    ) => {
-                                                        return (
-                                                            <Flex
-                                                                ref={ref}
-                                                                gap="xs"
-                                                                justify="space-between"
-                                                                align="center"
-                                                                {...others}
-                                                            >
-                                                                <Text size="sm">
-                                                                    {label}
-                                                                </Text>
-                                                                <Tooltip
-                                                                    withinPortal
-                                                                    multiline
-                                                                    label={
-                                                                        subLabel
-                                                                    }
-                                                                >
-                                                                    <MantineIcon
-                                                                        color={
-                                                                            selected
-                                                                                ? 'white'
-                                                                                : 'grey'
-                                                                        }
-                                                                        icon={
-                                                                            IconHelpCircle
-                                                                        }
-                                                                    />
-                                                                </Tooltip>
-                                                            </Flex>
-                                                        );
-                                                    },
-                                                )}
-                                                defaultValue={
-                                                    ProjectMemberRole.VIEWER
-                                                }
-                                                {...form.getInputProps(
-                                                    `projects.${index}.role`,
-                                                )}
-                                            />
-                                            <ActionIcon
-                                                color="red"
-                                                variant="outline"
-                                                size="35px"
-                                                onClick={() =>
-                                                    form.removeListItem(
-                                                        'projects',
-                                                        index,
-                                                    )
-                                                }
+
+                                <Stack spacing="sm" align="flex-start">
+                                    {form.values.projects.map(
+                                        ({ projectUuid }, index) => (
+                                            <Flex
+                                                key={projectUuid}
+                                                align="flex-end"
+                                                gap="xs"
                                             >
-                                                <MantineIcon
-                                                    icon={IconX}
-                                                    color="red"
+                                                <Select
+                                                    size="xs"
+                                                    disabled={isLoading}
+                                                    label={
+                                                        index === 0
+                                                            ? 'Project name'
+                                                            : undefined
+                                                    }
+                                                    data={projectOptions.filter(
+                                                        ({ value }) => {
+                                                            const isCurrentValue =
+                                                                value ===
+                                                                form.values
+                                                                    .projects[
+                                                                    index
+                                                                ].projectUuid;
+                                                            if (
+                                                                isCurrentValue
+                                                            ) {
+                                                                return true;
+                                                            }
+                                                            const isSelected =
+                                                                form.values.projects.find(
+                                                                    (project) =>
+                                                                        project.projectUuid ===
+                                                                        value,
+                                                                );
+                                                            return !isSelected;
+                                                        },
+                                                    )}
+                                                    {...form.getInputProps(
+                                                        `projects.${index}.projectUuid`,
+                                                    )}
                                                 />
-                                            </ActionIcon>
-                                        </Flex>
-                                    ),
-                                )}
-                                <Tooltip
-                                    withinPortal
-                                    multiline
-                                    disabled={canAddMoreProjects}
-                                    label={'There are no other projects to add'}
-                                >
-                                    <Button
-                                        {...(!canAddMoreProjects && {
-                                            'data-disabled': true,
-                                        })}
-                                        sx={{
-                                            '&[data-disabled="true"]': {
-                                                pointerEvents: 'all',
-                                            },
-                                        }}
-                                        onClick={handleAddProject}
-                                        variant="outline"
-                                        size="xs"
-                                        leftIcon={
-                                            <MantineIcon icon={IconPlus} />
+
+                                                <Select
+                                                    label={
+                                                        index === 0
+                                                            ? 'Project role'
+                                                            : undefined
+                                                    }
+                                                    disabled={isLoading}
+                                                    size="xs"
+                                                    data={projectRoleOptions}
+                                                    itemComponent={forwardRef(
+                                                        (
+                                                            {
+                                                                selected,
+                                                                subLabel,
+                                                                label,
+                                                                ...others
+                                                            }: any,
+                                                            ref: ForwardedRef<HTMLDivElement>,
+                                                        ) => {
+                                                            return (
+                                                                <Flex
+                                                                    ref={ref}
+                                                                    gap="xs"
+                                                                    justify="space-between"
+                                                                    align="center"
+                                                                    {...others}
+                                                                >
+                                                                    <Text size="xs">
+                                                                        {label}
+                                                                    </Text>
+
+                                                                    <Tooltip
+                                                                        withinPortal
+                                                                        multiline
+                                                                        label={
+                                                                            subLabel
+                                                                        }
+                                                                    >
+                                                                        <MantineIcon
+                                                                            color={
+                                                                                selected
+                                                                                    ? 'white'
+                                                                                    : 'grey'
+                                                                            }
+                                                                            icon={
+                                                                                IconHelpCircle
+                                                                            }
+                                                                        />
+                                                                    </Tooltip>
+                                                                </Flex>
+                                                            );
+                                                        },
+                                                    )}
+                                                    defaultValue={
+                                                        ProjectMemberRole.VIEWER
+                                                    }
+                                                    {...form.getInputProps(
+                                                        `projects.${index}.role`,
+                                                    )}
+                                                />
+
+                                                <ActionIcon
+                                                    color="red"
+                                                    variant="outline"
+                                                    size={30}
+                                                    disabled={isLoading}
+                                                    onClick={() =>
+                                                        form.removeListItem(
+                                                            'projects',
+                                                            index,
+                                                        )
+                                                    }
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                        size="sm"
+                                                    />
+                                                </ActionIcon>
+                                            </Flex>
+                                        ),
+                                    )}
+
+                                    <Tooltip
+                                        withinPortal
+                                        multiline
+                                        disabled={canAddMoreProjects}
+                                        label={
+                                            'There are no other projects to add'
                                         }
                                     >
-                                        Add project
-                                    </Button>
-                                </Tooltip>
+                                        <Button
+                                            {...(!canAddMoreProjects && {
+                                                'data-disabled': true,
+                                            })}
+                                            sx={{
+                                                '&[data-disabled="true"]': {
+                                                    pointerEvents: 'all',
+                                                },
+                                            }}
+                                            onClick={handleAddProject}
+                                            variant="outline"
+                                            size="xs"
+                                            leftIcon={
+                                                <MantineIcon icon={IconPlus} />
+                                            }
+                                        >
+                                            Add project
+                                        </Button>
+                                    </Tooltip>
+                                </Stack>
                             </div>
                         ) : null}
                     </>
                 )}
 
                 <Flex justify="flex-end" gap="sm">
-                    {form.isDirty() && (
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setFormValuesFromData();
-                            }}
-                        >
+                    {form.isDirty() && !isUpdateAllowedEmailDomainsLoading && (
+                        <Button variant="outline" onClick={() => form.reset()}>
                             Cancel
                         </Button>
                     )}

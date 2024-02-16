@@ -110,9 +110,9 @@ export const AllowedEmailDomainProjectRoles: Array<AllowedEmailDomainProjectsRol
     ];
 
 export function isAllowedEmailDomainProjectRole(
-    role: ProjectMemberRole,
+    role: ProjectMemberRole | OrganizationMemberRole,
 ): role is AllowedEmailDomainProjectsRole {
-    return AllowedEmailDomainProjectRoles.includes(role as any);
+    return (AllowedEmailDomainProjectRoles as unknown[]).includes(role);
 }
 
 export type AllowedEmailDomains = {
