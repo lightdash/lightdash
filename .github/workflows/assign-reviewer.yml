@@ -98,10 +98,7 @@ jobs:
                       // Finally, if we have someone to pick, get the person right at the top of the list,
                       // and assign them as reviewer. We also remove the team assignment.
                       if (sortedReviewers.length > 0) {
-                        // Pick up to 3 of the users at the bottom of the list, and from that pick
-                        // a random option:
-                        const candidates = sortedReviewers.slice(0, 3);
-                        const assignedLogin = candidates[Math.floor(Math.random() * candidates.length)];
+                        const assignedLogin = sortedReviewers[0];
 
                         console.log(
                           `Assigning reviewer. Picked: ${assignedLogin} from (${sortedReviewers.join(
