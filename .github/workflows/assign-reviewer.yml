@@ -27,6 +27,8 @@ jobs:
                       // User logins which will never be auto-assigned:
                       const skippedLogins = (process.env.SKIPPED_LOGINS ?? "").split(",");
 
+                      console.log(JSON.stringify(context, null, 2), existingReviewers, teams, teamSlugs);
+
                       // No action taken if there's already a reviewer, if the request review is for more than a
                       // single team, or if the selected team doesn't match one of the valid team slugs:
                       if (
@@ -82,6 +84,8 @@ jobs:
                         .sort((a, b) => a[1] - b[1])
                         .map((reviewer) => reviewer[0])
                         .filter((reviewerLogin) => !skippedLogins.includes(reviewerLogin));
+
+                      console.log('sorted reviewers', sortedReviewers);
 
                       // Finally, if we have someone to pick, get the person right at the top of the list,
                       // and assign them as reviewer. We also remove the team assignment.
