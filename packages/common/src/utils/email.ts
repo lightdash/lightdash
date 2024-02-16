@@ -63,6 +63,10 @@ const EMAIL_PROVIDER_LIST = [
 const isEmailProviderDomain = (domain: string): boolean =>
     EMAIL_PROVIDER_LIST.includes(domain);
 
+const VALID_EMAIL_DOMAIN_REGEX = /^[a-zA-Z0-9][\w.-]+\.\w{2,4}/g;
+export const isValidEmailDomain = (value: string) =>
+    value.match(VALID_EMAIL_DOMAIN_REGEX);
+
 export const validateOrganizationEmailDomains = (domains: string[]) => {
     const invalidDomains = domains.filter((domain) =>
         isEmailProviderDomain(domain),

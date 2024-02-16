@@ -513,6 +513,7 @@ const SchedulerForm: FC<Props> = ({
                                     <CronInternalInputs
                                         disabled={disabled}
                                         {...form.getInputProps('cron')}
+                                        value={form.values.cron}
                                         name="cron"
                                     />
                                 </Box>
