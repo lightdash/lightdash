@@ -17,8 +17,9 @@ jobs:
                   SKIPPED_LOGINS: ''
               with:
                   script: |
-                      const existingReviewers = context.requested_reviewers;
-                      const teams = context.requested_teams;
+                      const pr = context.pull_request;
+                      const existingReviewers = pr.requested_reviewers;
+                      const teams = pr.requested_teams;
                       const prNumber = context.number;
 
                       // Team slugs for which this auto-assignment will be triggered:
