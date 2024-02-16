@@ -52,6 +52,14 @@ jobs:
                         return;
                       }
 
+                      const oneDay = 24 * 60 * 60 * 1000;
+                      const daysBetweenTwoDates = (date1, date2) => {
+                        const firstDate = new Date(date1);
+                        const secondDate = new Date(date2);
+
+                        return Math.round(Math.abs((firstDate - secondDate) / oneDay));
+                      };
+
                       const {
                         organization: { login: repoOwner },
                         pull_request: {
@@ -87,6 +95,31 @@ jobs:
 
                         return acc;
                       }, Object.fromEntries(teamMembers.map((member) => [member.login, 0])));
+
+                      // Factor in review recency into the totals, ensuring users with recent
+                      // reviews get weighted less strongly.
+                      const now = new Date();
+                      const reviewerTotalsWithRecencyBias = Object.keys(reviewerTotals).reduce(
+                        (acc, reviewerLogin) => {
+                          const lastReviewDate = new Date(
+                            Math.max(
+                              ...lookback
+                                .filter((lookbackPr) =>
+                                  lookbackPr.requested_reviewers.some(
+                                    (r) => r.login === reviewerLogin
+                                  )
+                                )
+                                .map((lookbackPr) => new Date(lookbackPr.created_at))
+                            )
+                          );
+
+                          const daysSinceLastReview = daysBetweenTwoDates(lastReviewDate, now);
+
+                          acc[reviewerLogin] /= daysSinceLastReview + 1;
+                          return acc;
+                        },
+                        reviewerTotals
+                      );
 
                       // Sort from least to most busy, extract just the user logins, and filter out
                       // any skipped users:
