@@ -6,8 +6,8 @@ export async function up(knex: Knex): Promise<void> {
     await knex.raw(`
       ALTER TABLE ${SavedChartsTableName} ADD COLUMN search_vector tsvector
         GENERATED ALWAYS AS (
-          setweight(to_tsvector('english', coalesce(name, '')), 'A') ||
-          setweight(to_tsvector('english', coalesce(description, '')), 'B')
+          setweight(to_tsvector('lightdash_english_config', coalesce(name, '')), 'A') ||
+          setweight(to_tsvector('lightdash_english_config', coalesce(description, '')), 'B')
       ) STORED;
     `);
 
