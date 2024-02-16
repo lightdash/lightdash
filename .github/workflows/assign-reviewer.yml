@@ -17,18 +17,16 @@ jobs:
                   SKIPPED_LOGINS: ''
               with:
                   script: |
-                      const pr = context.pull_request;
+                      const pr = context.payload.pull_request;
                       const existingReviewers = pr.requested_reviewers;
                       const teams = pr.requested_teams;
-                      const prNumber = context.number;
+                      const prNumber = context.payload.number;
 
                       // Team slugs for which this auto-assignment will be triggered:
                       const teamSlugs = (process.env.TEAM_SLUGS ?? "").split(",");
 
                       // User logins which will never be auto-assigned:
                       const skippedLogins = (process.env.SKIPPED_LOGINS ?? "").split(",");
-
-                      console.log(JSON.stringify(context, null, 2), existingReviewers, teams, teamSlugs);
 
                       // No action taken if there's already a reviewer, if the request review is for more than a
                       // single team, or if the selected team doesn't match one of the valid team slugs:
@@ -50,7 +48,7 @@ jobs:
                             repo: { name: repoName },
                           },
                         },
-                      } = context;
+                      } = context.payload;
 
                       const { slug } = teams[0];
 
@@ -85,8 +83,6 @@ jobs:
                         .sort((a, b) => a[1] - b[1])
                         .map((reviewer) => reviewer[0])
                         .filter((reviewerLogin) => !skippedLogins.includes(reviewerLogin));
-
-                      console.log('sorted reviewers', sortedReviewers);
 
                       // Finally, if we have someone to pick, get the person right at the top of the list,
                       // and assign them as reviewer. We also remove the team assignment.
