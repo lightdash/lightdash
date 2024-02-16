@@ -28,13 +28,8 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
     if (await knex.schema.hasColumn(SavedChartsTableName, 'search_vector')) {
         await knex.schema.alterTable(SavedChartsTableName, (table) => {
+            // when column is dropped, index is dropped as well
             table.dropColumn('search_vector');
-        });
-    }
-
-    if (await knex.schema.hasTable('charts_search_vector_idx')) {
-        await knex.schema.alterTable(SavedChartsTableName, (table) => {
-            table.dropIndex('charts_search_vector_idx');
         });
     }
 }
