@@ -1,3 +1,10 @@
+# [0.994.0](https://github.com/lightdash/lightdash/compare/0.993.1...0.994.0) (2024-02-16)
+
+
+### Features
+
+* button inactive until change ([#8779](https://github.com/lightdash/lightdash/issues/8779)) ([9d6ece3](https://github.com/lightdash/lightdash/commit/9d6ece34cad060d7c6d3d08ec3ea8e519d1e7872))
+
 ## [0.993.1](https://github.com/lightdash/lightdash/compare/0.993.0...0.993.1) (2024-02-16)
 
 
