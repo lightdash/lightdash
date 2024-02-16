@@ -19,17 +19,17 @@ import {
 import { SearchItem } from './hooks';
 
 type SearchIconProps = {
-    searchItem: SearchItem;
+    item: SearchItem;
 };
 
-export const SearchIcon: FC<SearchIconProps> = ({ searchItem }) => {
-    switch (searchItem.type) {
+export const SearchIcon: FC<SearchIconProps> = ({ item }) => {
+    switch (item.type) {
         case 'field':
             return (
                 <IconBox
                     color="gray.7"
                     icon={
-                        searchItem.typeLabel.toLowerCase() === 'dimension'
+                        item.typeLabel.toLowerCase() === 'dimension'
                             ? IconAbc
                             : Icon123
                     }
@@ -40,9 +40,7 @@ export const SearchIcon: FC<SearchIconProps> = ({ searchItem }) => {
         case 'saved_chart':
             return (
                 <ChartIcon
-                    chartType={
-                        (searchItem.item as SavedChartSearchResult)?.chartType
-                    }
+                    chartType={(item.item as SavedChartSearchResult)?.chartType}
                 />
             );
         case 'space':
@@ -55,11 +53,11 @@ export const SearchIcon: FC<SearchIconProps> = ({ searchItem }) => {
 };
 
 export const SearchIconWithIndicator: FC<{
-    searchResult: SearchItem;
+    item: SearchItem;
     projectUuid: string;
     canUserManageValidation: boolean;
-}> = ({ searchResult, projectUuid, canUserManageValidation }) =>
-    searchResult.item && 'validationErrors' in searchResult.item ? (
+}> = ({ item, projectUuid, canUserManageValidation }) =>
+    item.item && 'validationErrors' in item.item ? (
         <ResourceIndicator
             iconProps={{
                 fill: 'red',
@@ -83,7 +81,7 @@ export const SearchIconWithIndicator: FC<{
                             onClick={(e) => e.stopPropagation()}
                             to={{
                                 pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
-                                search: `?validationId=${searchResult.item.validationErrors[0].validationId}`,
+                                search: `?validationId=${item.item.validationErrors[0].validationId}`,
                             }}
                             color="blue.4"
                         >
@@ -94,13 +92,13 @@ export const SearchIconWithIndicator: FC<{
                 ) : (
                     <>
                         There's an error with this{' '}
-                        {searchResult.type === 'saved_chart' ? 'chart' : null}
-                        {searchResult.type === 'dashboard' ? 'dashboard' : null}
-                        {searchResult.type === 'table' ? 'table' : null}.
+                        {item.type === 'saved_chart' ? 'chart' : null}
+                        {item.type === 'dashboard' ? 'dashboard' : null}
+                        {item.type === 'table' ? 'table' : null}.
                     </>
                 )
             }
         >
-            <SearchIcon searchItem={searchResult} />
+            <SearchIcon item={item} />
         </ResourceIndicator>
     ) : null;
