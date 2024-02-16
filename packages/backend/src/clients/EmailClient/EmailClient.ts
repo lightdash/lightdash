@@ -1,12 +1,10 @@
 import {
     CreateProjectMember,
-    friendlyName,
     InviteLink,
     PasswordResetLink,
     ProjectMemberRole,
     SessionUser,
     SmptError,
-    ThresholdOptions,
 } from '@lightdash/common';
 import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
