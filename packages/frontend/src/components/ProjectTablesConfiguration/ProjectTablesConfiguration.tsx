@@ -37,7 +37,7 @@ const validationSchema = z.object({
     names: z.array(z.string()),
 });
 
-type FormData = z.infer<typeof validationSchema>;
+type FormValues = z.infer<typeof validationSchema>;
 
 type Props = {
     projectUuid: string;
@@ -76,7 +76,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
         isLoadingExplores ||
         !canUpdateTableConfiguration;
 
-    const form = useForm<FormData>({
+    const form = useForm<FormValues>({
         initialValues: {
             type: TableSelectionType.ALL,
             tags: [],
@@ -154,7 +154,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
         }
     }, [isSuccess, onSuccess]);
 
-    const handleSubmit = form.onSubmit(async (formData: FormData) => {
+    const handleSubmit = form.onSubmit(async (formData) => {
         if (!form.isValid()) return;
 
         track({

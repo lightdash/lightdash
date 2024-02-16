@@ -88,10 +88,10 @@ const validationSchema = z.object({
     ),
 });
 
-type FormDataType = z.infer<typeof validationSchema>;
+type FormValues = z.infer<typeof validationSchema>;
 
 const AllowedDomainsPanel: FC = () => {
-    const form = useForm<FormDataType>({
+    const form = useForm<FormValues>({
         initialValues: {
             emailDomains: [],
             role: OrganizationMemberRole.VIEWER,

@@ -1,8 +1,15 @@
 import { Button, Flex, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { FC, useEffect } from 'react';
+import { z } from 'zod';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
+
+const validationSchema = z.object({
+    organizationName: z.string().nonempty(),
+});
+
+type FormValues = z.infer<typeof validationSchema>;
 
 const OrganizationPanel: FC = () => {
     const { isLoading: isOrganizationLoading, data: organizationData } =
@@ -15,7 +22,7 @@ const OrganizationPanel: FC = () => {
 
     const isLoading = isOrganizationUpdateLoading || isOrganizationLoading;
 
-    const form = useForm({
+    const form = useForm<FormValues>({
         initialValues: {
             organizationName: '',
         },
@@ -56,6 +63,7 @@ const OrganizationPanel: FC = () => {
                             Cancel
                         </Button>
                     )}
+
                     <Button
                         display="block"
                         type="submit"
