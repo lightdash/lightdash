@@ -33,7 +33,7 @@ export enum FeatureFlags {
     ShowDbtCloudProjectOption = 'show-dbt-cloud-project-option',
 
     /**
-     * Use the new in-memory table calculations engine.
+     * Use the new in-memory table calculations engine/duckdb
      */
     UseInMemoryTableCalculations = 'new-table-calculations-engine',
 }

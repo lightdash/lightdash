@@ -981,9 +981,6 @@ export class ProjectService {
                 WITH results AS (
                     SELECT ${selectFrom.join(',\n')}
                     FROM _
-                    GROUP BY ${Object.keys(primaryQuery.fields)
-                        .map((_, i) => i + 1)
-                        .join(',')}
                 )
 
                 SELECT * FROM results
