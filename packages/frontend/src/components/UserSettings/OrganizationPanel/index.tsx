@@ -1,47 +1,41 @@
 import { Button, Flex, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useCallback, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 
 const OrganizationPanel: FC = () => {
-    const { isInitialLoading: isOrganizationLoading, data } = useOrganization();
+    const { isLoading: isOrganizationLoading, data: organizationData } =
+        useOrganization();
+
     const {
         isLoading: isOrganizationUpdateLoading,
         mutate: updateOrganization,
     } = useOrganizationUpdateMutation();
+
     const isLoading = isOrganizationUpdateLoading || isOrganizationLoading;
+
     const form = useForm({
         initialValues: {
             organizationName: '',
         },
     });
 
-    const { setFieldValue } = form;
-
     useEffect(() => {
-        if (data) {
-            setFieldValue('organizationName', data?.name);
-        }
-    }, [data, data?.name, setFieldValue]);
+        if (isOrganizationLoading || !organizationData) return;
 
-    const setFormValuesFromData = useCallback(() => {
-        if (data?.name) {
-            form.setValues({
-                organizationName: data?.name,
-            });
-            form.resetDirty({
-                organizationName: data?.name,
-            });
-        }
+        const initialData = {
+            organizationName: organizationData.name,
+        };
+
+        form.setInitialValues(initialData);
+        form.setValues(initialData);
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data?.name]);
-
-    useEffect(() => {
-        setFormValuesFromData();
-    }, [setFormValuesFromData]);
+    }, [isOrganizationLoading, organizationData]);
 
     const handleOnSubmit = form.onSubmit(({ organizationName }) => {
+        if (!form.isValid()) return;
         updateOrganization({ name: organizationName });
     });
 
@@ -57,13 +51,8 @@ const OrganizationPanel: FC = () => {
                 />
 
                 <Flex justify="flex-end" gap="sm">
-                    {form.isDirty() && (
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setFormValuesFromData();
-                            }}
-                        >
+                    {form.isDirty() && !isOrganizationUpdateLoading && (
+                        <Button variant="outline" onClick={() => form.reset()}>
                             Cancel
                         </Button>
                     )}
