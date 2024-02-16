@@ -1,3 +1,10 @@
+# [0.995.0](https://github.com/lightdash/lightdash/compare/0.994.1...0.995.0) (2024-02-16)
+
+
+### Features
+
+* add ability to choose alert frequency ([#8960](https://github.com/lightdash/lightdash/issues/8960)) ([8c332ec](https://github.com/lightdash/lightdash/commit/8c332ec2b9459661c773d1ea1b09c6253c4e5124))
+
 ## [0.994.1](https://github.com/lightdash/lightdash/compare/0.994.0...0.994.1) (2024-02-16)
 
 
