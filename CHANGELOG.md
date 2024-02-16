@@ -1,3 +1,10 @@
+## [0.995.1](https://github.com/lightdash/lightdash/compare/0.995.0...0.995.1) (2024-02-16)
+
+
+### Bug Fixes
+
+* check if git integration is enabled ([#8969](https://github.com/lightdash/lightdash/issues/8969)) ([baa0006](https://github.com/lightdash/lightdash/commit/baa0006e1ef31cfbf644a6dedd713a04b93e9816))
+
 # [0.995.0](https://github.com/lightdash/lightdash/compare/0.994.1...0.995.0) (2024-02-16)
 
 
