@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 export const getEmailDomain = (email: string): string => {
     if (/\s/.test(email)) {
         throw new Error(`Invalid email, contains whitespace: ${email}`);
