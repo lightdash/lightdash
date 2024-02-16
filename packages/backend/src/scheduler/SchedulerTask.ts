@@ -6,6 +6,7 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    friendlyName,
     getCustomLabelsFromTableConfig,
     getHiddenTableFields,
     getHumanReadableCronExpression,
@@ -897,9 +898,39 @@ export const sendEmailNotification = async (
 
         if (thresholds !== undefined && thresholds.length > 0) {
             // We assume the threshold is possitive , so we don't need to get results here
-            throw new Error(
-                'NOT IMPLEMENTED: Thresold alerting for emails not available',
+            if (imageUrl === undefined) {
+                throw new Error('Missing image URL');
+            }
+            if (scheduler.message) {
+                throw new Error('Message not supported on threshold alerts');
+            }
+            // Reuse message from imageNotification for threshold information
+            const thresholdMessageList = thresholds.map(
+                (threshold) =>
+                    `- **${friendlyName(
+                        threshold.fieldId,
+                    )}** is *${friendlyName(threshold.operator)}* **${
+                        threshold.value
+                    }**`,
             );
+            const thresholdMessage = `Your results met the following conditions:\n${thresholdMessageList.join(
+                '\n',
+            )}`;
+            await emailClient.sendImageNotificationEmail(
+                recipient,
+                name,
+                details.name,
+                details.description || '',
+                thresholdMessage,
+                new Date().toLocaleDateString('en-GB'),
+                getHumanReadableCronExpression(scheduler.cron),
+                imageUrl,
+                url,
+                schedulerUrl,
+                pdfFile,
+                s3Client.getExpirationWarning()?.days,
+            );
+            return;
         }
 
         if (format === SchedulerFormat.IMAGE) {

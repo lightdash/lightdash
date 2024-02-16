@@ -80,7 +80,7 @@ enum SlackStates {
 const DEFAULT_VALUES = {
     name: '',
     message: '',
-    format: SchedulerFormat.CSV,
+    format: SchedulerFormat.IMAGE,
     cron: '0 9 * * 1',
     options: {
         formatted: Values.FORMATTED,
@@ -690,90 +690,83 @@ const SchedulerForm: FC<Props> = ({
 
                         <Input.Wrapper label="Destinations">
                             <Stack mt="sm">
-                                {!isThresholdAlert && (
-                                    <Group noWrap>
-                                        <MantineIcon
-                                            icon={IconMail}
-                                            size="xl"
-                                            color="gray.7"
-                                        />
-                                        <HoverCard
-                                            disabled={!isAddEmailDisabled}
-                                            width={300}
-                                            position="bottom-start"
-                                            shadow="md"
-                                        >
-                                            <HoverCard.Target>
-                                                <Box w="100%">
-                                                    <TagInput
-                                                        clearable
-                                                        error={
-                                                            emailValidationError ||
-                                                            null
-                                                        }
-                                                        placeholder="Enter email addresses"
-                                                        disabled={
-                                                            isAddEmailDisabled
-                                                        }
-                                                        value={
-                                                            form.values
-                                                                .emailTargets
-                                                        }
-                                                        allowDuplicates={false}
-                                                        splitChars={[',', ' ']}
-                                                        validationFunction={
-                                                            validateEmail
-                                                        }
-                                                        onBlur={() =>
-                                                            setEmailValidationError(
-                                                                undefined,
-                                                            )
-                                                        }
-                                                        onValidationReject={(
+                                <Group noWrap>
+                                    <MantineIcon
+                                        icon={IconMail}
+                                        size="xl"
+                                        color="gray.7"
+                                    />
+                                    <HoverCard
+                                        disabled={!isAddEmailDisabled}
+                                        width={300}
+                                        position="bottom-start"
+                                        shadow="md"
+                                    >
+                                        <HoverCard.Target>
+                                            <Box w="100%">
+                                                <TagInput
+                                                    clearable
+                                                    error={
+                                                        emailValidationError ||
+                                                        null
+                                                    }
+                                                    placeholder="Enter email addresses"
+                                                    disabled={
+                                                        isAddEmailDisabled
+                                                    }
+                                                    value={
+                                                        form.values.emailTargets
+                                                    }
+                                                    allowDuplicates={false}
+                                                    splitChars={[',', ' ']}
+                                                    validationFunction={
+                                                        validateEmail
+                                                    }
+                                                    onBlur={() =>
+                                                        setEmailValidationError(
+                                                            undefined,
+                                                        )
+                                                    }
+                                                    onValidationReject={(val) =>
+                                                        setEmailValidationError(
+                                                            `'${val}' doesn't appear to be an email address`,
+                                                        )
+                                                    }
+                                                    onChange={(val) => {
+                                                        setEmailValidationError(
+                                                            undefined,
+                                                        );
+                                                        form.setFieldValue(
+                                                            'emailTargets',
                                                             val,
-                                                        ) =>
-                                                            setEmailValidationError(
-                                                                `'${val}' doesn't appear to be an email address`,
-                                                            )
-                                                        }
-                                                        onChange={(val) => {
-                                                            setEmailValidationError(
-                                                                undefined,
-                                                            );
-                                                            form.setFieldValue(
-                                                                'emailTargets',
-                                                                val,
-                                                            );
-                                                        }}
-                                                    />
-                                                </Box>
-                                            </HoverCard.Target>
-                                            <HoverCard.Dropdown>
-                                                <>
-                                                    <Text pb="sm">
-                                                        No Email integration
-                                                        found
-                                                    </Text>
-                                                    <Text>
-                                                        To create an email
-                                                        scheduled delivery, you
-                                                        need to add
-                                                        <Anchor
-                                                            target="_blank"
-                                                            href="https://docs.lightdash.com/references/environmentVariables"
-                                                        >
-                                                            {' '}
-                                                            SMTP environment
-                                                            variables{' '}
-                                                        </Anchor>
-                                                        for your Lightdash
-                                                        instance
-                                                    </Text>
-                                                </>
-                                            </HoverCard.Dropdown>
-                                        </HoverCard>
-                                    </Group>
-                                )}
+                                                        );
+                                                    }}
+                                                />
+                                            </Box>
+                                        </HoverCard.Target>
+                                        <HoverCard.Dropdown>
+                                            <>
+                                                <Text pb="sm">
+                                                    No Email integration found
+                                                </Text>
+                                                <Text>
+                                                    To create an email scheduled
+                                                    delivery, you need to add
+                                                    <Anchor
+                                                        target="_blank"
+                                                        href="https://docs.lightdash.com/references/environmentVariables"
+                                                    >
+                                                        {' '}
+                                                        SMTP environment
+                                                        variables{' '}
+                                                    </Anchor>
+                                                    for your Lightdash instance
+                                                </Text>
+                                            </>
+                                        </HoverCard.Dropdown>
+                                    </HoverCard>
+                                </Group>
+
                                 <Stack spacing="xs" mb="sm">
                                     <Group noWrap>
                                         <SlackSvg
