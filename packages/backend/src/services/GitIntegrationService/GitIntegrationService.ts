@@ -94,7 +94,7 @@ export class GitIntegrationService {
             );
         // todo: check if installation has access to the project repository
         return {
-            enabled: true,
+            enabled: !!installationId,
         };
     }
 
