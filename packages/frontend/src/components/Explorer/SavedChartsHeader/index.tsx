@@ -632,6 +632,9 @@ const SavedChartsHeader: FC = () => {
                                                     <Flex
                                                         justify="space-between"
                                                         align="center"
+                                                        onClick={(e) =>
+                                                            e.stopPropagation()
+                                                        }
                                                     >
                                                         Move to space
                                                         <MantineIcon
@@ -641,7 +644,11 @@ const SavedChartsHeader: FC = () => {
                                                         />
                                                     </Flex>
                                                 </Menu.Target>
-                                                <Menu.Dropdown>
+                                                <Menu.Dropdown
+                                                    onClick={(e) =>
+                                                        e.stopPropagation()
+                                                    }
+                                                >
                                                     {[
                                                         SpaceType.SharedWithMe,
                                                         SpaceType.AdminContentView,
@@ -680,6 +687,9 @@ const SavedChartsHeader: FC = () => {
                                                                         spaceToMove.uuid;
                                                                     return (
                                                                         <Menu.Item
+                                                                            disabled={
+                                                                                isDisabled
+                                                                            }
                                                                             key={
                                                                                 spaceToMove.uuid
                                                                             }
