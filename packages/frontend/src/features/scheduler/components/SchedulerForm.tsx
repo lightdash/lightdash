@@ -46,6 +46,7 @@ import {
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
+import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
@@ -492,11 +493,21 @@ const SchedulerForm: FC<Props> = ({
                                             `thresholds.0.operator`,
                                         )}
                                     />
-                                    <NumberInput
+                                    <FilterNumberInput
                                         label="Threshold"
+                                        size="sm"
                                         {...form.getInputProps(
                                             `thresholds.0.value`,
                                         )}
+                                        onChange={(value) => {
+                                            form.setFieldValue(
+                                                'thresholds.0.value',
+                                                value || '',
+                                            );
+                                        }}
+                                        value={
+                                            form.values.thresholds?.[0]?.value
+                                        }
                                     />
                                 </Group>
                             </Stack>
