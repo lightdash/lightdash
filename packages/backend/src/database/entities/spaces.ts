@@ -22,6 +22,7 @@ export type DbSpace = {
     project_id: number;
     organization_uuid: string;
     created_by_user_id?: number;
+    search_vector: number[];
 };
 
 export type CreateDbSpace = Pick<
