@@ -1,3 +1,10 @@
+## [0.993.1](https://github.com/lightdash/lightdash/compare/0.993.0...0.993.1) (2024-02-16)
+
+
+### Bug Fixes
+
+* use dbt model alias from discovery api ([#8954](https://github.com/lightdash/lightdash/issues/8954)) ([d862943](https://github.com/lightdash/lightdash/commit/d862943c90c1a6ad35349e49092a0968955dfdca))
+
 # [0.993.0](https://github.com/lightdash/lightdash/compare/0.992.0...0.993.0) (2024-02-15)
 
 
