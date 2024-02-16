@@ -1,3 +1,10 @@
+## [0.994.1](https://github.com/lightdash/lightdash/compare/0.994.0...0.994.1) (2024-02-16)
+
+
+### Bug Fixes
+
+* move to space menu click handling ([#8946](https://github.com/lightdash/lightdash/issues/8946)) ([bf2ca22](https://github.com/lightdash/lightdash/commit/bf2ca22ac8178a9a2b2ad3c845ce31f54e3651c3))
+
 # [0.994.0](https://github.com/lightdash/lightdash/compare/0.993.1...0.994.0) (2024-02-16)
 
 
