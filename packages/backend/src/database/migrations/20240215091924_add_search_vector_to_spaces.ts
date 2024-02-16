@@ -6,7 +6,7 @@ export async function up(knex: Knex): Promise<void> {
     await knex.raw(`
       ALTER TABLE ${SpaceTableName} ADD COLUMN search_vector tsvector
         GENERATED ALWAYS AS (
-          to_tsvector('english', coalesce(name, ''))
+          to_tsvector('lightdash_english_config', coalesce(name, ''))
       ) STORED;
     `);
 

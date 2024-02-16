@@ -8,7 +8,7 @@ export function getFullTextSearchRankCalcSql(
     searchRankColumnName = 'search_rank',
 ) {
     const searchRankRawSql = database.raw(
-        `ts_rank(${tableName}.${searchVectorColumnName}, websearch_to_tsquery(?), 0) as ${searchRankColumnName}`,
+        `ts_rank(${tableName}.${searchVectorColumnName}, websearch_to_tsquery('lightdash_english_config', ?), 0) as ${searchRankColumnName}`,
         [query],
     );
 
