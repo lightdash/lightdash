@@ -557,7 +557,7 @@ const SavedChartsHeader: FC = () => {
                                         withArrow
                                         position="left-start"
                                         shadow="md"
-                                        offset={40}
+                                        offset={16}
                                         trigger="hover"
                                     >
                                         <Menu.Target>
@@ -789,7 +789,7 @@ const SavedChartsHeader: FC = () => {
                                         withArrow
                                         position="left-start"
                                         shadow="md"
-                                        offset={40}
+                                        offset={16}
                                         trigger="hover"
                                     >
                                         <Menu.Target>
