@@ -1642,12 +1642,7 @@ const useEchartsCartesianConfig = (
         ],
     );
 
-    if (
-        !itemsMap ||
-        series.length <= 0 ||
-        rows.length <= 0 ||
-        !validCartesianConfig
-    ) {
+    if (!eChartsOptions.xAxis.length && !eChartsOptions.yAxis.length) {
         return undefined;
     }
     return eChartsOptions;
