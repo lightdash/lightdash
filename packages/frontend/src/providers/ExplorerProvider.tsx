@@ -980,10 +980,15 @@ function reducer(
                         ).reduce((acc, [key, value]) => {
                             let valueDeepCopy = cloneDeep(value);
                             if (key === 'metrics') {
-                                removeMetricFromFilters(
-                                    valueDeepCopy,
-                                    action.payload,
-                                );
+                                const updatedFiltersOnRemoval =
+                                    removeMetricFromFilters(
+                                        valueDeepCopy,
+                                        action.payload,
+                                    );
+                                return {
+                                    ...acc,
+                                    [key]: updatedFiltersOnRemoval,
+                                };
                             }
 
                             return {

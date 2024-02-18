@@ -214,11 +214,13 @@ export const removeMetricFromFilterGroupItem = (
     }
 };
 
-export const removeMetricFromFilters = (
+export const removeMetricFromFiltersUtil = (
     filterGroup: FilterGroup | undefined,
     metricName: string,
 ): void => {
-    if (!filterGroup) return;
+    if (!filterGroup) {
+        return;
+    }
 
     const processGroupItems = (items: FilterGroupItem[]): FilterGroupItem[] =>
         items
@@ -229,28 +231,53 @@ export const removeMetricFromFilters = (
             });
 
     const isNotEmptyGroup = (item: FilterGroupItem): boolean => {
-        if (isOrFilterGroup(item)) return item.or.length !== 0;
-        if (isAndFilterGroup(item)) return item.and.length !== 0;
+        if (!item) {
+            return false;
+        }
+        if (isOrFilterGroup(item)) {
+            return item.or.length !== 0;
+        }
+        if (isAndFilterGroup(item)) {
+            return item.and.length !== 0;
+        }
         return true;
     };
 
     /* eslint-disable no-param-reassign */
     if (isOrFilterGroup(filterGroup)) {
         filterGroup.or = processGroupItems(filterGroup.or);
-        if (filterGroup.or.length === 0) filterGroup = undefined;
-        else
+        if (filterGroup.or.length !== 0) {
             filterGroup.or = filterGroup.or.filter((item) =>
                 isNotEmptyGroup(item),
             );
+        }
     } else if (isAndFilterGroup(filterGroup)) {
         filterGroup.and = processGroupItems(filterGroup.and);
-        if (filterGroup.and.length === 0) filterGroup = undefined;
-        else
+        if (filterGroup.and.length !== 0) {
             filterGroup.and = filterGroup.and.filter((item) =>
                 isNotEmptyGroup(item),
             );
+        }
     }
     /* eslint-enable no-param-reassign */
+};
+
+export const removeMetricFromFilters = (
+    filterGroup: FilterGroup | undefined,
+    metricName: string,
+): FilterGroup | undefined => {
+    removeMetricFromFiltersUtil(filterGroup, metricName);
+
+    if (filterGroup) {
+        if (
+            (isOrFilterGroup(filterGroup) && filterGroup.or.length === 0) ||
+            (isAndFilterGroup(filterGroup) && filterGroup.and.length === 0)
+        ) {
+            return undefined;
+        }
+    }
+
+    return filterGroup;
 };
 
 export const applyDimensionOverrides = (
