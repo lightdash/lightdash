@@ -934,10 +934,7 @@ export const sendEmailNotification = async (
                 pdfFile,
                 s3Client.getExpirationWarning()?.days,
             );
-            return;
-        }
-
-        if (format === SchedulerFormat.IMAGE) {
+        } else if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
                 throw new Error('Missing image URL');
             }
@@ -1419,7 +1416,7 @@ export const handleScheduledDelivery = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 sendNow: schedulerUuid === undefined,
-                hastThresoldAlert: scheduler.thresholds !== undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -1503,7 +1500,7 @@ export const handleScheduledDelivery = async (
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
-                hastThresoldAlert: scheduler.thresholds !== undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
     } catch (e) {

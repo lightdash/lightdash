@@ -711,7 +711,7 @@ export type SchedulerJobEvent = BaseTrack & {
         jobId: string;
         schedulerId: string | undefined;
         sendNow?: boolean;
-        hastThresoldAlert?: boolean;
+        isThresholdAlert?: boolean;
     };
 };
 
