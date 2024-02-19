@@ -332,6 +332,7 @@ export const sendSlackNotification = async (
             schedulerTargetId: schedulerSlackTargetUuid,
             type: 'slack',
             sendNow: schedulerUuid === undefined,
+            isThresholdAlert: scheduler.thresholds !== undefined,
         },
     });
 
@@ -471,6 +472,7 @@ export const sendSlackNotification = async (
                 resourceType:
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
                 sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -495,6 +497,7 @@ export const sendSlackNotification = async (
                 schedulerTargetId: schedulerSlackTargetUuid,
                 type: 'slack',
                 sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -867,6 +870,7 @@ export const sendEmailNotification = async (
             schedulerTargetId: schedulerEmailTargetUuid,
             type: 'email',
             sendNow: schedulerUuid === undefined,
+            isThresholdAlert: scheduler.thresholds !== undefined,
         },
     });
 
@@ -1002,6 +1006,7 @@ export const sendEmailNotification = async (
                 resourceType:
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
                 sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -1026,6 +1031,7 @@ export const sendEmailNotification = async (
                 schedulerTargetId: schedulerEmailTargetUuid,
                 type: 'email',
                 sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -1413,6 +1419,7 @@ export const handleScheduledDelivery = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 sendNow: schedulerUuid === undefined,
+                hastThresoldAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -1496,6 +1503,7 @@ export const handleScheduledDelivery = async (
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
+                hastThresoldAlert: scheduler.thresholds !== undefined,
             },
         });
     } catch (e) {
