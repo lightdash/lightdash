@@ -1,3 +1,10 @@
+## [0.996.1](https://github.com/lightdash/lightdash/compare/0.996.0...0.996.1) (2024-02-19)
+
+
+### Bug Fixes
+
+* upgrade tempy package ([#8940](https://github.com/lightdash/lightdash/issues/8940)) ([09c9b06](https://github.com/lightdash/lightdash/commit/09c9b0639bf5a2907477646c4424f7bf8bf98ed3))
+
 # [0.996.0](https://github.com/lightdash/lightdash/compare/0.995.1...0.996.0) (2024-02-19)
 
 
