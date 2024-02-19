@@ -15,6 +15,7 @@ import {
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
+import Omnibar from '../../features/omnibar';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
@@ -23,7 +24,6 @@ import Logo from '../../svgs/logo-icon.svg?react';
 import MantineIcon from '../common/MantineIcon';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
-import GlobalSearch from './GlobalSearch';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
 import { NotificationsMenu } from './NotificationsMenu';
@@ -187,7 +187,7 @@ const NavBar = memo(() => {
                                 color="gray.8"
                             />
 
-                            <GlobalSearch projectUuid={activeProjectUuid} />
+                            <Omnibar projectUuid={activeProjectUuid} />
                         </>
                     ) : null}
                 </Group>

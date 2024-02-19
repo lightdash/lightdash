@@ -3,48 +3,21 @@ import {
     fieldId,
     FieldType,
     isTableErrorSearchResult,
-    SearchResult,
 } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
-import useGlobalSearch from '../../../hooks/globalSearch/useGlobalSearch';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
-
-export type SearchItem = {
-    type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field' | 'page';
-    typeLabel:
-        | 'Space'
-        | 'Dashboard'
-        | 'Chart'
-        | 'Table'
-        | 'Joined table'
-        | 'Dimension'
-        | 'Metric'
-        | 'Page';
-    title: string;
-    prefix?: string;
-    description?: string;
-    location: { pathname: string; search?: string };
-    item?: SearchResult;
-    searchRank?: number;
-};
+import { SearchItem } from '../types/searchItem';
+import useSearch from './useSearch';
 
 export const useDebouncedSearch = (
     projectUuid: string,
     query: string | undefined,
 ) => {
     const [debouncedQuery, setDebouncedQuery] = useState<string>();
-    useDebounce(
-        () => {
-            setDebouncedQuery(query);
-        },
-        300,
-        [query],
-    );
-    const { data, isFetching } = useGlobalSearch(projectUuid, debouncedQuery);
+    useDebounce(() => setDebouncedQuery(query), 300, [query]);
 
-    const isSearching =
-        (query && query.length > 2 && query !== debouncedQuery) || isFetching;
+    const { data, isFetching } = useSearch(projectUuid, debouncedQuery);
 
     const items = useMemo(() => {
         const spaces =
@@ -175,6 +148,7 @@ export const useDebouncedSearch = (
                 meta: item,
                 location: { pathname: item.url },
             })) || [];
+
         return [
             ...spaces,
             ...dashboards,
@@ -191,7 +165,7 @@ export const useDebouncedSearch = (
     }, [data, projectUuid]);
 
     return {
-        isSearching,
+        isFetching,
         items,
     };
 };

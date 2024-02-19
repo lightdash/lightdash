@@ -15,14 +15,14 @@ import {
     ChartIcon,
     IconBox,
     ResourceIndicator,
-} from '../../common/ResourceIcon';
-import { SearchItem } from './hooks';
+} from '../../../components/common/ResourceIcon';
+import { SearchItem } from '../types/searchItem';
 
-type SearchIconProps = {
+type Props = {
     item: SearchItem;
 };
 
-export const SearchIcon: FC<SearchIconProps> = ({ item }) => {
+export const OmnibarItemIcon: FC<Props> = ({ item }) => {
     switch (item.type) {
         case 'field':
             return (
@@ -52,11 +52,15 @@ export const SearchIcon: FC<SearchIconProps> = ({ item }) => {
     }
 };
 
-export const SearchIconWithIndicator: FC<{
+type OmnibarItemIconWithIndicatorProps = {
     item: SearchItem;
     projectUuid: string;
     canUserManageValidation: boolean;
-}> = ({ item, projectUuid, canUserManageValidation }) =>
+};
+
+export const OmnibarItemIconWithIndicator: FC<
+    OmnibarItemIconWithIndicatorProps
+> = ({ item, projectUuid, canUserManageValidation }) =>
     item.item && 'validationErrors' in item.item ? (
         <ResourceIndicator
             iconProps={{
@@ -99,6 +103,6 @@ export const SearchIconWithIndicator: FC<{
                 )
             }
         >
-            <SearchIcon item={item} />
+            <OmnibarItemIcon item={item} />
         </ResourceIndicator>
     ) : null;
