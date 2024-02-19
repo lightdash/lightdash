@@ -42,10 +42,10 @@ jobs:
                   ISSUE_NUMBER: ${{ github.event.issue.number }}
                   REF: ${{ github.event.issue.pull_request.head.ref }}
               run: |
-                  git fetch origin duplicate-${{env.ISSUE_NUMBER}}
-                  git checkout duplicate-${{env.ISSUE_NUMBER}}
+                  git fetch origin duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
+                  git checkout duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
                   git pull origin ${{env.REF}} --rebase
-                  git push origin duplicate-${{env.ISSUE_NUMBER}}
+                  git push origin duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
               continue-on-error: true
             - name: Create new branch and PR
               if: steps.check_branch.outputs.branch_exists == 'false'
