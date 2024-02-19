@@ -440,14 +440,8 @@ const SchedulerForm: FC<Props> = ({
                         {isThresholdAlert && (
                             <Stack spacing="xs">
                                 <FieldSelect
-                                    label={
-                                        <Text>
-                                            Alert field{' '}
-                                            <Text color="red" span>
-                                                *
-                                            </Text>{' '}
-                                        </Text>
-                                    }
+                                    label="Alert field"
+                                    required
                                     disabled={isThresholdAlertWithNoFields}
                                     withinPortal
                                     hasGrouping
@@ -487,7 +481,6 @@ const SchedulerForm: FC<Props> = ({
                                 )}
                                 <Group noWrap grow>
                                     <Select
-                                        required
                                         label="Condition"
                                         data={thresholdOperatorOptions}
                                         {...form.getInputProps(
