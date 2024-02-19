@@ -15,7 +15,7 @@ jobs:
                   organization: lightdash
                   team: engineering
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            - name: Stop workflow if user is no member
+            - name: Stop workflow if user isn't a member
               if: steps.check-user-for-team-affiliation.outputs.isTeamMember == 'false'
               run: |
                   echo "You have no rights to trigger this job."
@@ -24,7 +24,31 @@ jobs:
               uses: actions/checkout@v2
               with:
                   ref: ${{ github.event.issue.pull_request.head.ref }}
-            - name: Duplicate external PR
+            - name: Check if duplicate branch exists
+              id: check-branch
+              env:
+                  ISSUE_NUMBER: ${{ github.event.issue.number }}
+              run: |
+                  if git ls-remote --heads origin duplicate-${{env.ISSUE_NUMBER}} | grep duplicate-${{env.ISSUE_NUMBER}}; then
+                      echo "Branch exists."
+                      echo "::set-output name=branch_exists::true"
+                  else
+                      echo "Branch does not exist."
+                      echo "::set-output name=branch_exists::false"
+                  fi
+            - name: Update existing branch
+              if: steps.check_branch.outputs.branch_exists == 'true'
+              env:
+                  ISSUE_NUMBER: ${{ github.event.issue.number }}
+                  REF: ${{ github.event.issue.pull_request.head.ref }}
+              run: |
+                  git fetch origin duplicate-${{env.ISSUE_NUMBER}}
+                  git checkout duplicate-${{env.ISSUE_NUMBER}}
+                  git pull origin ${{env.REF}} --rebase
+                  git push origin duplicate-${{env.ISSUE_NUMBER}}
+              continue-on-error: true
+            - name: Create new branch and PR
+              if: steps.check_branch.outputs.branch_exists == 'false'
               env:
                   ISSUE_NUMBER: ${{ github.event.issue.number }}
                   PR_TITLE: ${{ github.event.issue.title }}
@@ -34,6 +58,6 @@ jobs:
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git checkout -b duplicate-${{ env.ISSUE_NUMBER }} ${{ env.REF }}
-                  git push origin duplicate-${{ env.ISSUE_NUMBER }}
-                  gh pr create --base ${{ env.DEFAULT_BRANCH }} --head duplicate-${{ env.ISSUE_NUMBER }} --title "$PR_TITLE" --body "This is a duplicated PR for running E2E tests." --assignee ${{ env.ASSIGNEE }}
+                  git checkout -b duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
+                  git push origin duplicate-${{env.ISSUE_NUMBER}}
+                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head duplicate-${{env.ISSUE_NUMBER}} --title "${{env.PR_TITLE}}" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}
