@@ -30,7 +30,7 @@ jobs:
                   ISSUE_NUMBER: ${{ github.event.issue.number }}
                   REF: ${{ github.event.issue.pull_request.head.ref }}
               run: |
-                  if git ls-remote --heads origin duplicate-${{env.ISSUE_NUMBER}}${{env.REF}} | grep duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}; then
+                  if git ls-remote --heads origin duplicate-${{env.ISSUE_NUMBER}} ${{env.REF}} | grep duplicate-${{env.ISSUE_NUMBER}}; then
                       echo "Branch already exists."
                       echo "::set-output name=branch_exists::true"
                   else
@@ -43,10 +43,10 @@ jobs:
                   ISSUE_NUMBER: ${{ github.event.issue.number }}
                   REF: ${{ github.event.issue.pull_request.head.ref }}
               run: |
-                  git fetch origin duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
-                  git checkout duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
+                  git fetch origin duplicate-${{env.ISSUE_NUMBER}}
+                  git checkout duplicate-${{env.ISSUE_NUMBER}}
                   git pull origin ${{env.REF}} --rebase
-                  git push origin duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
+                  git push origin duplicate-${{env.ISSUE_NUMBER}}
               continue-on-error: true
             - name: Create new branch and PR
               if: steps.check_branch.outputs.branch_exists == 'false'
@@ -59,6 +59,6 @@ jobs:
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git checkout -b duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
+                  git checkout -b duplicate-${{env.ISSUE_NUMBER}} ${{env.REF}}
                   git push origin duplicate-${{env.ISSUE_NUMBER}}
-                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head duplicate-${{env.ISSUE_NUMBER}}${{env.REF}} --title "chore: ${{env.ISSUE_NUMBER}} [DUPLICATE]" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}
+                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head duplicate-${{env.ISSUE_NUMBER}} --title "chore: ${{env.ISSUE_NUMBER}} [DUPLICATE]" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}
