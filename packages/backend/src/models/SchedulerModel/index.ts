@@ -68,6 +68,7 @@ export class SchedulerModel {
             filters: scheduler.filters,
             customViewportWidth: scheduler.custom_viewport_width,
             thresholds: scheduler.thresholds || undefined,
+            active: scheduler.active,
         } as Scheduler;
     }
 
@@ -228,6 +229,7 @@ export class SchedulerModel {
                     thresholds: newScheduler.thresholds
                         ? JSON.stringify(newScheduler.thresholds)
                         : null,
+                    active: true,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -249,6 +251,20 @@ export class SchedulerModel {
             await Promise.all(targetPromises);
             return scheduler.scheduler_uuid;
         });
+        return this.getSchedulerAndTargets(schedulerUuid);
+    }
+
+    async setSchedulerActive(
+        schedulerUuid: string,
+        active: boolean,
+    ): Promise<SchedulerAndTargets> {
+        await this.database(SchedulerTableName)
+            .update({
+                active,
+                updated_at: new Date(),
+            })
+            .where('scheduler_uuid', schedulerUuid);
+
         return this.getSchedulerAndTargets(schedulerUuid);
     }
 
