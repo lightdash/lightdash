@@ -777,7 +777,7 @@ const SavedChartsHeader: FC = () => {
                                                 toggleThresholdAlertsModal(true)
                                             }
                                         >
-                                            Threshold alerts
+                                            Alerts
                                         </Menu.Item>
                                     )}
                                 {userCanManageCharts &&

@@ -33,7 +33,7 @@ const SchedulersModal: FC<
                 isThresholdAlert ? (
                     <Group spacing="xs">
                         <MantineIcon icon={IconBell} size="lg" color="gray.7" />
-                        <Text fw={600}>Threshold alerts</Text>
+                        <Text fw={600}>Alerts</Text>
                     </Group>
                 ) : (
                     <Group spacing="xs">
