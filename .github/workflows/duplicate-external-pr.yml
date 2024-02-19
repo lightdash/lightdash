@@ -1,0 +1,33 @@
+name: Duplicate External PR and Run E2E Tests
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  duplicate-and-test:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/duplicate-external-pr')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check user for team affiliation
+      id: check-user-for-team-affiliation
+      uses: tspascoal/get-user-teams-membership@v3
+      with:
+        username: ${{ github.event.comment.user.login }}
+        organization: lightdash
+        team: engineering
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Stop workflow if user is no member
+      if: steps.check-user-for-team-affiliation.outputs.isTeamMember == 'false'
+      run: |
+          echo "You have no rights to trigger this job."
+          exit 1
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.issue.pull_request.head.ref }}
+    - name: Duplicate external PR
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git checkout -b duplicate-${{ github.event.issue.number }} ${{ github.event.issue.pull_request.head.ref }}
+        git push origin duplicate-${{ github.event.issue.number }}
+        gh pr create --base ${{ github.event.repository.default_branch }} --head duplicate-${{ github.event.issue.number }} --title "[Duplicate] ${{ github.event.issue.title }}" --body "This is a duplicated PR for running E2E tests." --assignee ${{ github.event.comment.user.login }}
