@@ -1,3 +1,10 @@
+## [0.996.4](https://github.com/lightdash/lightdash/compare/0.996.3...0.996.4) (2024-02-19)
+
+
+### Bug Fixes
+
+* require threshold field in alerts ([#8989](https://github.com/lightdash/lightdash/issues/8989)) ([e2f875e](https://github.com/lightdash/lightdash/commit/e2f875e2a9cb5906883abc005cd6884bcec1fc1d))
+
 ## [0.996.3](https://github.com/lightdash/lightdash/compare/0.996.2...0.996.3) (2024-02-19)
 
 
