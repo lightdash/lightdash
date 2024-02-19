@@ -1,5 +1,5 @@
-import { DimensionType, parseDate, parseTimestamp } from '@lightdash/common';
-import { tableFromJSON, tableToIPC } from 'apache-arrow';
+import { DimensionType } from '@lightdash/common';
+import * as arrow from 'apache-arrow';
 import { Database } from 'duckdb-async';
 import Logger from './logging/logger';
 import { wrapOtelSpan } from './utils';
@@ -18,43 +18,30 @@ export interface InMemoryDatabaseProvisioningOptions {
 }
 
 /**
- * Use field information to cast individual row values, so that they are
- * represented with the correct type in-memory.
- *
- * The js SDK for arrow seems to be pretty limited as far handling this
- * via a schema or other type inference override, but that would likely
- * be the best approach, if possible.
+ * Converts DimensionType into an arrow data type. Arrow will gladly figure
+ * this out by itself, but it's prone to do it innacurately (e.g discarding
+ * time information on tiemestamps).
  */
-export const castValueToType = (value: unknown, fieldType: DimensionType) => {
-    if (value === null) {
-        return null;
-    }
-
-    switch (fieldType) {
+function dimensionTypeToArrowDataType(
+    dimensionType: DimensionType,
+): arrow.DataType {
+    switch (dimensionType) {
         case DimensionType.BOOLEAN:
-            if (value === 'true') {
-                return true;
-            }
-
-            if (value === 'false') {
-                return false;
-            }
-
-            throw new Error('DimensionType.BOOLEAN value cannot be cast');
-        case DimensionType.NUMBER:
-            /**
-             * Casting the number value this way allows us to bypass assumptions about the
-             * underlying number type:
-             */
-            return (value as unknown as number) * 1;
+            return new arrow.Bool();
         case DimensionType.DATE:
+            return new arrow.DateMillisecond();
         case DimensionType.TIMESTAMP:
+            return new arrow.Timestamp(arrow.TimeUnit.MILLISECOND);
+        case DimensionType.NUMBER:
+            return new arrow.Float64();
         case DimensionType.STRING:
-            return value;
+            return new arrow.Utf8();
         default:
-            throw new Error(`Unable to cast value to type ${fieldType}`);
+            throw new Error(
+                `Unsupported dimension type to arrow datatype conversion: ${dimensionType}`,
+            );
     }
-};
+}
 
 /**
  * Creates, and optionally provisions a new in-memory DuckDB instance.
@@ -82,21 +69,27 @@ export const createDuckDbDatabase = async ({
         const loadedTableNames = await Promise.all(
             Object.entries(tables).map(
                 async ([tableName, { rows, fields }]) => {
-                    const rowsWithFieldCasts = rows.map((row) =>
-                        Object.fromEntries(
-                            Object.entries(row).map(([columnName, value]) => {
-                                const fieldType = fields[columnName].type;
-                                return [
-                                    columnName,
-                                    castValueToType(value, fieldType),
-                                ];
-                            }),
-                        ),
+                    /**
+                     * For each row, collect all values in all rows, and map the row type
+                     * into an arrow vector:
+                     */
+                    const columnVectors = Object.entries(fields).reduce(
+                        (acc, [fieldName, field]) => {
+                            // Get all values in the result set for this field name::
+                            acc[fieldName] = arrow.vectorFromArray(
+                                rows.map((row) => row[fieldName]),
+                                dimensionTypeToArrowDataType(field.type),
+                            );
+
+                            return acc;
+                        },
+                        {} as Record<string, arrow.Vector>,
                     );
 
-                    const arrowTableIPC = tableToIPC(
-                        tableFromJSON(rowsWithFieldCasts),
+                    const arrowTableIPC = arrow.tableToIPC(
+                        new arrow.Table(columnVectors),
                     );
+
                     await db.register_buffer(tableName, [arrowTableIPC], true);
                     return tableName;
                 },

@@ -901,6 +901,7 @@ export class ProjectService {
         );
 
         const {
+            compiledMetricQuery: originalCompiledMetricQuery,
             compiledMetricQueryWithoutTableCalculations,
             compiledTableCalculations,
             tableCalculationFilters,
@@ -958,7 +959,11 @@ export class ProjectService {
                 ? `WHERE ${renderedFilters.join('\nAND ')}`
                 : '';
 
-        const sorts = compiledMetricQueryWithoutTableCalculations.sorts.map(
+        /**
+         * We apply sorting at this stage, so we need to access sort data from the
+         * original compiled query.
+         */
+        const sorts = originalCompiledMetricQuery.sorts.map(
             ({ descending, fieldId }) =>
                 `${fieldId} ${descending ? 'DESC' : 'ASC'}`,
         );
