@@ -20,7 +20,7 @@ import {
     MetricType,
     PieChartConfig,
     removeEmptyProperties,
-    removeMetricFromFilters,
+    removeFieldFromFilterGroup,
     SavedChart,
     SortField,
     TableCalculation,
@@ -980,14 +980,12 @@ function reducer(
                         ).reduce((acc, [key, value]) => {
                             let valueDeepCopy = cloneDeep(value);
                             if (key === 'metrics') {
-                                const updatedFiltersOnRemoval =
-                                    removeMetricFromFilters(
-                                        valueDeepCopy,
-                                        action.payload,
-                                    );
                                 return {
                                     ...acc,
-                                    [key]: updatedFiltersOnRemoval,
+                                    [key]: removeFieldFromFilterGroup(
+                                        valueDeepCopy,
+                                        action.payload,
+                                    ),
                                 };
                             }
 

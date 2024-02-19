@@ -199,85 +199,48 @@ export const updateFieldIdInFilters = (
     }
 };
 
-export const isMetricToDelete = (
-    item: FilterGroupItem,
-    metricName: string,
-): boolean => !isFilterGroup(item) && item.target.fieldId === metricName;
-
-export const removeMetricFromFilterGroupItem = (
-    item: FilterGroupItem,
-    metricName: string,
-): void => {
-    if (isFilterGroup(item)) {
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        removeMetricFromFilters(item, metricName);
-    }
-};
-
-export const removeMetricFromFiltersUtil = (
+export const removeFieldFromFilterGroup = (
     filterGroup: FilterGroup | undefined,
-    metricName: string,
-): void => {
-    if (!filterGroup) {
-        return;
-    }
-
-    const processGroupItems = (items: FilterGroupItem[]): FilterGroupItem[] =>
-        items
-            .filter((item) => !isMetricToDelete(item, metricName))
-            .map((item) => {
-                removeMetricFromFilterGroupItem(item, metricName);
-                return item;
-            });
-
-    const isNotEmptyGroup = (item: FilterGroupItem): boolean => {
-        if (!item) {
-            return false;
-        }
-        if (isOrFilterGroup(item)) {
-            return item.or.length !== 0;
-        }
-        if (isAndFilterGroup(item)) {
-            return item.and.length !== 0;
-        }
-        return true;
-    };
-
-    /* eslint-disable no-param-reassign */
-    if (isOrFilterGroup(filterGroup)) {
-        filterGroup.or = processGroupItems(filterGroup.or);
-        if (filterGroup.or.length !== 0) {
-            filterGroup.or = filterGroup.or.filter((item) =>
-                isNotEmptyGroup(item),
-            );
-        }
-    } else if (isAndFilterGroup(filterGroup)) {
-        filterGroup.and = processGroupItems(filterGroup.and);
-        if (filterGroup.and.length !== 0) {
-            filterGroup.and = filterGroup.and.filter((item) =>
-                isNotEmptyGroup(item),
-            );
-        }
-    }
-    /* eslint-enable no-param-reassign */
-};
-
-export const removeMetricFromFilters = (
-    filterGroup: FilterGroup | undefined,
-    metricName: string,
+    fieldId: string,
 ): FilterGroup | undefined => {
-    removeMetricFromFiltersUtil(filterGroup, metricName);
+    if (!filterGroup) {
+        return undefined;
+    }
 
-    if (filterGroup) {
-        if (
-            (isOrFilterGroup(filterGroup) && filterGroup.or.length === 0) ||
-            (isAndFilterGroup(filterGroup) && filterGroup.and.length === 0)
-        ) {
+    const removeFiltersGroupItems = (
+        items: FilterGroupItem[],
+    ): FilterGroupItem[] =>
+        items.reduce<FilterGroupItem[]>((acc, item) => {
+            if (isFilterGroup(item)) {
+                const updatedGroup = removeFieldFromFilterGroup(item, fieldId); // remove field from filter groups recursively
+                if (updatedGroup) {
+                    acc.push(updatedGroup);
+                }
+            } else if (item.target.fieldId !== fieldId) {
+                // keep filter rule if fieldId does not match
+                acc.push(item);
+            }
+            return acc;
+        }, []);
+
+    if (isOrFilterGroup(filterGroup)) {
+        const updatedItems = removeFiltersGroupItems(filterGroup.or);
+        if (updatedItems.length === 0) {
             return undefined;
         }
+        return {
+            ...filterGroup,
+            or: updatedItems,
+        };
     }
-
-    return filterGroup;
+    const updatedItems = removeFiltersGroupItems(filterGroup.and);
+    if (updatedItems.length === 0) {
+        return undefined;
+    }
+    return {
+        ...filterGroup,
+        and: updatedItems,
+    };
 };
 
 export const applyDimensionOverrides = (
