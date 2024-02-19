@@ -1,4 +1,4 @@
-import { DimensionType } from '@lightdash/common';
+import { DimensionType, parseDate, parseTimestamp } from '@lightdash/common';
 import { tableFromJSON, tableToIPC } from 'apache-arrow';
 import { Database } from 'duckdb-async';
 import Logger from './logging/logger';
@@ -42,6 +42,10 @@ export const castValueToType = (value: unknown, fieldType: DimensionType) => {
 
             throw new Error('DimensionType.BOOLEAN value cannot be cast');
         case DimensionType.NUMBER:
+            /**
+             * Casting the number value this way allows us to bypass assumptions about the
+             * underlying number type:
+             */
             return (value as unknown as number) * 1;
         case DimensionType.DATE:
         case DimensionType.TIMESTAMP:

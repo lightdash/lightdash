@@ -36,9 +36,7 @@ import {
     Explore,
     ExploreError,
     FeatureFlags,
-    Field,
     fieldId as getFieldId,
-    FieldType,
     FilterableField,
     FilterGroup,
     FilterGroupItem,
@@ -55,7 +53,6 @@ import {
     getMetrics,
     hasIntersection,
     isDateItem,
-    isDimension,
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
@@ -115,7 +112,7 @@ import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
-import { runQueryInMemoryDatabaseContext } from '../../inMemoryAnalytics';
+import { runQueryInMemoryDatabaseContext } from '../../inMemoryTableCalculations';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -907,6 +904,7 @@ export class ProjectService {
             compiledMetricQueryWithoutTableCalculations,
             compiledTableCalculations,
             tableCalculationFilters,
+            tableCalculations,
         } = ProjectService.isolateTableCalculationsFromCompiledMetricsQuery(
             compileMetricQuery({
                 explore: exploreWithOverride,
@@ -976,7 +974,11 @@ export class ProjectService {
         });
 
         const tableCalculationsSubQuery: CompiledQuery = {
-            fields: {},
+            fields: tableCalculations.reduce((acc, tableCalculation) => {
+                acc[tableCalculation.name] = tableCalculation;
+
+                return acc;
+            }, {} as ItemsMap),
             query: `
                 WITH results AS (
                     SELECT ${selectFrom.join(',\n')}
@@ -1517,6 +1519,7 @@ export class ProjectService {
                                     'useWorker',
                                     useWorker,
                                 );
+
                                 return useWorker
                                     ? runWorkerThread<ResultRow[]>(
                                           new Worker(
@@ -1661,6 +1664,9 @@ export class ProjectService {
                  * If we have a table calculations sub-query, we run it against the in-memory
                  * database, essentially generating a new result set based on the upstream
                  * warehouse results.
+                 *
+                 * At this point, we also merge the two sets of fields - the field set used for
+                 * the warehouse query, and the follow-up table calculation fields.
                  */
                 const warehouseResultsWithTableCalculations =
                     tableCalculationsSubQuery
@@ -1671,7 +1677,14 @@ export class ProjectService {
                                       _: warehouseResults,
                                   },
                               }),
-                              fields: warehouseResults.fields,
+
+                              /**
+                               *
+                               */
+                              fields: {
+                                  ...warehouseResults.fields,
+                                  ...tableCalculationsSubQuery.fields,
+                              },
                           }
                         : warehouseResults;
 
@@ -1826,7 +1839,15 @@ export class ProjectService {
                                 ...compileQueryArgs,
                             );
 
-                        fields = parentQuery.fields;
+                        /**
+                         * Merge field sets coming from the parent warehouse query, as well as the
+                         * table calculations sub-query:
+                         */
+                        fields = {
+                            ...parentQuery.fields,
+                            ...tableCalculationsSubQuery.fields,
+                        };
+
                         query = parentQuery.query;
                         hasExampleMetric = parentQuery.hasExampleMetric;
 
