@@ -132,6 +132,8 @@ First we need to add an environment variable to your profile.yml file that will 
 schema: "{{ env_var('DBT_SCHEMA') }}"
 ```
 
+If you are using BigQuery, it should be `dataset` instead of `schema`.
+
 Then we need to add a step in the github action to fetch the pull request id.
 
 ```yaml
@@ -164,3 +166,5 @@ Note that in this example we assume the job id is `1234`. You will need to repla
     # ... keep existing env variables
     DBT_SCHEMA: "dbt_cloud_pr_1234_${{steps.pr_id.outputs.result}}"
 ```
+
+Now dbt will use the correct schema when running in the preview environment.
