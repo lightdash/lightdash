@@ -28,12 +28,13 @@ jobs:
               id: check-branch
               env:
                   ISSUE_NUMBER: ${{ github.event.issue.number }}
+                  REF: ${{ github.event.issue.pull_request.head.ref }}
               run: |
-                  if git ls-remote --heads origin duplicate-${{env.ISSUE_NUMBER}} | grep duplicate-${{env.ISSUE_NUMBER}}; then
-                      echo "Branch exists."
+                  if git ls-remote --heads origin duplicate-${{env.ISSUE_NUMBER}}${{env.REF}} | grep duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}; then
+                      echo "Branch already exists."
                       echo "::set-output name=branch_exists::true"
                   else
-                      echo "Branch does not exist."
+                      echo "Branch does not exist yet"
                       echo "::set-output name=branch_exists::false"
                   fi
             - name: Update existing branch
@@ -60,4 +61,4 @@ jobs:
                   git config user.email "github-actions[bot]@users.noreply.github.com"
                   git checkout -b duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
                   git push origin duplicate-${{env.ISSUE_NUMBER}}
-                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head duplicate-${{env.ISSUE_NUMBER}} --title "chore: ${{env.ISSUE_NUMBER}} [DUPLICATE]" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}
+                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head duplicate-${{env.ISSUE_NUMBER}}${{env.REF}} --title "chore: ${{env.ISSUE_NUMBER}} [DUPLICATE]" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}
