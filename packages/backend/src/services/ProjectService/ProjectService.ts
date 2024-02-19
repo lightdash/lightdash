@@ -1043,6 +1043,7 @@ export class ProjectService {
             filters,
             tableCalculations,
             compiledTableCalculations,
+            sorts,
             ...otherProps
         } = compiledMetricQuery;
 
@@ -1056,6 +1057,7 @@ export class ProjectService {
                     ...filters,
                     tableCalculations: undefined,
                 },
+                sorts: [],
             },
 
             tableCalculationFilters: filters.tableCalculations,
