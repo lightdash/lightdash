@@ -112,7 +112,6 @@
         "simple-git": "^3.16.0",
         "slackify-markdown": "^4.4.0",
         "sshpk": "^1.17.0",
-        "tempy": "^1.0.1",
         "uuid": "^8.3.2",
         "winston": "^3.3.3"
     },
