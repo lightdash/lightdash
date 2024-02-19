@@ -1,3 +1,10 @@
+# [0.998.0](https://github.com/lightdash/lightdash/compare/0.997.0...0.998.0) (2024-02-19)
+
+
+### Features
+
+* add full text search to global search ([#8992](https://github.com/lightdash/lightdash/issues/8992)) ([c4dc382](https://github.com/lightdash/lightdash/commit/c4dc3823ce713cd0537ee46c7e2a371bf2c9f217)), closes [#8859](https://github.com/lightdash/lightdash/issues/8859) [#8879](https://github.com/lightdash/lightdash/issues/8879) [#8927](https://github.com/lightdash/lightdash/issues/8927) [#8933](https://github.com/lightdash/lightdash/issues/8933) [#8935](https://github.com/lightdash/lightdash/issues/8935) [#8961](https://github.com/lightdash/lightdash/issues/8961) [#8977](https://github.com/lightdash/lightdash/issues/8977)
+
 # [0.997.0](https://github.com/lightdash/lightdash/compare/0.996.4...0.997.0) (2024-02-19)
 
 
