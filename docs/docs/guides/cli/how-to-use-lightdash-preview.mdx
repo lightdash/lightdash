@@ -124,7 +124,7 @@ jobs:
 
 ## How to use the dbt cloud schema in your preview project
 
-If you are using a continuous integration job in dbt cloud, you can use the schema (`dbt_cloud_pr_<job_id>_<pr_id>`) that is created by dbt cloud for your preview project.
+If you are using a [continuous integration job in dbt cloud](https://docs.getdbt.com/docs/deploy/ci-jobs), you can use the schema (`dbt_cloud_pr_<job_id>_<pr_id>`) that is created by dbt cloud for your preview project.
 
 First we need to add an environment variable to your profile.yml file that will be used by dbt to connect to the correct schema.
 
@@ -134,7 +134,7 @@ schema: "{{ env_var('DBT_SCHEMA') }}"
 
 If you are using BigQuery, it should be `dataset` instead of `schema`.
 
-Then we need to add a step in the github action to fetch the pull request id.
+Then we need to add a step in the GitHub action to fetch the pull request id.
 
 ```yaml
       - uses: actions/github-script@v6
