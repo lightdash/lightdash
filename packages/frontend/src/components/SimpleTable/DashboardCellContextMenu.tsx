@@ -78,15 +78,15 @@ const DashboardCellContextMenu: FC<
         )
             return acc;
 
-        acc.push(
+        return [
+            ...acc,
             createDashboardFilterRuleFromField({
                 field: pivotField,
                 availableTileFilters: {},
                 isTemporary: true,
                 value: pivot.value,
             }),
-        );
-        return acc;
+        ];
     }, []);
     const filters: DashboardFilterRule[] = [
         ...filterField,
@@ -184,7 +184,7 @@ const DashboardCellContextMenu: FC<
             {filters.length > 0 && (
                 <FilterDashboardTo
                     filters={filters}
-                    addFilter={addDimensionDashboardFilter}
+                    onAddFilter={addDimensionDashboardFilter}
                 />
             )}
         </>
