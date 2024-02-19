@@ -620,7 +620,7 @@ export const attachTypesToModels = (
     });
 
     const getType = (
-        { database, schema, name }: DbtModelNode,
+        { database, schema, alias }: DbtModelNode,
         columnName: string,
     ): DimensionType | undefined => {
         const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
@@ -641,8 +641,8 @@ export const attachTypesToModels = (
             Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
                 (t) =>
                     caseSensitiveMatching
-                        ? t === name
-                        : t.toLowerCase() === name.toLowerCase(),
+                        ? t === alias
+                        : t.toLowerCase() === alias.toLowerCase(),
             );
         const columnMatch =
             databaseMatch &&
@@ -662,7 +662,7 @@ export const attachTypesToModels = (
         }
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
-                `Column "${columnName}" from model "${name}" does not exist.\n "${name}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
+                `Column "${columnName}" from model "${alias}" does not exist.\n "${alias}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${alias}. Try rerunning dbt to update your warehouse.`,
                 {},
             );
         }
@@ -684,8 +684,8 @@ export const attachTypesToModels = (
 export const getSchemaStructureFromDbtModels = (
     dbtModels: DbtModelNode[],
 ): { database: string; schema: string; table: string }[] =>
-    dbtModels.map(({ database, schema, name }) => ({
+    dbtModels.map(({ database, schema, alias }) => ({
         database,
         schema,
-        table: name,
+        table: alias,
     }));
