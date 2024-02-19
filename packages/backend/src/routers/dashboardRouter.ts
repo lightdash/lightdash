@@ -1,6 +1,4 @@
-import { LightdashMode } from '@lightdash/common';
 import express from 'express';
-import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
