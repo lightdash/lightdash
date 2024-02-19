@@ -1,3 +1,10 @@
+## [0.996.2](https://github.com/lightdash/lightdash/compare/0.996.1...0.996.2) (2024-02-19)
+
+
+### Bug Fixes
+
+* floating point values in alerts ([#8966](https://github.com/lightdash/lightdash/issues/8966)) ([7e6a986](https://github.com/lightdash/lightdash/commit/7e6a9863f59636b3b0b826bad3ef8eb81939ac16))
+
 ## [0.996.1](https://github.com/lightdash/lightdash/compare/0.996.0...0.996.1) (2024-02-19)
 
 
