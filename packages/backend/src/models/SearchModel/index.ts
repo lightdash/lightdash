@@ -1,5 +1,6 @@
 import {
     DashboardSearchResult,
+    EntityType,
     Explore,
     ExploreError,
     FieldSearchResult,
@@ -8,6 +9,7 @@ import {
     isExploreError,
     NotExistsError,
     SavedChartSearchResult,
+    SearchFilters,
     SearchResults,
     SpaceSearchResult,
     TableErrorSearchResult,
@@ -356,14 +358,44 @@ export class SearchModel {
         }, []);
     }
 
-    async search(projectUuid: string, query: string): Promise<SearchResults> {
-        const spaces = await this.searchSpaces(projectUuid, query);
-        const dashboards = await this.searchDashboards(projectUuid, query);
-        const savedCharts = await this.searchSavedCharts(projectUuid, query);
-        const [tables, fields] = await this.searchTablesAndFields(
-            projectUuid,
-            query,
-        );
+    private static shouldSearchForType(
+        entityType: EntityType,
+        queryTypeFilter?: string,
+    ) {
+        // if there is no filter or if the filter is the same as the entityType
+        return !queryTypeFilter || queryTypeFilter === entityType;
+    }
+
+    async search(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<SearchResults> {
+        const spaces = SearchModel.shouldSearchForType('spaces', filters?.type)
+            ? await this.searchSpaces(projectUuid, query)
+            : [];
+
+        const dashboards = SearchModel.shouldSearchForType(
+            'dashboards',
+            filters?.type,
+        )
+            ? await this.searchDashboards(projectUuid, query)
+            : [];
+
+        const savedCharts = SearchModel.shouldSearchForType(
+            'charts',
+            filters?.type,
+        )
+            ? await this.searchSavedCharts(projectUuid, query)
+            : [];
+
+        const [tables, fields] = SearchModel.shouldSearchForType(
+            'explores',
+            filters?.type,
+        )
+            ? await this.searchTablesAndFields(projectUuid, query)
+            : [[], []];
+
         const tableErrors = await this.searchTableErrors(projectUuid, query);
         const tablesAndErrors = [...tables, ...tableErrors];
         const allPages = [

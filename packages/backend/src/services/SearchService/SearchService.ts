@@ -5,6 +5,7 @@ import {
     ForbiddenError,
     isTableErrorSearchResult,
     SavedChartSearchResult,
+    SearchFilters,
     SearchResults,
     SessionUser,
     SpaceSearchResult,
@@ -46,6 +47,7 @@ export class SearchService {
         user: SessionUser,
         projectUuid: string,
         query: string,
+        filters: SearchFilters,
     ): Promise<SearchResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -62,7 +64,13 @@ export class SearchService {
         ) {
             throw new ForbiddenError();
         }
-        const results = await this.searchModel.search(projectUuid, query);
+
+        const results = await this.searchModel.search(
+            projectUuid,
+            query,
+            filters,
+        );
+
         const spaceUuids = [
             ...new Set([
                 ...results.dashboards.map((dashboard) => dashboard.spaceUuid),
