@@ -329,7 +329,7 @@ export const createDashboardFilterRuleFromField = ({
             disabled: !isTemporary,
             label: undefined,
         },
-        value !== undefined ? [value] : [],
+        value === null ? undefined : [value],
     );
 
 type AddFilterRuleArgs = {
