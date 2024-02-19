@@ -121,3 +121,46 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.actor }}
 ```
+
+## How to use the dbt cloud schema in your preview project
+
+If you are using a continuous integration job in dbt cloud, you can use the schema (`dbt_cloud_pr_<job_id>_<pr_id>`) that is created by dbt cloud for your preview project.
+
+First we need to add an environment variable to your profile.yml file that will be used by dbt to connect to the correct schema.
+
+```yaml
+schema: "{{ env_var('DBT_SCHEMA') }}"
+```
+
+Then we need to add a step in the github action to fetch the pull request id.
+
+```yaml
+      - uses: actions/github-script@v6
+        id: pr_id
+        with:
+          script: |
+            if (context.issue.number) {
+              // Return issue number if present
+              return context.issue.number;
+            } else {
+              // Otherwise return issue number from commit
+              return (
+                await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  commit_sha: context.sha,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                })
+              ).data[0].number;
+            }
+          result-encoding: string
+```
+
+After that we need to add a new env variable to the step "Lightdash CLI start preview" which is the schema that dbt cloud will use.
+
+Note that in this example we assume the job id is `1234`. You will need to replace this with the actual job id.
+
+```yaml
+  env:
+    # ... keep existing env variables
+    DBT_SCHEMA: "dbt_cloud_pr_1234_${{steps.pr_id.outputs.result}}"
+```
