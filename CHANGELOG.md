@@ -1,3 +1,10 @@
+# [0.996.0](https://github.com/lightdash/lightdash/compare/0.995.1...0.996.0) (2024-02-19)
+
+
+### Features
+
+* send email on threshold alerts ([#8959](https://github.com/lightdash/lightdash/issues/8959)) ([da90238](https://github.com/lightdash/lightdash/commit/da90238b1c00f67365bd3402e567f5288175865d))
+
 ## [0.995.1](https://github.com/lightdash/lightdash/compare/0.995.0...0.995.1) (2024-02-16)
 
 
