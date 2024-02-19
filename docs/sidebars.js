@@ -209,9 +209,7 @@ module.exports = {
         {
             type: 'doc',
             label: 'Contact',
-            items: [
-                'contact/contact_info',
-            ],
+            id: 'contact/contact_info',
         },
     ],
 };
