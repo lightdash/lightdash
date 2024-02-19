@@ -545,6 +545,7 @@ const SavedChartsHeader: FC = () => {
                             disabled={!unsavedChartVersion.tableName}
                         >
                             <Menu.Dropdown>
+                                <Menu.Label>Manage</Menu.Label>
                                 {userCanManageCharts && hasUnsavedChanges && (
                                     <Menu.Item
                                         icon={
@@ -740,6 +741,22 @@ const SavedChartsHeader: FC = () => {
                                             </Menu>
                                         </Menu.Item>
                                     )}
+                                {userCanManageCharts && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon icon={IconHistory} />
+                                        }
+                                        onClick={() =>
+                                            history.push({
+                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
+                                            })
+                                        }
+                                    >
+                                        Version history
+                                    </Menu.Item>
+                                )}
+                                <Menu.Divider />
+                                <Menu.Label>Integrations</Menu.Label>
                                 {userCanCreateDeliveriesAndAlerts && (
                                     <Menu.Item
                                         icon={<MantineIcon icon={IconSend} />}
@@ -780,20 +797,6 @@ const SavedChartsHeader: FC = () => {
                                         Sync with Google Sheets
                                     </Menu.Item>
                                 ) : null}
-                                {userCanManageCharts && (
-                                    <Menu.Item
-                                        icon={
-                                            <MantineIcon icon={IconHistory} />
-                                        }
-                                        onClick={() =>
-                                            history.push({
-                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
-                                            })
-                                        }
-                                    >
-                                        Version history
-                                    </Menu.Item>
-                                )}
                                 {gitIntegration?.enabled && (
                                     <Menu.Item
                                         icon={
