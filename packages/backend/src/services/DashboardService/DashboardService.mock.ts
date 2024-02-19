@@ -49,7 +49,7 @@ export const space: SpaceTable['base'] = {
     created_at: new Date(),
     project_id: 0,
     organization_uuid: user.organizationUuid!,
-    search_vector: [],
+    search_vector: '',
 };
 
 export const publicSpace: Space = {
