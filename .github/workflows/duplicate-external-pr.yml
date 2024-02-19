@@ -38,7 +38,7 @@ jobs:
                       echo "::set-output name=branch_exists::false"
                   fi
             - name: Update existing branch
-              if: steps.check_branch.outputs.branch_exists == 'true'
+              if: steps.check-branch.outputs.branch_exists == 'true'
               env:
                   ISSUE_NUMBER: ${{ github.event.issue.number }}
                   REF: ${{ github.event.issue.pull_request.head.ref }}
@@ -49,7 +49,7 @@ jobs:
                   git push origin duplicate-${{env.ISSUE_NUMBER}}
               continue-on-error: true
             - name: Create new branch and PR
-              if: steps.check_branch.outputs.branch_exists == 'false'
+              if: steps.check-branch.outputs.branch_exists == 'false'
               env:
                   ISSUE_NUMBER: ${{ github.event.issue.number }}
                   PR_TITLE: ${{ github.event.issue.title }}
