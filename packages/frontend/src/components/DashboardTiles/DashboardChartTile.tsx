@@ -747,7 +747,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             {dashboardTileFilterOptions.length > 0 && (
                                 <FilterDashboardTo
                                     filters={dashboardTileFilterOptions}
-                                    addFilter={handleAddFilter}
+                                    onAddFilter={handleAddFilter}
                                 />
                             )}
                         </Menu.Dropdown>

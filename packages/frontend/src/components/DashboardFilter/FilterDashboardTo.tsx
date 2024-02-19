@@ -10,28 +10,10 @@ import MantineIcon from '../common/MantineIcon';
 
 type Props = {
     filters: DashboardFilterRule[];
-    addFilter: (filter: DashboardFilterRule, isTemporary: boolean) => void;
+    onAddFilter: (filter: DashboardFilterRule, isTemporary: boolean) => void;
 };
 
-const FilterValue = ({ filter }: { filter: DashboardFilterRule }) => {
-    if (filter.operator === FilterOperator.NULL) {
-        return (
-            <Text span fw={500}>
-                null
-            </Text>
-        );
-    }
-    if (filter.values)
-        return (
-            <Text span fw={500}>
-                {String(filter.values[0])}
-            </Text>
-        );
-
-    return null;
-};
-
-export const FilterDashboardTo: FC<Props> = ({ filters, addFilter }) => (
+export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => (
     <>
         <Menu.Divider />
         <Menu.Label>Filter dashboard to...</Menu.Label>
@@ -40,10 +22,19 @@ export const FilterDashboardTo: FC<Props> = ({ filters, addFilter }) => (
             <Menu.Item
                 key={filter.id}
                 icon={<MantineIcon icon={IconFilter} />}
-                onClick={() => addFilter(filter, true)}
+                onClick={() => onAddFilter(filter, true)}
             >
                 {friendlyName(filter.target.fieldId)} is{' '}
-                <FilterValue filter={filter} />
+                {filter.operator === FilterOperator.NULL && (
+                    <Text span fw={500}>
+                        null
+                    </Text>
+                )}
+                {filter.values && filter.values[0] && (
+                    <Text span fw={500}>
+                        {String(filter.values[0])}
+                    </Text>
+                )}
             </Menu.Item>
         ))}
     </>
