@@ -4,6 +4,7 @@
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
+        "@faker-js/faker": "^8.4.1",
         "@tsoa/cli": "^4.1.3",
         "@types/bcrypt": "^5.0.0",
         "@types/connect-flash": "^0.0.37",
@@ -32,7 +33,6 @@
         "@aws-sdk/lib-storage": "^3.306.0",
         "@aws-sdk/s3-request-presigner": "^3.272.0",
         "@casl/ability": "^5.4.3",
-        "@faker-js/faker": "^8.4.0",
         "@godaddy/terminus": "^4.12.0",
         "@octokit/app": "^14.0.2",
         "@octokit/auth-app": "^6.0.3",
