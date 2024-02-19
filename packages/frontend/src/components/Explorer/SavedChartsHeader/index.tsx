@@ -545,11 +545,7 @@ const SavedChartsHeader: FC = () => {
                             disabled={!unsavedChartVersion.tableName}
                         >
                             <Menu.Dropdown>
-                                <Menu.Label>
-                                    {
-                                        "Manage"
-                                    }
-                                </Menu.Label>
+                                <Menu.Label>Manage</Menu.Label>
                                 {userCanManageCharts && hasUnsavedChanges && (
                                     <Menu.Item
                                         icon={
@@ -750,11 +746,7 @@ const SavedChartsHeader: FC = () => {
                                     </Menu.Item>
                                 )}
                                 <Menu.Divider />
-                                <Menu.Label>
-                                    {
-                                        "Integrations"
-                                    }
-                                </Menu.Label>
+                                <Menu.Label>Integrations</Menu.Label>
                                 {userCanCreateDeliveriesAndAlerts && (
                                     <Menu.Item
                                         icon={<MantineIcon icon={IconSend} />}
