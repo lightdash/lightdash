@@ -97,6 +97,7 @@ const DEFAULT_VALUES = {
 
 const DEFAULT_VALUES_ALERT = {
     ...DEFAULT_VALUES,
+    format: SchedulerFormat.IMAGE,
     cron: '0 10 * * *',
     thresholds: [
         {
@@ -501,7 +502,6 @@ const SchedulerForm: FC<Props> = ({
                                 </Group>
                             </Stack>
                         )}
-
                         <Input.Wrapper
                             label={
                                 isThresholdAlert
@@ -518,7 +518,6 @@ const SchedulerForm: FC<Props> = ({
                                 />
                             </Box>
                         </Input.Wrapper>
-
                         {!isThresholdAlert && (
                             <Stack spacing={0}>
                                 <Input.Label> Format </Input.Label>
