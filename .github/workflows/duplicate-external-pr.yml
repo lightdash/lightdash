@@ -60,4 +60,4 @@ jobs:
                   git config user.email "github-actions[bot]@users.noreply.github.com"
                   git checkout -b duplicate-${{env.ISSUE_NUMBER}}${{env.REF}}
                   git push origin duplicate-${{env.ISSUE_NUMBER}}
-                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head duplicate-${{env.ISSUE_NUMBER}} --title "${{env.PR_TITLE}}" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}
+                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head duplicate-${{env.ISSUE_NUMBER}} --title "chore: ${{env.ISSUE_NUMBER}} [DUPLICATE]" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}
