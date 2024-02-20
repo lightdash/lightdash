@@ -924,8 +924,8 @@ export const sendEmailNotification = async (
             )}`;
             await emailClient.sendImageNotificationEmail(
                 recipient,
+                `Lightdash Data Alert`,
                 name,
-                details.name,
                 details.description || '',
                 thresholdMessage,
                 new Date().toLocaleDateString('en-GB'),
