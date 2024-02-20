@@ -1145,6 +1145,7 @@ export const uploadGsheets = async (
             const { rows } = await projectService.getResultsForChart(
                 user,
                 savedChartUuid,
+                QueryExecutionContext.GSHEETS,
             );
 
             if (thresholds !== undefined && thresholds.length > 0) {
@@ -1246,6 +1247,7 @@ export const uploadGsheets = async (
                 const { rows } = await projectService.getResultsForChart(
                     user,
                     chartUuid,
+                    QueryExecutionContext.GSHEETS,
                 );
                 const explore = await projectService.getExplore(
                     user,
@@ -1443,6 +1445,7 @@ export const handleScheduledDelivery = async (
                 const { rows } = await projectService.getResultsForChart(
                     user,
                     savedChartUuid,
+                    QueryExecutionContext.THRESHOLD_ALERTS,
                 );
 
                 if (isPositiveThesholdAlert(thresholds, rows)) {

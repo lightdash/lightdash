@@ -152,6 +152,7 @@ export enum QueryExecutionContext {
     CSV = 'csvDownload',
     GSHEETS = 'gsheets',
     CALCULATE_TOTAL = 'calculateTotal',
+    THRESHOLD_ALERTS = 'thresholdAlerts',
 }
 
 type QueryExecutionEvent = BaseTrack & {

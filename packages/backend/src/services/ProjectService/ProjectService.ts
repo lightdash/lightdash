@@ -1379,6 +1379,7 @@ export class ProjectService {
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,
+        context: QueryExecutionContext,
     ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
@@ -1397,7 +1398,7 @@ export class ProjectService {
                     projectUuid: chart.projectUuid,
                     exploreName: exploreId,
                     csvLimit: undefined,
-                    context: QueryExecutionContext.GSHEETS,
+                    context,
                 });
             },
         );
