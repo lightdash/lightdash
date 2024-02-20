@@ -35,6 +35,7 @@ type Subject =
     | 'Group'
     | 'ChangeCsvResults'
     | 'ScheduledDeliveries'
+    | 'DashboardComments'
     | 'all';
 
 type PossibleAbilities = [
