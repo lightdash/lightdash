@@ -723,7 +723,7 @@ export class DashboardService {
 
         if (
             user.ability.cannot(
-                'create',
+                'view',
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
@@ -781,7 +781,7 @@ export class DashboardService {
 
         if (
             user.ability.cannot(
-                'create',
+                'manage',
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,

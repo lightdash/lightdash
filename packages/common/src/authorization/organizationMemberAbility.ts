@@ -47,6 +47,9 @@ export const organizationMemberAbilities: Record<
         can('manage', 'ExportCsv', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'DashboardComments', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
