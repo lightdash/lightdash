@@ -3,6 +3,7 @@ import {
     Dashboard as IDashboard,
     DashboardTile,
     DashboardTileTypes,
+    FeatureFlags,
     isDashboardChartTileType,
 } from '@lightdash/common';
 import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
@@ -85,8 +86,21 @@ const GridTile: FC<
     Pick<
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    > & { isLazyLoadEnabled: boolean; index: number }
+    > & {
+        isLazyLoadEnabled: boolean;
+        index: number;
+        projectUuid: string;
+        dashboardUuid: string;
+    }
 > = memo((props) => {
+    const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardTileComments,
+    );
+    const { user } = useApp();
+    const userCanViewComments =
+        isDashboardTileCommentsFeatureEnabled &&
+        user.data?.ability?.can('view', 'DashboardComments');
+
     const { tile, isLazyLoadEnabled, index } = props;
     useProfiler(`Dashboard-${tile.type}`);
     const [isTiledViewed, setIsTiledViewed] = useState(false);
@@ -117,9 +131,21 @@ const GridTile: FC<
         case DashboardTileTypes.SAVED_CHART:
             return <ChartTile {...props} tile={tile} />;
         case DashboardTileTypes.MARKDOWN:
-            return <MarkdownTile {...props} tile={tile} />;
+            return (
+                <MarkdownTile
+                    showComments={userCanViewComments}
+                    {...props}
+                    tile={tile}
+                />
+            );
         case DashboardTileTypes.LOOM:
-            return <LoomTile {...props} tile={tile} />;
+            return (
+                <LoomTile
+                    showComments={userCanViewComments}
+                    {...props}
+                    tile={tile}
+                />
+            );
         default: {
             return assertUnreachable(
                 tile,
@@ -651,6 +677,8 @@ const Dashboard: FC = () => {
                             <div key={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
                                     <GridTile
+                                        projectUuid={projectUuid}
+                                        dashboardUuid={dashboardUuid}
                                         isLazyLoadEnabled={
                                             isLazyLoadEnabled ?? true
                                         }
@@ -699,9 +727,10 @@ const Dashboard: FC = () => {
 };
 
 const DashboardPage: FC = () => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     useProfiler('Dashboard');
     return (
-        <DashboardProvider>
+        <DashboardProvider projectUuid={projectUuid}>
             <Dashboard />
         </DashboardProvider>
     );
