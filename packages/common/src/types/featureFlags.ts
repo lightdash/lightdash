@@ -36,4 +36,10 @@ export enum FeatureFlags {
      * Use the new in-memory table calculations engine/duckdb
      */
     UseInMemoryTableCalculations = 'new-table-calculations-engine',
+
+    /**
+     * Use the new dashboard comments feature. Users can add/resolve/delete comments
+     * in a tile. This also includes the new notifications feature.
+     */
+    DashboardTileComments = 'dashboard-tile-comments',
 }
