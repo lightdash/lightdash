@@ -4086,7 +4086,7 @@ const models: TsoaRoute.Models = {
         enums: ['greaterThan', 'lessThan', 'increasedBy', 'decreasedBy'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ThresholdOptions: {
+    AlertOptions: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -4105,9 +4105,9 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 enabled: { dataType: 'boolean', required: true },
-                thresholds: {
+                alerts: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ThresholdOptions' },
+                    array: { dataType: 'refAlias', ref: 'AlertOptions' },
                 },
                 options: { ref: 'SchedulerOptions', required: true },
                 dashboardUuid: {

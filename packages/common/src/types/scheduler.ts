@@ -66,7 +66,7 @@ export enum ThresoldOperator {
     DECREASED_BY = 'decreasedBy',
     // HAS_CHANGED = '=',
 }
-export type ThresholdOptions = {
+export type AlertOptions = {
     operator: ThresoldOperator;
     fieldId: string;
     value: number;
@@ -84,7 +84,7 @@ export type SchedulerBase = {
     savedChartUuid: string | null;
     dashboardUuid: string | null;
     options: SchedulerOptions;
-    thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
+    alerts?: AlertOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
 };
 
@@ -176,7 +176,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'cron'
     | 'format'
     | 'options'
-    | 'thresholds'
+    | 'alerts'
 > &
     Pick<DashboardScheduler, 'filters' | 'customViewportWidth'> & {
         targets: Array<

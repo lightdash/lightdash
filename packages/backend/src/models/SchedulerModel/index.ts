@@ -67,7 +67,7 @@ export class SchedulerModel {
             options: scheduler.options,
             filters: scheduler.filters,
             customViewportWidth: scheduler.custom_viewport_width,
-            thresholds: scheduler.thresholds || undefined,
+            alerts: scheduler.alerts || undefined,
             enabled: scheduler.enabled,
         } as Scheduler;
     }
@@ -226,8 +226,8 @@ export class SchedulerModel {
                         newScheduler.customViewportWidth
                             ? newScheduler.customViewportWidth
                             : null,
-                    thresholds: newScheduler.thresholds
-                        ? JSON.stringify(newScheduler.thresholds)
+                    alerts: newScheduler.alerts
+                        ? JSON.stringify(newScheduler.alerts)
                         : null,
                     enabled: true,
                 })
@@ -289,8 +289,8 @@ export class SchedulerModel {
                         scheduler.customViewportWidth
                             ? scheduler.customViewportWidth
                             : null,
-                    thresholds: scheduler.thresholds
-                        ? JSON.stringify(scheduler.thresholds)
+                    alerts: scheduler.alerts
+                        ? JSON.stringify(scheduler.alerts)
                         : null,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);

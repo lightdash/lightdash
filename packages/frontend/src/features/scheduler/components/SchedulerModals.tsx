@@ -41,7 +41,7 @@ interface ChartSchedulersProps {
     chartUuid: string;
     name: string;
     isOpen: boolean;
-    isThresholdAlert?: boolean;
+    isAlert?: boolean;
     itemsMap?: ItemsMap;
     onClose: () => void;
 }

@@ -29,17 +29,11 @@ enum States {
 
 const ListStateContent: FC<{
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
-    isThresholdAlertList?: boolean;
+    isAlertList?: boolean;
     onClose: () => void;
     onConfirm: () => void;
     onEdit: (schedulerUuid: string) => void;
-}> = ({
-    schedulersQuery,
-    isThresholdAlertList,
-    onClose,
-    onConfirm,
-    onEdit,
-}) => {
+}> = ({ schedulersQuery, isAlertList, onClose, onConfirm, onEdit }) => {
     return (
         <>
             <Box
@@ -50,7 +44,7 @@ const ListStateContent: FC<{
             >
                 <SchedulersList
                     schedulersQuery={schedulersQuery}
-                    isThresholdAlertList={isThresholdAlertList}
+                    isAlertList={isAlertList}
                     onEdit={onEdit}
                 />
             </Box>
@@ -71,17 +65,10 @@ const CreateStateContent: FC<{
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
     isChart: boolean;
-    isThresholdAlert?: boolean;
+    isAlert?: boolean;
     itemsMap?: ItemsMap;
     onBack: () => void;
-}> = ({
-    resourceUuid,
-    createMutation,
-    isChart,
-    isThresholdAlert,
-    itemsMap,
-    onBack,
-}) => {
+}> = ({ resourceUuid, createMutation, isChart, isAlert, itemsMap, onBack }) => {
     useEffect(() => {
         if (createMutation.isSuccess) {
             createMutation.reset();
@@ -139,13 +126,11 @@ const CreateStateContent: FC<{
                           }
                 }
                 onSubmit={handleSubmit}
-                confirmText={
-                    isThresholdAlert ? 'Create alert' : 'Create schedule'
-                }
+                confirmText={isAlert ? 'Create alert' : 'Create schedule'}
                 onBack={onBack}
                 onSendNow={handleSendNow}
                 loading={createMutation.isLoading}
-                isThresholdAlert={isThresholdAlert}
+                isAlert={isAlert}
                 itemsMap={itemsMap}
             />
         </>
@@ -156,8 +141,8 @@ const UpdateStateContent: FC<{
     schedulerUuid: string;
     itemsMap?: ItemsMap;
     onBack: () => void;
-    isThresholdAlert?: boolean;
-}> = ({ schedulerUuid, itemsMap, onBack, isThresholdAlert }) => {
+    isAlert?: boolean;
+}> = ({ schedulerUuid, itemsMap, onBack, isAlert }) => {
     const scheduler = useScheduler(schedulerUuid);
 
     const mutation = useSchedulersUpdateMutation(schedulerUuid);
@@ -234,7 +219,7 @@ const UpdateStateContent: FC<{
                 }
                 disabled={mutation.isLoading}
                 savedSchedulerData={scheduler.data}
-                isThresholdAlert={isThresholdAlert}
+                isAlert={isAlert}
                 onSubmit={handleSubmit}
                 confirmText="Save"
                 onBack={onBack}
@@ -256,7 +241,7 @@ interface Props {
     >;
     onClose: () => void;
     isChart: boolean;
-    isThresholdAlert?: boolean;
+    isAlert?: boolean;
     itemsMap?: ItemsMap;
 }
 
@@ -265,7 +250,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
     schedulersQuery,
     createMutation,
     isChart,
-    isThresholdAlert,
+    isAlert,
     itemsMap,
     onClose = () => {},
 }) => {
@@ -302,7 +287,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                         setState(States.EDIT);
                         setSchedulerUuid(schedulerUuidToUpdate);
                     }}
-                    isThresholdAlertList={isThresholdAlert}
+                    isAlertList={isAlert}
                 />
             )}
             {state === States.CREATE && (
@@ -312,7 +297,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                     isChart={isChart}
                     itemsMap={itemsMap}
                     onBack={() => setState(States.LIST)}
-                    isThresholdAlert={isThresholdAlert}
+                    isAlert={isAlert}
                 />
             )}
             {state === States.EDIT && schedulerUuid && (
@@ -320,7 +305,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                     schedulerUuid={schedulerUuid}
                     itemsMap={itemsMap}
                     onBack={() => setState(States.LIST)}
-                    isThresholdAlert={isThresholdAlert}
+                    isAlert={isAlert}
                 />
             )}
         </>

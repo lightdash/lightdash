@@ -27,7 +27,7 @@ export type SchedulerDb = {
     options: Record<string, any>;
     filters: string | null;
     custom_viewport_width: number | null;
-    thresholds: string | null;
+    alerts: string | null;
     enabled: boolean;
 };
 
@@ -72,7 +72,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'options'
           | 'filters'
           | 'custom_viewport_width'
-          | 'thresholds'
+          | 'alerts'
       >
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>
 >;

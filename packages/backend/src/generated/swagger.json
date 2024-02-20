@@ -4584,7 +4584,7 @@
                 ],
                 "type": "string"
             },
-            "ThresholdOptions": {
+            "AlertOptions": {
                 "properties": {
                     "value": {
                         "type": "number",
@@ -4605,9 +4605,9 @@
                     "enabled": {
                         "type": "boolean"
                     },
-                    "thresholds": {
+                    "alerts": {
                         "items": {
-                            "$ref": "#/components/schemas/ThresholdOptions"
+                            "$ref": "#/components/schemas/AlertOptions"
                         },
                         "type": "array"
                     },
@@ -6364,7 +6364,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.998.5",
+        "version": "0.999.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

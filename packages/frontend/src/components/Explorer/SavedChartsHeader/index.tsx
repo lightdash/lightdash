@@ -203,8 +203,7 @@ const SavedChartsHeader: FC = () => {
     const [isMovingChart, setIsMovingChart] = useState(false);
     const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
         useToggle(false);
-    const [isThresholdAlertsModalOpen, toggleThresholdAlertsModal] =
-        useToggle(false);
+    const [isAlertsModalOpen, toggleAlertsModal] = useToggle(false);
     const [
         isSyncWithGoogleSheetsModalOpen,
         toggleSyncWithGoogleSheetsModalOpen,
@@ -774,7 +773,7 @@ const SavedChartsHeader: FC = () => {
                                                 <MantineIcon icon={IconBell} />
                                             }
                                             onClick={() =>
-                                                toggleThresholdAlertsModal(true)
+                                                toggleAlertsModal(true)
                                             }
                                         >
                                             Alerts
@@ -910,14 +909,14 @@ const SavedChartsHeader: FC = () => {
                     onClose={() => toggleScheduledDeliveriesModal(false)}
                 />
             )}
-            {isThresholdAlertsModalOpen && savedChart?.uuid && (
+            {isAlertsModalOpen && savedChart?.uuid && (
                 <ChartSchedulersModal
                     chartUuid={savedChart.uuid}
                     name={savedChart.name}
-                    isThresholdAlert
+                    isAlert
                     itemsMap={itemsMap}
-                    isOpen={isThresholdAlertsModalOpen}
-                    onClose={() => toggleThresholdAlertsModal(false)}
+                    isOpen={isAlertsModalOpen}
+                    onClose={() => toggleAlertsModal(false)}
                 />
             )}
             {savedChart && (

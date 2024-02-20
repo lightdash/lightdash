@@ -12,14 +12,14 @@ import SchedulersListItem from './SchedulersListItem';
 
 type Props = {
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
-    isThresholdAlertList?: boolean;
+    isAlertList?: boolean;
     onEdit: (schedulerUuid: string) => void;
 };
 
 const SchedulersList: FC<Props> = ({
     schedulersQuery,
     onEdit,
-    isThresholdAlertList,
+    isAlertList,
 }) => {
     const { data: schedulers, isInitialLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
@@ -29,7 +29,7 @@ const SchedulersList: FC<Props> = ({
         alertSchedulers: SchedulerAndTargets[];
     }>(
         (acc, scheduler) => {
-            if (scheduler.thresholds && scheduler.thresholds.length > 0) {
+            if (scheduler.alerts && scheduler.alerts.length > 0) {
                 acc.alertSchedulers.push(scheduler);
             } else {
                 acc.deliverySchedulers.push(scheduler);
@@ -51,14 +51,14 @@ const SchedulersList: FC<Props> = ({
         return <ErrorState error={error.error} />;
     }
     if (
-        (!isThresholdAlertList && deliverySchedulers.length <= 0) ||
-        (isThresholdAlertList && alertSchedulers.length <= 0)
+        (!isAlertList && deliverySchedulers.length <= 0) ||
+        (isAlertList && alertSchedulers.length <= 0)
     ) {
         return (
             <Stack color="gray" align="center" mt="xxl">
                 <Title order={4} color="gray.6">
                     {`There are no existing ${
-                        isThresholdAlertList ? 'alerts' : 'scheduled deliveries'
+                        isAlertList ? 'alerts' : 'scheduled deliveries'
                     }`}
                 </Title>
                 <Text color="gray.6">
@@ -69,7 +69,7 @@ const SchedulersList: FC<Props> = ({
     }
     return (
         <div>
-            {isThresholdAlertList
+            {isAlertList
                 ? alertSchedulers?.map((alertScheduler) => (
                       <SchedulersListItem
                           key={alertScheduler.schedulerUuid}

@@ -93,14 +93,14 @@ const DEFAULT_VALUES = {
     slackTargets: [] as string[],
     filters: undefined,
     customViewportWidth: undefined,
-    thresholds: [],
+    alerts: [],
 };
 
 const DEFAULT_VALUES_ALERT = {
     ...DEFAULT_VALUES,
     format: SchedulerFormat.IMAGE,
     cron: '0 10 * * *',
-    thresholds: [
+    alerts: [
         {
             fieldId: '',
             operator: ThresoldOperator.GREATER_THAN,
@@ -109,7 +109,7 @@ const DEFAULT_VALUES_ALERT = {
     ],
 };
 
-const thresholdOperatorOptions = [
+const alertOperatorOptions = [
     { label: 'is greater than', value: ThresoldOperator.GREATER_THAN },
     { label: 'is less than', value: ThresoldOperator.LESS_THAN },
     { label: 'increased by', value: ThresoldOperator.INCREASED_BY },
@@ -161,7 +161,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
             filters: schedulerData.filters,
             customViewportWidth: schedulerData.customViewportWidth,
         }),
-        thresholds: schedulerData.thresholds,
+        alerts: schedulerData.alerts,
     };
 };
 
@@ -213,7 +213,7 @@ type Props = {
     onBack?: () => void;
     loading?: boolean;
     confirmText?: string;
-    isThresholdAlert?: boolean;
+    isAlert?: boolean;
     itemsMap?: ItemsMap;
 };
 
@@ -226,14 +226,14 @@ const SchedulerForm: FC<Props> = ({
     onBack,
     loading,
     confirmText,
-    isThresholdAlert,
+    isAlert,
     itemsMap,
 }) => {
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
                 ? getFormValuesFromScheduler(savedSchedulerData)
-                : isThresholdAlert
+                : isAlert
                 ? DEFAULT_VALUES_ALERT
                 : DEFAULT_VALUES,
         validateInputOnBlur: ['options.customLimit'],
@@ -255,7 +255,7 @@ const SchedulerForm: FC<Props> = ({
                     cronExpression,
                 );
             },
-            // TODO: validate thresholds
+            // TODO: validate alerts
         },
 
         transformValues: (values): CreateSchedulerAndTargetsWithoutIds => {
@@ -300,7 +300,7 @@ const SchedulerForm: FC<Props> = ({
                     filters: values.filters,
                     customViewportWidth: values.customViewportWidth,
                 }),
-                thresholds: values.thresholds,
+                alerts: values.alerts,
                 enabled: true,
             };
         },
@@ -381,8 +381,8 @@ const SchedulerForm: FC<Props> = ({
 
     const limit = form.values?.options?.limit;
 
-    const isThresholdAlertWithNoFields =
-        isThresholdAlert && Object.keys(numericMetrics).length === 0;
+    const isAlertWithNoFields =
+        isAlert && Object.keys(numericMetrics).length === 0;
 
     return (
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
@@ -395,12 +395,10 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
 
-                    {!isThresholdAlert && (
+                    {!isAlert && (
                         <>
                             <Tabs.Tab value="customization">
-                                {isThresholdAlert
-                                    ? 'Alert message'
-                                    : 'Customization'}
+                                {isAlert ? 'Alert message' : 'Customization'}
                             </Tabs.Tab>
                             <Tabs.Tab
                                 disabled={
@@ -425,25 +423,21 @@ const SchedulerForm: FC<Props> = ({
                         px="md"
                     >
                         <TextInput
-                            label={
-                                isThresholdAlert
-                                    ? 'Alert name'
-                                    : 'Delivery name'
-                            }
+                            label={isAlert ? 'Alert name' : 'Delivery name'}
                             placeholder={
-                                isThresholdAlert
+                                isAlert
                                     ? 'Name your alert'
                                     : 'Name your delivery'
                             }
                             required
                             {...form.getInputProps('name')}
                         />
-                        {isThresholdAlert && (
+                        {isAlert && (
                             <Stack spacing="xs">
                                 <FieldSelect
                                     label="Alert field"
                                     required
-                                    disabled={isThresholdAlertWithNoFields}
+                                    disabled={isAlertWithNoFields}
                                     withinPortal
                                     hasGrouping
                                     items={Object.values(numericMetrics)}
@@ -453,27 +447,25 @@ const SchedulerForm: FC<Props> = ({
                                         // with use form, so we provide our own on change and value here.
                                         // The field select wants Items, but the form wants strings.
                                         // We could definitely make this easier to work with
-                                        ...form.getInputProps(
-                                            `thresholds.0.field`,
-                                        ),
+                                        ...form.getInputProps(`alerts.0.field`),
                                         item: Object.values(
                                             numericMetrics,
                                         ).find(
                                             (metric) =>
                                                 getItemId(metric) ===
-                                                form.values?.thresholds?.[0]
+                                                form.values?.alerts?.[0]
                                                     ?.fieldId,
                                         ),
                                         onChange: (value) => {
                                             if (!value) return;
                                             form.setFieldValue(
-                                                'thresholds.0.fieldId',
+                                                'alerts.0.fieldId',
                                                 getItemId(value),
                                             );
                                         },
                                     }}
                                 />
-                                {isThresholdAlertWithNoFields && (
+                                {isAlertWithNoFields && (
                                     <Text color="red" size="xs" mb="sm">
                                         No numeric fields available. You must
                                         have at least one numeric metric or
@@ -483,33 +475,31 @@ const SchedulerForm: FC<Props> = ({
                                 <Group noWrap grow>
                                     <Select
                                         label="Condition"
-                                        data={thresholdOperatorOptions}
+                                        data={alertOperatorOptions}
                                         {...form.getInputProps(
-                                            `thresholds.0.operator`,
+                                            `alerts.0.operator`,
                                         )}
                                     />
                                     <FilterNumberInput
                                         label="Threshold"
                                         size="sm"
                                         {...form.getInputProps(
-                                            `thresholds.0.value`,
+                                            `alerts.0.value`,
                                         )}
                                         onChange={(value) => {
                                             form.setFieldValue(
-                                                'thresholds.0.value',
+                                                'alerts.0.value',
                                                 value || '',
                                             );
                                         }}
-                                        value={
-                                            form.values.thresholds?.[0]?.value
-                                        }
+                                        value={form.values.alerts?.[0]?.value}
                                     />
                                 </Group>
                             </Stack>
                         )}
                         <Input.Wrapper
                             label={
-                                isThresholdAlert
+                                isAlert
                                     ? 'Alert frequency'
                                     : 'Delivery frequency'
                             }
@@ -523,7 +513,7 @@ const SchedulerForm: FC<Props> = ({
                                 />
                             </Box>
                         </Input.Wrapper>
-                        {!isThresholdAlert && (
+                        {!isAlert && (
                             <Stack spacing={0}>
                                 <Input.Label> Format </Input.Label>
                                 <Group spacing="xs" noWrap>
@@ -911,13 +901,13 @@ const SchedulerForm: FC<Props> = ({
 
             <SchedulersModalFooter
                 confirmText={confirmText}
-                disableConfirm={isThresholdAlertWithNoFields}
+                disableConfirm={isAlertWithNoFields}
                 onBack={onBack}
                 canSendNow={Boolean(
                     form.values.slackTargets.length ||
                         form.values.emailTargets.length,
                 )}
-                onSendNow={isThresholdAlert ? undefined : handleSendNow}
+                onSendNow={isAlert ? undefined : handleSendNow}
                 loading={loading}
             />
         </form>

@@ -1,8 +1,4 @@
-import {
-    friendlyName,
-    LightdashPage,
-    ThresholdOptions,
-} from '@lightdash/common';
+import { AlertOptions, friendlyName, LightdashPage } from '@lightdash/common';
 import { KnownBlock, LinkUnfurls, SectionBlock } from '@slack/bolt';
 import { Unfurl } from '../../services/UnfurlService/UnfurlService';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
@@ -183,7 +179,7 @@ export const getChartCsvResultsBlocks = ({
             : undefined,
     ]);
 
-type GetChartThresholdBlocksArgs = {
+type GetChartAlertBlocksArgs = {
     name: string;
 
     title: string;
@@ -192,28 +188,28 @@ type GetChartThresholdBlocksArgs = {
     ctaUrl: string;
     imageUrl?: string;
     footerMarkdown?: string;
-    thresholds: ThresholdOptions[];
+    alerts: AlertOptions[];
 };
-export const getChartThresholdAlertBlocks = ({
+export const getChartAlertBlocks = ({
     name,
     title,
     message,
     description,
     imageUrl,
     ctaUrl,
-    thresholds,
+    alerts,
     footerMarkdown,
-}: GetChartThresholdBlocksArgs): KnownBlock[] => {
-    // TODO only pass threshold conditions met
+}: GetChartAlertBlocksArgs): KnownBlock[] => {
+    // TODO only pass alert conditions met
     // TODO send field name from explore or results (instead of friendly name)
-    // TODO better threshold.operator namign (instead of friendly name)
-    const thresholdBlocks: KnownBlock[] = thresholds.map((threshold) => ({
+    // TODO better alert.operator naming (instead of friendly name)
+    const alertBlocks: KnownBlock[] = alerts.map((alert) => ({
         type: 'section',
         text: {
             type: 'mrkdwn',
-            text: `• \`${friendlyName(threshold.fieldId)}\` is *${friendlyName(
-                threshold.operator,
-            )}* \`${threshold.value}\` `,
+            text: `• \`${friendlyName(alert.fieldId)}\` is *${friendlyName(
+                alert.operator,
+            )}* \`${alert.value}\` `,
         },
     }));
     return getBlocks([
@@ -251,7 +247,7 @@ export const getChartThresholdAlertBlocks = ({
                 action_id: 'button-action',
             },
         },
-        ...thresholdBlocks,
+        ...alertBlocks,
         imageUrl
             ? {
                   type: 'image',
