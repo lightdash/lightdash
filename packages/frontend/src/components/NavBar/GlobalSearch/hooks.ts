@@ -26,6 +26,7 @@ export type SearchItem = {
     description?: string;
     location: { pathname: string; search?: string };
     item?: SearchResult;
+    searchRank?: number;
 };
 
 export const useDebouncedSearch = (
@@ -52,6 +53,7 @@ export const useDebouncedSearch = (
                 typeLabel: 'Space',
                 title: item.name,
                 item: item,
+                searchRank: item.search_rank,
                 location: {
                     pathname: `/projects/${projectUuid}/spaces/${item.uuid}`,
                 },
@@ -64,12 +66,13 @@ export const useDebouncedSearch = (
                 title: item.name,
                 description: item.description,
                 item: item,
+                searchRank: item.search_rank,
                 location: {
                     pathname: `/projects/${projectUuid}/dashboards/${item.uuid}`,
                 },
             })) || [];
 
-        const saveCharts =
+        const savedCharts =
             data?.savedCharts.map<SearchItem>((item) => ({
                 type: 'saved_chart',
                 typeLabel: 'Chart',
@@ -77,6 +80,7 @@ export const useDebouncedSearch = (
                 title: item.name,
                 description: item.description,
                 item: item,
+                searchRank: item.search_rank,
                 location: {
                     pathname: `/projects/${projectUuid}/saved/${item.uuid}`,
                 },
@@ -174,11 +178,16 @@ export const useDebouncedSearch = (
         return [
             ...spaces,
             ...dashboards,
-            ...saveCharts,
+            ...savedCharts,
             ...tables,
             ...fields,
             ...pages,
-        ];
+        ].sort((a, b) => {
+            const aSearchRank = a.searchRank || 0;
+            const bSearchRank = b.searchRank || 0;
+
+            return bSearchRank - aSearchRank;
+        });
     }, [data, projectUuid]);
 
     return {
