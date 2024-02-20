@@ -26,6 +26,7 @@ import {
     isTableChartConfig,
     LightdashPage,
     NotificationPayloadBase,
+    operatorAction,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerFilterRule,
@@ -33,8 +34,8 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SlackNotificationPayload,
+    ThresholdOperator,
     ThresholdOptions,
-    ThresoldOperator,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
@@ -398,9 +399,9 @@ export const sendSlackNotification = async (
                     ...getBlocksArgs,
                     footerMarkdown: `This is a <${url}?threshold_uuid=${
                         schedulerUuid || ''
-                    }|threshold alert> ${getHumanReadableCronExpression(
+                    }|data alert> ${getHumanReadableCronExpression(
                         cron,
-                    )} from Lightdash\n${
+                    )} sent by Lightdash\n${
                         s3Client.getExpirationWarning()?.slack || ''
                     }`,
                     imageUrl,
@@ -912,13 +913,13 @@ export const sendEmailNotification = async (
             // Reuse message from imageNotification for threshold information
             const thresholdMessageList = thresholds.map(
                 (threshold) =>
-                    `- **${friendlyName(
-                        threshold.fieldId,
-                    )}** is *${friendlyName(threshold.operator)}* **${
-                        threshold.value
-                    }**`,
+                    `- **${friendlyName(threshold.fieldId)}** ${operatorAction(
+                        threshold.operator,
+                    )} **${threshold.value}**`,
             );
-            const thresholdMessage = `Your results met the following conditions:\n${thresholdMessageList.join(
+            const thresholdMessage = `Your results for the chart **${
+                details.name
+            }** triggered the following alerts:\n${thresholdMessageList.join(
                 '\n',
             )}`;
             await emailClient.sendImageNotificationEmail(
@@ -1061,15 +1062,15 @@ const isPositiveThesholdAlert = (
     }
     const firstValue = parseFloat(firstResult); // This will throw an error if value is not a valid number
     switch (operator) {
-        case ThresoldOperator.GREATER_THAN:
+        case ThresholdOperator.GREATER_THAN:
             return firstValue > thresholdValue;
-        case ThresoldOperator.LESS_THAN:
+        case ThresholdOperator.LESS_THAN:
             return firstValue < thresholdValue;
-        case ThresoldOperator.INCREASED_BY:
-        case ThresoldOperator.DECREASED_BY:
+        case ThresholdOperator.INCREASED_BY:
+        case ThresholdOperator.DECREASED_BY:
             const secondValue = parseFloat(results[1][fieldId]);
             const increase = firstValue - secondValue;
-            if (operator === ThresoldOperator.INCREASED_BY) {
+            if (operator === ThresholdOperator.INCREASED_BY) {
                 return thresholdValue < increase / (secondValue * 100);
             }
             return thresholdValue > increase / (secondValue * 100);
