@@ -38,7 +38,7 @@ export const useDebouncedSearch = (
         () => {
             setDebouncedQuery(query);
         },
-        500,
+        300,
         [query],
     );
     const { data, isFetching } = useGlobalSearch(projectUuid, debouncedQuery);
