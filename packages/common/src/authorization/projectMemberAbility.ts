@@ -30,6 +30,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'ExportCsv', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'DashboardComments', {
+            projectUuid: member.projectUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
