@@ -56,6 +56,7 @@ import { SlackSettings } from './types/slackSettings';
 
 import { Email } from './types/api/email';
 import { ApiSuccessEmpty } from './types/api/success';
+import { ApiCommentsResults } from './types/comment';
 import { DbtExposure } from './types/dbt';
 import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
@@ -125,6 +126,7 @@ export * from './types/api/integrations';
 export * from './types/api/share';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/comment';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
 export * from './types/csv';
@@ -589,6 +591,7 @@ type ApiResults =
     | MostPopularAndRecentlyUpdated
     | ApiCalculateTotalResponse['results']
     | Record<string, DbtExposure>
+    | ApiCommentsResults
     | ApiSuccessEmpty;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
