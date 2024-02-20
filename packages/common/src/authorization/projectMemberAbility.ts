@@ -45,6 +45,9 @@ export const projectMemberAbilities: Record<
         can('create', 'ScheduledDeliveries', {
             projectUuid: member.projectUuid,
         });
+        can('create', 'DashboardComments', {
+            projectUuid: member.projectUuid,
+        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
@@ -65,6 +68,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'ScheduledDeliveries', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });
     },
