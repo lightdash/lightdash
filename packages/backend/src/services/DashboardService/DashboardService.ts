@@ -678,4 +678,125 @@ export class DashboardService {
 
         return dashboard;
     }
+
+    async createComment(
+        user: SessionUser,
+        dashboardUuid: string,
+        dashboardTileUuid: string,
+        text: string,
+        replyTo: string | null,
+    ): Promise<string> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('DashboardComments', {
+                    projectUuid: dashboard.projectUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return this.dashboardModel.createComment(
+            dashboardTileUuid,
+            text,
+            replyTo,
+            user,
+        );
+    }
+
+    async getComments(
+        user: SessionUser,
+        dashboardUuid: string,
+        dashboardTileUuid: string,
+    ): Promise<Record<string, any>[]> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('DashboardComments', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return this.dashboardModel.getComments(
+            dashboardTileUuid,
+            user.userUuid,
+        );
+    }
+
+    async resolveComment(
+        user: SessionUser,
+        dashboardUuid: string,
+        commentId: string,
+    ): Promise<void> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DashboardComments', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return this.dashboardModel.resolveComment(commentId);
+    }
+
+    async deleteComment(
+        user: SessionUser,
+        dashboardUuid: string,
+        commentId: string,
+    ): Promise<void> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('DashboardComments', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return this.dashboardModel.deleteComment(commentId);
+    }
 }
