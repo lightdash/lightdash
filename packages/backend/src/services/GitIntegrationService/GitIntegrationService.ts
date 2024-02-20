@@ -178,7 +178,12 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         const chartDetails = chart
             ? `
 Affected charts: 
-- [${chart.name}](${this.lightdashConfig.siteUrl}/projects/${projectUuid}/charts/${chart.uuid})
+- [${chart.name}](${
+                  new URL(
+                      `/projects/${projectUuid}/charts/${chart.uuid}`,
+                      this.lightdashConfig.siteUrl,
+                  ).href
+              })
         `
             : ``;
 

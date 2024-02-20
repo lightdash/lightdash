@@ -293,7 +293,10 @@ export class UnfurlService {
                     DownloadFileType.IMAGE,
                 );
 
-                imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${downloadFileId}`;
+                imageUrl = new URL(
+                    `/api/v1/slack/image/${downloadFileId}`,
+                    this.lightdashConfig.siteUrl,
+                ).href;
             }
         }
 
@@ -311,7 +314,10 @@ export class UnfurlService {
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             name: dashboard.name,
-            minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${queryFilters}`,
+            minimalUrl: new URL(
+                `/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${queryFilters}`,
+                this.lightdashConfig.siteUrl,
+            ).href,
             pageType: LightdashPage.DASHBOARD,
         };
         if (
@@ -637,7 +643,10 @@ export class UnfurlService {
 
         const shareUrl = await this.shareModel.getSharedUrl(shareId);
 
-        const fullUrl = `${this.lightdashConfig.siteUrl}${shareUrl.path}${shareUrl.params}`;
+        const fullUrl = new URL(
+            `${shareUrl.path}${shareUrl.params}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
         Logger.debug(`Shared url ${shareId}: ${fullUrl}`);
 
         return fullUrl;
@@ -675,7 +684,10 @@ export class UnfurlService {
                 isValid: true,
                 lightdashPage: LightdashPage.CHART,
                 url,
-                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${projectUuid}/saved/${chartUuid}`,
+                minimalUrl: new URL(
+                    `/minimal/projects/${projectUuid}/saved/${chartUuid}`,
+                    this.lightdashConfig.siteUrl,
+                ).href,
                 projectUuid,
                 chartUuid,
             };
@@ -708,7 +720,10 @@ export class UnfurlService {
         const token = getAuthenticationToken(userUuid);
 
         const response = await fetch(
-            `${this.lightdashConfig.siteUrl}/api/v1/headless-browser/login/${userUuid}`,
+            new URL(
+                `/api/v1/headless-browser/login/${userUuid}`,
+                this.lightdashConfig.siteUrl,
+            ).href,
             {
                 method: 'POST',
                 headers: {
