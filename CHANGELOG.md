@@ -1,3 +1,10 @@
+## [0.998.4](https://github.com/lightdash/lightdash/compare/0.998.3...0.998.4) (2024-02-20)
+
+
+### Bug Fixes
+
+* prevent filter autocomplete from disallowing adding custom values ([#8957](https://github.com/lightdash/lightdash/issues/8957)) ([66fd2f9](https://github.com/lightdash/lightdash/commit/66fd2f9faf9284fbd1ab00ee89ac424d1996db89))
+
 ## [0.998.3](https://github.com/lightdash/lightdash/compare/0.998.2...0.998.3) (2024-02-20)
 
 
