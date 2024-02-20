@@ -529,6 +529,10 @@ const SchedulerForm: FC<Props> = ({
                                         size="md"
                                         display="inline"
                                         color="gray"
+                                        style={{
+                                            marginLeft: '4px',
+                                            marginBottom: '-4px',
+                                        }}
                                     />
                                 </Tooltip>
                             )}
