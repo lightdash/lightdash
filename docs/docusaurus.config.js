@@ -60,10 +60,6 @@ module.exports = {
                         from: ['/self-host'],
                     },
                     {
-                        to: 'https://intercom.help/lightdash-faqs/en/collections/8439498-faqs',
-                        from: ['/help-and-contact/faqs/faqs']
-                    },
-                    {
                         to: '/contact/contact_info',
                         from: ['/help-and-contact/contact/contact_info']
                     },
