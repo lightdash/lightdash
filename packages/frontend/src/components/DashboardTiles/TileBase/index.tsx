@@ -1,9 +1,4 @@
-import {
-    Dashboard,
-    DashboardTileTypes,
-    FeatureFlags,
-    isChartTile,
-} from '@lightdash/common';
+import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -18,10 +13,7 @@ import {
 } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { ReactNode, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { DashboardTileComments } from '../../../features/comments';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
@@ -50,6 +42,7 @@ type Props<T> = {
     children?: ReactNode;
     extraHeaderElement?: ReactNode;
     minimal?: boolean;
+    lockHeaderVisibility?: boolean;
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -67,16 +60,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     extraHeaderElement,
     titleHref,
     minimal = false,
+    lockHeaderVisibility = false,
 }: Props<T>) => {
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-    }>();
-
-    const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardTileComments,
-    );
-    const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const [isEditingTileContent, setIsEditingTileContent] = useState(false);
     const [
         isDeletingChartThatBelongsToDashboard,
@@ -185,22 +170,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
                 {(containerHovered && !titleHovered) ||
                 isMenuOpen ||
-                isCommentsMenuOpen ? (
+                lockHeaderVisibility ? (
                     <ButtonsWrapper className="non-draggable">
                         {extraHeaderElement}
-                        {!minimal &&
-                            // TODO: Check if user can manage dashboard comments outside of this component - perhaps a bit more up the tree?
-                            // userCanManageDashboardComments &&
-                            isDashboardTileCommentsFeatureEnabled && (
-                                <DashboardTileComments
-                                    opened={isCommentsMenuOpen}
-                                    onOpen={() => setIsCommentsMenuOpen(true)}
-                                    onClose={() => setIsCommentsMenuOpen(false)}
-                                    projectUuid={projectUuid}
-                                    dashboardTileUuid={tile.uuid}
-                                    dashboardUuid={dashboardUuid}
-                                />
-                            )}
+
                         {(isEditMode || (!isEditMode && extraMenuItems)) && (
                             <Menu
                                 withArrow
