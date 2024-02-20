@@ -1,3 +1,10 @@
+## [0.998.3](https://github.com/lightdash/lightdash/compare/0.998.2...0.998.3) (2024-02-20)
+
+
+### Bug Fixes
+
+* order search results by rank ([#9006](https://github.com/lightdash/lightdash/issues/9006)) ([906b58a](https://github.com/lightdash/lightdash/commit/906b58aa52a4e6abe79eb0d124b5f2b2e0925f95))
+
 ## [0.998.2](https://github.com/lightdash/lightdash/compare/0.998.1...0.998.2) (2024-02-20)
 
 
