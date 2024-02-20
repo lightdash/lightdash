@@ -14,7 +14,7 @@ jobs:
                   username: ${{ github.event.comment.user.login }}
                   organization: lightdash
                   team: engineering
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
             - name: Stop workflow if user isn't a member
               if: steps.check-user-for-team-affiliation.outputs.isTeamMember == 'false'
               run: |
