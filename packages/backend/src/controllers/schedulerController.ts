@@ -112,6 +112,36 @@ export class SchedulerController extends Controller {
     }
 
     /**
+     * Set scheduler enabled
+     * @param schedulerUuid The uuid of the scheduler to update
+     * @param req express request
+     * @param body the enabled flag
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Updated')
+    @Patch('{schedulerUuid}/enabled')
+    @OperationId('updateSchedulerEnabled')
+    async patchEnabled(
+        @Path() schedulerUuid: string,
+        @Request() req: express.Request,
+        @Body() body: { enabled: boolean },
+    ): Promise<ApiSchedulerAndTargetsResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await schedulerService.setSchedulerEnabled(
+                req.user!,
+                schedulerUuid,
+                body.enabled,
+            ),
+        };
+    }
+
+    /**
      * Delete a scheduler
      * @param schedulerUuid The uuid of the scheduler to delete
      * @param req express request

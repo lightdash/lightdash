@@ -301,6 +301,7 @@ const SchedulerForm: FC<Props> = ({
                     customViewportWidth: values.customViewportWidth,
                 }),
                 thresholds: values.thresholds,
+                enabled: true,
             };
         },
     });

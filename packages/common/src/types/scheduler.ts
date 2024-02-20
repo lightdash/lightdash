@@ -85,6 +85,7 @@ export type SchedulerBase = {
     dashboardUuid: string | null;
     options: SchedulerOptions;
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
+    enabled: boolean;
 };
 
 export type ChartScheduler = SchedulerBase & {

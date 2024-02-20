@@ -219,7 +219,36 @@ export class SchedulerService {
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
-        await schedulerClient.generateDailyJobsForScheduler(scheduler);
+        // We only generate jobs if the scheduler is enabled
+        if (scheduler.enabled)
+            await schedulerClient.generateDailyJobsForScheduler(scheduler);
+
+        return scheduler;
+    }
+
+    async setSchedulerEnabled(
+        user: SessionUser,
+        schedulerUuid: string,
+        enabled: boolean,
+    ): Promise<SchedulerAndTargets> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+
+        // Remove scheduled jobs, even if the scheduler is not enabled
+        await schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
+
+        const scheduler = await this.schedulerModel.setSchedulerEnabled(
+            schedulerUuid,
+            enabled,
+        );
+
+        if (enabled) {
+            // If the scheduler is enabled, we need to generate the daily jobs
+            await schedulerClient.generateDailyJobsForScheduler(scheduler);
+        }
 
         return scheduler;
     }
