@@ -1,3 +1,10 @@
+## [0.998.1](https://github.com/lightdash/lightdash/compare/0.998.0...0.998.1) (2024-02-20)
+
+
+### Bug Fixes
+
+* support model alias ([#8993](https://github.com/lightdash/lightdash/issues/8993)) ([be22cbc](https://github.com/lightdash/lightdash/commit/be22cbc562e39a390a1a4d19b79d0adcb9f03373))
+
 # [0.998.0](https://github.com/lightdash/lightdash/compare/0.997.0...0.998.0) (2024-02-19)
 
 
