@@ -89,8 +89,6 @@ const GridTile: FC<
     > & {
         isLazyLoadEnabled: boolean;
         index: number;
-        projectUuid: string;
-        dashboardUuid: string;
     }
 > = memo((props) => {
     const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
@@ -677,8 +675,6 @@ const Dashboard: FC = () => {
                             <div key={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
                                     <GridTile
-                                        projectUuid={projectUuid}
-                                        dashboardUuid={dashboardUuid}
                                         isLazyLoadEnabled={
                                             isLazyLoadEnabled ?? true
                                         }
