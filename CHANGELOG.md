@@ -1,3 +1,10 @@
+## [0.998.2](https://github.com/lightdash/lightdash/compare/0.998.1...0.998.2) (2024-02-20)
+
+
+### Bug Fixes
+
+* use GITHUB_CI_TOKEN to check team in org ([#9008](https://github.com/lightdash/lightdash/issues/9008)) ([2dd7408](https://github.com/lightdash/lightdash/commit/2dd7408871666ea69f6cdd62f66490d92b3d6e5d))
+
 ## [0.998.1](https://github.com/lightdash/lightdash/compare/0.998.0...0.998.1) (2024-02-20)
 
 
