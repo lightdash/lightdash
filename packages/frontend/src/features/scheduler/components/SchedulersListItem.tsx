@@ -8,12 +8,14 @@ import {
     Group,
     Paper,
     Stack,
+    Switch,
     Text,
     Tooltip,
 } from '@mantine/core';
 import { IconCircleFilled, IconPencil, IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useSchedulersEnabledUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 
 type SchedulersListItemProps = {
     scheduler: SchedulerAndTargets;
@@ -26,6 +28,8 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
     onEdit,
     onDelete,
 }) => {
+    const { mutate: mutateSchedulerEnabled } =
+        useSchedulersEnabledUpdateMutation(scheduler.schedulerUuid);
     return (
         <Paper p="sm" mb="xs" withBorder sx={{ overflow: 'hidden' }}>
             <Group noWrap position="apart">
@@ -57,6 +61,12 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                     </Group>
                 </Stack>
                 <Group noWrap spacing="xs">
+                    <Switch
+                        checked={scheduler.enabled}
+                        onChange={() => {
+                            mutateSchedulerEnabled(!scheduler.enabled);
+                        }}
+                    />
                     <Tooltip label="Edit">
                         <ActionIcon
                             variant="light"

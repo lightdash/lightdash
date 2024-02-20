@@ -4602,6 +4602,9 @@
             },
             "SchedulerBase": {
                 "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
                     "thresholds": {
                         "items": {
                             "$ref": "#/components/schemas/ThresholdOptions"
@@ -4647,6 +4650,7 @@
                     }
                 },
                 "required": [
+                    "enabled",
                     "options",
                     "dashboardUuid",
                     "savedChartUuid",
@@ -6360,7 +6364,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.990.0",
+        "version": "0.996.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -9811,6 +9815,65 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/schedulers/{schedulerUuid}/enabled": {
+            "patch": {
+                "operationId": "updateSchedulerEnabled",
+                "responses": {
+                    "201": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerAndTargetsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Set scheduler enabled",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the scheduler to update",
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the enabled flag",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": ["enabled"],
+                                "type": "object",
+                                "description": "the enabled flag"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/schedulers/{schedulerUuid}/jobs": {

@@ -123,7 +123,7 @@ export class SchedulerController extends Controller {
         unauthorisedInDemo,
     ])
     @SuccessResponse('201', 'Updated')
-    @Patch('{schedulerUuid}')
+    @Patch('{schedulerUuid}/enabled')
     @OperationId('updateSchedulerEnabled')
     async patchEnabled(
         @Path() schedulerUuid: string,

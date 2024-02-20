@@ -68,7 +68,7 @@ export class SchedulerModel {
             filters: scheduler.filters,
             customViewportWidth: scheduler.custom_viewport_width,
             thresholds: scheduler.thresholds || undefined,
-            enabled: scheduler.active,
+            enabled: scheduler.enabled,
         } as Scheduler;
     }
 
@@ -229,7 +229,7 @@ export class SchedulerModel {
                     thresholds: newScheduler.thresholds
                         ? JSON.stringify(newScheduler.thresholds)
                         : null,
-                    active: true,
+                    enabled: true,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {

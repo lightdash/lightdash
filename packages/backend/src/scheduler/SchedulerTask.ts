@@ -1409,6 +1409,11 @@ export const handleScheduledDelivery = async (
                       schedulerPayload.schedulerUuid,
                   );
 
+        if (!scheduler.enabled) {
+            // This should not happen, if schedulers are not enabled, we should remove the scheduled jobs from the queue
+            throw new Error('Scheduler is disabled');
+        }
+
         analytics.track({
             event: 'scheduler_job.started',
             anonymousId: LightdashAnalytics.anonymousId,

@@ -219,7 +219,9 @@ export class SchedulerService {
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
-        await schedulerClient.generateDailyJobsForScheduler(scheduler);
+        // We only generate jobs if the scheduler is enabled
+        if (scheduler.enabled)
+            await schedulerClient.generateDailyJobsForScheduler(scheduler);
 
         return scheduler;
     }
