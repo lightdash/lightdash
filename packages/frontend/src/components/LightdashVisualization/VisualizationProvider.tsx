@@ -24,6 +24,7 @@ import {
 import { CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import {
+    isGroupedSeries,
     SeriesLike,
     useChartColorConfig,
 } from '../../hooks/useChartColorConfig';
@@ -235,7 +236,13 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         (seriesLike: SeriesLike, seriesIndex: number) => {
             if (seriesLike.color) return seriesLike.color;
 
-            return useSharedColors
+            /**
+             * If shared colors are enabled AND this series is grouped, figure out a shared
+             * color assignment from the series.
+             *
+             * Otherwise, use the default behavior of picking a series color from the palette.
+             */
+            return useSharedColors && isGroupedSeries(seriesLike)
                 ? calculateSeriesColorAssignment(seriesLike)
                 : colorPalette[seriesIndex % colorPalette.length] ??
                       getDefaultSeriesColor(seriesIndex);

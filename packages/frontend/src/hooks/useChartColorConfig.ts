@@ -5,6 +5,13 @@ import { EChartSeries } from './echarts/useEchartsCartesianConfig';
 
 export type SeriesLike = EChartSeries | Series;
 
+export const isGroupedSeries = (series: SeriesLike) => {
+    return (
+        (series as EChartSeries)?.pivotReference?.pivotValues != null ||
+        (series as Series)?.encode.yRef.pivotValues != null
+    );
+};
+
 export const useChartColorConfig = ({
     colorPalette,
 }: {
