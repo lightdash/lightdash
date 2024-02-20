@@ -27,7 +27,6 @@ const useGlobalSearch = (projectUuid: string, query: string = '') => {
             }),
         retry: false,
         enabled: query.length >= GLOBAL_SEARCH_MIN_QUERY_LENGTH,
-        keepPreviousData: true,
     });
 };
 

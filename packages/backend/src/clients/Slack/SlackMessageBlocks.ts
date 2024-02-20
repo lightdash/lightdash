@@ -190,7 +190,7 @@ type GetChartThresholdBlocksArgs = {
     message?: string;
     description: string | undefined;
     ctaUrl: string;
-
+    imageUrl?: string;
     footerMarkdown?: string;
     thresholds: ThresholdOptions[];
 };
@@ -199,6 +199,7 @@ export const getChartThresholdAlertBlocks = ({
     title,
     message,
     description,
+    imageUrl,
     ctaUrl,
     thresholds,
     footerMarkdown,
@@ -251,7 +252,13 @@ export const getChartThresholdAlertBlocks = ({
             },
         },
         ...thresholdBlocks,
-
+        imageUrl
+            ? {
+                  type: 'image',
+                  image_url: imageUrl,
+                  alt_text: title,
+              }
+            : undefined,
         footerMarkdown
             ? {
                   type: 'context',

@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -47,15 +48,8 @@ const defaultColorPalettes: ColorPalette[] = [
         name: 'Default Colors',
         icon: IconColorFilter,
         colors: [
-            '#ff5733',
-            '#ff8933',
-            '#ffbd33',
-            '#ffe133',
-            '#e8ff33',
-            '#b4ff33',
-            '#80ff33',
-            '#4cff33',
-            '#33ff49',
+            // Use the initial 9 colors directly from ECHARTS to keep them in sync:
+            ...ECHARTS_DEFAULT_COLORS,
             '#33ff7d',
             '#33ffb1',
             '#33ffe6',

@@ -125,6 +125,7 @@ export const spaceEntry: SpaceTable['base'] = {
     created_at: new Date(),
     project_id: 0,
     organization_uuid: 'organizationUuid',
+    search_vector: '',
 };
 export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_id: 0,
@@ -137,6 +138,7 @@ export const savedChartEntry: SavedChartTable['base'] = {
     last_version_updated_at: new Date(),
     last_version_updated_by_user_uuid: undefined,
     dashboard_uuid: null,
+    search_vector: '',
 };
 
 export const dashboardEntry: DashboardTable['base'] = {
@@ -146,6 +148,7 @@ export const dashboardEntry: DashboardTable['base'] = {
     description: 'description',
     space_id: 0,
     created_at: new Date(),
+    search_vector: '',
 };
 
 export const dashboardVersionEntry: DashboardVersionTable['base'] = {

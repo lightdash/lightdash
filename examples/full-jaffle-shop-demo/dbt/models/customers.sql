@@ -1,3 +1,5 @@
+{{ config(alias='customers_alias') }}
+
 with customers as (
 
     select * from {{ ref('stg_customers') }}

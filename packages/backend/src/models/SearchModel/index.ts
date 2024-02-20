@@ -22,6 +22,7 @@ import {
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { getFullTextSearchRankCalcSql } from './utils/fullTextSearch';
 
 type ModelDependencies = {
     database: Knex;
@@ -38,26 +39,44 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<SpaceSearchResult[]> {
-        return this.database(SpaceTableName)
-            .select()
+        const { searchRankRawSql, searchRankColumnName } =
+            getFullTextSearchRankCalcSql(
+                this.database,
+                SpaceTableName,
+                'search_vector',
+                query,
+            );
+
+        const subquery = this.database(SpaceTableName)
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .column({ uuid: 'space_uuid' }, 'spaces.name')
+            .column({ uuid: 'space_uuid' }, 'spaces.name', searchRankRawSql)
             .where('projects.project_uuid', projectUuid)
-            .andWhereRaw(`LOWER(${SpaceTableName}.name) like LOWER(?)`, [
-                `%${query}%`,
-            ]);
+            .orderBy(searchRankColumnName, 'desc');
+
+        return this.database(SpaceTableName)
+            .select()
+            .from(subquery.as('spaces_with_rank'))
+            .where(searchRankColumnName, '>', 0)
+            .limit(10);
     }
 
     private async searchDashboards(
         projectUuid: string,
         query: string,
     ): Promise<DashboardSearchResult[]> {
-        const dashboards = await this.database(DashboardsTableName)
-            .select()
+        const { searchRankRawSql, searchRankColumnName } =
+            getFullTextSearchRankCalcSql(
+                this.database,
+                DashboardsTableName,
+                'search_vector',
+                query,
+            );
+
+        const subquery = this.database(DashboardsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
@@ -73,19 +92,16 @@ export class SearchModel {
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { spaceUuid: 'space_uuid' },
+                searchRankRawSql,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .andWhere((qB) =>
-                qB
-                    .whereRaw(
-                        `LOWER(${DashboardsTableName}.name) like LOWER(?)`,
-                        [`%${query}%`],
-                    )
-                    .orWhereRaw(
-                        `LOWER(${DashboardsTableName}.description) like LOWER(?)`,
-                        [`%${query}%`],
-                    ),
-            );
+            .orderBy(searchRankColumnName, 'desc');
+
+        const dashboards = await this.database(DashboardsTableName)
+            .select()
+            .from(subquery.as('dashboards_with_rank'))
+            .where(searchRankColumnName, '>', 0)
+            .limit(10);
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
 
@@ -119,8 +135,16 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<SavedChartSearchResult[]> {
-        const savedCharts = await this.database(SavedChartsTableName)
-            .select()
+        const { searchRankRawSql, searchRankColumnName } =
+            getFullTextSearchRankCalcSql(
+                this.database,
+                SavedChartsTableName,
+                'search_vector',
+                query,
+            );
+
+        // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
+        const subquery = this.database(SavedChartsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${SavedChartsTableName}.space_id`,
@@ -140,19 +164,16 @@ export class SearchModel {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
                 { spaceUuid: 'space_uuid' },
+                searchRankRawSql,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .andWhere((qB) =>
-                qB
-                    .whereRaw(
-                        `LOWER(${SavedChartsTableName}.name) like LOWER(?)`,
-                        [`%${query}%`],
-                    )
-                    .orWhereRaw(
-                        `LOWER(${SavedChartsTableName}.description) like LOWER(?)`,
-                        [`%${query}%`],
-                    ),
-            );
+            .orderBy(searchRankColumnName, 'desc');
+
+        const savedCharts = await this.database(SavedChartsTableName)
+            .select()
+            .from(subquery.as('saved_charts_with_rank'))
+            .where(searchRankColumnName, '>', 0)
+            .limit(10);
 
         const chartUuids = savedCharts.map((chart) => chart.uuid);
 

@@ -403,6 +403,7 @@ export const sendSlackNotification = async (
                     )} from Lightdash\n${
                         s3Client.getExpirationWarning()?.slack || ''
                     }`,
+                    imageUrl,
                     thresholds,
                 });
                 await slackClient.postMessage({

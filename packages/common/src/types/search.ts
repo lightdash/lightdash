@@ -9,7 +9,12 @@ import {
     ValidationErrorTableResponse,
 } from './validation';
 
-export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'>;
+type RankedItem = {
+    search_rank: number;
+};
+
+export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'> &
+    RankedItem;
 export type DashboardSearchResult = Pick<
     Dashboard,
     'uuid' | 'name' | 'description' | 'spaceUuid'
@@ -17,7 +22,7 @@ export type DashboardSearchResult = Pick<
     validationErrors: {
         validationId: ValidationErrorDashboardResponse['validationId'];
     }[];
-};
+} & RankedItem;
 
 export type SavedChartSearchResult = Pick<
     SavedChart,
@@ -27,7 +32,8 @@ export type SavedChartSearchResult = Pick<
     validationErrors: {
         validationId: ValidationErrorChartResponse['validationId'];
     }[];
-};
+} & RankedItem;
+
 export type TableSearchResult = Pick<
     Table,
     'name' | 'label' | 'description' | 'requiredAttributes'

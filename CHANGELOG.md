@@ -1,3 +1,59 @@
+## [0.998.5](https://github.com/lightdash/lightdash/compare/0.998.4...0.998.5) (2024-02-20)
+
+
+### Bug Fixes
+
+* adds spaces search_vector weighted by name ([#9009](https://github.com/lightdash/lightdash/issues/9009)) ([a227b91](https://github.com/lightdash/lightdash/commit/a227b919b56122815d3a4cc09be9db9e8fa24bf5))
+
+## [0.998.4](https://github.com/lightdash/lightdash/compare/0.998.3...0.998.4) (2024-02-20)
+
+
+### Bug Fixes
+
+* prevent filter autocomplete from disallowing adding custom values ([#8957](https://github.com/lightdash/lightdash/issues/8957)) ([66fd2f9](https://github.com/lightdash/lightdash/commit/66fd2f9faf9284fbd1ab00ee89ac424d1996db89))
+
+## [0.998.3](https://github.com/lightdash/lightdash/compare/0.998.2...0.998.3) (2024-02-20)
+
+
+### Bug Fixes
+
+* order search results by rank ([#9006](https://github.com/lightdash/lightdash/issues/9006)) ([906b58a](https://github.com/lightdash/lightdash/commit/906b58aa52a4e6abe79eb0d124b5f2b2e0925f95))
+
+## [0.998.2](https://github.com/lightdash/lightdash/compare/0.998.1...0.998.2) (2024-02-20)
+
+
+### Bug Fixes
+
+* use GITHUB_CI_TOKEN to check team in org ([#9008](https://github.com/lightdash/lightdash/issues/9008)) ([2dd7408](https://github.com/lightdash/lightdash/commit/2dd7408871666ea69f6cdd62f66490d92b3d6e5d))
+
+## [0.998.1](https://github.com/lightdash/lightdash/compare/0.998.0...0.998.1) (2024-02-20)
+
+
+### Bug Fixes
+
+* support model alias ([#8993](https://github.com/lightdash/lightdash/issues/8993)) ([be22cbc](https://github.com/lightdash/lightdash/commit/be22cbc562e39a390a1a4d19b79d0adcb9f03373))
+
+# [0.998.0](https://github.com/lightdash/lightdash/compare/0.997.0...0.998.0) (2024-02-19)
+
+
+### Features
+
+* add full text search to global search ([#8992](https://github.com/lightdash/lightdash/issues/8992)) ([c4dc382](https://github.com/lightdash/lightdash/commit/c4dc3823ce713cd0537ee46c7e2a371bf2c9f217)), closes [#8859](https://github.com/lightdash/lightdash/issues/8859) [#8879](https://github.com/lightdash/lightdash/issues/8879) [#8927](https://github.com/lightdash/lightdash/issues/8927) [#8933](https://github.com/lightdash/lightdash/issues/8933) [#8935](https://github.com/lightdash/lightdash/issues/8935) [#8961](https://github.com/lightdash/lightdash/issues/8961) [#8977](https://github.com/lightdash/lightdash/issues/8977)
+
+# [0.997.0](https://github.com/lightdash/lightdash/compare/0.996.4...0.997.0) (2024-02-19)
+
+
+### Features
+
+* threshold alert slack add image ([#8994](https://github.com/lightdash/lightdash/issues/8994)) ([a583589](https://github.com/lightdash/lightdash/commit/a5835899e77a6eb2e82469155f47de519fb8e5b4))
+
+## [0.996.4](https://github.com/lightdash/lightdash/compare/0.996.3...0.996.4) (2024-02-19)
+
+
+### Bug Fixes
+
+* require threshold field in alerts ([#8989](https://github.com/lightdash/lightdash/issues/8989)) ([e2f875e](https://github.com/lightdash/lightdash/commit/e2f875e2a9cb5906883abc005cd6884bcec1fc1d))
+
 ## [0.996.3](https://github.com/lightdash/lightdash/compare/0.996.2...0.996.3) (2024-02-19)
 
 
