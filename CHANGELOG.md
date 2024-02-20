@@ -1,3 +1,10 @@
+## [0.1000.1](https://github.com/lightdash/lightdash/compare/0.1000.0...0.1000.1) (2024-02-20)
+
+
+### Bug Fixes
+
+* generate valid urls based on site url ([#9015](https://github.com/lightdash/lightdash/issues/9015)) ([87cda6a](https://github.com/lightdash/lightdash/commit/87cda6aecc2c2d5c7074f01339e2a95900058cab))
+
 # [0.1000.0](https://github.com/lightdash/lightdash/compare/0.999.0...0.1000.0) (2024-02-20)
 
 
