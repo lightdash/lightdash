@@ -15,7 +15,7 @@ export async function up(knex: Knex): Promise<void> {
     await knex.raw(`
       ALTER TABLE ${SpaceTableName} ADD COLUMN search_vector tsvector
       GENERATED ALWAYS AS (
-          setweight(to_tsvector('${customSearchConfigName}', coalesce(name, '')), 'A')
+          setweight(to_tsvector('${customSearchConfigName}', name), 'A')
       ) STORED;
   `);
 
@@ -44,7 +44,7 @@ export async function down(knex: Knex): Promise<void> {
     await knex.raw(`
       ALTER TABLE ${SpaceTableName} ADD COLUMN search_vector tsvector
       GENERATED ALWAYS AS (
-          to_tsvector('${customSearchConfigName}', coalesce(name, ''))
+          to_tsvector('${customSearchConfigName}', name)
       ) STORED;
   `);
 
