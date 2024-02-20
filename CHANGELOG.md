@@ -1,3 +1,10 @@
+# [0.999.0](https://github.com/lightdash/lightdash/compare/0.998.5...0.999.0) (2024-02-20)
+
+
+### Features
+
+* Do not apply shared colors to non-group series ([#8988](https://github.com/lightdash/lightdash/issues/8988)) ([d8b63ec](https://github.com/lightdash/lightdash/commit/d8b63eca864958dc7880d3162e33e44b3c97da20))
+
 ## [0.998.5](https://github.com/lightdash/lightdash/compare/0.998.4...0.998.5) (2024-02-20)
 
 
