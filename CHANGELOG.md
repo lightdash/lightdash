@@ -1,3 +1,15 @@
+# [0.1000.0](https://github.com/lightdash/lightdash/compare/0.999.0...0.1000.0) (2024-02-20)
+
+
+### Bug Fixes
+
+* change name to Alerts in chart context menus ([#9005](https://github.com/lightdash/lightdash/issues/9005)) ([4f8512d](https://github.com/lightdash/lightdash/commit/4f8512dc89e5a39bfb153e69899eb77cf156a795))
+
+
+### Features
+
+* scheduler enabled flag ([#8996](https://github.com/lightdash/lightdash/issues/8996)) ([06c321e](https://github.com/lightdash/lightdash/commit/06c321e9514e8c38c245428758485bef7a277f85))
+
 # [0.999.0](https://github.com/lightdash/lightdash/compare/0.998.5...0.999.0) (2024-02-20)
 
 
