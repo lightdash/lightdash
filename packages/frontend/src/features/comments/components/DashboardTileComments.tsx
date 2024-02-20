@@ -6,12 +6,14 @@ import {
     Popover,
     PopoverProps,
     Stack,
+    Text,
     Textarea,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconMessage } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useApp } from '../../../providers/AppProvider';
 import { useCreateComment, useGetComments } from '../hooks/useComments';
 import { CommentDetail } from './CommentDetail';
 
@@ -31,6 +33,11 @@ export const DashboardTileComments: FC<
     onClose,
     onOpen,
 }) => {
+    const { user } = useApp();
+    const useCanManageDashboardComments = user.data?.ability?.can(
+        'manage',
+        'DashboardComments',
+    );
     const commentForm = useForm<Pick<Comment, 'text' | 'replyTo'>>({
         initialValues: {
             text: '',
@@ -90,35 +97,44 @@ export const DashboardTileComments: FC<
                             dashboardTileUuid={dashboardTileUuid}
                         />
                     ))}
+                    {!useCanManageDashboardComments &&
+                        (!comments ||
+                            (comments.length === 0 && (
+                                <Text fz="xs">No comments yet</Text>
+                            )))}
                 </Stack>
+                {useCanManageDashboardComments && (
+                    <form onSubmit={handleSubmit}>
+                        <Stack spacing="xs" mt="xs">
+                            <Textarea
+                                placeholder="Type your comment here..."
+                                size="xs"
+                                radius="sm"
+                                {...commentForm.getInputProps('text')}
+                            />
 
-                <form onSubmit={handleSubmit}>
-                    <Stack spacing="xs" mt="xs">
-                        <Textarea
-                            placeholder="Type your comment here..."
-                            size="xs"
-                            radius="sm"
-                            {...commentForm.getInputProps('text')}
-                        />
-
-                        <Button
-                            loading={isLoading}
-                            disabled={commentForm.values.text === ''}
-                            variant="default"
-                            size="xs"
-                            sx={{
-                                alignSelf: 'flex-end',
-                            }}
-                            type="submit"
-                        >
-                            Add comment
-                        </Button>
-                    </Stack>
-                </form>
+                            <Button
+                                loading={isLoading}
+                                disabled={commentForm.values.text === ''}
+                                variant="default"
+                                size="xs"
+                                sx={{
+                                    alignSelf: 'flex-end',
+                                }}
+                                type="submit"
+                            >
+                                Add comment
+                            </Button>
+                        </Stack>
+                    </form>
+                )}
             </Popover.Dropdown>
 
             <Popover.Target>
-                <ActionIcon size="sm" onClick={() => onOpen?.()}>
+                <ActionIcon
+                    size="sm"
+                    onClick={() => (opened ? onClose?.() : onOpen?.())}
+                >
                     {isRefetching ? (
                         <Loader size="xs" />
                     ) : (
