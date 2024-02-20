@@ -47,8 +47,8 @@ const OmnibarItemGroups: FC<Props> = ({
                 <Accordion.Item key={type} value={type}>
                     <Accordion.Control>
                         <Text color="dark" fw={500} fz="xs">
-                            {/* TODO: fix typing here */}
-                            {getSearchItemLabel(type as any)}
+                            {/* TODO: fix type */}
+                            {getSearchItemLabel(type as SearchItem['type'])}
                         </Text>
                     </Accordion.Control>
 

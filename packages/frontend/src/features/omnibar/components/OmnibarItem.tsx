@@ -71,7 +71,7 @@ const OmnibarItem: FC<Props> = ({
             className={classes.action}
             tabIndex={-1}
             onClick={onClick}
-            sx={{ radius: 'sm' }}
+            sx={{ radius: 'sm', cursor: 'pointer' }}
             spacing="sm"
             noWrap
         >

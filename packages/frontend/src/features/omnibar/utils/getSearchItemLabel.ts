@@ -1,24 +1,24 @@
 import { assertUnreachable } from '@lightdash/common';
 import { SearchItem } from './../types/searchItem';
 
-export const getSearchItemLabel = (item: SearchItem) => {
-    switch (item.type) {
+export const getSearchItemLabel = (itemType: SearchItem['type']) => {
+    switch (itemType) {
         case 'field':
-            return 'Field';
+            return 'Fields';
         case 'dashboard':
-            return 'Dashboard';
+            return 'Dashboards';
         case 'saved_chart':
-            return 'Chart';
+            return 'Charts';
         case 'space':
-            return 'Space';
+            return 'Spaces';
         case 'table':
-            return 'Table';
+            return 'Tables';
         case 'page':
-            return 'Page';
+            return 'Pages';
         default:
             return assertUnreachable(
-                item.type,
-                `Unknown search item type: ${item.type}`,
+                itemType,
+                `Unknown search item type: ${itemType}`,
             );
     }
 };
