@@ -1,21 +1,18 @@
-import { Comment } from '@lightdash/common';
 import {
     ActionIcon,
-    Button,
     Loader,
     Popover,
     PopoverProps,
     Stack,
     Text,
-    Textarea,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
 import { IconMessage } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useApp } from '../../../providers/AppProvider';
 import { useCreateComment, useGetComments } from '../hooks/useComments';
-import { CommentDetail } from './CommentDetail';
+import { CommentForm } from './CommentForm';
+import { DashboardCommentAndReplies } from './DashboardCommentAndReplies';
 
 type Props = {
     projectUuid: string;
@@ -38,28 +35,12 @@ export const DashboardTileComments: FC<
         'manage',
         'DashboardComments',
     );
-    const commentForm = useForm<Pick<Comment, 'text' | 'replyTo'>>({
-        initialValues: {
-            text: '',
-            replyTo: '',
-        },
-    });
+
     const { data: comments, isRefetching } = useGetComments(
         dashboardUuid,
         dashboardTileUuid,
     );
     const { mutateAsync, isLoading } = useCreateComment();
-
-    const handleSubmit = commentForm.onSubmit(async ({ text }) => {
-        await mutateAsync({
-            projectUuid,
-            dashboardUuid,
-            dashboardTileUuid,
-            text,
-        });
-
-        commentForm.reset();
-    });
 
     return (
         <Popover
@@ -72,11 +53,8 @@ export const DashboardTileComments: FC<
             opened={opened}
             onOpen={() => {
                 onOpen?.();
-
-                commentForm.reset();
             }}
             onClose={() => {
-                commentForm.reset();
                 onClose?.();
             }}
         >
@@ -89,7 +67,7 @@ export const DashboardTileComments: FC<
                     }}
                 >
                     {comments?.map((comment) => (
-                        <CommentDetail
+                        <DashboardCommentAndReplies
                             key={comment.commentId}
                             comment={comment}
                             projectUuid={projectUuid}
@@ -104,29 +82,20 @@ export const DashboardTileComments: FC<
                             )))}
                 </Stack>
                 {useCanManageDashboardComments && (
-                    <form onSubmit={handleSubmit}>
-                        <Stack spacing="xs" mt="xs">
-                            <Textarea
-                                placeholder="Type your comment here..."
-                                size="xs"
-                                radius="sm"
-                                {...commentForm.getInputProps('text')}
-                            />
-
-                            <Button
-                                loading={isLoading}
-                                disabled={commentForm.values.text === ''}
-                                variant="default"
-                                size="xs"
-                                sx={{
-                                    alignSelf: 'flex-end',
-                                }}
-                                type="submit"
-                            >
-                                Add comment
-                            </Button>
-                        </Stack>
-                    </form>
+                    <CommentForm
+                        userName={
+                            user.data?.firstName + ' ' + user.data?.lastName
+                        }
+                        onSubmit={(text: string) =>
+                            mutateAsync({
+                                projectUuid,
+                                dashboardUuid,
+                                dashboardTileUuid,
+                                text,
+                            })
+                        }
+                        isSubmitting={isLoading}
+                    />
                 )}
             </Popover.Dropdown>
 
