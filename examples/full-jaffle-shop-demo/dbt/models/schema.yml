@@ -1,6 +1,8 @@
 version: 2
 models:
   - name: customers
+    config:
+      alias: customers_alias
     meta:
       joins:
         - join: membership

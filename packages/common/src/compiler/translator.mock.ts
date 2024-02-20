@@ -199,7 +199,7 @@ const COLUMN_WITH_CUSTOM_TIME_INTERVALS: Record<string, DbtModelColumn> = {
 };
 
 export const model: DbtModelNode & { relation_name: string } = {
-    alias: '',
+    alias: 'myTable',
     checksum: { name: '', checksum: '' },
     fqn: [],
     language: '',
