@@ -45,6 +45,7 @@ const emptyFilters: DashboardFilters = {
 };
 
 type DashboardContext = {
+    projectUuid?: string;
     isDashboardLoading: boolean;
     dashboard: Dashboard | undefined;
     dashboardError: ApiError | null;
@@ -105,8 +106,9 @@ export const DashboardProvider: React.FC<
     React.PropsWithChildren<{
         schedulerFilters?: SchedulerFilterRule[] | undefined;
         dateZoom?: DateGranularity | undefined;
+        projectUuid?: string;
     }>
-> = ({ schedulerFilters, dateZoom, children }) => {
+> = ({ schedulerFilters, dateZoom, projectUuid, children }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
 
@@ -540,6 +542,7 @@ export const DashboardProvider: React.FC<
     );
 
     const value = {
+        projectUuid,
         isDashboardLoading,
         dashboard,
         dashboardError,
