@@ -37,10 +37,23 @@ export class SearchModel {
         this.database = deps.database;
     }
 
+    private static shouldSearchForType(
+        entityType: EntityType,
+        queryTypeFilter?: string,
+    ) {
+        // if there is no filter or if the filter is the same as the entityType
+        return !queryTypeFilter || queryTypeFilter === entityType;
+    }
+
     private async searchSpaces(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<SpaceSearchResult[]> {
+        if (!SearchModel.shouldSearchForType('spaces', filters?.type)) {
+            return [];
+        }
+
         const { searchRankRawSql, searchRankColumnName } =
             getFullTextSearchRankCalcSql(
                 this.database,
@@ -69,7 +82,12 @@ export class SearchModel {
     private async searchDashboards(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<DashboardSearchResult[]> {
+        if (!SearchModel.shouldSearchForType('dashboards', filters?.type)) {
+            return [];
+        }
+
         const { searchRankRawSql, searchRankColumnName } =
             getFullTextSearchRankCalcSql(
                 this.database,
@@ -136,7 +154,12 @@ export class SearchModel {
     private async searchSavedCharts(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<SavedChartSearchResult[]> {
+        if (!SearchModel.shouldSearchForType('charts', filters?.type)) {
+            return [];
+        }
+
         const { searchRankRawSql, searchRankColumnName } =
             getFullTextSearchRankCalcSql(
                 this.database,
@@ -249,7 +272,12 @@ export class SearchModel {
     private async searchTablesAndFields(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<[TableSearchResult[], FieldSearchResult[]]> {
+        if (!SearchModel.shouldSearchForType('tables_fields', filters?.type)) {
+            return [[], []];
+        }
+
         const explores = await this.getProjectExplores(projectUuid);
         const lowerCaseQuery = query.toLowerCase();
         return explores
@@ -358,43 +386,27 @@ export class SearchModel {
         }, []);
     }
 
-    private static shouldSearchForType(
-        entityType: EntityType,
-        queryTypeFilter?: string,
-    ) {
-        // if there is no filter or if the filter is the same as the entityType
-        return !queryTypeFilter || queryTypeFilter === entityType;
-    }
-
     async search(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
     ): Promise<SearchResults> {
-        const spaces = SearchModel.shouldSearchForType('spaces', filters?.type)
-            ? await this.searchSpaces(projectUuid, query)
-            : [];
-
-        const dashboards = SearchModel.shouldSearchForType(
-            'dashboards',
-            filters?.type,
-        )
-            ? await this.searchDashboards(projectUuid, query)
-            : [];
-
-        const savedCharts = SearchModel.shouldSearchForType(
-            'charts',
-            filters?.type,
-        )
-            ? await this.searchSavedCharts(projectUuid, query)
-            : [];
-
-        const [tables, fields] = SearchModel.shouldSearchForType(
-            'explores',
-            filters?.type,
-        )
-            ? await this.searchTablesAndFields(projectUuid, query)
-            : [[], []];
+        const spaces = await this.searchSpaces(projectUuid, query, filters);
+        const dashboards = await this.searchDashboards(
+            projectUuid,
+            query,
+            filters,
+        );
+        const savedCharts = await this.searchSavedCharts(
+            projectUuid,
+            query,
+            filters,
+        );
+        const [tables, fields] = await this.searchTablesAndFields(
+            projectUuid,
+            query,
+            filters,
+        );
 
         const tableErrors = await this.searchTableErrors(projectUuid, query);
         const tablesAndErrors = [...tables, ...tableErrors];

@@ -47,7 +47,7 @@ export class SearchService {
         user: SessionUser,
         projectUuid: string,
         query: string,
-        filters: SearchFilters,
+        filters?: SearchFilters,
     ): Promise<SearchResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
