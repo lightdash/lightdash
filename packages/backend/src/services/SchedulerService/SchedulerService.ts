@@ -224,27 +224,27 @@ export class SchedulerService {
         return scheduler;
     }
 
-    async setSchedulerActive(
+    async setSchedulerEnabled(
         user: SessionUser,
         schedulerUuid: string,
-        active: boolean,
+        enabled: boolean,
     ): Promise<SchedulerAndTargets> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
         await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
-        // Remove scheduled jobs, even if the scheduler is not active
+        // Remove scheduled jobs, even if the scheduler is not enabled
         await schedulerClient.deleteScheduledJobs(schedulerUuid);
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
-        const scheduler = await this.schedulerModel.setSchedulerActive(
+        const scheduler = await this.schedulerModel.setSchedulerEnabled(
             schedulerUuid,
-            active,
+            enabled,
         );
 
-        if (active) {
-            // If the scheduler is active, we need to generate the daily jobs
+        if (enabled) {
+            // If the scheduler is enabled, we need to generate the daily jobs
             await schedulerClient.generateDailyJobsForScheduler(scheduler);
         }
 

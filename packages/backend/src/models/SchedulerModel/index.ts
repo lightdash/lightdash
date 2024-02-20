@@ -68,7 +68,7 @@ export class SchedulerModel {
             filters: scheduler.filters,
             customViewportWidth: scheduler.custom_viewport_width,
             thresholds: scheduler.thresholds || undefined,
-            active: scheduler.active,
+            enabled: scheduler.active,
         } as Scheduler;
     }
 
@@ -254,13 +254,13 @@ export class SchedulerModel {
         return this.getSchedulerAndTargets(schedulerUuid);
     }
 
-    async setSchedulerActive(
+    async setSchedulerEnabled(
         schedulerUuid: string,
-        active: boolean,
+        enabled: boolean,
     ): Promise<SchedulerAndTargets> {
         await this.database(SchedulerTableName)
             .update({
-                active,
+                enabled,
                 updated_at: new Date(),
             })
             .where('scheduler_uuid', schedulerUuid);

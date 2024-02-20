@@ -112,10 +112,10 @@ export class SchedulerController extends Controller {
     }
 
     /**
-     * Set scheduler active/inactive
+     * Set scheduler enabled
      * @param schedulerUuid The uuid of the scheduler to update
      * @param req express request
-     * @param body the active flag
+     * @param body the enabled flag
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -124,19 +124,19 @@ export class SchedulerController extends Controller {
     ])
     @SuccessResponse('201', 'Updated')
     @Patch('{schedulerUuid}')
-    @OperationId('updateSchedulerActive')
-    async patchActive(
+    @OperationId('updateSchedulerEnabled')
+    async patchEnabled(
         @Path() schedulerUuid: string,
         @Request() req: express.Request,
-        @Body() body: { active: boolean },
+        @Body() body: { enabled: boolean },
     ): Promise<ApiSchedulerAndTargetsResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await schedulerService.setSchedulerActive(
+            results: await schedulerService.setSchedulerEnabled(
                 req.user!,
                 schedulerUuid,
-                body.active,
+                body.enabled,
             ),
         };
     }
