@@ -2,7 +2,9 @@ import { subject } from '@casl/ability';
 import { Button } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useHistory } from 'react-router-dom';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useCreateShareMutation } from '../../hooks/useShare';
 import { useApp } from '../../providers/AppProvider';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import MantineIcon from '../common/MantineIcon';
@@ -13,16 +15,16 @@ const ExploreFromHereButton = () => {
     );
     const exploreFromHereUrl = useMemo(() => {
         if (savedChart) {
-            const { pathname, search } =
-                getExplorerUrlFromCreateSavedChartVersion(
-                    savedChart.projectUuid,
-                    savedChart,
-                );
-            return `${pathname}?${search}`;
+            return getExplorerUrlFromCreateSavedChartVersion(
+                savedChart.projectUuid,
+                savedChart,
+            );
         }
     }, [savedChart]);
 
     const { user } = useApp();
+    const history = useHistory();
+    const { mutateAsync: createShareUrl } = useCreateShareMutation();
     const cannotManageExplore = user.data?.ability.cannot(
         'manage',
         subject('Explore', {
@@ -35,10 +37,16 @@ const ExploreFromHereButton = () => {
 
     return (
         <Button
-            component="a"
             size="xs"
             leftIcon={<MantineIcon icon={IconTelescope} />}
-            href={exploreFromHereUrl}
+            onClick={() => {
+                createShareUrl({
+                    path: exploreFromHereUrl.pathname,
+                    params: `?` + exploreFromHereUrl.search,
+                }).then((shareUrl) => {
+                    history.push(`/share/${shareUrl.nanoid}`);
+                });
+            }}
         >
             Explore from here
         </Button>
