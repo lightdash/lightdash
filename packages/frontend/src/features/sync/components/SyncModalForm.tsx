@@ -80,6 +80,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     ) => {
         const defaultNewSchedulerValues = {
             format: SchedulerFormat.GSHEETS,
+            enabled: true,
             targets: [],
         };
 
