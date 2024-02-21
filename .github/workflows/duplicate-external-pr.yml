@@ -32,10 +32,10 @@ jobs:
               run: |
                   if git ls-remote --heads origin duplicate-${{env.ISSUE_NUMBER}} ${{env.REF}} | grep duplicate-${{env.ISSUE_NUMBER}}; then
                       echo "Branch already exists."
-                      echo "branch_exists=true" >> $GITHUB_ENV
+                      echo "branch_exists=true" >> $GITHUB_OUTPUT
                   else
                       echo "Branch does not exist yet"
-                      echo "branch_exists=false" >> $GITHUB_ENV
+                      echo "branch_exists=false" >> $GITHUB_OUTPUT
                   fi
             - name: Update existing branch
               if: steps.check-branch.outputs.branch_exists == 'true'
