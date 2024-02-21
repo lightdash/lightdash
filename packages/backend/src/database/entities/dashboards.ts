@@ -9,6 +9,7 @@ export const DashboardTileTypesTableName = 'dashboard_tile_types';
 export const DashboardTileChartTableName = 'dashboard_tile_charts';
 export const DashboardTileMarkdownsTableName = 'dashboard_tile_markdowns';
 export const DashboardTileLoomsTableName = 'dashboard_tile_looms';
+export const DashboardTileCommentsTableName = 'dashboard_tile_comments';
 
 export type DbDashboard = {
     dashboard_id: number;
