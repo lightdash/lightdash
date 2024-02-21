@@ -18,9 +18,6 @@ export enum FeatureFlags {
      */
     UseSharedColorAssignment = 'use-shared-color-assignment',
 
-    /** Show the option to set up threshold alerting in the UI */
-    EnableThresholdAlerting = 'enable-threshold-alerting',
-
     /**/
     PassthroughLogin = 'passthrough-login',
 

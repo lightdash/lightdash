@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     ApiError,
-    FeatureFlags,
     GitIntegrationConfiguration,
     PullRequestCreated,
 } from '@lightdash/common';
@@ -39,7 +38,6 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, Fragment, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -155,11 +153,6 @@ const useCreatePullRequestForChartFieldsMutation = (
 };
 
 const SavedChartsHeader: FC = () => {
-    // FEATURE FLAG: enable-threshold-alerting
-    const alertsEnabled = useFeatureFlagEnabled(
-        FeatureFlags.EnableThresholdAlerting,
-    );
-
     const { search } = useLocation();
     const { projectUuid } = useParams<{
         projectUuid: string;
@@ -767,19 +760,16 @@ const SavedChartsHeader: FC = () => {
                                         Scheduled deliveries
                                     </Menu.Item>
                                 )}
-                                {userCanCreateDeliveriesAndAlerts &&
-                                    alertsEnabled && (
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon icon={IconBell} />
-                                            }
-                                            onClick={() =>
-                                                toggleThresholdAlertsModal(true)
-                                            }
-                                        >
-                                            Alerts
-                                        </Menu.Item>
-                                    )}
+                                {userCanCreateDeliveriesAndAlerts && (
+                                    <Menu.Item
+                                        icon={<MantineIcon icon={IconBell} />}
+                                        onClick={() =>
+                                            toggleThresholdAlertsModal(true)
+                                        }
+                                    >
+                                        Alerts
+                                    </Menu.Item>
+                                )}
                                 {userCanManageCharts &&
                                 hasGoogleDriveEnabled ? (
                                     <Menu.Item
