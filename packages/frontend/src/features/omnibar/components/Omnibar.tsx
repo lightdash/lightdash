@@ -15,6 +15,7 @@ import { IconSearch } from '@tabler/icons-react';
 import { FC, MouseEventHandler, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useProject } from '../../../hooks/useProject';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -31,6 +32,7 @@ interface Props {
 const Omnibar: FC<Props> = ({ projectUuid }) => {
     const history = useHistory();
     const location = useLocation();
+    const { data: projectData } = useProject(projectUuid);
     const { track } = useTracking();
 
     const canUserManageValidation = useValidationUserAbility(projectUuid);
@@ -65,6 +67,10 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
         openOmnibar();
     };
+
+    useHotkeys([
+        ['mod + k', handleSpotlightOpenHotkey, { preventDefault: true }],
+    ]);
 
     const handleSpotlightClose = () => {
         track({
@@ -105,38 +111,36 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         }
     };
 
-    useHotkeys([
-        ['mod + k', () => handleSpotlightOpenHotkey, { preventDefault: true }],
-    ]);
-
     const { items, isFetching } = useDebouncedSearch(projectUuid, query);
 
     const os = useOs();
 
     return (
         <>
-            <TextInput
-                role="search"
-                size="xs"
-                w={250}
-                placeholder="Search..."
-                icon={<MantineIcon icon={IconSearch} color="gray.1" />}
-                rightSection={
-                    <Group mr="xs" spacing="xxs">
-                        <Kbd fw={600}>
-                            {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                        </Kbd>
+            {!isOmnibarOpen && (
+                <TextInput
+                    role="search"
+                    size="xs"
+                    w={250}
+                    placeholder="Search..."
+                    icon={<MantineIcon icon={IconSearch} color="gray.1" />}
+                    rightSection={
+                        <Group mr="xs" spacing="xxs">
+                            <Kbd fw={600}>
+                                {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
+                            </Kbd>
 
-                        <Text color="dimmed" fw={600}>
-                            +
-                        </Text>
+                            <Text color="dimmed" fw={600}>
+                                +
+                            </Text>
 
-                        <Kbd fw={600}>k</Kbd>
-                    </Group>
-                }
-                rightSectionWidth="auto"
-                onClick={handleSpotlightOpenInputClick}
-            />
+                            <Kbd fw={600}>k</Kbd>
+                        </Group>
+                    }
+                    rightSectionWidth="auto"
+                    onClick={handleSpotlightOpenInputClick}
+                />
+            )}
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
                 <Modal
@@ -164,6 +168,9 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                     <MantineIcon icon={IconSearch} size="lg" />
                                 )
                             }
+                            placeholder={`Search ${
+                                projectData?.name ?? 'in your project'
+                            }...`}
                             styles={{
                                 input: {
                                     borderTop: 0,
@@ -178,9 +185,17 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                         />
 
                         {query === undefined || query === '' ? (
-                            <OmnibarEmptyState message="Start typing to search for everything in your project." />
+                            <OmnibarEmptyState
+                                message={`Start typing to search for everything in ${
+                                    projectData?.name ?? 'your project'
+                                }.`}
+                            />
                         ) : query.length < OMNIBAR_MIN_QUERY_LENGTH ? (
-                            <OmnibarEmptyState message="Keep typing to search for everything in your project." />
+                            <OmnibarEmptyState
+                                message={`Keep typing to search for everything in ${
+                                    projectData?.name ?? 'your project'
+                                }.`}
+                            />
                         ) : isFetching ? (
                             <OmnibarEmptyState message="Searching..." />
                         ) : items.length === 0 ? (
