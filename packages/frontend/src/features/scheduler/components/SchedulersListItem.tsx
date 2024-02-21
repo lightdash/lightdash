@@ -68,12 +68,14 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                                 : 'Notifications paused. Toggle on to resume'
                         }
                     >
-                        <Switch
-                            checked={scheduler.enabled}
-                            onChange={() => {
-                                mutateSchedulerEnabled(!scheduler.enabled);
-                            }}
-                        />
+                        <div>
+                            <Switch
+                                checked={scheduler.enabled}
+                                onChange={() => {
+                                    mutateSchedulerEnabled(!scheduler.enabled);
+                                }}
+                            />
+                        </div>
                     </Tooltip>
                     <Tooltip label="Edit">
                         <ActionIcon
