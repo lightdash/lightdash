@@ -1,3 +1,10 @@
+# [0.1001.0](https://github.com/lightdash/lightdash/compare/0.1000.2...0.1001.0) (2024-02-21)
+
+
+### Features
+
+* In-memory table calculations engine ([#8827](https://github.com/lightdash/lightdash/issues/8827)) ([a5a08f4](https://github.com/lightdash/lightdash/commit/a5a08f4a08c501682b45ff4033e6e4dbb1ac926c))
+
 ## [0.1000.2](https://github.com/lightdash/lightdash/compare/0.1000.1...0.1000.2) (2024-02-21)
 
 
