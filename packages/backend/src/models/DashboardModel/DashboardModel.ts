@@ -24,6 +24,7 @@ import {
     DashboardTable,
     DashboardTileChartTable,
     DashboardTileChartTableName,
+    DashboardTileCommentsTableName,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTableName,
     DashboardTilesTableName,
@@ -880,13 +881,18 @@ export class DashboardModel {
     }
 
     async createComment(
+        dashboardUuid: string,
         dashboardTileUuid: string,
         text: string,
         replyTo: string | null,
         user: LightdashUser,
     ): Promise<string> {
+        await this.checkDashboardTileExistsInDashboard(
+            dashboardUuid,
+            dashboardTileUuid,
+        );
         const [{ comment_id: commentId }] = await this.database(
-            'dashboard_tile_comments',
+            DashboardTileCommentsTableName,
         )
             .insert({
                 text,
@@ -899,23 +905,61 @@ export class DashboardModel {
         return commentId;
     }
 
+    private async checkDashboardTileExistsInDashboard(
+        dashboardUuid: string,
+        dashboardTileUuid: string,
+    ) {
+        // NOTE: ensure that this dashboard actually contains the tile, since tile uuids might not be unique across dashboards
+        const dashboard = await this.database(DashboardsTableName)
+            .select(['dashboard_id'])
+            .where('dashboard_uuid', dashboardUuid)
+            .first();
+
+        if (!dashboard) throw new NotFoundError('Dashboard not found');
+
+        const dashboardVersion = await this.database(DashboardVersionsTableName)
+            .select(['dashboard_version_id'])
+            .where('dashboard_id', dashboard.dashboard_id)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        if (!dashboardVersion)
+            throw new NotFoundError('Dashboard version not found');
+
+        const dashboardTile = await this.database(DashboardTilesTableName)
+            .select(['dashboard_tile_uuid'])
+            .where(
+                'dashboard_version_id',
+                dashboardVersion.dashboard_version_id,
+            )
+            .where('dashboard_tile_uuid', dashboardTileUuid)
+            .first();
+
+        if (!dashboardTile) {
+            throw new NotFoundError('Dashboard tile not found');
+        }
+    }
+
     async getComments(
+        dashboardUuid: string,
         dashboardTileUuid: string,
         userUuid: string,
     ): Promise<Comment[]> {
-        // TODO: ensure uniqueness with project uuid and dashboard uuid
+        this.checkDashboardTileExistsInDashboard(
+            dashboardUuid,
+            dashboardTileUuid,
+        );
 
         const rows: DbDashboardTileComments[] = await this.database(
-            'dashboard_tile_comments',
+            DashboardTileCommentsTableName,
         )
             .select('*')
             .where('dashboard_tile_uuid', dashboardTileUuid)
-            // TODO: get all comments later to show resolved comments sidebar
             .andWhere('resolved', false);
 
         const userUuids = [...new Set(rows.map((row) => row.user_uuid))];
 
-        const users = await this.database('users')
+        const users = await this.database(UserTableName)
             .select('user_uuid', 'first_name', 'last_name')
             .whereIn('user_uuid', userUuids);
 
@@ -955,16 +999,16 @@ export class DashboardModel {
     }
 
     async resolveComment(commentId: string): Promise<void> {
-        await this.database('dashboard_tile_comments')
+        await this.database(DashboardTileCommentsTableName)
             .update({ resolved: true })
             .where('comment_id', commentId);
     }
 
     async deleteComment(commentId: string): Promise<void> {
-        await this.database('dashboard_tile_comments')
+        await this.database(DashboardTileCommentsTableName)
             .delete()
             .where('reply_to', commentId);
-        await this.database('dashboard_tile_comments')
+        await this.database(DashboardTileCommentsTableName)
             .delete()
             .where('comment_id', commentId);
     }
