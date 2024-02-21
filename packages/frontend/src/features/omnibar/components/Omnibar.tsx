@@ -121,6 +121,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
                 <Modal
+                    transitionProps={{ transition: 'slide-down' }}
                     size="xl"
                     withCloseButton={false}
                     closeOnClickOutside
@@ -149,6 +150,11 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 projectData?.name ?? 'in your project'
                             }...`}
                             styles={{
+                                wrapper: {
+                                    position: 'sticky',
+                                    zIndex: 1,
+                                    top: 0,
+                                },
                                 input: {
                                     borderTop: 0,
                                     borderRight: 0,
