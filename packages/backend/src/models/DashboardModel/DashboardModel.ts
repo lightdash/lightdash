@@ -880,31 +880,6 @@ export class DashboardModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
     }
 
-    async createComment(
-        dashboardUuid: string,
-        dashboardTileUuid: string,
-        text: string,
-        replyTo: string | null,
-        user: LightdashUser,
-    ): Promise<string> {
-        await this.checkDashboardTileExistsInDashboard(
-            dashboardUuid,
-            dashboardTileUuid,
-        );
-        const [{ comment_id: commentId }] = await this.database(
-            DashboardTileCommentsTableName,
-        )
-            .insert({
-                text,
-                dashboard_tile_uuid: dashboardTileUuid,
-                reply_to: replyTo ?? null,
-                user_uuid: user.userUuid,
-            })
-            .returning('comment_id');
-
-        return commentId;
-    }
-
     private async checkDashboardTileExistsInDashboard(
         dashboardUuid: string,
         dashboardTileUuid: string,
@@ -938,6 +913,31 @@ export class DashboardModel {
         if (!dashboardTile) {
             throw new NotFoundError('Dashboard tile not found');
         }
+    }
+
+    async createComment(
+        dashboardUuid: string,
+        dashboardTileUuid: string,
+        text: string,
+        replyTo: string | null,
+        user: LightdashUser,
+    ): Promise<string> {
+        await this.checkDashboardTileExistsInDashboard(
+            dashboardUuid,
+            dashboardTileUuid,
+        );
+        const [{ comment_id: commentId }] = await this.database(
+            DashboardTileCommentsTableName,
+        )
+            .insert({
+                text,
+                dashboard_tile_uuid: dashboardTileUuid,
+                reply_to: replyTo ?? null,
+                user_uuid: user.userUuid,
+            })
+            .returning('comment_id');
+
+        return commentId;
     }
 
     async getComments(
