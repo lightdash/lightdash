@@ -5,6 +5,8 @@ import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import OmnibarItem from './OmnibarItem';
 
 type Props = {
+    openPanels: Array<SearchItem['type']>;
+    onOpenPanelsChange: (panels: Array<SearchItem['type']>) => void;
     items: SearchItem[];
     projectUuid: string;
     canUserManageValidation: boolean;
@@ -14,6 +16,8 @@ type Props = {
 type GroupedItems = Partial<Record<SearchItem['type'], SearchItem[]>>;
 
 const OmnibarItemGroups: FC<Props> = ({
+    openPanels,
+    onOpenPanelsChange,
     projectUuid,
     items,
     canUserManageValidation,
@@ -27,8 +31,6 @@ const OmnibarItemGroups: FC<Props> = ({
 
     return (
         <Accordion
-            multiple
-            defaultValue={Object.keys(groupedTypes)}
             styles={(theme) => ({
                 control: {
                     height: theme.spacing.xxl,
@@ -42,12 +44,16 @@ const OmnibarItemGroups: FC<Props> = ({
                     padding: theme.spacing.xs,
                 },
             })}
+            multiple
+            value={openPanels}
+            onChange={(newPanels: Array<SearchItem['type']>) =>
+                onOpenPanelsChange(newPanels)
+            }
         >
             {Object.entries(groupedTypes).map(([type, groupedItems]) => (
                 <Accordion.Item key={type} value={type}>
                     <Accordion.Control>
                         <Text color="dark" fw={500} fz="xs">
-                            {/* TODO: fix type */}
                             {getSearchItemLabel(type as SearchItem['type'])}
                         </Text>
                     </Accordion.Control>

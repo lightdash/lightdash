@@ -113,6 +113,15 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     const { items, isFetching } = useDebouncedSearch(projectUuid, query);
 
+    const [openPanels, setOpenPanels] = useState<Array<SearchItem['type']>>([
+        'dashboard',
+        'saved_chart',
+        'space',
+        'table',
+        'field',
+        'page',
+    ]);
+
     const os = useOs();
 
     return (
@@ -207,6 +216,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 canUserManageValidation={
                                     canUserManageValidation
                                 }
+                                openPanels={openPanels}
+                                onOpenPanelsChange={setOpenPanels}
                                 onClick={handleItemClick}
                             />
                         )}
