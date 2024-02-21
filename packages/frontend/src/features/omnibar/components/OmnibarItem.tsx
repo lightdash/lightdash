@@ -92,8 +92,10 @@ const OmnibarItem: FC<Props> = ({
                     {item.prefix} {item.title}
                 </Text>
 
-                {item.description ? (
+                {item.description || item.typeLabel ? (
                     <Text size="xs" truncate>
+                        {item.typeLabel}
+                        {item.typeLabel && item.description ? <> · </> : null}
                         {item.description}
                     </Text>
                 ) : null}

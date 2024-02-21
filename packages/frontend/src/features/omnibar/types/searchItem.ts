@@ -2,15 +2,7 @@ import { SearchResult } from '@lightdash/common';
 
 export type SearchItem = {
     type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field' | 'page';
-    typeLabel:
-        | 'Space'
-        | 'Dashboard'
-        | 'Chart'
-        | 'Table'
-        | 'Joined table'
-        | 'Dimension'
-        | 'Metric'
-        | 'Page';
+    typeLabel?: 'Table' | 'Joined table' | 'Dimension' | 'Metric';
     title: string;
     prefix?: string;
     description?: string;

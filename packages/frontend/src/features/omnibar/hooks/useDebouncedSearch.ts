@@ -23,7 +23,6 @@ export const useDebouncedSearch = (
         const spaces =
             data?.spaces.map<SearchItem>((item) => ({
                 type: 'space',
-                typeLabel: 'Space',
                 title: item.name,
                 item: item,
                 searchRank: item.search_rank,
@@ -35,7 +34,6 @@ export const useDebouncedSearch = (
         const dashboards =
             data?.dashboards.map<SearchItem>((item) => ({
                 type: 'dashboard',
-                typeLabel: 'Dashboard',
                 title: item.name,
                 description: item.description,
                 item: item,
@@ -48,7 +46,6 @@ export const useDebouncedSearch = (
         const savedCharts =
             data?.savedCharts.map<SearchItem>((item) => ({
                 type: 'saved_chart',
-                typeLabel: 'Chart',
                 icon: 'chart',
                 title: item.name,
                 description: item.description,
@@ -143,11 +140,11 @@ export const useDebouncedSearch = (
         const pages =
             data?.pages.map<SearchItem>((item) => ({
                 type: 'page',
-                typeLabel: 'Page',
                 title: item.name,
                 meta: item,
                 location: { pathname: item.url },
             })) || [];
+
         return [
             ...spaces,
             ...dashboards,
