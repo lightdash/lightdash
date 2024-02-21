@@ -1,9 +1,52 @@
 import { FeatureFlags, Series } from '@lightdash/common';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { useCallback, useState } from 'react';
+import { createContext, FC, useCallback, useContext, useState } from 'react';
 import { EChartSeries } from './echarts/useEchartsCartesianConfig';
 
 export type SeriesLike = EChartSeries | Series;
+
+interface ChartColorMappingContextProps {
+    colorMappings: Map<string, string>;
+}
+
+const ChartColorMappingContext =
+    createContext<ChartColorMappingContextProps | null>(null);
+
+/**
+ * Exposes a map of identifier->color values, which can be shared across
+ * a context, for shared color assignment.
+ */
+export const ChartColorMappingContextProvider: FC<
+    React.PropsWithChildren<{}>
+> = ({ children }) => {
+    const [colorMappings] = useState(new Map<string, string>());
+
+    return (
+        <ChartColorMappingContext.Provider value={{ colorMappings }}>
+            {children}
+        </ChartColorMappingContext.Provider>
+    );
+};
+
+/**
+ * Provides access to a shared color mapping object if available. If called from
+ * outside a color mapping context, returns a blank mapping instead; the blank
+ * mapping will work equally well, but may result in less accurate color mapping
+ * across charts and re-renders.
+ */
+const useChartColorMappingContext = (): ChartColorMappingContextProps => {
+    const ctx = useContext(ChartColorMappingContext);
+
+    if (ctx == null) {
+        console.warn(
+            'No color mapping context available, using empty color map.',
+        );
+
+        return { colorMappings: new Map<string, string>() };
+    }
+
+    return ctx;
+};
 
 export const isGroupedSeries = (series: SeriesLike) => {
     return (
@@ -17,7 +60,7 @@ export const useChartColorConfig = ({
 }: {
     colorPalette: string[];
 }) => {
-    const [colorMappings] = useState(new Map<string, string>());
+    const { colorMappings } = useChartColorMappingContext();
     const useSharedColors = useFeatureFlagEnabled(
         FeatureFlags.UseSharedColorAssignment,
     );
