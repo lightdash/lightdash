@@ -29,6 +29,7 @@ import {
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
+    TableCalculation,
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
