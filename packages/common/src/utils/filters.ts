@@ -313,7 +313,7 @@ export const createDashboardFilterRuleFromField = ({
     field: FilterableField;
     availableTileFilters: Record<string, FilterableField[] | undefined>;
     isTemporary: boolean;
-    value?: any;
+    value?: unknown;
 }): DashboardFilterRule =>
     getFilterRuleWithDefaultValue(
         field,
