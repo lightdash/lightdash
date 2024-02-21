@@ -3,6 +3,7 @@ import { Group, Modal, Text } from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import SchedulerModalContent from './SchedulerModalContent';
 
 const SchedulersModal: FC<
@@ -34,11 +35,21 @@ const SchedulersModal: FC<
                     <Group spacing="xs">
                         <MantineIcon icon={IconBell} size="lg" color="gray.7" />
                         <Text fw={600}>Alerts</Text>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/guides/how-to-create-alerts"
+                            pos="relative"
+                            top="2px"
+                        />
                     </Group>
                 ) : (
                     <Group spacing="xs">
                         <MantineIcon icon={IconSend} size="lg" color="gray.7" />
                         <Text fw={600}>Scheduled deliveries</Text>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
+                            pos="relative"
+                            top="2px"
+                        />
                     </Group>
                 )
             }
