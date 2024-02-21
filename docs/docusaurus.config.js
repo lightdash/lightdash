@@ -59,6 +59,10 @@ module.exports = {
                         to: '/self-host/self-host-lightdash',
                         from: ['/self-host'],
                     },
+                    {
+                        to: '/contact/contact_info',
+                        from: ['/help-and-contact/contact/contact_info']
+                    },
                 ],
             },
         ],

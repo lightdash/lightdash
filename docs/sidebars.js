@@ -202,12 +202,14 @@ module.exports = {
             ],
         },
         {
-            type: 'category',
-            label: 'Troubleshooting and getting help',
-            items: [
-                'help-and-contact/contact/contact_info',
-                'help-and-contact/faqs/faqs',
-            ],
+            type: 'link',
+            label: 'FAQs',
+            href: 'https://intercom.help/lightdash-faqs/en/collections/8439498-faqs'
+        },
+        {
+            type: 'doc',
+            label: 'Contact',
+            id: 'contact/contact_info',
         },
     ],
 };
