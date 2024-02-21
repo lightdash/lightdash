@@ -464,14 +464,6 @@ export class SpaceModel {
                     group_roles,
                 },
             ) => {
-                console.log('user_uuid', user_uuid);
-                console.log('first_name', first_name);
-                console.log('last_name', last_name);
-                console.log('user_with_direct_access', user_with_direct_access);
-                console.log('project_role', project_role);
-                console.log('organization_role', organization_role);
-                console.log('group_roles', group_roles);
-
                 const inheritedOrgRole: OrganizationRole = {
                     type: 'organization',
                     role: convertOrganizationRoleToProjectRole(
@@ -493,8 +485,6 @@ export class SpaceModel {
                     inheritedProjectRole,
                     ...inheritedGroupRoles,
                 ]);
-
-                console.log('highestRole', highestRole);
 
                 // exclude all users that were converted to organization members and have no space access
                 if (!highestRole) {
