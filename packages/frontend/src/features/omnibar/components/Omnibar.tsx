@@ -1,16 +1,6 @@
 import { getSearchResultId } from '@lightdash/common';
-import {
-    Group,
-    Input,
-    Kbd,
-    Loader,
-    MantineProvider,
-    Modal,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine/core';
-import { useDisclosure, useHotkeys, useOs } from '@mantine/hooks';
+import { Input, Loader, MantineProvider, Modal, Stack } from '@mantine/core';
+import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { FC, MouseEventHandler, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
@@ -24,6 +14,7 @@ import { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
 import { SearchItem } from '../types/searchItem';
 import OmnibarEmptyState from './OmnibarEmptyState';
 import OmnibarItemGroups from './OmnibarItemGroups';
+import OmnibarTarget from './OmnibarTarget';
 
 interface Props {
     projectUuid: string;
@@ -122,33 +113,10 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         'page',
     ]);
 
-    const os = useOs();
-
     return (
         <>
             {!isOmnibarOpen && (
-                <TextInput
-                    role="search"
-                    size="xs"
-                    w={250}
-                    placeholder="Search..."
-                    icon={<MantineIcon icon={IconSearch} color="gray.1" />}
-                    rightSection={
-                        <Group mr="xs" spacing="xxs">
-                            <Kbd fw={600}>
-                                {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                            </Kbd>
-
-                            <Text color="dimmed" fw={600}>
-                                +
-                            </Text>
-
-                            <Kbd fw={600}>k</Kbd>
-                        </Group>
-                    }
-                    rightSectionWidth="auto"
-                    onClick={handleSpotlightOpenInputClick}
-                />
+                <OmnibarTarget onOpen={handleSpotlightOpenInputClick} />
             )}
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
@@ -189,7 +157,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                     borderBottomRightRadius: 0,
                                 },
                             }}
-                            value={query}
+                            value={query ?? ''}
                             onChange={(e) => setQuery(e.currentTarget.value)}
                         />
 
