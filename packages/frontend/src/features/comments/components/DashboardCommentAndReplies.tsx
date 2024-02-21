@@ -1,20 +1,9 @@
 import { Comment } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Collapse,
-    Divider,
-    LoadingOverlay,
-    Stack,
-} from '@mantine/core';
+import { Box, Button, Collapse, Divider, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { FC, useCallback, useState } from 'react';
 import { useApp } from '../../../providers/AppProvider';
-import {
-    useCreateComment,
-    useRemoveComment,
-    useResolveComment,
-} from '../hooks/useComments';
+import { useCreateComment, useRemoveComment } from '../hooks/useComments';
 import { CommentDetail } from './CommentDetail';
 import { CommentForm } from './CommentForm';
 
@@ -39,20 +28,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     );
     const { mutateAsync: createReply, isLoading: isCreatingReply } =
         useCreateComment();
-    const { mutateAsync: resolveComment, isLoading: isResolvingComment } =
-        useResolveComment();
     const { mutateAsync: removeComment } = useRemoveComment();
-
-    const handleResolve = useCallback(
-        async (commentId: string) => {
-            await resolveComment({
-                dashboardUuid,
-                dashboardTileUuid,
-                commentId,
-            });
-        },
-        [dashboardTileUuid, dashboardUuid, resolveComment],
-    );
 
     const handleRemove = useCallback(
         async (commentId: string) => {
@@ -67,11 +43,8 @@ export const DashboardCommentAndReplies: FC<Props> = ({
 
     return (
         <Stack spacing="two">
-            <LoadingOverlay visible={isResolvingComment} />
-
             <CommentDetail
                 comment={comment}
-                onResolve={() => handleResolve(comment.commentId)}
                 onRemove={() => handleRemove(comment.commentId)}
                 onReply={() => {
                     {
