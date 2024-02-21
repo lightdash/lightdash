@@ -63,8 +63,10 @@ type Props = {
     item: Metric | Dimension | AdditionalMetric | CustomDimension;
     isHovered: boolean;
     isSelected: boolean;
+    hasDescription: boolean;
     isOpened: MenuProps['opened'];
     onMenuChange: MenuProps['onChange'];
+    onViewDescription: () => void;
 };
 
 const TreeSingleNodeActions: FC<Props> = ({
@@ -73,6 +75,8 @@ const TreeSingleNodeActions: FC<Props> = ({
     isSelected,
     isOpened,
     onMenuChange,
+    hasDescription,
+    onViewDescription,
 }) => {
     const { addFilter } = useFilters();
     const { track } = useTracking();
@@ -158,6 +162,19 @@ const TreeSingleNodeActions: FC<Props> = ({
                         </Menu.Item>
                     </>
                 ) : null}
+
+                {hasDescription && (
+                    <Menu.Item
+                        component="button"
+                        icon={<MantineIcon icon={IconDots} />}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDescription();
+                        }}
+                    >
+                        View description
+                    </Menu.Item>
+                )}
 
                 {customMetrics.length > 0 && isDimension(item) ? (
                     <>

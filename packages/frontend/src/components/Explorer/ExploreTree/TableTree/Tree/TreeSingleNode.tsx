@@ -10,12 +10,25 @@ import {
     Item,
     timeFrameConfigs,
 } from '@lightdash/common';
-import { Group, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
+import {
+    Button,
+    Flex,
+    Group,
+    Highlight,
+    HoverCard,
+    Modal,
+    NavLink,
+    Text,
+    Title,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconAlertTriangle, IconDots, IconFilter } from '@tabler/icons-react';
+import MarkdownPreview from '@uiw/react-markdown-preview';
 import { darken, lighten } from 'polished';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
-
-import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import { useFilters } from '../../../../../hooks/useFilters';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
@@ -25,6 +38,71 @@ import TreeSingleNodeActions from './TreeSingleNodeActions';
 
 type Props = {
     node: Node;
+};
+
+const NodeDetailMarkdown: FC<{ source: string }> = ({ source }) => {
+    const theme = useMantineTheme();
+    return (
+        <MarkdownPreview
+            skipHtml
+            linkTarget="_blank"
+            components={{
+                h1: ({ children }) => <Title order={2}>{children}</Title>,
+                h2: ({ children }) => <Title order={3}>{children}</Title>,
+                h3: ({ children }) => <Title order={4}>{children}</Title>,
+            }}
+            source={source}
+            disallowedElements={['img']}
+            style={{
+                fontSize: theme.fontSizes.sm,
+            }}
+        />
+    );
+};
+
+const TreeSingleNodeDetail: FC<{
+    description?: string;
+    onViewDescription: () => void;
+}> = ({ description, onViewDescription }) => {
+    if (!description) return null;
+
+    /**
+     * Truncate the node's description by limiting it to:
+     *
+     * - No more than 5 lines
+     * - No more than 256 characters total (BEFORE markdown rendering)
+     */
+    const lines = description.split('\n');
+    const truncatedDescription = lines.slice(0, 4).join('\n').substring(0, 256);
+    const isTruncated = truncatedDescription !== description;
+
+    return (
+        <Flex direction="column" gap={'xs'}>
+            <NodeDetailMarkdown
+                source={`${truncatedDescription}${isTruncated ? '...' : ''}`}
+            />
+            {isTruncated && (
+                <Button
+                    leftIcon={<MantineIcon icon={IconDots} />}
+                    variant="subtle"
+                    size="xs"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        onViewDescription();
+                    }}
+                    /**
+                     * The button is aligned to the right to avoid accidental misclicks
+                     * when scanning the list.
+                     */
+                    style={{
+                        alignSelf: 'flex-end',
+                    }}
+                >
+                    Read full description
+                </Button>
+            )}
+        </Flex>
+    );
 };
 
 const TreeSingleNode: FC<Props> = ({ node }) => {
@@ -38,6 +116,10 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         onItemClick,
     } = useTableTreeContext();
     const { isFilteredField } = useFilters();
+    const [
+        isDescriptionViewOpen,
+        { open: openDescriptionView, close: closeDescriptionView },
+    ] = useDisclosure();
 
     const [isHover, toggle] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
@@ -108,28 +190,74 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             onMouseLeave={() => toggle(false)}
             label={
                 <Group noWrap>
-                    <Tooltip
+                    <HoverCard
+                        shadow="sm"
                         withinPortal
-                        multiline
-                        sx={{ whiteSpace: 'normal' }}
                         disabled={!description && !isMissing}
-                        label={
-                            isMissing
-                                ? `This field from '${item.table}' table is no longer available`
-                                : description
-                        }
                         position="top-start"
-                        maw={700}
+                        /** Stops larger popups from being annoying when scanning the list of items */
+                        openDelay={300}
+                        /**
+                         * Arbitrary offset, but provides a decent marging when scanning the list
+                         * from the bottom up, allowing the user to select the item imemdiately above the
+                         * current one even with the hover card active.
+                         */
+                        offset={18}
                     >
-                        <Highlight
-                            component={Text}
-                            truncate
-                            sx={{ flexGrow: 1 }}
-                            highlight={searchQuery || ''}
+                        <HoverCard.Target>
+                            <Highlight
+                                component={Text}
+                                truncate
+                                sx={{ flexGrow: 1 }}
+                                highlight={searchQuery || ''}
+                            >
+                                {label}
+                            </Highlight>
+                        </HoverCard.Target>
+                        <HoverCard.Dropdown
+                            maw={400}
+                            /**
+                             * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
+                             * while interacting with the hovercard.
+                             */
+                            onClick={(event) => event.stopPropagation()}
                         >
-                            {label}
-                        </Highlight>
-                    </Tooltip>
+                            {isMissing ? (
+                                `This field from '${item.table}' table is no longer available`
+                            ) : (
+                                <TreeSingleNodeDetail
+                                    onViewDescription={openDescriptionView}
+                                    description={description}
+                                />
+                            )}
+                        </HoverCard.Dropdown>
+                    </HoverCard>
+
+                    <Modal
+                        withinPortal
+                        p="xl"
+                        size="lg"
+                        opened={isDescriptionViewOpen}
+                        onClose={closeDescriptionView}
+                        title={
+                            <Group>
+                                <FieldIcon
+                                    item={item}
+                                    color={getFieldIconColor(item)}
+                                    size="md"
+                                />
+                                <Text size="md">{label}</Text>
+                            </Group>
+                        }
+                    >
+                        {description ? (
+                            <NodeDetailMarkdown
+                                source={description ?? ''}
+                            ></NodeDetailMarkdown>
+                        ) : (
+                            <Text color="gray">No description available.</Text>
+                        )}
+                    </Modal>
 
                     {isFiltered ? (
                         <Tooltip withinPortal label="This field is filtered">
@@ -161,6 +289,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                     isHovered={isHover}
                     isSelected={isSelected}
                     isOpened={isMenuOpen}
+                    hasDescription={description != null}
+                    onViewDescription={openDescriptionView}
                     onMenuChange={toggleMenu}
                 />
             }
