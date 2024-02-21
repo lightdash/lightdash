@@ -389,11 +389,17 @@ export class SpaceModel {
                     );
                 },
             )
-            .leftJoin(
-                SpaceShareTableName,
-                `${OrganizationMembershipsTableName}.user_id`,
-                `${SpaceShareTableName}.user_id`,
-            )
+            .leftJoin(SpaceShareTableName, function joinSpaceShareTable() {
+                this.on(
+                    `${OrganizationMembershipsTableName}.user_id`,
+                    '=',
+                    `${SpaceShareTableName}.user_id`,
+                ).andOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SpaceShareTableName}.space_id`,
+                );
+            })
             .leftJoin(
                 GroupMembershipTableName,
                 `${OrganizationMembershipsTableName}.user_id`,
