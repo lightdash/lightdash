@@ -707,6 +707,7 @@ export class DashboardService {
         }
 
         return this.dashboardModel.createComment(
+            dashboardUuid,
             dashboardTileUuid,
             text,
             replyTo,
@@ -740,6 +741,7 @@ export class DashboardService {
         }
 
         return this.dashboardModel.getComments(
+            dashboardUuid,
             dashboardTileUuid,
             user.userUuid,
         );
