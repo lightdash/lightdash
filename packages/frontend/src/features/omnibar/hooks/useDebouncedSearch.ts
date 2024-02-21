@@ -148,7 +148,6 @@ export const useDebouncedSearch = (
                 meta: item,
                 location: { pathname: item.url },
             })) || [];
-
         return [
             ...spaces,
             ...dashboards,

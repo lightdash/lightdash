@@ -16,4 +16,5 @@ export type SearchItem = {
     description?: string;
     location: { pathname: string; search?: string };
     item?: SearchResult;
+    searchRank?: number;
 };
