@@ -1,8 +1,14 @@
 import {
     ChartKind,
+    convertOrganizationRoleToProjectRole,
+    convertProjectRoleToSpaceRole,
+    getHighestProjectRole,
+    GroupRole,
     NotFoundError,
     OrganizationMemberRole,
+    OrganizationRole,
     ProjectMemberRole,
+    ProjectRole,
     Space,
     SpaceDashboard,
     SpaceQuery,
@@ -12,7 +18,6 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { getSpaceRoleInfo } from '../controllers/authenticationRoles';
 import {
     AnalyticsChartViewsTableName,
     AnalyticsDashboardViewsTableName,
@@ -21,6 +26,7 @@ import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
+import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
     DbOrganization,
@@ -34,6 +40,7 @@ import {
     PinnedListTableName,
     PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
+import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { DbProject, ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
@@ -357,17 +364,7 @@ export class SpaceModel {
     // by default if spaceUuid is not provided, it will return all users
     async getSpaceAccess(spaceUuid: string): Promise<SpaceShare[]> {
         const access = await this.database
-            .table(SpaceShareTableName)
-            .leftJoin(
-                SpaceTableName,
-                `${SpaceShareTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
-            .rightJoin(
-                UserTableName,
-                `${UserTableName}.user_id`,
-                `${SpaceShareTableName}.user_id`,
-            )
+            .table(SpaceTableName)
             .leftJoin(
                 ProjectTableName,
                 `${SpaceTableName}.project_id`,
@@ -375,44 +372,81 @@ export class SpaceModel {
             )
             .leftJoin(
                 OrganizationMembershipsTableName,
-                `${OrganizationMembershipsTableName}.user_id`,
-                `${UserTableName}.user_id`,
+                `${OrganizationMembershipsTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
             )
             .leftJoin(
                 ProjectMembershipsTableName,
                 function joinProjectMembershipTable() {
                     this.on(
-                        `${UserTableName}.user_id`,
+                        `${OrganizationMembershipsTableName}.user_id`,
                         '=',
                         `${ProjectMembershipsTableName}.user_id`,
                     ).andOn(
-                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
                         '=',
                         `${ProjectMembershipsTableName}.project_id`,
                     );
                 },
+            )
+            .leftJoin(
+                SpaceShareTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${SpaceShareTableName}.user_id`,
+            )
+            .leftJoin(
+                GroupMembershipTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${GroupMembershipTableName}.user_id`,
+            )
+            .leftJoin(
+                ProjectGroupAccessTableName,
+                function joinProjectGroupAccessTable() {
+                    this.on(
+                        `${GroupMembershipTableName}.group_uuid`,
+                        '=',
+                        `${ProjectGroupAccessTableName}.group_uuid`,
+                    ).andOn(
+                        `${ProjectTableName}.project_uuid`,
+                        '=',
+                        `${ProjectGroupAccessTableName}.project_uuid`,
+                    );
+                },
+            )
+            .leftJoin(
+                UserTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+            .distinctOn(`${UserTableName}.user_uuid`)
+            .groupBy(
+                `${UserTableName}.user_id`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${ProjectMembershipsTableName}.role`,
+                `${OrganizationMembershipsTableName}.role`,
+                `${SpaceShareTableName}.user_id`,
             )
             .select<
                 {
                     user_uuid: string;
                     first_name: string;
                     last_name: string;
-                    project_role: ProjectMemberRole | null;
-                    has_direct_access: boolean;
+                    user_with_direct_access: string;
+                    project_role: ProjectMemberRole | undefined;
                     organization_role: OrganizationMemberRole;
+                    group_roles: (ProjectMemberRole | undefined)[];
                 }[]
             >([
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
-                // `(case when ${SpaceShareTableName}.user_id is not null then true else false end) as has_direct_access`,
-                `${SpaceShareTableName}.user_id as has_direct_access`,
+                `${SpaceShareTableName}.user_id as user_with_direct_access`,
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
-            ])
-            .where(`${SpaceTableName}.space_uuid`, 'IS', null)
-            .orWhere(`${SpaceTableName}.space_uuid`, spaceUuid)
-            .distinctOn('users.user_uuid');
+                `array_remove(array_agg(${ProjectGroupAccessTableName}.role)) as group_roles`,
+            ]);
 
         return access.reduce<SpaceShare[]>(
             (
@@ -421,14 +455,36 @@ export class SpaceModel {
                     user_uuid,
                     first_name,
                     last_name,
-                    has_direct_access,
+                    user_with_direct_access,
                     project_role,
                     organization_role,
+                    group_roles,
                 },
             ) => {
-                const role = getSpaceRoleInfo(project_role, organization_role);
+                const inheritedOrgRole: OrganizationRole = {
+                    type: 'organization',
+                    role: convertOrganizationRoleToProjectRole(
+                        organization_role,
+                    ),
+                };
+
+                const inheritedProjectRole: ProjectRole = {
+                    type: 'project',
+                    role: project_role,
+                };
+
+                const inheritedGroupRoles: GroupRole[] = group_roles.map(
+                    (role) => ({ type: 'group', role }),
+                );
+
+                const highestRole = getHighestProjectRole([
+                    inheritedOrgRole,
+                    inheritedProjectRole,
+                    ...inheritedGroupRoles,
+                ]);
+
                 // exclude all users that were converted to organization members and have no space access
-                if (!role) {
+                if (!highestRole) {
                     this.removeSpaceAccess(spaceUuid, user_uuid); // remove access from the space if it exists
                     return acc;
                 }
@@ -438,10 +494,10 @@ export class SpaceModel {
                         userUuid: user_uuid,
                         firstName: first_name,
                         lastName: last_name,
-                        role: role.role,
-                        hasDirectAccess: !!has_direct_access,
-                        inheritedRole: role.inheritedRole,
-                        inheritedFrom: role.inheritedFrom,
+                        role: convertProjectRoleToSpaceRole(highestRole.role),
+                        hasDirectAccess: !!user_with_direct_access,
+                        inheritedRole: highestRole.role,
+                        inheritedFrom: highestRole.type,
                     },
                 ];
             },
