@@ -21,6 +21,7 @@ import { EventName } from '../../../types/Events';
 import { useDebouncedSearch } from '../hooks/useDebouncedSearch';
 import { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
 import { SearchItem } from '../types/searchItem';
+import OmnibarEmptyState from './OmnibarEmptyState';
 import OmnibarItemGroups from './OmnibarItemGroups';
 
 interface Props {
@@ -176,8 +177,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             onChange={(e) => setQuery(e.currentTarget.value)}
                         />
 
-                        {query && query.length < OMNIBAR_MIN_QUERY_LENGTH ? (
-                            'start typing to search'
+                        {query === undefined || query === '' ? (
+                            <OmnibarEmptyState message="Start typing to search for everything in your project." />
+                        ) : query.length < OMNIBAR_MIN_QUERY_LENGTH ? (
+                            <OmnibarEmptyState message="Keep typing to search for everything in your project." />
+                        ) : isFetching ? (
+                            <OmnibarEmptyState message="Searching..." />
+                        ) : items.length === 0 ? (
+                            <OmnibarEmptyState message="No results found." />
                         ) : (
                             <OmnibarItemGroups
                                 items={items}

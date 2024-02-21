@@ -14,7 +14,6 @@ const useSearch = (projectUuid: string, query: string = '') => {
             }),
         retry: false,
         enabled: query.length >= OMNIBAR_MIN_QUERY_LENGTH,
-        keepPreviousData: true,
     });
 };
 
