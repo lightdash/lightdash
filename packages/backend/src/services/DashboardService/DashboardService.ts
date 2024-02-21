@@ -740,10 +740,19 @@ export class DashboardService {
             );
         }
 
+        const canUserRemoveAnyComment = user.ability.can(
+            'manage',
+            subject('DashboardComments', {
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid: dashboard.projectUuid,
+            }),
+        );
+
         return this.dashboardModel.getComments(
             dashboardUuid,
             dashboardTileUuid,
             user.userUuid,
+            canUserRemoveAnyComment,
         );
     }
 
@@ -783,7 +792,7 @@ export class DashboardService {
 
         if (
             user.ability.cannot(
-                'manage',
+                'create',
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
@@ -799,6 +808,18 @@ export class DashboardService {
             );
         }
 
-        return this.dashboardModel.deleteComment(commentId);
+        const canUserRemoveAnyComment = user.ability.can(
+            'manage',
+            subject('DashboardComments', {
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid: dashboard.projectUuid,
+            }),
+        );
+
+        return this.dashboardModel.deleteComment(
+            user.userUuid,
+            commentId,
+            canUserRemoveAnyComment,
+        );
     }
 }

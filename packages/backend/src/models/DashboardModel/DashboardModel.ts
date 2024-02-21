@@ -944,6 +944,7 @@ export class DashboardModel {
         dashboardUuid: string,
         dashboardTileUuid: string,
         userUuid: string,
+        canUserRemoveAnyComment: boolean,
     ): Promise<Comment[]> {
         this.checkDashboardTileExistsInDashboard(
             dashboardUuid,
@@ -976,7 +977,8 @@ export class DashboardModel {
             user: { name: userMap[comment.user_uuid] },
             createdAt: comment.created_at,
             resolved: comment.resolved,
-            canRemove: comment.user_uuid === userUuid,
+            canRemove:
+                canUserRemoveAnyComment || comment.user_uuid === userUuid,
         }));
 
         const commentMap: Record<string, Comment> = {};
@@ -1004,12 +1006,27 @@ export class DashboardModel {
             .where('comment_id', commentId);
     }
 
-    async deleteComment(commentId: string): Promise<void> {
-        await this.database(DashboardTileCommentsTableName)
-            .delete()
-            .where('reply_to', commentId);
-        await this.database(DashboardTileCommentsTableName)
-            .delete()
-            .where('comment_id', commentId);
+    async deleteComment(
+        userUuid: string,
+        commentId: string,
+        canUserRemoveAnyComment: boolean,
+    ): Promise<void> {
+        const ownerCheck = await this.database(DashboardTileCommentsTableName)
+            .select('user_uuid')
+            .where('comment_id', commentId)
+            .first();
+
+        if (
+            ownerCheck &&
+            (ownerCheck.user_uuid === userUuid || canUserRemoveAnyComment)
+        ) {
+            // If the user is the owner or can remove any comment, delete the main comment and its replies
+            await this.database(DashboardTileCommentsTableName)
+                .delete()
+                .where('reply_to', commentId)
+                .orWhere('comment_id', commentId);
+        } else {
+            throw new NotFoundError('Comment not found');
+        }
     }
 }
