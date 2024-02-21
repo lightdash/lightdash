@@ -26,6 +26,7 @@ import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
+import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
@@ -424,6 +425,12 @@ export class SpaceModel {
                 `${OrganizationMembershipsTableName}.user_id`,
                 `${UserTableName}.user_id`,
             )
+            .innerJoin(
+                EmailTableName,
+                `${UserTableName}.user_id`,
+                `${EmailTableName}.user_id`,
+            )
+            .where(`${EmailTableName}.is_primary`, true)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid)
             .where(`${OrganizationMembershipsTableName}.role`, '!=', 'member')
             .distinctOn(`${UserTableName}.user_uuid`)
@@ -431,6 +438,7 @@ export class SpaceModel {
                 `${UserTableName}.user_id`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
+                `${EmailTableName}.email`,
                 `${ProjectMembershipsTableName}.role`,
                 `${OrganizationMembershipsTableName}.role`,
                 `${SpaceShareTableName}.user_id`,
@@ -440,6 +448,7 @@ export class SpaceModel {
                     user_uuid: string;
                     first_name: string;
                     last_name: string;
+                    email: string;
                     user_with_direct_access: string;
                     project_role: ProjectMemberRole | undefined;
                     organization_role: OrganizationMemberRole;
@@ -449,6 +458,7 @@ export class SpaceModel {
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
+                `emails.email`,
                 `${SpaceShareTableName}.user_id as user_with_direct_access`,
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
@@ -464,6 +474,7 @@ export class SpaceModel {
                     user_uuid,
                     first_name,
                     last_name,
+                    email,
                     user_with_direct_access,
                     project_role,
                     organization_role,
@@ -503,6 +514,7 @@ export class SpaceModel {
                         userUuid: user_uuid,
                         firstName: first_name,
                         lastName: last_name,
+                        email,
                         role: convertProjectRoleToSpaceRole(highestRole.role),
                         hasDirectAccess: !!user_with_direct_access,
                         inheritedRole: highestRole.role,

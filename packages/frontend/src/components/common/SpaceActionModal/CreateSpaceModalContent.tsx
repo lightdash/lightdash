@@ -98,6 +98,7 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                         userUuid: userUuid,
                         firstName: user.firstName || user.email,
                         lastName: user.lastName || '',
+                        email: user.email,
                         role: SpaceMemberRole.EDITOR,
                         hasDirectAccess: false,
                         inheritedFrom: undefined,

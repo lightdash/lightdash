@@ -1,6 +1,5 @@
 import {
     LightdashUser,
-    OrganizationMemberProfile,
     ProjectMemberRole,
     Space,
     SpaceShare,
@@ -24,7 +23,6 @@ export interface ShareSpaceUserListProps {
     space: Space;
     sessionUser: LightdashUser | undefined;
     projectUuid: string;
-    organizationUsers: OrganizationMemberProfile[] | undefined;
     spaceAccessType: string;
 }
 
@@ -68,7 +66,6 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     space,
     projectUuid,
     sessionUser,
-    organizationUsers,
     spaceAccessType,
 }) => {
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
@@ -94,9 +91,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                 )
                 .map((sharedUser) => {
                     const isYou = userIsYou(sharedUser);
-                    const role = upperFirst(
-                        sharedUser.inheritedRole?.toString() || '',
-                    );
+                    const role = upperFirst(sharedUser.role?.toString() || '');
 
                     const userAccessTypes = UserAccessOptions.map(
                         (accessType) =>
@@ -123,14 +118,18 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 <Avatar radius="xl" tt="uppercase" color="blue">
                                     {getInitials(
                                         sharedUser.userUuid,
-                                        organizationUsers,
+                                        sharedUser.firstName,
+                                        sharedUser.lastName,
+                                        sharedUser.email,
                                     )}
                                 </Avatar>
 
                                 <Text fw={600} fz="sm">
                                     {getUserNameOrEmail(
                                         sharedUser.userUuid,
-                                        organizationUsers,
+                                        sharedUser.firstName,
+                                        sharedUser.lastName,
+                                        sharedUser.email,
                                     )}
                                     {isYou ? (
                                         <Text fw={400} span c="gray.6">

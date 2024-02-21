@@ -46,6 +46,7 @@ export type SpaceShare = {
     userUuid: string;
     firstName: string;
     lastName: string;
+    email: string;
     role: SpaceMemberRole;
     hasDirectAccess: boolean;
     inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
@@ -56,13 +57,6 @@ export enum SpaceMemberRole {
     VIEWER = 'viewer',
     EDITOR = 'editor',
 }
-
-export type SpaceRoleInfo = {
-    role: SpaceMemberRole;
-    hasDirectAccess: boolean;
-    inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
-    inheritedFrom: 'organization' | 'project' | 'group' | undefined;
-};
 
 export type ApiSpaceSummaryListResponse = {
     status: 'ok';

@@ -1,5 +1,4 @@
 import {
-    OrganizationMemberProfile,
     OrganizationMemberRole,
     ProjectMemberRole,
     Space,
@@ -14,46 +13,29 @@ import {
     Text,
 } from '@mantine/core';
 import { FC, forwardRef, useMemo, useState } from 'react';
-import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 interface ShareSpaceAddUserProps {
     space: Space;
     projectUuid: string;
-    organizationUsers: OrganizationMemberProfile[] | undefined;
 }
 
 export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     space,
     projectUuid,
-    organizationUsers,
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const { data: projectAccess } = useProjectAccess(projectUuid);
 
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
 
-    const userUuids: string[] = useMemo(() => {
-        if (organizationUsers === undefined) return [];
-
-        const projectUserUuids =
-            projectAccess?.map((project) => project.userUuid) || [];
-
-        const orgUserUuids = organizationUsers
-            .filter((user) => user.role !== OrganizationMemberRole.MEMBER)
-            .map((user) => user.userUuid);
-
-        return [...new Set([...projectUserUuids, ...orgUserUuids])];
-    }, [organizationUsers, projectAccess]);
-
     const UserItemComponent = useMemo(() => {
         return forwardRef<HTMLDivElement, SelectItem>((props, ref) => {
-            const user = organizationUsers?.find(
+            const user = space.access?.find(
                 (userAccess) => userAccess.userUuid === props.value,
             );
 
@@ -62,7 +44,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             return (
                 <Group ref={ref} {...props}>
                     <Avatar radius="xl" color="blue">
-                        {getInitials(user.userUuid, organizationUsers)}
+                        {getInitials(
+                            user.userUuid,
+                            user.firstName,
+                            user.lastName,
+                            user.email,
+                        )}
                     </Avatar>
 
                     <Stack spacing="two">
@@ -81,38 +68,32 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         });
-    }, [organizationUsers]);
+    }, [space.access]);
 
     const data = useMemo(() => {
-        return userUuids
-            .map((userUuid): SelectItem | null => {
-                const projectUser = projectAccess?.find(
-                    (a) => a.userUuid === userUuid,
-                );
-
-                const user = organizationUsers?.find(
-                    (a) => a.userUuid === userUuid,
-                );
-
-                if (!user) return null;
+        return space.access
+            .map((accessableUser): SelectItem | null => {
+                if (!accessableUser) return null;
 
                 const isAdmin =
-                    user.role === OrganizationMemberRole.ADMIN ||
-                    projectUser?.role === ProjectMemberRole.ADMIN;
+                    accessableUser.inheritedRole ===
+                        OrganizationMemberRole.ADMIN ||
+                    accessableUser.inheritedRole === ProjectMemberRole.ADMIN;
 
-                const hasAccess = space.access?.find(
-                    (access) => access.userUuid == userUuid,
-                )?.hasDirectAccess;
-
-                if (isAdmin || hasAccess) return null;
+                if (isAdmin || accessableUser.hasDirectAccess) return null;
 
                 return {
-                    value: userUuid,
-                    label: getUserNameOrEmail(userUuid, organizationUsers),
+                    value: accessableUser.userUuid,
+                    label: getUserNameOrEmail(
+                        accessableUser.userUuid,
+                        accessableUser.firstName,
+                        accessableUser.lastName,
+                        accessableUser.email,
+                    ),
                 };
             })
             .filter((item): item is SelectItem => item !== null);
-    }, [organizationUsers, userUuids, projectAccess, space.access]);
+    }, [space.access]);
 
     return (
         <Group>
