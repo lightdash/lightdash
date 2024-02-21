@@ -23,11 +23,21 @@ const OmnibarItemGroups: FC<Props> = ({
     canUserManageValidation,
     onClick,
 }) => {
-    const groupedTypes = useMemo(() => {
+    const itemsGroupedByType = useMemo(() => {
         return items.reduce<GroupedItems>((acc, item) => {
             return { ...acc, [item.type]: (acc[item.type] ?? []).concat(item) };
         }, {});
     }, [items]);
+
+    const sortedGroupEntries = useMemo(() => {
+        const entries = Object.entries(itemsGroupedByType) as Array<
+            [SearchItem['type'], Array<SearchItem>]
+        >;
+
+        return entries.sort(([_typeA, itemsA], [_typeB, ItemsB]) => {
+            return (itemsA[0].searchRank ?? 0) - (ItemsB[0].searchRank ?? 0);
+        });
+    }, [itemsGroupedByType]);
 
     return (
         <Accordion
@@ -50,7 +60,7 @@ const OmnibarItemGroups: FC<Props> = ({
                 onOpenPanelsChange(newPanels)
             }
         >
-            {Object.entries(groupedTypes).map(([type, groupedItems]) => (
+            {sortedGroupEntries.map(([type, groupItems]) => (
                 <Accordion.Item key={type} value={type}>
                     <Accordion.Control>
                         <Text color="dark" fw={500} fz="xs">
@@ -59,7 +69,7 @@ const OmnibarItemGroups: FC<Props> = ({
                     </Accordion.Control>
 
                     <Accordion.Panel>
-                        {groupedItems.map((item) => (
+                        {groupItems.map((item) => (
                             <OmnibarItem
                                 key={item.location.pathname}
                                 item={item}
