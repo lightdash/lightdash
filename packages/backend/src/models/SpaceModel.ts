@@ -419,6 +419,7 @@ export class SpaceModel {
                 `${UserTableName}.user_id`,
             )
             .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+            .where(`${OrganizationMembershipsTableName}.role`, '!=', 'member')
             .distinctOn(`${UserTableName}.user_uuid`)
             .groupBy(
                 `${UserTableName}.user_id`,
@@ -445,7 +446,9 @@ export class SpaceModel {
                 `${SpaceShareTableName}.user_id as user_with_direct_access`,
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
-                `array_remove(array_agg(${ProjectGroupAccessTableName}.role)) as group_roles`,
+                this.database.raw(
+                    `array_agg(${ProjectGroupAccessTableName}.role) as group_roles`,
+                ),
             ]);
 
         return access.reduce<SpaceShare[]>(
@@ -461,6 +464,14 @@ export class SpaceModel {
                     group_roles,
                 },
             ) => {
+                console.log('user_uuid', user_uuid);
+                console.log('first_name', first_name);
+                console.log('last_name', last_name);
+                console.log('user_with_direct_access', user_with_direct_access);
+                console.log('project_role', project_role);
+                console.log('organization_role', organization_role);
+                console.log('group_roles', group_roles);
+
                 const inheritedOrgRole: OrganizationRole = {
                     type: 'organization',
                     role: convertOrganizationRoleToProjectRole(
@@ -482,6 +493,8 @@ export class SpaceModel {
                     inheritedProjectRole,
                     ...inheritedGroupRoles,
                 ]);
+
+                console.log('highestRole', highestRole);
 
                 // exclude all users that were converted to organization members and have no space access
                 if (!highestRole) {

@@ -154,7 +154,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 role === upperFirst(ProjectMemberRole.ADMIN) ||
                                 spaceAccessType === SpaceAccessType.PUBLIC ? (
                                     <Badge size="md" color="gray.6" radius="xs">
-                                        {role}
+                                        {sharedUser.role}
                                     </Badge>
                                 ) : (
                                     <Select
