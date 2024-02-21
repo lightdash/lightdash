@@ -1,6 +1,9 @@
 import {
+    assertUnreachable,
     friendlyName,
     LightdashPage,
+    operatorAction,
+    ThresholdOperator,
     ThresholdOptions,
 } from '@lightdash/common';
 import { KnownBlock, LinkUnfurls, SectionBlock } from '@slack/bolt';
@@ -206,14 +209,14 @@ export const getChartThresholdAlertBlocks = ({
 }: GetChartThresholdBlocksArgs): KnownBlock[] => {
     // TODO only pass threshold conditions met
     // TODO send field name from explore or results (instead of friendly name)
-    // TODO better threshold.operator namign (instead of friendly name)
+
     const thresholdBlocks: KnownBlock[] = thresholds.map((threshold) => ({
         type: 'section',
         text: {
             type: 'mrkdwn',
-            text: `• \`${friendlyName(threshold.fieldId)}\` is *${friendlyName(
+            text: `• *${friendlyName(threshold.fieldId)}* ${operatorAction(
                 threshold.operator,
-            )}* \`${threshold.value}\` `,
+            )} *${threshold.value}*`,
         },
     }));
     return getBlocks([
@@ -238,7 +241,7 @@ export const getChartThresholdAlertBlocks = ({
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `Your results for \`${name}\` met the following conditions:`,
+                text: `Your results for the chart *${name}* triggered the following alerts:`,
             },
             accessory: {
                 type: 'button',

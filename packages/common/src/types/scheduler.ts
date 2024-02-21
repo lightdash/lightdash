@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { Explore, ExploreError } from './explore';
 import { DashboardFilterRule } from './filter';
 import { MetricQuery } from './metricQuery';
@@ -59,15 +60,33 @@ export type SchedulerLog = {
 
 export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
 
-export enum ThresoldOperator {
+export enum ThresholdOperator {
     GREATER_THAN = 'greaterThan',
     LESS_THAN = 'lessThan',
     INCREASED_BY = 'increasedBy',
     DECREASED_BY = 'decreasedBy',
     // HAS_CHANGED = '=',
 }
+export const operatorAction = (operator: ThresholdOperator) => {
+    switch (operator) {
+        case ThresholdOperator.GREATER_THAN:
+            return 'exceeded';
+        case ThresholdOperator.LESS_THAN:
+            return 'fell below';
+        case ThresholdOperator.INCREASED_BY:
+            return 'increased by';
+        case ThresholdOperator.DECREASED_BY:
+            return 'decreased by';
+        default:
+            assertUnreachable(
+                operator,
+                `Unknown threshold operator: ${operator}`,
+            );
+    }
+    return '';
+};
 export type ThresholdOptions = {
-    operator: ThresoldOperator;
+    operator: ThresholdOperator;
     fieldId: string;
     value: number;
 };

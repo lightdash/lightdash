@@ -12,7 +12,7 @@ import {
     ItemsMap,
     SchedulerAndTargets,
     SchedulerFormat,
-    ThresoldOperator,
+    ThresholdOperator,
     validateEmail,
 } from '@lightdash/common';
 import {
@@ -35,11 +35,13 @@ import {
     Tabs,
     Text,
     TextInput,
+    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconChevronDown,
     IconChevronUp,
+    IconHelpCircle,
     IconMail,
     IconSettings,
 } from '@tabler/icons-react';
@@ -103,17 +105,17 @@ const DEFAULT_VALUES_ALERT = {
     thresholds: [
         {
             fieldId: '',
-            operator: ThresoldOperator.GREATER_THAN,
+            operator: ThresholdOperator.GREATER_THAN,
             value: 0,
         },
     ],
 };
 
 const thresholdOperatorOptions = [
-    { label: 'is greater than', value: ThresoldOperator.GREATER_THAN },
-    { label: 'is less than', value: ThresoldOperator.LESS_THAN },
-    { label: 'increased by', value: ThresoldOperator.INCREASED_BY },
-    { label: 'decreased by', value: ThresoldOperator.DECREASED_BY },
+    { label: 'is greater than', value: ThresholdOperator.GREATER_THAN },
+    { label: 'is less than', value: ThresholdOperator.LESS_THAN },
+    { label: 'increased by', value: ThresholdOperator.INCREASED_BY },
+    { label: 'decreased by', value: ThresholdOperator.DECREASED_BY },
 ];
 
 const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
@@ -510,10 +512,30 @@ const SchedulerForm: FC<Props> = ({
                         <Input.Wrapper
                             label={
                                 isThresholdAlert
-                                    ? 'Alert frequency'
+                                    ? 'Run frequency'
                                     : 'Delivery frequency'
                             }
                         >
+                            {isThresholdAlert && (
+                                <Tooltip
+                                    withinPortal
+                                    maw={400}
+                                    multiline
+                                    label=" This is the frequency at which Lightdash runs a query to check your data for changes. (You will be notified if the conditions on the latest value are met) "
+                                    position="top"
+                                >
+                                    <MantineIcon
+                                        icon={IconHelpCircle}
+                                        size="md"
+                                        display="inline"
+                                        color="gray"
+                                        style={{
+                                            marginLeft: '4px',
+                                            marginBottom: '-4px',
+                                        }}
+                                    />
+                                </Tooltip>
+                            )}
                             <Box>
                                 <CronInternalInputs
                                     disabled={disabled}
