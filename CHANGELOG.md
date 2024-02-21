@@ -1,3 +1,10 @@
+## [0.1000.2](https://github.com/lightdash/lightdash/compare/0.1000.1...0.1000.2) (2024-02-21)
+
+
+### Bug Fixes
+
+* update copy threshold alerts ([#9017](https://github.com/lightdash/lightdash/issues/9017)) ([b555f9a](https://github.com/lightdash/lightdash/commit/b555f9af77bc32c7adf21319b6ead75468b8cda7))
+
 ## [0.1000.1](https://github.com/lightdash/lightdash/compare/0.1000.0...0.1000.1) (2024-02-20)
 
 
