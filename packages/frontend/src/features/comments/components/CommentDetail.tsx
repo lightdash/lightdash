@@ -9,7 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { IconCircleCheck, IconMessage, IconTrash } from '@tabler/icons-react';
+import { IconMessage, IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
@@ -18,16 +18,10 @@ import { CommentTimestamp } from './CommentTimestamp';
 type Props = {
     comment: Comment;
     onRemove: () => void;
-    onResolve?: () => void;
     onReply?: () => void;
 };
 
-export const CommentDetail: FC<Props> = ({
-    comment,
-    onRemove,
-    onResolve,
-    onReply,
-}) => {
+export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
     const { ref, hovered } = useHover();
 
     return (
@@ -69,18 +63,6 @@ export const CommentDetail: FC<Props> = ({
                                         color="blue"
                                     >
                                         <MantineIcon icon={IconMessage} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                            {onResolve && (
-                                <Tooltip label="Resolve">
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={() => onResolve()}
-                                        variant="light"
-                                        color="green"
-                                    >
-                                        <MantineIcon icon={IconCircleCheck} />
                                     </ActionIcon>
                                 </Tooltip>
                             )}

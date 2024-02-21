@@ -66,41 +66,6 @@ export const useGetComments = (
     );
 };
 
-const resolveComment = async ({
-    commentId,
-    dashboardTileUuid,
-    dashboardUuid,
-}: { commentId: string } & Pick<
-    CreateDashboardTileComment,
-    'dashboardTileUuid' | 'dashboardUuid'
->) =>
-    lightdashApi<null>({
-        url: `/dashboards/${dashboardUuid}/${dashboardTileUuid}/comments/${commentId}`,
-        method: 'PATCH',
-        body: undefined,
-    });
-
-export const useResolveComment = () => {
-    const queryClient = useQueryClient();
-    return useMutation<
-        null,
-        ApiError,
-        { commentId: string } & Pick<
-            CreateDashboardTileComment,
-            'dashboardTileUuid' | 'dashboardUuid'
-        >
-    >((data) => resolveComment(data), {
-        mutationKey: ['resolve-comment'],
-        onSuccess: async (_, { dashboardTileUuid, dashboardUuid }) => {
-            await queryClient.invalidateQueries([
-                'comments',
-                dashboardUuid,
-                dashboardTileUuid,
-            ]);
-        },
-    });
-};
-
 const removeComment = async ({
     commentId,
     dashboardTileUuid,
