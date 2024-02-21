@@ -1,4 +1,3 @@
-{{ config(alias='customers_alias') }}
 
 with customers as (
 
