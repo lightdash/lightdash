@@ -8,6 +8,7 @@ import {
     isDimension,
     isExploreError,
     NotExistsError,
+    ParameterError,
     SavedChartSearchResult,
     SearchFilters,
     SearchResults,
@@ -45,6 +46,52 @@ export class SearchModel {
         return !queryTypeFilter || queryTypeFilter === entityType;
     }
 
+    private static filterByCreatedAt<T extends {}, R>(
+        tableName: string,
+        query: Knex.QueryBuilder<T, R>,
+        filters: SearchFilters = {},
+    ) {
+        const { fromDate, toDate } = filters;
+        const fromDateObj = fromDate ? new Date(fromDate) : undefined;
+        const toDateObj = toDate ? new Date(toDate) : undefined;
+        const now = new Date();
+
+        // validate when both fromDate and toDate are present
+        if (
+            fromDateObj &&
+            toDateObj &&
+            fromDateObj.getTime() > toDateObj.getTime()
+        ) {
+            throw new ParameterError('fromDate cannot be after toDate');
+        }
+
+        if (fromDateObj) {
+            if (Number.isNaN(fromDateObj.getTime())) {
+                throw new ParameterError('fromDate is not a valid date');
+            }
+
+            if (fromDateObj.getTime() > now.getTime()) {
+                throw new ParameterError('fromDate cannot be in the future');
+            }
+
+            query.whereRaw(`Date(${tableName}.created_at) >= ?`, fromDate);
+        }
+
+        if (toDateObj) {
+            if (Number.isNaN(toDateObj.getTime())) {
+                throw new ParameterError('toDate is not a valid date');
+            }
+
+            if (toDateObj.getTime() > now.getTime()) {
+                throw new ParameterError('toDate cannot be in the future');
+            }
+
+            query.whereRaw(`Date(${tableName}.created_at) <= ?`, toDate);
+        }
+
+        return query;
+    }
+
     private async searchSpaces(
         projectUuid: string,
         query: string,
@@ -62,7 +109,7 @@ export class SearchModel {
                 query,
             );
 
-        const subquery = this.database(SpaceTableName)
+        const baseSubquery = this.database(SpaceTableName)
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -71,6 +118,12 @@ export class SearchModel {
             .column({ uuid: 'space_uuid' }, 'spaces.name', searchRankRawSql)
             .where('projects.project_uuid', projectUuid)
             .orderBy(searchRankColumnName, 'desc');
+
+        const subquery = SearchModel.filterByCreatedAt(
+            SpaceTableName,
+            baseSubquery,
+            filters,
+        );
 
         return this.database(SpaceTableName)
             .select()
@@ -96,7 +149,7 @@ export class SearchModel {
                 query,
             );
 
-        const subquery = this.database(DashboardsTableName)
+        const baseSubquery = this.database(DashboardsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
@@ -116,6 +169,12 @@ export class SearchModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderBy(searchRankColumnName, 'desc');
+
+        const subquery = SearchModel.filterByCreatedAt(
+            DashboardsTableName,
+            baseSubquery,
+            filters,
+        );
 
         const dashboards = await this.database(DashboardsTableName)
             .select()
@@ -169,7 +228,7 @@ export class SearchModel {
             );
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
-        const subquery = this.database(SavedChartsTableName)
+        const baseSubquery = this.database(SavedChartsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${SavedChartsTableName}.space_id`,
@@ -194,9 +253,15 @@ export class SearchModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderBy(searchRankColumnName, 'desc');
 
+        const subQuery = SearchModel.filterByCreatedAt(
+            SavedChartsTableName,
+            baseSubquery,
+            filters,
+        );
+
         const savedCharts = await this.database(SavedChartsTableName)
             .select()
-            .from(subquery.as('saved_charts_with_rank'))
+            .from(subQuery.as('saved_charts_with_rank'))
             .where(searchRankColumnName, '>', 0)
             .limit(10);
 

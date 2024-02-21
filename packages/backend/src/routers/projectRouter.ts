@@ -54,12 +54,16 @@ projectRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const { type } = req.query;
+            const { type, fromDate, toDate } = req.query;
             const results = await searchService.getSearchResults(
                 req.user!,
                 req.params.projectUuid,
                 req.params.query,
-                { type: type?.toString() },
+                {
+                    type: type?.toString(),
+                    fromDate: fromDate?.toString(),
+                    toDate: toDate?.toString(),
+                },
             );
             res.json({ status: 'ok', results });
         } catch (e) {
