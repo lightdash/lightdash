@@ -18,6 +18,7 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import moment from 'moment';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import {
     CachedExploresTableName,
@@ -52,41 +53,42 @@ export class SearchModel {
         filters: SearchFilters = {},
     ) {
         const { fromDate, toDate } = filters;
-        const fromDateObj = fromDate ? new Date(fromDate) : undefined;
-        const toDateObj = toDate ? new Date(toDate) : undefined;
-        const now = new Date();
+        const fromDateObj = fromDate ? moment(fromDate).utc() : undefined;
+        const toDateObj = toDate ? moment(toDate).utc() : undefined;
+        const now = moment();
 
-        // validate when both fromDate and toDate are present
-        if (
-            fromDateObj &&
-            toDateObj &&
-            fromDateObj.getTime() > toDateObj.getTime()
-        ) {
+        if (fromDateObj?.isAfter(toDateObj)) {
             throw new ParameterError('fromDate cannot be after toDate');
         }
 
         if (fromDateObj) {
-            if (Number.isNaN(fromDateObj.getTime())) {
-                throw new ParameterError('fromDate is not a valid date');
+            if (!fromDateObj.isValid()) {
+                throw new ParameterError('fromDate is not valid');
             }
 
-            if (fromDateObj.getTime() > now.getTime()) {
+            if (fromDateObj.isAfter(now)) {
                 throw new ParameterError('fromDate cannot be in the future');
             }
 
-            query.whereRaw(`Date(${tableName}.created_at) >= ?`, fromDate);
+            query.whereRaw(
+                `Date(${tableName}.created_at) >= ?`,
+                fromDateObj.startOf('day').toDate(),
+            );
         }
 
         if (toDateObj) {
-            if (Number.isNaN(toDateObj.getTime())) {
-                throw new ParameterError('toDate is not a valid date');
+            if (!toDateObj.isValid()) {
+                throw new ParameterError('toDate is not valid');
             }
 
-            if (toDateObj.getTime() > now.getTime()) {
+            if (toDateObj.isAfter(now)) {
                 throw new ParameterError('toDate cannot be in the future');
             }
 
-            query.whereRaw(`Date(${tableName}.created_at) <= ?`, toDate);
+            query.whereRaw(
+                `Date(${tableName}.created_at) <= ?`,
+                toDateObj.endOf('day').toDate(),
+            );
         }
 
         return query;
