@@ -1011,17 +1011,6 @@ export class DashboardModel {
     }
 
     async deleteComment(commentId: string): Promise<void> {
-        const commentExists = await this.database(
-            DashboardTileCommentsTableName,
-        )
-            .select('comment_id')
-            .where('comment_id', commentId)
-            .first();
-
-        if (!commentExists) {
-            throw new NotFoundError('Comment not found');
-        }
-
         await this.database(DashboardTileCommentsTableName)
             .delete()
             .where('reply_to', commentId)
