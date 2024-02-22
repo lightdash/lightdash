@@ -1,6 +1,5 @@
 import {
     DashboardSearchResult,
-    EntityType,
     Explore,
     ExploreError,
     FieldSearchResult,
@@ -10,6 +9,7 @@ import {
     NotExistsError,
     SavedChartSearchResult,
     SearchFilters,
+    SearchItemType,
     SearchResults,
     SpaceSearchResult,
     TableErrorSearchResult,
@@ -38,7 +38,7 @@ export class SearchModel {
     }
 
     private static shouldSearchForType(
-        entityType: EntityType,
+        entityType: SearchItemType,
         queryTypeFilter?: string,
     ) {
         // if there is no filter or if the filter is the same as the entityType
@@ -50,7 +50,12 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<SpaceSearchResult[]> {
-        if (!SearchModel.shouldSearchForType('spaces', filters?.type)) {
+        if (
+            !SearchModel.shouldSearchForType(
+                SearchItemType.SPACE,
+                filters?.type,
+            )
+        ) {
             return [];
         }
 
@@ -84,7 +89,12 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<DashboardSearchResult[]> {
-        if (!SearchModel.shouldSearchForType('dashboards', filters?.type)) {
+        if (
+            !SearchModel.shouldSearchForType(
+                SearchItemType.DASHBOARD,
+                filters?.type,
+            )
+        ) {
             return [];
         }
 
@@ -156,7 +166,12 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<SavedChartSearchResult[]> {
-        if (!SearchModel.shouldSearchForType('charts', filters?.type)) {
+        if (
+            !SearchModel.shouldSearchForType(
+                SearchItemType.CHART,
+                filters?.type,
+            )
+        ) {
             return [];
         }
 
@@ -275,12 +290,12 @@ export class SearchModel {
         filters?: SearchFilters,
     ) {
         const shouldSearchForTables = SearchModel.shouldSearchForType(
-            'tables',
+            SearchItemType.TABLE,
             filters?.type,
         );
 
         const shouldSearchForFields = SearchModel.shouldSearchForType(
-            'fields',
+            SearchItemType.FIELD,
             filters?.type,
         );
 
@@ -396,6 +411,30 @@ export class SearchModel {
         }, []);
     }
 
+    private static searchPages(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ) {
+        if (
+            !SearchModel.shouldSearchForType(SearchItemType.PAGE, filters?.type)
+        ) {
+            return [];
+        }
+
+        const allPages = [
+            {
+                uuid: `user-activity`,
+                name: 'User activity',
+                url: `/projects/${projectUuid}/user-activity`,
+            },
+        ];
+
+        return allPages.filter((page) =>
+            page.name?.toLowerCase().includes(query.toLowerCase()),
+        );
+    }
+
     async search(
         projectUuid: string,
         query: string,
@@ -426,16 +465,7 @@ export class SearchModel {
         );
 
         const tablesAndErrors = [...tables, ...tableErrors];
-        const allPages = [
-            {
-                uuid: `user-activity`,
-                name: 'User activity',
-                url: `/projects/${projectUuid}/user-activity`,
-            },
-        ];
-        const pages = allPages.filter((page) =>
-            page.name?.toLowerCase().includes(query.toLowerCase()),
-        );
+        const pages = SearchModel.searchPages(projectUuid, query);
 
         return {
             spaces,
