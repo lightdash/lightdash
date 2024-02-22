@@ -1,3 +1,10 @@
+## [0.1001.4](https://github.com/lightdash/lightdash/compare/0.1001.3...0.1001.4) (2024-02-22)
+
+
+### Bug Fixes
+
+* add docs panel ([#9057](https://github.com/lightdash/lightdash/issues/9057)) ([9d260cc](https://github.com/lightdash/lightdash/commit/9d260ccfce0af42c64da07192cdc3c86c1a92f3a))
+
 ## [0.1001.3](https://github.com/lightdash/lightdash/compare/0.1001.2...0.1001.3) (2024-02-22)
 
 
