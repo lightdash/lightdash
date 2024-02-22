@@ -951,49 +951,48 @@ export class DashboardModel {
             dashboardTileUuid,
         );
 
-        const rows: DbDashboardTileComments[] = await this.database(
+        const commentsWithUsers = await this.database(
             DashboardTileCommentsTableName,
         )
-            .select('*')
-            .where('dashboard_tile_uuid', dashboardTileUuid)
-            .andWhere('resolved', false);
-
-        const userUuids = [...new Set(rows.map((row) => row.user_uuid))];
-
-        const users = await this.database(UserTableName)
-            .select('user_uuid', 'first_name', 'last_name')
-            .whereIn('user_uuid', userUuids);
-
-        const userMap = users.reduce<Record<string, string>>((acc, user) => {
-            acc[user.user_uuid] = `${user.first_name} ${user.last_name}`;
-            return acc;
-        }, {});
-
-        const flatComments: Comment[] = rows.map((comment) => ({
-            commentId: comment.comment_id,
-            text: comment.text,
-            replyTo: comment.reply_to ?? undefined,
-            userUuid: comment.user_uuid,
-            user: { name: userMap[comment.user_uuid] },
-            createdAt: comment.created_at,
-            resolved: comment.resolved,
-            canRemove:
-                canUserRemoveAnyComment || comment.user_uuid === userUuid,
-        }));
+            .leftJoin(
+                UserTableName,
+                `${DashboardTileCommentsTableName}.user_uuid`,
+                '=',
+                `${UserTableName}.user_uuid`,
+            )
+            .select(
+                `${DashboardTileCommentsTableName}.*`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            )
+            .where(
+                `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
+                dashboardTileUuid,
+            )
+            .andWhere(`${DashboardTileCommentsTableName}.resolved`, false);
 
         const commentMap: Record<string, Comment> = {};
-        flatComments.forEach((comment) => {
-            commentMap[comment.commentId] = { ...comment, replies: [] };
-        });
-
         const topLevelComments: Comment[] = [];
-        flatComments.forEach((comment) => {
-            if (comment.replyTo) {
-                commentMap[comment.replyTo]?.replies?.push(
-                    commentMap[comment.commentId],
-                );
+        commentsWithUsers.forEach((comment) => {
+            const fullComment: Comment = {
+                commentId: comment.comment_id,
+                text: comment.text,
+                replyTo: comment.reply_to ?? undefined,
+                user: {
+                    name: `${comment.first_name} ${comment.last_name}`,
+                },
+                createdAt: comment.created_at,
+                resolved: comment.resolved,
+                replies: [],
+                canRemove:
+                    canUserRemoveAnyComment || comment.user_uuid === userUuid,
+            };
+
+            commentMap[fullComment.commentId] = fullComment;
+            if (fullComment.replyTo) {
+                commentMap[fullComment.replyTo]?.replies?.push(fullComment);
             } else {
-                topLevelComments.push(commentMap[comment.commentId]);
+                topLevelComments.push(fullComment);
             }
         });
 
@@ -1006,27 +1005,30 @@ export class DashboardModel {
             .where('comment_id', commentId);
     }
 
-    async deleteComment(
-        userUuid: string,
-        commentId: string,
-        canUserRemoveAnyComment: boolean,
-    ): Promise<void> {
-        const ownerCheck = await this.database(DashboardTileCommentsTableName)
-            .select('user_uuid')
+    async getCommentOwner(commentId: string): Promise<string | null> {
+        const result = await this.database(DashboardTileCommentsTableName)
+            .select<Pick<DbDashboardTileComments, 'user_uuid'>>('user_uuid')
             .where('comment_id', commentId)
             .first();
 
-        if (
-            ownerCheck &&
-            (ownerCheck.user_uuid === userUuid || canUserRemoveAnyComment)
-        ) {
-            // If the user is the owner or can remove any comment, delete the main comment and its replies
-            await this.database(DashboardTileCommentsTableName)
-                .delete()
-                .where('reply_to', commentId)
-                .orWhere('comment_id', commentId);
-        } else {
+        return result ? result.user_uuid : null;
+    }
+
+    async deleteComment(commentId: string): Promise<void> {
+        const commentExists = await this.database(
+            DashboardTileCommentsTableName,
+        )
+            .select('comment_id')
+            .where('comment_id', commentId)
+            .first();
+
+        if (!commentExists) {
             throw new NotFoundError('Comment not found');
         }
+
+        await this.database(DashboardTileCommentsTableName)
+            .delete()
+            .where('reply_to', commentId)
+            .orWhere('comment_id', commentId);
     }
 }
