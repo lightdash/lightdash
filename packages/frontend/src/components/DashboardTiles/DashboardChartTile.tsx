@@ -6,7 +6,6 @@ import {
     createDashboardFilterRuleFromField,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
-    FeatureFlags,
     Field,
     fieldId,
     getCustomLabelsFromTableConfig,
@@ -45,7 +44,6 @@ import {
     IconTableExport,
     IconTelescope,
 } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../api/csv';
@@ -306,6 +304,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
 
+    const dashboardCommentsCheck = useDashboardContext(
+        (c) => c.dashboardCommentsCheck,
+    );
+
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -313,13 +315,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     }>();
     const [isMovingChart, setIsMovingChart] = useState(false);
     const { user } = useApp();
-    const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardTileComments,
-    );
+
     const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
-    const userCanViewComments =
-        isDashboardTileCommentsFeatureEnabled &&
-        user.data?.ability?.can('view', 'DashboardComments');
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
@@ -509,15 +506,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 lockHeaderVisibility={isCommentsMenuOpen}
                 extraHeaderElement={
                     <>
-                        {userCanViewComments &&
-                            isDashboardTileCommentsFeatureEnabled && (
+                        {dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled &&
+                            dashboardCommentsCheck.userCanManageDashboardComments && (
                                 <DashboardTileComments
                                     opened={isCommentsMenuOpen}
                                     onOpen={() => setIsCommentsMenuOpen(true)}
                                     onClose={() => setIsCommentsMenuOpen(false)}
-                                    projectUuid={projectUuid}
                                     dashboardTileUuid={tileUuid}
-                                    dashboardUuid={dashboardUuid}
                                 />
                             )}
                         {appliedFilterRules.length > 0 && (

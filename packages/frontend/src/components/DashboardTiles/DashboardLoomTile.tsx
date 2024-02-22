@@ -8,11 +8,14 @@ import { getLoomId } from './TileForms/LoomTileForm';
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,
     'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-> & { tile: DashboardLoomTile; showComments?: boolean };
+> & { tile: DashboardLoomTile };
 
 const LoomTile: FC<Props> = (props) => {
-    const projectUuid = useDashboardContext((c) => c.projectUuid);
-    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const showComments = useDashboardContext(
+        (c) =>
+            c.dashboardCommentsCheck?.userCanViewDashboardComments &&
+            c.dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled,
+    );
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const {
         tile: {
@@ -24,16 +27,12 @@ const LoomTile: FC<Props> = (props) => {
             title={title}
             lockHeaderVisibility={isCommentsMenuOpen}
             extraHeaderElement={
-                !!props.showComments &&
-                projectUuid &&
-                dashboardUuid && (
+                !!showComments && (
                     <DashboardTileComments
                         opened={isCommentsMenuOpen}
                         onOpen={() => setIsCommentsMenuOpen(true)}
                         onClose={() => setIsCommentsMenuOpen(false)}
-                        projectUuid={projectUuid}
                         dashboardTileUuid={props.tile.uuid}
-                        dashboardUuid={dashboardUuid}
                     />
                 )
             }

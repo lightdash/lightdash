@@ -11,4 +11,4 @@ export type Comment = {
     canRemove: boolean;
 };
 
-export type ApiCommentsResults = Comment[];
+export type ApiCommentsResults = Record<string, Comment[]>;
