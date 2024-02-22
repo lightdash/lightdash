@@ -17,7 +17,7 @@ const createDashboardTileComment = async ({
     replyTo,
 }: CreateDashboardTileComment) =>
     lightdashApi<null>({
-        url: `/dashboards/${dashboardUuid}/${dashboardTileUuid}/comments`,
+        url: `/comments/dashboards/${dashboardUuid}/${dashboardTileUuid}`,
         method: 'POST',
         body: JSON.stringify({
             text,
@@ -46,7 +46,7 @@ const getDashboardComments = async ({
     dashboardUuid,
 }: Pick<CreateDashboardTileComment, 'dashboardUuid'>) =>
     lightdashApi<ApiCommentsResults>({
-        url: `/dashboards/${dashboardUuid}/comments`,
+        url: `/comments/dashboards/${dashboardUuid}`,
         method: 'GET',
         body: undefined,
     });
@@ -64,14 +64,10 @@ export const useGetComments = (dashboardUuid: string, enabled: boolean) => {
 
 const removeComment = async ({
     commentId,
-    dashboardTileUuid,
     dashboardUuid,
-}: { commentId: string } & Pick<
-    CreateDashboardTileComment,
-    'dashboardTileUuid' | 'dashboardUuid'
->) =>
+}: { commentId: string } & Pick<CreateDashboardTileComment, 'dashboardUuid'>) =>
     lightdashApi<null>({
-        url: `/dashboards/${dashboardUuid}/${dashboardTileUuid}/comments/${commentId}`,
+        url: `/comments/dashboards/${dashboardUuid}/${commentId}`,
         method: 'DELETE',
         body: undefined,
     });
@@ -84,7 +80,7 @@ export const useRemoveComment = () => {
         ApiError,
         { commentId: string } & Pick<
             CreateDashboardTileComment,
-            'dashboardTileUuid' | 'dashboardUuid'
+            'dashboardUuid'
         >
     >((data) => removeComment(data), {
         mutationKey: ['remove-comment'],

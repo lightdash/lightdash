@@ -34,11 +34,10 @@ export const DashboardCommentAndReplies: FC<Props> = ({
         async (commentId: string) => {
             await removeComment({
                 dashboardUuid,
-                dashboardTileUuid,
                 commentId,
             });
         },
-        [dashboardTileUuid, dashboardUuid, removeComment],
+        [dashboardUuid, removeComment],
     );
 
     return (
