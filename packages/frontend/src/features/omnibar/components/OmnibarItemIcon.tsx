@@ -29,7 +29,7 @@ export const OmnibarItemIcon: FC<Props> = ({ item }) => {
                 <IconBox
                     color="gray.7"
                     icon={
-                        item.typeLabel.toLowerCase() === 'dimension'
+                        item.typeLabel?.toLowerCase() === 'dimension'
                             ? IconAbc
                             : Icon123
                     }
