@@ -885,33 +885,29 @@ export class DashboardModel {
         dashboardTileUuid: string,
     ) {
         // NOTE: ensure that this dashboard actually contains the tile, since tile uuids might not be unique across dashboards
-        const dashboard = await this.database(DashboardsTableName)
-            .select(['dashboard_id'])
-            .where('dashboard_uuid', dashboardUuid)
-            .first();
-
-        if (!dashboard) throw new NotFoundError('Dashboard not found');
-
-        const dashboardVersion = await this.database(DashboardVersionsTableName)
-            .select(['dashboard_version_id'])
-            .where('dashboard_id', dashboard.dashboard_id)
-            .orderBy('created_at', 'desc')
-            .first();
-
-        if (!dashboardVersion)
-            throw new NotFoundError('Dashboard version not found');
-
         const dashboardTile = await this.database(DashboardTilesTableName)
-            .select(['dashboard_tile_uuid'])
-            .where(
-                'dashboard_version_id',
-                dashboardVersion.dashboard_version_id,
+            .join(
+                DashboardVersionsTableName,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                '=',
+                `${DashboardTilesTableName}.dashboard_version_id`,
             )
-            .where('dashboard_tile_uuid', dashboardTileUuid)
+            .join(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                '=',
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .andWhere(
+                `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                dashboardTileUuid,
+            )
+            .select(`${DashboardTilesTableName}.dashboard_tile_uuid`)
             .first();
 
         if (!dashboardTile) {
-            throw new NotFoundError('Dashboard tile not found');
+            throw new NotFoundError('Dashboard tile not found for dashboard');
         }
     }
 
