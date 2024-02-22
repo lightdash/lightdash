@@ -11,8 +11,13 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useDebouncedSearch } from '../hooks/useDebouncedSearch';
 import { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
-import { SearchItem } from '../types/searchItem';
+import {
+    allSearchItemTypes,
+    SearchItem,
+    SearchItemType,
+} from '../types/searchItem';
 import OmnibarEmptyState from './OmnibarEmptyState';
+import OmnibarFilters from './OmnibarFilters';
 import OmnibarItemGroups from './OmnibarItemGroups';
 import OmnibarTarget from './OmnibarTarget';
 
@@ -104,14 +109,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     const { items, isFetching } = useDebouncedSearch(projectUuid, query);
 
-    const [openPanels, setOpenPanels] = useState<Array<SearchItem['type']>>([
-        'dashboard',
-        'saved_chart',
-        'space',
-        'table',
-        'field',
-        'page',
-    ]);
+    const [openPanels, setOpenPanels] =
+        useState<SearchItemType[]>(allSearchItemTypes);
 
     return (
         <>
@@ -184,16 +183,20 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                         ) : items.length === 0 ? (
                             <OmnibarEmptyState message="No results found." />
                         ) : (
-                            <OmnibarItemGroups
-                                items={items}
-                                projectUuid={projectUuid}
-                                canUserManageValidation={
-                                    canUserManageValidation
-                                }
-                                openPanels={openPanels}
-                                onOpenPanelsChange={setOpenPanels}
-                                onClick={handleItemClick}
-                            />
+                            <>
+                                <OmnibarFilters />
+
+                                <OmnibarItemGroups
+                                    items={items}
+                                    projectUuid={projectUuid}
+                                    canUserManageValidation={
+                                        canUserManageValidation
+                                    }
+                                    openPanels={openPanels}
+                                    onOpenPanelsChange={setOpenPanels}
+                                    onClick={handleItemClick}
+                                />
+                            </>
                         )}
                     </Stack>
                 </Modal>

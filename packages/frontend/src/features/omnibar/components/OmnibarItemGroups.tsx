@@ -1,19 +1,19 @@
 import { Accordion, Text } from '@mantine/core';
 import { FC, useMemo } from 'react';
-import { SearchItem } from '../types/searchItem';
+import { SearchItem, SearchItemType } from '../types/searchItem';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import OmnibarItem from './OmnibarItem';
 
 type Props = {
-    openPanels: Array<SearchItem['type']>;
-    onOpenPanelsChange: (panels: Array<SearchItem['type']>) => void;
+    openPanels: SearchItemType[];
+    onOpenPanelsChange: (panels: SearchItemType[]) => void;
     items: SearchItem[];
     projectUuid: string;
     canUserManageValidation: boolean;
     onClick: (item: SearchItem) => void;
 };
 
-type GroupedItems = Partial<Record<SearchItem['type'], SearchItem[]>>;
+type GroupedItems = Partial<Record<SearchItemType, SearchItem[]>>;
 
 const OmnibarItemGroups: FC<Props> = ({
     openPanels,
@@ -31,7 +31,7 @@ const OmnibarItemGroups: FC<Props> = ({
 
     const sortedGroupEntries = useMemo(() => {
         const entries = Object.entries(itemsGroupedByType) as Array<
-            [SearchItem['type'], Array<SearchItem>]
+            [SearchItemType, Array<SearchItem>]
         >;
 
         return entries.sort(([_typeA, itemsA], [_typeB, ItemsB]) => {
@@ -60,7 +60,7 @@ const OmnibarItemGroups: FC<Props> = ({
             })}
             multiple
             value={openPanels}
-            onChange={(newPanels: Array<SearchItem['type']>) =>
+            onChange={(newPanels: SearchItemType[]) =>
                 onOpenPanelsChange(newPanels)
             }
         >

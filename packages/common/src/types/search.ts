@@ -122,7 +122,7 @@ export const getSearchResultId = (meta: SearchResult | undefined) => {
 
 export enum SearchItemType {
     DASHBOARD = 'dashboard',
-    CHART = 'chart',
+    CHART = 'saved_chart',
     SPACE = 'space',
     TABLE = 'table',
     FIELD = 'field',

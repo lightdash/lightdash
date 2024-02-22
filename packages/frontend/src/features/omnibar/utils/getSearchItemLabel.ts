@@ -1,24 +1,40 @@
 import { assertUnreachable } from '@lightdash/common';
-import { SearchItem } from './../types/searchItem';
+import { SearchItemType } from './../types/searchItem';
 
-export const getSearchItemLabel = (itemType: SearchItem['type']) => {
+export const getSearchItemLabel = (itemType: SearchItemType) => {
     switch (itemType) {
-        case 'field':
+        case SearchItemType.FIELD:
             return 'Fields';
-        case 'dashboard':
+        case SearchItemType.DASHBOARD:
             return 'Dashboards';
-        case 'saved_chart':
+        case SearchItemType.SAVED_CHART:
             return 'Charts';
-        case 'space':
+        case SearchItemType.SPACE:
             return 'Spaces';
-        case 'table':
+        case SearchItemType.TABLE:
             return 'Tables';
-        case 'page':
+        case SearchItemType.PAGE:
             return 'Pages';
         default:
             return assertUnreachable(
                 itemType,
                 `Unknown search item type: ${itemType}`,
             );
+    }
+};
+
+export const getSearchItemErrorLabel = (itemType: SearchItemType) => {
+    switch (itemType) {
+        case SearchItemType.FIELD:
+            return 'field';
+        case SearchItemType.DASHBOARD:
+            return 'dashboard';
+        case SearchItemType.SAVED_CHART:
+            return 'chart';
+        case SearchItemType.SPACE:
+        case SearchItemType.TABLE:
+        case SearchItemType.PAGE:
+        default:
+            return new Error(`Unknown error item type: ${itemType}`);
     }
 };

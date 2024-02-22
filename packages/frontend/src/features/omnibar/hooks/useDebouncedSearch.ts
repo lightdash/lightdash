@@ -3,6 +3,7 @@ import {
     fieldId,
     FieldType,
     isTableErrorSearchResult,
+    SearchItemType,
 } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
@@ -22,7 +23,7 @@ export const useDebouncedSearch = (
     const items = useMemo(() => {
         const spaces =
             data?.spaces.map<SearchItem>((item) => ({
-                type: 'space',
+                type: SearchItemType.SPACE,
                 title: item.name,
                 item: item,
                 searchRank: item.search_rank,
@@ -33,7 +34,7 @@ export const useDebouncedSearch = (
 
         const dashboards =
             data?.dashboards.map<SearchItem>((item) => ({
-                type: 'dashboard',
+                type: SearchItemType.DASHBOARD,
                 title: item.name,
                 description: item.description,
                 item: item,
@@ -45,7 +46,7 @@ export const useDebouncedSearch = (
 
         const savedCharts =
             data?.savedCharts.map<SearchItem>((item) => ({
-                type: 'saved_chart',
+                type: SearchItemType.SAVED_CHART,
                 icon: 'chart',
                 title: item.name,
                 description: item.description,
@@ -60,7 +61,7 @@ export const useDebouncedSearch = (
             data?.tables.map<SearchItem>((item) => {
                 if (isTableErrorSearchResult(item)) {
                     return {
-                        type: 'table',
+                        type: SearchItemType.TABLE,
                         typeLabel: 'Table',
                         title: item.exploreLabel,
                         item: item,
@@ -71,7 +72,7 @@ export const useDebouncedSearch = (
                 }
 
                 return {
-                    type: 'table',
+                    type: SearchItemType.TABLE,
                     typeLabel:
                         item.name === item.explore ? 'Table' : 'Joined table',
                     prefix:
@@ -121,7 +122,7 @@ export const useDebouncedSearch = (
                     },
                 );
                 return {
-                    type: 'field',
+                    type: SearchItemType.FIELD,
                     typeLabel:
                         item.fieldType === FieldType.DIMENSION
                             ? 'Dimension'
@@ -139,7 +140,7 @@ export const useDebouncedSearch = (
 
         const pages =
             data?.pages.map<SearchItem>((item) => ({
-                type: 'page',
+                type: SearchItemType.PAGE,
                 title: item.name,
                 meta: item,
                 location: { pathname: item.url },
