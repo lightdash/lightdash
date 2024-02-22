@@ -133,6 +133,7 @@ module.exports = {
                 'guides/sharing-in-slack',
                 'guides/how-to-create-scheduled-deliveries',
                 'guides/how-to-create-syncs',
+                'guides/how-to-create-alerts',
                 'guides/validating-your-content',
                 'guides/version-history',
                 'guides/how-to-create-multiple-projects',
