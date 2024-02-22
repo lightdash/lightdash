@@ -399,11 +399,9 @@ export const sendSlackNotification = async (
                     ...getBlocksArgs,
                     footerMarkdown: `This is a <${url}?threshold_uuid=${
                         schedulerUuid || ''
-                    }|data alert> ${getHumanReadableCronExpression(
-                        cron,
-                    )} sent by Lightdash\n${
-                        s3Client.getExpirationWarning()?.slack || ''
-                    }`,
+                    }|data alert> sent by Lightdash. For security reasons, delivered files expire after ${
+                        s3Client.getExpirationWarning()?.days || 3
+                    } days`,
                     imageUrl,
                     thresholds,
                 });
@@ -929,12 +927,15 @@ export const sendEmailNotification = async (
                 details.description || '',
                 thresholdMessage,
                 new Date().toLocaleDateString('en-GB'),
-                getHumanReadableCronExpression(scheduler.cron),
+                `For security reasons, delivered files expire after ${
+                    s3Client.getExpirationWarning()?.days || 3
+                } days`,
                 imageUrl,
                 url,
                 schedulerUrl,
                 pdfFile,
-                s3Client.getExpirationWarning()?.days,
+                undefined, // expiration days
+                'This is a data alert sent by Lightdash',
             );
         } else if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
