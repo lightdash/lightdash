@@ -1,3 +1,15 @@
+# [0.1004.0](https://github.com/lightdash/lightdash/compare/0.1003.0...0.1004.0) (2024-02-22)
+
+
+### Bug Fixes
+
+* e2e dates failing sporadically when trying to close the chart panel ([#9063](https://github.com/lightdash/lightdash/issues/9063)) ([14f1bac](https://github.com/lightdash/lightdash/commit/14f1bac67b05e532870690773b819c5cc2f036d2))
+
+
+### Features
+
+* add created at filter backend to global search ([#9052](https://github.com/lightdash/lightdash/issues/9052)) ([6f3b47f](https://github.com/lightdash/lightdash/commit/6f3b47fe70e3698e9aa044ea3b62e0546520deb3))
+
 # [0.1003.0](https://github.com/lightdash/lightdash/compare/0.1002.2...0.1003.0) (2024-02-22)
 
 
