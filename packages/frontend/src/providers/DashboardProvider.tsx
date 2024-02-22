@@ -30,6 +30,10 @@ import { createContext, useContextSelector } from 'use-context-selector';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import { hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
 import {
+    useDashboardCommentsCheck,
+    useGetComments,
+} from '../features/comments';
+import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
 } from '../hooks/dashboard/useDashboard';
@@ -98,6 +102,8 @@ type DashboardContext = {
     setChartsWithDateZoomApplied: Dispatch<
         SetStateAction<Set<string> | undefined>
     >;
+    dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
+    dashboardComments?: ReturnType<typeof useGetComments>['data'];
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -107,8 +113,15 @@ export const DashboardProvider: React.FC<
         schedulerFilters?: SchedulerFilterRule[] | undefined;
         dateZoom?: DateGranularity | undefined;
         projectUuid?: string;
+        dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     }>
-> = ({ schedulerFilters, dateZoom, projectUuid, children }) => {
+> = ({
+    schedulerFilters,
+    dateZoom,
+    projectUuid,
+    dashboardCommentsCheck,
+    children,
+}) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
 
@@ -139,6 +152,13 @@ export const DashboardProvider: React.FC<
             return d;
         },
     });
+
+    const { data: dashboardComments } = useGetComments(
+        dashboardUuid,
+        !!dashboardCommentsCheck &&
+            !!dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
+            !!dashboardCommentsCheck.userCanViewDashboardComments,
+    );
 
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
 
@@ -577,6 +597,8 @@ export const DashboardProvider: React.FC<
         setDateZoomGranularity,
         chartsWithDateZoomApplied,
         setChartsWithDateZoomApplied,
+        dashboardCommentsCheck,
+        dashboardComments,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

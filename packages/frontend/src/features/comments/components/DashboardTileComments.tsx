@@ -1,46 +1,34 @@
-import {
-    ActionIcon,
-    Loader,
-    Popover,
-    PopoverProps,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { ActionIcon, Popover, PopoverProps, Stack, Text } from '@mantine/core';
 import { IconMessage } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useApp } from '../../../providers/AppProvider';
-import { useCreateComment, useGetComments } from '../hooks/useComments';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { useCreateComment } from '../hooks/useComments';
 import { CommentForm } from './CommentForm';
 import { DashboardCommentAndReplies } from './DashboardCommentAndReplies';
 
 type Props = {
-    projectUuid: string;
-    dashboardUuid: string;
     dashboardTileUuid: string;
 };
 
 export const DashboardTileComments: FC<
     Props & Pick<PopoverProps, 'opened' | 'onClose' | 'onOpen'>
-> = ({
-    projectUuid,
-    dashboardTileUuid,
-    dashboardUuid,
-    opened,
-    onClose,
-    onOpen,
-}) => {
+> = ({ dashboardTileUuid, opened, onClose, onOpen }) => {
     const { user } = useApp();
-    const useCanManageDashboardComments = user.data?.ability?.can(
-        'manage',
-        'DashboardComments',
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const userCanManageDashboardComments = useDashboardContext(
+        (c) => c.dashboardCommentsCheck?.userCanManageDashboardComments,
     );
-
-    const { data: comments, isRefetching } = useGetComments(
-        dashboardUuid,
-        dashboardTileUuid,
+    const comments = useDashboardContext(
+        (c) => c.dashboardComments && c.dashboardComments[dashboardTileUuid],
     );
     const { mutateAsync, isLoading } = useCreateComment();
+
+    if (!projectUuid || !dashboardUuid) {
+        return null;
+    }
 
     return (
         <Popover
@@ -75,13 +63,13 @@ export const DashboardTileComments: FC<
                             dashboardTileUuid={dashboardTileUuid}
                         />
                     ))}
-                    {!useCanManageDashboardComments &&
+                    {!userCanManageDashboardComments &&
                         (!comments ||
                             (comments.length === 0 && (
                                 <Text fz="xs">No comments yet</Text>
                             )))}
                 </Stack>
-                {useCanManageDashboardComments && (
+                {userCanManageDashboardComments && (
                     <CommentForm
                         userName={
                             user.data?.firstName + ' ' + user.data?.lastName
@@ -104,11 +92,7 @@ export const DashboardTileComments: FC<
                     size="sm"
                     onClick={() => (opened ? onClose?.() : onOpen?.())}
                 >
-                    {isRefetching ? (
-                        <Loader size="xs" />
-                    ) : (
-                        <MantineIcon icon={IconMessage} />
-                    )}
+                    <MantineIcon icon={IconMessage} />
                 </ActionIcon>
             </Popover.Target>
         </Popover>

@@ -31,11 +31,10 @@ export const useCreateComment = () => {
         (data) => createDashboardTileComment(data),
         {
             mutationKey: ['create-comment'],
-            onSuccess: async (_, { dashboardTileUuid, dashboardUuid }) => {
+            onSuccess: async (_, { dashboardUuid }) => {
                 await queryClient.invalidateQueries([
                     'comments',
                     dashboardUuid,
-                    dashboardTileUuid,
                 ]);
             },
             retry: (_, error) => error.error.statusCode !== 403,
@@ -43,25 +42,22 @@ export const useCreateComment = () => {
     );
 };
 
-const getDashboardTileComments = async ({
-    dashboardTileUuid,
+const getDashboardComments = async ({
     dashboardUuid,
-}: Pick<CreateDashboardTileComment, 'dashboardTileUuid' | 'dashboardUuid'>) =>
+}: Pick<CreateDashboardTileComment, 'dashboardUuid'>) =>
     lightdashApi<ApiCommentsResults>({
-        url: `/dashboards/${dashboardUuid}/${dashboardTileUuid}/comments`,
+        url: `/dashboards/${dashboardUuid}/comments`,
         method: 'GET',
         body: undefined,
     });
 
-export const useGetComments = (
-    dashboardUuid: string,
-    dashboardTileUuid: string,
-) => {
+export const useGetComments = (dashboardUuid: string, enabled: boolean) => {
     return useQuery<ApiCommentsResults, ApiError>(
-        ['comments', dashboardUuid, dashboardTileUuid],
-        () => getDashboardTileComments({ dashboardTileUuid, dashboardUuid }),
+        ['comments', dashboardUuid],
+        () => getDashboardComments({ dashboardUuid }),
         {
             retry: (_, error) => error.error.statusCode !== 403,
+            enabled,
         },
     );
 };
@@ -92,12 +88,8 @@ export const useRemoveComment = () => {
         >
     >((data) => removeComment(data), {
         mutationKey: ['remove-comment'],
-        onSuccess: async (_, { dashboardTileUuid, dashboardUuid }) => {
-            await queryClient.invalidateQueries([
-                'comments',
-                dashboardUuid,
-                dashboardTileUuid,
-            ]);
+        onSuccess: async (_, { dashboardUuid }) => {
+            await queryClient.invalidateQueries(['comments', dashboardUuid]);
         },
     });
 };

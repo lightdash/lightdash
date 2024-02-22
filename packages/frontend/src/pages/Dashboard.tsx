@@ -3,7 +3,6 @@ import {
     Dashboard as IDashboard,
     DashboardTile,
     DashboardTileTypes,
-    FeatureFlags,
     isDashboardChartTileType,
 } from '@lightdash/common';
 import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
@@ -35,6 +34,7 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
+import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
 import {
     appendNewTilesToBottom,
@@ -91,14 +91,6 @@ const GridTile: FC<
         index: number;
     }
 > = memo((props) => {
-    const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardTileComments,
-    );
-    const { user } = useApp();
-    const userCanViewComments =
-        isDashboardTileCommentsFeatureEnabled &&
-        user.data?.ability?.can('view', 'DashboardComments');
-
     const { tile, isLazyLoadEnabled, index } = props;
     useProfiler(`Dashboard-${tile.type}`);
     const [isTiledViewed, setIsTiledViewed] = useState(false);
@@ -129,21 +121,9 @@ const GridTile: FC<
         case DashboardTileTypes.SAVED_CHART:
             return <ChartTile {...props} tile={tile} />;
         case DashboardTileTypes.MARKDOWN:
-            return (
-                <MarkdownTile
-                    showComments={userCanViewComments}
-                    {...props}
-                    tile={tile}
-                />
-            );
+            return <MarkdownTile {...props} tile={tile} />;
         case DashboardTileTypes.LOOM:
-            return (
-                <LoomTile
-                    showComments={userCanViewComments}
-                    {...props}
-                    tile={tile}
-                />
-            );
+            return <LoomTile {...props} tile={tile} />;
         default: {
             return assertUnreachable(
                 tile,
@@ -724,9 +704,15 @@ const Dashboard: FC = () => {
 
 const DashboardPage: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { user } = useApp();
+    const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
+
     useProfiler('Dashboard');
     return (
-        <DashboardProvider projectUuid={projectUuid}>
+        <DashboardProvider
+            projectUuid={projectUuid}
+            dashboardCommentsCheck={dashboardCommentsCheck}
+        >
             <Dashboard />
         </DashboardProvider>
     );
