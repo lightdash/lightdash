@@ -24,7 +24,7 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
             return IconRectangle;
         case SearchItemType.DASHBOARD:
             return IconLayoutDashboard;
-        case SearchItemType.SAVED_CHART:
+        case SearchItemType.CHART:
             return IconChartBar;
         case SearchItemType.SPACE:
             return IconFolder;

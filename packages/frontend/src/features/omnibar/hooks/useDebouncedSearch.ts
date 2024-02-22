@@ -46,7 +46,7 @@ export const useDebouncedSearch = (
 
         const savedCharts =
             data?.savedCharts.map<SearchItem>((item) => ({
-                type: SearchItemType.SAVED_CHART,
+                type: SearchItemType.CHART,
                 icon: 'chart',
                 title: item.name,
                 description: item.description,

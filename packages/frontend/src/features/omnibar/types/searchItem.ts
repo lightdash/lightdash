@@ -1,13 +1,4 @@
-import { SearchResult } from '@lightdash/common';
-
-export enum SearchItemType {
-    DASHBOARD = 'dashboard',
-    SAVED_CHART = 'saved_chart',
-    SPACE = 'space',
-    TABLE = 'table',
-    FIELD = 'field',
-    PAGE = 'page',
-}
+import { SearchItemType, SearchResult } from '@lightdash/common';
 
 export const allSearchItemTypes = Object.values(SearchItemType);
 

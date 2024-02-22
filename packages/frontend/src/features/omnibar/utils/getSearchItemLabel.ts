@@ -1,5 +1,4 @@
-import { assertUnreachable } from '@lightdash/common';
-import { SearchItemType } from './../types/searchItem';
+import { assertUnreachable, SearchItemType } from '@lightdash/common';
 
 export const getSearchItemLabel = (itemType: SearchItemType) => {
     switch (itemType) {
@@ -7,7 +6,7 @@ export const getSearchItemLabel = (itemType: SearchItemType) => {
             return 'Fields';
         case SearchItemType.DASHBOARD:
             return 'Dashboards';
-        case SearchItemType.SAVED_CHART:
+        case SearchItemType.CHART:
             return 'Charts';
         case SearchItemType.SPACE:
             return 'Spaces';
@@ -29,7 +28,7 @@ export const getSearchItemErrorLabel = (itemType: SearchItemType) => {
             return 'field';
         case SearchItemType.DASHBOARD:
             return 'dashboard';
-        case SearchItemType.SAVED_CHART:
+        case SearchItemType.CHART:
             return 'chart';
         case SearchItemType.SPACE:
         case SearchItemType.TABLE:

@@ -129,8 +129,8 @@ export enum SearchItemType {
     PAGE = 'page',
 }
 
-export interface SearchFilters {
+export type SearchFilters = {
     type?: string; // the type filter can be any string, but it should be one of the EntityType to be valid, see shouldSearchForType function
     fromDate?: string;
     toDate?: string;
-}
+};

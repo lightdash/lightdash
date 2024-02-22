@@ -1,4 +1,8 @@
-import { assertUnreachable, SavedChartSearchResult } from '@lightdash/common';
+import {
+    assertUnreachable,
+    SavedChartSearchResult,
+    SearchItemType,
+} from '@lightdash/common';
 import { Anchor } from '@mantine/core';
 import {
     Icon123,
@@ -16,7 +20,7 @@ import {
     IconBox,
     ResourceIndicator,
 } from '../../../components/common/ResourceIcon';
-import { SearchItem, SearchItemType } from '../types/searchItem';
+import { SearchItem } from '../types/searchItem';
 import { getSearchItemErrorLabel } from '../utils/getSearchItemLabel';
 
 type Props = {
@@ -29,7 +33,7 @@ export const getOmnibarItemColor = (itemType: SearchItemType) => {
             return 'gray.7';
         case SearchItemType.DASHBOARD:
             return 'green.8';
-        case SearchItemType.SAVED_CHART:
+        case SearchItemType.CHART:
             return 'blue.8';
         case SearchItemType.SPACE:
             return 'violet.8';
@@ -55,7 +59,7 @@ const getOmnibarItemIcon = (item: SearchItem) => {
             }
         case SearchItemType.DASHBOARD:
             return IconLayoutDashboard;
-        case SearchItemType.SAVED_CHART:
+        case SearchItemType.CHART:
             return getChartIcon(
                 // FIXME: typing is loose here
                 (item.item as SavedChartSearchResult)?.chartType,

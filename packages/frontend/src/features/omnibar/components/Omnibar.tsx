@@ -1,4 +1,4 @@
-import { getSearchResultId } from '@lightdash/common';
+import { getSearchResultId, SearchItemType } from '@lightdash/common';
 import { Input, Loader, MantineProvider, Modal, Stack } from '@mantine/core';
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
@@ -11,11 +11,7 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useDebouncedSearch } from '../hooks/useDebouncedSearch';
 import { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
-import {
-    allSearchItemTypes,
-    SearchItem,
-    SearchItemType,
-} from '../types/searchItem';
+import { allSearchItemTypes, SearchItem } from '../types/searchItem';
 import OmnibarEmptyState from './OmnibarEmptyState';
 import OmnibarFilters from './OmnibarFilters';
 import OmnibarItemGroups from './OmnibarItemGroups';
