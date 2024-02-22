@@ -756,47 +756,6 @@ export class DashboardService {
         );
     }
 
-    async findCommentsForDashboardTile(
-        user: SessionUser,
-        dashboardUuid: string,
-        dashboardTileUuid: string,
-    ): Promise<Comment[]> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-
-        if (
-            user.ability.cannot(
-                'view',
-                subject('DashboardComments', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
-        }
-
-        const canUserRemoveAnyComment = user.ability.can(
-            'manage',
-            subject('DashboardComments', {
-                organizationUuid: dashboard.organizationUuid,
-                projectUuid: dashboard.projectUuid,
-            }),
-        );
-
-        return this.dashboardModel.findCommentsForDashboardTile(
-            dashboardUuid,
-            dashboardTileUuid,
-            user.userUuid,
-            canUserRemoveAnyComment,
-        );
-    }
-
     async resolveComment(
         user: SessionUser,
         dashboardUuid: string,
