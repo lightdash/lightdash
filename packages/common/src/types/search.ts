@@ -119,3 +119,13 @@ export const getSearchResultId = (meta: SearchResult | undefined) => {
     }
     return meta.uuid;
 };
+
+export type EntityType =
+    | 'dashboards'
+    | 'charts'
+    | 'spaces'
+    | 'tables'
+    | 'fields';
+export interface SearchFilters {
+    type?: string; // the type filter can be any string, but it should be one of the EntityType to be valid, see shouldSearchForType function
+}
