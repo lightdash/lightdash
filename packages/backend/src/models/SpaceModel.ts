@@ -362,7 +362,6 @@ export class SpaceModel {
         );
     }
 
-    // by default if spaceUuid is not provided, it will return all users
     async getSpaceAccess(spaceUuid: string): Promise<SpaceShare[]> {
         const access = await this.database
             .table(SpaceTableName)
@@ -432,7 +431,33 @@ export class SpaceModel {
             )
             .where(`${EmailTableName}.is_primary`, true)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid)
-            .where(`${OrganizationMembershipsTableName}.role`, '!=', 'member')
+            .where((query) => {
+                query
+                    .where((query1) => {
+                        // if space is private, only return user with direct access or admin role
+                        query1
+                            .where(`${SpaceTableName}.is_private`, true)
+                            .andWhere((query2) => {
+                                query2
+                                    .whereNotNull(
+                                        `${SpaceShareTableName}.user_id`,
+                                    )
+                                    .orWhere(
+                                        `${ProjectMembershipsTableName}.role`,
+                                        'admin',
+                                    )
+                                    .orWhere(
+                                        `${OrganizationMembershipsTableName}.role`,
+                                        'admin',
+                                    )
+                                    .orWhere(
+                                        `${ProjectGroupAccessTableName}.role`,
+                                        'admin',
+                                    );
+                            });
+                    })
+                    .orWhere(`${SpaceTableName}.is_private`, false);
+            })
             .distinctOn(`${UserTableName}.user_uuid`)
             .groupBy(
                 `${UserTableName}.user_id`,
@@ -449,17 +474,19 @@ export class SpaceModel {
                     first_name: string;
                     last_name: string;
                     email: string;
-                    user_with_direct_access: string;
-                    project_role: ProjectMemberRole | undefined;
+                    user_with_direct_access: boolean;
+                    project_role: ProjectMemberRole | null;
                     organization_role: OrganizationMemberRole;
-                    group_roles: (ProjectMemberRole | undefined)[];
+                    group_roles: (ProjectMemberRole | null)[];
                 }[]
             >([
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
                 `emails.email`,
-                `${SpaceShareTableName}.user_id as user_with_direct_access`,
+                this.database.raw(
+                    `CASE WHEN ${SpaceShareTableName}.user_id IS NULL THEN false ELSE true end as user_with_direct_access`,
+                ),
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
                 this.database.raw(
@@ -490,11 +517,11 @@ export class SpaceModel {
 
                 const inheritedProjectRole: ProjectRole = {
                     type: 'project',
-                    role: project_role,
+                    role: project_role ?? undefined,
                 };
 
                 const inheritedGroupRoles: GroupRole[] = group_roles.map(
-                    (role) => ({ type: 'group', role }),
+                    (role) => ({ type: 'group', role: role ?? undefined }),
                 );
 
                 const highestRole = getHighestProjectRole([
