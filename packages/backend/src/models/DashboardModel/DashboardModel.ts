@@ -936,7 +936,104 @@ export class DashboardModel {
         return commentId;
     }
 
-    async getComments(
+    async findCommentsForDashboard(
+        dashboardUuid: string,
+        userUuid: string,
+        canUserRemoveAnyComment: boolean,
+    ): Promise<Record<string, Comment[]>> {
+        const dashboard = await this.getById(dashboardUuid);
+
+        const tileUuids = dashboard.tiles.map((tile) => tile.uuid);
+
+        const commentsWithUsers = await this.database(
+            DashboardTileCommentsTableName,
+        )
+            .leftJoin(
+                UserTableName,
+                `${DashboardTileCommentsTableName}.user_uuid`,
+                '=',
+                `${UserTableName}.user_uuid`,
+            )
+            .select(
+                `${DashboardTileCommentsTableName}.*`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
+            )
+            .whereIn(
+                `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
+                tileUuids,
+            )
+            .andWhere(`${DashboardTileCommentsTableName}.resolved`, false);
+
+        const commentsPerDashboardTile: Record<string, Comment[]> = {}; // Stores comments grouped by their dashboard_tile_uuid
+        const allComments: Record<string, Comment> = {}; // Fast access lookup for parent comments
+        const orphanReplies: Record<string, Comment[]> = {}; // Stores orphan replies keyed by their intended parent's commentId
+
+        commentsWithUsers.forEach((comment) => {
+            const uuid = comment.dashboard_tile_uuid;
+            if (!commentsPerDashboardTile[uuid]) {
+                commentsPerDashboardTile[uuid] = [];
+            }
+
+            const structuredComment: Comment = {
+                commentId: comment.comment_id,
+                text: comment.text,
+                replyTo: comment.reply_to ?? undefined,
+                user: { name: `${comment.first_name} ${comment.last_name}` },
+                createdAt: comment.created_at,
+                resolved: comment.resolved,
+                replies: [],
+                canRemove:
+                    canUserRemoveAnyComment || comment.user_uuid === userUuid,
+            };
+
+            // Directly attach to parent if it's a reply and the parent exists
+            if (
+                structuredComment.replyTo &&
+                allComments[structuredComment.replyTo]
+            ) {
+                allComments[structuredComment.replyTo].replies?.push(
+                    structuredComment,
+                );
+            } else {
+                if (!structuredComment.replyTo) {
+                    // For comments that are not replies, add them to the list
+                    commentsPerDashboardTile[uuid].push(structuredComment);
+                }
+                // Store the comment for future reference
+                allComments[structuredComment.commentId] = structuredComment;
+            }
+
+            // Add the orphan replies to their intended parent if it exists
+            if (orphanReplies[structuredComment.commentId]) {
+                orphanReplies[structuredComment.commentId].forEach(
+                    (orphanReply) => {
+                        structuredComment.replies?.push(orphanReply);
+                    },
+                );
+
+                delete orphanReplies[structuredComment.commentId];
+            }
+
+            // If the comment that this reply is intended for doesn't exist yet, store it as an orphan
+            if (
+                structuredComment.replyTo &&
+                !allComments[structuredComment.replyTo]
+            ) {
+                if (!orphanReplies[structuredComment.replyTo]) {
+                    orphanReplies[structuredComment.replyTo] = [];
+                }
+                orphanReplies[structuredComment.replyTo].push(
+                    structuredComment,
+                );
+            }
+        });
+
+        return commentsPerDashboardTile;
+    }
+
+    async findCommentsForDashboardTile(
         dashboardUuid: string,
         dashboardTileUuid: string,
         userUuid: string,

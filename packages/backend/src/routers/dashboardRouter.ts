@@ -218,6 +218,25 @@ dashboardRouter.post(
 );
 
 dashboardRouter.get(
+    '/:dashboardUuid/comments',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await dashboardService.findCommentsForDashboard(
+                    req.user!,
+                    req.params.dashboardUuid,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dashboardRouter.get(
     '/:dashboardUuid/:dashboardTileUuid/comments',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -225,7 +244,7 @@ dashboardRouter.get(
         try {
             res.json({
                 status: 'ok',
-                results: await dashboardService.getComments(
+                results: await dashboardService.findCommentsForDashboardTile(
                     req.user!,
                     req.params.dashboardUuid,
                     req.params.dashboardTileUuid,
