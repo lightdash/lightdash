@@ -25,6 +25,7 @@ jobs:
               with:
                   ref: ${{ github.event.issue.pull_request.head.ref }}
                   token: ${{ secrets.CI_GITHUB_TOKEN }}
+                  fetch-depth: 0 # Fetch all history for all tags and branches
             - name: Check if duplicate branch exists
               id: check-branch
               env:
@@ -54,14 +55,24 @@ jobs:
               if: steps.check-branch.outputs.branch_exists == 'false'
               env:
                   ISSUE_NUMBER: ${{ github.event.issue.number }}
-                  PR_TITLE: ${{ github.event.issue.title }}
-                  REF: ${{ github.event.issue.pull_request.head.ref }}
+                  PR_REPO: ${{ github.event.issue.pull_request.head.repo.full_name }}
+                  PR_BRANCH: ${{ github.event.issue.pull_request.head.ref }}
+                  DUPLICATE_BRANCH: duplicate_${{ github.event.issue.pull_request.head.ref }}
                   DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
                   ASSIGNEE: ${{ github.event.comment.user.login }}
                   GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git checkout -b duplicate-${{env.ISSUE_NUMBER}} ${{env.REF}}
-                  git push origin duplicate-${{env.ISSUE_NUMBER}}
-                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head duplicate-${{env.ISSUE_NUMBER}} --title "chore: ${{env.ISSUE_NUMBER}} [DUPLICATE]" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}
+                  echo "PR_REPO ${{env.PR_REPO}}"
+                  echo "PR_BRANCH ${{env.PR_BRANCH}}"
+                  echo "DEFAULT_BRANCH ${{env.DEFAULT_BRANCH}}"
+                  echo "Adding remote for external PR repo"
+                  git remote add external https://github.com/${{env.PR_REPO}}.git
+                  echo "Fetching from external PR repo"
+                  git fetch external
+                  echo "Checking out and creating duplicate branch from PR branch"
+                  git checkout -b ${{env.DUPLICATE_BRANCH}} external/${{env.PR_BRANCH}}
+                  git push -u origin ${{env.DUPLICATE_BRANCH}}
+                  echo "Creating PR for the duplicate branch"
+                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head ${{env.DUPLICATE_BRANCH}} --title "chore: ${{env.ISSUE_NUMBER}} [DUPLICATE]" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}
