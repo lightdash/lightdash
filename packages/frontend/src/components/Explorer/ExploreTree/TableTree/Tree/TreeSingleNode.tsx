@@ -16,14 +16,12 @@ import {
     Group,
     Highlight,
     HoverCard,
-    Modal,
     NavLink,
     Text,
     Title,
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
 import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { darken, lighten } from 'polished';
@@ -33,6 +31,7 @@ import { getItemBgColor } from '../../../../../hooks/useColumns';
 import { useFilters } from '../../../../../hooks/useFilters';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
+import { useItemDetail } from '../ItemDetailContext';
 import { Node, useTableTreeContext } from './TreeProvider';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 
@@ -135,10 +134,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         onItemClick,
     } = useTableTreeContext();
     const { isFilteredField } = useFilters();
-    const [
-        isDescriptionViewOpen,
-        { open: openDescriptionView, close: closeDescriptionView },
-    ] = useDisclosure();
+    const { showItemDetail } = useItemDetail();
 
     const [isHover, toggle] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
@@ -169,6 +165,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         missingCustomMetrics &&
         missingCustomMetrics.includes(item);
     const description = isField(item) ? item.description : undefined;
+
     const bgColor = getItemBgColor(item);
 
     // TODO: Add getFieldType function to common which should return FieldType enum (which should also have CUSTOM_METRIC, CUSTOM_DIMENSION, and TABLE_CALCULATION)
@@ -179,6 +176,28 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         if (isMetric(field)) return 'yellow.9';
 
         return 'yellow.9';
+    };
+
+    const onOpenDescriptionView = () => {
+        showItemDetail({
+            detail: (
+                <Group>
+                    <FieldIcon
+                        item={item}
+                        color={getFieldIconColor(item)}
+                        size="md"
+                    />
+                    <Text size="md">{label}</Text>
+                </Group>
+            ),
+            header: description ? (
+                <NodeDetailMarkdown
+                    source={description ?? ''}
+                ></NodeDetailMarkdown>
+            ) : (
+                <Text color="gray">No description available.</Text>
+            ),
+        });
     };
 
     return (
@@ -242,38 +261,12 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                                 `This field from '${item.table}' table is no longer available`
                             ) : (
                                 <TreeSingleNodeDetail
-                                    onViewDescription={openDescriptionView}
+                                    onViewDescription={onOpenDescriptionView}
                                     description={description}
                                 />
                             )}
                         </HoverCard.Dropdown>
                     </HoverCard>
-
-                    <Modal
-                        withinPortal
-                        p="xl"
-                        size="lg"
-                        opened={isDescriptionViewOpen}
-                        onClose={closeDescriptionView}
-                        title={
-                            <Group>
-                                <FieldIcon
-                                    item={item}
-                                    color={getFieldIconColor(item)}
-                                    size="md"
-                                />
-                                <Text size="md">{label}</Text>
-                            </Group>
-                        }
-                    >
-                        {description ? (
-                            <NodeDetailMarkdown
-                                source={description ?? ''}
-                            ></NodeDetailMarkdown>
-                        ) : (
-                            <Text color="gray">No description available.</Text>
-                        )}
-                    </Modal>
 
                     {isFiltered ? (
                         <Tooltip withinPortal label="This field is filtered">
@@ -306,7 +299,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                     isSelected={isSelected}
                     isOpened={isMenuOpen}
                     hasDescription={description != null}
-                    onViewDescription={openDescriptionView}
+                    onViewDescription={onOpenDescriptionView}
                     onMenuChange={toggleMenu}
                 />
             }
