@@ -1,3 +1,10 @@
+# [0.1005.0](https://github.com/lightdash/lightdash/compare/0.1004.0...0.1005.0) (2024-02-22)
+
+
+### Features
+
+* Track color mappings via shared context ([#9054](https://github.com/lightdash/lightdash/issues/9054)) ([098ac1b](https://github.com/lightdash/lightdash/commit/098ac1bc12a1cfb2f229c525028d6888df59d5dd))
+
 # [0.1004.0](https://github.com/lightdash/lightdash/compare/0.1003.0...0.1004.0) (2024-02-22)
 
 
