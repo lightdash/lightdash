@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     SessionUser,
     Space,
+    SpaceShare,
     SpaceSummary,
     UpdateSpace,
 } from '@lightdash/common';
@@ -33,7 +34,9 @@ export const hasSpaceAccess = (
             projectUuid: space.projectUuid,
         }),
     );
-    const userUuidsWithDirectAccess = space.access.reduce((acc, access) => {
+    const userUuidsWithDirectAccess = (
+        space.access as Array<string | SpaceShare>
+    ).reduce<string[]>((acc, access) => {
         if (typeof access === 'string') {
             return [...acc, access];
         }
