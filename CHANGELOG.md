@@ -1,3 +1,10 @@
+## [0.1001.3](https://github.com/lightdash/lightdash/compare/0.1001.2...0.1001.3) (2024-02-22)
+
+
+### Bug Fixes
+
+* scheduler enabled tooltip ([#9044](https://github.com/lightdash/lightdash/issues/9044)) ([64e838f](https://github.com/lightdash/lightdash/commit/64e838f1b546c8a9642f8b87c3465bc6b2fe7ba4))
+
 ## [0.1001.2](https://github.com/lightdash/lightdash/compare/0.1001.1...0.1001.2) (2024-02-22)
 
 
