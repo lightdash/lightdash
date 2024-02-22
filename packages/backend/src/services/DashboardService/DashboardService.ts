@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Comment,
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
@@ -716,11 +717,10 @@ export class DashboardService {
         );
     }
 
-    async getComments(
+    async findCommentsForDashboard(
         user: SessionUser,
         dashboardUuid: string,
-        dashboardTileUuid: string,
-    ): Promise<Record<string, any>[]> {
+    ): Promise<Record<string, Comment[]>> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         if (
@@ -749,7 +749,47 @@ export class DashboardService {
             }),
         );
 
-        return this.dashboardModel.getComments(
+        return this.dashboardModel.findCommentsForDashboard(
+            dashboardUuid,
+            user.userUuid,
+            canUserRemoveAnyComment,
+        );
+    }
+
+    async findCommentsForDashboardTile(
+        user: SessionUser,
+        dashboardUuid: string,
+        dashboardTileUuid: string,
+    ): Promise<Comment[]> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('DashboardComments', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        const canUserRemoveAnyComment = user.ability.can(
+            'manage',
+            subject('DashboardComments', {
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid: dashboard.projectUuid,
+            }),
+        );
+
+        return this.dashboardModel.findCommentsForDashboardTile(
             dashboardUuid,
             dashboardTileUuid,
             user.userUuid,
@@ -797,14 +837,6 @@ export class DashboardService {
             );
         }
 
-        const commentOwner = await this.dashboardModel.getCommentOwner(
-            commentId,
-        );
-        if (!commentOwner) {
-            throw new NotFoundError('Comment not found');
-        }
-
-        const isOwner = commentOwner === user.userUuid;
         const canRemoveAnyComment = user.ability.can(
             'manage',
             subject('DashboardComments', {
@@ -813,10 +845,19 @@ export class DashboardService {
             }),
         );
 
-        if (!(isOwner || canRemoveAnyComment)) {
+        if (canRemoveAnyComment) {
+            await this.dashboardModel.deleteComment(commentId);
+        } else {
+            const commentOwner = await this.dashboardModel.getCommentOwner(
+                commentId,
+            );
+            const isOwner = commentOwner === user.userUuid;
+
+            if (isOwner) {
+                await this.dashboardModel.deleteComment(commentId);
+            }
+
             throw new ForbiddenError();
         }
-
-        await this.dashboardModel.deleteComment(commentId);
     }
 }
