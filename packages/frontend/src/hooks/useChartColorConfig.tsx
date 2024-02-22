@@ -1,9 +1,51 @@
 import { FeatureFlags, Series } from '@lightdash/common';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { useCallback, useState } from 'react';
+import { createContext, FC, useCallback, useContext, useRef } from 'react';
 import { EChartSeries } from './echarts/useEchartsCartesianConfig';
 
 export type SeriesLike = EChartSeries | Series;
+
+interface ChartColorMappingContextProps {
+    colorMappings: Map<string, string>;
+}
+
+const ChartColorMappingContext =
+    createContext<ChartColorMappingContextProps | null>(null);
+
+/**
+ * Exposes a map of identifier->color values, which can be shared across
+ * a context, for shared color assignment.
+ */
+export const ChartColorMappingContextProvider: FC<
+    React.PropsWithChildren<{}>
+> = ({ children }) => {
+    /**
+     * Changes to colorMappings are intentionally kept outside the React render loop,
+     * we don't want to trigger re-renders for every mapping assignment, and we're
+     * creating assignments during the render process anyway.
+     */
+    const colorMappings = useRef(new Map<string, string>());
+
+    return (
+        <ChartColorMappingContext.Provider
+            value={{ colorMappings: colorMappings.current }}
+        >
+            {children}
+        </ChartColorMappingContext.Provider>
+    );
+};
+
+const useChartColorMappingContext = (): ChartColorMappingContextProps => {
+    const ctx = useContext(ChartColorMappingContext);
+
+    if (ctx == null) {
+        throw new Error(
+            'useChartColorMappingContext must be used inside ChartColorMappingContextProvider ',
+        );
+    }
+
+    return ctx;
+};
 
 export const isGroupedSeries = (series: SeriesLike) => {
     return (
@@ -17,7 +59,7 @@ export const useChartColorConfig = ({
 }: {
     colorPalette: string[];
 }) => {
-    const [colorMappings] = useState(new Map<string, string>());
+    const { colorMappings } = useChartColorMappingContext();
     const useSharedColors = useFeatureFlagEnabled(
         FeatureFlags.UseSharedColorAssignment,
     );
