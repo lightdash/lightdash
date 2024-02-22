@@ -1,6 +1,6 @@
 import { FeatureFlags, Series } from '@lightdash/common';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { createContext, FC, useCallback, useContext, useState } from 'react';
+import { createContext, FC, useCallback, useContext, useRef } from 'react';
 import { EChartSeries } from './echarts/useEchartsCartesianConfig';
 
 export type SeriesLike = EChartSeries | Series;
@@ -19,30 +19,29 @@ const ChartColorMappingContext =
 export const ChartColorMappingContextProvider: FC<
     React.PropsWithChildren<{}>
 > = ({ children }) => {
-    const [colorMappings] = useState(new Map<string, string>());
+    /**
+     * Changes to colorMappings are intentionally kept outside the React render loop,
+     * we don't want to trigger re-renders for every mapping assignment, and we're
+     * creating assignments during the render process anyway.
+     */
+    const colorMappings = useRef(new Map<string, string>());
 
     return (
-        <ChartColorMappingContext.Provider value={{ colorMappings }}>
+        <ChartColorMappingContext.Provider
+            value={{ colorMappings: colorMappings.current }}
+        >
             {children}
         </ChartColorMappingContext.Provider>
     );
 };
 
-/**
- * Provides access to a shared color mapping object if available. If called from
- * outside a color mapping context, returns a blank mapping instead; the blank
- * mapping will work equally well, but may result in less accurate color mapping
- * across charts and re-renders.
- */
 const useChartColorMappingContext = (): ChartColorMappingContextProps => {
     const ctx = useContext(ChartColorMappingContext);
 
     if (ctx == null) {
-        console.warn(
-            'No color mapping context available, using empty color map.',
+        throw new Error(
+            'useChartColorMappingContext must be used inside ChartColorMappingContextProvider ',
         );
-
-        return { colorMappings: new Map<string, string>() };
     }
 
     return ctx;
