@@ -1,3 +1,10 @@
+## [0.1001.2](https://github.com/lightdash/lightdash/compare/0.1001.1...0.1001.2) (2024-02-22)
+
+
+### Bug Fixes
+
+* update copy alert email slack ([#9049](https://github.com/lightdash/lightdash/issues/9049)) ([a26bbf3](https://github.com/lightdash/lightdash/commit/a26bbf3e7fca743094d86979ec70a81ec3b6d9fa))
+
 ## [0.1001.1](https://github.com/lightdash/lightdash/compare/0.1001.0...0.1001.1) (2024-02-21)
 
 
