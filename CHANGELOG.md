@@ -1,3 +1,10 @@
+# [0.1006.0](https://github.com/lightdash/lightdash/compare/0.1005.0...0.1006.0) (2024-02-22)
+
+
+### Features
+
+* search v2 UI ([#8967](https://github.com/lightdash/lightdash/issues/8967)) ([062eb48](https://github.com/lightdash/lightdash/commit/062eb48e58e72b98b27ba4f89a217f71acfdb387))
+
 # [0.1005.0](https://github.com/lightdash/lightdash/compare/0.1004.0...0.1005.0) (2024-02-22)
 
 
