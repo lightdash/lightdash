@@ -1,3 +1,10 @@
+## [0.1002.1](https://github.com/lightdash/lightdash/compare/0.1002.0...0.1002.1) (2024-02-22)
+
+
+### Bug Fixes
+
+* "filter dashboard to" for null value ([#8953](https://github.com/lightdash/lightdash/issues/8953)) ([8e354bf](https://github.com/lightdash/lightdash/commit/8e354bfe86a47f419603971be11bd76dc21a5ac8))
+
 # [0.1002.0](https://github.com/lightdash/lightdash/compare/0.1001.6...0.1002.0) (2024-02-22)
 
 
