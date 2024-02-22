@@ -1033,65 +1033,6 @@ export class DashboardModel {
         return commentsPerDashboardTile;
     }
 
-    async findCommentsForDashboardTile(
-        dashboardUuid: string,
-        dashboardTileUuid: string,
-        userUuid: string,
-        canUserRemoveAnyComment: boolean,
-    ): Promise<Comment[]> {
-        this.checkDashboardTileExistsInDashboard(
-            dashboardUuid,
-            dashboardTileUuid,
-        );
-
-        const commentsWithUsers = await this.database(
-            DashboardTileCommentsTableName,
-        )
-            .leftJoin(
-                UserTableName,
-                `${DashboardTileCommentsTableName}.user_uuid`,
-                '=',
-                `${UserTableName}.user_uuid`,
-            )
-            .select(
-                `${DashboardTileCommentsTableName}.*`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-            )
-            .where(
-                `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
-                dashboardTileUuid,
-            )
-            .andWhere(`${DashboardTileCommentsTableName}.resolved`, false);
-
-        const commentMap: Record<string, Comment> = {};
-        const topLevelComments: Comment[] = [];
-        commentsWithUsers.forEach((comment) => {
-            const fullComment: Comment = {
-                commentId: comment.comment_id,
-                text: comment.text,
-                replyTo: comment.reply_to ?? undefined,
-                user: {
-                    name: `${comment.first_name} ${comment.last_name}`,
-                },
-                createdAt: comment.created_at,
-                resolved: comment.resolved,
-                replies: [],
-                canRemove:
-                    canUserRemoveAnyComment || comment.user_uuid === userUuid,
-            };
-
-            commentMap[fullComment.commentId] = fullComment;
-            if (fullComment.replyTo) {
-                commentMap[fullComment.replyTo]?.replies?.push(fullComment);
-            } else {
-                topLevelComments.push(fullComment);
-            }
-        });
-
-        return topLevelComments;
-    }
-
     async resolveComment(commentId: string): Promise<void> {
         await this.database(DashboardTileCommentsTableName)
             .update({ resolved: true })
