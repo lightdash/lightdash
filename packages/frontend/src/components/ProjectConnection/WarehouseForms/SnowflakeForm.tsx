@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     Group,
@@ -7,10 +7,11 @@ import {
     Switch,
     TextInput,
 } from '@mantine/core';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
+
 import React, { FC } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import {
     hasNoWhiteSpaces,
     isUppercase,
@@ -50,8 +51,9 @@ const SnowflakeForm: FC<{
 
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE;
-    const isPassthroughLoginFeatureEnabled =
-        useFeatureFlagEnabled('passthrough-login');
+    const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PassthroughLogin,
+    );
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>

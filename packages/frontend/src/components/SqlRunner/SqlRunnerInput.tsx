@@ -1,11 +1,13 @@
 import { ProjectCatalog } from '@lightdash/common';
-import { ActionIcon, CopyButton, Tooltip } from '@mantine/core';
-import { IconCheck, IconClipboard } from '@tabler/icons-react';
+import { useLocalStorage } from '@mantine/hooks';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
 import React, { FC } from 'react';
 import AceEditor from 'react-ace';
 import { useProjectCatalogAceEditorCompleter } from '../../hooks/useProjectCatalogAceEditorCompleter';
+import { SqlEditorActions } from './SqlEditorActions';
+
+const SOFT_WRAP_LOCAL_STORAGE_KEY = 'lightdash-sql-runner-soft-wrap';
 
 const SqlRunnerInput: FC<{
     sql: string;
@@ -15,6 +17,11 @@ const SqlRunnerInput: FC<{
 }> = ({ sql, onChange, isDisabled, projectCatalog }) => {
     const { setAceEditor } =
         useProjectCatalogAceEditorCompleter(projectCatalog);
+
+    const [isSoftWrapEnabled, setSoftWrapEnabled] = useLocalStorage({
+        key: SOFT_WRAP_LOCAL_STORAGE_KEY,
+        defaultValue: true,
+    });
 
     return (
         <div
@@ -37,36 +44,13 @@ const SqlRunnerInput: FC<{
                     onChange(value);
                 }}
                 onLoad={setAceEditor}
+                wrapEnabled={isSoftWrapEnabled}
             />
-            <div
-                style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    right: 0,
-                }}
-            >
-                <CopyButton value={sql} timeout={2000}>
-                    {({ copied, copy }) => (
-                        <Tooltip
-                            label={copied ? 'Copied to clipboard!' : 'Copy'}
-                            withArrow
-                            position="right"
-                            color={copied ? 'green' : 'dark'}
-                        >
-                            <ActionIcon
-                                color={copied ? 'teal' : 'gray'}
-                                onClick={copy}
-                            >
-                                {copied ? (
-                                    <IconCheck size="1rem" />
-                                ) : (
-                                    <IconClipboard size="1rem" />
-                                )}
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </CopyButton>
-            </div>
+            <SqlEditorActions
+                isSoftWrapEnabled={isSoftWrapEnabled}
+                onToggleSoftWrap={() => setSoftWrapEnabled(!isSoftWrapEnabled)}
+                clipboardContent={sql}
+            />
         </div>
     );
 };

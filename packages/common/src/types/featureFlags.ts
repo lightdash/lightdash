@@ -17,4 +17,20 @@ export enum FeatureFlags {
      * color in the org's color palette every time.
      */
     UseSharedColorAssignment = 'use-shared-color-assignment',
+
+    /**/
+    PassthroughLogin = 'passthrough-login',
+
+    /**
+     * Enables custom visualizations when the environment variable is also enabled
+     */
+    CustomVisualizationsEnabled = 'custom-visualizations-enabled',
+
+    /**/
+    ShowDbtCloudProjectOption = 'show-dbt-cloud-project-option',
+
+    /**
+     * Use the new in-memory table calculations engine/duckdb
+     */
+    UseInMemoryTableCalculations = 'new-table-calculations-engine',
 }

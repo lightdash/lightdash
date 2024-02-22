@@ -8,6 +8,8 @@ import {
     isExploreError,
     NotExistsError,
     SavedChartSearchResult,
+    SearchFilters,
+    SearchItemType,
     SearchResults,
     SpaceSearchResult,
     TableErrorSearchResult,
@@ -22,6 +24,7 @@ import {
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { getFullTextSearchRankCalcSql } from './utils/fullTextSearch';
 
 type ModelDependencies = {
     database: Knex;
@@ -34,30 +37,76 @@ export class SearchModel {
         this.database = deps.database;
     }
 
+    private static shouldSearchForType(
+        entityType: SearchItemType,
+        queryTypeFilter?: string,
+    ) {
+        // if there is no filter or if the filter is the same as the entityType
+        return !queryTypeFilter || queryTypeFilter === entityType;
+    }
+
     private async searchSpaces(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<SpaceSearchResult[]> {
-        return this.database(SpaceTableName)
-            .select()
+        if (
+            !SearchModel.shouldSearchForType(
+                SearchItemType.SPACE,
+                filters?.type,
+            )
+        ) {
+            return [];
+        }
+
+        const { searchRankRawSql, searchRankColumnName } =
+            getFullTextSearchRankCalcSql(
+                this.database,
+                SpaceTableName,
+                'search_vector',
+                query,
+            );
+
+        const subquery = this.database(SpaceTableName)
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .column({ uuid: 'space_uuid' }, 'spaces.name')
+            .column({ uuid: 'space_uuid' }, 'spaces.name', searchRankRawSql)
             .where('projects.project_uuid', projectUuid)
-            .andWhereRaw(`LOWER(${SpaceTableName}.name) like LOWER(?)`, [
-                `%${query}%`,
-            ]);
+            .orderBy(searchRankColumnName, 'desc');
+
+        return this.database(SpaceTableName)
+            .select()
+            .from(subquery.as('spaces_with_rank'))
+            .where(searchRankColumnName, '>', 0)
+            .limit(10);
     }
 
     private async searchDashboards(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<DashboardSearchResult[]> {
-        const dashboards = await this.database(DashboardsTableName)
-            .select()
+        if (
+            !SearchModel.shouldSearchForType(
+                SearchItemType.DASHBOARD,
+                filters?.type,
+            )
+        ) {
+            return [];
+        }
+
+        const { searchRankRawSql, searchRankColumnName } =
+            getFullTextSearchRankCalcSql(
+                this.database,
+                DashboardsTableName,
+                'search_vector',
+                query,
+            );
+
+        const subquery = this.database(DashboardsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
@@ -73,19 +122,16 @@ export class SearchModel {
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { spaceUuid: 'space_uuid' },
+                searchRankRawSql,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .andWhere((qB) =>
-                qB
-                    .whereRaw(
-                        `LOWER(${DashboardsTableName}.name) like LOWER(?)`,
-                        [`%${query}%`],
-                    )
-                    .orWhereRaw(
-                        `LOWER(${DashboardsTableName}.description) like LOWER(?)`,
-                        [`%${query}%`],
-                    ),
-            );
+            .orderBy(searchRankColumnName, 'desc');
+
+        const dashboards = await this.database(DashboardsTableName)
+            .select()
+            .from(subquery.as('dashboards_with_rank'))
+            .where(searchRankColumnName, '>', 0)
+            .limit(10);
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
 
@@ -118,9 +164,27 @@ export class SearchModel {
     private async searchSavedCharts(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<SavedChartSearchResult[]> {
-        const savedCharts = await this.database(SavedChartsTableName)
-            .select()
+        if (
+            !SearchModel.shouldSearchForType(
+                SearchItemType.CHART,
+                filters?.type,
+            )
+        ) {
+            return [];
+        }
+
+        const { searchRankRawSql, searchRankColumnName } =
+            getFullTextSearchRankCalcSql(
+                this.database,
+                SavedChartsTableName,
+                'search_vector',
+                query,
+            );
+
+        // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
+        const subquery = this.database(SavedChartsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${SavedChartsTableName}.space_id`,
@@ -140,19 +204,16 @@ export class SearchModel {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
                 { spaceUuid: 'space_uuid' },
+                searchRankRawSql,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .andWhere((qB) =>
-                qB
-                    .whereRaw(
-                        `LOWER(${SavedChartsTableName}.name) like LOWER(?)`,
-                        [`%${query}%`],
-                    )
-                    .orWhereRaw(
-                        `LOWER(${SavedChartsTableName}.description) like LOWER(?)`,
-                        [`%${query}%`],
-                    ),
-            );
+            .orderBy(searchRankColumnName, 'desc');
+
+        const savedCharts = await this.database(SavedChartsTableName)
+            .select()
+            .from(subquery.as('saved_charts_with_rank'))
+            .where(searchRankColumnName, '>', 0)
+            .limit(10);
 
         const chartUuids = savedCharts.map((chart) => chart.uuid);
 
@@ -223,11 +284,21 @@ export class SearchModel {
         return [];
     }
 
-    private async searchTablesAndFields(
-        projectUuid: string,
+    private static searchTablesAndFields(
         query: string,
-    ): Promise<[TableSearchResult[], FieldSearchResult[]]> {
-        const explores = await this.getProjectExplores(projectUuid);
+        explores: Explore[],
+        filters?: SearchFilters,
+    ) {
+        const shouldSearchForTables = SearchModel.shouldSearchForType(
+            SearchItemType.TABLE,
+            filters?.type,
+        );
+
+        const shouldSearchForFields = SearchModel.shouldSearchForType(
+            SearchItemType.FIELD,
+            filters?.type,
+        );
+
         const lowerCaseQuery = query.toLowerCase();
         return explores
             .filter((explore) => !isExploreError(explore))
@@ -237,12 +308,13 @@ export class SearchModel {
                         [TableSearchResult[], FieldSearchResult[]]
                     >(([tables, fields], table) => {
                         if (
-                            table.label
+                            shouldSearchForTables &&
+                            (table.label
                                 .toLowerCase()
                                 .includes(lowerCaseQuery) ||
-                            table.description
-                                ?.toLowerCase()
-                                .includes(lowerCaseQuery)
+                                table.description
+                                    ?.toLowerCase()
+                                    .includes(lowerCaseQuery))
                         ) {
                             tables.push({
                                 name: table.name,
@@ -253,37 +325,41 @@ export class SearchModel {
                                 requiredAttributes: table.requiredAttributes,
                             });
                         }
-                        [
-                            ...Object.values(table.dimensions),
-                            ...Object.values(table.metrics),
-                        ].forEach((field) => {
-                            if (
-                                !field.hidden &&
-                                (field.label
-                                    .toLowerCase()
-                                    .includes(lowerCaseQuery) ||
-                                    field.description
-                                        ?.toLowerCase()
-                                        .includes(lowerCaseQuery))
-                            ) {
-                                fields.push({
-                                    name: field.name,
-                                    label: field.label,
-                                    description: field.description,
-                                    type: field.type,
-                                    fieldType: field.fieldType,
-                                    table: field.table,
-                                    tableLabel: field.tableLabel,
-                                    explore: explore.name,
-                                    exploreLabel: explore.label,
-                                    requiredAttributes: isDimension(field)
-                                        ? field.requiredAttributes
-                                        : undefined,
-                                    tablesRequiredAttributes:
-                                        field.tablesRequiredAttributes,
-                                });
-                            }
-                        });
+
+                        if (shouldSearchForFields) {
+                            [
+                                ...Object.values(table.dimensions),
+                                ...Object.values(table.metrics),
+                            ].forEach((field) => {
+                                if (
+                                    !field.hidden &&
+                                    (field.label
+                                        .toLowerCase()
+                                        .includes(lowerCaseQuery) ||
+                                        field.description
+                                            ?.toLowerCase()
+                                            .includes(lowerCaseQuery))
+                                ) {
+                                    fields.push({
+                                        name: field.name,
+                                        label: field.label,
+                                        description: field.description,
+                                        type: field.type,
+                                        fieldType: field.fieldType,
+                                        table: field.table,
+                                        tableLabel: field.tableLabel,
+                                        explore: explore.name,
+                                        exploreLabel: explore.label,
+                                        requiredAttributes: isDimension(field)
+                                            ? field.requiredAttributes
+                                            : undefined,
+                                        tablesRequiredAttributes:
+                                            field.tablesRequiredAttributes,
+                                    });
+                                }
+                            });
+                        }
+
                         return [tables, fields];
                     }, acc),
                 [[], []],
@@ -293,8 +369,8 @@ export class SearchModel {
     private async searchTableErrors(
         projectUuid: string,
         query: string,
+        explores: Explore[],
     ): Promise<TableErrorSearchResult[]> {
-        const explores = await this.getProjectExplores(projectUuid);
         const lowerCaseQuery = query.toLowerCase();
 
         const validationErrors = await this.database('validations')
@@ -335,16 +411,17 @@ export class SearchModel {
         }, []);
     }
 
-    async search(projectUuid: string, query: string): Promise<SearchResults> {
-        const spaces = await this.searchSpaces(projectUuid, query);
-        const dashboards = await this.searchDashboards(projectUuid, query);
-        const savedCharts = await this.searchSavedCharts(projectUuid, query);
-        const [tables, fields] = await this.searchTablesAndFields(
-            projectUuid,
-            query,
-        );
-        const tableErrors = await this.searchTableErrors(projectUuid, query);
-        const tablesAndErrors = [...tables, ...tableErrors];
+    private static searchPages(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ) {
+        if (
+            !SearchModel.shouldSearchForType(SearchItemType.PAGE, filters?.type)
+        ) {
+            return [];
+        }
+
         const allPages = [
             {
                 uuid: `user-activity`,
@@ -352,9 +429,43 @@ export class SearchModel {
                 url: `/projects/${projectUuid}/user-activity`,
             },
         ];
-        const pages = allPages.filter((page) =>
+
+        return allPages.filter((page) =>
             page.name?.toLowerCase().includes(query.toLowerCase()),
         );
+    }
+
+    async search(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<SearchResults> {
+        const spaces = await this.searchSpaces(projectUuid, query, filters);
+        const dashboards = await this.searchDashboards(
+            projectUuid,
+            query,
+            filters,
+        );
+        const savedCharts = await this.searchSavedCharts(
+            projectUuid,
+            query,
+            filters,
+        );
+
+        const explores = await this.getProjectExplores(projectUuid);
+        const tableErrors = await this.searchTableErrors(
+            projectUuid,
+            query,
+            explores,
+        );
+        const [tables, fields] = SearchModel.searchTablesAndFields(
+            query,
+            explores,
+            filters,
+        );
+
+        const tablesAndErrors = [...tables, ...tableErrors];
+        const pages = SearchModel.searchPages(projectUuid, query);
 
         return {
             spaces,

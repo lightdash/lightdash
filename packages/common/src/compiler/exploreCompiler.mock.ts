@@ -68,6 +68,8 @@ export const exploreBase: Explore = {
     tables: {},
     groupLabel: undefined,
     warehouse: undefined,
+    sqlPath: undefined,
+    ymlPath: undefined,
 };
 
 export const exploreOneEmptyTable: UncompiledExplore = {

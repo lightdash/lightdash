@@ -11,6 +11,9 @@ import {
     CalculateTotalFromQuery,
     ChartSummary,
     CompiledDimension,
+    CompiledMetricQuery,
+    CompiledTableCalculation,
+    convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
@@ -35,6 +38,7 @@ import {
     FeatureFlags,
     fieldId as getFieldId,
     FilterableField,
+    FilterGroup,
     FilterGroupItem,
     FilterOperator,
     findFieldByIdInExplore,
@@ -44,6 +48,7 @@ import {
     getDateDimension,
     getDimensions,
     getFields,
+    getFilterRulesFromGroup,
     getItemId,
     getMetrics,
     hasIntersection,
@@ -69,6 +74,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
+    renderTableCalculationFilterRuleSql,
     replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
@@ -79,6 +85,7 @@ import {
     SpaceQuery,
     SpaceSummary,
     SummaryExplore,
+    TableCalculation,
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
@@ -93,6 +100,7 @@ import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
+import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -104,6 +112,7 @@ import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
+import { runQueryInMemoryDatabaseContext } from '../../inMemoryTableCalculations';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -799,8 +808,6 @@ export class ProjectService {
             user,
         );
 
-        console.log(await postHogClient?.getAllFlags(user.userUuid));
-        console.log('projectservice', useDbtLs);
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -872,6 +879,127 @@ export class ProjectService {
         return explore;
     }
 
+    /**
+     * Based on _compileQuery, this -temporary- method handles isolating and generating
+     * a separate query for table calculations on DuckDB.
+     *
+     * Once the feature is proven and ready to be rolled out, _compileQuery and the query builder
+     * will be expanded to support this behavior natively.
+     */
+    private static async _compileMetricQueryWithNewTableCalculationsEngine(
+        metricQuery: MetricQuery,
+        explore: Explore,
+        warehouseClient: WarehouseClient,
+        userAttributes: UserAttributeValueMap,
+        granularity?: DateGranularity,
+    ): Promise<[CompiledQuery, CompiledQuery]> {
+        const exploreWithOverride = ProjectService.updateExploreWithGranularity(
+            explore,
+            metricQuery,
+            warehouseClient,
+            granularity,
+        );
+
+        const {
+            compiledMetricQuery: originalCompiledMetricQuery,
+            compiledMetricQueryWithoutTableCalculations,
+            compiledTableCalculations,
+            tableCalculationFilters,
+            tableCalculations,
+        } = ProjectService.isolateTableCalculationsFromCompiledMetricsQuery(
+            compileMetricQuery({
+                explore: exploreWithOverride,
+                metricQuery,
+                warehouseClient,
+            }),
+        );
+
+        /**
+         * Generate a new SELECT statement with all of our original columns, as well as
+         * table calculation columns/aggregates:
+         */
+        const selectFrom = [
+            '*',
+            ...compiledTableCalculations.map(
+                ({ name, compiledSql }) => `${compiledSql} AS ${name}`,
+            ),
+        ];
+
+        /**
+         * Render table calculation filter rules for compatibility with DuckDB.
+         */
+        const filterRules = getFilterRulesFromGroup(
+            tableCalculationFilters as FilterGroup,
+        );
+
+        const renderedFilters = filterRules.map((filterRule) => {
+            const field = compiledTableCalculations.find(
+                ({ name }) =>
+                    `table_calculation_${name}` === filterRule.target.fieldId,
+            );
+
+            /**
+             * If a matching field cannot be found, we insert a placeholder expression.
+             */
+            if (!field) {
+                return '1=1';
+            }
+
+            return renderTableCalculationFilterRuleSql(
+                filterRule,
+                field,
+                '"',
+                "'",
+                '\\',
+            );
+        });
+
+        const whereClause =
+            renderedFilters.length > 0
+                ? `WHERE ${renderedFilters.join('\nAND ')}`
+                : '';
+
+        /**
+         * We apply sorting at this stage, so we need to access sort data from the
+         * original compiled query.
+         */
+        const sorts = originalCompiledMetricQuery.sorts.map(
+            ({ descending, fieldId }) =>
+                `${fieldId} ${descending ? 'DESC' : 'ASC'}`,
+        );
+
+        const orderByClause =
+            sorts.length > 0 ? `ORDER BY ${sorts.join(', ')}` : '';
+
+        const primaryQuery = buildQuery({
+            explore: exploreWithOverride,
+            compiledMetricQuery: compiledMetricQueryWithoutTableCalculations,
+            warehouseClient,
+            userAttributes,
+        });
+
+        const tableCalculationsSubQuery: CompiledQuery = {
+            fields: tableCalculations.reduce((acc, tableCalculation) => {
+                acc[tableCalculation.name] = tableCalculation;
+
+                return acc;
+            }, {} as ItemsMap),
+            query: `
+                WITH results AS (
+                    SELECT ${selectFrom.join(',\n')}
+                    FROM _
+                )
+
+                SELECT * FROM results
+                ${whereClause}
+                ${orderByClause}
+            ;`,
+            hasExampleMetric: false,
+        };
+
+        return [primaryQuery, tableCalculationsSubQuery];
+    }
+
     private static async _compileQuery(
         metricQuery: MetricQuery,
         explore: Explore,
@@ -885,17 +1013,64 @@ export class ProjectService {
             warehouseClient,
             granularity,
         );
+
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
             metricQuery,
             warehouseClient,
         });
-        return buildQuery({
+
+        const buildQueryResult = buildQuery({
             explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
             userAttributes,
         });
+
+        return buildQueryResult;
+    }
+
+    /**
+     * Modifies a compiled metric query to remove any references to table calculations, and
+     * returns the isolated portions separately.
+     *
+     * This is a temporary approach to avoid poluting the query compiler while rolling-out
+     * improvements to table calculations handling.
+     */
+    private static isolateTableCalculationsFromCompiledMetricsQuery(
+        compiledMetricQuery: CompiledMetricQuery,
+    ): {
+        compiledMetricQuery: CompiledMetricQuery;
+        compiledMetricQueryWithoutTableCalculations: CompiledMetricQuery;
+        tableCalculationFilters?: FilterGroupItem;
+        tableCalculations: TableCalculation[];
+        compiledTableCalculations: CompiledTableCalculation[];
+    } {
+        const {
+            filters,
+            tableCalculations,
+            compiledTableCalculations,
+            sorts,
+            ...otherProps
+        } = compiledMetricQuery;
+
+        return {
+            compiledMetricQuery,
+            compiledMetricQueryWithoutTableCalculations: {
+                ...otherProps,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                filters: {
+                    ...filters,
+                    tableCalculations: undefined,
+                },
+                sorts: [],
+            },
+
+            tableCalculationFilters: filters.tableCalculations,
+            tableCalculations,
+            compiledTableCalculations,
+        };
     }
 
     async compileQuery(
@@ -1349,6 +1524,7 @@ export class ProjectService {
                                     'useWorker',
                                     useWorker,
                                 );
+
                                 return useWorker
                                     ? runWorkerThread<ResultRow[]>(
                                           new Worker(
@@ -1411,6 +1587,7 @@ export class ProjectService {
         metricQuery,
         queryTags,
         invalidateCache,
+        tableCalculationsSubQuery,
     }: {
         projectUuid: string;
         context: QueryExecutionContext;
@@ -1419,6 +1596,7 @@ export class ProjectService {
         metricQuery: MetricQuery;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
+        tableCalculationsSubQuery?: CompiledQuery;
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -1487,10 +1665,38 @@ export class ProjectService {
                     async () => warehouseClient.runQuery(query, queryTags),
                 );
 
+                /**
+                 * If we have a table calculations sub-query, we run it against the in-memory
+                 * database, essentially generating a new result set based on the upstream
+                 * warehouse results.
+                 *
+                 * At this point, we also merge the two sets of fields - the field set used for
+                 * the warehouse query, and the follow-up table calculation fields.
+                 */
+                const warehouseResultsWithTableCalculations =
+                    tableCalculationsSubQuery
+                        ? {
+                              rows: await runQueryInMemoryDatabaseContext({
+                                  query: tableCalculationsSubQuery.query,
+                                  tables: {
+                                      _: warehouseResults,
+                                  },
+                              }),
+
+                              /**
+                               *
+                               */
+                              fields: {
+                                  ...warehouseResults.fields,
+                                  ...tableCalculationsSubQuery.fields,
+                              },
+                          }
+                        : warehouseResults;
+
                 if (lightdashConfig.resultsCache?.enabled) {
                     Logger.debug(`Writing data to cache with key ${queryHash}`);
                     const buffer = Buffer.from(
-                        JSON.stringify(warehouseResults),
+                        JSON.stringify(warehouseResultsWithTableCalculations),
                     );
                     // fire and forget
                     this.s3CacheClient
@@ -1499,7 +1705,7 @@ export class ProjectService {
                 }
 
                 return {
-                    rows: warehouseResults.rows,
+                    rows: warehouseResultsWithTableCalculations.rows,
                     cacheMetadata: { cacheHit: false },
                 };
             },
@@ -1544,18 +1750,25 @@ export class ProjectService {
                         );
                     }
 
+                    /**
+                     * If the feature flag is enabled, and we actually have any table calculations
+                     * to process, we use the new in-memory table calculations engine. This avoid us
+                     * spinning-up a new DuckDB database pointlessly.
+                     *
+                     * In a follow-up after initial testing, this check should be done somewhere further
+                     * down the stack.
+                     */
+                    const newTableCalculationsFeatureFlagEnabled =
+                        await isFeatureFlagEnabled(
+                            FeatureFlags.UseInMemoryTableCalculations,
+                            {
+                                userUuid: user.userUuid,
+                            },
+                        );
+
                     const useNewTableCalculationsEngine =
-                        (await postHogClient?.isFeatureEnabled(
-                            'new-table-calculations-engine',
-                            user.userUuid,
-                            user.organizationUuid !== undefined
-                                ? {
-                                      groups: {
-                                          organization: user.organizationUuid,
-                                      },
-                                  }
-                                : {},
-                        )) ?? false;
+                        newTableCalculationsFeatureFlagEnabled &&
+                        metricQuery.tableCalculations.length > 0;
 
                     const { organizationUuid } =
                         await this.projectModel.getSummary(projectUuid);
@@ -1600,14 +1813,60 @@ export class ProjectService {
                             },
                         );
 
-                    const { query, hasExampleMetric, fields } =
-                        await ProjectService._compileQuery(
-                            metricQueryWithLimit,
-                            explore,
-                            warehouseClient,
-                            userAttributes,
-                            granularity,
+                    /**
+                     * Note: most of this is temporary while testing out in-memory table calculations,
+                     * so that we can more cleanly handle the feature-flagged behavior fork below.
+                     */
+                    let fields: ItemsMap;
+                    let query: string;
+                    let hasExampleMetric: boolean;
+                    let tableCalculationsCompiledQuery:
+                        | undefined
+                        | CompiledQuery;
+
+                    const compileQueryArgs = [
+                        metricQueryWithLimit,
+                        explore,
+                        warehouseClient,
+                        userAttributes,
+                        granularity,
+                    ] as const;
+
+                    /**
+                     * If we're using the new table calculations engine, we're actually going to be
+                     * doing two separate queries - the parent query which excludes table calculations,
+                     * and a separate query that runs against the result of the parent query, exclusively
+                     * to generate table calculation values, and apply table calculation filters.
+                     */
+                    if (useNewTableCalculationsEngine) {
+                        const [parentQuery, tableCalculationsSubQuery] =
+                            await ProjectService._compileMetricQueryWithNewTableCalculationsEngine(
+                                ...compileQueryArgs,
+                            );
+
+                        /**
+                         * Merge field sets coming from the parent warehouse query, as well as the
+                         * table calculations sub-query:
+                         */
+                        fields = {
+                            ...parentQuery.fields,
+                            ...tableCalculationsSubQuery.fields,
+                        };
+
+                        query = parentQuery.query;
+                        hasExampleMetric = parentQuery.hasExampleMetric;
+
+                        tableCalculationsCompiledQuery =
+                            tableCalculationsSubQuery;
+                    } else {
+                        const fullQuery = await ProjectService._compileQuery(
+                            ...compileQueryArgs,
                         );
+
+                        fields = fullQuery.fields;
+                        query = fullQuery.query;
+                        hasExampleMetric = fullQuery.hasExampleMetric;
+                    }
 
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
@@ -1739,6 +1998,8 @@ export class ProjectService {
                             query,
                             queryTags,
                             invalidateCache,
+                            tableCalculationsSubQuery:
+                                tableCalculationsCompiledQuery,
                         });
                     await sshTunnel.disconnect();
                     return { rows, cacheMetadata, fields };
@@ -3426,5 +3687,51 @@ export class ProjectService {
             projectUuid,
             userWarehouseCredentialsUuid,
         );
+    }
+
+    async getCustomMetrics(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<
+        {
+            name: string;
+            label: string;
+            modelName: string;
+            yml: string;
+            chartLabel: string;
+            chartUrl: string;
+        }[]
+    > {
+        // TODO implement permissions
+        const chartSummaries = await this.savedChartModel.find({
+            projectUuid,
+        });
+        const chartPromises = chartSummaries.map((summary) =>
+            this.savedChartModel.get(summary.uuid, undefined),
+        );
+
+        const charts = await Promise.all(chartPromises);
+
+        return charts.reduce<any[]>((acc, chart) => {
+            const customMetrics = chart.metricQuery.additionalMetrics;
+
+            if (customMetrics === undefined || customMetrics.length === 0)
+                return acc;
+            const metrics = [
+                ...acc,
+                ...customMetrics.map((metric) => ({
+                    name: metric.uuid,
+                    label: metric.label,
+                    modelName: metric.table,
+                    yml: yaml.dump(convertCustomMetricToDbt(metric), {
+                        quotingType: "'",
+                    }),
+                    chartLabel: chart.name,
+                    chartUrl: `${lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
+                })),
+            ];
+            console.log('metrics', metrics);
+            return metrics;
+        }, []);
     }
 }

@@ -5,7 +5,14 @@ import {
     ChartType,
     getCustomLabelsFromColumnProperties,
 } from '@lightdash/common';
-import { Button, Popover, Select, Stack, Text } from '@mantine/core';
+import {
+    Button,
+    Popover,
+    SegmentedControl,
+    Select,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { IconDownload, IconShare2 } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
@@ -22,6 +29,7 @@ import ExportSelector from './ExportSelector';
 import { isBigNumberVisualizationConfig } from './LightdashVisualization/VisualizationBigNumberConfig';
 import { isCartesianVisualizationConfig } from './LightdashVisualization/VisualizationConfigCartesian';
 import { isTableVisualizationConfig } from './LightdashVisualization/VisualizationConfigTable';
+import { isCustomVisualizationConfig } from './LightdashVisualization/VisualizationCustomConfig';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -38,6 +46,7 @@ async function base64SvgToBase64Image(
     originalBase64: string,
     width: number,
     type: 'jpeg' | 'png' = 'png',
+    isBackgroundTransparent: boolean = false,
 ): Promise<string> {
     return new Promise((resolve, reject) => {
         const img = document.createElement('img');
@@ -50,7 +59,10 @@ async function base64SvgToBase64Image(
             canvas.height = width / ratio;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                if (type === 'jpeg') {
+                if (
+                    type === 'jpeg' ||
+                    (type === 'png' && !isBackgroundTransparent)
+                ) {
                     ctx.fillStyle = 'white';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                 }
@@ -115,7 +127,10 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,
     chartType,
 }) => {
-    const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
+    const [type, setType] = useState<DownloadType>(DownloadType.PNG);
+    const [isBackgroundTransparent, setIsBackgroundTransparent] =
+        useState(false);
+
     const isTable = chartType === ChartType.TABLE;
     const onDownload = useCallback(async () => {
         const echartsInstance = chartRef.current?.getEchartsInstance();
@@ -147,7 +162,12 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     break;
                 case DownloadType.PNG:
                     downloadImage(
-                        await base64SvgToBase64Image(svgBase64, width),
+                        await base64SvgToBase64Image(
+                            svgBase64,
+                            width,
+                            'png',
+                            isBackgroundTransparent,
+                        ),
                     );
                     break;
                 case DownloadType.JSON:
@@ -163,7 +183,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
         } catch (e) {
             console.error(`Unable to download ${type} from chart ${e}`);
         }
-    }, [chartRef, type]);
+    }, [chartRef, type, isBackgroundTransparent]);
 
     return (
         <Stack>
@@ -179,6 +199,21 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     label: downloadType,
                 }))}
             />
+
+            {type === DownloadType.PNG && (
+                <SegmentedControl
+                    size="xs"
+                    id="background-transparency"
+                    value={isBackgroundTransparent ? 'Transparent' : 'Opaque'}
+                    onChange={(value) =>
+                        setIsBackgroundTransparent(value === 'Transparent')
+                    }
+                    data={[
+                        { value: 'Opaque', label: 'Opaque' },
+                        { value: 'Transparent', label: 'Transparent' },
+                    ]}
+                />
+            )}
 
             {!isTable && (
                 <Button
@@ -225,7 +260,8 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             !resultsData?.metricQuery ||
             isBigNumberVisualizationConfig(visualizationConfig) ||
             (isCartesianVisualizationConfig(visualizationConfig) &&
-                !eChartsOptions);
+                !eChartsOptions) ||
+            isCustomVisualizationConfig(visualizationConfig);
 
         const { user } = useApp();
 

@@ -133,6 +133,7 @@ module.exports = {
                 'guides/sharing-in-slack',
                 'guides/how-to-create-scheduled-deliveries',
                 'guides/how-to-create-syncs',
+                'guides/how-to-create-alerts',
                 'guides/validating-your-content',
                 'guides/version-history',
                 'guides/how-to-create-multiple-projects',
@@ -202,12 +203,14 @@ module.exports = {
             ],
         },
         {
-            type: 'category',
-            label: 'Troubleshooting and getting help',
-            items: [
-                'help-and-contact/contact/contact_info',
-                'help-and-contact/faqs/faqs',
-            ],
+            type: 'link',
+            label: 'FAQs',
+            href: 'https://intercom.help/lightdash-faqs/en/collections/8439498-faqs'
+        },
+        {
+            type: 'doc',
+            label: 'Contact',
+            id: 'contact/contact_info',
         },
     ],
 };

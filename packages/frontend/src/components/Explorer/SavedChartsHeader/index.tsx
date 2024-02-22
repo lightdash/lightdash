@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
 import {
+    ApiError,
+    GitIntegrationConfiguration,
+    PullRequestCreated,
+} from '@lightdash/common';
+import {
     ActionIcon,
     Alert,
     Box,
@@ -14,11 +19,14 @@ import {
 import {
     IconAlertTriangle,
     IconArrowBack,
+    IconArrowRight,
+    IconBell,
     IconCheck,
     IconChevronRight,
     IconCircleFilled,
     IconCirclePlus,
     IconCirclesRelation,
+    IconCodePlus,
     IconCopy,
     IconDots,
     IconFolder,
@@ -29,9 +37,11 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { FC, Fragment, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { lightdashApi } from '../../../api';
 import { ChartSchedulersModal } from '../../../features/scheduler';
 import {
     getSchedulerUuidFromUrlParams,
@@ -40,6 +50,7 @@ import {
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -79,6 +90,68 @@ const SpaceTypeLabels = {
     [SpaceType.AdminContentView]: 'Admin content view',
 };
 
+const getGitIntegration = async (projectUuid: string) =>
+    lightdashApi<any>({
+        url: `/projects/${projectUuid}/git-integration`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const useGitIntegration = (projectUuid: string) =>
+    useQuery<GitIntegrationConfiguration, ApiError>({
+        queryKey: ['git-integration'],
+        queryFn: () => getGitIntegration(projectUuid),
+        retry: false,
+    });
+
+const createPullRequestForChartFields = async (
+    projectUuid: string,
+    chartUuid: string,
+) =>
+    lightdashApi<any>({
+        url: `/projects/${projectUuid}/git-integration/pull-requests/chart/${chartUuid}/fields`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const useCreatePullRequestForChartFieldsMutation = (
+    projectUuid: string,
+    chartUuid?: string,
+) => {
+    /* useMutation<GitIntegrationConfiguration, ApiError>(
+        ['git-integration', 'pull-request'],
+        () => createPullRequestForChartFields(projectUuid, chartUuid!),
+        
+    );*/
+    const { showToastSuccess, showToastError } = useToaster();
+
+    return useMutation<PullRequestCreated, ApiError>(
+        () => createPullRequestForChartFields(projectUuid, chartUuid!),
+        {
+            mutationKey: ['git-integration', 'pull-request'],
+            retry: false,
+            onSuccess: async (pullRequest) => {
+                showToastSuccess({
+                    title: `Success! Create branch with changes: '${pullRequest.prTitle}'`,
+                    action: {
+                        children: 'Open Pull Request',
+                        icon: IconArrowRight,
+                        onClick: () => {
+                            window.open(pullRequest.prUrl, '_blank');
+                        },
+                    },
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to create pull request`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
 const SavedChartsHeader: FC = () => {
     const { search } = useLocation();
     const { projectUuid } = useParams<{
@@ -103,6 +176,14 @@ const SavedChartsHeader: FC = () => {
     );
     const reset = useExplorerContext((context) => context.actions.reset);
 
+    const resultsData = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+
+    const itemsMap = useMemo(() => {
+        return resultsData?.fields;
+    }, [resultsData]);
+
     const { clearIsEditingDashboardChart, getIsEditingDashboardChart } =
         useDashboardStorage();
 
@@ -114,6 +195,8 @@ const SavedChartsHeader: FC = () => {
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isMovingChart, setIsMovingChart] = useState(false);
     const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
+        useToggle(false);
+    const [isThresholdAlertsModalOpen, toggleThresholdAlertsModal] =
         useToggle(false);
     const [
         isSyncWithGoogleSheetsModalOpen,
@@ -131,7 +214,11 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
-
+    const { data: gitIntegration } = useGitIntegration(projectUuid);
+    const createPullRequest = useCreatePullRequestForChartFieldsMutation(
+        projectUuid,
+        savedChart?.uuid,
+    );
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
@@ -233,7 +320,7 @@ const SavedChartsHeader: FC = () => {
         }),
     );
 
-    const userCanCreateDeliveries = user.data?.ability?.can(
+    const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
         subject('ScheduledDeliveries', {
             organizationUuid: user.data?.organizationUuid,
@@ -384,7 +471,7 @@ const SavedChartsHeader: FC = () => {
                     )}
                 </PageTitleAndDetailsContainer>
 
-                {(userCanManageCharts || userCanCreateDeliveries) && (
+                {(userCanManageCharts || userCanCreateDeliveriesAndAlerts) && (
                     <PageActionsContainer>
                         {userCanManageCharts && (
                             <>
@@ -451,6 +538,7 @@ const SavedChartsHeader: FC = () => {
                             disabled={!unsavedChartVersion.tableName}
                         >
                             <Menu.Dropdown>
+                                <Menu.Label>Manage</Menu.Label>
                                 {userCanManageCharts && hasUnsavedChanges && (
                                     <Menu.Item
                                         icon={
@@ -538,6 +626,9 @@ const SavedChartsHeader: FC = () => {
                                                     <Flex
                                                         justify="space-between"
                                                         align="center"
+                                                        onClick={(e) =>
+                                                            e.stopPropagation()
+                                                        }
                                                     >
                                                         Move to space
                                                         <MantineIcon
@@ -547,7 +638,11 @@ const SavedChartsHeader: FC = () => {
                                                         />
                                                     </Flex>
                                                 </Menu.Target>
-                                                <Menu.Dropdown>
+                                                <Menu.Dropdown
+                                                    onClick={(e) =>
+                                                        e.stopPropagation()
+                                                    }
+                                                >
                                                     {[
                                                         SpaceType.SharedWithMe,
                                                         SpaceType.AdminContentView,
@@ -586,6 +681,9 @@ const SavedChartsHeader: FC = () => {
                                                                         spaceToMove.uuid;
                                                                     return (
                                                                         <Menu.Item
+                                                                            disabled={
+                                                                                isDisabled
+                                                                            }
                                                                             key={
                                                                                 spaceToMove.uuid
                                                                             }
@@ -636,7 +734,23 @@ const SavedChartsHeader: FC = () => {
                                             </Menu>
                                         </Menu.Item>
                                     )}
-                                {userCanCreateDeliveries && (
+                                {userCanManageCharts && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon icon={IconHistory} />
+                                        }
+                                        onClick={() =>
+                                            history.push({
+                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
+                                            })
+                                        }
+                                    >
+                                        Version history
+                                    </Menu.Item>
+                                )}
+                                <Menu.Divider />
+                                <Menu.Label>Integrations</Menu.Label>
+                                {userCanCreateDeliveriesAndAlerts && (
                                     <Menu.Item
                                         icon={<MantineIcon icon={IconSend} />}
                                         onClick={() =>
@@ -644,6 +758,16 @@ const SavedChartsHeader: FC = () => {
                                         }
                                     >
                                         Scheduled deliveries
+                                    </Menu.Item>
+                                )}
+                                {userCanCreateDeliveriesAndAlerts && (
+                                    <Menu.Item
+                                        icon={<MantineIcon icon={IconBell} />}
+                                        onClick={() =>
+                                            toggleThresholdAlertsModal(true)
+                                        }
+                                    >
+                                        Alerts
                                     </Menu.Item>
                                 )}
                                 {userCanManageCharts &&
@@ -663,18 +787,16 @@ const SavedChartsHeader: FC = () => {
                                         Sync with Google Sheets
                                     </Menu.Item>
                                 ) : null}
-                                {userCanManageCharts && (
+                                {gitIntegration?.enabled && (
                                     <Menu.Item
                                         icon={
-                                            <MantineIcon icon={IconHistory} />
+                                            <MantineIcon icon={IconCodePlus} />
                                         }
                                         onClick={() =>
-                                            history.push({
-                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
-                                            })
+                                            createPullRequest.mutate()
                                         }
                                     >
-                                        Version history
+                                        Add custom metrics to dbt project
                                     </Menu.Item>
                                 )}
                                 {userCanManageCharts && (
@@ -776,6 +898,16 @@ const SavedChartsHeader: FC = () => {
                     name={savedChart.name}
                     isOpen={isScheduledDeliveriesModalOpen}
                     onClose={() => toggleScheduledDeliveriesModal(false)}
+                />
+            )}
+            {isThresholdAlertsModalOpen && savedChart?.uuid && (
+                <ChartSchedulersModal
+                    chartUuid={savedChart.uuid}
+                    name={savedChart.name}
+                    isThresholdAlert
+                    itemsMap={itemsMap}
+                    isOpen={isThresholdAlertsModalOpen}
+                    onClose={() => toggleThresholdAlertsModal(false)}
                 />
             )}
             {savedChart && (

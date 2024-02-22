@@ -50,9 +50,7 @@ export const projectAdapterFromConfig = async (
         case DbtProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
                 warehouseClient,
-                accountId: `${config.account_id}`,
                 environmentId: `${config.environment_id}`,
-                projectId: `${config.project_id}`,
                 apiKey: config.api_key,
                 cachedWarehouse,
                 dbtVersion,

@@ -1,7 +1,11 @@
+import { cloneDeep } from 'lodash';
 import { ConditionalOperator } from './conditionalRule';
 import {
+    AndFilterGroup,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
+    FilterGroup,
+    removeFieldFromFilterGroup,
 } from './filter';
 
 describe('compress and uncompress dashboard filters', () => {
@@ -286,6 +290,74 @@ describe('compress and uncompress dashboard filters', () => {
                     tableName: 'other-table',
                 },
             });
+        });
+    });
+});
+
+describe('removeFieldFromFilterGroup', () => {
+    const fieldToBeRemoved = 'metric_field_id_1';
+    const filterGroup: FilterGroup = {
+        id: 'metric_id_1',
+        and: [
+            {
+                id: 'metric_uuid_1',
+                target: {
+                    fieldId: fieldToBeRemoved,
+                },
+                operator: ConditionalOperator.EQUALS,
+                values: ['metric_value_1'],
+            },
+            {
+                id: 'metric_id_2',
+                and: [
+                    {
+                        id: 'metric_uuid_2',
+                        target: {
+                            fieldId: fieldToBeRemoved,
+                        },
+                        operator: ConditionalOperator.EQUALS,
+                        values: ['metric_value_2'],
+                    },
+                ],
+            },
+        ],
+    };
+
+    it('should return empty filters', async () => {
+        const updatedFieldGroup = removeFieldFromFilterGroup(
+            filterGroup,
+            fieldToBeRemoved,
+        );
+        expect(updatedFieldGroup).toEqual(undefined);
+    });
+
+    it('should return remaining filters', async () => {
+        const remainingMetric = {
+            id: 'metric_uuid_3',
+            target: {
+                fieldId: 'metric_field_id_3',
+            },
+            operator: ConditionalOperator.EQUALS,
+            values: ['metric_value_3'],
+        };
+        const filterGroupWithRemainingMetrics = cloneDeep(filterGroup);
+        (filterGroupWithRemainingMetrics.and[1] as AndFilterGroup).and.push(
+            remainingMetric,
+        );
+        filterGroupWithRemainingMetrics.and.push(remainingMetric);
+        const updatedFieldGroup = removeFieldFromFilterGroup(
+            filterGroupWithRemainingMetrics,
+            fieldToBeRemoved,
+        );
+        expect(updatedFieldGroup).toEqual({
+            id: 'metric_id_1',
+            and: [
+                {
+                    id: 'metric_id_2',
+                    and: [remainingMetric],
+                },
+                remainingMetric,
+            ],
         });
     });
 });

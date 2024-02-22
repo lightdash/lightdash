@@ -9,7 +9,6 @@ import {
     getAxisName,
     getCustomFormatFromLegacy,
     getDateGroupLabel,
-    getDefaultSeriesColor,
     getItemLabelWithoutTableName,
     getResultValueArray,
     hashFieldReference,
@@ -43,6 +42,7 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import getPlottedData from '../plottedData/getPlottedData';
+import { useChartColorConfig } from '../useChartColorConfig';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -1309,7 +1309,12 @@ const useEchartsCartesianConfig = (
         resultsData,
         itemsMap,
         colorPalette,
+        getSeriesColor,
     } = useVisualizationContext();
+
+    const { useSharedColors } = useChartColorConfig({
+        colorPalette,
+    });
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -1376,12 +1381,18 @@ const useEchartsCartesianConfig = (
         });
     }, [itemsMap, series, validCartesianConfig, resultsData]);
 
-    const stackedSeries = useMemo(() => {
+    const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
-        const seriesWithValidStack = series.map<EChartSeries>((serie) => ({
-            ...serie,
-            stack: getValidStack(serie),
-        }));
+
+        const seriesWithValidStack = series.map<EChartSeries>((serie, i) => {
+            const color = getSeriesColor(serie, i);
+
+            return {
+                ...serie,
+                color,
+                stack: getValidStack(serie),
+            };
+        });
         return [
             ...seriesWithValidStack,
             ...getStackTotalSeries(
@@ -1398,25 +1409,25 @@ const useEchartsCartesianConfig = (
         itemsMap,
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfigLegend,
+        getSeriesColor,
     ]);
 
+    /**
+     * We keep this around until the shared colors feature flag is removed.
+     */
     const colors = useMemo<string[]>(() => {
         //Do not use colors from hidden series
         return validCartesianConfig?.eChartsConfig.series
             ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
-                  (acc, serie, index) => {
+                  (acc, serie, i) => {
                       if (!serie.hidden)
-                          return [
-                              ...acc,
-                              colorPalette[index] ||
-                                  getDefaultSeriesColor(index),
-                          ];
+                          return [...acc, getSeriesColor(serie, i)];
                       else return acc;
                   },
                   [],
               )
             : colorPalette;
-    }, [colorPalette, validCartesianConfig]);
+    }, [colorPalette, validCartesianConfig, getSeriesColor]);
 
     const sortedResults = useMemo(() => {
         const results =
@@ -1607,7 +1618,7 @@ const useEchartsCartesianConfig = (
             xAxis: axes.xAxis,
             yAxis: axes.yAxis,
             useUTC: true,
-            series: stackedSeries,
+            series: stackedSeriesWithColorAssignments,
             animation: !isInDashboard,
             legend: mergeLegendSettings(
                 validCartesianConfig?.eChartsConfig.legend,
@@ -1625,12 +1636,14 @@ const useEchartsCartesianConfig = (
                     validCartesianConfig?.eChartsConfig.grid,
                 ),
             },
-            color: colors,
+            // If using shared chart colors, we don't specify any colors at the top level,
+            // and instead assign them per-series.
+            color: useSharedColors ? [] : colors,
         }),
         [
             axes.xAxis,
             axes.yAxis,
-            stackedSeries,
+            stackedSeriesWithColorAssignments,
             isInDashboard,
             validCartesianConfig?.eChartsConfig.legend,
             validCartesianConfig?.eChartsConfig.grid,
@@ -1639,6 +1652,7 @@ const useEchartsCartesianConfig = (
             sortedResults,
             tooltip,
             colors,
+            useSharedColors,
         ],
     );
 

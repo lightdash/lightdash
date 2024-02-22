@@ -4,10 +4,9 @@ import {
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
-import { writeFileSync } from 'fs';
+import fs, { writeFileSync } from 'fs';
 import * as fspromises from 'fs/promises';
 import * as path from 'path';
-import tempy from 'tempy';
 import {
     LIGHTDASH_PROFILE_NAME,
     LIGHTDASH_TARGET_NAME,
@@ -41,8 +40,9 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         dbtVersion,
         useDbtLs,
     }: DbtLocalCredentialsProjectAdapterArgs) {
-        const profilesDir = tempy.directory();
+        const profilesDir = fs.mkdtempSync('/tmp/local_');
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
+
         const {
             profile,
             environment: injectedEnvironment,

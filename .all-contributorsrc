@@ -1331,6 +1331,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "joemiltonm",
+      "name": "Joe Milton",
+      "avatar_url": "https://avatars.githubusercontent.com/u/64725924?v=4",
+      "profile": "https://github.com/joemiltonm",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

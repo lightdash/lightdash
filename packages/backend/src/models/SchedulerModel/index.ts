@@ -67,6 +67,8 @@ export class SchedulerModel {
             options: scheduler.options,
             filters: scheduler.filters,
             customViewportWidth: scheduler.custom_viewport_width,
+            thresholds: scheduler.thresholds || undefined,
+            enabled: scheduler.enabled,
         } as Scheduler;
     }
 
@@ -224,6 +226,10 @@ export class SchedulerModel {
                         newScheduler.customViewportWidth
                             ? newScheduler.customViewportWidth
                             : null,
+                    thresholds: newScheduler.thresholds
+                        ? JSON.stringify(newScheduler.thresholds)
+                        : null,
+                    enabled: true,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -248,6 +254,20 @@ export class SchedulerModel {
         return this.getSchedulerAndTargets(schedulerUuid);
     }
 
+    async setSchedulerEnabled(
+        schedulerUuid: string,
+        enabled: boolean,
+    ): Promise<SchedulerAndTargets> {
+        await this.database(SchedulerTableName)
+            .update({
+                enabled,
+                updated_at: new Date(),
+            })
+            .where('scheduler_uuid', schedulerUuid);
+
+        return this.getSchedulerAndTargets(schedulerUuid);
+    }
+
     async updateScheduler(
         scheduler: UpdateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {
@@ -269,6 +289,9 @@ export class SchedulerModel {
                         scheduler.customViewportWidth
                             ? scheduler.customViewportWidth
                             : null,
+                    thresholds: scheduler.thresholds
+                        ? JSON.stringify(scheduler.thresholds)
+                        : null,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 

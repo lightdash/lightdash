@@ -382,4 +382,32 @@ export class ProjectController extends Controller {
             results: undefined,
         };
     }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/custom-metrics')
+    @OperationId('getCustomMetrics')
+    async getCustomMetrics(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: {
+            name: string;
+            label: string;
+            modelName: string;
+            yml: string;
+            chartLabel: string;
+            chartUrl: string;
+        }[];
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await projectService.getCustomMetrics(
+                req.user!,
+                projectUuid,
+            ),
+        };
+    }
 }

@@ -5,6 +5,7 @@ import {
     CartesianChartConfig,
     ChartConfig,
     ChartType,
+    convertFieldRefToFieldId,
     CreateSavedChartVersion,
     CustomDimension,
     CustomVisConfig,
@@ -13,10 +14,13 @@ import {
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
+    getFieldRef,
+    lightdashVariablePattern,
     MetricQuery,
     MetricType,
     PieChartConfig,
     removeEmptyProperties,
+    removeFieldFromFilterGroup,
     SavedChart,
     SortField,
     TableCalculation,
@@ -903,6 +907,38 @@ function reducer(
                                 [key]: valueDeepCopy,
                             };
                         }, {}),
+                        tableCalculations:
+                            state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                                (tableCalculation) => {
+                                    let tableCalculationDeepCopy =
+                                        cloneDeep(tableCalculation);
+
+                                    tableCalculationDeepCopy.sql =
+                                        tableCalculationDeepCopy.sql.replace(
+                                            lightdashVariablePattern,
+                                            (_, fieldRef) => {
+                                                const fieldId =
+                                                    convertFieldRefToFieldId(
+                                                        fieldRef,
+                                                    );
+
+                                                if (
+                                                    fieldId ===
+                                                    action.payload
+                                                        .previousAdditionalMetricName
+                                                ) {
+                                                    return `\${${getFieldRef(
+                                                        action.payload
+                                                            .additionalMetric,
+                                                    )}}`;
+                                                }
+                                                return `\${${fieldRef}}`;
+                                            },
+                                        );
+
+                                    return tableCalculationDeepCopy;
+                                },
+                            ),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
@@ -939,6 +975,25 @@ function reducer(
                         sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
                             (sort) => sort.fieldId !== action.payload,
                         ),
+                        filters: Object.entries(
+                            state.unsavedChartVersion.metricQuery.filters,
+                        ).reduce((acc, [key, value]) => {
+                            let valueDeepCopy = cloneDeep(value);
+                            if (key === 'metrics') {
+                                return {
+                                    ...acc,
+                                    [key]: removeFieldFromFilterGroup(
+                                        valueDeepCopy,
+                                        action.payload,
+                                    ),
+                                };
+                            }
+
+                            return {
+                                ...acc,
+                                [key]: valueDeepCopy,
+                            };
+                        }, {}),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,

@@ -3,6 +3,7 @@ import { EChartsOption, PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { useChartColorConfig } from '../useChartColorConfig';
 
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -14,7 +15,10 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const useEchartsPieConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap, getGroupColor, colorPalette } =
+        useVisualizationContext();
+
+    const { useSharedColors } = useChartColorConfig({ colorPalette });
 
     const chartConfig = useMemo(() => {
         if (!isPieVisualizationConfig(visualizationConfig)) return;
@@ -25,17 +29,17 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
         if (!chartConfig) return;
 
         const {
-            groupColorDefaults,
             selectedMetric,
             data,
             sortedGroupLabels,
+            groupColorDefaults,
             validConfig: {
                 valueLabel: valueLabelDefault,
                 showValue: showValueDefault,
                 showPercentage: showPercentageDefault,
                 groupLabelOverrides,
-                groupColorOverrides,
                 groupValueOptionOverrides,
+                groupColorOverrides,
             },
         } = chartConfig;
 
@@ -58,15 +62,19 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                     groupValueOptionOverrides?.[name]?.showPercentage ??
                     showPercentageDefault;
 
+                const itemColor =
+                    groupColorOverrides?.[name] ??
+                    (useSharedColors
+                        ? getGroupColor(name)
+                        : groupColorDefaults?.[name]);
+
                 const config: PieSeriesDataPoint = {
                     id: name,
                     groupId: name,
                     name: groupLabelOverrides?.[name] ?? name,
                     value: value,
                     itemStyle: {
-                        color:
-                            groupColorOverrides?.[name] ??
-                            groupColorDefaults?.[name],
+                        color: itemColor,
                     },
                     label: {
                         show: valueLabel !== 'hidden',
@@ -89,7 +97,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
 
                 return config;
             });
-    }, [chartConfig]);
+    }, [chartConfig, getGroupColor, useSharedColors]);
 
     const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;

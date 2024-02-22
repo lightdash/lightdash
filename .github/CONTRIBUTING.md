@@ -289,7 +289,7 @@ To setup Development Environment without Docker you need following pre-requisite
 
 -   node >= v18.x (20 is preferred)
 -   yarn
--   postgres
+-   postgres >= 12
 -   dbt 1.4.x or 1.5.x
 
 eg. on MacOS you can follow this instructions:

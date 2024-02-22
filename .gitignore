@@ -64,3 +64,4 @@ packages/backend/target/
 venv/
 dbt_modules/
 logs/
+/.envrc

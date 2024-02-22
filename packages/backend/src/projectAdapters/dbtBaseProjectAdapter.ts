@@ -71,7 +71,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
-        await this.dbtClient.installDeps();
+        if (this.dbtClient.installDeps !== undefined) {
+            await this.dbtClient.installDeps();
+        }
         Logger.debug('Get dbt manifest');
         const { manifest } = await this.dbtClient.getDbtManifest();
 

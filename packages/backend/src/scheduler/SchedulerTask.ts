@@ -6,6 +6,7 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    friendlyName,
     getCustomLabelsFromTableConfig,
     getHiddenTableFields,
     getHumanReadableCronExpression,
@@ -25,6 +26,7 @@ import {
     isTableChartConfig,
     LightdashPage,
     NotificationPayloadBase,
+    operatorAction,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerFilterRule,
@@ -32,6 +34,8 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SlackNotificationPayload,
+    ThresholdOperator,
+    ThresholdOptions,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
@@ -54,6 +58,7 @@ import {
 import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
+    getChartThresholdAlertBlocks,
     getDashboardCsvResultsBlocks,
     getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
@@ -328,6 +333,7 @@ export const sendSlackNotification = async (
             schedulerTargetId: schedulerSlackTargetUuid,
             type: 'slack',
             sendNow: schedulerUuid === undefined,
+            isThresholdAlert: scheduler.thresholds !== undefined,
         },
     });
 
@@ -336,7 +342,14 @@ export const sendSlackNotification = async (
             throw new Error('Slack app is not configured');
         }
 
-        const { format, savedChartUuid, dashboardUuid, name, cron } = scheduler;
+        const {
+            format,
+            savedChartUuid,
+            dashboardUuid,
+            name,
+            cron,
+            thresholds,
+        } = scheduler;
 
         await schedulerService.logSchedulerJob({
             task: 'sendSlackNotification',
@@ -379,7 +392,29 @@ export const sendSlackNotification = async (
             )} from Lightdash\n${s3Client.getExpirationWarning()?.slack || ''}`,
         };
 
-        if (format === SchedulerFormat.IMAGE) {
+        if (thresholds !== undefined && thresholds.length > 0) {
+            // We assume the threshold is possitive , so we don't need to get results here
+            if (savedChartUuid) {
+                const blocks = getChartThresholdAlertBlocks({
+                    ...getBlocksArgs,
+                    footerMarkdown: `This is a <${url}?threshold_uuid=${
+                        schedulerUuid || ''
+                    }|data alert> sent by Lightdash. For security reasons, delivered files expire after ${
+                        s3Client.getExpirationWarning()?.days || 3
+                    } days`,
+                    imageUrl,
+                    thresholds,
+                });
+                await slackClient.postMessage({
+                    organizationUuid,
+                    text: name,
+                    channel,
+                    blocks,
+                });
+            } else {
+                throw new Error('Not implemented');
+            }
+        } else if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
                 throw new Error('Missing image URL');
             }
@@ -437,6 +472,7 @@ export const sendSlackNotification = async (
                 resourceType:
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
                 sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -461,6 +497,7 @@ export const sendSlackNotification = async (
                 schedulerTargetId: schedulerSlackTargetUuid,
                 type: 'slack',
                 sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -833,11 +870,13 @@ export const sendEmailNotification = async (
             schedulerTargetId: schedulerEmailTargetUuid,
             type: 'email',
             sendNow: schedulerUuid === undefined,
+            isThresholdAlert: scheduler.thresholds !== undefined,
         },
     });
 
     try {
-        const { format, savedChartUuid, dashboardUuid, name } = scheduler;
+        const { format, savedChartUuid, dashboardUuid, name, thresholds } =
+            scheduler;
 
         await schedulerService.logSchedulerJob({
             task: 'sendEmailNotification',
@@ -861,7 +900,44 @@ export const sendEmailNotification = async (
 
         const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
 
-        if (format === SchedulerFormat.IMAGE) {
+        if (thresholds !== undefined && thresholds.length > 0) {
+            // We assume the threshold is possitive , so we don't need to get results here
+            if (imageUrl === undefined) {
+                throw new Error('Missing image URL');
+            }
+            if (scheduler.message) {
+                throw new Error('Message not supported on threshold alerts');
+            }
+            // Reuse message from imageNotification for threshold information
+            const thresholdMessageList = thresholds.map(
+                (threshold) =>
+                    `- **${friendlyName(threshold.fieldId)}** ${operatorAction(
+                        threshold.operator,
+                    )} **${threshold.value}**`,
+            );
+            const thresholdMessage = `Your results for the chart **${
+                details.name
+            }** triggered the following alerts:\n${thresholdMessageList.join(
+                '\n',
+            )}`;
+            await emailClient.sendImageNotificationEmail(
+                recipient,
+                `Lightdash Data Alert`,
+                name,
+                details.description || '',
+                thresholdMessage,
+                new Date().toLocaleDateString('en-GB'),
+                `For security reasons, delivered files expire after ${
+                    s3Client.getExpirationWarning()?.days || 3
+                } days`,
+                imageUrl,
+                url,
+                schedulerUrl,
+                pdfFile,
+                undefined, // expiration days
+                'This is a data alert sent by Lightdash',
+            );
+        } else if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
                 throw new Error('Missing image URL');
             }
@@ -930,6 +1006,7 @@ export const sendEmailNotification = async (
                 resourceType:
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
                 sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -954,6 +1031,7 @@ export const sendEmailNotification = async (
                 schedulerTargetId: schedulerEmailTargetUuid,
                 type: 'email',
                 sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -971,6 +1049,41 @@ export const sendEmailNotification = async (
     }
 };
 
+const isPositiveThesholdAlert = (
+    thresholds: ThresholdOptions[],
+    results: Record<string, any>[],
+): boolean => {
+    const { fieldId, operator, value: thresholdValue } = thresholds[0];
+
+    const firstResult = results[0][fieldId];
+    if (firstResult === undefined) {
+        throw new Error(
+            `Threshold alert error: Field ${fieldId} not found in results`,
+        );
+    }
+    const firstValue = parseFloat(firstResult); // This will throw an error if value is not a valid number
+    switch (operator) {
+        case ThresholdOperator.GREATER_THAN:
+            return firstValue > thresholdValue;
+        case ThresholdOperator.LESS_THAN:
+            return firstValue < thresholdValue;
+        case ThresholdOperator.INCREASED_BY:
+        case ThresholdOperator.DECREASED_BY:
+            const secondValue = parseFloat(results[1][fieldId]);
+            const increase = firstValue - secondValue;
+            if (operator === ThresholdOperator.INCREASED_BY) {
+                return thresholdValue < increase / (secondValue * 100);
+            }
+            return thresholdValue > increase / (secondValue * 100);
+
+        default:
+            assertUnreachable(
+                operator,
+                `Unknown threshold alert operator: ${operator}`,
+            );
+    }
+    return false;
+};
 export const uploadGsheets = async (
     jobId: string,
     notification: GsheetsNotificationPayload,
@@ -1000,7 +1113,7 @@ export const uploadGsheets = async (
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
             );
-        const { format, savedChartUuid, dashboardUuid } = scheduler;
+        const { format, savedChartUuid, dashboardUuid, thresholds } = scheduler;
 
         const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
             ? scheduler.options.gdriveId
@@ -1035,6 +1148,10 @@ export const uploadGsheets = async (
                 user,
                 savedChartUuid,
             );
+
+            if (thresholds !== undefined && thresholds.length > 0) {
+                throw new Error('Thresholds not implemented for google sheets');
+            }
 
             const explore = await projectService.getExplore(
                 user,
@@ -1295,6 +1412,11 @@ export const handleScheduledDelivery = async (
                       schedulerPayload.schedulerUuid,
                   );
 
+        if (!scheduler.enabled) {
+            // This should not happen, if schedulers are not enabled, we should remove the scheduled jobs from the queue
+            throw new Error('Scheduler is disabled');
+        }
+
         analytics.track({
             event: 'scheduler_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -1302,6 +1424,7 @@ export const handleScheduledDelivery = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -1312,6 +1435,39 @@ export const handleScheduledDelivery = async (
             scheduledTime,
             status: SchedulerJobStatus.STARTED,
         });
+
+        const {
+            createdBy: userUuid,
+            savedChartUuid,
+            dashboardUuid,
+            thresholds,
+        } = scheduler;
+        if (thresholds !== undefined && thresholds.length > 0) {
+            // TODO add multiple AND conditions
+            if (savedChartUuid) {
+                // We are fetching here the results before getting image or CSV
+                const user = await userService.getSessionByUserUuid(userUuid);
+                const { rows } = await projectService.getResultsForChart(
+                    user,
+                    savedChartUuid,
+                );
+
+                if (isPositiveThesholdAlert(thresholds, rows)) {
+                    console.debug(
+                        'Positive threshold alert, continue with notification',
+                    );
+                } else {
+                    console.debug(
+                        'Negative threshold alert, skipping notification',
+                    );
+                    return;
+                }
+            } else if (dashboardUuid) {
+                throw new Error(
+                    'Threshold alert not implemented for dashboards',
+                );
+            }
+        }
 
         const page =
             scheduler.format === SchedulerFormat.GSHEETS
@@ -1352,6 +1508,7 @@ export const handleScheduledDelivery = async (
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
+                isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
     } catch (e) {

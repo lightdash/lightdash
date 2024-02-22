@@ -1,18 +1,11 @@
 import {
-    ActionIcon,
     Alert,
     Anchor,
-    Box,
     ScrollArea,
     Text,
-    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import {
-    IconSparkles,
-    IconTextWrap,
-    IconTextWrapDisabled,
-} from '@tabler/icons-react';
+import { IconSparkles } from '@tabler/icons-react';
 import { FC } from 'react';
 import AceEditor, { IAceEditorProps } from 'react-ace';
 import styled, { css } from 'styled-components';
@@ -20,11 +13,13 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplorerAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { TableCalculationForm } from '../types';
 
+import { useLocalStorage } from '@mantine/hooks';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
-import { useToggle } from 'react-use';
+import { SqlEditorActions } from '../../../components/SqlRunner/SqlEditorActions';
 
 const SQL_PLACEHOLDER = '${table_name.field_name} + ${table_name.metric_name}';
+const SOFT_WRAP_LOCAL_STORAGE_KEY = 'lightdash-sql-form-soft-wrap';
 
 type Props = {
     form: TableCalculationForm;
@@ -49,41 +44,15 @@ const SqlEditor = styled(AceEditor)<
               `}
 `;
 
-const SqlEditorActions: FC<{
-    isSoftWrapEnabled: boolean;
-    onToggleSoftWrap: () => void;
-}> = ({ isSoftWrapEnabled, onToggleSoftWrap }) => (
-    <Box
-        pos="absolute"
-        bottom={0}
-        right={0}
-        // Avoids potential collision with ScrollArea scrollbar:
-        mr={5}
-    >
-        <Tooltip
-            label={
-                isSoftWrapEnabled
-                    ? 'Disable editor soft-wrapping'
-                    : 'Enable editor soft-wrapping'
-            }
-            withArrow
-            position="left"
-        >
-            <ActionIcon onClick={onToggleSoftWrap}>
-                {isSoftWrapEnabled ? (
-                    <MantineIcon icon={IconTextWrapDisabled} />
-                ) : (
-                    <MantineIcon icon={IconTextWrap} />
-                )}
-            </ActionIcon>
-        </Tooltip>
-    </Box>
-);
-
 export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
     const theme = useMantineTheme();
-    const [isSoftWrapEnabled, toggleSoftWrap] = useToggle(false);
+    const [isSoftWrapEnabled, setSoftWrapEnabled] = useLocalStorage({
+        key: SOFT_WRAP_LOCAL_STORAGE_KEY,
+        defaultValue: true,
+    });
+
     const { setAceEditor } = useExplorerAceEditorCompleter();
+
     return (
         <>
             <ScrollArea h={isFullScreen ? '95%' : '150px'}>
@@ -108,7 +77,10 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
                 />
                 <SqlEditorActions
                     isSoftWrapEnabled={isSoftWrapEnabled}
-                    onToggleSoftWrap={toggleSoftWrap}
+                    onToggleSoftWrap={() =>
+                        setSoftWrapEnabled(!isSoftWrapEnabled)
+                    }
+                    clipboardContent={form.values.sql}
                 />
             </ScrollArea>
 

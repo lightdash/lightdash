@@ -6,6 +6,7 @@ import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DownloadFileModel } from './DownloadFileModel';
 import { EmailModel } from './EmailModel';
+import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
@@ -103,6 +104,11 @@ export const userAttributesModel = new UserAttributesModel({ database });
 export const downloadFileModel = new DownloadFileModel({ database });
 
 export const userWarehouseCredentialsModel = new UserWarehouseCredentialsModel({
+    database,
+    encryptionService,
+});
+
+export const githubAppInstallationsModel = new GithubAppInstallationsModel({
     database,
     encryptionService,
 });

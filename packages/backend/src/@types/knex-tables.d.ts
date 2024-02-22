@@ -131,6 +131,10 @@ import {
     EmailOneTimePasscodeTable,
 } from '../database/entities/emailOneTimePasscodes';
 import {
+    GithubAppInstallationTable,
+    GithubAppInstallationTableName,
+} from '../database/entities/githubAppInstallation';
+import {
     GroupMembershipTable,
     GroupMembershipTableName,
 } from '../database/entities/groupMemberships';
@@ -243,5 +247,6 @@ declare module 'knex/types/tables' {
         [GroupUserAttributesTable]: DbGroupUserAttribute;
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
+        [GithubAppInstallationTableName]: GithubAppInstallationTable;
     }
 }

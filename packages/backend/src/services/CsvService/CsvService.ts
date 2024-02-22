@@ -477,7 +477,10 @@ export class CsvService {
             DownloadFileType.CSV,
         );
 
-        const localUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${downloadFileId}`;
+        const localUrl = new URL(
+            `/api/v1/projects/${chart.projectUuid}/csv/${downloadFileId}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
         return {
             filename: `${chart.name}`,
             path: localUrl,
@@ -593,7 +596,10 @@ export class CsvService {
                     filePath,
                     DownloadFileType.CSV,
                 );
-                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${downloadFileId}`;
+                fileUrl = new URL(
+                    `/api/v1/projects/${projectUuid}/csv/${downloadFileId}`,
+                    this.lightdashConfig.siteUrl,
+                ).href;
             }
 
             analytics.track({
@@ -771,8 +777,10 @@ export class CsvService {
                     filePath,
                     DownloadFileType.CSV,
                 );
-
-                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${downloadFileId}`;
+                fileUrl = new URL(
+                    `/api/v1/projects/${projectUuid}/csv/${downloadFileId}`,
+                    this.lightdashConfig.siteUrl,
+                ).href;
             }
 
             analytics.track({

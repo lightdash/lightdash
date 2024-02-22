@@ -14,13 +14,15 @@ describe('SQL Runner', () => {
     it('Should see results from customers by typing', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`);
 
+        cy.contains('SQL');
+
         const customersTable = `"jaffle"."customers"`;
 
-        cy.get('.ace_content')
-            .type(
-                `SELECT * FROM ${customersTable} order by customer_id LIMIT 1`,
-            )
-            .type('{ctrl}{enter}');
+        cy.get('.ace_content').type(
+            `SELECT * FROM ${customersTable} order by customer_id LIMIT 1`,
+        );
+
+        cy.contains('Run query').click();
 
         const find = [
             'First name',
@@ -34,9 +36,13 @@ describe('SQL Runner', () => {
     it('Should autocomplete customer table', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`);
 
-        cy.get('.ace_content')
-            .type(`SELECT * FROM cu{enter} order by customer_id`)
-            .type('{ctrl}{enter}');
+        cy.contains('SQL');
+
+        cy.get('.ace_content').type(
+            `SELECT * FROM cu{enter} order by customer_id`,
+        );
+
+        cy.contains('Run query').click();
 
         const find = [
             'First name',
@@ -59,15 +65,19 @@ describe('SQL Runner', () => {
     });
 
     it('Get error on invalid SQL', () => {
-        cy.get('.ace_content').type(`SELECT test`).type('{ctrl}{enter}');
+        cy.contains('SQL');
+        cy.get('.ace_content').type(`SELECT test`);
+        cy.contains('Run query').click();
 
         cy.findByText('Failed to run sql query');
         cy.contains('column "test" does not exist');
     });
 
     it('Should see results with custom SQL ', () => {
+        cy.contains('SQL');
         const sql = `select a from ( values ('foo'), ('bar')) s(a);`;
 
-        cy.get('.ace_content').type(sql).type('{ctrl}{enter}');
+        cy.get('.ace_content').type(sql);
+        cy.contains('Run query').click();
     });
 });
