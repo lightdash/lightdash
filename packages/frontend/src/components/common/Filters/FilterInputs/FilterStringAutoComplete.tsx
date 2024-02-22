@@ -161,7 +161,9 @@ const FilterStringAutoComplete: FC<Props> = ({
              * Opts out of Mantine's default condition and always allows adding, as long as not
              * an empty query.
              */
-            shouldCreate={(query) => query.trim().length > 0}
+            shouldCreate={(query) =>
+                query.trim().length > 0 && !values.includes(query)
+            }
             getCreateLabel={(query) => (
                 <Group spacing="xxs">
                     <MantineIcon icon={IconPlus} color="blue" size="sm" />

@@ -18,8 +18,6 @@ export enum FeatureFlags {
      */
     UseSharedColorAssignment = 'use-shared-color-assignment',
 
-    /** Show the option to set up threshold alerting in the UI */
-    EnableThresholdAlerting = 'enable-threshold-alerting',
     /**/
     PassthroughLogin = 'passthrough-login',
 
@@ -28,5 +26,11 @@ export enum FeatureFlags {
      */
     CustomVisualizationsEnabled = 'custom-visualizations-enabled',
 
+    /**/
     ShowDbtCloudProjectOption = 'show-dbt-cloud-project-option',
+
+    /**
+     * Use the new in-memory table calculations engine/duckdb
+     */
+    UseInMemoryTableCalculations = 'new-table-calculations-engine',
 }

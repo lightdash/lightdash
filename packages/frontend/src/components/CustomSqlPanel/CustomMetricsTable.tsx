@@ -67,11 +67,6 @@ const CustomMetricsTable: FC<Props> = ({
         [checkedUuids],
     );
     const toggleAllCheckedUuids = useCallback(() => {
-        console.log(
-            'toggleAllCheckedUuids',
-            checkedUuids.size,
-            customMetrics.length,
-        );
         if (checkedUuids.size === customMetrics.length) {
             setCheckedUuids(new Set());
         } else {
@@ -80,7 +75,6 @@ const CustomMetricsTable: FC<Props> = ({
             );
         }
     }, [checkedUuids, customMetrics]);
-    console.log('checkedUuids', checkedUuids);
 
     useEffect(() => {
         onSelectedCustomMetricsChange(Array.from(checkedUuids));

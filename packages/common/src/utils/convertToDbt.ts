@@ -4,7 +4,6 @@ import {
     DbtModelColumn,
     DbtModelNode,
 } from '../types/dbt';
-import { ColumnInfo } from '../types/dbtFromSchema';
 import {
     CustomFormat,
     CustomFormatType,

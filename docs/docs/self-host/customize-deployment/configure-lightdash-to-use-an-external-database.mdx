@@ -8,6 +8,8 @@ In production, we recommend using a managed database service (depending on your 
 
 The following configuration shows an example of how to configure Lightdash to use an external database. You can use this as a starting point for your own configuration.
 
+> Note: Your version of PostgreSQL needs to be >= 12
+
 ## Configuration options for external database
 
 ```yaml
@@ -33,8 +35,6 @@ Optionally you can pass any of the [PostgreSQL Environment Variables](https://ww
 Lightdash requires the following extensions to be installed on the database:
 
 - `uuid-ossp` - used for generating unique IDs
-
-Your version on postgres should also support `json` and `jsonb` objects.
 
 ## Migrations
 

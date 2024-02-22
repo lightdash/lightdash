@@ -1,5 +1,6 @@
 import {
     DashboardSearchResult,
+    EntityType,
     Explore,
     ExploreError,
     FieldSearchResult,
@@ -8,6 +9,7 @@ import {
     isExploreError,
     NotExistsError,
     SavedChartSearchResult,
+    SearchFilters,
     SearchResults,
     SpaceSearchResult,
     TableErrorSearchResult,
@@ -35,10 +37,23 @@ export class SearchModel {
         this.database = deps.database;
     }
 
+    private static shouldSearchForType(
+        entityType: EntityType,
+        queryTypeFilter?: string,
+    ) {
+        // if there is no filter or if the filter is the same as the entityType
+        return !queryTypeFilter || queryTypeFilter === entityType;
+    }
+
     private async searchSpaces(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<SpaceSearchResult[]> {
+        if (!SearchModel.shouldSearchForType('spaces', filters?.type)) {
+            return [];
+        }
+
         const { searchRankRawSql, searchRankColumnName } =
             getFullTextSearchRankCalcSql(
                 this.database,
@@ -67,7 +82,12 @@ export class SearchModel {
     private async searchDashboards(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<DashboardSearchResult[]> {
+        if (!SearchModel.shouldSearchForType('dashboards', filters?.type)) {
+            return [];
+        }
+
         const { searchRankRawSql, searchRankColumnName } =
             getFullTextSearchRankCalcSql(
                 this.database,
@@ -134,7 +154,12 @@ export class SearchModel {
     private async searchSavedCharts(
         projectUuid: string,
         query: string,
+        filters?: SearchFilters,
     ): Promise<SavedChartSearchResult[]> {
+        if (!SearchModel.shouldSearchForType('charts', filters?.type)) {
+            return [];
+        }
+
         const { searchRankRawSql, searchRankColumnName } =
             getFullTextSearchRankCalcSql(
                 this.database,
@@ -244,11 +269,21 @@ export class SearchModel {
         return [];
     }
 
-    private async searchTablesAndFields(
-        projectUuid: string,
+    private static searchTablesAndFields(
         query: string,
-    ): Promise<[TableSearchResult[], FieldSearchResult[]]> {
-        const explores = await this.getProjectExplores(projectUuid);
+        explores: Explore[],
+        filters?: SearchFilters,
+    ) {
+        const shouldSearchForTables = SearchModel.shouldSearchForType(
+            'tables',
+            filters?.type,
+        );
+
+        const shouldSearchForFields = SearchModel.shouldSearchForType(
+            'fields',
+            filters?.type,
+        );
+
         const lowerCaseQuery = query.toLowerCase();
         return explores
             .filter((explore) => !isExploreError(explore))
@@ -258,12 +293,13 @@ export class SearchModel {
                         [TableSearchResult[], FieldSearchResult[]]
                     >(([tables, fields], table) => {
                         if (
-                            table.label
+                            shouldSearchForTables &&
+                            (table.label
                                 .toLowerCase()
                                 .includes(lowerCaseQuery) ||
-                            table.description
-                                ?.toLowerCase()
-                                .includes(lowerCaseQuery)
+                                table.description
+                                    ?.toLowerCase()
+                                    .includes(lowerCaseQuery))
                         ) {
                             tables.push({
                                 name: table.name,
@@ -274,37 +310,41 @@ export class SearchModel {
                                 requiredAttributes: table.requiredAttributes,
                             });
                         }
-                        [
-                            ...Object.values(table.dimensions),
-                            ...Object.values(table.metrics),
-                        ].forEach((field) => {
-                            if (
-                                !field.hidden &&
-                                (field.label
-                                    .toLowerCase()
-                                    .includes(lowerCaseQuery) ||
-                                    field.description
-                                        ?.toLowerCase()
-                                        .includes(lowerCaseQuery))
-                            ) {
-                                fields.push({
-                                    name: field.name,
-                                    label: field.label,
-                                    description: field.description,
-                                    type: field.type,
-                                    fieldType: field.fieldType,
-                                    table: field.table,
-                                    tableLabel: field.tableLabel,
-                                    explore: explore.name,
-                                    exploreLabel: explore.label,
-                                    requiredAttributes: isDimension(field)
-                                        ? field.requiredAttributes
-                                        : undefined,
-                                    tablesRequiredAttributes:
-                                        field.tablesRequiredAttributes,
-                                });
-                            }
-                        });
+
+                        if (shouldSearchForFields) {
+                            [
+                                ...Object.values(table.dimensions),
+                                ...Object.values(table.metrics),
+                            ].forEach((field) => {
+                                if (
+                                    !field.hidden &&
+                                    (field.label
+                                        .toLowerCase()
+                                        .includes(lowerCaseQuery) ||
+                                        field.description
+                                            ?.toLowerCase()
+                                            .includes(lowerCaseQuery))
+                                ) {
+                                    fields.push({
+                                        name: field.name,
+                                        label: field.label,
+                                        description: field.description,
+                                        type: field.type,
+                                        fieldType: field.fieldType,
+                                        table: field.table,
+                                        tableLabel: field.tableLabel,
+                                        explore: explore.name,
+                                        exploreLabel: explore.label,
+                                        requiredAttributes: isDimension(field)
+                                            ? field.requiredAttributes
+                                            : undefined,
+                                        tablesRequiredAttributes:
+                                            field.tablesRequiredAttributes,
+                                    });
+                                }
+                            });
+                        }
+
                         return [tables, fields];
                     }, acc),
                 [[], []],
@@ -314,8 +354,8 @@ export class SearchModel {
     private async searchTableErrors(
         projectUuid: string,
         query: string,
+        explores: Explore[],
     ): Promise<TableErrorSearchResult[]> {
-        const explores = await this.getProjectExplores(projectUuid);
         const lowerCaseQuery = query.toLowerCase();
 
         const validationErrors = await this.database('validations')
@@ -356,15 +396,35 @@ export class SearchModel {
         }, []);
     }
 
-    async search(projectUuid: string, query: string): Promise<SearchResults> {
-        const spaces = await this.searchSpaces(projectUuid, query);
-        const dashboards = await this.searchDashboards(projectUuid, query);
-        const savedCharts = await this.searchSavedCharts(projectUuid, query);
-        const [tables, fields] = await this.searchTablesAndFields(
+    async search(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<SearchResults> {
+        const spaces = await this.searchSpaces(projectUuid, query, filters);
+        const dashboards = await this.searchDashboards(
             projectUuid,
             query,
+            filters,
         );
-        const tableErrors = await this.searchTableErrors(projectUuid, query);
+        const savedCharts = await this.searchSavedCharts(
+            projectUuid,
+            query,
+            filters,
+        );
+
+        const explores = await this.getProjectExplores(projectUuid);
+        const tableErrors = await this.searchTableErrors(
+            projectUuid,
+            query,
+            explores,
+        );
+        const [tables, fields] = SearchModel.searchTablesAndFields(
+            query,
+            explores,
+            filters,
+        );
+
         const tablesAndErrors = [...tables, ...tableErrors];
         const allPages = [
             {

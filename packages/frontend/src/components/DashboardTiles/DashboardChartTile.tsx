@@ -3,12 +3,11 @@ import {
     ApiChartAndResults,
     ApiError,
     ChartType,
+    createDashboardFilterRuleFromField,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
     Field,
     fieldId,
-    FilterOperator,
-    friendlyName,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -47,7 +46,6 @@ import {
 } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -67,6 +65,7 @@ import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { FilterDashboardTo } from '../DashboardFilter/FilterDashboardTo';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
@@ -393,9 +392,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         [],
     );
 
-    const [dashboardTileFilterOptions, setDashboardFilterOptions] = useState<
-        DashboardFilterRule[]
-    >([]);
+    const [dashboardTileFilterOptions, setDashboardTileFilterOptions] =
+        useState<DashboardFilterRule[]>([]);
 
     const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
 
@@ -408,16 +406,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 e.dimensionNames.includes(fieldId(dimension)),
             );
 
-            const dimensionOptions = dimensions.map((dimension) => ({
-                id: uuidv4(),
-                target: {
-                    fieldId: fieldId(dimension),
-                    tableName: dimension.table,
-                },
-                operator: FilterOperator.EQUALS,
-                values: [e.data[fieldId(dimension)]],
-                label: undefined,
-            }));
+            const dimensionOptions = dimensions.map((dimension) =>
+                createDashboardFilterRuleFromField({
+                    field: dimension,
+                    availableTileFilters: {},
+                    isTemporary: true,
+                    value: e.data[fieldId(dimension)],
+                }),
+            );
             const serie = series[e.seriesIndex];
             const fields = getFields(explore);
             const pivot = chart.pivotConfig?.columns?.[0];
@@ -434,20 +430,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             const pivotOptions =
                 pivot && pivotField && pivotValue
                     ? [
-                          {
-                              id: uuidv4(),
-                              target: {
-                                  fieldId: pivot,
-                                  tableName: pivotField.table,
-                              },
-                              operator: FilterOperator.EQUALS,
-                              values: [pivotValue],
-                              label: undefined,
-                          },
+                          createDashboardFilterRuleFromField({
+                              field: pivotField,
+                              availableTileFilters: {},
+                              isTemporary: true,
+                              value: pivotValue,
+                          }),
                       ]
                     : [];
 
-            setDashboardFilterOptions([...dimensionOptions, ...pivotOptions]);
+            setDashboardTileFilterOptions([
+                ...dimensionOptions,
+                ...pivotOptions,
+            ]);
             setContextMenuIsOpen(true);
             setContextMenuTargetOffset({
                 left: e.event.event.pageX,
@@ -750,40 +745,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             </Can>
 
                             {dashboardTileFilterOptions.length > 0 && (
-                                <>
-                                    <Menu.Divider />
-                                    <Menu.Label>
-                                        Filter dashboard to...
-                                    </Menu.Label>
-
-                                    {dashboardTileFilterOptions.map(
-                                        (filter) => (
-                                            <Menu.Item
-                                                key={filter.id}
-                                                icon={
-                                                    <MantineIcon
-                                                        icon={IconFilter}
-                                                    />
-                                                }
-                                                onClick={() =>
-                                                    handleAddFilter(filter)
-                                                }
-                                            >
-                                                {friendlyName(
-                                                    filter.target.fieldId,
-                                                )}{' '}
-                                                is{' '}
-                                                <Text span fw={500}>
-                                                    {filter.values &&
-                                                        filter.values[0] &&
-                                                        String(
-                                                            filter.values[0],
-                                                        )}
-                                                </Text>
-                                            </Menu.Item>
-                                        ),
-                                    )}
-                                </>
+                                <FilterDashboardTo
+                                    filters={dashboardTileFilterOptions}
+                                    onAddFilter={handleAddFilter}
+                                />
                             )}
                         </Menu.Dropdown>
                     </Menu>

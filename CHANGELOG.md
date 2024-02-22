@@ -1,3 +1,73 @@
+## [0.1002.2](https://github.com/lightdash/lightdash/compare/0.1002.1...0.1002.2) (2024-02-22)
+
+
+### Bug Fixes
+
+* upgrade puppeteer version to 22.2.0 ([#9066](https://github.com/lightdash/lightdash/issues/9066)) ([ed97a8f](https://github.com/lightdash/lightdash/commit/ed97a8f6d5fed06b1ac88c809a7579afce92c347))
+
+## [0.1002.1](https://github.com/lightdash/lightdash/compare/0.1002.0...0.1002.1) (2024-02-22)
+
+
+### Bug Fixes
+
+* "filter dashboard to" for null value ([#8953](https://github.com/lightdash/lightdash/issues/8953)) ([8e354bf](https://github.com/lightdash/lightdash/commit/8e354bfe86a47f419603971be11bd76dc21a5ac8))
+
+# [0.1002.0](https://github.com/lightdash/lightdash/compare/0.1001.6...0.1002.0) (2024-02-22)
+
+
+### Features
+
+* add entity type filter backend for global search ([#8991](https://github.com/lightdash/lightdash/issues/8991)) ([6a915ab](https://github.com/lightdash/lightdash/commit/6a915abc1b05681c1c6a4a909f0e55227b9c70d5))
+
+## [0.1001.6](https://github.com/lightdash/lightdash/compare/0.1001.5...0.1001.6) (2024-02-22)
+
+
+### Bug Fixes
+
+* do not show create option for exact matches on filter input ([#9058](https://github.com/lightdash/lightdash/issues/9058)) ([e716290](https://github.com/lightdash/lightdash/commit/e716290b11633a9544641c337bf77eb506e341f0))
+
+## [0.1001.5](https://github.com/lightdash/lightdash/compare/0.1001.4...0.1001.5) (2024-02-22)
+
+
+### Bug Fixes
+
+* remove feature flag alert ([#9050](https://github.com/lightdash/lightdash/issues/9050)) ([479c082](https://github.com/lightdash/lightdash/commit/479c0821b75077da9ef3d8d653944990dfe066f2))
+
+## [0.1001.4](https://github.com/lightdash/lightdash/compare/0.1001.3...0.1001.4) (2024-02-22)
+
+
+### Bug Fixes
+
+* add docs panel ([#9057](https://github.com/lightdash/lightdash/issues/9057)) ([9d260cc](https://github.com/lightdash/lightdash/commit/9d260ccfce0af42c64da07192cdc3c86c1a92f3a))
+
+## [0.1001.3](https://github.com/lightdash/lightdash/compare/0.1001.2...0.1001.3) (2024-02-22)
+
+
+### Bug Fixes
+
+* scheduler enabled tooltip ([#9044](https://github.com/lightdash/lightdash/issues/9044)) ([64e838f](https://github.com/lightdash/lightdash/commit/64e838f1b546c8a9642f8b87c3465bc6b2fe7ba4))
+
+## [0.1001.2](https://github.com/lightdash/lightdash/compare/0.1001.1...0.1001.2) (2024-02-22)
+
+
+### Bug Fixes
+
+* update copy alert email slack ([#9049](https://github.com/lightdash/lightdash/issues/9049)) ([a26bbf3](https://github.com/lightdash/lightdash/commit/a26bbf3e7fca743094d86979ec70a81ec3b6d9fa))
+
+## [0.1001.1](https://github.com/lightdash/lightdash/compare/0.1001.0...0.1001.1) (2024-02-21)
+
+
+### Bug Fixes
+
+* explore from chart with long url ([#9038](https://github.com/lightdash/lightdash/issues/9038)) ([735ca8e](https://github.com/lightdash/lightdash/commit/735ca8e3203da7b11dd0730c11bfbb2410cd9ded))
+
+# [0.1001.0](https://github.com/lightdash/lightdash/compare/0.1000.2...0.1001.0) (2024-02-21)
+
+
+### Features
+
+* In-memory table calculations engine ([#8827](https://github.com/lightdash/lightdash/issues/8827)) ([a5a08f4](https://github.com/lightdash/lightdash/commit/a5a08f4a08c501682b45ff4033e6e4dbb1ac926c))
+
 ## [0.1000.2](https://github.com/lightdash/lightdash/compare/0.1000.1...0.1000.2) (2024-02-21)
 
 

@@ -195,6 +195,7 @@ export default class EmailClient {
         schedulerUrl: string,
         pdfFile?: string,
         expirationDays?: number,
+        deliveryType: string = 'Scheduled delivery',
     ) {
         return this.sendEmail({
             to: recipient,
@@ -212,6 +213,7 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                deliveryType,
             },
             text: title,
             attachments: pdfFile
