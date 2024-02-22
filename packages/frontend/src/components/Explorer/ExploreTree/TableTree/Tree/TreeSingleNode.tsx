@@ -11,7 +11,7 @@ import {
     timeFrameConfigs,
 } from '@lightdash/common';
 import {
-    Button,
+    Anchor,
     Flex,
     Group,
     Highlight,
@@ -24,7 +24,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconAlertTriangle, IconDots, IconFilter } from '@tabler/icons-react';
+import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { darken, lighten } from 'polished';
 import { FC } from 'react';
@@ -60,20 +60,41 @@ const NodeDetailMarkdown: FC<{ source: string }> = ({ source }) => {
     );
 };
 
+/**
+ * Truncate an item description by limiting to:
+ *
+ * - No more than 5 lines
+ * - No more than 256 characters total (BEFORE markdown rendering)
+ * - Breaks before any code blocks after the first line
+ * - Breaks before anything that looks like a table after the first line
+ */
+const truncateDescription = (description: string) => {
+    const lines = description.split('\n');
+
+    /**
+     * Collect up to 5 description lines, breaking early if we find anything that
+     * looks like a code block or a table.
+     */
+    const truncatedLines = lines
+        .slice(0, 4)
+        .reduce<string[]>((truncated, line, idx) => {
+            if (idx === 0 || (line.at(0) !== '|' && !line.startsWith('```'))) {
+                truncated.push(line);
+            }
+
+            return truncated;
+        }, []);
+
+    return truncatedLines.join('\n').substring(0, 256);
+};
+
 const TreeSingleNodeDetail: FC<{
     description?: string;
     onViewDescription: () => void;
 }> = ({ description, onViewDescription }) => {
     if (!description) return null;
 
-    /**
-     * Truncate the node's description by limiting it to:
-     *
-     * - No more than 5 lines
-     * - No more than 256 characters total (BEFORE markdown rendering)
-     */
-    const lines = description.split('\n');
-    const truncatedDescription = lines.slice(0, 4).join('\n').substring(0, 256);
+    const truncatedDescription = truncateDescription(description);
     const isTruncated = truncatedDescription !== description;
 
     return (
@@ -82,16 +103,14 @@ const TreeSingleNodeDetail: FC<{
                 source={`${truncatedDescription}${isTruncated ? '...' : ''}`}
             />
             {isTruncated && (
-                <Button
-                    leftIcon={<MantineIcon icon={IconDots} />}
-                    variant="subtle"
+                <Anchor
                     size="xs"
                     onClick={(e) => {
                         e.preventDefault();
                         onViewDescription();
                     }}
                     /**
-                     * The button is aligned to the right to avoid accidental misclicks
+                     * The link is aligned to the right to avoid accidental misclicks
                      * when scanning the list.
                      */
                     style={{
@@ -99,7 +118,7 @@ const TreeSingleNodeDetail: FC<{
                     }}
                 >
                     Read full description
-                </Button>
+                </Anchor>
             )}
         </Flex>
     );
@@ -194,15 +213,11 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         shadow="sm"
                         withinPortal
                         disabled={!description && !isMissing}
-                        position="top-start"
+                        position="right"
                         /** Stops larger popups from being annoying when scanning the list of items */
                         openDelay={300}
-                        /**
-                         * Arbitrary offset, but provides a decent marging when scanning the list
-                         * from the bottom up, allowing the user to select the item imemdiately above the
-                         * current one even with the hover card active.
-                         */
-                        offset={18}
+                        /** Ensures the hover card does not overlap with the right-hand menu. */
+                        offset={40}
                     >
                         <HoverCard.Target>
                             <Highlight
@@ -215,7 +230,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                             </Highlight>
                         </HoverCard.Target>
                         <HoverCard.Dropdown
-                            maw={400}
+                            p="xs"
+                            maw={380}
                             /**
                              * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
                              * while interacting with the hovercard.
