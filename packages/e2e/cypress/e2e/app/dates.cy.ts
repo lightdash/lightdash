@@ -338,8 +338,8 @@ describe('Date tests', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/customers`);
 
         cy.findByTestId('page-spinner').should('not.exist');
+        cy.contains('No data available').should('be.visible'); // Chart panel is opened by default but it takes some time to open it
         cy.get('[data-testid=Chart-card-expand]').click(); // Close chart
-        cy.contains('No data available').should('be.visible');
         cy.contains('Pick a metric & select its dimensions').should(
             'be.visible',
         );
