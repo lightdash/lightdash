@@ -1,8 +1,4 @@
-import {
-    OrganizationMemberRole,
-    ProjectMemberRole,
-    Space,
-} from '@lightdash/common';
+import { OrganizationMemberRole, Space } from '@lightdash/common';
 import {
     Avatar,
     Button,
@@ -13,6 +9,8 @@ import {
     Text,
 } from '@mantine/core';
 import { FC, forwardRef, useMemo, useState } from 'react';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
@@ -27,15 +25,29 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
-
+    const { data: projectAccess } = useProjectAccess(projectUuid);
+    const { data: organizationUsers } = useOrganizationUsers();
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
 
+    const userUuids: string[] = useMemo(() => {
+        if (organizationUsers === undefined) return [];
+
+        const projectUserUuids =
+            projectAccess?.map((project) => project.userUuid) || [];
+
+        const orgUserUuids = organizationUsers
+            .filter((user) => user.role !== OrganizationMemberRole.MEMBER)
+            .map((user) => user.userUuid);
+
+        return [...new Set([...projectUserUuids, ...orgUserUuids])];
+    }, [organizationUsers, projectAccess]);
+
     const UserItemComponent = useMemo(() => {
         return forwardRef<HTMLDivElement, SelectItem>((props, ref) => {
-            const user = space.access?.find(
+            const user = organizationUsers?.find(
                 (userAccess) => userAccess.userUuid === props.value,
             );
 
@@ -68,32 +80,35 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         });
-    }, [space.access]);
+    }, [organizationUsers]);
 
     const data = useMemo(() => {
-        return space.access
-            .map((accessableUser): SelectItem | null => {
-                if (!accessableUser) return null;
+        return userUuids
+            .map((userUuid): SelectItem | null => {
+                const user = organizationUsers?.find(
+                    (a) => a.userUuid === userUuid,
+                );
 
-                const isAdmin =
-                    accessableUser.inheritedRole ===
-                        OrganizationMemberRole.ADMIN ||
-                    accessableUser.inheritedRole === ProjectMemberRole.ADMIN;
+                if (!user) return null;
 
-                if (isAdmin || accessableUser.hasDirectAccess) return null;
+                const hasDirectAccess = !!(space.access || []).find(
+                    (access) => access.userUuid === userUuid,
+                )?.hasDirectAccess;
+
+                if (hasDirectAccess) return null;
 
                 return {
-                    value: accessableUser.userUuid,
+                    value: userUuid,
                     label: getUserNameOrEmail(
-                        accessableUser.userUuid,
-                        accessableUser.firstName,
-                        accessableUser.lastName,
-                        accessableUser.email,
+                        user.userUuid,
+                        user.firstName,
+                        user.lastName,
+                        user.email,
                     ),
                 };
             })
             .filter((item): item is SelectItem => item !== null);
-    }, [space.access]);
+    }, [organizationUsers, userUuids, space.access]);
 
     return (
         <Group>
