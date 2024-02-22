@@ -1,3 +1,10 @@
+# [0.1007.0](https://github.com/lightdash/lightdash/compare/0.1006.0...0.1007.0) (2024-02-22)
+
+
+### Features
+
+* add lables to pause alert/delivery switch ([#9068](https://github.com/lightdash/lightdash/issues/9068)) ([1f81535](https://github.com/lightdash/lightdash/commit/1f815355b888248e7cb20aaee4ffc81a5ae62038))
+
 # [0.1006.0](https://github.com/lightdash/lightdash/compare/0.1005.0...0.1006.0) (2024-02-22)
 
 
