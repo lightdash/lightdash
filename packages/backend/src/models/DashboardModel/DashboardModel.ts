@@ -964,7 +964,8 @@ export class DashboardModel {
                 `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
                 tileUuids,
             )
-            .andWhere(`${DashboardTileCommentsTableName}.resolved`, false);
+            .andWhere(`${DashboardTileCommentsTableName}.resolved`, false)
+            .orderBy(`${DashboardTileCommentsTableName}.created_at`, 'asc');
 
         const commentsPerDashboardTile: Record<string, Comment[]> = {}; // Stores comments grouped by their dashboard_tile_uuid
         const allComments: Record<string, Comment> = {}; // Fast access lookup for parent comments
