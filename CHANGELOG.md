@@ -1,3 +1,10 @@
+# [0.1002.0](https://github.com/lightdash/lightdash/compare/0.1001.6...0.1002.0) (2024-02-22)
+
+
+### Features
+
+* add entity type filter backend for global search ([#8991](https://github.com/lightdash/lightdash/issues/8991)) ([6a915ab](https://github.com/lightdash/lightdash/commit/6a915abc1b05681c1c6a4a909f0e55227b9c70d5))
+
 ## [0.1001.6](https://github.com/lightdash/lightdash/compare/0.1001.5...0.1001.6) (2024-02-22)
 
 
