@@ -1,19 +1,17 @@
 import { subject } from '@casl/ability';
 import {
+    createDashboardFilterRuleFromField,
     DashboardFilterRule,
-    fieldId,
-    FilterOperator,
-    friendlyName,
     hasCustomDimension,
     isDimension,
     isField,
+    isFilterableField,
     ItemsMap,
     ResultValue,
 } from '@lightdash/common';
-import { Menu, Text } from '@mantine/core';
+import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import { uuid4 } from '@sentry/utils';
-import { IconCopy, IconFilter, IconStack } from '@tabler/icons-react';
+import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
@@ -25,6 +23,7 @@ import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import { CellContextMenuProps } from '../common/Table/types';
+import { FilterDashboardTo } from '../DashboardFilter/FilterDashboardTo';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
@@ -59,34 +58,36 @@ const DashboardCellContextMenu: FC<
     const filterField =
         isDimension(item) && !item.hidden
             ? [
-                  {
-                      id: uuid4(),
-                      target: {
-                          fieldId: fieldId(item),
-                          tableName: item.table,
-                      },
-                      operator: FilterOperator.EQUALS,
-                      values: [value.raw],
-                      label: undefined,
-                  },
+                  createDashboardFilterRuleFromField({
+                      field: item,
+                      availableTileFilters: {},
+                      isTemporary: true,
+                      value: value.raw,
+                  }),
               ]
             : [];
 
     const possiblePivotFilters = (
         meta?.pivotReference?.pivotValues || []
-    ).map<DashboardFilterRule>((pivot) => {
+    ).reduce<DashboardFilterRule[]>((acc, pivot) => {
         const pivotField = itemsMap?.[pivot?.field];
-        return {
-            id: uuid4(),
-            target: {
-                fieldId: pivot.field,
-                tableName: isField(pivotField) ? pivotField?.table : '',
-            },
-            operator: FilterOperator.EQUALS,
-            values: [pivot.value],
-            label: undefined,
-        };
-    });
+        if (
+            !pivotField ||
+            !isField(pivotField) ||
+            !isFilterableField(pivotField)
+        )
+            return acc;
+
+        return [
+            ...acc,
+            createDashboardFilterRuleFromField({
+                field: pivotField,
+                availableTileFilters: {},
+                isTemporary: true,
+                value: pivot.value,
+            }),
+        ];
+    }, []);
     const filters: DashboardFilterRule[] = [
         ...filterField,
         ...possiblePivotFilters,
@@ -181,27 +182,10 @@ const DashboardCellContextMenu: FC<
             </Can>
 
             {filters.length > 0 && (
-                <>
-                    <Menu.Divider />
-                    <Menu.Label>Filter dashboard to...</Menu.Label>
-
-                    {filters.map((filter) => (
-                        <Menu.Item
-                            key={filter.id}
-                            icon={<MantineIcon icon={IconFilter} />}
-                            onClick={() =>
-                                addDimensionDashboardFilter(filter, true)
-                            }
-                        >
-                            {friendlyName(filter.target.fieldId)} is{' '}
-                            <Text span fw={500}>
-                                {filter.values &&
-                                    filter.values[0] &&
-                                    String(filter.values[0])}
-                            </Text>
-                        </Menu.Item>
-                    ))}
-                </>
+                <FilterDashboardTo
+                    filters={filters}
+                    onAddFilter={addDimensionDashboardFilter}
+                />
             )}
         </>
     );
