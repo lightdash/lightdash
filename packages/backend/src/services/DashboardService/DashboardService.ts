@@ -13,6 +13,7 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
+    NotFoundError,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
@@ -790,25 +791,21 @@ export class DashboardService {
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
-        if (
-            user.ability.cannot(
-                'create',
-                subject('DashboardComments', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
         }
 
-        const canUserRemoveAnyComment = user.ability.can(
+        const commentOwner = await this.dashboardModel.getCommentOwner(
+            commentId,
+        );
+        if (!commentOwner) {
+            throw new NotFoundError('Comment not found');
+        }
+
+        const isOwner = commentOwner === user.userUuid;
+        const canRemoveAnyComment = user.ability.can(
             'manage',
             subject('DashboardComments', {
                 organizationUuid: dashboard.organizationUuid,
@@ -816,10 +813,10 @@ export class DashboardService {
             }),
         );
 
-        return this.dashboardModel.deleteComment(
-            user.userUuid,
-            commentId,
-            canUserRemoveAnyComment,
-        );
+        if (!(isOwner || canRemoveAnyComment)) {
+            throw new ForbiddenError();
+        }
+
+        await this.dashboardModel.deleteComment(commentId);
     }
 }
