@@ -1,9 +1,4 @@
-import {
-    LightdashUser,
-    ProjectMemberRole,
-    Space,
-    SpaceShare,
-} from '@lightdash/common';
+import { LightdashUser, Space, SpaceShare } from '@lightdash/common';
 import {
     Avatar,
     Badge,
@@ -16,14 +11,13 @@ import {
 import upperFirst from 'lodash/upperFirst';
 import { FC, forwardRef } from 'react';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
-import { AccessOption, SpaceAccessType } from './ShareSpaceSelect';
+import { AccessOption } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 export interface ShareSpaceUserListProps {
     space: Space;
     sessionUser: LightdashUser | undefined;
     projectUuid: string;
-    spaceAccessType: string;
 }
 
 const enum UserAccessAction {
@@ -34,7 +28,7 @@ const enum UserAccessAction {
 const UserAccessOptions: AccessOption[] = [
     {
         title: 'viewer',
-        selectDescription: `This permission has been inherited from user's project access`,
+        selectDescription: `This permission has been inherited`,
         value: UserAccessAction.KEEP,
     },
     {
@@ -66,7 +60,6 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     space,
     projectUuid,
     sessionUser,
-    spaceAccessType,
 }) => {
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
         projectUuid,
@@ -78,17 +71,12 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
 
     return (
         <>
-            {[...(space.access ?? [])]
+            {(space.access ?? [])
                 .sort((a, b) => {
                     if (userIsYou(a) && !userIsYou(b)) return -1;
                     if (!userIsYou(a) && userIsYou(b)) return 1;
                     return 0;
                 })
-                .filter((sharedUser) =>
-                    spaceAccessType === SpaceAccessType.PRIVATE
-                        ? sharedUser.hasDirectAccess
-                        : true,
-                )
                 .map((sharedUser) => {
                     const isYou = userIsYou(sharedUser);
                     const role = upperFirst(sharedUser.role?.toString() || '');
@@ -140,18 +128,14 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 </Text>
                             </Group>
                             <Tooltip
-                                disabled={
-                                    spaceAccessType === SpaceAccessType.PRIVATE
-                                }
+                                disabled={isYou || sharedUser.hasDirectAccess}
                                 label={
                                     <Text>
                                         {`This user has ${sharedUser.role} role for this space because they are an ${sharedUser.inheritedFrom} ${sharedUser.inheritedRole}`}
                                     </Text>
                                 }
                             >
-                                {isYou ||
-                                role === upperFirst(ProjectMemberRole.ADMIN) ||
-                                spaceAccessType === SpaceAccessType.PUBLIC ? (
+                                {isYou || !sharedUser.hasDirectAccess ? (
                                     <Badge size="md" color="gray.6" radius="xs">
                                         {sharedUser.role}
                                     </Badge>

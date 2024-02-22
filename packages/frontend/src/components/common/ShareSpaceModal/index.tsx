@@ -92,7 +92,6 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             projectUuid={projectUuid}
                             space={space}
                             sessionUser={sessionUser.data}
-                            spaceAccessType={selectedAccess.value}
                         />
                     </Stack>
 
