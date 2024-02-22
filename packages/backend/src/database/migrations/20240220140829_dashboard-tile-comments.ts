@@ -17,11 +17,12 @@ export async function up(knex: Knex): Promise<void> {
         table.uuid('reply_to').nullable();
         table
             .foreign('reply_to')
-            .references(`${dashboardTileCommentsTable}.comment_id`)
+            .references(`comment_id`)
+            .inTable(dashboardTileCommentsTable)
             .onDelete('SET NULL');
         table.uuid('dashboard_tile_uuid').index();
         table.uuid('user_uuid');
-        table.foreign('user_uuid').references(`${usersTable}.user_uuid`);
+        table.foreign('user_uuid').references('user_uuid').inTable(usersTable);
         table.boolean('resolved').defaultTo(false);
     });
 }
