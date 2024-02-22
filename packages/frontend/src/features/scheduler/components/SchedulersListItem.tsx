@@ -70,6 +70,9 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                     >
                         <Box>
                             <Switch
+                                mr="sm"
+                                onLabel="on"
+                                offLabel="paused"
                                 checked={scheduler.enabled}
                                 onChange={() => {
                                     mutateSchedulerEnabled(!scheduler.enabled);
