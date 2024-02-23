@@ -12,7 +12,7 @@ const useSearch = (
     filters?: SearchFilters,
 ) =>
     useQuery<SearchResults, ApiError, SearchResultMap>({
-        queryKey: ['search', query],
+        queryKey: ['search', filters?.type ?? 'all', query],
         queryFn: () => getSearchResults({ projectUuid, query, filters }),
         retry: false,
         enabled: query.length >= OMNIBAR_MIN_QUERY_LENGTH,

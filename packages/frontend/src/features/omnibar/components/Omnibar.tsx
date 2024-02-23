@@ -29,12 +29,22 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     const canUserManageValidation = useValidationUserAbility(projectUuid);
 
+    const [openPanels, setOpenPanels] =
+        useState<SearchItemType[]>(allSearchItemTypes);
+
+    const [searchFilter, setSearchFilter] = useState<SearchItemType>();
+
     const [query, setQuery] = useState<string>();
     const [debouncedValue] = useDebouncedValue(query, 300);
 
     const { data: searchResults, isFetching } = useSearch(
         projectUuid,
         debouncedValue,
+        searchFilter
+            ? {
+                  type: searchFilter,
+              }
+            : undefined,
     );
 
     const [isOmnibarOpen, { open: openOmnibar, close: closeOmnibar }] =
@@ -109,8 +119,12 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         }
     };
 
-    const [openPanels, setOpenPanels] =
-        useState<SearchItemType[]>(allSearchItemTypes);
+    const hasEnteredQuery = query !== undefined && query !== '';
+    const hasEnteredMinQueryLength =
+        hasEnteredQuery && query.length >= OMNIBAR_MIN_QUERY_LENGTH;
+    const hasValidSearchQuery = hasEnteredQuery && hasEnteredMinQueryLength;
+    const hasSearchResults =
+        searchResults && !isSearchResultEmpty(searchResults);
 
     return (
         <>
@@ -166,13 +180,20 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             onChange={(e) => setQuery(e.currentTarget.value)}
                         />
 
-                        {query === undefined || query === '' ? (
+                        {hasValidSearchQuery && (
+                            <OmnibarFilters
+                                searchFilter={searchFilter}
+                                onSearchFilterChange={setSearchFilter}
+                            />
+                        )}
+
+                        {!hasEnteredQuery ? (
                             <OmnibarEmptyState
                                 message={`Start typing to search for everything in ${
                                     projectData?.name ?? 'your project'
                                 }.`}
                             />
-                        ) : query.length < OMNIBAR_MIN_QUERY_LENGTH ? (
+                        ) : !hasEnteredMinQueryLength ? (
                             <OmnibarEmptyState
                                 message={`Keep typing to search for everything in ${
                                     projectData?.name ?? 'your project'
@@ -180,23 +201,19 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             />
                         ) : !searchResults ? (
                             <OmnibarEmptyState message="Searching..." />
-                        ) : isSearchResultEmpty(searchResults) ? (
+                        ) : !hasSearchResults ? (
                             <OmnibarEmptyState message="No results found." />
                         ) : (
-                            <>
-                                <OmnibarFilters />
-
-                                <OmnibarItemGroups
-                                    searchResults={searchResults}
-                                    projectUuid={projectUuid}
-                                    canUserManageValidation={
-                                        canUserManageValidation
-                                    }
-                                    openPanels={openPanels}
-                                    onOpenPanelsChange={setOpenPanels}
-                                    onClick={handleItemClick}
-                                />
-                            </>
+                            <OmnibarItemGroups
+                                searchResults={searchResults}
+                                projectUuid={projectUuid}
+                                canUserManageValidation={
+                                    canUserManageValidation
+                                }
+                                openPanels={openPanels}
+                                onOpenPanelsChange={setOpenPanels}
+                                onClick={handleItemClick}
+                            />
                         )}
                     </Stack>
                 </Modal>

@@ -23,8 +23,6 @@ const OmnibarItemGroups: FC<Props> = ({
     canUserManageValidation,
     onClick,
 }) => {
-    console.log(searchResults);
-
     const sortedGroupEntries = useMemo(() => {
         return Object.entries(searchResults)
             .filter(([_type, items]) => items.length > 0)

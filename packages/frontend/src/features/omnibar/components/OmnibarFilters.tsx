@@ -16,8 +16,6 @@ import { allSearchItemTypes } from '../types/searchItem';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import { getOmnibarItemColor } from './OmnibarItemIcon';
 
-type Props = {};
-
 const getOmnibarItemIcon = (itemType: SearchItemType) => {
     switch (itemType) {
         case SearchItemType.FIELD:
@@ -40,7 +38,12 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
     }
 };
 
-const OmnibarFilters: FC<Props> = () => {
+type Props = {
+    searchFilter: SearchItemType | undefined;
+    onSearchFilterChange: (filter: SearchItemType | undefined) => void;
+};
+
+const OmnibarFilters: FC<Props> = ({ searchFilter, onSearchFilterChange }) => {
     return (
         <Group px="md" py="sm">
             <Menu
@@ -48,18 +51,21 @@ const OmnibarFilters: FC<Props> = () => {
                 withArrow
                 withinPortal
                 shadow="md"
-                arrowOffset={13}
+                arrowOffset={11}
                 offset={2}
             >
                 <Menu.Target>
                     <Button
+                        compact
                         variant="default"
                         radius="xl"
                         size="xs"
                         leftIcon={<MantineIcon icon={IconAdjustments} />}
                         rightIcon={<MantineIcon icon={IconChevronDown} />}
                     >
-                        Filter
+                        {searchFilter
+                            ? getSearchItemLabel(searchFilter)
+                            : 'All items'}
                     </Button>
                 </Menu.Target>
 
@@ -72,6 +78,12 @@ const OmnibarFilters: FC<Props> = () => {
                                     icon={getOmnibarItemIcon(type)}
                                     color={getOmnibarItemColor(type)}
                                 />
+                            }
+                            bg={type === searchFilter ? 'blue.1' : undefined}
+                            onClick={() =>
+                                onSearchFilterChange(
+                                    type === searchFilter ? undefined : type,
+                                )
                             }
                         >
                             {getSearchItemLabel(type)}
