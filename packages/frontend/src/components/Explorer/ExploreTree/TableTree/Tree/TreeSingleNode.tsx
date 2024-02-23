@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
+    Box,
     Flex,
     Group,
     Highlight,
@@ -38,34 +39,6 @@ import TreeSingleNodeActions from './TreeSingleNodeActions';
 
 type Props = {
     node: Node;
-};
-
-/**
- * Truncate an item description by limiting to:
- *
- * - No more than 5 lines
- * - No more than 256 characters total (BEFORE markdown rendering)
- * - Breaks before any code blocks after the first line
- * - Breaks before anything that looks like a table after the first line
- */
-const truncateDescription = (description: string) => {
-    const lines = description.split('\n');
-
-    /**
-     * Collect up to 5 description lines, breaking early if we find anything that
-     * looks like a code block or a table.
-     */
-    const truncatedLines = lines
-        .slice(0, 4)
-        .reduce<string[]>((truncated, line, idx) => {
-            if (idx === 0 || (line.at(0) !== '|' && !line.startsWith('```'))) {
-                truncated.push(line);
-            }
-
-            return truncated;
-        }, []);
-
-    return truncatedLines.join('\n').substring(0, 256);
 };
 
 /**
@@ -104,31 +77,50 @@ const NodeDetailPreview: FC<{
 }> = ({ description, onViewDescription }) => {
     if (!description) return null;
 
-    const truncatedDescription = truncateDescription(description);
-    const isTruncated = truncatedDescription !== description;
+    /**
+     * This value is pretty arbitrary - it's an amount of characters that will exceed
+     * a single line, and for which the 'Read more' option should make sense, and not
+     * be an annoyance.
+     *
+     * It's better to err on the side of caution, and show the 'Read more' option even
+     * if unnecessarily so.
+     */
+    const isTruncated = description.length > 180;
 
     return (
         <Flex direction="column" gap={'xs'}>
-            <NodeDetailMarkdown
-                source={`${truncatedDescription}${isTruncated ? '...' : ''}`}
-            />
+            <Box
+                mah={140}
+                style={{
+                    overflow: 'hidden',
+                    textOverflow: 'clip',
+                }}
+            >
+                <NodeDetailMarkdown source={description} />
+            </Box>
             {isTruncated && (
-                <Anchor
-                    size="xs"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        onViewDescription();
-                    }}
+                <Box
+                    ta={'center'}
                     /**
-                     * The link is aligned to the right to avoid accidental misclicks
-                     * when scanning the list.
+                     * Forces the 'Read more' option to slightly overlap with the content, and show
+                     * a slight fade effect.
                      */
+                    mt={-30}
+                    pt={20}
                     style={{
-                        alignSelf: 'flex-end',
+                        background:
+                            'linear-gradient(rgba(255,255,255,0) 0%, rgba(255,255,255,1) 60%, rgba(255,255,255,1) 100%)',
                     }}
                 >
-                    Read full description
-                </Anchor>
+                    <Anchor
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onViewDescription();
+                        }}
+                    >
+                        Read full description
+                    </Anchor>
+                </Box>
             )}
         </Flex>
     );
@@ -247,6 +239,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                 <Group noWrap>
                     <Popover
                         opened={isHover}
+                        keepMounted={false}
                         shadow="sm"
                         withinPortal
                         disabled={!description && !isMissing}
@@ -266,7 +259,11 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         </Popover.Target>
                         <Popover.Dropdown
                             p="xs"
-                            maw={380}
+                            /**
+                             * Takes up space to the right, so it's OK to go fairly wide in the interest
+                             * of readability.
+                             */
+                            maw={500}
                             /**
                              * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
                              * while interacting with the hovercard.
