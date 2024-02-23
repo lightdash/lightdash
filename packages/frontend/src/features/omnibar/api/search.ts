@@ -11,13 +11,13 @@ export const getSearchResults = async ({
     filters?: SearchFilters;
 }) => {
     const searchParams = filters
-        ? '?' + new URLSearchParams(filters).toString()
-        : '';
+        ? new URLSearchParams(filters).toString()
+        : undefined;
 
     return lightdashApi<SearchResults>({
-        url: `/projects/${projectUuid}/search/${encodeURIComponent(
-            query,
-        )}${searchParams}`,
+        url: `/projects/${projectUuid}/search/${encodeURIComponent(query)}${
+            searchParams ? `?${searchParams}` : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
