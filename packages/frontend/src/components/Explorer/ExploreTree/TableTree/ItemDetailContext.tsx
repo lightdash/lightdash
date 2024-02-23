@@ -9,6 +9,9 @@ import {
     useState,
 } from 'react';
 
+/**
+ * These map directly to the modal's title and body:
+ */
 interface ItemDetailProps {
     header: JSX.Element;
     detail: JSX.Element;
@@ -16,8 +19,13 @@ interface ItemDetailProps {
 
 const ItemDetailContext = createContext<{
     showItemDetail: (detail: ItemDetailProps) => void;
+    isItemDetailOpen: boolean;
 } | null>(null);
 
+/**
+ * Exposes the necessary context for a shared modal to display details about
+ * a tree item - primarily its description.
+ */
 export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
     const [itemDetail, setItemDetail] = useState<ItemDetailProps>();
     const [opened, { open, close }] = useDisclosure();
@@ -34,6 +42,7 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
         <ItemDetailContext.Provider
             value={{
                 showItemDetail,
+                isItemDetailOpen: opened,
             }}
         >
             {itemDetail && opened && (

@@ -39,26 +39,6 @@ type Props = {
     node: Node;
 };
 
-const NodeDetailMarkdown: FC<{ source: string }> = ({ source }) => {
-    const theme = useMantineTheme();
-    return (
-        <MarkdownPreview
-            skipHtml
-            linkTarget="_blank"
-            components={{
-                h1: ({ children }) => <Title order={2}>{children}</Title>,
-                h2: ({ children }) => <Title order={3}>{children}</Title>,
-                h3: ({ children }) => <Title order={4}>{children}</Title>,
-            }}
-            source={source}
-            disallowedElements={['img']}
-            style={{
-                fontSize: theme.fontSizes.sm,
-            }}
-        />
-    );
-};
-
 /**
  * Truncate an item description by limiting to:
  *
@@ -87,7 +67,36 @@ const truncateDescription = (description: string) => {
     return truncatedLines.join('\n').substring(0, 256);
 };
 
-const TreeSingleNodeDetail: FC<{
+/**
+ * Renders markdown for an item's description, with additional constraints
+ * to avoid markdown styling from completely throwing its surroundings out
+ * of whack.
+ */
+const NodeDetailMarkdown: FC<{ source: string }> = ({ source }) => {
+    const theme = useMantineTheme();
+    return (
+        <MarkdownPreview
+            skipHtml
+            linkTarget="_blank"
+            components={{
+                h1: ({ children }) => <Title order={2}>{children}</Title>,
+                h2: ({ children }) => <Title order={3}>{children}</Title>,
+                h3: ({ children }) => <Title order={4}>{children}</Title>,
+            }}
+            source={source}
+            disallowedElements={['img']}
+            style={{
+                fontSize: theme.fontSizes.sm,
+            }}
+        />
+    );
+};
+
+/**
+ * Renders a truncated version of an item's description, with an option
+ * to read the full description if necessary.
+ */
+const NodeDetailPreview: FC<{
     description?: string;
     onViewDescription: () => void;
 }> = ({ description, onViewDescription }) => {
@@ -178,6 +187,10 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         return 'yellow.9';
     };
 
+    /**
+     * Handles putting together and opening the shared modal for a field's
+     * detailed description.
+     */
     const onOpenDescriptionView = () => {
         showItemDetail({
             header: (
@@ -260,7 +273,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                             {isMissing ? (
                                 `This field from '${item.table}' table is no longer available`
                             ) : (
-                                <TreeSingleNodeDetail
+                                <NodeDetailPreview
                                     onViewDescription={onOpenDescriptionView}
                                     description={description}
                                 />
