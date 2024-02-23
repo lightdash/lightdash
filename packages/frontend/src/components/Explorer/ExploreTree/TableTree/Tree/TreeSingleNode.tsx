@@ -180,7 +180,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
 
     const onOpenDescriptionView = () => {
         showItemDetail({
-            detail: (
+            header: (
                 <Group>
                     <FieldIcon
                         item={item}
@@ -190,7 +190,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                     <Text size="md">{label}</Text>
                 </Group>
             ),
-            header: description ? (
+            detail: description ? (
                 <NodeDetailMarkdown
                     source={description ?? ''}
                 ></NodeDetailMarkdown>
