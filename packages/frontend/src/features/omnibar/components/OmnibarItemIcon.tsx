@@ -1,10 +1,14 @@
-import { SavedChartSearchResult } from '@lightdash/common';
+import {
+    assertUnreachable,
+    SavedChartSearchResult,
+    SearchItemType,
+} from '@lightdash/common';
 import { Anchor } from '@mantine/core';
 import {
     Icon123,
     IconAbc,
     IconAlertTriangle,
-    IconAppWindow,
+    IconBrowser,
     IconFolder,
     IconLayoutDashboard,
     IconTable,
@@ -12,44 +16,75 @@ import {
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
 import {
-    ChartIcon,
+    getChartIcon,
     IconBox,
     ResourceIndicator,
 } from '../../../components/common/ResourceIcon';
 import { SearchItem } from '../types/searchItem';
+import { getSearchItemErrorLabel } from '../utils/getSearchItemLabel';
 
 type Props = {
     item: SearchItem;
 };
 
-export const OmnibarItemIcon: FC<Props> = ({ item }) => {
-    switch (item.type) {
-        case 'field':
-            return (
-                <IconBox
-                    color="gray.7"
-                    icon={
-                        item.typeLabel?.toLowerCase() === 'dimension'
-                            ? IconAbc
-                            : Icon123
-                    }
-                />
+export const getOmnibarItemColor = (itemType: SearchItemType) => {
+    switch (itemType) {
+        case SearchItemType.FIELD:
+            return 'gray.7';
+        case SearchItemType.DASHBOARD:
+            return 'green.8';
+        case SearchItemType.CHART:
+            return 'blue.8';
+        case SearchItemType.SPACE:
+            return 'violet.8';
+        case SearchItemType.TABLE:
+            return 'cyan.8';
+        case SearchItemType.PAGE:
+            return 'gray.7';
+        default:
+            return assertUnreachable(
+                itemType,
+                `Unknown search item type: ${itemType}`,
             );
-        case 'dashboard':
-            return <IconBox icon={IconLayoutDashboard} color="green.8" />;
-        case 'saved_chart':
-            return (
-                <ChartIcon
-                    chartType={(item.item as SavedChartSearchResult)?.chartType}
-                />
-            );
-        case 'space':
-            return <IconBox icon={IconFolder} color="violet.8" />;
-        case 'table':
-            return <IconBox icon={IconTable} color="blue.8" />;
-        case 'page':
-            return <IconBox icon={IconAppWindow} color="gray.7" />;
     }
+};
+
+const getOmnibarItemIcon = (item: SearchItem) => {
+    switch (item.type) {
+        case SearchItemType.FIELD:
+            if (item.typeLabel?.toLowerCase() === 'dimension') {
+                return IconAbc;
+            } else {
+                return Icon123;
+            }
+        case SearchItemType.DASHBOARD:
+            return IconLayoutDashboard;
+        case SearchItemType.CHART:
+            return getChartIcon(
+                // FIXME: typing is loose here
+                (item.item as SavedChartSearchResult)?.chartType,
+            );
+        case SearchItemType.SPACE:
+            return IconFolder;
+        case SearchItemType.TABLE:
+            return IconTable;
+        case SearchItemType.PAGE:
+            return IconBrowser;
+        default:
+            return assertUnreachable(
+                item.type,
+                `Unknown search item type: ${item.type}`,
+            );
+    }
+};
+
+export const OmnibarItemIcon: FC<Props> = ({ item }) => {
+    return (
+        <IconBox
+            color={getOmnibarItemColor(item.type)}
+            icon={getOmnibarItemIcon(item)}
+        />
+    );
 };
 
 type OmnibarItemIconWithIndicatorProps = {
@@ -94,12 +129,9 @@ export const OmnibarItemIconWithIndicator: FC<
                         .
                     </>
                 ) : (
-                    <>
-                        There's an error with this{' '}
-                        {item.type === 'saved_chart' ? 'chart' : null}
-                        {item.type === 'dashboard' ? 'dashboard' : null}
-                        {item.type === 'table' ? 'table' : null}.
-                    </>
+                    `There's an error with this ${getSearchItemErrorLabel(
+                        item.type,
+                    )}`
                 )
             }
         >
