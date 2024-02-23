@@ -10,6 +10,7 @@ import {
     isSchedulerImageOptions,
     isSlackTarget,
     ItemsMap,
+    NotificationFrequency,
     SchedulerAndTargets,
     SchedulerFormat,
     ThresholdOperator,
@@ -109,6 +110,7 @@ const DEFAULT_VALUES_ALERT = {
             value: 0,
         },
     ],
+    notificationFrequency: NotificationFrequency.ONCE,
 };
 
 const thresholdOperatorOptions = [
@@ -164,6 +166,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
             customViewportWidth: schedulerData.customViewportWidth,
         }),
         thresholds: schedulerData.thresholds,
+        notificationFrequency: schedulerData.notificationFrequency,
     };
 };
 
@@ -257,7 +260,6 @@ const SchedulerForm: FC<Props> = ({
                     cronExpression,
                 );
             },
-            // TODO: validate thresholds
         },
 
         transformValues: (values): CreateSchedulerAndTargetsWithoutIds => {
@@ -304,6 +306,10 @@ const SchedulerForm: FC<Props> = ({
                 }),
                 thresholds: values.thresholds,
                 enabled: true,
+                notificationFrequency:
+                    'notificationFrequency' in values
+                        ? (values.notificationFrequency as NotificationFrequency)
+                        : undefined,
             };
         },
     });
@@ -545,6 +551,45 @@ const SchedulerForm: FC<Props> = ({
                                 />
                             </Box>
                         </Input.Wrapper>
+                        {isThresholdAlert && (
+                            <Stack spacing="xs">
+                                <Checkbox
+                                    label="notify me only once"
+                                    {...{
+                                        ...form.getInputProps(
+                                            'notificationFrequency',
+                                        ),
+                                        checked:
+                                            'notificationFrequency' in
+                                                form.values &&
+                                            form.values
+                                                .notificationFrequency ===
+                                                NotificationFrequency.ONCE,
+                                        onChange: (e) => {
+                                            form.setFieldValue(
+                                                'notificationFrequency',
+                                                e.target.checked
+                                                    ? NotificationFrequency.ONCE
+                                                    : NotificationFrequency.ALWAYS,
+                                            );
+                                        },
+                                    }}
+                                />
+                                {'notificationFrequency' in form.values &&
+                                    form.values.notificationFrequency ===
+                                        NotificationFrequency.ALWAYS && (
+                                        <Text
+                                            size="xs"
+                                            color="gray.6"
+                                            fs="italic"
+                                        >
+                                            You will be notified at the
+                                            specified frequency whenever the
+                                            threshold conditions are met
+                                        </Text>
+                                    )}
+                            </Stack>
+                        )}
                         {!isThresholdAlert && (
                             <Stack spacing={0}>
                                 <Input.Label> Format </Input.Label>

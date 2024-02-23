@@ -25,6 +25,7 @@ import {
     isSchedulerImageOptions,
     isTableChartConfig,
     LightdashPage,
+    NotificationFrequency,
     NotificationPayloadBase,
     operatorAction,
     ScheduledDeliveryPayload,
@@ -1049,7 +1050,7 @@ export const sendEmailNotification = async (
     }
 };
 
-const isPositiveThesholdAlert = (
+const isPositiveThresholdAlert = (
     thresholds: ThresholdOptions[],
     results: Record<string, any>[],
 ): boolean => {
@@ -1441,6 +1442,7 @@ export const handleScheduledDelivery = async (
             savedChartUuid,
             dashboardUuid,
             thresholds,
+            notificationFrequency,
         } = scheduler;
         if (thresholds !== undefined && thresholds.length > 0) {
             // TODO add multiple AND conditions
@@ -1452,7 +1454,22 @@ export const handleScheduledDelivery = async (
                     savedChartUuid,
                 );
 
-                if (isPositiveThesholdAlert(thresholds, rows)) {
+                if (isPositiveThresholdAlert(thresholds, rows)) {
+                    // If the delivery frequency is once, we disable the scheduler.
+                    // It will get sent once this time.
+                    if (
+                        notificationFrequency === NotificationFrequency.ONCE &&
+                        schedulerUuid
+                    ) {
+                        console.debug(
+                            'Alert is set to ONCE, disabling scheduler after delivery',
+                        );
+                        await schedulerService.setSchedulerEnabled(
+                            user,
+                            schedulerUuid,
+                            false,
+                        );
+                    }
                     console.debug(
                         'Positive threshold alert, continue with notification',
                     );
