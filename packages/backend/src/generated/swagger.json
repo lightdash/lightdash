@@ -40,6 +40,66 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
+            "ApiCreateComment": {
+                "properties": {
+                    "results": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_Comment.text-or-replyTo_": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "replyTo": {
+                        "type": "string"
+                    }
+                },
+                "required": ["text"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Record_string.Comment-Array_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiCommentsResults": {
+                "$ref": "#/components/schemas/Record_string.Comment-Array_"
+            },
+            "ApiGetComments": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiCommentsResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiResolveComment": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "ApiCsvUrlResponse": {
                 "properties": {
                     "results": {
@@ -6396,7 +6456,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1010.0",
+        "version": "0.1012.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -6409,6 +6469,207 @@
     },
     "openapi": "3.0.0",
     "paths": {
+        "/api/v1/comments/dashboards/{dashboardUuid}/{dashboardTileUuid}": {
+            "post": {
+                "operationId": "createComment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateComment"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates a comment on a dashboard tile",
+                "tags": ["Comments"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid of the dashboard tile",
+                        "in": "path",
+                        "name": "dashboardTileUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the comment to create",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Pick_Comment.text-or-replyTo_",
+                                "description": "the comment to create"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/comments/dashboards/{dashboardUuid}": {
+            "get": {
+                "operationId": "getComments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetComments"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets all comments for a dashboard",
+                "tags": ["Comments"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/comments/dashboards/{dashboardUuid}/{commentId}": {
+            "patch": {
+                "operationId": "resolveComment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResolveComment"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Resolves a comment on a dashboard",
+                "tags": ["Comments"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid of the comment",
+                        "in": "path",
+                        "name": "commentId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "deleteComment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResolveComment"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Deletes a comment on a dashboard",
+                "tags": ["Comments"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid of the comment",
+                        "in": "path",
+                        "name": "commentId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/csv/{jobId}": {
             "get": {
                 "operationId": "getCsvUrl",

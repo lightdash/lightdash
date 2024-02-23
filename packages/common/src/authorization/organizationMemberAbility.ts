@@ -47,6 +47,9 @@ export const organizationMemberAbilities: Record<
         can('manage', 'ExportCsv', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'DashboardComments', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
@@ -65,6 +68,9 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('create', 'ScheduledDeliveries', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('create', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
     },
@@ -87,6 +93,9 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'ScheduledDeliveries', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
     },
