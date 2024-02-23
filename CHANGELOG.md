@@ -1,3 +1,10 @@
+# [0.1009.0](https://github.com/lightdash/lightdash/compare/0.1008.0...0.1009.0) (2024-02-23)
+
+
+### Features
+
+* keep existing share urls when user is deleted ([#9020](https://github.com/lightdash/lightdash/issues/9020)) ([d2b1b56](https://github.com/lightdash/lightdash/commit/d2b1b56abdd10b3f3a26e98825886528c895a713))
+
 # [0.1008.0](https://github.com/lightdash/lightdash/compare/0.1007.0...0.1008.0) (2024-02-23)
 
 
