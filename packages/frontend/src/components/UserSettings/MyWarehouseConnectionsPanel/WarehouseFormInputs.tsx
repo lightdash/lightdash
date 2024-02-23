@@ -15,6 +15,7 @@ export const WarehouseFormInputs: FC<{
         case WarehouseTypes.SNOWFLAKE:
         case WarehouseTypes.POSTGRES:
         case WarehouseTypes.TRINO:
+        case WarehouseTypes.STARROCKS:
             return (
                 <>
                     <TextInput

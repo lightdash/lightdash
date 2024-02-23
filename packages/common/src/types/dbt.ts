@@ -29,6 +29,7 @@ export enum SupportedDbtAdapter {
     REDSHIFT = 'redshift',
     POSTGRES = 'postgres',
     TRINO = 'trino',
+    STARROCKS = 'starrocks',
 }
 
 export type DbtNodeConfig = {
@@ -135,6 +136,7 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.STARROCKS:
         case SupportedDbtAdapter.REDSHIFT:
             if (model.database === null) {
                 throw new ParseError(

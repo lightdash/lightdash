@@ -8,13 +8,12 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import {
-    BasicAuth,
+    Connection,
     ConnectionOptions,
-    Iterator,
-    QueryData,
-    QueryResult,
-    Starrocks,
-} from 'mysql-client';
+    FieldPacket,
+    RowDataPacket,
+    createConnection
+} from 'mysql2/promise';
 import { WarehouseCatalog } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
@@ -56,15 +55,15 @@ const queryTableSchema = ({
     schema,
     table,
 }: TableInfo) => `SELECT table_catalog
-                                                                         , table_schema
-                                                                         , table_name
-                                                                         , column_name
-                                                                         , data_type
-                                                                    FROM ${database}.information_schema.columns
-                                                                    WHERE table_catalog = '${database}'
-                                                                      AND table_schema = '${schema}'
-                                                                      AND table_name = '${table}'
-                                                                    ORDER BY 1, 2, 3, ordinal_position`;
+            , table_schema
+            , table_name
+            , column_name
+            , data_type
+    FROM ${database}.information_schema.columns
+    WHERE table_catalog = '${database}'
+        AND table_schema = '${schema}'
+        AND table_name = '${table}'
+    ORDER BY 1, 2, 3, ordinal_position`;
 
 const convertDataTypeToDimensionType = (
     type: StarrocksTypes | string,
@@ -125,17 +124,18 @@ const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
     return warehouseCatalog;
 };
 
-const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
+const resultHandler = (schema: FieldPacket[], data: RowDataPacket[]) => {
     const s: string[] = schema.map((e) => e.name);
-    return data.map((i) => {
-        const item: { [key: string]: any } = {};
-        i.map((column, index) => {
-            const name: string = s[index];
-            item[name] = column;
-            return null;
-        });
-        return item;
-    });
+    // return data.map((i) => {
+    //     const item: { [key: string]: any } = {};
+    //     i.map((column, index) => {
+    //         const name: string = s[index];
+    //         item[name] = column;
+    //         return null;
+    //     });
+    //     return item;
+    // });
+    return []
 };
 
 export class StarrocksWarehouseClient extends WarehouseBaseClient<CreateStarrocksCredentials> {
@@ -144,19 +144,19 @@ export class StarrocksWarehouseClient extends WarehouseBaseClient<CreateStarrock
     constructor(credentials: CreateStarrocksCredentials) {
         super(credentials);
         this.connectionOptions = {
-            auth: new BasicAuth(credentials.user, credentials.password),
-            catalog: credentials.dbname,
-            schema: credentials.schema,
-            server: `${credentials.http_scheme}://${credentials.host}:${credentials.port}`,
+            user: credentials.user,
+            password: credentials.password,
+            database: credentials.dbname,
+            debug: true,
+            host: credentials.host,
+            port: credentials.port,
         };
     }
 
     private async getSession() {
-        const client = Starrocks;
-
-        let session: Starrocks;
+        let session: Connection;
         try {
-            session = await client.create(this.connectionOptions);
+            session = await createConnection(this.connectionOptions);
         } catch (e: any) {
             throw new WarehouseConnectionError(e.message);
         }
@@ -169,46 +169,33 @@ export class StarrocksWarehouseClient extends WarehouseBaseClient<CreateStarrock
         };
     }
 
+    private convertQueryResultFields(
+        fields: FieldPacket[],
+    ): Record<string, { type: DimensionType }> {
+        return fields.reduce((agg, field) => ({
+            ...agg,
+            [field.name]: {
+                type: field.type
+            }
+        }), {})
+    }
+
+
     async runQuery(sql: string, tags?: Record<string, string>) {
         const { session, close } = await this.getSession();
-        let query: Iterator<QueryResult>;
+        let result: RowDataPacket[]
+        let fields: FieldPacket[];
         try {
             let alteredQuery = sql;
             if (tags) {
                 alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
             }
-            query = await session.query(sql);
+            [result, fields] = await session.query<RowDataPacket[]>(sql);
 
-            const queryResult = await query.next();
-
-            if (queryResult.value.error) {
-                throw new WarehouseQueryError(
-                    queryResult.value.error.message ??
-                        'Unexpected error in query execution',
-                );
-            }
-
-            const result: QueryData = queryResult.value.data ?? [];
-
-            const schema: {
-                name: string;
-                type: string;
-                typeSignature: { rawType: string };
-            }[] = queryResult.value.columns ?? [];
-
-            const fields = schema.reduce(
-                (acc, column) => ({
-                    ...acc,
-                    [column.name]: {
-                        type: convertDataTypeToDimensionType(
-                            column.typeSignature.rawType ?? StarrocksTypes.VARCHAR,
-                        ),
-                    },
-                }),
-                {},
-            );
-
-            return { fields, rows: resultHandler(schema, result) };
+            return {
+                fields: this.convertQueryResultFields(fields),
+                rows: resultHandler(fields, result)
+            };
         } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
@@ -216,30 +203,12 @@ export class StarrocksWarehouseClient extends WarehouseBaseClient<CreateStarrock
         }
     }
 
+    // TODO: Implement
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
         const { session, close } = await this.getSession();
         let results: string[][][];
 
-        try {
-            const promises = requests.map(async (request) => {
-                let query: Iterator<QueryResult> | null = null;
-
-                try {
-                    query = await session.query(queryTableSchema(request));
-                    const result = (await query.next()).value.data ?? [];
-                    return result;
-                } catch (e: any) {
-                    throw new WarehouseQueryError(e.message);
-                } finally {
-                    if (query) close();
-                }
-            });
-
-            results = await Promise.all(promises);
-        } finally {
-            await close();
-        }
-        return catalogToSchema(results);
+        return catalogToSchema([]);
     }
 
     getFieldQuoteChar() {
@@ -255,15 +224,14 @@ export class StarrocksWarehouseClient extends WarehouseBaseClient<CreateStarrock
     }
 
     getAdapterType(): SupportedDbtAdapter {
-        return SupportedDbtAdapter.TRINO;
+        return SupportedDbtAdapter.STARROCKS;
     }
 
     getMetricSql(sql: string, metric: Metric) {
         switch (metric.type) {
             case MetricType.PERCENTILE:
-                return `APPROX_PERCENTILE(${sql}, ${
-                    (metric.percentile ?? 50) / 100
-                })`;
+                return `APPROX_PERCENTILE(${sql}, ${(metric.percentile ?? 50) / 100
+                    })`;
             case MetricType.MEDIAN:
                 return `APPROX_PERCENTILE(${sql},0.5)`;
             default:

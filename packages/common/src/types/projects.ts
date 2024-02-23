@@ -25,6 +25,7 @@ export enum WarehouseTypes {
     SNOWFLAKE = 'snowflake',
     DATABRICKS = 'databricks',
     TRINO = 'trino',
+    STARROCKS = 'starrocks',
 }
 
 export type SshTunnelConfiguration = {
@@ -116,6 +117,22 @@ export type TrinoCredentials = Omit<
     CreateTrinoCredentials,
     SensitiveCredentialsFieldNames
 >;
+
+export type CreateStarrocksCredentials = {
+    type: WarehouseTypes.STARROCKS;
+    host: string;
+    user: string;
+    password: string;
+    requireUserCredentials?: boolean;
+    port: number;
+    dbname: string;
+    startOfWeek?: WeekDay | null;
+};
+export type StarrocksCredentials = Omit<
+    CreateStarrocksCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     type: WarehouseTypes.REDSHIFT;
     host: string;
@@ -163,14 +180,17 @@ export type CreateWarehouseCredentials =
     | CreatePostgresCredentials
     | CreateSnowflakeCredentials
     | CreateDatabricksCredentials
-    | CreateTrinoCredentials;
+    | CreateTrinoCredentials
+    | CreateStarrocksCredentials;
+
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
     | PostgresCredentials
     | BigqueryCredentials
     | DatabricksCredentials
-    | TrinoCredentials;
+    | TrinoCredentials
+    | StarrocksCredentials;
 
 export type CreatePostgresLikeCredentials =
     | CreateRedshiftCredentials

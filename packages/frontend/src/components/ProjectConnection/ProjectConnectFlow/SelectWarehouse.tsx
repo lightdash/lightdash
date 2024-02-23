@@ -10,6 +10,7 @@ import PostgressLogo from './Assets/postgresql.svg';
 import Redshift from './Assets/redshift.svg';
 import Snowflake from './Assets/snowflake.svg';
 import Trino from './Assets/trino.svg';
+import Starrocks from './Assets/starrocks.svg';
 import OnboardingButton from './common/OnboardingButton';
 import { OnboardingConnectTitle } from './common/OnboardingTitle';
 import OnboardingWrapper from './common/OnboardingWrapper';
@@ -69,6 +70,12 @@ const WarehouseTypeLabels: WarehouseLabel[] = [
         key: WarehouseTypes.SNOWFLAKE,
         iconType: 'image',
         image: Snowflake,
+    },
+    {
+        label: 'Starrocks',
+        key: WarehouseTypes.STARROCKS,
+        iconType: 'image',
+        image: Starrocks,
     },
     {
         label: 'Other',
