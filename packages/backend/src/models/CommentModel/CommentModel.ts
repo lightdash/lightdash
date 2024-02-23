@@ -213,7 +213,7 @@ export class CommentModel {
 
     async getCommentOwner(commentId: string): Promise<string | null> {
         const result = await this.database(DashboardTileCommentsTableName)
-            .select<Pick<DbDashboardTileComments, 'user_uuid'>>('user_uuid')
+            .select('user_uuid')
             .where('comment_id', commentId)
             .first();
 
