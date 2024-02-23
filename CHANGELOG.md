@@ -1,3 +1,15 @@
+# [0.1010.0](https://github.com/lightdash/lightdash/compare/0.1009.0...0.1010.0) (2024-02-23)
+
+
+### Bug Fixes
+
+* search type filter for page wasn't being applied ([#9076](https://github.com/lightdash/lightdash/issues/9076)) ([760cf55](https://github.com/lightdash/lightdash/commit/760cf5503a55663509fa0cd3374dddb4ffe89cc5))
+
+
+### Features
+
+* search v2 type filters ([#9072](https://github.com/lightdash/lightdash/issues/9072)) ([005b901](https://github.com/lightdash/lightdash/commit/005b90179ea371d1c1888c24d4ec7d6b487f5ee0))
+
 # [0.1009.0](https://github.com/lightdash/lightdash/compare/0.1008.0...0.1009.0) (2024-02-23)
 
 

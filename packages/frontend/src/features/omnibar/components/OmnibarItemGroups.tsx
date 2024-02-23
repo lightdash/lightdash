@@ -1,43 +1,36 @@
+import { SearchItemType } from '@lightdash/common';
 import { Accordion, Text } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import { SearchItem } from '../types/searchItem';
+import { SearchResultMap } from '../types/searchResultMap';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import OmnibarItem from './OmnibarItem';
 
 type Props = {
-    openPanels: Array<SearchItem['type']>;
-    onOpenPanelsChange: (panels: Array<SearchItem['type']>) => void;
-    items: SearchItem[];
+    openPanels: SearchItemType[];
+    onOpenPanelsChange: (panels: SearchItemType[]) => void;
+    searchResults: SearchResultMap;
     projectUuid: string;
     canUserManageValidation: boolean;
     onClick: (item: SearchItem) => void;
 };
 
-type GroupedItems = Partial<Record<SearchItem['type'], SearchItem[]>>;
-
 const OmnibarItemGroups: FC<Props> = ({
     openPanels,
     onOpenPanelsChange,
     projectUuid,
-    items,
+    searchResults,
     canUserManageValidation,
     onClick,
 }) => {
-    const itemsGroupedByType = useMemo(() => {
-        return items.reduce<GroupedItems>((acc, item) => {
-            return { ...acc, [item.type]: (acc[item.type] ?? []).concat(item) };
-        }, {});
-    }, [items]);
-
     const sortedGroupEntries = useMemo(() => {
-        const entries = Object.entries(itemsGroupedByType) as Array<
-            [SearchItem['type'], Array<SearchItem>]
-        >;
-
-        return entries.sort(([_typeA, itemsA], [_typeB, ItemsB]) => {
-            return (itemsA[0].searchRank ?? 0) - (ItemsB[0].searchRank ?? 0);
-        });
-    }, [itemsGroupedByType]);
+        return Object.entries(searchResults)
+            .filter(([_type, items]) => items.length > 0)
+            .sort(
+                ([_a, itemsA], [_b, itemsB]) =>
+                    (itemsB[0].searchRank ?? 0) - (itemsA[0].searchRank ?? 0),
+            );
+    }, [searchResults]);
 
     return (
         <Accordion
@@ -60,15 +53,15 @@ const OmnibarItemGroups: FC<Props> = ({
             })}
             multiple
             value={openPanels}
-            onChange={(newPanels: Array<SearchItem['type']>) =>
+            onChange={(newPanels: SearchItemType[]) =>
                 onOpenPanelsChange(newPanels)
             }
         >
-            {sortedGroupEntries.map(([type, groupItems]) => (
-                <Accordion.Item key={type} value={type}>
+            {sortedGroupEntries.map(([groupType, groupItems]) => (
+                <Accordion.Item key={groupType} value={groupItems[0].type}>
                     <Accordion.Control>
                         <Text color="dark" fw={500} fz="xs">
-                            {getSearchItemLabel(type)}
+                            {getSearchItemLabel(groupItems[0].type)}
                         </Text>
                     </Accordion.Control>
 

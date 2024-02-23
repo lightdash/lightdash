@@ -122,15 +122,15 @@ export const getSearchResultId = (meta: SearchResult | undefined) => {
 
 export enum SearchItemType {
     DASHBOARD = 'dashboard',
-    CHART = 'chart',
+    CHART = 'saved_chart',
     SPACE = 'space',
     TABLE = 'table',
     FIELD = 'field',
     PAGE = 'page',
 }
 
-export interface SearchFilters {
+export type SearchFilters = {
     type?: string; // the type filter can be any string, but it should be one of the EntityType to be valid, see shouldSearchForType function
     fromDate?: string;
     toDate?: string;
-}
+};
