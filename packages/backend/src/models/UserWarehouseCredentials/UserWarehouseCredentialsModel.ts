@@ -61,6 +61,7 @@ export class UserWarehouseCredentialsModel {
                 case WarehouseTypes.REDSHIFT:
                 case WarehouseTypes.POSTGRES:
                 case WarehouseTypes.TRINO:
+                case WarehouseTypes.STARROCKS:
                 case WarehouseTypes.SNOWFLAKE:
                     credentials = {
                         type: credentialsWithSecrets.type,
