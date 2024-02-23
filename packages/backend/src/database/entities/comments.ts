@@ -10,11 +10,16 @@ export type DbDashboardTileComments = {
     dashboard_tile_uuid: string;
     user_uuid: string;
     resolved: boolean;
+    saved_chart_uuid: string | null;
 };
 
 type DbDashboardTileCommentsInsert = Pick<
     DbDashboardTileComments,
-    'text' | 'dashboard_tile_uuid' | 'reply_to' | 'user_uuid'
+    | 'text'
+    | 'dashboard_tile_uuid'
+    | 'reply_to'
+    | 'user_uuid'
+    | 'saved_chart_uuid'
 >;
 
 type DbDashboardTileCommentsUpdate = Pick<DbDashboardTileComments, 'resolved'>;

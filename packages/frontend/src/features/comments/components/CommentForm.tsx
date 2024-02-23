@@ -1,7 +1,19 @@
 import { Comment } from '@lightdash/common';
-import { Avatar, Button, Grid, Group, Stack, Textarea } from '@mantine/core';
+import {
+    Autocomplete,
+    AutocompleteItem,
+    Avatar,
+    Button,
+    Grid,
+    Group,
+    Stack,
+    Textarea,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC } from 'react';
+import { IconAt } from '@tabler/icons-react';
+import { FC, useMemo, useState } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { getNameInitials } from '../utils';
 
 type Props = {
@@ -24,18 +36,19 @@ export const CommentForm: FC<Props> = ({
             text: '',
             replyTo: '',
         },
-        validate: {
-            text: (value) => {
-                if (value.trim() === '') {
-                    return 'Comment cannot be empty';
-                }
-                return null;
-            },
-        },
     });
-
-    const handleSubmit = commentForm.onSubmit(async ({ text }) => {
-        await onSubmit(text);
+    const { data: listUsers } = useOrganizationUsers();
+    const userNames = useMemo(() => {
+        return (
+            listUsers?.map((user) => {
+                return user.firstName + ' ' + user.lastName;
+            }) || []
+        );
+    }, [listUsers]);
+    const [message, setMessage] = useState<string>('');
+    const [showUsers, setShowUsers] = useState(false);
+    const handleSubmit = commentForm.onSubmit(async () => {
+        await onSubmit(message);
 
         commentForm.reset();
     });
@@ -58,14 +71,39 @@ export const CommentForm: FC<Props> = ({
                             radius="sm"
                             autosize
                             {...commentForm.getInputProps('text')}
+                            value={message}
+                            onKeyUp={(event) => {
+                                if (event.key === '@') {
+                                    setShowUsers(true);
+                                }
+                            }}
+                            onChange={(event) => {
+                                setMessage(event.currentTarget.value);
+                            }}
                         />
+
+                        {showUsers && (
+                            <Autocomplete
+                                w={'75%'}
+                                icon={<MantineIcon icon={IconAt} />}
+                                zIndex={10}
+                                placeholder="Choose user to mention"
+                                autoFocus={true}
+                                data={userNames}
+                                onBlur={() => setShowUsers(false)}
+                                onItemSubmit={(item: AutocompleteItem) => {
+                                    setMessage(message + item.value + ' ');
+                                    setShowUsers(false);
+                                }}
+                            ></Autocomplete>
+                        )}
                     </Grid.Col>
                 </Grid>
                 <Group position="right" spacing="xs">
                     {onCancel && (
                         <Button
                             compact
-                            disabled={commentForm.values.text === ''}
+                            disabled={message === ''}
                             variant="default"
                             size="xs"
                             onClick={onCancel}
@@ -77,7 +115,7 @@ export const CommentForm: FC<Props> = ({
                     <Button
                         compact
                         loading={isSubmitting}
-                        disabled={commentForm.values.text === ''}
+                        disabled={message === ''}
                         size="xs"
                         sx={{
                             alignSelf: 'flex-end',

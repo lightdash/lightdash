@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    Comment,
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
@@ -14,7 +13,6 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
-    NotFoundError,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
@@ -679,144 +677,5 @@ export class DashboardService {
         }
 
         return dashboard;
-    }
-
-    async createComment(
-        user: SessionUser,
-        dashboardUuid: string,
-        dashboardTileUuid: string,
-        text: string,
-        replyTo: string | null,
-    ): Promise<string> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-
-        if (
-            user.ability.cannot(
-                'create',
-                subject('DashboardComments', {
-                    projectUuid: dashboard.projectUuid,
-                    organizationUuid: user.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
-        }
-
-        return this.dashboardModel.createComment(
-            dashboardUuid,
-            dashboardTileUuid,
-            text,
-            replyTo,
-            user,
-        );
-    }
-
-    async findCommentsForDashboard(
-        user: SessionUser,
-        dashboardUuid: string,
-    ): Promise<Record<string, Comment[]>> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-
-        if (
-            user.ability.cannot(
-                'view',
-                subject('DashboardComments', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
-        }
-
-        const canUserRemoveAnyComment = user.ability.can(
-            'manage',
-            subject('DashboardComments', {
-                organizationUuid: dashboard.organizationUuid,
-                projectUuid: dashboard.projectUuid,
-            }),
-        );
-
-        return this.dashboardModel.findCommentsForDashboard(
-            dashboardUuid,
-            user.userUuid,
-            canUserRemoveAnyComment,
-        );
-    }
-
-    async resolveComment(
-        user: SessionUser,
-        dashboardUuid: string,
-        commentId: string,
-    ): Promise<void> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DashboardComments', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
-        }
-
-        return this.dashboardModel.resolveComment(commentId);
-    }
-
-    async deleteComment(
-        user: SessionUser,
-        dashboardUuid: string,
-        commentId: string,
-    ): Promise<void> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
-        }
-
-        const canRemoveAnyComment = user.ability.can(
-            'manage',
-            subject('DashboardComments', {
-                organizationUuid: dashboard.organizationUuid,
-                projectUuid: dashboard.projectUuid,
-            }),
-        );
-
-        if (canRemoveAnyComment) {
-            await this.dashboardModel.deleteComment(commentId);
-        } else {
-            const commentOwner = await this.dashboardModel.getCommentOwner(
-                commentId,
-            );
-            const isOwner = commentOwner === user.userUuid;
-
-            if (isOwner) {
-                await this.dashboardModel.deleteComment(commentId);
-            }
-
-            throw new ForbiddenError();
-        }
     }
 }

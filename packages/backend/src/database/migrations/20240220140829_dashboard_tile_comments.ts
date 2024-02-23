@@ -24,6 +24,18 @@ export async function up(knex: Knex): Promise<void> {
         table.uuid('user_uuid');
         table.foreign('user_uuid').references('user_uuid').inTable(usersTable);
         table.boolean('resolved').defaultTo(false);
+        table
+            .specificType('mentions', 'uuid[]')
+            .notNullable()
+            .defaultTo('{}')
+            .index();
+        table
+            .uuid('saved_chart_uuid')
+            .nullable()
+            .references('saved_query_uuid')
+            .inTable('saved_queries')
+            .onDelete('CASCADE')
+            .index();
     });
 }
 
