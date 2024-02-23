@@ -2,6 +2,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import database from '../database/database';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 import { AnalyticsModel } from './AnalyticsModel';
+import { CommentModel } from './CommentModel/CommentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DownloadFileModel } from './DownloadFileModel';
@@ -112,3 +113,5 @@ export const githubAppInstallationsModel = new GithubAppInstallationsModel({
     database,
     encryptionService,
 });
+
+export const commentModel = new CommentModel({ database });

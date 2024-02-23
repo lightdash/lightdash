@@ -2,6 +2,7 @@ import { emailClient, s3CacheClient, s3Client } from '../clients/clients';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     analyticsModel,
+    commentModel,
     dashboardModel,
     downloadFileModel,
     emailModel,
@@ -32,6 +33,7 @@ import {
     validationModel,
 } from '../models/models';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
+import { CommentService } from './CommentService/CommentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
@@ -232,4 +234,10 @@ export const gitIntegrationService = new GitIntegrationService({
 export const githubAppService = new GithubAppService({
     githubAppInstallationsModel,
     userModel,
+});
+
+export const commentService = new CommentService({
+    dashboardModel,
+    spaceModel,
+    commentModel,
 });

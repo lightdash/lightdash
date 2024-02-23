@@ -36,14 +36,6 @@ export const CommentForm: FC<Props> = ({
             text: '',
             replyTo: '',
         },
-        validate: {
-            text: (value) => {
-                if (value.trim() === '') {
-                    return 'Comment cannot be empty';
-                }
-                return null;
-            },
-        },
     });
     const { data: listUsers } = useOrganizationUsers();
     const userNames = useMemo(() => {
@@ -55,8 +47,8 @@ export const CommentForm: FC<Props> = ({
     }, [listUsers]);
     const [message, setMessage] = useState<string>('');
     const [showUsers, setShowUsers] = useState(false);
-    const handleSubmit = commentForm.onSubmit(async ({ text }) => {
-        await onSubmit(text);
+    const handleSubmit = commentForm.onSubmit(async () => {
+        await onSubmit(message);
 
         commentForm.reset();
     });

@@ -21,7 +21,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { dashboardService } from '../services/services';
+import { commentService, dashboardService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/comments')
@@ -46,7 +46,7 @@ export class CommentsController extends Controller {
         @Request() req: express.Request,
         @Body() body: Pick<Comment, 'text' | 'replyTo'>,
     ): Promise<ApiCreateComment> {
-        const commentId = await dashboardService.createComment(
+        const commentId = await commentService.createComment(
             req.user!,
             dashboardUuid,
             dashboardTileUuid,
@@ -74,7 +74,7 @@ export class CommentsController extends Controller {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetComments> {
-        const results = await dashboardService.findCommentsForDashboard(
+        const results = await commentService.findCommentsForDashboard(
             req.user!,
             dashboardUuid,
         );
@@ -100,7 +100,7 @@ export class CommentsController extends Controller {
         @Path() commentId: string,
         @Request() req: express.Request,
     ): Promise<ApiResolveComment> {
-        await dashboardService.resolveComment(
+        await commentService.resolveComment(
             req.user!,
             dashboardUuid,
             commentId,
@@ -126,11 +126,7 @@ export class CommentsController extends Controller {
         @Path() commentId: string,
         @Request() req: express.Request,
     ): Promise<ApiResolveComment> {
-        await dashboardService.deleteComment(
-            req.user!,
-            dashboardUuid,
-            commentId,
-        );
+        await commentService.deleteComment(req.user!, dashboardUuid, commentId);
         this.setStatus(200);
         return {
             status: 'ok',
