@@ -1,11 +1,10 @@
 import { Comment, LightdashUser, NotFoundError } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DashboardTileCommentsTableName } from '../../database/entities/comments';
 import {
     DashboardsTableName,
-    DashboardTileCommentsTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
-    DbDashboardTileComments,
 } from '../../database/entities/dashboards';
 import { UserTableName } from '../../database/entities/users';
 
@@ -85,7 +84,7 @@ export class CommentModel {
                 dashboard_tile_uuid: dashboardTileUuid,
                 reply_to: replyTo ?? null,
                 user_uuid: user.userUuid,
-                saved_chart_uuid: savedChartUuid,
+                saved_chart_uuid: savedChartUuid ?? null,
             })
             .returning('comment_id');
 

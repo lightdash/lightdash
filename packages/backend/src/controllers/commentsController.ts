@@ -21,7 +21,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { commentService, dashboardService } from '../services/services';
+import { commentService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/comments')
