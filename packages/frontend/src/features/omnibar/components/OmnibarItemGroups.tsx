@@ -29,8 +29,8 @@ const OmnibarItemGroups: FC<Props> = ({
         return Object.entries(searchResults)
             .filter(([_type, items]) => items.length > 0)
             .sort(
-                ([_typeA, itemsA], [_typeB, ItemsB]) =>
-                    (itemsA[0].searchRank ?? 0) - (ItemsB[0].searchRank ?? 0),
+                ([_a, itemsA], [_b, itemsB]) =>
+                    (itemsB[0].searchRank ?? 0) - (itemsA[0].searchRank ?? 0),
             );
     }, [searchResults]);
 
