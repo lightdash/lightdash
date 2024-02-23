@@ -4575,7 +4575,7 @@
                     }
                 ]
             },
-            "ThresoldOperator": {
+            "ThresholdOperator": {
                 "enum": [
                     "greaterThan",
                     "lessThan",
@@ -4594,7 +4594,7 @@
                         "type": "string"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ThresoldOperator"
+                        "$ref": "#/components/schemas/ThresholdOperator"
                     }
                 },
                 "required": ["value", "fieldId", "operator"],
@@ -5410,10 +5410,34 @@
             "SpaceDashboard": {
                 "$ref": "#/components/schemas/DashboardBasicDetails"
             },
+            "SpaceMemberRole": {
+                "enum": ["viewer", "editor"],
+                "type": "string"
+            },
             "SpaceShare": {
                 "properties": {
+                    "inheritedFrom": {
+                        "type": "string",
+                        "enum": ["organization", "project", "group"]
+                    },
+                    "inheritedRole": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ]
+                    },
+                    "hasDirectAccess": {
+                        "type": "boolean"
+                    },
                     "role": {
-                        "$ref": "#/components/schemas/ProjectMemberRole"
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string"
                     },
                     "lastName": {
                         "type": "string"
@@ -5425,7 +5449,14 @@
                         "type": "string"
                     }
                 },
-                "required": ["role", "lastName", "firstName", "userUuid"],
+                "required": [
+                    "hasDirectAccess",
+                    "role",
+                    "email",
+                    "lastName",
+                    "firstName",
+                    "userUuid"
+                ],
                 "type": "object"
             },
             "Space": {
@@ -5476,6 +5507,7 @@
                 "required": [
                     "pinnedListOrder",
                     "pinnedListUuid",
+                    "access",
                     "dashboards",
                     "projectUuid",
                     "queries",
@@ -6364,7 +6396,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.998.5",
+        "version": "0.1010.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
