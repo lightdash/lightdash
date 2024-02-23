@@ -1,3 +1,10 @@
+# [0.1011.0](https://github.com/lightdash/lightdash/compare/0.1010.1...0.1011.0) (2024-02-23)
+
+
+### Features
+
+* show longer dbt descriptions for fields, including markdown support ([#9055](https://github.com/lightdash/lightdash/issues/9055)) ([e33f016](https://github.com/lightdash/lightdash/commit/e33f0167abf51365f06b4398ec0511fb53a13f85))
+
 ## [0.1010.1](https://github.com/lightdash/lightdash/compare/0.1010.0...0.1010.1) (2024-02-23)
 
 
