@@ -2,6 +2,7 @@ import {
     OrganizationMemberRole,
     ProjectMemberRole,
     Space,
+    SpaceMemberRole,
 } from '@lightdash/common';
 import {
     Avatar,
@@ -16,7 +17,10 @@ import { FC, forwardRef, useMemo } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
-import { getInitials, getUserNameOrEmail } from '../ShareSpaceModal/Utils';
+import {
+    getOrgUserInitials,
+    getOrgUserNameOrEmail,
+} from '../ShareSpaceModal/Utils';
 
 interface CreateSpaceAddUserProps {
     projectUuid: string;
@@ -55,7 +59,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
             return (
                 <Group ref={ref} {...props}>
                     <Avatar radius="xl" color="blue">
-                        {getInitials(user.userUuid, organizationUsers)}
+                        {getOrgUserInitials(user.userUuid, organizationUsers)}
                     </Avatar>
 
                     <Stack spacing="two">
@@ -99,7 +103,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
 
                 return {
                     value: userUuid,
-                    label: getUserNameOrEmail(userUuid, organizationUsers),
+                    label: getOrgUserNameOrEmail(userUuid, organizationUsers),
                 };
             })
             .filter((item): item is SelectItem => item !== null);
@@ -121,10 +125,14 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
             onChange={(newUserIds) => {
                 form?.setValues({
                     access: newUserIds.map((userUuid) => ({
-                        userUuid,
+                        userUuid: userUuid,
                         firstName: '',
                         lastName: '',
-                        role: ProjectMemberRole.VIEWER,
+                        email: '',
+                        role: SpaceMemberRole.VIEWER,
+                        hasDirectAccess: true,
+                        inheritedRole: undefined,
+                        inheritedFrom: undefined,
                     })),
                 });
             }}
