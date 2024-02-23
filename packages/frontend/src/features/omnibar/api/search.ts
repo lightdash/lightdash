@@ -11,9 +11,9 @@ export const getSearchResults = async ({
     query: string;
     filters?: SearchFilters;
 }) => {
-    const sanitizedFilters = omitBy(filters, isNil);
-    const searchParams = sanitizedFilters
-        ? new URLSearchParams(sanitizedFilters).toString()
+    const sanitisedFilters = omitBy(filters, isNil);
+    const searchParams = sanitisedFilters
+        ? new URLSearchParams(sanitisedFilters).toString()
         : undefined;
 
     return lightdashApi<SearchResults>({

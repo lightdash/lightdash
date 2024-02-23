@@ -1,7 +1,7 @@
 import { SearchFilters } from '@lightdash/common';
 import dayjs from 'dayjs';
 
-export function getDateFilterLabel(filters: SearchFilters) {
+export function getDateFilterLabel(filters: SearchFilters = {}) {
     const { fromDate, toDate } = filters;
     const fromDateObj = fromDate ? dayjs(fromDate) : undefined;
     const toDateObj = toDate ? dayjs(toDate) : undefined;

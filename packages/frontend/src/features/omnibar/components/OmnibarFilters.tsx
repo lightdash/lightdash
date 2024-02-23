@@ -17,7 +17,7 @@ import {
     IconRectangle,
     IconTable,
 } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { allSearchItemTypes } from '../types/searchItem';
 import { getDateFilterLabel } from '../utils/getDateFilterLabel';
@@ -47,16 +47,12 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
 };
 
 type Props = {
+    filters?: SearchFilters;
     onSearchFilterChange: (searchFilters?: SearchFilters) => void;
 };
 
-const OmnibarFilters: FC<Props> = ({ onSearchFilterChange }) => {
+const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
     const [isDateMenuOpen, dateMenuHandlers] = useDisclosure(false);
-    const [filters, setFilters] = useState<SearchFilters>({});
-
-    useEffect(() => {
-        onSearchFilterChange(filters);
-    }, [filters, onSearchFilterChange]);
 
     return (
         <Group px="md" py="sm">
@@ -77,7 +73,7 @@ const OmnibarFilters: FC<Props> = ({ onSearchFilterChange }) => {
                         leftIcon={<MantineIcon icon={IconAdjustments} />}
                         rightIcon={<MantineIcon icon={IconChevronDown} />}
                     >
-                        {filters.type
+                        {filters?.type
                             ? getSearchItemLabel(filters.type as SearchItemType)
                             : 'All items'}
                     </Button>
@@ -93,12 +89,12 @@ const OmnibarFilters: FC<Props> = ({ onSearchFilterChange }) => {
                                     color={getOmnibarItemColor(type)}
                                 />
                             }
-                            bg={type === filters.type ? 'blue.1' : undefined}
+                            bg={type === filters?.type ? 'blue.1' : undefined}
                             onClick={() => {
-                                setFilters({
+                                onSearchFilterChange({
                                     ...filters,
                                     type:
-                                        type === filters.type
+                                        type === filters?.type
                                             ? undefined
                                             : type,
                                 });
@@ -139,17 +135,17 @@ const OmnibarFilters: FC<Props> = ({ onSearchFilterChange }) => {
                             allowSingleDateInRange
                             maxDate={new Date()}
                             value={[
-                                filters.fromDate
+                                filters?.fromDate
                                     ? new Date(filters.fromDate)
                                     : null,
-                                filters.toDate
+                                filters?.toDate
                                     ? new Date(filters.toDate)
                                     : null,
                             ]}
                             onChange={(value) => {
                                 const [fromDate, toDate] = value;
 
-                                setFilters({
+                                onSearchFilterChange({
                                     ...filters,
                                     fromDate: fromDate?.toISOString(),
                                     toDate: toDate?.toISOString(),
@@ -167,7 +163,7 @@ const OmnibarFilters: FC<Props> = ({ onSearchFilterChange }) => {
                             mt="sm"
                             style={{ alignSelf: 'flex-end' }}
                             onClick={() => {
-                                setFilters({
+                                onSearchFilterChange({
                                     ...filters,
                                     fromDate: undefined,
                                     toDate: undefined,

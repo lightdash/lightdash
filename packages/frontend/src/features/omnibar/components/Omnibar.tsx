@@ -179,6 +179,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                         />
 
                         <OmnibarFilters
+                            filters={searchFilters}
                             onSearchFilterChange={(filters) => {
                                 setSearchFilters(filters);
                             }}
