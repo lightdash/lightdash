@@ -29,6 +29,7 @@ import { FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import { useFilters } from '../../../../../hooks/useFilters';
+import { rehypeRemoveHeaderLinks } from '../../../../../utils/markdownUtils';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useItemDetail } from '../ItemDetailContext';
@@ -83,6 +84,7 @@ const NodeDetailMarkdown: FC<{ source: string }> = ({ source }) => {
                 h2: ({ children }) => <Title order={3}>{children}</Title>,
                 h3: ({ children }) => <Title order={4}>{children}</Title>,
             }}
+            rehypeRewrite={rehypeRemoveHeaderLinks}
             source={source}
             disallowedElements={['img']}
             style={{
