@@ -122,7 +122,10 @@ import {
     DbAnalyticsChartViews,
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
-import { DashboardTileCommentsTableName } from '../database/entities/comments';
+import {
+    DashboardTileCommentsTable,
+    DashboardTileCommentsTableName,
+} from '../database/entities/comments';
 import {
     DownloadFileTable,
     DownloadFileTableName,
