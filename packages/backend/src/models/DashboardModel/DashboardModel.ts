@@ -917,6 +917,7 @@ export class DashboardModel {
         text: string,
         replyTo: string | null,
         user: LightdashUser,
+        mentions: string[],
     ): Promise<string> {
         await this.checkDashboardTileExistsInDashboard(
             dashboardUuid,
@@ -930,6 +931,7 @@ export class DashboardModel {
                 dashboard_tile_uuid: dashboardTileUuid,
                 reply_to: replyTo ?? null,
                 user_uuid: user.userUuid,
+                mentions,
             })
             .returning('comment_id');
 
@@ -987,6 +989,7 @@ export class DashboardModel {
                 replies: [],
                 canRemove:
                     canUserRemoveAnyComment || comment.user_uuid === userUuid,
+                mentions: comment.mentions,
             };
 
             // Directly attach to parent if it's a reply and the parent exists
@@ -1047,6 +1050,18 @@ export class DashboardModel {
             .first();
 
         return result ? result.user_uuid : null;
+    }
+
+    async getCommentMentions(
+        userUuid: string,
+    ): Promise<Record<string, Comment[]>> {
+        const results = await this.database(DashboardTileCommentsTableName)
+            .select()
+            .whereRaw('? = ANY(mentions)', [userUuid]);
+
+        if (results.length > 0) return {};
+        // TODO parse results
+        return {};
     }
 
     async deleteComment(commentId: string): Promise<void> {

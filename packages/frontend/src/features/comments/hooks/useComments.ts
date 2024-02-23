@@ -8,6 +8,7 @@ type CreateDashboardTileComment = {
     dashboardTileUuid: string;
     text: string;
     replyTo?: string;
+    mentions: string[];
 };
 
 const createDashboardTileComment = async ({
@@ -15,6 +16,7 @@ const createDashboardTileComment = async ({
     dashboardTileUuid,
     text,
     replyTo,
+    mentions,
 }: CreateDashboardTileComment) =>
     lightdashApi<null>({
         url: `/comments/dashboards/${dashboardUuid}/${dashboardTileUuid}`,
@@ -22,6 +24,7 @@ const createDashboardTileComment = async ({
         body: JSON.stringify({
             text,
             replyTo,
+            mentions,
         }),
     });
 

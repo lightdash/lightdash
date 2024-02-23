@@ -687,6 +687,7 @@ export class DashboardService {
         dashboardTileUuid: string,
         text: string,
         replyTo: string | null,
+        mentions: string[],
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
@@ -714,6 +715,7 @@ export class DashboardService {
             text,
             replyTo,
             user,
+            mentions,
         );
     }
 

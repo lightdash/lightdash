@@ -1,4 +1,4 @@
-import { Comment } from '@lightdash/common';
+import { OrganizationMemberProfile } from '@lightdash/common';
 import {
     Autocomplete,
     AutocompleteItem,
@@ -18,12 +18,15 @@ import { getNameInitials } from '../utils';
 
 type Props = {
     userName: string;
-    onSubmit: (text: string) => Promise<null>;
+    onSubmit: (text: string, mentions: string[]) => Promise<null>;
     isSubmitting: boolean;
     onCancel?: () => void;
     mode?: 'reply' | 'new';
 };
 
+const getUserName = (user: OrganizationMemberProfile) => {
+    return user.firstName + ' ' + user.lastName;
+};
 export const CommentForm: FC<Props> = ({
     userName,
     onSubmit,
@@ -31,34 +34,20 @@ export const CommentForm: FC<Props> = ({
     onCancel,
     mode = 'new',
 }) => {
-    const commentForm = useForm<Pick<Comment, 'text' | 'replyTo'>>({
-        initialValues: {
-            text: '',
-            replyTo: '',
-        },
-        validate: {
-            text: (value) => {
-                if (value.trim() === '') {
-                    return 'Comment cannot be empty';
-                }
-                return null;
-            },
-        },
-    });
+    const commentForm = useForm();
     const { data: listUsers } = useOrganizationUsers();
     const userNames = useMemo(() => {
-        return (
-            listUsers?.map((user) => {
-                return user.firstName + ' ' + user.lastName;
-            }) || []
-        );
+        return listUsers?.map(getUserName) || [];
     }, [listUsers]);
+    const [mentions, setMentions] = useState<string[]>([]);
     const [message, setMessage] = useState<string>('');
     const [showUsers, setShowUsers] = useState(false);
-    const handleSubmit = commentForm.onSubmit(async ({ text }) => {
-        await onSubmit(text);
-
+    const handleSubmit = commentForm.onSubmit(async () => {
+        await onSubmit(message, mentions);
         commentForm.reset();
+
+        setMessage('');
+        setMentions([]);
     });
 
     return (
@@ -78,7 +67,6 @@ export const CommentForm: FC<Props> = ({
                             size="xs"
                             radius="sm"
                             autosize
-                            {...commentForm.getInputProps('text')}
                             value={message}
                             onKeyUp={(event) => {
                                 if (event.key === '@') {
@@ -102,6 +90,13 @@ export const CommentForm: FC<Props> = ({
                                 onItemSubmit={(item: AutocompleteItem) => {
                                     setMessage(message + item.value + ' ');
                                     setShowUsers(false);
+                                    const userUuid = listUsers?.find(
+                                        (user) =>
+                                            getUserName(user) === item.value,
+                                        item.value,
+                                    )?.userUuid;
+                                    if (userUuid)
+                                        setMentions([...mentions, userUuid]);
                                 }}
                             ></Autocomplete>
                         )}

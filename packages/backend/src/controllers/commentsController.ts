@@ -44,7 +44,7 @@ export class CommentsController extends Controller {
         @Path() dashboardUuid: string,
         @Path() dashboardTileUuid: string,
         @Request() req: express.Request,
-        @Body() body: Pick<Comment, 'text' | 'replyTo'>,
+        @Body() body: Pick<Comment, 'text' | 'replyTo' | 'mentions'>,
     ): Promise<ApiCreateComment> {
         const commentId = await dashboardService.createComment(
             req.user!,
@@ -52,6 +52,7 @@ export class CommentsController extends Controller {
             dashboardTileUuid,
             body.text,
             body.replyTo ?? null,
+            body.mentions,
         );
         this.setStatus(200);
         return {
