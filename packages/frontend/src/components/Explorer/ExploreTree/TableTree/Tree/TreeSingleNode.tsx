@@ -311,7 +311,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                     isHovered={isHover}
                     isSelected={isSelected}
                     isOpened={isMenuOpen}
-                    hasDescription={description != null}
+                    hasDescription={!!description}
                     onViewDescription={onOpenDescriptionView}
                     onMenuChange={toggleMenu}
                 />
