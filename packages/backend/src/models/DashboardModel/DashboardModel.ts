@@ -917,65 +917,12 @@ export class DashboardModel {
         }
     }
 
-    async createComment(
-        dashboardUuid: string,
-        dashboardTileUuid: string,
-        text: string,
-        replyTo: string | null,
-        user: LightdashUser,
-    ): Promise<string> {
-        await this.checkDashboardTileExistsInDashboard(
-            dashboardUuid,
-            dashboardTileUuid,
-        );
-        const [{ comment_id: commentId }] = await this.database(
-            DashboardTileCommentsTableName,
-        )
-            .insert({
-                text,
-                dashboard_tile_uuid: dashboardTileUuid,
-                reply_to: replyTo ?? null,
-                user_uuid: user.userUuid,
-            })
-            .returning('comment_id');
-
-        return commentId;
-    }
-
-    async findCommentsForDashboard(
-        dashboardUuid: string,
+    private static parseComments(
+        commentsWithUsers: (DbDashboardTileComments &
+            Pick<DbUser, 'first_name' | 'last_name'>)[],
         userUuid: string,
         canUserRemoveAnyComment: boolean,
-    ): Promise<Record<string, Comment[]>> {
-        const dashboard = await this.getById(dashboardUuid);
-
-        const tileUuids = dashboard.tiles.map((tile) => tile.uuid);
-
-        const commentsWithUsers = await this.database(
-            DashboardTileCommentsTableName,
-        )
-            .leftJoin(
-                UserTableName,
-                `${DashboardTileCommentsTableName}.user_uuid`,
-                '=',
-                `${UserTableName}.user_uuid`,
-            )
-            .select<
-                (DbDashboardTileComments &
-                    Pick<DbUser, 'first_name' | 'last_name'>)[]
-            >(
-                `${DashboardTileCommentsTableName}.*`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-                `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
-            )
-            .whereIn(
-                `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
-                tileUuids,
-            )
-            .andWhere(`${DashboardTileCommentsTableName}.resolved`, false)
-            .orderBy(`${DashboardTileCommentsTableName}.created_at`, 'asc');
-
+    ) {
         const commentsPerDashboardTile: Record<string, Comment[]> = {}; // Stores comments grouped by their dashboard_tile_uuid
         const allComments: Record<string, Comment> = {}; // Fast access lookup for parent comments
         const orphanReplies: Record<string, Comment[]> = {}; // Stores orphan replies keyed by their intended parent's commentId
@@ -1041,6 +988,72 @@ export class DashboardModel {
         });
 
         return commentsPerDashboardTile;
+    }
+
+    async createComment(
+        dashboardUuid: string,
+        dashboardTileUuid: string,
+        text: string,
+        replyTo: string | null,
+        user: LightdashUser,
+    ): Promise<string> {
+        await this.checkDashboardTileExistsInDashboard(
+            dashboardUuid,
+            dashboardTileUuid,
+        );
+        const [{ comment_id: commentId }] = await this.database(
+            DashboardTileCommentsTableName,
+        )
+            .insert({
+                text,
+                dashboard_tile_uuid: dashboardTileUuid,
+                reply_to: replyTo ?? null,
+                user_uuid: user.userUuid,
+            })
+            .returning('comment_id');
+
+        return commentId;
+    }
+
+    async findCommentsForDashboard(
+        dashboardUuid: string,
+        userUuid: string,
+        canUserRemoveAnyComment: boolean,
+    ): Promise<Record<string, Comment[]>> {
+        const dashboard = await this.getById(dashboardUuid);
+
+        const tileUuids = dashboard.tiles.map((tile) => tile.uuid);
+
+        const commentsWithUsers = await this.database(
+            DashboardTileCommentsTableName,
+        )
+            .leftJoin(
+                UserTableName,
+                `${DashboardTileCommentsTableName}.user_uuid`,
+                '=',
+                `${UserTableName}.user_uuid`,
+            )
+            .select<
+                (DbDashboardTileComments &
+                    Pick<DbUser, 'first_name' | 'last_name'>)[]
+            >(
+                `${DashboardTileCommentsTableName}.*`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
+            )
+            .whereIn(
+                `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
+                tileUuids,
+            )
+            .andWhere(`${DashboardTileCommentsTableName}.resolved`, false)
+            .orderBy(`${DashboardTileCommentsTableName}.created_at`, 'asc');
+
+        return DashboardModel.parseComments(
+            commentsWithUsers,
+            userUuid,
+            canUserRemoveAnyComment,
+        );
     }
 
     async resolveComment(commentId: string): Promise<void> {
