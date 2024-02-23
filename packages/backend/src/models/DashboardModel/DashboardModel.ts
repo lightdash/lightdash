@@ -54,7 +54,11 @@ import {
     SavedChartTable,
 } from '../../database/entities/savedCharts';
 import { getSpaceId, SpaceTableName } from '../../database/entities/spaces';
-import { UserTable, UserTableName } from '../../database/entities/users';
+import {
+    DbUser,
+    UserTable,
+    UserTableName,
+} from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
 import Transaction = Knex.Transaction;
 
@@ -956,7 +960,10 @@ export class DashboardModel {
                 '=',
                 `${UserTableName}.user_uuid`,
             )
-            .select(
+            .select<
+                (DbDashboardTileComments &
+                    Pick<DbUser, 'first_name' | 'last_name'>)[]
+            >(
                 `${DashboardTileCommentsTableName}.*`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
@@ -1044,7 +1051,7 @@ export class DashboardModel {
 
     async getCommentOwner(commentId: string): Promise<string | null> {
         const result = await this.database(DashboardTileCommentsTableName)
-            .select<Pick<DbDashboardTileComments, 'user_uuid'>>('user_uuid')
+            .select('user_uuid')
             .where('comment_id', commentId)
             .first();
 

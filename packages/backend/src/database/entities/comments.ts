@@ -12,5 +12,15 @@ export type DbDashboardTileComments = {
     resolved: boolean;
 };
 
-export type DashboardTileCommentsTable =
-    Knex.CompositeTableType<DbDashboardTileComments>;
+type DbDashboardTileCommentsInsert = Pick<
+    DbDashboardTileComments,
+    'text' | 'dashboard_tile_uuid' | 'reply_to' | 'user_uuid'
+>;
+
+type DbDashboardTileCommentsUpdate = Pick<DbDashboardTileComments, 'resolved'>;
+
+export type DashboardTileCommentsTable = Knex.CompositeTableType<
+    DbDashboardTileComments,
+    DbDashboardTileCommentsInsert,
+    DbDashboardTileCommentsUpdate
+>;
