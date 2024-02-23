@@ -15,8 +15,8 @@ import {
     Flex,
     Group,
     Highlight,
-    HoverCard,
     NavLink,
+    Popover,
     Text,
     Title,
     Tooltip,
@@ -145,7 +145,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
     const { isFilteredField } = useFilters();
     const { showItemDetail } = useItemDetail();
 
-    const [isHover, toggle] = useToggle(false);
+    const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
 
     const isSelected = selectedItems.has(node.key);
@@ -192,6 +192,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
      * detailed description.
      */
     const onOpenDescriptionView = () => {
+        toggleHover(false);
+
         showItemDetail({
             header: (
                 <Group>
@@ -237,21 +239,20 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                 )
             }
             onClick={() => onItemClick(node.key, item)}
-            onMouseEnter={() => toggle(true)}
-            onMouseLeave={() => toggle(false)}
+            onMouseEnter={() => toggleHover(true)}
+            onMouseLeave={() => toggleHover(false)}
             label={
                 <Group noWrap>
-                    <HoverCard
+                    <Popover
+                        opened={isHover}
                         shadow="sm"
                         withinPortal
                         disabled={!description && !isMissing}
                         position="right"
-                        /** Stops larger popups from being annoying when scanning the list of items */
-                        openDelay={300}
                         /** Ensures the hover card does not overlap with the right-hand menu. */
                         offset={40}
                     >
-                        <HoverCard.Target>
+                        <Popover.Target>
                             <Highlight
                                 component={Text}
                                 truncate
@@ -260,8 +261,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                             >
                                 {label}
                             </Highlight>
-                        </HoverCard.Target>
-                        <HoverCard.Dropdown
+                        </Popover.Target>
+                        <Popover.Dropdown
                             p="xs"
                             maw={380}
                             /**
@@ -278,8 +279,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                                     description={description}
                                 />
                             )}
-                        </HoverCard.Dropdown>
-                    </HoverCard>
+                        </Popover.Dropdown>
+                    </Popover>
 
                     {isFiltered ? (
                         <Tooltip withinPortal label="This field is filtered">
