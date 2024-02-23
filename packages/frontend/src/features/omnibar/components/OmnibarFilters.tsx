@@ -57,7 +57,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
     return (
         <Group px="md" py="sm">
             <Menu
-                position="bottom-end"
+                position="bottom-start"
                 withArrow
                 withinPortal
                 shadow="md"

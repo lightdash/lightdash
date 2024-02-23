@@ -3,12 +3,22 @@ import {
     SearchFilters,
     SearchItemType,
 } from '@lightdash/common';
-import { Input, Loader, MantineProvider, Modal, Stack } from '@mantine/core';
+import {
+    Input,
+    Loader,
+    MantineProvider,
+    Modal,
+    rem,
+    Stack,
+    Transition,
+    useMantineTheme,
+} from '@mantine/core';
 import { useDebouncedValue, useDisclosure, useHotkeys } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { FC, MouseEventHandler, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/Page';
 import { useProject } from '../../../hooks/useProject';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -30,6 +40,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const location = useLocation();
     const { data: projectData } = useProject(projectUuid);
     const { track } = useTracking();
+    const theme = useMantineTheme();
 
     const canUserManageValidation = useValidationUserAbility(projectUuid);
 
@@ -126,15 +137,26 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     return (
         <>
-            {!isOmnibarOpen && (
-                <OmnibarTarget onOpen={handleOmnibarOpenInputClick} />
-            )}
+            <Transition
+                mounted={!isOmnibarOpen}
+                transition="fade"
+                duration={400}
+                timingFunction="ease"
+            >
+                {(style) => (
+                    <OmnibarTarget
+                        style={style}
+                        onOpen={handleOmnibarOpenInputClick}
+                    />
+                )}
+            </Transition>
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
                 <Modal
-                    transitionProps={{ transition: 'slide-down' }}
-                    size="xl"
                     withCloseButton={false}
+                    size={`calc(${rem(PAGE_CONTENT_WIDTH)} - ${
+                        theme.spacing.lg
+                    } * 2)`}
                     closeOnClickOutside
                     closeOnEscape
                     opened={isOmnibarOpen}

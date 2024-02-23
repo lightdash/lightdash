@@ -1,39 +1,51 @@
-import { Group, Kbd, Text, TextInput } from '@mantine/core';
+import { Badge, Group, Text } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import { FC, MouseEvent } from 'react';
+import { CSSProperties, FC, MouseEvent } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
+    style: CSSProperties;
     onOpen: (e: MouseEvent<HTMLInputElement>) => void;
 };
 
-const OmnibarTarget: FC<Props> = ({ onOpen }) => {
+const OmnibarTarget: FC<Props> = ({ style, onOpen }) => {
     const os = useOs();
 
     return (
-        <TextInput
+        <Group
+            px="sm"
             role="search"
-            size="xs"
-            w={250}
-            placeholder="Search..."
-            icon={<MantineIcon icon={IconSearch} color="gray.1" />}
-            rightSection={
-                <Group mr="xs" spacing="xxs">
-                    <Kbd fw={600}>
-                        {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                    </Kbd>
-
-                    <Text color="dimmed" fw={600}>
-                        +
-                    </Text>
-
-                    <Kbd fw={600}>k</Kbd>
-                </Group>
-            }
-            rightSectionWidth="auto"
+            h={30}
+            w={350}
             onClick={onOpen}
-        />
+            style={style}
+            sx={(theme) => ({
+                position: 'absolute',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                borderRadius: theme.radius.sm,
+                cursor: 'pointer',
+                transition: 'all 100ms ease',
+                backgroundColor: theme.colors.dark[4],
+                '&:hover': { backgroundColor: theme.colors.dark[3] },
+            })}
+        >
+            <MantineIcon icon={IconSearch} color="dark.0" />
+
+            <Text
+                style={{ flexGrow: 1, position: 'relative', top: 1 }}
+                color="dark.0"
+                size="xs"
+            >
+                Search...
+            </Text>
+
+            <Badge fw={600} color="dark.0" radius="sm">
+                {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
+                +K
+            </Badge>
+        </Group>
     );
 };
 
