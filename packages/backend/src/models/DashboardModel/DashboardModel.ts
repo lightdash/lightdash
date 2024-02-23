@@ -20,18 +20,20 @@ import {
 import { Knex } from 'knex';
 import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
 import {
+    DashboardTileCommentsTableName,
+    DbDashboardTileComments,
+} from '../../database/entities/comments';
+import {
     DashboardsTableName,
     DashboardTable,
     DashboardTileChartTable,
     DashboardTileChartTableName,
-    DashboardTileCommentsTableName,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
     DashboardVersionTable,
     DashboardViewsTableName,
-    DbDashboardTileComments,
 } from '../../database/entities/dashboards';
 import {
     OrganizationTable,

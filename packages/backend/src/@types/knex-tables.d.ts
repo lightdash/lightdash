@@ -122,6 +122,7 @@ import {
     DbAnalyticsChartViews,
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
+import { DashboardTileCommentsTableName } from '../database/entities/comments';
 import {
     DownloadFileTable,
     DownloadFileTableName,
@@ -248,5 +249,6 @@ declare module 'knex/types/tables' {
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
+        [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
     }
 }

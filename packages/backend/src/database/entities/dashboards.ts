@@ -9,7 +9,6 @@ export const DashboardTileTypesTableName = 'dashboard_tile_types';
 export const DashboardTileChartTableName = 'dashboard_tile_charts';
 export const DashboardTileMarkdownsTableName = 'dashboard_tile_markdowns';
 export const DashboardTileLoomsTableName = 'dashboard_tile_looms';
-export const DashboardTileCommentsTableName = 'dashboard_tile_comments';
 
 export type DbDashboard = {
     dashboard_id: number;
@@ -99,16 +98,3 @@ type DbDashboardTileMarkdowns = {
 
 export type DashboardTileMarkdownsTable =
     Knex.CompositeTableType<DbDashboardTileMarkdowns>;
-
-export type DbDashboardTileComments = {
-    comment_id: string;
-    created_at: Date;
-    text: string;
-    reply_to: string | null;
-    dashboard_tile_uuid: string;
-    user_uuid: string;
-    resolved: boolean;
-};
-
-export type DashboardTileCommentsTable =
-    Knex.CompositeTableType<DbDashboardTileComments>;
