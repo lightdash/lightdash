@@ -1,3 +1,10 @@
+# [0.1012.0](https://github.com/lightdash/lightdash/compare/0.1011.0...0.1012.0) (2024-02-23)
+
+
+### Features
+
+* add omnibar created at filter ([#9084](https://github.com/lightdash/lightdash/issues/9084)) ([ce09707](https://github.com/lightdash/lightdash/commit/ce0970700a8e3435debc2c3c9f8d307ccae8aa0e))
+
 # [0.1011.0](https://github.com/lightdash/lightdash/compare/0.1010.1...0.1011.0) (2024-02-23)
 
 
