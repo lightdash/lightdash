@@ -1,3 +1,10 @@
+# [0.1013.0](https://github.com/lightdash/lightdash/compare/0.1012.0...0.1013.0) (2024-02-23)
+
+
+### Features
+
+* add dashboard comments ([#9018](https://github.com/lightdash/lightdash/issues/9018)) ([1196f1c](https://github.com/lightdash/lightdash/commit/1196f1ca5e90ec9be559bb8914f2b771150f3652)), closes [#9071](https://github.com/lightdash/lightdash/issues/9071)
+
 # [0.1012.0](https://github.com/lightdash/lightdash/compare/0.1011.0...0.1012.0) (2024-02-23)
 
 
