@@ -111,7 +111,7 @@ export const CommentForm: FC<Props> = ({
                     {onCancel && (
                         <Button
                             compact
-                            disabled={commentForm.values.text === ''}
+                            disabled={message === ''}
                             variant="default"
                             size="xs"
                             onClick={onCancel}
@@ -123,7 +123,7 @@ export const CommentForm: FC<Props> = ({
                     <Button
                         compact
                         loading={isSubmitting}
-                        disabled={commentForm.values.text === ''}
+                        disabled={message === ''}
                         size="xs"
                         sx={{
                             alignSelf: 'flex-end',
