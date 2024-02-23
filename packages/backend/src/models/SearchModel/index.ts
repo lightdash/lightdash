@@ -532,7 +532,7 @@ export class SearchModel {
         );
 
         const tablesAndErrors = [...tables, ...tableErrors];
-        const pages = SearchModel.searchPages(projectUuid, query);
+        const pages = SearchModel.searchPages(projectUuid, query, filters);
 
         return {
             spaces,
