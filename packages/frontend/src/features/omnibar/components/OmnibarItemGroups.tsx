@@ -66,9 +66,9 @@ const OmnibarItemGroups: FC<Props> = ({
                     </Accordion.Control>
 
                     <Accordion.Panel>
-                        {groupItems.map((item) => (
+                        {groupItems.map((item, index) => (
                             <OmnibarItem
-                                key={item.location.pathname}
+                                key={index}
                                 item={item}
                                 onClick={() => onClick(item)}
                                 projectUuid={projectUuid}

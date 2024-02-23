@@ -1,4 +1,8 @@
-import { getSearchResultId, SearchItemType } from '@lightdash/common';
+import {
+    getSearchResultId,
+    SearchFilters,
+    SearchItemType,
+} from '@lightdash/common';
 import { Input, Loader, MantineProvider, Modal, Stack } from '@mantine/core';
 import { useDebouncedValue, useDisclosure, useHotkeys } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
@@ -32,19 +36,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const [openPanels, setOpenPanels] =
         useState<SearchItemType[]>(allSearchItemTypes);
 
-    const [searchFilter, setSearchFilter] = useState<SearchItemType>();
-
+    const [searchFilters, setSearchFilters] = useState<SearchFilters>();
     const [query, setQuery] = useState<string>();
     const [debouncedValue] = useDebouncedValue(query, 300);
 
     const { data: searchResults, isFetching } = useSearch(
         projectUuid,
         debouncedValue,
-        searchFilter
-            ? {
-                  type: searchFilter,
-              }
-            : undefined,
+        searchFilters,
     );
 
     const [isOmnibarOpen, { open: openOmnibar, close: closeOmnibar }] =
@@ -122,7 +121,6 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const hasEnteredQuery = query !== undefined && query !== '';
     const hasEnteredMinQueryLength =
         hasEnteredQuery && query.length >= OMNIBAR_MIN_QUERY_LENGTH;
-    const hasValidSearchQuery = hasEnteredQuery && hasEnteredMinQueryLength;
     const hasSearchResults =
         searchResults && !isSearchResultEmpty(searchResults);
 
@@ -180,12 +178,12 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             onChange={(e) => setQuery(e.currentTarget.value)}
                         />
 
-                        {hasValidSearchQuery && (
-                            <OmnibarFilters
-                                searchFilter={searchFilter}
-                                onSearchFilterChange={setSearchFilter}
-                            />
-                        )}
+                        <OmnibarFilters
+                            filters={searchFilters}
+                            onSearchFilterChange={(filters) => {
+                                setSearchFilters(filters);
+                            }}
+                        />
 
                         {!hasEnteredQuery ? (
                             <OmnibarEmptyState
