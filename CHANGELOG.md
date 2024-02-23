@@ -1,3 +1,10 @@
+# [0.1008.0](https://github.com/lightdash/lightdash/compare/0.1007.0...0.1008.0) (2024-02-23)
+
+
+### Features
+
+* show all users that have access to a space and their role ([#8941](https://github.com/lightdash/lightdash/issues/8941)) ([8c28511](https://github.com/lightdash/lightdash/commit/8c28511bbe649cf6e902fbc0346a13629c76d3d0))
+
 # [0.1007.0](https://github.com/lightdash/lightdash/compare/0.1006.0...0.1007.0) (2024-02-22)
 
 
