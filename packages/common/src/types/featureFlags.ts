@@ -33,4 +33,9 @@ export enum FeatureFlags {
      * Use the new in-memory table calculations engine/duckdb
      */
     UseInMemoryTableCalculations = 'new-table-calculations-engine',
+
+    /**
+     * Enables the new omnibar search
+     */
+    Omnibar = 'omnibar',
 }

@@ -1,6 +1,7 @@
 import {
     OrganizationMemberRole,
     ProjectMemberRole,
+    SpaceMemberRole,
     SpaceShare,
 } from '@lightdash/common';
 import { Avatar, Group, Radio, Stack, Text, TextInput } from '@mantine/core';
@@ -94,9 +95,14 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                 return [
                     ...acc,
                     {
-                        ...user,
+                        userUuid: userUuid,
                         firstName: user.firstName || user.email,
-                        role: ProjectMemberRole.ADMIN,
+                        lastName: user.lastName || '',
+                        email: user.email,
+                        role: SpaceMemberRole.EDITOR,
+                        hasDirectAccess: false,
+                        inheritedFrom: undefined,
+                        inheritedRole: undefined,
                     },
                 ];
             } else return acc;

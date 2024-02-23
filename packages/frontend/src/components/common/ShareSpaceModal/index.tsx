@@ -13,7 +13,6 @@ import {
 import { IconFolderShare, IconLock, IconUsers } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../MantineIcon';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
@@ -32,7 +31,6 @@ export interface ShareSpaceProps {
 
 const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const theme = useMantineTheme();
-    const { data: organizationUsers } = useOrganizationUsers();
     const [selectedAccess, setSelectedAccess] = useState<AccessOption>(
         space.isPrivate ? SpaceAccessOptions[0] : SpaceAccessOptions[1],
     );
@@ -80,7 +78,6 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             <ShareSpaceAddUser
                                 space={space}
                                 projectUuid={projectUuid}
-                                organizationUsers={organizationUsers}
                             />
                         ) : null}
 
@@ -91,14 +88,11 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             setSelectedAccess={setSelectedAccess}
                         />
 
-                        {selectedAccess.value === SpaceAccessType.PRIVATE && (
-                            <ShareSpaceUserList
-                                projectUuid={projectUuid}
-                                space={space}
-                                sessionUser={sessionUser.data}
-                                organizationUsers={organizationUsers}
-                            />
-                        )}
+                        <ShareSpaceUserList
+                            projectUuid={projectUuid}
+                            space={space}
+                            sessionUser={sessionUser.data}
+                        />
                     </Stack>
 
                     <Box

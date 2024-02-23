@@ -1,3 +1,57 @@
+# [0.1009.0](https://github.com/lightdash/lightdash/compare/0.1008.0...0.1009.0) (2024-02-23)
+
+
+### Features
+
+* keep existing share urls when user is deleted ([#9020](https://github.com/lightdash/lightdash/issues/9020)) ([d2b1b56](https://github.com/lightdash/lightdash/commit/d2b1b56abdd10b3f3a26e98825886528c895a713))
+
+# [0.1008.0](https://github.com/lightdash/lightdash/compare/0.1007.0...0.1008.0) (2024-02-23)
+
+
+### Features
+
+* show all users that have access to a space and their role ([#8941](https://github.com/lightdash/lightdash/issues/8941)) ([8c28511](https://github.com/lightdash/lightdash/commit/8c28511bbe649cf6e902fbc0346a13629c76d3d0))
+
+# [0.1007.0](https://github.com/lightdash/lightdash/compare/0.1006.0...0.1007.0) (2024-02-22)
+
+
+### Features
+
+* add lables to pause alert/delivery switch ([#9068](https://github.com/lightdash/lightdash/issues/9068)) ([1f81535](https://github.com/lightdash/lightdash/commit/1f815355b888248e7cb20aaee4ffc81a5ae62038))
+
+# [0.1006.0](https://github.com/lightdash/lightdash/compare/0.1005.0...0.1006.0) (2024-02-22)
+
+
+### Features
+
+* search v2 UI ([#8967](https://github.com/lightdash/lightdash/issues/8967)) ([062eb48](https://github.com/lightdash/lightdash/commit/062eb48e58e72b98b27ba4f89a217f71acfdb387))
+
+# [0.1005.0](https://github.com/lightdash/lightdash/compare/0.1004.0...0.1005.0) (2024-02-22)
+
+
+### Features
+
+* Track color mappings via shared context ([#9054](https://github.com/lightdash/lightdash/issues/9054)) ([098ac1b](https://github.com/lightdash/lightdash/commit/098ac1bc12a1cfb2f229c525028d6888df59d5dd))
+
+# [0.1004.0](https://github.com/lightdash/lightdash/compare/0.1003.0...0.1004.0) (2024-02-22)
+
+
+### Bug Fixes
+
+* e2e dates failing sporadically when trying to close the chart panel ([#9063](https://github.com/lightdash/lightdash/issues/9063)) ([14f1bac](https://github.com/lightdash/lightdash/commit/14f1bac67b05e532870690773b819c5cc2f036d2))
+
+
+### Features
+
+* add created at filter backend to global search ([#9052](https://github.com/lightdash/lightdash/issues/9052)) ([6f3b47f](https://github.com/lightdash/lightdash/commit/6f3b47fe70e3698e9aa044ea3b62e0546520deb3))
+
+# [0.1003.0](https://github.com/lightdash/lightdash/compare/0.1002.2...0.1003.0) (2024-02-22)
+
+
+### Features
+
+* add page type filter to global search ([#9067](https://github.com/lightdash/lightdash/issues/9067)) ([eb887a2](https://github.com/lightdash/lightdash/commit/eb887a251bbc258fc209005eeab3141ddf1ef57b))
+
 ## [0.1002.2](https://github.com/lightdash/lightdash/compare/0.1002.1...0.1002.2) (2024-02-22)
 
 

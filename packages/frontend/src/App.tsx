@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AbilityContext } from './components/common/Authorization';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
+import { ChartColorMappingContextProvider } from './hooks/useChartColorConfig';
 import MobileRoutes from './MobileRoutes';
 import { ActiveJobProvider } from './providers/ActiveJobProvider';
 import { AppProvider } from './providers/AppProvider';
@@ -43,11 +44,13 @@ const App = () => (
                             >
                                 <AbilityContext.Provider value={defaultAbility}>
                                     <ActiveJobProvider>
-                                        {isMobile ? (
-                                            <MobileRoutes />
-                                        ) : (
-                                            <Routes />
-                                        )}
+                                        <ChartColorMappingContextProvider>
+                                            {isMobile ? (
+                                                <MobileRoutes />
+                                            ) : (
+                                                <Routes />
+                                            )}
+                                        </ChartColorMappingContextProvider>
                                     </ActiveJobProvider>
                                 </AbilityContext.Provider>
                             </TrackingProvider>

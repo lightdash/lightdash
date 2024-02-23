@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     SessionUser,
     Space,
+    SpaceShare,
     SpaceSummary,
     UpdateSpace,
 } from '@lightdash/common';
@@ -33,14 +34,20 @@ export const hasSpaceAccess = (
             projectUuid: space.projectUuid,
         }),
     );
-
-    const userUuidsWithAccess =
-        space.access?.map((access) =>
-            typeof access === 'string' ? access : access.userUuid,
-        ) || [];
+    const userUuidsWithDirectAccess = (
+        space.access as Array<string | SpaceShare>
+    ).reduce<string[]>((acc, access) => {
+        if (typeof access === 'string') {
+            return [...acc, access];
+        }
+        if (access.hasDirectAccess) {
+            return [...acc, access.userUuid];
+        }
+        return acc;
+    }, []);
 
     const hasAccess =
-        !space.isPrivate || userUuidsWithAccess?.includes(user.userUuid);
+        !space.isPrivate || userUuidsWithDirectAccess?.includes(user.userUuid);
 
     return checkAdminAccess ? hasAdminAccess || hasAccess : hasAccess;
 };

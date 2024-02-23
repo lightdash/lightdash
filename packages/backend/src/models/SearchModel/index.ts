@@ -1,6 +1,5 @@
 import {
     DashboardSearchResult,
-    EntityType,
     Explore,
     ExploreError,
     FieldSearchResult,
@@ -8,8 +7,10 @@ import {
     isDimension,
     isExploreError,
     NotExistsError,
+    ParameterError,
     SavedChartSearchResult,
     SearchFilters,
+    SearchItemType,
     SearchResults,
     SpaceSearchResult,
     TableErrorSearchResult,
@@ -17,6 +18,7 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import moment from 'moment';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import {
     CachedExploresTableName,
@@ -38,11 +40,58 @@ export class SearchModel {
     }
 
     private static shouldSearchForType(
-        entityType: EntityType,
+        entityType: SearchItemType,
         queryTypeFilter?: string,
     ) {
         // if there is no filter or if the filter is the same as the entityType
         return !queryTypeFilter || queryTypeFilter === entityType;
+    }
+
+    private static filterByCreatedAt<T extends {}, R>(
+        tableName: string,
+        query: Knex.QueryBuilder<T, R>,
+        filters: SearchFilters = {},
+    ) {
+        const { fromDate, toDate } = filters;
+        const fromDateObj = fromDate ? moment(fromDate).utc() : undefined;
+        const toDateObj = toDate ? moment(toDate).utc() : undefined;
+        const now = moment();
+
+        if (fromDateObj?.isAfter(toDateObj)) {
+            throw new ParameterError('fromDate cannot be after toDate');
+        }
+
+        if (fromDateObj) {
+            if (!fromDateObj.isValid()) {
+                throw new ParameterError('fromDate is not valid');
+            }
+
+            if (fromDateObj.isAfter(now)) {
+                throw new ParameterError('fromDate cannot be in the future');
+            }
+
+            query.whereRaw(
+                `Date(${tableName}.created_at) >= ?`,
+                fromDateObj.startOf('day').toDate(),
+            );
+        }
+
+        if (toDateObj) {
+            if (!toDateObj.isValid()) {
+                throw new ParameterError('toDate is not valid');
+            }
+
+            if (toDateObj.isAfter(now)) {
+                throw new ParameterError('toDate cannot be in the future');
+            }
+
+            query.whereRaw(
+                `Date(${tableName}.created_at) <= ?`,
+                toDateObj.endOf('day').toDate(),
+            );
+        }
+
+        return query;
     }
 
     private async searchSpaces(
@@ -50,7 +99,12 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<SpaceSearchResult[]> {
-        if (!SearchModel.shouldSearchForType('spaces', filters?.type)) {
+        if (
+            !SearchModel.shouldSearchForType(
+                SearchItemType.SPACE,
+                filters?.type,
+            )
+        ) {
             return [];
         }
 
@@ -62,7 +116,7 @@ export class SearchModel {
                 query,
             );
 
-        const subquery = this.database(SpaceTableName)
+        const baseSubquery = this.database(SpaceTableName)
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -71,6 +125,12 @@ export class SearchModel {
             .column({ uuid: 'space_uuid' }, 'spaces.name', searchRankRawSql)
             .where('projects.project_uuid', projectUuid)
             .orderBy(searchRankColumnName, 'desc');
+
+        const subquery = SearchModel.filterByCreatedAt(
+            SpaceTableName,
+            baseSubquery,
+            filters,
+        );
 
         return this.database(SpaceTableName)
             .select()
@@ -84,7 +144,12 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<DashboardSearchResult[]> {
-        if (!SearchModel.shouldSearchForType('dashboards', filters?.type)) {
+        if (
+            !SearchModel.shouldSearchForType(
+                SearchItemType.DASHBOARD,
+                filters?.type,
+            )
+        ) {
             return [];
         }
 
@@ -96,7 +161,7 @@ export class SearchModel {
                 query,
             );
 
-        const subquery = this.database(DashboardsTableName)
+        const baseSubquery = this.database(DashboardsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
@@ -116,6 +181,12 @@ export class SearchModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderBy(searchRankColumnName, 'desc');
+
+        const subquery = SearchModel.filterByCreatedAt(
+            DashboardsTableName,
+            baseSubquery,
+            filters,
+        );
 
         const dashboards = await this.database(DashboardsTableName)
             .select()
@@ -156,7 +227,12 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<SavedChartSearchResult[]> {
-        if (!SearchModel.shouldSearchForType('charts', filters?.type)) {
+        if (
+            !SearchModel.shouldSearchForType(
+                SearchItemType.CHART,
+                filters?.type,
+            )
+        ) {
             return [];
         }
 
@@ -169,7 +245,7 @@ export class SearchModel {
             );
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
-        const subquery = this.database(SavedChartsTableName)
+        const baseSubquery = this.database(SavedChartsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${SavedChartsTableName}.space_id`,
@@ -194,9 +270,15 @@ export class SearchModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderBy(searchRankColumnName, 'desc');
 
+        const subQuery = SearchModel.filterByCreatedAt(
+            SavedChartsTableName,
+            baseSubquery,
+            filters,
+        );
+
         const savedCharts = await this.database(SavedChartsTableName)
             .select()
-            .from(subquery.as('saved_charts_with_rank'))
+            .from(subQuery.as('saved_charts_with_rank'))
             .where(searchRankColumnName, '>', 0)
             .limit(10);
 
@@ -275,12 +357,12 @@ export class SearchModel {
         filters?: SearchFilters,
     ) {
         const shouldSearchForTables = SearchModel.shouldSearchForType(
-            'tables',
+            SearchItemType.TABLE,
             filters?.type,
         );
 
         const shouldSearchForFields = SearchModel.shouldSearchForType(
-            'fields',
+            SearchItemType.FIELD,
             filters?.type,
         );
 
@@ -396,6 +478,30 @@ export class SearchModel {
         }, []);
     }
 
+    private static searchPages(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ) {
+        if (
+            !SearchModel.shouldSearchForType(SearchItemType.PAGE, filters?.type)
+        ) {
+            return [];
+        }
+
+        const allPages = [
+            {
+                uuid: `user-activity`,
+                name: 'User activity',
+                url: `/projects/${projectUuid}/user-activity`,
+            },
+        ];
+
+        return allPages.filter((page) =>
+            page.name?.toLowerCase().includes(query.toLowerCase()),
+        );
+    }
+
     async search(
         projectUuid: string,
         query: string,
@@ -426,16 +532,7 @@ export class SearchModel {
         );
 
         const tablesAndErrors = [...tables, ...tableErrors];
-        const allPages = [
-            {
-                uuid: `user-activity`,
-                name: 'User activity',
-                url: `/projects/${projectUuid}/user-activity`,
-            },
-        ];
-        const pages = allPages.filter((page) =>
-            page.name?.toLowerCase().includes(query.toLowerCase()),
-        );
+        const pages = SearchModel.searchPages(projectUuid, query);
 
         return {
             spaces,
