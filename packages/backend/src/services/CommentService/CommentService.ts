@@ -6,6 +6,7 @@ import {
     SpaceSummary,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { analytics } from '../../analytics/client';
 import { CommentModel } from '../../models/CommentModel/CommentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -73,6 +74,15 @@ export class CommentService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        analytics.track({
+            event: 'comment.created',
+            userId: user.userUuid,
+            properties: {
+                tileUuid: dashboardTileUuid,
+                isReply: !!replyTo,
+                hasMention: false, //  TODO implement after merging mentions
+            },
+        });
 
         return this.commentModel.createComment(
             dashboardUuid,
@@ -145,6 +155,13 @@ export class CommentService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        analytics.track({
+            event: 'comment.resolved',
+            userId: user.userUuid,
+            properties: {
+                // TODO if you want to add properties, we need a getCommentById method (we can refactor getCommentOwner)
+            },
+        });
 
         return this.commentModel.resolveComment(commentId);
     }
@@ -184,5 +201,13 @@ export class CommentService {
 
             throw new ForbiddenError();
         }
+
+        analytics.track({
+            event: 'comment.deleted',
+            userId: user.userUuid,
+            properties: {
+                // TODO if you want to add properties, we need a getCommentById method (we can refactor getCommentOwner)
+            },
+        });
     }
 }

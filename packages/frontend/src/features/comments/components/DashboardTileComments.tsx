@@ -4,6 +4,8 @@ import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useApp } from '../../../providers/AppProvider';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { useCreateComment } from '../hooks/useComments';
 import { CommentForm } from './CommentForm';
 import { DashboardCommentAndReplies } from './DashboardCommentAndReplies';
@@ -16,6 +18,8 @@ export const DashboardTileComments: FC<
     Props & Pick<PopoverProps, 'opened' | 'onClose' | 'onOpen'>
 > = ({ dashboardTileUuid, opened, onClose, onOpen }) => {
     const { user } = useApp();
+    const { track } = useTracking();
+
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const userCanManageDashboardComments = useDashboardContext(
@@ -40,6 +44,9 @@ export const DashboardTileComments: FC<
             arrowOffset={10}
             opened={opened}
             onOpen={() => {
+                track({
+                    name: EventName.COMMENTS_CLICKED,
+                });
                 onOpen?.();
             }}
             onClose={() => {

@@ -734,6 +734,16 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
+export type CommentsEvent = BaseTrack & {
+    event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
+    userId: string;
+    properties: {
+        tileUuid?: string;
+        isReply?: boolean;
+        hasMention?: boolean;
+    };
+};
+
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,
 ) => {
@@ -927,7 +937,8 @@ type Track =
     | MetricFlowQueryEvent
     | GroupCreateAndUpdateEvent
     | GroupDeleteEvent
-    | ConditionalFormattingRuleSavedEvent;
+    | ConditionalFormattingRuleSavedEvent
+    | CommentsEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
