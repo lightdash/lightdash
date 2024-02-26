@@ -122,10 +122,11 @@ export type CreateStarrocksCredentials = {
     type: WarehouseTypes.STARROCKS;
     host: string;
     user: string;
-    password: string;
+    password?: string;
     requireUserCredentials?: boolean;
     port: number;
-    dbname: string;
+    schema: string;
+    catalog: string;
     startOfWeek?: WeekDay | null;
 };
 export type StarrocksCredentials = Omit<

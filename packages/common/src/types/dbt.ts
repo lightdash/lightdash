@@ -136,15 +136,16 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.TRINO:
+            case SupportedDbtAdapter.REDSHIFT:
+                if (model.database === null) {
+                    throw new ParseError(
+                        `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,
+                        {},
+                        );
+                    }
+                    return { ...model, database: model.database as string };
         case SupportedDbtAdapter.STARROCKS:
-        case SupportedDbtAdapter.REDSHIFT:
-            if (model.database === null) {
-                throw new ParseError(
-                    `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,
-                    {},
-                );
-            }
-            return { ...model, database: model.database as string };
+            return { ...model, database: model.schema };
         case SupportedDbtAdapter.DATABRICKS:
             return { ...model, database: model.database || 'DEFAULT' };
         default:

@@ -11,10 +11,9 @@ import { Target } from '../types';
 export type StarrocksTarget = {
     type: 'starrocks';
     host: string;
-    user: string;
+    username: string;
     port: number;
-    dbname?: string;
-    database?: string;
+    catalog?: string;
     schema: string;
     threads: number;
     pass?: string;
@@ -36,22 +35,18 @@ export const starrocksSchema: JSONSchemaType<StarrocksTarget> = {
         host: {
             type: 'string',
         },
-        user: {
+        username: {
             type: 'string',
         },
         port: {
             type: 'integer',
         },
-        dbname: {
-            type: 'string',
-            nullable: true,
-        },
-        database: {
-            type: 'string',
-            nullable: true,
-        },
         schema: {
             type: 'string',
+        },
+        catalog: {
+            type: 'string',
+            nullable: true,
         },
         threads: {
             type: 'integer',
@@ -86,33 +81,22 @@ export const starrocksSchema: JSONSchemaType<StarrocksTarget> = {
             nullable: true,
         },
     },
-    required: ['type', 'host', 'user', 'port', 'schema'],
+    required: ['type', 'host', 'username', 'port', 'schema'],
 };
 
 export const convertStarrocksSchema = (
     target: Target,
 ): CreateStarrocksCredentials => {
     const validate = ajv.compile<StarrocksTarget>(starrocksSchema);
-    if (validate(target)) {
-        const password = target.pass || target.password;
-        if (!password) {
-            throw new ParseError(
-                `Starrocks target requires a password: "password"`,
-            );
-        }
-        const dbname = target.dbname || target.database;
-        if (!dbname) {
-            throw new ParseError(
-                `Starrocks target requires a database name: "database"`,
-            );
-        }
+    if (validate(target)) {        
         return {
             type: WarehouseTypes.STARROCKS,
             host: target.host,
-            user: target.user,
-            password,
+            user: target.username,
+            password: target.password,
             port: target.port,
-            dbname,
+            schema: target.schema,
+            catalog: target.catalog || 'default_catalog', 
         };
     }
     const errs = betterAjvErrors(starrocksSchema, target, validate.errors || []);
