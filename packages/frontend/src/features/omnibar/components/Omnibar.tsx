@@ -145,6 +145,9 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             >
                 {(style) => (
                     <OmnibarTarget
+                        placeholder={`Search ${
+                            projectData?.name ?? 'your project'
+                        }`}
                         style={style}
                         onOpen={handleOmnibarOpenInputClick}
                     />

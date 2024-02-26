@@ -127,6 +127,8 @@ const ProjectSwitcher = () => {
         return null;
     }
 
+    const hasMultipleProjects = projects.length > 1;
+
     return (
         <Menu
             position="bottom-end"
@@ -134,16 +136,25 @@ const ProjectSwitcher = () => {
             shadow="lg"
             arrowOffset={16}
             offset={-2}
+            disabled={!hasMultipleProjects}
         >
             <Menu.Target>
                 <Button
                     maw={200}
                     variant="default"
                     size="xs"
-                    disabled={isLoadingProjects || isLoadingActiveProjectUuid}
-                    style={{
-                        cursor: projects.length > 1 ? 'pointer' : 'default',
-                    }}
+                    disabled={
+                        isLoadingProjects ||
+                        isLoadingActiveProjectUuid ||
+                        !hasMultipleProjects
+                    }
+                    sx={(theme) => ({
+                        '&:disabled': {
+                            color: theme.white,
+                            backgroundColor: theme.colors.dark[6],
+                            borderColor: theme.colors.dark[4],
+                        },
+                    })}
                 >
                     <Text truncate>
                         {activeProject?.name ?? 'Select a project'}
@@ -151,32 +162,24 @@ const ProjectSwitcher = () => {
                 </Button>
             </Menu.Target>
 
-            {projects.length > 1 && (
-                <Menu.Dropdown>
-                    {inactiveProjects.map((item) => (
-                        <Menu.Item
-                            key={item.projectUuid}
-                            onClick={() =>
-                                handleProjectChange(item.projectUuid)
-                            }
-                        >
-                            <Group>
-                                <Text>{item.name}</Text>
+            <Menu.Dropdown>
+                {inactiveProjects.map((item) => (
+                    <Menu.Item
+                        key={item.projectUuid}
+                        onClick={() => handleProjectChange(item.projectUuid)}
+                    >
+                        <Group>
+                            <Text>{item.name}</Text>
 
-                                {item.type === ProjectType.PREVIEW && (
-                                    <Badge
-                                        color="blue"
-                                        variant="filled"
-                                        size="sm"
-                                    >
-                                        Preview
-                                    </Badge>
-                                )}
-                            </Group>
-                        </Menu.Item>
-                    ))}
-                </Menu.Dropdown>
-            )}
+                            {item.type === ProjectType.PREVIEW && (
+                                <Badge color="blue" variant="filled" size="sm">
+                                    Preview
+                                </Badge>
+                            )}
+                        </Group>
+                    </Menu.Item>
+                ))}
+            </Menu.Dropdown>
         </Menu>
     );
 };

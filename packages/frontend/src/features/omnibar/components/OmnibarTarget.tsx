@@ -5,11 +5,12 @@ import { CSSProperties, FC, MouseEvent } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
+    placeholder: string;
     style: CSSProperties;
     onOpen: (e: MouseEvent<HTMLInputElement>) => void;
 };
 
-const OmnibarTarget: FC<Props> = ({ style, onOpen }) => {
+const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
     const os = useOs();
 
     return (
@@ -60,7 +61,7 @@ const OmnibarTarget: FC<Props> = ({ style, onOpen }) => {
                 color="dark.0"
                 size="xs"
             >
-                Search...
+                {placeholder}
             </Text>
 
             <Badge
