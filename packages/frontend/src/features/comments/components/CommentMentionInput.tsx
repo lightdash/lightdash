@@ -1,4 +1,3 @@
-window.global ||= window;
 import Editor from '@draft-js-plugins/editor';
 import createMentionPlugin, {
     defaultSuggestionsFilter,
