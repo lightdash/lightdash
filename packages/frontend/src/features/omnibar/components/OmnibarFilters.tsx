@@ -60,7 +60,9 @@ function findUserName(
 ) {
     const user = userList.find((u) => u.userUuid === userUuid);
 
-    return user ? `${user.firstName} ${user.lastName}` : '';
+    if (user) {
+        return `${user.firstName} ${user.lastName}`;
+    }
 }
 
 const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
