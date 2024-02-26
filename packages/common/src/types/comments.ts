@@ -9,6 +9,7 @@ export type Comment = {
     replies?: Comment[];
     resolved: boolean;
     canRemove: boolean;
+    mentions: string[];
 };
 
 export type ApiCommentsResults = Record<string, Comment[]>;

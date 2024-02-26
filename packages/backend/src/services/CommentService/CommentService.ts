@@ -53,6 +53,7 @@ export class CommentService {
         dashboardTileUuid: string,
         text: string,
         replyTo: string | null,
+        mentions: string[],
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
@@ -80,6 +81,7 @@ export class CommentService {
             text,
             replyTo,
             user,
+            mentions,
         );
     }
 

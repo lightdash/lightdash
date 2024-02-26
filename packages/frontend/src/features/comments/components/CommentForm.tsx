@@ -1,12 +1,12 @@
 import { Comment } from '@lightdash/common';
 import { Avatar, Button, Grid, Group, Stack, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { getNameInitials } from '../utils';
 
 type Props = {
     userName: string;
-    onSubmit: (text: string) => Promise<null>;
+    onSubmit: (text: string, mentions: string[]) => Promise<null>;
     isSubmitting: boolean;
     onCancel?: () => void;
     mode?: 'reply' | 'new';
@@ -33,9 +33,11 @@ export const CommentForm: FC<Props> = ({
             },
         },
     });
+    const [mentions, setMentions] = useState<string[]>([]);
 
     const handleSubmit = commentForm.onSubmit(async ({ text }) => {
-        await onSubmit(text);
+        await onSubmit(text, mentions);
+        setMentions([]);
 
         commentForm.reset();
     });

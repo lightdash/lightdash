@@ -70,6 +70,7 @@ export class CommentModel {
         text: string,
         replyTo: string | null,
         user: LightdashUser,
+        mentions: string[],
     ): Promise<string> {
         const { savedChartUuid } =
             await this.checkDashboardTileExistsInDashboard(
@@ -85,6 +86,7 @@ export class CommentModel {
                 reply_to: replyTo ?? null,
                 user_uuid: user.userUuid,
                 saved_chart_uuid: savedChartUuid ?? null,
+                mentions,
             })
             .returning('comment_id');
 
@@ -157,6 +159,7 @@ export class CommentModel {
                 replies: [],
                 canRemove:
                     canUserRemoveAnyComment || comment.user_uuid === userUuid,
+                mentions: comment.mentions,
             };
 
             // Directly attach to parent if it's a reply and the parent exists

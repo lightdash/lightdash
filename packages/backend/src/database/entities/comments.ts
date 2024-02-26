@@ -11,6 +11,7 @@ export type DbDashboardTileComments = {
     user_uuid: string;
     resolved: boolean;
     saved_chart_uuid: string | null;
+    mentions: string[];
 };
 
 type DbDashboardTileCommentsInsert = Pick<
@@ -20,6 +21,7 @@ type DbDashboardTileCommentsInsert = Pick<
     | 'reply_to'
     | 'user_uuid'
     | 'saved_chart_uuid'
+    | 'mentions'
 >;
 
 type DbDashboardTileCommentsUpdate = Pick<DbDashboardTileComments, 'resolved'>;
