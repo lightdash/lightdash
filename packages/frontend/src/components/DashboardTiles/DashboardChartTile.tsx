@@ -316,7 +316,27 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const [isMovingChart, setIsMovingChart] = useState(false);
     const { user } = useApp();
 
-    const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
+    const userCanManageChart = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: chart.organizationUuid,
+            projectUuid: chart.projectUuid,
+        }),
+    );
+    const userCanManageExplore = user.data?.ability?.can(
+        'manage',
+        subject('Explore', {
+            organizationUuid: chart.organizationUuid,
+            projectUuid: chart.projectUuid,
+        }),
+    );
+    const userCanExportData = user.data?.ability.can(
+        'manage',
+        subject('ExportCsv', {
+            organizationUuid: chart.organizationUuid,
+            projectUuid: chart.projectUuid,
+        }),
+    );
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
@@ -631,7 +651,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 belongsToDashboard={belongsToDashboard}
                 extraMenuItems={
                     savedChartUuid !== null &&
-                    user.data?.ability?.can('manage', 'Explore') && (
+                    (userCanManageExplore ||
+                        userCanManageChart ||
+                        userCanExportData) && (
                         <Tooltip
                             disabled={!isEditMode}
                             label="Finish editing dashboard to use these actions"
@@ -644,7 +666,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     />
                                 )}
 
-                                {chartPathname && (
+                                {userCanManageExplore && chartPathname && (
                                     <Menu.Item
                                         icon={
                                             <MantineIcon icon={IconTelescope} />
@@ -666,7 +688,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     </Menu.Item>
                                 )}
 
-                                {chart.chartConfig.type === ChartType.TABLE && (
+                                {userCanExportData && (
                                     <Menu.Item
                                         icon={
                                             <MantineIcon
@@ -681,12 +703,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                         Export CSV
                                     </Menu.Item>
                                 )}
-                                {chart.chartConfig.type === ChartType.TABLE && (
-                                    <ExportGoogleSheet
-                                        savedChart={chartWithDashboardFilters}
-                                        disabled={isEditMode}
-                                    />
-                                )}
+                                {chart.chartConfig.type === ChartType.TABLE &&
+                                    userCanExportData && (
+                                        <ExportGoogleSheet
+                                            savedChart={
+                                                chartWithDashboardFilters
+                                            }
+                                            disabled={isEditMode}
+                                        />
+                                    )}
 
                                 {chart.dashboardUuid && userCanManageChart && (
                                     <Menu.Item
