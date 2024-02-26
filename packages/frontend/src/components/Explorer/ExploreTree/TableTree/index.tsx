@@ -5,13 +5,14 @@ import {
 } from '@lightdash/common';
 import { Group, MantineProvider, NavLink, Text, Tooltip } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
-import { FC } from 'react';
+import type { FC } from 'react';
 import { useToggle } from 'react-use';
 
 import { getMantineThemeOverride } from '../../../../mantineTheme';
 import { TrackSection } from '../../../../providers/TrackingProvider';
 import { SectionName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
+import { ItemDetailProvider } from './ItemDetailContext';
 import TableTreeSections from './TableTreeSections';
 
 type TableTreeWrapperProps = {
@@ -113,22 +114,24 @@ const TableTree: FC<Props> = ({
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <MantineProvider inherit theme={themeOverride}>
-                <Wrapper
-                    isOpen={isSearching || isOpen}
-                    toggle={toggle}
-                    table={table}
-                >
-                    <TableTreeSections
+                <ItemDetailProvider>
+                    <Wrapper
+                        isOpen={isSearching || isOpen}
+                        toggle={toggle}
                         table={table}
-                        searchQuery={searchQuery}
-                        additionalMetrics={additionalMetrics}
-                        customDimensions={customDimensions}
-                        missingCustomMetrics={missingCustomMetrics}
-                        missingFields={missingFields}
-                        selectedDimensions={selectedDimensions}
-                        {...rest}
-                    />
-                </Wrapper>
+                    >
+                        <TableTreeSections
+                            table={table}
+                            searchQuery={searchQuery}
+                            additionalMetrics={additionalMetrics}
+                            customDimensions={customDimensions}
+                            missingCustomMetrics={missingCustomMetrics}
+                            missingFields={missingFields}
+                            selectedDimensions={selectedDimensions}
+                            {...rest}
+                        />
+                    </Wrapper>
+                </ItemDetailProvider>
             </MantineProvider>
         </TrackSection>
     );

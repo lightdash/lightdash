@@ -84,6 +84,7 @@ const MobileNavBar: FC = () => {
                     <Burger opened={isMenuOpen} onClick={toggleMenu} />
                 </Group>
             </Header>
+
             <Drawer opened={isMenuOpen} onClose={toggleMenu} size="75%">
                 <Title order={6} fw={600} mb="xs">
                     Project

@@ -1194,7 +1194,7 @@ const calculateStackTotal = (
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        const legendName = s.dimensions?.[1]?.displayName;
+        const legendName = s.name || s.dimensions?.[1]?.displayName;
         let selected = true;
         for (const key in selectedLegendNames) {
             if (legendName === key) {
