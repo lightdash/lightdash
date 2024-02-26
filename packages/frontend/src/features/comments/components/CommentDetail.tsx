@@ -13,6 +13,7 @@ import { IconMessage, IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
+import { CommentTextWithMentions } from './CommentTextWithMentions';
 import { CommentTimestamp } from './CommentTimestamp';
 
 type Props = {
@@ -69,7 +70,7 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                         </Group>
                     </Group>
                     <Box fz="xs" mb="xs">
-                        <Text>{comment.text}</Text>
+                        <CommentTextWithMentions text={comment.text} />
                     </Box>
                 </Grid.Col>
             </Grid>

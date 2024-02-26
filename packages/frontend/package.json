@@ -27,6 +27,8 @@
     "dependencies": {
         "@casl/ability": "^5.4.4",
         "@casl/react": "^3.0.0",
+        "@draft-js-plugins/editor": "^4.1.4",
+        "@draft-js-plugins/mention": "^5.2.2",
         "@emotion/react": "^11.10.6",
         "@hello-pangea/dnd": "^16.5.0",
         "@hookform/error-message": "^2.0.0",
@@ -55,6 +57,7 @@
         "cron-converter": "^2.0.0",
         "cronstrue": "^2.22.0",
         "dayjs": "^1.11.9",
+        "draft-js": "^0.11.7",
         "echarts": "^5.4.3",
         "echarts-for-react": "^3.0.2",
         "fuse.js": "^6.5.3",
@@ -94,6 +97,7 @@
         "@testing-library/react": "^14.1.2",
         "@testing-library/user-event": "^14.5.2",
         "@types/canvas-confetti": "^1.6.0",
+        "@types/draft-js": "^0.11.17",
         "@types/isomorphic-fetch": "^0.0.39",
         "@types/lodash": "^4.14.202",
         "@types/react": "^18.2.48",
@@ -123,6 +127,7 @@
         "vite": "^5.0.12",
         "vite-plugin-compression2": "^0.11.0",
         "vite-plugin-monaco-editor": "^1.1.0",
+        "vite-plugin-node-polyfills": "^0.21.0",
         "vite-plugin-svgr": "^4.2.0",
         "vite-tsconfig-paths": "^4.2.2",
         "vitest": "^1.2.1"

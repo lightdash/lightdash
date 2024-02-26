@@ -1,8 +1,13 @@
 import { Comment } from '@lightdash/common';
-import { Avatar, Button, Grid, Group, Stack, Textarea } from '@mantine/core';
+import { Avatar, Button, Grid, Group, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useState } from 'react';
+import { convertToRaw, EditorState } from 'draft-js';
+import { FC, useMemo, useState } from 'react';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { getNameInitials } from '../utils';
+import { CommentMentionInput } from './CommentMentionInput';
+
+import '@draft-js-plugins/mention/lib/plugin.css';
 
 type Props = {
     userName: string;
@@ -19,27 +24,37 @@ export const CommentForm: FC<Props> = ({
     onCancel,
     mode = 'new',
 }) => {
-    const commentForm = useForm<Pick<Comment, 'text' | 'replyTo'>>({
+    const [editorState, setEditorState] = useState(() =>
+        EditorState.createEmpty(),
+    );
+    const commentForm = useForm<Pick<Comment, 'replyTo'>>({
         initialValues: {
-            text: '',
             replyTo: '',
-        },
-        validate: {
-            text: (value) => {
-                if (value.trim() === '') {
-                    return 'Comment cannot be empty';
-                }
-                return null;
-            },
         },
     });
     const [mentions, setMentions] = useState<string[]>([]);
 
-    const handleSubmit = commentForm.onSubmit(async ({ text }) => {
-        await onSubmit(text, mentions);
-        setMentions([]);
+    const { data: listUsers } = useOrganizationUsers();
+    let userNames = useMemo(
+        () =>
+            listUsers?.map((user) => ({
+                name: user.firstName + ' ' + user.lastName,
+                id: user.userUuid,
+            })) || [],
 
-        commentForm.reset();
+        [listUsers],
+    );
+
+    const handleSubmit = commentForm.onSubmit(async () => {
+        const content = editorState.getCurrentContent();
+
+        if (content.hasText()) {
+            await onSubmit(
+                JSON.stringify(convertToRaw(editorState.getCurrentContent())),
+            );
+
+            setEditorState(EditorState.createEmpty());
+        }
     });
 
     return (
@@ -52,15 +67,16 @@ export const CommentForm: FC<Props> = ({
                         </Avatar>
                     </Grid.Col>
                     <Grid.Col span={22}>
-                        <Textarea
-                            placeholder={
-                                mode === 'reply' ? 'Reply...' : 'Add comment...'
-                            }
-                            size="xs"
-                            radius="sm"
-                            autosize
-                            {...commentForm.getInputProps('text')}
-                        />
+                        {userNames && (
+                            <CommentMentionInput
+                                editorState={editorState}
+                                setEditorState={setEditorState}
+                                mentions={userNames}
+                                placeholder={`${
+                                    mode === 'reply' ? 'Reply' : 'Add comment'
+                                } (type @ to mention someone)`}
+                            />
+                        )}
                     </Grid.Col>
                 </Grid>
                 <Group position="right" spacing="xs">
@@ -78,7 +94,6 @@ export const CommentForm: FC<Props> = ({
                     <Button
                         compact
                         loading={isSubmitting}
-                        disabled={commentForm.values.text === ''}
                         size="xs"
                         sx={{
                             alignSelf: 'flex-end',
