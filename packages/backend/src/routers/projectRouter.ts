@@ -54,7 +54,7 @@ projectRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const { type, fromDate, toDate } = req.query;
+            const { type, fromDate, toDate, createdByUuid } = req.query;
             const results = await searchService.getSearchResults(
                 req.user!,
                 req.params.projectUuid,
@@ -63,6 +63,7 @@ projectRouter.get(
                     type: type?.toString(),
                     fromDate: fromDate?.toString(),
                     toDate: toDate?.toString(),
+                    createdByUuid: createdByUuid?.toString(),
                 },
             );
             res.json({ status: 'ok', results });
