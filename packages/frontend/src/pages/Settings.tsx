@@ -59,6 +59,10 @@ const Settings: FC = () => {
         FeatureFlags.PassthroughLogin,
     );
 
+    const isCustomSQLEnabled = useFeatureFlagEnabled(
+        FeatureFlags.CustomSQLEnabled,
+    );
+
     const {
         health: {
             data: health,
@@ -386,12 +390,14 @@ const Settings: FC = () => {
                                     />
                                 ) : null}
 
-                                <RouterNavLink
-                                    label="Custom SQL"
-                                    exact
-                                    to={`/generalSettings/projectManagement/${project.projectUuid}/customSql`}
-                                    icon={<MantineIcon icon={IconSql} />}
-                                />
+                                {isCustomSQLEnabled && (
+                                    <RouterNavLink
+                                        label="Custom SQL"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/customSql`}
+                                        icon={<MantineIcon icon={IconSql} />}
+                                    />
+                                )}
                             </Box>
                         ) : null}
                     </Stack>
