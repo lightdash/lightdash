@@ -155,11 +155,16 @@ export class CommentService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+
+        const comment = await this.commentModel.getComment(commentId);
+
         analytics.track({
             event: 'comment.resolved',
             userId: user.userUuid,
             properties: {
-                // TODO if you want to add properties, we need a getCommentById method (we can refactor getCommentOwner)
+                isReply: !!comment.replyTo,
+                tileUuid: comment.dashboardTileUuid,
+                hasMention: false, //  TODO implement after merging mentions
             },
         });
 
@@ -187,13 +192,12 @@ export class CommentService {
             }),
         );
 
+        const comment = await this.commentModel.getComment(commentId);
+
         if (canRemoveAnyComment) {
             await this.commentModel.deleteComment(commentId);
         } else {
-            const commentOwner = await this.commentModel.getCommentOwner(
-                commentId,
-            );
-            const isOwner = commentOwner === user.userUuid;
+            const isOwner = comment.userUuid === user.userUuid;
 
             if (isOwner) {
                 await this.commentModel.deleteComment(commentId);
@@ -206,7 +210,9 @@ export class CommentService {
             event: 'comment.deleted',
             userId: user.userUuid,
             properties: {
-                // TODO if you want to add properties, we need a getCommentById method (we can refactor getCommentOwner)
+                isReply: !!comment.replyTo,
+                tileUuid: comment.dashboardTileUuid,
+                hasMention: false, //  TODO implement after merging mentions
             },
         });
     }
