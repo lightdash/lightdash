@@ -1,3 +1,24 @@
+# [0.1015.0](https://github.com/lightdash/lightdash/compare/0.1014.0...0.1015.0) (2024-02-26)
+
+
+### Features
+
+* search v2 navbar UI ([#9091](https://github.com/lightdash/lightdash/issues/9091)) ([e4d83f3](https://github.com/lightdash/lightdash/commit/e4d83f3a9ec8c2f9488d63cc8fdbbe5784d241cb))
+
+# [0.1014.0](https://github.com/lightdash/lightdash/compare/0.1013.1...0.1014.0) (2024-02-26)
+
+
+### Features
+
+* add search createdBy filter ([#9090](https://github.com/lightdash/lightdash/issues/9090)) ([c46e4bb](https://github.com/lightdash/lightdash/commit/c46e4bb17f677f9211af568242ba08326a2d65a8))
+
+## [0.1013.1](https://github.com/lightdash/lightdash/compare/0.1013.0...0.1013.1) (2024-02-26)
+
+
+### Bug Fixes
+
+* explicitly close description popover when menu clicked ([#9092](https://github.com/lightdash/lightdash/issues/9092)) ([c7b533c](https://github.com/lightdash/lightdash/commit/c7b533c55be4788db74fc02849007c6faf05ce73))
+
 # [0.1013.0](https://github.com/lightdash/lightdash/compare/0.1012.0...0.1013.0) (2024-02-23)
 
 

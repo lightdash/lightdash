@@ -209,6 +209,11 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         });
     };
 
+    const onToggleMenu = () => {
+        toggleHover(false);
+        toggleMenu();
+    };
+
     return (
         <NavLink
             component="div"
@@ -245,7 +250,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         disabled={!description && !isMissing}
                         position="right"
                         /** Ensures the hover card does not overlap with the right-hand menu. */
-                        offset={40}
+                        offset={isFiltered ? 80 : 40}
                     >
                         <Popover.Target>
                             <Highlight
@@ -313,7 +318,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                     isOpened={isMenuOpen}
                     hasDescription={!!description}
                     onViewDescription={onOpenDescriptionView}
-                    onMenuChange={toggleMenu}
+                    onMenuChange={onToggleMenu}
                 />
             }
             data-testid={`tree-single-node-${label}`}
