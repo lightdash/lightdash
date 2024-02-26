@@ -63,7 +63,7 @@ export class SearchModel {
                 query,
             );
 
-        const subquery = this.database(SpaceTableName)
+        let subquery = this.database(SpaceTableName)
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -73,8 +73,8 @@ export class SearchModel {
             .where('projects.project_uuid', projectUuid)
             .orderBy(searchRankColumnName, 'desc');
 
-        filterByCreatedAt(SpaceTableName, subquery, filters);
-        filterByCreatedByUuid(
+        subquery = filterByCreatedAt(SpaceTableName, subquery, filters);
+        subquery = filterByCreatedByUuid(
             subquery,
             {
                 join: {
@@ -112,7 +112,7 @@ export class SearchModel {
                 query,
             );
 
-        const subquery = this.database(DashboardsTableName)
+        let subquery = this.database(DashboardsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
@@ -133,8 +133,8 @@ export class SearchModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderBy(searchRankColumnName, 'desc');
 
-        filterByCreatedAt(DashboardsTableName, subquery, filters);
-        filterByCreatedByUuid(
+        subquery = filterByCreatedAt(DashboardsTableName, subquery, filters);
+        subquery = filterByCreatedByUuid(
             subquery,
             {
                 join: {
@@ -201,7 +201,7 @@ export class SearchModel {
             );
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
-        const subquery = this.database(SavedChartsTableName)
+        let subquery = this.database(SavedChartsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${SavedChartsTableName}.space_id`,
@@ -226,8 +226,8 @@ export class SearchModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderBy(searchRankColumnName, 'desc');
 
-        filterByCreatedAt(SavedChartsTableName, subquery, filters);
-        filterByCreatedByUuid(
+        subquery = filterByCreatedAt(SavedChartsTableName, subquery, filters);
+        subquery = filterByCreatedByUuid(
             subquery,
             {
                 tableName: SavedChartsTableName,

@@ -28,6 +28,8 @@ export function filterByCreatedAt<T extends {}, R>(
         throw new ParameterError('fromDate cannot be after toDate');
     }
 
+    const filteredQuery = query.clone();
+
     if (fromDateObj) {
         if (!fromDateObj.isValid()) {
             throw new ParameterError('fromDate is not valid');
@@ -37,7 +39,7 @@ export function filterByCreatedAt<T extends {}, R>(
             throw new ParameterError('fromDate cannot be in the future');
         }
 
-        query.whereRaw(
+        filteredQuery.whereRaw(
             `Date(${tableName}.created_at) >= ?`,
             fromDateObj.startOf('day').toDate(),
         );
@@ -52,13 +54,13 @@ export function filterByCreatedAt<T extends {}, R>(
             throw new ParameterError('toDate cannot be in the future');
         }
 
-        query.whereRaw(
+        filteredQuery.whereRaw(
             `Date(${tableName}.created_at) <= ?`,
             toDateObj.endOf('day').toDate(),
         );
     }
 
-    return query;
+    return filteredQuery;
 }
 
 export function filterByCreatedByUuid<T extends {}, R>(
@@ -79,9 +81,11 @@ export function filterByCreatedByUuid<T extends {}, R>(
     const { createdByUuid } = filters;
 
     if (createdByUuid) {
+        const filteredQuery = query.clone();
+
         // if entity doesn't have a user uuid, we need to join with the table that has it
         if (opts.join) {
-            const filterQuery = query
+            filteredQuery
                 .innerJoin(
                     opts.join.joinTableName,
                     `${opts.join.joinTableName}.${opts.join.joinTableIdColumnName}`,
@@ -94,17 +98,17 @@ export function filterByCreatedByUuid<T extends {}, R>(
 
             // if entity is versioned, we need to filter by the latest version
             if (opts.join.isVersioned) {
-                return filterQuery
+                return filteredQuery
                     .orderBy(`${opts.join.joinTableName}.created_at`, 'desc')
                     .limit(1);
             }
 
-            return filterQuery;
+            return filteredQuery;
         }
 
         // if entity has a user uuid, we can filter directly
         if (opts.tableUserUuidColumnName) {
-            return query.where(
+            return filteredQuery.where(
                 `${opts.tableName}.${opts.tableUserUuidColumnName}`,
                 createdByUuid,
             );
