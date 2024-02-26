@@ -65,6 +65,14 @@ function findUserName(
     }
 }
 
+function getFilterButtonProps(hasFilter: boolean) {
+    return {
+        variant: hasFilter ? 'outline' : 'default',
+        color: hasFilter ? 'blue.4' : undefined,
+        c: hasFilter ? 'blue.7' : undefined,
+    };
+}
+
 const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
     const [isDateMenuOpen, dateMenuHandlers] = useDisclosure(false);
     const [isCreatedByMenuOpen, createdByMenuHelpers] = useDisclosure(false);
@@ -83,15 +91,15 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 <Menu.Target>
                     <Button
                         compact
-                        variant="default"
                         radius="xl"
                         size="xs"
                         leftIcon={<MantineIcon icon={IconAdjustments} />}
                         rightIcon={<MantineIcon icon={IconChevronDown} />}
+                        {...getFilterButtonProps(!!filters?.type)}
                     >
                         {filters?.type
                             ? getSearchItemLabel(filters.type as SearchItemType)
-                            : 'All items'}
+                            : 'Item type'}
                     </Button>
                 </Menu.Target>
 
@@ -122,7 +130,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 </Menu.Dropdown>
             </Menu>
             <Menu
-                position="bottom-end"
+                position="bottom-start"
                 withArrow
                 withinPortal
                 shadow="md"
@@ -135,11 +143,13 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 <Menu.Target>
                     <Button
                         compact
-                        variant="default"
                         radius="xl"
                         size="xs"
                         leftIcon={<MantineIcon icon={IconCalendar} />}
                         rightIcon={<MantineIcon icon={IconChevronDown} />}
+                        {...getFilterButtonProps(
+                            !!filters?.fromDate || !!filters?.toDate,
+                        )}
                     >
                         {getDateFilterLabel(filters)}
                     </Button>
@@ -192,7 +202,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 </Menu.Dropdown>
             </Menu>
             <Menu
-                position="bottom-end"
+                position="bottom-start"
                 withArrow
                 withinPortal
                 shadow="md"
@@ -205,11 +215,11 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 <Menu.Target>
                     <Button
                         compact
-                        variant="default"
                         radius="xl"
                         size="xs"
                         leftIcon={<MantineIcon icon={IconUser} />}
                         rightIcon={<MantineIcon icon={IconChevronDown} />}
+                        {...getFilterButtonProps(!!filters?.createdByUuid)}
                     >
                         {filters?.createdByUuid
                             ? findUserName(
@@ -224,6 +234,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     <Select
                         placeholder="Select a user"
                         searchable
+                        withinPortal
                         value={filters?.createdByUuid}
                         allowDeselect
                         limit={5}
