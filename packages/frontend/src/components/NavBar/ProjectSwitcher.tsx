@@ -127,10 +127,6 @@ const ProjectSwitcher = () => {
         return null;
     }
 
-    // if (projects.length === 1) {
-    //     return null;
-    // }
-
     return (
         <Menu
             position="bottom-end"
@@ -145,6 +141,9 @@ const ProjectSwitcher = () => {
                     variant="default"
                     size="xs"
                     disabled={isLoadingProjects || isLoadingActiveProjectUuid}
+                    style={{
+                        cursor: projects.length > 1 ? 'pointer' : 'default',
+                    }}
                 >
                     <Text truncate>
                         {activeProject?.name ?? 'Select a project'}
@@ -152,24 +151,32 @@ const ProjectSwitcher = () => {
                 </Button>
             </Menu.Target>
 
-            <Menu.Dropdown>
-                {inactiveProjects.map((item) => (
-                    <Menu.Item
-                        key={item.projectUuid}
-                        onClick={() => handleProjectChange(item.projectUuid)}
-                    >
-                        <Group>
-                            <Text>{item.name}</Text>
+            {projects.length > 1 && (
+                <Menu.Dropdown>
+                    {inactiveProjects.map((item) => (
+                        <Menu.Item
+                            key={item.projectUuid}
+                            onClick={() =>
+                                handleProjectChange(item.projectUuid)
+                            }
+                        >
+                            <Group>
+                                <Text>{item.name}</Text>
 
-                            {item.type === ProjectType.PREVIEW && (
-                                <Badge color="blue" variant="filled" size="sm">
-                                    Preview
-                                </Badge>
-                            )}
-                        </Group>
-                    </Menu.Item>
-                ))}
-            </Menu.Dropdown>
+                                {item.type === ProjectType.PREVIEW && (
+                                    <Badge
+                                        color="blue"
+                                        variant="filled"
+                                        size="sm"
+                                    >
+                                        Preview
+                                    </Badge>
+                                )}
+                            </Group>
+                        </Menu.Item>
+                    ))}
+                </Menu.Dropdown>
+            )}
         </Menu>
     );
 };
