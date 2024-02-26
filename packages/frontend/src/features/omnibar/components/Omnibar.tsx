@@ -15,7 +15,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { useDebouncedValue, useDisclosure, useHotkeys } from '@mantine/hooks';
-import { IconSearch, IconX } from '@tabler/icons-react';
+import { IconCircleXFilled, IconSearch } from '@tabler/icons-react';
 import { FC, MouseEventHandler, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -185,8 +185,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             }
                             rightSection={
                                 query ? (
-                                    <ActionIcon onClick={() => setQuery('')}>
-                                        <MantineIcon icon={IconX} />
+                                    <ActionIcon
+                                        onClick={() => setQuery('')}
+                                        color="gray.5"
+                                    >
+                                        <MantineIcon
+                                            icon={IconCircleXFilled}
+                                            size="lg"
+                                        />
                                     </ActionIcon>
                                 ) : null
                             }
