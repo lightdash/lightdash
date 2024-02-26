@@ -1,19 +1,15 @@
 import { Comment } from '@lightdash/common';
 import { Avatar, Button, Grid, Group, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { useDebouncedState } from '@mantine/hooks';
-import { FC, useMemo } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
-import {
-    CommentWithMentions,
-    useTipTapEditorWithMentions,
-} from './CommentWithMentions';
+import { CommentWithMentions } from './CommentWithMentions';
 
 type Props = {
     userName: string;
-    onSubmit: (text: string, mentions: string[]) => Promise<null>;
+    onSubmit: (text: string, html: string, mentions: string[]) => Promise<null>;
     isSubmitting: boolean;
     onCancel?: () => void;
     mode?: 'reply' | 'new';
@@ -36,25 +32,28 @@ export const CommentForm: FC<Props> = ({
 
         [listUsers],
     );
-    const [commentText, setCommentText] = useDebouncedState('', 500);
-    const editor = useTipTapEditorWithMentions({
-        readonly: false,
-        content: '',
-        suggestions: userNames,
-        setCommentText,
-    });
+    const [mentions, setMentions] = useState<string[]>([]);
+    console.log({ mentions });
+
+    const [commentText, setCommentText] = useState('');
+    const [commentHtml, setCommentHtml] = useState('');
+    const [shouldClearEditor, setShouldClearEditor] = useState(false);
 
     const commentForm = useForm<Pick<Comment, 'replyTo'>>({
         initialValues: {
             replyTo: '',
         },
     });
-    const [mentions, setMentions] = useState<string[]>([]);
 
     const handleSubmit = commentForm.onSubmit(async () => {
         if (commentText === '') return;
-        await onSubmit(commentText);
-        editor?.commands.clearContent();
+
+        // get comment text - commentText
+        // get comment html - commentHtml
+        // get mentions - mentions
+        // submit comment with these 3 values: text, html, mentions
+        // await onSubmit(commentText);
+        setShouldClearEditor(true);
     });
 
     return (
@@ -67,8 +66,16 @@ export const CommentForm: FC<Props> = ({
                         </Avatar>
                     </Grid.Col>
                     <Grid.Col span={22}>
-                        {editor && userNames && isSuccess && (
-                            <CommentWithMentions editor={editor} />
+                        {isSuccess && userNames && (
+                            <CommentWithMentions
+                                readonly={false}
+                                setCommentText={setCommentText}
+                                setCommentHtml={setCommentHtml}
+                                suggestions={userNames}
+                                shouldClearEditor={shouldClearEditor}
+                                setShouldClearEditor={setShouldClearEditor}
+                                setMentions={setMentions}
+                            />
                         )}
                     </Grid.Col>
                 </Grid>

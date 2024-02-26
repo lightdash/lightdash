@@ -2,61 +2,77 @@ import { useMantineTheme } from '@mantine/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Content, Editor, useEditor } from '@tiptap/react';
+import { JSONContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
 import { SuggestionsItem } from '../../types';
 import { generateSuggestionWrapper } from './generateSuggestionWrapper';
 
-export const useTipTapEditorWithMentions = ({
-    readonly,
-    content,
-    suggestions,
-    setCommentText,
-}: {
+type Props = {
     readonly: boolean;
-    content: Content;
     suggestions?: SuggestionsItem[];
     setCommentText?: (text: string) => void;
-}): Editor | null => {
-    const theme = useMantineTheme();
+    setCommentHtml?: (html: string) => void;
+    content?: string;
+    shouldClearEditor?: boolean;
+    setShouldClearEditor?: (shouldClearEditor: boolean) => void;
+    setMentions?: (mentions: string[]) => void;
+};
 
-    const enableMentions = !readonly && suggestions && suggestions.length > 0;
+const parseMentions = (data: JSONContent): string[] => {
+    const mentions = (data.content || []).flatMap(parseMentions);
+    if (data.type === 'mention' && data.attrs?.id) {
+        mentions.push(data.attrs.id);
+    }
+
+    const uniqueMentions = [...new Set(mentions)];
+
+    return uniqueMentions;
+};
+
+export const CommentWithMentions: FC<Props> = ({
+    readonly,
+    suggestions,
+    setMentions,
+    setCommentText,
+    setCommentHtml,
+    content,
+    shouldClearEditor,
+    setShouldClearEditor,
+}) => {
+    const theme = useMantineTheme();
 
     const editor = useEditor({
         editable: !readonly,
         extensions: [
             StarterKit,
-            ...(enableMentions
-                ? [
-                      Mention.configure({
-                          HTMLAttributes: {
-                              style: `color: ${theme.colors.blue['6']}; font-weight: 500;`,
-                          },
-                          suggestion: generateSuggestionWrapper(suggestions),
-                      }),
-                  ]
-                : []),
+            Mention.configure({
+                HTMLAttributes: {
+                    style: `color: ${theme.colors.blue['6']}; font-weight: 500;`,
+                },
+                suggestion: suggestions
+                    ? generateSuggestionWrapper(suggestions)
+                    : undefined,
+            }),
             Placeholder.configure({
                 placeholder: 'Add comment (type @ to mention someone)',
             }),
         ],
-        onUpdate: () => {
-            if (readonly) return;
-            setCommentText?.(editor?.getHTML() || '');
-        },
         content,
+        onUpdate(e) {
+            setCommentText?.(e.editor.getText());
+            setCommentHtml?.(e.editor.getHTML());
+            setMentions?.(parseMentions(e.editor.getJSON()));
+        },
     });
 
-    return editor;
-};
+    useEffect(() => {
+        if (shouldClearEditor) {
+            editor?.commands.clearContent();
+            setShouldClearEditor?.(false);
+        }
+    }, [editor?.commands, setShouldClearEditor, shouldClearEditor]);
 
-type Props = {
-    editor: Editor;
-    readonly?: boolean;
-};
-
-export const CommentWithMentions: FC<Props> = ({ editor, readonly }) => {
     return (
         <RichTextEditor
             editor={editor}

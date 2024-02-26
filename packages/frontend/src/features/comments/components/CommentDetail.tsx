@@ -14,10 +14,7 @@ import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
 import { CommentTimestamp } from './CommentTimestamp';
-import {
-    CommentWithMentions,
-    useTipTapEditorWithMentions,
-} from './CommentWithMentions';
+import { CommentWithMentions } from './CommentWithMentions';
 
 type Props = {
     comment: Comment;
@@ -27,10 +24,6 @@ type Props = {
 
 export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
     const { ref, hovered } = useHover();
-    const editor = useTipTapEditorWithMentions({
-        readonly: true,
-        content: comment.text,
-    });
 
     return (
         <Box ref={ref}>
@@ -77,9 +70,7 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                         </Group>
                     </Group>
                     <Box fz="xs" mb="xs">
-                        {editor && (
-                            <CommentWithMentions editor={editor} readonly />
-                        )}
+                        <CommentWithMentions readonly content={comment.text} />
                     </Box>
                 </Grid.Col>
             </Grid>

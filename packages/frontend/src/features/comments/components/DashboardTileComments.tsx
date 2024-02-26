@@ -75,12 +75,17 @@ export const DashboardTileComments: FC<
                         userName={
                             user.data?.firstName + ' ' + user.data?.lastName
                         }
-                        onSubmit={(text: string, mentions: string[]) =>
+                        onSubmit={(
+                            text: string,
+                            html: string,
+                            mentions: string[],
+                        ) =>
                             mutateAsync({
                                 projectUuid,
                                 dashboardUuid,
                                 dashboardTileUuid,
                                 text,
+                                // TODO: html,
                                 mentions,
                             })
                         }

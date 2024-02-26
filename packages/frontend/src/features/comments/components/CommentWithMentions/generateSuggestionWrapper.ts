@@ -1,6 +1,7 @@
 import { MentionOptions } from '@tiptap/extension-mention';
 import { ReactRenderer } from '@tiptap/react';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
+import { SuggestionsItem } from '../../types';
 import { SuggestionList, SuggestionListRef } from './SuggestionList';
 
 /**
@@ -29,7 +30,7 @@ const DOM_RECT_FALLBACK: DOMRect = {
 };
 
 export const generateSuggestionWrapper = (
-    suggestions: { label: string; id: string }[],
+    suggestions: SuggestionsItem[],
 ): MentionOptions['suggestion'] => ({
     items: ({ query }) =>
         suggestions.filter((item) =>
