@@ -1,13 +1,15 @@
 import { Comment } from '@lightdash/common';
 import { Avatar, Button, Grid, Group, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { convertToRaw, EditorState } from 'draft-js';
-import { FC, useMemo, useState } from 'react';
+import { useDebouncedState } from '@mantine/hooks';
+import { FC, useMemo } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
-import { CommentMentionInput } from './CommentMentionInput';
-
-import '@draft-js-plugins/mention/lib/plugin.css';
+import {
+    CommentWithMentions,
+    useTipTapEditorWithMentions,
+} from './CommentWithMentions';
 
 type Props = {
     userName: string;
@@ -24,9 +26,24 @@ export const CommentForm: FC<Props> = ({
     onCancel,
     mode = 'new',
 }) => {
-    const [editorState, setEditorState] = useState(() =>
-        EditorState.createEmpty(),
+    const { data: listUsers, isSuccess } = useOrganizationUsers();
+    let userNames: SuggestionsItem[] = useMemo(
+        () =>
+            listUsers?.map((user) => ({
+                label: user.firstName + ' ' + user.lastName,
+                id: user.userUuid,
+            })) || [],
+
+        [listUsers],
     );
+    const [commentText, setCommentText] = useDebouncedState('', 500);
+    const editor = useTipTapEditorWithMentions({
+        readonly: false,
+        content: '',
+        suggestions: userNames,
+        setCommentText,
+    });
+
     const commentForm = useForm<Pick<Comment, 'replyTo'>>({
         initialValues: {
             replyTo: '',
@@ -34,27 +51,10 @@ export const CommentForm: FC<Props> = ({
     });
     const [mentions, setMentions] = useState<string[]>([]);
 
-    const { data: listUsers } = useOrganizationUsers();
-    let userNames = useMemo(
-        () =>
-            listUsers?.map((user) => ({
-                name: user.firstName + ' ' + user.lastName,
-                id: user.userUuid,
-            })) || [],
-
-        [listUsers],
-    );
-
     const handleSubmit = commentForm.onSubmit(async () => {
-        const content = editorState.getCurrentContent();
-
-        if (content.hasText()) {
-            await onSubmit(
-                JSON.stringify(convertToRaw(editorState.getCurrentContent())),
-            );
-
-            setEditorState(EditorState.createEmpty());
-        }
+        if (commentText === '') return;
+        await onSubmit(commentText);
+        editor?.commands.clearContent();
     });
 
     return (
@@ -67,15 +67,8 @@ export const CommentForm: FC<Props> = ({
                         </Avatar>
                     </Grid.Col>
                     <Grid.Col span={22}>
-                        {userNames && (
-                            <CommentMentionInput
-                                editorState={editorState}
-                                setEditorState={setEditorState}
-                                mentions={userNames}
-                                placeholder={`${
-                                    mode === 'reply' ? 'Reply' : 'Add comment'
-                                } (type @ to mention someone)`}
-                            />
+                        {editor && userNames && isSuccess && (
+                            <CommentWithMentions editor={editor} />
                         )}
                     </Grid.Col>
                 </Grid>

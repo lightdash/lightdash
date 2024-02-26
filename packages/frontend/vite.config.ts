@@ -1,7 +1,6 @@
 import reactPlugin from '@vitejs/plugin-react';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
@@ -18,12 +17,6 @@ export default defineConfig({
         monacoEditorPlugin({
             forceBuildCDN: true,
             languageWorkers: ['json'],
-        }),
-        nodePolyfills({
-            // polyfill global so that packages that use it (e.g. draft-js) work
-            globals: {
-                global: true,
-            },
         }),
     ],
     css: {

@@ -13,8 +13,11 @@ import { IconMessage, IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
-import { CommentTextWithMentions } from './CommentTextWithMentions';
 import { CommentTimestamp } from './CommentTimestamp';
+import {
+    CommentWithMentions,
+    useTipTapEditorWithMentions,
+} from './CommentWithMentions';
 
 type Props = {
     comment: Comment;
@@ -24,6 +27,10 @@ type Props = {
 
 export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
     const { ref, hovered } = useHover();
+    const editor = useTipTapEditorWithMentions({
+        readonly: true,
+        content: comment.text,
+    });
 
     return (
         <Box ref={ref}>
@@ -70,7 +77,9 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                         </Group>
                     </Group>
                     <Box fz="xs" mb="xs">
-                        <CommentTextWithMentions text={comment.text} />
+                        {editor && (
+                            <CommentWithMentions editor={editor} readonly />
+                        )}
                     </Box>
                 </Grid.Col>
             </Grid>
