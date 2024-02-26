@@ -47,6 +47,7 @@ import {
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../api/csv';
+import { DashboardTileComments } from '../../features/comments';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
@@ -303,6 +304,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
 
+    const dashboardCommentsCheck = useDashboardContext(
+        (c) => c.dashboardCommentsCheck,
+    );
+
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -310,6 +315,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     }>();
     const [isMovingChart, setIsMovingChart] = useState(false);
     const { user } = useApp();
+
+    const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
@@ -491,94 +498,121 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         [chartWithDashboardFilters],
     );
 
-    const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
+    const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
 
     return (
         <>
             <TileBase
+                lockHeaderVisibility={isCommentsMenuOpen}
                 extraHeaderElement={
-                    appliedFilterRules.length > 0 && (
-                        <HoverCard
-                            withArrow
-                            withinPortal
-                            shadow="md"
-                            position="bottom-end"
-                            offset={4}
-                            arrowOffset={10}
-                        >
-                            <HoverCard.Dropdown>
-                                <Stack spacing="xs" align="flex-start">
-                                    <Text color="gray.7" fw={500}>
-                                        Dashboard filter
-                                        {appliedFilterRules.length > 1
-                                            ? 's'
-                                            : ''}{' '}
-                                        applied:
-                                    </Text>
+                    <>
+                        {dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled &&
+                            dashboardCommentsCheck.userCanManageDashboardComments && (
+                                <DashboardTileComments
+                                    opened={isCommentsMenuOpen}
+                                    onOpen={() => setIsCommentsMenuOpen(true)}
+                                    onClose={() => setIsCommentsMenuOpen(false)}
+                                    dashboardTileUuid={tileUuid}
+                                />
+                            )}
+                        {appliedFilterRules.length > 0 && (
+                            <HoverCard
+                                withArrow
+                                withinPortal
+                                shadow="md"
+                                position="bottom-end"
+                                offset={4}
+                                arrowOffset={10}
+                            >
+                                <HoverCard.Dropdown>
+                                    <Stack spacing="xs" align="flex-start">
+                                        <Text color="gray.7" fw={500}>
+                                            Dashboard filter
+                                            {appliedFilterRules.length > 1
+                                                ? 's'
+                                                : ''}{' '}
+                                            applied:
+                                        </Text>
 
-                                    {appliedFilterRules.map((filterRule) => {
-                                        const fields: Field[] = explore
-                                            ? getVisibleFields(explore)
-                                            : [];
+                                        {appliedFilterRules.map(
+                                            (filterRule) => {
+                                                const fields: Field[] = explore
+                                                    ? getVisibleFields(explore)
+                                                    : [];
 
-                                        const field = fields.find((f) => {
-                                            return (
-                                                fieldId(f) ===
-                                                filterRule.target.fieldId
-                                            );
-                                        });
-                                        if (!field || !isFilterableField(field))
-                                            return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+                                                const field = fields.find(
+                                                    (f) => {
+                                                        return (
+                                                            fieldId(f) ===
+                                                            filterRule.target
+                                                                .fieldId
+                                                        );
+                                                    },
+                                                );
+                                                if (
+                                                    !field ||
+                                                    !isFilterableField(field)
+                                                )
+                                                    return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
 
-                                        const filterRuleLabels =
-                                            getConditionalRuleLabel(
-                                                filterRule,
-                                                field,
-                                            );
-                                        return (
-                                            <Badge
-                                                key={filterRule.id}
-                                                variant="outline"
-                                                color="gray.4"
-                                                radius="sm"
-                                                size="lg"
-                                                fz="xs"
-                                                fw="normal"
-                                                style={{
-                                                    textTransform: 'none',
-                                                    color: 'black',
-                                                }}
-                                            >
-                                                <Text fw={600} span>
-                                                    {filterRuleLabels.field}:
-                                                </Text>{' '}
-                                                {filterRule.disabled ? (
-                                                    <>is any value</>
-                                                ) : (
-                                                    <>
-                                                        {
-                                                            filterRuleLabels.operator
-                                                        }{' '}
+                                                const filterRuleLabels =
+                                                    getConditionalRuleLabel(
+                                                        filterRule,
+                                                        field,
+                                                    );
+                                                return (
+                                                    <Badge
+                                                        key={filterRule.id}
+                                                        variant="outline"
+                                                        color="gray.4"
+                                                        radius="sm"
+                                                        size="lg"
+                                                        fz="xs"
+                                                        fw="normal"
+                                                        style={{
+                                                            textTransform:
+                                                                'none',
+                                                            color: 'black',
+                                                        }}
+                                                    >
                                                         <Text fw={600} span>
                                                             {
-                                                                filterRuleLabels.value
+                                                                filterRuleLabels.field
                                                             }
-                                                        </Text>
-                                                    </>
-                                                )}
-                                            </Badge>
-                                        );
-                                    })}
-                                </Stack>
-                            </HoverCard.Dropdown>
+                                                            :
+                                                        </Text>{' '}
+                                                        {filterRule.disabled ? (
+                                                            <>is any value</>
+                                                        ) : (
+                                                            <>
+                                                                {
+                                                                    filterRuleLabels.operator
+                                                                }{' '}
+                                                                <Text
+                                                                    fw={600}
+                                                                    span
+                                                                >
+                                                                    {
+                                                                        filterRuleLabels.value
+                                                                    }
+                                                                </Text>
+                                                            </>
+                                                        )}
+                                                    </Badge>
+                                                );
+                                            },
+                                        )}
+                                    </Stack>
+                                </HoverCard.Dropdown>
 
-                            <HoverCard.Target>
-                                <ActionIcon size="sm">
-                                    <MantineIcon icon={IconFilter} />
-                                </ActionIcon>
-                            </HoverCard.Target>
-                        </HoverCard>
-                    )
+                                <HoverCard.Target>
+                                    <ActionIcon size="sm">
+                                        <MantineIcon icon={IconFilter} />
+                                    </ActionIcon>
+                                </HoverCard.Target>
+                            </HoverCard>
+                        )}
+                    </>
                 }
                 titleLeftIcon={
                     metricQuery.metadata?.hasADateDimension ? (

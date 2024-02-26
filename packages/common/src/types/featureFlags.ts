@@ -38,4 +38,10 @@ export enum FeatureFlags {
      * Enables the new omnibar search
      */
     Omnibar = 'omnibar',
+
+    /**
+     * Use the new dashboard comments feature. Users can add/resolve/delete comments
+     * in a tile. This also includes the new notifications feature.
+     */
+    DashboardTileComments = 'dashboard-tile-comments',
 }

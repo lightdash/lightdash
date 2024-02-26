@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    Comment,
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
@@ -18,6 +19,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
+import {
+    DashboardTileCommentsTableName,
+    DbDashboardTileComments,
+} from '../../database/entities/comments';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -49,7 +54,11 @@ import {
     SavedChartTable,
 } from '../../database/entities/savedCharts';
 import { getSpaceId, SpaceTableName } from '../../database/entities/spaces';
-import { UserTable, UserTableName } from '../../database/entities/users';
+import {
+    DbUser,
+    UserTable,
+    UserTableName,
+} from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
 import Transaction = Knex.Transaction;
 
