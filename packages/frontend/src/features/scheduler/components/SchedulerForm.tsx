@@ -513,6 +513,44 @@ const SchedulerForm: FC<Props> = ({
                                         }
                                     />
                                 </Group>
+
+                                <Stack spacing="xs" mt="xs">
+                                    <Checkbox
+                                        label="notify me only once"
+                                        {...{
+                                            ...form.getInputProps(
+                                                'notificationFrequency',
+                                            ),
+                                            checked:
+                                                'notificationFrequency' in
+                                                    form.values &&
+                                                form.values
+                                                    .notificationFrequency ===
+                                                    NotificationFrequency.ONCE,
+                                            onChange: (e) => {
+                                                form.setFieldValue(
+                                                    'notificationFrequency',
+                                                    e.target.checked
+                                                        ? NotificationFrequency.ONCE
+                                                        : NotificationFrequency.ALWAYS,
+                                                );
+                                            },
+                                        }}
+                                    />
+                                    {'notificationFrequency' in form.values &&
+                                        form.values.notificationFrequency ===
+                                            NotificationFrequency.ALWAYS && (
+                                            <Text
+                                                size="xs"
+                                                color="gray.6"
+                                                fs="italic"
+                                            >
+                                                You will be notified at the
+                                                specified frequency whenever the
+                                                threshold conditions are met
+                                            </Text>
+                                        )}
+                                </Stack>
                             </Stack>
                         )}
                         <Input.Wrapper
@@ -551,45 +589,6 @@ const SchedulerForm: FC<Props> = ({
                                 />
                             </Box>
                         </Input.Wrapper>
-                        {isThresholdAlert && (
-                            <Stack spacing="xs">
-                                <Checkbox
-                                    label="notify me only once"
-                                    {...{
-                                        ...form.getInputProps(
-                                            'notificationFrequency',
-                                        ),
-                                        checked:
-                                            'notificationFrequency' in
-                                                form.values &&
-                                            form.values
-                                                .notificationFrequency ===
-                                                NotificationFrequency.ONCE,
-                                        onChange: (e) => {
-                                            form.setFieldValue(
-                                                'notificationFrequency',
-                                                e.target.checked
-                                                    ? NotificationFrequency.ONCE
-                                                    : NotificationFrequency.ALWAYS,
-                                            );
-                                        },
-                                    }}
-                                />
-                                {'notificationFrequency' in form.values &&
-                                    form.values.notificationFrequency ===
-                                        NotificationFrequency.ALWAYS && (
-                                        <Text
-                                            size="xs"
-                                            color="gray.6"
-                                            fs="italic"
-                                        >
-                                            You will be notified at the
-                                            specified frequency whenever the
-                                            threshold conditions are met
-                                        </Text>
-                                    )}
-                            </Stack>
-                        )}
                         {!isThresholdAlert && (
                             <Stack spacing={0}>
                                 <Input.Label> Format </Input.Label>
