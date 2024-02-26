@@ -1,3 +1,10 @@
+## [0.1013.1](https://github.com/lightdash/lightdash/compare/0.1013.0...0.1013.1) (2024-02-26)
+
+
+### Bug Fixes
+
+* explicitly close description popover when menu clicked ([#9092](https://github.com/lightdash/lightdash/issues/9092)) ([c7b533c](https://github.com/lightdash/lightdash/commit/c7b533c55be4788db74fc02849007c6faf05ce73))
+
 # [0.1013.0](https://github.com/lightdash/lightdash/compare/0.1012.0...0.1013.0) (2024-02-23)
 
 
