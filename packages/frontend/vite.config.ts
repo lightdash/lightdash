@@ -75,7 +75,6 @@ export default defineConfig({
                         '@mantine/hooks',
                         '@mantine/notifications',
                         '@mantine/prism',
-                        '@mantine/spotlight',
                     ],
                 },
             },
