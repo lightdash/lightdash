@@ -516,7 +516,7 @@ const SchedulerForm: FC<Props> = ({
 
                                 <Stack spacing="xs" mt="xs">
                                     <Checkbox
-                                        label="notify me only once"
+                                        label="Notify me only once"
                                         {...{
                                             ...form.getInputProps(
                                                 'notificationFrequency',
