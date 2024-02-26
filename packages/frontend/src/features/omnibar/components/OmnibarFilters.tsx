@@ -18,8 +18,9 @@ import {
     IconRectangle,
     IconTable,
     IconUser,
+    IconX,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useMemo } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { allSearchItemTypes } from '../types/searchItem';
@@ -70,181 +71,212 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
     const [isCreatedByMenuOpen, createdByMenuHelpers] = useDisclosure(false);
     const { data: organizationUsers } = useOrganizationUsers();
 
+    const canClearFilters = useMemo(() => {
+        return (
+            filters?.type ||
+            filters?.fromDate ||
+            filters?.toDate ||
+            filters?.createdByUuid
+        );
+    }, [filters]);
+
     return (
-        <Group px="md" py="sm">
-            <Menu
-                position="bottom-start"
-                withArrow
-                withinPortal
-                shadow="md"
-                arrowOffset={11}
-                offset={2}
-            >
-                <Menu.Target>
-                    <Button
-                        compact
-                        variant="default"
-                        radius="xl"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconAdjustments} />}
-                        rightIcon={<MantineIcon icon={IconChevronDown} />}
-                    >
-                        {filters?.type
-                            ? getSearchItemLabel(filters.type as SearchItemType)
-                            : 'All items'}
-                    </Button>
-                </Menu.Target>
-
-                <Menu.Dropdown>
-                    {allSearchItemTypes.map((type) => (
-                        <Menu.Item
-                            key={type}
-                            icon={
-                                <MantineIcon
-                                    icon={getOmnibarItemIcon(type)}
-                                    color={getOmnibarItemColor(type)}
-                                />
-                            }
-                            bg={type === filters?.type ? 'blue.1' : undefined}
-                            onClick={() => {
-                                onSearchFilterChange({
-                                    ...filters,
-                                    type:
-                                        type === filters?.type
-                                            ? undefined
-                                            : type,
-                                });
-                            }}
-                        >
-                            {getSearchItemLabel(type)}
-                        </Menu.Item>
-                    ))}
-                </Menu.Dropdown>
-            </Menu>
-            <Menu
-                position="bottom-end"
-                withArrow
-                withinPortal
-                shadow="md"
-                arrowOffset={11}
-                offset={2}
-                opened={isDateMenuOpen}
-                onOpen={dateMenuHandlers.open}
-                onClose={dateMenuHandlers.close}
-            >
-                <Menu.Target>
-                    <Button
-                        compact
-                        variant="default"
-                        radius="xl"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconCalendar} />}
-                        rightIcon={<MantineIcon icon={IconChevronDown} />}
-                    >
-                        {getDateFilterLabel(filters)}
-                    </Button>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Flex direction="column" align="flex-end">
-                        <DatePicker
-                            type="range"
-                            allowSingleDateInRange
-                            maxDate={new Date()}
-                            value={[
-                                filters?.fromDate
-                                    ? new Date(filters.fromDate)
-                                    : null,
-                                filters?.toDate
-                                    ? new Date(filters.toDate)
-                                    : null,
-                            ]}
-                            onChange={(value) => {
-                                const [fromDate, toDate] = value;
-
-                                onSearchFilterChange({
-                                    ...filters,
-                                    fromDate: fromDate?.toISOString(),
-                                    toDate: toDate?.toISOString(),
-                                });
-
-                                if (fromDate && toDate) {
-                                    dateMenuHandlers.close();
-                                }
-                            }}
-                        />
+        <Flex justify="space-between" align="center">
+            <Group px="md" py="sm">
+                <Menu
+                    position="bottom-start"
+                    withArrow
+                    withinPortal
+                    shadow="md"
+                    arrowOffset={11}
+                    offset={2}
+                >
+                    <Menu.Target>
                         <Button
                             compact
-                            variant="white"
+                            variant="default"
+                            radius="xl"
                             size="xs"
-                            mt="sm"
-                            style={{ alignSelf: 'flex-end' }}
-                            onClick={() => {
+                            leftIcon={<MantineIcon icon={IconAdjustments} />}
+                            rightIcon={<MantineIcon icon={IconChevronDown} />}
+                        >
+                            {filters?.type
+                                ? getSearchItemLabel(
+                                      filters.type as SearchItemType,
+                                  )
+                                : 'All items'}
+                        </Button>
+                    </Menu.Target>
+
+                    <Menu.Dropdown>
+                        {allSearchItemTypes.map((type) => (
+                            <Menu.Item
+                                key={type}
+                                icon={
+                                    <MantineIcon
+                                        icon={getOmnibarItemIcon(type)}
+                                        color={getOmnibarItemColor(type)}
+                                    />
+                                }
+                                bg={
+                                    type === filters?.type
+                                        ? 'blue.1'
+                                        : undefined
+                                }
+                                onClick={() => {
+                                    onSearchFilterChange({
+                                        ...filters,
+                                        type:
+                                            type === filters?.type
+                                                ? undefined
+                                                : type,
+                                    });
+                                }}
+                            >
+                                {getSearchItemLabel(type)}
+                            </Menu.Item>
+                        ))}
+                    </Menu.Dropdown>
+                </Menu>
+                <Menu
+                    position="bottom-end"
+                    withArrow
+                    withinPortal
+                    shadow="md"
+                    arrowOffset={11}
+                    offset={2}
+                    opened={isDateMenuOpen}
+                    onOpen={dateMenuHandlers.open}
+                    onClose={dateMenuHandlers.close}
+                >
+                    <Menu.Target>
+                        <Button
+                            compact
+                            variant="default"
+                            radius="xl"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconCalendar} />}
+                            rightIcon={<MantineIcon icon={IconChevronDown} />}
+                        >
+                            {getDateFilterLabel(filters)}
+                        </Button>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Flex direction="column" align="flex-end">
+                            <DatePicker
+                                type="range"
+                                allowSingleDateInRange
+                                maxDate={new Date()}
+                                value={[
+                                    filters?.fromDate
+                                        ? new Date(filters.fromDate)
+                                        : null,
+                                    filters?.toDate
+                                        ? new Date(filters.toDate)
+                                        : null,
+                                ]}
+                                onChange={(value) => {
+                                    const [fromDate, toDate] = value;
+
+                                    onSearchFilterChange({
+                                        ...filters,
+                                        fromDate: fromDate?.toISOString(),
+                                        toDate: toDate?.toISOString(),
+                                    });
+
+                                    if (fromDate && toDate) {
+                                        dateMenuHandlers.close();
+                                    }
+                                }}
+                            />
+                            <Button
+                                compact
+                                variant="white"
+                                size="xs"
+                                mt="sm"
+                                style={{ alignSelf: 'flex-end' }}
+                                onClick={() => {
+                                    onSearchFilterChange({
+                                        ...filters,
+                                        fromDate: undefined,
+                                        toDate: undefined,
+                                    });
+                                }}
+                            >
+                                Clear
+                            </Button>
+                        </Flex>
+                    </Menu.Dropdown>
+                </Menu>
+                <Menu
+                    position="bottom-end"
+                    withArrow
+                    withinPortal
+                    shadow="md"
+                    arrowOffset={11}
+                    offset={2}
+                    opened={isCreatedByMenuOpen}
+                    onOpen={createdByMenuHelpers.open}
+                    onClose={createdByMenuHelpers.close}
+                >
+                    <Menu.Target>
+                        <Button
+                            compact
+                            variant="default"
+                            radius="xl"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconUser} />}
+                            rightIcon={<MantineIcon icon={IconChevronDown} />}
+                        >
+                            {filters?.createdByUuid
+                                ? findUserName(
+                                      filters.createdByUuid,
+                                      organizationUsers,
+                                  )
+                                : 'Created by'}
+                        </Button>
+                    </Menu.Target>
+
+                    <Menu.Dropdown>
+                        <Select
+                            placeholder="Select a user"
+                            searchable
+                            value={filters?.createdByUuid}
+                            allowDeselect
+                            limit={5}
+                            data={
+                                organizationUsers?.map((user) => ({
+                                    value: user.userUuid,
+                                    label: `${user.firstName} ${user.lastName}`,
+                                })) || []
+                            }
+                            onChange={(value) => {
                                 onSearchFilterChange({
                                     ...filters,
-                                    fromDate: undefined,
-                                    toDate: undefined,
+                                    createdByUuid: value || undefined,
                                 });
+
+                                createdByMenuHelpers.close();
                             }}
-                        >
-                            Clear
-                        </Button>
-                    </Flex>
-                </Menu.Dropdown>
-            </Menu>
-            <Menu
-                position="bottom-end"
-                withArrow
-                withinPortal
-                shadow="md"
-                arrowOffset={11}
-                offset={2}
-                opened={isCreatedByMenuOpen}
-                onOpen={createdByMenuHelpers.open}
-                onClose={createdByMenuHelpers.close}
-            >
-                <Menu.Target>
-                    <Button
-                        compact
-                        variant="default"
-                        radius="xl"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconUser} />}
-                        rightIcon={<MantineIcon icon={IconChevronDown} />}
-                    >
-                        {filters?.createdByUuid
-                            ? findUserName(
-                                  filters.createdByUuid,
-                                  organizationUsers,
-                              )
-                            : 'Created by'}
-                    </Button>
-                </Menu.Target>
-
-                <Menu.Dropdown>
-                    <Select
-                        placeholder="Select a user"
-                        searchable
-                        value={filters?.createdByUuid}
-                        allowDeselect
-                        limit={5}
-                        data={
-                            organizationUsers?.map((user) => ({
-                                value: user.userUuid,
-                                label: `${user.firstName} ${user.lastName}`,
-                            })) || []
-                        }
-                        onChange={(value) => {
-                            onSearchFilterChange({
-                                ...filters,
-                                createdByUuid: value || undefined,
-                            });
-
-                            createdByMenuHelpers.close();
-                        }}
-                    />
-                </Menu.Dropdown>
-            </Menu>
-        </Group>
+                        />
+                    </Menu.Dropdown>
+                </Menu>
+            </Group>
+            {canClearFilters && (
+                <Button
+                    compact
+                    variant="light"
+                    size="xs"
+                    mr="sm"
+                    leftIcon={<MantineIcon icon={IconX} size="xs" />}
+                    onClick={() => {
+                        onSearchFilterChange({});
+                    }}
+                >
+                    Clear filters
+                </Button>
+            )}
+        </Flex>
     );
 };
 
