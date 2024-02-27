@@ -1,3 +1,10 @@
+# [0.1017.0](https://github.com/lightdash/lightdash/compare/0.1016.0...0.1017.0) (2024-02-27)
+
+
+### Features
+
+* comment mentions ([#9094](https://github.com/lightdash/lightdash/issues/9094)) ([3eddeb7](https://github.com/lightdash/lightdash/commit/3eddeb7117ccb65e3f57a5f13fd91d861873fa98))
+
 # [0.1016.0](https://github.com/lightdash/lightdash/compare/0.1015.2...0.1016.0) (2024-02-27)
 
 
