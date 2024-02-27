@@ -1,7 +1,5 @@
 import { Knex } from 'knex';
 
-export const SEARCH_RANK_COLUMN_NAME = 'search_rank';
-
 export function getFullTextSearchRankCalcSql(
     database: Knex,
     tableName: string,
@@ -16,7 +14,7 @@ export function getFullTextSearchRankCalcSql(
                 32
             )::numeric,
             6
-        )::float as ${SEARCH_RANK_COLUMN_NAME}`,
+        )::float`,
         [query],
     );
 }
