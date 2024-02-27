@@ -12,7 +12,7 @@ type Props = {
     readonly: boolean;
     suggestions?: SuggestionsItem[];
     content?: string;
-    onUpdate: (editor: Editor | null) => void;
+    onUpdate?: (editor: Editor | null) => void;
     shouldClearEditor?: boolean;
     setShouldClearEditor?: (shouldClearEditor: boolean) => void;
 };
@@ -45,7 +45,7 @@ export const CommentWithMentions: FC<Props> = ({
         ],
         content,
         onUpdate: () => {
-            onUpdate(editor);
+            if (onUpdate) onUpdate(editor);
         },
     });
 
