@@ -1,3 +1,10 @@
+## [0.1018.4](https://github.com/lightdash/lightdash/compare/0.1018.3...0.1018.4) (2024-02-27)
+
+
+### Bug Fixes
+
+* semantic layer idle state ([#9126](https://github.com/lightdash/lightdash/issues/9126)) ([6226de8](https://github.com/lightdash/lightdash/commit/6226de83060a657ab8cd26d4f20448d56ef28dbe))
+
 ## [0.1018.3](https://github.com/lightdash/lightdash/compare/0.1018.2...0.1018.3) (2024-02-27)
 
 
