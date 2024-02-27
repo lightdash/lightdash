@@ -144,6 +144,10 @@ import {
 } from '../database/entities/groupMemberships';
 import { GroupTable, GroupTableName } from '../database/entities/groups';
 import {
+    NotificationsTable,
+    NotificationsTableName,
+} from '../database/entities/notifications';
+import {
     OrganizationAllowedEmailDomainProjectsTable,
     OrganizationAllowedEmailDomainProjectsTableName,
     OrganizationAllowedEmailDomainsTable,
@@ -253,5 +257,6 @@ declare module 'knex/types/tables' {
         [DownloadFileTableName]: DownloadFileTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
+        [NotificationsTableName]: NotificationsTable;
     }
 }
