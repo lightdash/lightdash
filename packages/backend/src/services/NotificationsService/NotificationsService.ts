@@ -20,6 +20,10 @@ export class NotificationsService {
         );
     }
 
+    async markNotificationAsRead(notificationUuid: string) {
+        return this.notificationsModel.markNotificationAsRead(notificationUuid);
+    }
+
     async createDashboardCommentNotification(
         userUuid: string,
         commentId: string,
