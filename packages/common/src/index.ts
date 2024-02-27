@@ -54,9 +54,13 @@ import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
+import {
+    ApiCreateComment,
+    ApiDeleteComment,
+    ApiGetComments,
+} from './types/api/comments';
 import { Email } from './types/api/email';
 import { ApiSuccessEmpty } from './types/api/success';
-import { ApiCommentsResults } from './types/comments';
 import { DbtExposure } from './types/dbt';
 import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
@@ -121,6 +125,7 @@ export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-
 export * from './templating/template';
 export * from './types/analytics';
 export * from './types/api';
+export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/integrations';
 export * from './types/api/share';
@@ -591,7 +596,9 @@ type ApiResults =
     | MostPopularAndRecentlyUpdated
     | ApiCalculateTotalResponse['results']
     | Record<string, DbtExposure>
-    | ApiCommentsResults
+    | ApiCreateComment['results']
+    | ApiGetComments['results']
+    | ApiDeleteComment
     | ApiSuccessEmpty;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {

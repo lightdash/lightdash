@@ -1,13 +1,13 @@
-import { ApiCommentsResults, Comment } from '../comments';
+import { Comment } from '../comments';
 
 export type ApiCreateComment = {
     status: 'ok';
-    results: Comment['commentId'];
+    results: Record<string, Comment[]>;
 };
 
 export type ApiGetComments = {
     status: 'ok';
-    results: ApiCommentsResults;
+    results: Record<string, Comment[]>;
 };
 
 export type ApiResolveComment = {
