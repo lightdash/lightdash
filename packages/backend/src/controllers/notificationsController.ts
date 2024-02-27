@@ -2,17 +2,17 @@ import {
     ApiCreateNotification,
     ApiErrorPayload,
     ApiGetNotifications,
-    Comment,
     NotificationType,
 } from '@lightdash/common';
 import {
-    Body,
     Controller,
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -39,13 +39,10 @@ export class NotificationsController extends Controller {
     @OperationId('getNotifications')
     async getNotifications(
         @Request() req: express.Request,
-        @Body()
-        body: {
-            type: NotificationType;
-        },
+        @Query() type: NotificationType,
     ): Promise<ApiGetNotifications> {
         let results: ApiGetNotifications['results'] = [];
-        switch (body.type) {
+        switch (type) {
             case NotificationType.DASHBOARD_COMMENTS:
                 results =
                     await notificationsService.getDashboardCommentNotifications(
@@ -81,6 +78,26 @@ export class NotificationsController extends Controller {
             commentId,
             dashboardUuid,
         );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+        };
+    }
+
+    /**
+     * Mark a notification as read
+     * @param req express request
+     * @param notificationId the id of the notification
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('{notificationId}/markAsRead')
+    @OperationId('markNotificationAsRead')
+    async markNotificationAsRead(
+        @Path() notificationId: string,
+    ): Promise<ApiCreateNotification> {
+        await notificationsService.markNotificationAsRead(notificationId);
 
         this.setStatus(200);
         return {
