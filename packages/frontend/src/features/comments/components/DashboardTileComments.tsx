@@ -77,7 +77,7 @@ export const DashboardTileComments: FC<
                         }
                         onSubmit={(
                             text: string,
-                            html: string,
+                            textHtml: string,
                             mentions: string[],
                         ) =>
                             mutateAsync({
@@ -85,7 +85,7 @@ export const DashboardTileComments: FC<
                                 dashboardUuid,
                                 dashboardTileUuid,
                                 text,
-                                html,
+                                textHtml,
                                 mentions,
                             })
                         }

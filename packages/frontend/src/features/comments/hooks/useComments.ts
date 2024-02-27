@@ -1,22 +1,22 @@
-import { ApiCommentsResults, ApiError } from '@lightdash/common';
+import { ApiCommentsResults, ApiError, Comment } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-type CreateDashboardTileComment = {
+type CreateDashboardTileComment = Pick<
+    Comment,
+    'text' | 'textHtml' | 'mentions'
+> & {
     projectUuid: string;
     dashboardUuid: string;
     dashboardTileUuid: string;
-    text: string;
-    html: string;
     replyTo?: string;
-    mentions: string[];
 };
 
 const createDashboardTileComment = async ({
     dashboardUuid,
     dashboardTileUuid,
     text,
-    html,
+    textHtml,
     replyTo,
     mentions,
 }: CreateDashboardTileComment) =>
@@ -25,7 +25,7 @@ const createDashboardTileComment = async ({
         method: 'POST',
         body: JSON.stringify({
             text,
-            html,
+            textHtml,
             replyTo,
             mentions,
         }),
@@ -58,7 +58,6 @@ const getDashboardComments = async ({
     });
 
 export const useGetComments = (dashboardUuid: string, enabled: boolean) => {
-    // TODO: update ApiCommentsResults to include the html
     return useQuery<ApiCommentsResults, ApiError>(
         ['comments', dashboardUuid],
         () => getDashboardComments({ dashboardUuid }),

@@ -104,7 +104,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                         }
                         onSubmit={(
                             text: string,
-                            html: string,
+                            textHtml: string,
                             mentions: string[],
                         ) =>
                             createReply({
@@ -112,7 +112,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                                 dashboardUuid,
                                 dashboardTileUuid,
                                 text,
-                                html,
+                                textHtml,
                                 replyTo: comment.commentId,
                                 mentions,
                             })
