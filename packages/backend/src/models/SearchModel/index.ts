@@ -33,7 +33,10 @@ import {
     filterByCreatedByUuid,
     shouldSearchForType,
 } from './utils/filters';
-import { getFullTextSearchRankCalcSql } from './utils/fullTextSearch';
+import {
+    getFullTextSearchRankCalcSql,
+    SEARCH_RANK_COLUMN_NAME,
+} from './utils/fullTextSearch';
 
 type ModelDependencies = {
     database: Knex;
@@ -55,13 +58,12 @@ export class SearchModel {
             return [];
         }
 
-        const { searchRankRawSql, searchRankColumnName } =
-            getFullTextSearchRankCalcSql(
-                this.database,
-                SpaceTableName,
-                'search_vector',
-                query,
-            );
+        const searchRankRawSql = getFullTextSearchRankCalcSql(
+            this.database,
+            SpaceTableName,
+            'search_vector',
+            query,
+        );
 
         let subquery = this.database(SpaceTableName)
             .innerJoin(
@@ -71,7 +73,7 @@ export class SearchModel {
             )
             .column({ uuid: 'space_uuid' }, 'spaces.name', searchRankRawSql)
             .where('projects.project_uuid', projectUuid)
-            .orderBy(searchRankColumnName, 'desc');
+            .orderBy(SEARCH_RANK_COLUMN_NAME, 'desc');
 
         subquery = filterByCreatedAt(SpaceTableName, subquery, filters);
         subquery = filterByCreatedByUuid(
@@ -91,7 +93,7 @@ export class SearchModel {
         return this.database(SpaceTableName)
             .select()
             .from(subquery.as('spaces_with_rank'))
-            .where(searchRankColumnName, '>', 0)
+            .where(SEARCH_RANK_COLUMN_NAME, '>', 0)
             .limit(10);
     }
 
@@ -104,13 +106,12 @@ export class SearchModel {
             return [];
         }
 
-        const { searchRankRawSql, searchRankColumnName } =
-            getFullTextSearchRankCalcSql(
-                this.database,
-                DashboardsTableName,
-                'search_vector',
-                query,
-            );
+        const searchRankRawSql = getFullTextSearchRankCalcSql(
+            this.database,
+            DashboardsTableName,
+            'search_vector',
+            query,
+        );
 
         let subquery = this.database(DashboardsTableName)
             .leftJoin(
@@ -131,7 +132,7 @@ export class SearchModel {
                 searchRankRawSql,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .orderBy(searchRankColumnName, 'desc');
+            .orderBy(SEARCH_RANK_COLUMN_NAME, 'desc');
 
         subquery = filterByCreatedAt(DashboardsTableName, subquery, filters);
         subquery = filterByCreatedByUuid(
@@ -152,7 +153,7 @@ export class SearchModel {
         const dashboards = await this.database(DashboardsTableName)
             .select()
             .from(subquery.as('dashboards_with_rank'))
-            .where(searchRankColumnName, '>', 0)
+            .where(SEARCH_RANK_COLUMN_NAME, '>', 0)
             .limit(10);
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
@@ -192,13 +193,12 @@ export class SearchModel {
             return [];
         }
 
-        const { searchRankRawSql, searchRankColumnName } =
-            getFullTextSearchRankCalcSql(
-                this.database,
-                SavedChartsTableName,
-                'search_vector',
-                query,
-            );
+        const searchRankRawSql = getFullTextSearchRankCalcSql(
+            this.database,
+            SavedChartsTableName,
+            'search_vector',
+            query,
+        );
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
         let subquery = this.database(SavedChartsTableName)
@@ -224,7 +224,7 @@ export class SearchModel {
                 searchRankRawSql,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .orderBy(searchRankColumnName, 'desc');
+            .orderBy(SEARCH_RANK_COLUMN_NAME, 'desc');
 
         subquery = filterByCreatedAt(SavedChartsTableName, subquery, filters);
         subquery = filterByCreatedByUuid(
@@ -239,7 +239,7 @@ export class SearchModel {
         const savedCharts = await this.database(SavedChartsTableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
-            .where(searchRankColumnName, '>', 0)
+            .where(SEARCH_RANK_COLUMN_NAME, '>', 0)
             .limit(10);
 
         const chartUuids = savedCharts.map((chart) => chart.uuid);
