@@ -17,6 +17,7 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { compact } from 'lodash';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -329,7 +330,7 @@ export class SearchModel {
 
         // Building regex to match any of the words in the query and then using it to match against the label and description
         // results are sorted by the number of matches
-        const splitquery = query.split(' ');
+        const splitquery = compact(query.split(' '));
         const splitQueryRegex = new RegExp(splitquery.join('|'), 'ig');
 
         const result = explores
