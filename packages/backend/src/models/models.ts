@@ -11,6 +11,7 @@ import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppI
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
+import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
@@ -115,3 +116,5 @@ export const githubAppInstallationsModel = new GithubAppInstallationsModel({
 });
 
 export const commentModel = new CommentModel({ database });
+
+export const notificationsModel = new NotificationsModel({ database });
