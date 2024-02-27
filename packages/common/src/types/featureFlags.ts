@@ -44,4 +44,6 @@ export enum FeatureFlags {
      * in a tile. This also includes the new notifications feature.
      */
     DashboardTileComments = 'dashboard-tile-comments',
+
+    CustomSQLEnabled = 'custom-sql-enabled',
 }

@@ -54,16 +54,25 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Comment.text-or-replyTo_": {
+            "Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_": {
                 "properties": {
                     "text": {
                         "type": "string"
                     },
                     "replyTo": {
                         "type": "string"
+                    },
+                    "mentions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "textHtml": {
+                        "type": "string"
                     }
                 },
-                "required": ["text"],
+                "required": ["text", "mentions", "textHtml"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -6456,7 +6465,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1012.0",
+        "version": "0.1013.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -6523,7 +6532,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Pick_Comment.text-or-replyTo_",
+                                "$ref": "#/components/schemas/Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_",
                                 "description": "the comment to create"
                             }
                         }

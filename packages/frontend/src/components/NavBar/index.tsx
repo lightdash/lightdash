@@ -185,16 +185,20 @@ const NavBar = memo(() => {
                                 <BrowseMenu projectUuid={activeProjectUuid} />
                             </Button.Group>
 
-                            <Divider
-                                orientation="vertical"
-                                my="xs"
-                                color="gray.8"
-                            />
-
                             {useOmnibar ? (
                                 <Omnibar projectUuid={activeProjectUuid} />
                             ) : (
-                                <GlobalSearch projectUuid={activeProjectUuid} />
+                                <>
+                                    <Divider
+                                        orientation="vertical"
+                                        my="xs"
+                                        color="gray.8"
+                                    />
+
+                                    <GlobalSearch
+                                        projectUuid={activeProjectUuid}
+                                    />
+                                </>
                             )}
                         </>
                     ) : null}
@@ -217,11 +221,10 @@ const NavBar = memo(() => {
                         {!isLoadingActiveProject && activeProjectUuid ? (
                             <HeadwayMenuItem projectUuid={activeProjectUuid} />
                         ) : null}
+
+                        <ProjectSwitcher />
                     </Button.Group>
 
-                    <Divider orientation="vertical" my="xs" color="gray.8" />
-
-                    <ProjectSwitcher />
                     <UserCredentialsSwitcher />
                     <UserMenu />
                 </Group>

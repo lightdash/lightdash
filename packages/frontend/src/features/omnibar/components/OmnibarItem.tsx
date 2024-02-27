@@ -21,14 +21,11 @@ const useStyles = createStyles<string, null>((theme) => ({
         paddingLeft: theme.spacing.xs,
         paddingRight: theme.spacing.xs,
         borderRadius: theme.radius.sm,
-        '&[data-hovered]': {
-            backgroundColor: theme.colors.blue[6],
-        },
-        '&:hover': {
-            backgroundColor: theme.colors.blue[3],
+        '&:hover, &[data-hovered]': {
+            backgroundColor: theme.colors.blue[0],
         },
         '&:active': {
-            backgroundColor: theme.colors.blue[4],
+            backgroundColor: theme.colors.blue[1],
         },
     },
     item: {},
@@ -93,7 +90,7 @@ const OmnibarItem: FC<Props> = ({
                 </Text>
 
                 {item.description || item.typeLabel ? (
-                    <Text size="xs" truncate>
+                    <Text size="xs" truncate color="dimmed">
                         {item.typeLabel}
                         {item.typeLabel && item.description ? <> · </> : null}
                         {item.description}

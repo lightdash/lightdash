@@ -14,6 +14,7 @@ import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
 import { CommentTimestamp } from './CommentTimestamp';
+import { CommentWithMentions } from './CommentWithMentions';
 
 type Props = {
     comment: Comment;
@@ -69,7 +70,10 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                         </Group>
                     </Group>
                     <Box fz="xs" mb="xs">
-                        <Text>{comment.text}</Text>
+                        <CommentWithMentions
+                            readonly
+                            content={comment.textHtml}
+                        />
                     </Box>
                 </Grid.Col>
             </Grid>

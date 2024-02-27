@@ -53,7 +53,9 @@ export class CommentService {
         dashboardUuid: string,
         dashboardTileUuid: string,
         text: string,
+        textHtml: string,
         replyTo: string | null,
+        mentions: string[],
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
@@ -78,9 +80,10 @@ export class CommentService {
             event: 'comment.created',
             userId: user.userUuid,
             properties: {
+                dashboardUuid,
                 tileUuid: dashboardTileUuid,
                 isReply: !!replyTo,
-                hasMention: false, //  TODO implement after merging mentions
+                hasMention: mentions.length > 0,
             },
         });
 
@@ -88,8 +91,10 @@ export class CommentService {
             dashboardUuid,
             dashboardTileUuid,
             text,
+            textHtml,
             replyTo,
             user,
+            mentions,
         );
     }
 
@@ -164,7 +169,9 @@ export class CommentService {
             properties: {
                 isReply: !!comment.replyTo,
                 tileUuid: comment.dashboardTileUuid,
-                hasMention: false, //  TODO implement after merging mentions
+                dashboardUuid,
+                isOwner: comment.userUuid === user.userUuid,
+                hasMention: comment.mentions.length > 0,
             },
         });
 
@@ -212,7 +219,9 @@ export class CommentService {
             properties: {
                 isReply: !!comment.replyTo,
                 tileUuid: comment.dashboardTileUuid,
-                hasMention: false, //  TODO implement after merging mentions
+                dashboardUuid,
+                isOwner: comment.userUuid === user.userUuid,
+                hasMention: comment.mentions.length > 0,
             },
         });
     }

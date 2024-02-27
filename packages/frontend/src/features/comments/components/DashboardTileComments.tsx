@@ -28,6 +28,7 @@ export const DashboardTileComments: FC<
     const comments = useDashboardContext(
         (c) => c.dashboardComments && c.dashboardComments[dashboardTileUuid],
     );
+
     const { mutateAsync, isLoading } = useCreateComment();
 
     if (!projectUuid || !dashboardUuid) {
@@ -46,6 +47,10 @@ export const DashboardTileComments: FC<
             onOpen={() => {
                 track({
                     name: EventName.COMMENTS_CLICKED,
+                    properties: {
+                        dashboardUuid,
+                        dashboardTileUuid,
+                    },
                 });
                 onOpen?.();
             }}
@@ -81,12 +86,18 @@ export const DashboardTileComments: FC<
                         userName={
                             user.data?.firstName + ' ' + user.data?.lastName
                         }
-                        onSubmit={(text: string) =>
+                        onSubmit={(
+                            text: string,
+                            textHtml: string,
+                            mentions: string[],
+                        ) =>
                             mutateAsync({
                                 projectUuid,
                                 dashboardUuid,
                                 dashboardTileUuid,
                                 text,
+                                textHtml,
+                                mentions,
                             })
                         }
                         isSubmitting={isLoading}

@@ -69,21 +69,28 @@ export const createDuckDbDatabase = async ({
         const loadedTableNames = await Promise.all(
             Object.entries(tables).map(
                 async ([tableName, { rows, fields }]) => {
-                    /**
-                     * For each row, collect all values in all rows, and map the row type
-                     * into an arrow vector:
-                     */
-                    const columnVectors = Object.entries(fields).reduce(
-                        (acc, [fieldName, field]) => {
-                            // Get all values in the result set for this field name::
-                            acc[fieldName] = arrow.vectorFromArray(
-                                rows.map((row) => row[fieldName]),
-                                dimensionTypeToArrowDataType(field.type),
-                            );
-
-                            return acc;
+                    const columnVectors = await wrapOtelSpan(
+                        'inMemoryTableCalculations.buildColumnVectors',
+                        {
+                            totalColumnValues:
+                                Object.keys(fields).length * rows.length,
                         },
-                        {} as Record<string, arrow.Vector>,
+                        async () =>
+                            /**
+                             * For each row, collect all values in all rows, and map the row type
+                             * into an arrow vector:
+                             */
+                            Object.entries(fields).reduce<
+                                Record<string, arrow.Vector>
+                            >((acc, [fieldName, field]) => {
+                                // Get all values in the result set for this field name::
+                                acc[fieldName] = arrow.vectorFromArray(
+                                    rows.map((row) => row[fieldName]),
+                                    dimensionTypeToArrowDataType(field.type),
+                                );
+
+                                return acc;
+                            }, {}),
                     );
 
                     const arrowTableIPC = arrow.tableToIPC(

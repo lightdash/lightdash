@@ -1,8 +1,9 @@
-import { ApiError } from '@lightdash/common';
+import { ApiError, FeatureFlags } from '@lightdash/common';
 import { Button, Group, Title, Tooltip } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import React, { FC } from 'react';
 import { lightdashApi } from '../../api';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import LoadingState from '../common/LoadingState';
 import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
 import { SettingsCard } from '../common/Settings/SettingsCard';
@@ -27,6 +28,15 @@ const CustomSqlPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const [isOpen, setOpen] = React.useState(false);
     const [checked, setChecked] = React.useState<string[]>([]);
     const { data, isInitialLoading } = useCustomMetrics(projectUuid);
+
+    const isCustomSQLEnabled = useFeatureFlagEnabled(
+        FeatureFlags.CustomSQLEnabled,
+    );
+
+    if (!isCustomSQLEnabled) {
+        return null;
+    }
+
     if (isInitialLoading) {
         return <LoadingState title="Loading custom SQL" />;
     }

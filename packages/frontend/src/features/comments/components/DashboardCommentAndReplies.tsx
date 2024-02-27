@@ -102,13 +102,19 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                         userName={
                             user.data?.firstName + ' ' + user.data?.lastName
                         }
-                        onSubmit={(text: string) =>
+                        onSubmit={(
+                            text: string,
+                            textHtml: string,
+                            mentions: string[],
+                        ) =>
                             createReply({
                                 projectUuid,
                                 dashboardUuid,
                                 dashboardTileUuid,
                                 text,
+                                textHtml,
                                 replyTo: comment.commentId,
+                                mentions,
                             })
                         }
                         onCancel={() => {

@@ -1,3 +1,71 @@
+## [0.1018.1](https://github.com/lightdash/lightdash/compare/0.1018.0...0.1018.1) (2024-02-27)
+
+
+### Bug Fixes
+
+* always use same name for search_rank, do not depend on arg ([#9124](https://github.com/lightdash/lightdash/issues/9124)) ([12adbe8](https://github.com/lightdash/lightdash/commit/12adbe86f77c8c4d4b8f115ffa36a5c7f9a3f932))
+
+# [0.1018.0](https://github.com/lightdash/lightdash/compare/0.1017.0...0.1018.0) (2024-02-27)
+
+
+### Features
+
+* send once option for threshold alerts ([#9089](https://github.com/lightdash/lightdash/issues/9089)) ([bed8230](https://github.com/lightdash/lightdash/commit/bed82307693a72ccffe1406d6fd3e40121c7bdc8))
+
+# [0.1017.0](https://github.com/lightdash/lightdash/compare/0.1016.0...0.1017.0) (2024-02-27)
+
+
+### Features
+
+* comment mentions ([#9094](https://github.com/lightdash/lightdash/issues/9094)) ([3eddeb7](https://github.com/lightdash/lightdash/commit/3eddeb7117ccb65e3f57a5f13fd91d861873fa98))
+
+# [0.1016.0](https://github.com/lightdash/lightdash/compare/0.1015.2...0.1016.0) (2024-02-27)
+
+
+### Bug Fixes
+
+* search v2 UI ([#9113](https://github.com/lightdash/lightdash/issues/9113)) ([4806ad6](https://github.com/lightdash/lightdash/commit/4806ad6427f84af860f9d1dfac29aa1c1059124a))
+
+
+### Features
+
+* add clear filters button when there are filters applied ([#9106](https://github.com/lightdash/lightdash/issues/9106)) ([a5a84e7](https://github.com/lightdash/lightdash/commit/a5a84e7deb8c54aec178fda9335fbf523730acf0))
+
+## [0.1015.2](https://github.com/lightdash/lightdash/compare/0.1015.1...0.1015.2) (2024-02-26)
+
+
+### Bug Fixes
+
+* feature flag custom sql ([#9115](https://github.com/lightdash/lightdash/issues/9115)) ([67cb0e5](https://github.com/lightdash/lightdash/commit/67cb0e59e9b5d2d8001caaeb0e84c124aefe9c4e))
+
+## [0.1015.1](https://github.com/lightdash/lightdash/compare/0.1015.0...0.1015.1) (2024-02-26)
+
+
+### Bug Fixes
+
+* allow viewers to export csv from dashboard ([#9104](https://github.com/lightdash/lightdash/issues/9104)) ([79fc30d](https://github.com/lightdash/lightdash/commit/79fc30d164005bb78e568271f38397852b2d2d0e))
+
+# [0.1015.0](https://github.com/lightdash/lightdash/compare/0.1014.0...0.1015.0) (2024-02-26)
+
+
+### Features
+
+* search v2 navbar UI ([#9091](https://github.com/lightdash/lightdash/issues/9091)) ([e4d83f3](https://github.com/lightdash/lightdash/commit/e4d83f3a9ec8c2f9488d63cc8fdbbe5784d241cb))
+
+# [0.1014.0](https://github.com/lightdash/lightdash/compare/0.1013.1...0.1014.0) (2024-02-26)
+
+
+### Features
+
+* add search createdBy filter ([#9090](https://github.com/lightdash/lightdash/issues/9090)) ([c46e4bb](https://github.com/lightdash/lightdash/commit/c46e4bb17f677f9211af568242ba08326a2d65a8))
+
+## [0.1013.1](https://github.com/lightdash/lightdash/compare/0.1013.0...0.1013.1) (2024-02-26)
+
+
+### Bug Fixes
+
+* explicitly close description popover when menu clicked ([#9092](https://github.com/lightdash/lightdash/issues/9092)) ([c7b533c](https://github.com/lightdash/lightdash/commit/c7b533c55be4788db74fc02849007c6faf05ce73))
+
 # [0.1013.0](https://github.com/lightdash/lightdash/compare/0.1012.0...0.1013.0) (2024-02-23)
 
 

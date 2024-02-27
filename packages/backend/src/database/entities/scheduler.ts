@@ -29,6 +29,7 @@ export type SchedulerDb = {
     custom_viewport_width: number | null;
     thresholds: string | null;
     enabled: boolean;
+    notification_frequency: string | null;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {
@@ -73,6 +74,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'filters'
           | 'custom_viewport_width'
           | 'thresholds'
+          | 'notification_frequency'
       >
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>
 >;

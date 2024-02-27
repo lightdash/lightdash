@@ -94,7 +94,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Comment.text-or-replyTo_': {
+    'Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -108,6 +108,12 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                mentions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                textHtml: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -5784,7 +5790,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'Pick_Comment.text-or-replyTo_',
+                    ref: 'Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_',
                 },
             };
 

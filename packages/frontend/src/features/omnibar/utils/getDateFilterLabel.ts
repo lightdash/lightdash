@@ -25,5 +25,5 @@ export function getDateFilterLabel(filters: SearchFilters = {}) {
         )}`;
     }
 
-    return 'All time';
+    return 'Date';
 }

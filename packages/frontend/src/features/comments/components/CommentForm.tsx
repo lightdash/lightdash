@@ -1,15 +1,30 @@
 import { Comment } from '@lightdash/common';
-import { Avatar, Button, Grid, Group, Stack, Textarea } from '@mantine/core';
+import { Avatar, Button, Grid, Group, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC } from 'react';
+import { Editor, JSONContent } from '@tiptap/react';
+import { FC, useMemo, useState } from 'react';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
+import { CommentWithMentions } from './CommentWithMentions';
 
 type Props = {
     userName: string;
-    onSubmit: (text: string) => Promise<null>;
+    onSubmit: (text: string, html: string, mentions: string[]) => Promise<null>;
     isSubmitting: boolean;
     onCancel?: () => void;
     mode?: 'reply' | 'new';
+};
+
+const parseMentions = (data: JSONContent): string[] => {
+    const mentions = (data.content || []).flatMap(parseMentions);
+    if (data.type === 'mention' && data.attrs?.id) {
+        mentions.push(data.attrs.id);
+    }
+
+    const uniqueMentions = [...new Set(mentions)];
+
+    return uniqueMentions;
 };
 
 export const CommentForm: FC<Props> = ({
@@ -19,25 +34,35 @@ export const CommentForm: FC<Props> = ({
     onCancel,
     mode = 'new',
 }) => {
-    const commentForm = useForm<Pick<Comment, 'text' | 'replyTo'>>({
+    const { data: listUsers, isSuccess } = useOrganizationUsers();
+    let userNames: SuggestionsItem[] = useMemo(
+        () =>
+            listUsers?.map((user) => ({
+                label: user.firstName + ' ' + user.lastName,
+                id: user.userUuid,
+            })) || [],
+
+        [listUsers],
+    );
+
+    const [shouldClearEditor, setShouldClearEditor] = useState(false);
+    const [editor, setEditor] = useState<Editor | null>(null);
+
+    const commentForm = useForm<Pick<Comment, 'replyTo'>>({
         initialValues: {
-            text: '',
             replyTo: '',
-        },
-        validate: {
-            text: (value) => {
-                if (value.trim() === '') {
-                    return 'Comment cannot be empty';
-                }
-                return null;
-            },
         },
     });
 
-    const handleSubmit = commentForm.onSubmit(async ({ text }) => {
-        await onSubmit(text);
+    const handleSubmit = commentForm.onSubmit(async () => {
+        if (editor === null || editor.getText().trim() === '') return;
 
-        commentForm.reset();
+        onSubmit(
+            editor.getText(),
+            editor.getHTML(),
+            parseMentions(editor.getJSON()),
+        );
+        setShouldClearEditor(true);
     });
 
     return (
@@ -50,15 +75,15 @@ export const CommentForm: FC<Props> = ({
                         </Avatar>
                     </Grid.Col>
                     <Grid.Col span={22}>
-                        <Textarea
-                            placeholder={
-                                mode === 'reply' ? 'Reply...' : 'Add comment...'
-                            }
-                            size="xs"
-                            radius="sm"
-                            autosize
-                            {...commentForm.getInputProps('text')}
-                        />
+                        {isSuccess && userNames && (
+                            <CommentWithMentions
+                                readonly={false}
+                                suggestions={userNames}
+                                shouldClearEditor={shouldClearEditor}
+                                setShouldClearEditor={setShouldClearEditor}
+                                onUpdate={setEditor}
+                            />
+                        )}
                     </Grid.Col>
                 </Grid>
                 <Group position="right" spacing="xs">
@@ -76,7 +101,6 @@ export const CommentForm: FC<Props> = ({
                     <Button
                         compact
                         loading={isSubmitting}
-                        disabled={commentForm.values.text === ''}
                         size="xs"
                         sx={{
                             alignSelf: 'flex-end',
