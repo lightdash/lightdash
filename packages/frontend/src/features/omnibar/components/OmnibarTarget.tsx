@@ -16,6 +16,7 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
     return (
         <Group
             px="sm"
+            spacing="sm"
             role="search"
             h={30}
             onClick={onOpen}
@@ -26,7 +27,7 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
                 sm: 200,
                 md: 250,
                 lg: 300,
-                xl: 500,
+                xl: 350,
             }}
             sx={(theme) => ({
                 [`@media (min-width: ${em(
@@ -42,6 +43,7 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
                 transition: 'all 100ms ease',
                 backgroundColor: theme.colors.dark[4],
                 '&:hover': { backgroundColor: theme.colors.dark[3] },
+                overflow: 'hidden',
             })}
         >
             <MantineIcon
@@ -52,7 +54,6 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
 
             <Text
                 style={{
-                    flexShrink: 0,
                     flexGrow: 1,
                     position: 'relative',
                     top: 1,
@@ -60,6 +61,7 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
                 }}
                 color="dark.0"
                 size="xs"
+                truncate
             >
                 {placeholder}
             </Text>

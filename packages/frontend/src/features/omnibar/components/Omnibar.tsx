@@ -4,6 +4,7 @@ import {
     SearchItemType,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Input,
     Loader,
     MantineProvider,
@@ -14,7 +15,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { useDebouncedValue, useDisclosure, useHotkeys } from '@mantine/hooks';
-import { IconSearch } from '@tabler/icons-react';
+import { IconCircleXFilled, IconSearch } from '@tabler/icons-react';
 import { FC, MouseEventHandler, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -181,6 +182,19 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 ) : (
                                     <MantineIcon icon={IconSearch} size="lg" />
                                 )
+                            }
+                            rightSection={
+                                query ? (
+                                    <ActionIcon
+                                        onClick={() => setQuery('')}
+                                        color="gray.5"
+                                    >
+                                        <MantineIcon
+                                            icon={IconCircleXFilled}
+                                            size="lg"
+                                        />
+                                    </ActionIcon>
+                                ) : null
                             }
                             placeholder={`Search ${
                                 projectData?.name ?? 'in your project'
