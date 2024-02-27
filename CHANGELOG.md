@@ -1,3 +1,10 @@
+## [0.1018.1](https://github.com/lightdash/lightdash/compare/0.1018.0...0.1018.1) (2024-02-27)
+
+
+### Bug Fixes
+
+* always use same name for search_rank, do not depend on arg ([#9124](https://github.com/lightdash/lightdash/issues/9124)) ([12adbe8](https://github.com/lightdash/lightdash/commit/12adbe86f77c8c4d4b8f115ffa36a5c7f9a3f932))
+
 # [0.1018.0](https://github.com/lightdash/lightdash/compare/0.1017.0...0.1018.0) (2024-02-27)
 
 
