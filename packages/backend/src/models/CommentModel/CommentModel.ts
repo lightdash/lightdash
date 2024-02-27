@@ -68,6 +68,7 @@ export class CommentModel {
         dashboardUuid: string,
         dashboardTileUuid: string,
         text: string,
+        textHtml: string,
         replyTo: string | null,
         user: LightdashUser,
         mentions: string[],
@@ -82,6 +83,7 @@ export class CommentModel {
         )
             .insert({
                 text,
+                text_html: textHtml,
                 dashboard_tile_uuid: dashboardTileUuid,
                 reply_to: replyTo ?? null,
                 user_uuid: user.userUuid,
@@ -152,6 +154,7 @@ export class CommentModel {
             const structuredComment: Comment = {
                 commentId: comment.comment_id,
                 text: comment.text,
+                textHtml: comment.text_html,
                 replyTo: comment.reply_to ?? undefined,
                 user: { name: `${comment.first_name} ${comment.last_name}` },
                 createdAt: comment.created_at,

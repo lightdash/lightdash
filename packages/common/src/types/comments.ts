@@ -1,6 +1,7 @@
 export type Comment = {
     commentId: string;
     text: string;
+    textHtml: string;
     createdAt: Date;
     user: {
         name: string;
