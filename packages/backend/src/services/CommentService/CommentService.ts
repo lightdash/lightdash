@@ -81,7 +81,7 @@ export class CommentService {
             userId: user.userUuid,
             properties: {
                 dashboardUuid,
-                tileUuid: dashboardTileUuid,
+                dashboardTileUuid,
                 isReply: !!replyTo,
                 hasMention: mentions.length > 0,
             },
@@ -168,7 +168,7 @@ export class CommentService {
             userId: user.userUuid,
             properties: {
                 isReply: !!comment.replyTo,
-                tileUuid: comment.dashboardTileUuid,
+                dashboardTileUuid: comment.dashboardTileUuid,
                 dashboardUuid,
                 isOwner: comment.userUuid === user.userUuid,
                 hasMention: comment.mentions.length > 0,
@@ -218,7 +218,7 @@ export class CommentService {
             userId: user.userUuid,
             properties: {
                 isReply: !!comment.replyTo,
-                tileUuid: comment.dashboardTileUuid,
+                dashboardTileUuid: comment.dashboardTileUuid,
                 dashboardUuid,
                 isOwner: comment.userUuid === user.userUuid,
                 hasMention: comment.mentions.length > 0,

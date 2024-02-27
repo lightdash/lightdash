@@ -738,7 +738,7 @@ export type CommentsEvent = BaseTrack & {
     event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
     userId: string;
     properties: {
-        tileUuid: string;
+        dashboardTileUuid: string;
         dashboardUuid: string;
         isReply: boolean;
         hasMention: boolean;
