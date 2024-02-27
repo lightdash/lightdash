@@ -4669,8 +4669,15 @@
                 "required": ["value", "fieldId", "operator"],
                 "type": "object"
             },
+            "NotificationFrequency": {
+                "enum": ["always", "once"],
+                "type": "string"
+            },
             "SchedulerBase": {
                 "properties": {
+                    "notificationFrequency": {
+                        "$ref": "#/components/schemas/NotificationFrequency"
+                    },
                     "enabled": {
                         "type": "boolean"
                     },
@@ -6465,7 +6472,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1013.0",
+        "version": "0.1018.4",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
