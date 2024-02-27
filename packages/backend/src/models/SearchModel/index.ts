@@ -329,8 +329,8 @@ export class SearchModel {
         );
 
         // Building regex to match any of the words in the query and then using it to match against the label and description
-        // results are sorted by the number of matches
-        const splitquery = compact(query.split(' '));
+        // results are sorted by the number of matches - we create a set out of the matches to remove duplicates
+        const splitquery = compact(Array.from(new Set(query.split(' '))));
         const splitQueryRegex = new RegExp(splitquery.join('|'), 'ig');
 
         const result = explores
@@ -340,16 +340,22 @@ export class SearchModel {
                     Object.values(explore.tables).reduce<
                         [TableSearchResult[], FieldSearchResult[]]
                     >(([tables, fields], table) => {
-                        const regexTableLabelMatches =
-                            table.label.match(splitQueryRegex);
-                        const regexTableDescriptionMatches =
-                            table.description?.match(splitQueryRegex);
+                        const regexTableLabelMatches = new Set(
+                            table.label.match(splitQueryRegex),
+                        );
+
+                        const regexTableDescriptionMatches = new Set(
+                            table.description?.match(splitQueryRegex),
+                        );
+
+                        const tableRegexMatchCount =
+                            regexTableLabelMatches.size +
+                            regexTableDescriptionMatches.size;
 
                         if (
                             shouldSearchForTables &&
                             tables.length < SEARCH_LIMIT_PER_ITEM_TYPE &&
-                            (regexTableLabelMatches ||
-                                regexTableDescriptionMatches)
+                            tableRegexMatchCount > 0
                         ) {
                             tables.push({
                                 name: table.name,
@@ -358,9 +364,7 @@ export class SearchModel {
                                 explore: explore.name,
                                 exploreLabel: explore.label,
                                 requiredAttributes: table.requiredAttributes,
-                                regexMatchCount:
-                                    (regexTableLabelMatches?.length ?? 0) +
-                                    (regexTableDescriptionMatches?.length ?? 0),
+                                regexMatchCount: tableRegexMatchCount,
                             });
                         }
 
@@ -375,16 +379,18 @@ export class SearchModel {
                                     return;
                                 }
 
-                                const regexFieldLabelMatches =
-                                    field.label.match(splitQueryRegex);
-                                const regexFieldDescriptionMatches =
-                                    field.description?.match(splitQueryRegex);
+                                const regexFieldLabelMatches = new Set(
+                                    field.label.match(splitQueryRegex),
+                                );
+                                const regexFieldDescriptionMatches = new Set(
+                                    field.description?.match(splitQueryRegex),
+                                );
 
-                                if (
-                                    !field.hidden &&
-                                    (regexFieldLabelMatches ||
-                                        regexFieldDescriptionMatches)
-                                ) {
+                                const fieldRegexMatchCount =
+                                    regexFieldLabelMatches.size +
+                                    regexFieldDescriptionMatches.size;
+
+                                if (!field.hidden && fieldRegexMatchCount > 0) {
                                     fields.push({
                                         name: field.name,
                                         label: field.label,
@@ -400,11 +406,7 @@ export class SearchModel {
                                             : undefined,
                                         tablesRequiredAttributes:
                                             field.tablesRequiredAttributes,
-                                        regexMatchCount:
-                                            (regexFieldLabelMatches?.length ??
-                                                0) +
-                                            (regexFieldDescriptionMatches?.length ??
-                                                0),
+                                        regexMatchCount: fieldRegexMatchCount,
                                     });
                                 }
                             });
