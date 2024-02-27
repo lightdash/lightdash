@@ -2,12 +2,14 @@ import { Comment } from '../comments';
 
 export type ApiCreateComment = {
     status: 'ok';
-    results: Record<string, Comment[]>;
+    results: Comment['commentId'];
 };
 
 export type ApiGetComments = {
     status: 'ok';
-    results: Record<string, Comment[]>;
+    results: {
+        [key: string]: Comment[];
+    };
 };
 
 export type ApiResolveComment = {
