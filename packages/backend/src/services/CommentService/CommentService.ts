@@ -52,7 +52,9 @@ export class CommentService {
         dashboardUuid: string,
         dashboardTileUuid: string,
         text: string,
+        textHtml: string,
         replyTo: string | null,
+        mentions: string[],
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
@@ -78,8 +80,10 @@ export class CommentService {
             dashboardUuid,
             dashboardTileUuid,
             text,
+            textHtml,
             replyTo,
             user,
+            mentions,
         );
     }
 

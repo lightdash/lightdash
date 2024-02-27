@@ -44,14 +44,17 @@ export class CommentsController extends Controller {
         @Path() dashboardUuid: string,
         @Path() dashboardTileUuid: string,
         @Request() req: express.Request,
-        @Body() body: Pick<Comment, 'text' | 'replyTo'>,
+        @Body()
+        body: Pick<Comment, 'text' | 'replyTo' | 'mentions' | 'textHtml'>,
     ): Promise<ApiCreateComment> {
         const commentId = await commentService.createComment(
             req.user!,
             dashboardUuid,
             dashboardTileUuid,
             body.text,
+            body.textHtml,
             body.replyTo ?? null,
+            body.mentions,
         );
         this.setStatus(200);
         return {
