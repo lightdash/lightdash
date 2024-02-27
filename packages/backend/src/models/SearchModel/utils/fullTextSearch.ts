@@ -9,12 +9,15 @@ export function getFullTextSearchRankCalcSql(
     return database.raw(
         `ROUND(
             ts_rank_cd(
-                ${tableName}.${searchVectorColumnName},
-                websearch_to_tsquery('lightdash_english_config', ?),
+                :searchVectorColumn:,
+                websearch_to_tsquery('lightdash_english_config', :query),
                 32
             )::numeric,
             6
         )::float`,
-        [query],
+        {
+            searchVectorColumn: `${tableName}.${searchVectorColumnName}`,
+            query,
+        },
     );
 }
