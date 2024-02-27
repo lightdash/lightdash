@@ -6,6 +6,7 @@ import {
     SpaceSummary,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { analytics } from '../../analytics/client';
 import { CommentModel } from '../../models/CommentModel/CommentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -75,6 +76,16 @@ export class CommentService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        analytics.track({
+            event: 'comment.created',
+            userId: user.userUuid,
+            properties: {
+                dashboardUuid,
+                dashboardTileUuid,
+                isReply: !!replyTo,
+                hasMention: mentions.length > 0,
+            },
+        });
 
         return this.commentModel.createComment(
             dashboardUuid,
@@ -150,6 +161,20 @@ export class CommentService {
             );
         }
 
+        const comment = await this.commentModel.getComment(commentId);
+
+        analytics.track({
+            event: 'comment.resolved',
+            userId: user.userUuid,
+            properties: {
+                isReply: !!comment.replyTo,
+                dashboardTileUuid: comment.dashboardTileUuid,
+                dashboardUuid,
+                isOwner: comment.userUuid === user.userUuid,
+                hasMention: comment.mentions.length > 0,
+            },
+        });
+
         return this.commentModel.resolveComment(commentId);
     }
 
@@ -174,13 +199,12 @@ export class CommentService {
             }),
         );
 
+        const comment = await this.commentModel.getComment(commentId);
+
         if (canRemoveAnyComment) {
             await this.commentModel.deleteComment(commentId);
         } else {
-            const commentOwner = await this.commentModel.getCommentOwner(
-                commentId,
-            );
-            const isOwner = commentOwner === user.userUuid;
+            const isOwner = comment.userUuid === user.userUuid;
 
             if (isOwner) {
                 await this.commentModel.deleteComment(commentId);
@@ -188,5 +212,17 @@ export class CommentService {
 
             throw new ForbiddenError();
         }
+
+        analytics.track({
+            event: 'comment.deleted',
+            userId: user.userUuid,
+            properties: {
+                isReply: !!comment.replyTo,
+                dashboardTileUuid: comment.dashboardTileUuid,
+                dashboardUuid,
+                isOwner: comment.userUuid === user.userUuid,
+                hasMention: comment.mentions.length > 0,
+            },
+        });
     }
 }
