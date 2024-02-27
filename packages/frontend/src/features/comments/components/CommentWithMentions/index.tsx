@@ -2,7 +2,7 @@ import { useMantineTheme } from '@mantine/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
-import { JSONContent, useEditor } from '@tiptap/react';
+import { Editor, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { FC, useEffect } from 'react';
 import { SuggestionsItem } from '../../types';
@@ -11,31 +11,16 @@ import { generateSuggestionWrapper } from './generateSuggestionWrapper';
 type Props = {
     readonly: boolean;
     suggestions?: SuggestionsItem[];
-    setCommentText?: (text: string) => void;
-    setCommentHtml?: (html: string) => void;
     content?: string;
+    onUpdate: (editor: Editor | null) => void;
     shouldClearEditor?: boolean;
     setShouldClearEditor?: (shouldClearEditor: boolean) => void;
-    setMentions?: (mentions: string[]) => void;
-};
-
-const parseMentions = (data: JSONContent): string[] => {
-    const mentions = (data.content || []).flatMap(parseMentions);
-    if (data.type === 'mention' && data.attrs?.id) {
-        mentions.push(data.attrs.id);
-    }
-
-    const uniqueMentions = [...new Set(mentions)];
-
-    return uniqueMentions;
 };
 
 export const CommentWithMentions: FC<Props> = ({
     readonly,
     suggestions,
-    setMentions,
-    setCommentText,
-    setCommentHtml,
+    onUpdate,
     content,
     shouldClearEditor,
     setShouldClearEditor,
@@ -59,10 +44,8 @@ export const CommentWithMentions: FC<Props> = ({
             }),
         ],
         content,
-        onUpdate(e) {
-            setCommentText?.(e.editor.getText());
-            setCommentHtml?.(e.editor.getHTML());
-            setMentions?.(parseMentions(e.editor.getJSON()));
+        onUpdate: () => {
+            onUpdate(editor);
         },
     });
 

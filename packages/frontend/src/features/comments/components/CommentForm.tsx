@@ -1,6 +1,7 @@
 import { Comment } from '@lightdash/common';
 import { Avatar, Button, Grid, Group, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { Editor, JSONContent } from '@tiptap/react';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { SuggestionsItem } from '../types';
@@ -13,6 +14,17 @@ type Props = {
     isSubmitting: boolean;
     onCancel?: () => void;
     mode?: 'reply' | 'new';
+};
+
+const parseMentions = (data: JSONContent): string[] => {
+    const mentions = (data.content || []).flatMap(parseMentions);
+    if (data.type === 'mention' && data.attrs?.id) {
+        mentions.push(data.attrs.id);
+    }
+
+    const uniqueMentions = [...new Set(mentions)];
+
+    return uniqueMentions;
 };
 
 export const CommentForm: FC<Props> = ({
@@ -32,12 +44,9 @@ export const CommentForm: FC<Props> = ({
 
         [listUsers],
     );
-    const [mentions, setMentions] = useState<string[]>([]);
-    console.log({ mentions });
 
-    const [commentText, setCommentText] = useState('');
-    const [commentHtml, setCommentHtml] = useState('');
     const [shouldClearEditor, setShouldClearEditor] = useState(false);
+    const [editor, setEditor] = useState<Editor | null>(null);
 
     const commentForm = useForm<Pick<Comment, 'replyTo'>>({
         initialValues: {
@@ -46,13 +55,13 @@ export const CommentForm: FC<Props> = ({
     });
 
     const handleSubmit = commentForm.onSubmit(async () => {
-        if (commentText === '') return;
+        if (editor === null || editor.getText().trim() === '') return;
 
-        // get comment text - commentText
-        // get comment html - commentHtml
-        // get mentions - mentions
-        // submit comment with these 3 values: text, html, mentions
-        // await onSubmit(commentText);
+        onSubmit(
+            editor.getText(),
+            editor.getHTML(),
+            parseMentions(editor.getJSON()),
+        );
         setShouldClearEditor(true);
     });
 
@@ -69,12 +78,10 @@ export const CommentForm: FC<Props> = ({
                         {isSuccess && userNames && (
                             <CommentWithMentions
                                 readonly={false}
-                                setCommentText={setCommentText}
-                                setCommentHtml={setCommentHtml}
                                 suggestions={userNames}
                                 shouldClearEditor={shouldClearEditor}
                                 setShouldClearEditor={setShouldClearEditor}
-                                setMentions={setMentions}
+                                onUpdate={setEditor}
                             />
                         )}
                     </Grid.Col>
