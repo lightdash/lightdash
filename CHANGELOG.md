@@ -1,3 +1,10 @@
+## [0.1018.3](https://github.com/lightdash/lightdash/compare/0.1018.2...0.1018.3) (2024-02-27)
+
+
+### Bug Fixes
+
+* use hardcoded search_rank alias ([#9125](https://github.com/lightdash/lightdash/issues/9125)) ([cc32622](https://github.com/lightdash/lightdash/commit/cc3262276eafb507a25807b648cff73ca2758b06))
+
 ## [0.1018.2](https://github.com/lightdash/lightdash/compare/0.1018.1...0.1018.2) (2024-02-27)
 
 
