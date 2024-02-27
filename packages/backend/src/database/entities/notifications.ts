@@ -10,17 +10,11 @@ export type DbNotifications = {
     // Dashboard tile comment-related fields
     comment_id: string | null;
     dashboard_uuid: string | null;
-    dashboard_tile_uuid: string | null;
-    comment_author_uuid: string | null;
 };
 
 type DbNotificationsInsert = Pick<
     DbNotifications,
-    | 'user_uuid'
-    | 'comment_id'
-    | 'dashboard_uuid'
-    | 'dashboard_tile_uuid'
-    | 'comment_author_uuid'
+    'user_uuid' | 'comment_id' | 'dashboard_uuid'
 >;
 
 type DbNotificationsUpdate = Pick<DbNotifications, 'viewed'>;

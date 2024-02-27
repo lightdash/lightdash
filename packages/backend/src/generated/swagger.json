@@ -1540,6 +1540,98 @@
             "UpdateDBProjectGroupAccess": {
                 "$ref": "#/components/schemas/Pick_DBProjectGroupAccess.role_"
             },
+            "Notification": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "viewed": {
+                        "type": "boolean"
+                    },
+                    "dashboard": {
+                        "properties": {
+                            "tileUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["tileUuid", "name", "uuid"],
+                        "type": "object"
+                    },
+                    "author": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name"],
+                        "type": "object"
+                    },
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name"],
+                        "type": "object"
+                    },
+                    "notificationId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "viewed",
+                    "author",
+                    "user",
+                    "notificationId"
+                ],
+                "type": "object"
+            },
+            "ApiNotificationsResults": {
+                "items": {
+                    "$ref": "#/components/schemas/Notification"
+                },
+                "type": "array"
+            },
+            "ApiGetNotifications": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiNotificationsResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "NotificationType": {
+                "enum": ["dashboardComments"],
+                "type": "string"
+            },
+            "ApiCreateNotification": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "Organization": {
                 "properties": {
                     "defaultProjectUuid": {
@@ -8121,6 +8213,136 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
+                "operationId": "getNotifications",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetNotifications"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets notifications for a user based on the type",
+                "tags": ["Notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "type",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/NotificationType"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/notifications/{commentId}/dashboard/{dashboardUuid}": {
+            "post": {
+                "operationId": "createNotificationForDashboardComment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateNotification"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create notification for a dashboard comment",
+                "tags": ["Notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "commentId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/notifications/{notificationId}/markAsRead": {
+            "patch": {
+                "operationId": "markNotificationAsRead",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateNotification"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Mark a notification as read",
+                "tags": ["Notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the id of the notification",
+                        "in": "path",
+                        "name": "notificationId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/org": {

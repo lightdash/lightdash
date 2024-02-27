@@ -30,6 +30,8 @@ import { GroupsController } from './../controllers/groupsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MetricFlowController } from './../controllers/metricFlowController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { NotificationsController } from './../controllers/notificationsController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationController } from './../controllers/organizationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PinningController } from './../controllers/pinningController';
@@ -1415,6 +1417,92 @@ const models: TsoaRoute.Models = {
     UpdateDBProjectGroupAccess: {
         dataType: 'refAlias',
         type: { ref: 'Pick_DBProjectGroupAccess.role_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Notification: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                createdAt: { dataType: 'datetime', required: true },
+                viewed: { dataType: 'boolean', required: true },
+                dashboard: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        tileUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        name: { dataType: 'string', required: true },
+                        uuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+                author: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        name: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                user: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        name: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                notificationId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiNotificationsResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'Notification' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetNotifications: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ApiNotificationsResults', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NotificationType: {
+        dataType: 'refEnum',
+        enums: ['dashboardComments'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCreateNotification: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Organization: {
@@ -7441,6 +7529,146 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new MetricFlowController();
 
                 const promise = controller.post.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/notifications',
+        ...fetchMiddlewares<RequestHandler>(NotificationsController),
+        ...fetchMiddlewares<RequestHandler>(
+            NotificationsController.prototype.getNotifications,
+        ),
+
+        function NotificationsController_getNotifications(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                type: {
+                    in: 'query',
+                    name: 'type',
+                    required: true,
+                    ref: 'NotificationType',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new NotificationsController();
+
+                const promise = controller.getNotifications.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/notifications/:commentId/dashboard/:dashboardUuid',
+        ...fetchMiddlewares<RequestHandler>(NotificationsController),
+        ...fetchMiddlewares<RequestHandler>(
+            NotificationsController.prototype
+                .createDashboardCommentNotification,
+        ),
+
+        function NotificationsController_createDashboardCommentNotification(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                commentId: {
+                    in: 'path',
+                    name: 'commentId',
+                    required: true,
+                    dataType: 'string',
+                },
+                dashboardUuid: {
+                    in: 'path',
+                    name: 'dashboardUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new NotificationsController();
+
+                const promise =
+                    controller.createDashboardCommentNotification.apply(
+                        controller,
+                        validatedArgs as any,
+                    );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.patch(
+        '/api/v1/notifications/:notificationId/markAsRead',
+        ...fetchMiddlewares<RequestHandler>(NotificationsController),
+        ...fetchMiddlewares<RequestHandler>(
+            NotificationsController.prototype.markNotificationAsRead,
+        ),
+
+        function NotificationsController_markNotificationAsRead(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                notificationId: {
+                    in: 'path',
+                    name: 'notificationId',
+                    required: true,
+                    dataType: 'string',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new NotificationsController();
+
+                const promise = controller.markNotificationAsRead.apply(
                     controller,
                     validatedArgs as any,
                 );
