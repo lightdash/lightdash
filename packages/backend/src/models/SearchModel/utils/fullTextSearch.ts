@@ -1,13 +1,14 @@
 import { Knex } from 'knex';
 
+export const SEARCH_RANK_COLUMN_NAME = 'search_rank';
+
 export function getFullTextSearchRankCalcSql(
     database: Knex,
     tableName: string,
     searchVectorColumnName: string,
     query: string,
-    searchRankColumnName = 'search_rank',
 ) {
-    const searchRankRawSql = database.raw(
+    return database.raw(
         `ROUND(
             ts_rank_cd(
                 ${tableName}.${searchVectorColumnName},
@@ -15,12 +16,7 @@ export function getFullTextSearchRankCalcSql(
                 32
             )::numeric,
             6
-        )::float as ${searchRankColumnName}`,
+        )::float as ${SEARCH_RANK_COLUMN_NAME}`,
         [query],
     );
-
-    return {
-        searchRankRawSql,
-        searchRankColumnName,
-    };
 }
