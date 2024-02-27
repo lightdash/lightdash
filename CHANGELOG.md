@@ -1,3 +1,10 @@
+## [0.1018.2](https://github.com/lightdash/lightdash/compare/0.1018.1...0.1018.2) (2024-02-27)
+
+
+### Bug Fixes
+
+* upgrade warehouse packages 2 ([#9118](https://github.com/lightdash/lightdash/issues/9118)) ([4f14241](https://github.com/lightdash/lightdash/commit/4f14241c63e3dd076eb365103246d13c89a388f5))
+
 ## [0.1018.1](https://github.com/lightdash/lightdash/compare/0.1018.0...0.1018.1) (2024-02-27)
 
 
