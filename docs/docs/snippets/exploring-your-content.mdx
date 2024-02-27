@@ -1,7 +1,9 @@
 import HomeButton from './assets/home-button.png';
 import HomePage from './assets/home-page.png';
 import BrowseButton from './assets/browse-button.png';
-import SearchBar from './assets/search-bar.png';
+import SearchBar from './assets/search-bar.gif';
+import SearchFilters from './assets/search-filters.gif';
+import SearchGroups from './assets/search-groups.gif';
 import ExploreFromHere from './assets/explore-from-here.jpg';
 import SelectTable from './assets/select-table.jpg';
 import UnderlyingData from './assets/underlying-data.jpg';
@@ -25,11 +27,23 @@ You can also browse the lists of all of the saved charts, dashboards, and Spaces
 
 ## Using the search bar
 
-If you already know what you're looking for, then you can use the search bar to search through all of the content in your Lightdash project. Just click on `search` in the navbar, or click `cmd + K` to open the search bar.
+If you already know what you're looking for, you can use the search bar to search through all the content in your Lightdash project. Just click on the search bar at the top of your screen, or press `Cmd + K` (Mac) or `Ctrl + K` (Windows, Linux) to open the search bar.
 
-<img src={SearchBar} width="980" height="260" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={SearchBar} />
 
-This global search matches content from everywhere in the project: dashboard names, field descriptions, table names, saved chart descriptions, etc.
+This global search feature matches content from everywhere in the project. You can search for dashboards, charts, spaces, tables, and fields by their names and descriptions. It is now more powerful, with the ability to filter results and group them for easier navigation.
+
+### Search filters
+
+Enhance your search experience by applying filters directly in the search bar. Specify what you're looking for by content type, and narrow down results by dates, either by choosing a range (e.g., "from: January 10, 2024, to: January 20, 2024") or a single date ("from: January 10, 2024"). You can also filter results by the creator of the content, making it easier to find items created by specific team members.
+
+<img src={SearchFilters} />
+
+### Search groups
+
+Search results are organized into groups, making navigation through the findings simpler. Items within each group are sorted by their relevance to your query, ensuring that the most pertinent results are always easy to find. This organization aids in quickly identifying the exact type of content you're searching for, whether it be a chart, dashboard, or any other entity within your project.
+
+<img src={SearchGroups} />
 
 ## Exploring data in a chart
 
