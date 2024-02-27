@@ -14,22 +14,15 @@ export async function up(knex: Knex): Promise<void> {
             .defaultTo(knex.raw('uuid_generate_v4()'));
         table.uuid('user_uuid').notNullable();
         table.uuid('comment_id').notNullable().index();
-        table.uuid('comment_author_uuid').notNullable().index();
         table.uuid('dashboard_uuid').notNullable();
         table.boolean('viewed').notNullable().defaultTo(false);
         table
             .timestamp('created_at', { useTz: false })
             .notNullable()
             .defaultTo(knex.fn.now());
-        table.uuid('dashboard_tile_uuid').index();
 
         table
             .foreign('user_uuid')
-            .references('user_uuid')
-            .inTable(usersTable)
-            .onDelete('CASCADE');
-        table
-            .foreign('comment_author_uuid')
             .references('user_uuid')
             .inTable(usersTable)
             .onDelete('CASCADE');
