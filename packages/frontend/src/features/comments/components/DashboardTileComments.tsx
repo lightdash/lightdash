@@ -85,7 +85,7 @@ export const DashboardTileComments: FC<
                                 dashboardUuid,
                                 dashboardTileUuid,
                                 text,
-                                // TODO: html,
+                                html,
                                 mentions,
                             })
                         }

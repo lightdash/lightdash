@@ -7,6 +7,7 @@ type CreateDashboardTileComment = {
     dashboardUuid: string;
     dashboardTileUuid: string;
     text: string;
+    html: string;
     replyTo?: string;
     mentions: string[];
 };
@@ -15,6 +16,7 @@ const createDashboardTileComment = async ({
     dashboardUuid,
     dashboardTileUuid,
     text,
+    html,
     replyTo,
     mentions,
 }: CreateDashboardTileComment) =>
@@ -23,6 +25,7 @@ const createDashboardTileComment = async ({
         method: 'POST',
         body: JSON.stringify({
             text,
+            html,
             replyTo,
             mentions,
         }),
@@ -55,6 +58,7 @@ const getDashboardComments = async ({
     });
 
 export const useGetComments = (dashboardUuid: string, enabled: boolean) => {
+    // TODO: update ApiCommentsResults to include the html
     return useQuery<ApiCommentsResults, ApiError>(
         ['comments', dashboardUuid],
         () => getDashboardComments({ dashboardUuid }),

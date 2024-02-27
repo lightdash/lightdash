@@ -12,7 +12,7 @@ type Props = {
     readonly: boolean;
     suggestions?: SuggestionsItem[];
     content?: string;
-    onUpdate: (editor: Editor | null) => void;
+    onUpdate?: (editor: Editor | null) => void;
     shouldClearEditor?: boolean;
     setShouldClearEditor?: (shouldClearEditor: boolean) => void;
 };

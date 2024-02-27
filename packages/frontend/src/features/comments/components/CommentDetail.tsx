@@ -70,7 +70,7 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                         </Group>
                     </Group>
                     <Box fz="xs" mb="xs">
-                        <CommentWithMentions readonly content={comment.text} />
+                        <CommentWithMentions readonly content={comment.html} />
                     </Box>
                 </Grid.Col>
             </Grid>
