@@ -1,5 +1,6 @@
 import { ApiError } from '@lightdash/common';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { ComponentProps } from 'react';
 import {
     createMetricFlowQuery,
     CreateMetricFlowQueryResponse,
@@ -8,15 +9,18 @@ import {
     QueryStatus,
     TimeGranularity,
 } from '../../../api/MetricFlowAPI';
+import Table from '../../../components/common/Table';
 
 type ApiRequestsState = Pick<
     ReturnType<typeof useQuery<GetMetricFlowQueryResultsResponse, ApiError>>,
-    'isLoading' | 'data' | 'error' | 'status'
+    'isLoading' | 'data' | 'error'
 > &
     Pick<
         ReturnType<typeof useQuery<CreateMetricFlowQueryResponse, ApiError>>,
         'refetch'
-    >;
+    > & {
+        status: ComponentProps<typeof Table>['status'];
+    };
 
 const useMetricFlowQueryResults = (
     projectUuid: string | undefined,
@@ -90,6 +94,17 @@ const useMetricFlowQueryResults = (
             },
             data: undefined,
             status: 'error',
+            refetch: metricFlowQuery.refetch,
+        };
+    }
+
+    const isIdle = !metricFlowQuery.isFetched && !metricFlowQuery.isFetching;
+    if (isIdle) {
+        return {
+            isLoading: false,
+            error: null,
+            data: undefined,
+            status: 'idle',
             refetch: metricFlowQuery.refetch,
         };
     }

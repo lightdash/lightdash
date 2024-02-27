@@ -2,15 +2,16 @@ import { ApiError } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { FC, useMemo, useState } from 'react';
+import { ComponentProps, FC, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import CollapsableCard from '../../../components/common/CollapsableCard';
 import MantineIcon from '../../../components/common/MantineIcon';
+import Table from '../../../components/common/Table';
 import MetricFlowSqlCode from './MetricFlowSqlCode';
 
 interface Props {
     projectUuid: string;
-    status: ReturnType<typeof useQuery>['status'];
+    status: ComponentProps<typeof Table>['status'];
     sql: string | null | undefined;
     error: ReturnType<typeof useQuery<any, ApiError>>['error'];
     canRedirectToSqlRunner: boolean | undefined;
