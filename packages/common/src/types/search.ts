@@ -40,6 +40,7 @@ export type TableSearchResult = Pick<
 > & {
     explore: string;
     exploreLabel: string;
+    regexMatchCount: number;
 };
 
 export type TableErrorSearchResult = Pick<
@@ -68,6 +69,7 @@ export type FieldSearchResult = Pick<
     >;
     explore: string;
     exploreLabel: string;
+    regexMatchCount: number;
 };
 
 type PageResult = {
