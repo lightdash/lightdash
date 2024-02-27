@@ -18,8 +18,9 @@ import {
     IconRectangle,
     IconTable,
     IconUser,
+    IconX,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useMemo } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { allSearchItemTypes } from '../types/searchItem';
@@ -77,6 +78,15 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
     const [isDateMenuOpen, dateMenuHandlers] = useDisclosure(false);
     const [isCreatedByMenuOpen, createdByMenuHelpers] = useDisclosure(false);
     const { data: organizationUsers } = useOrganizationUsers();
+
+    const canClearFilters = useMemo(() => {
+        return (
+            filters?.type ||
+            filters?.fromDate ||
+            filters?.toDate ||
+            filters?.createdByUuid
+        );
+    }, [filters]);
 
     return (
         <Group px="md" py="sm">
@@ -255,6 +265,22 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     />
                 </Menu.Dropdown>
             </Menu>
+
+            {canClearFilters && (
+                <Button
+                    compact
+                    variant="subtle"
+                    ml="auto"
+                    radius="xl"
+                    size="xs"
+                    leftIcon={<MantineIcon icon={IconX} size="sm" />}
+                    onClick={() => {
+                        onSearchFilterChange({});
+                    }}
+                >
+                    Clear filters
+                </Button>
+            )}
         </Group>
     );
 };
