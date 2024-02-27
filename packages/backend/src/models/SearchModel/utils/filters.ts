@@ -39,10 +39,10 @@ export function filterByCreatedAt<T extends {}, R>(
             throw new ParameterError('fromDate cannot be in the future');
         }
 
-        filteredQuery.whereRaw(
-            `Date(${tableName}.created_at) >= ?`,
-            fromDateObj.startOf('day').toDate(),
-        );
+        filteredQuery.whereRaw('Date(:createdAtColumn:) >= :date', {
+            createdAtColumn: `${tableName}.created_at`,
+            date: fromDateObj.startOf('day').toDate(),
+        });
     }
 
     if (toDateObj) {
@@ -54,10 +54,10 @@ export function filterByCreatedAt<T extends {}, R>(
             throw new ParameterError('toDate cannot be in the future');
         }
 
-        filteredQuery.whereRaw(
-            `Date(${tableName}.created_at) <= ?`,
-            toDateObj.endOf('day').toDate(),
-        );
+        filteredQuery.whereRaw('Date(:createdAtColumn:) <= :date', {
+            createdAtColumn: `${tableName}.created_at`,
+            date: toDateObj.endOf('day').toDate(),
+        });
     }
 
     return filteredQuery;

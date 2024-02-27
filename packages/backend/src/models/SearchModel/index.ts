@@ -33,10 +33,7 @@ import {
     filterByCreatedByUuid,
     shouldSearchForType,
 } from './utils/filters';
-import {
-    getFullTextSearchRankCalcSql,
-    SEARCH_RANK_COLUMN_NAME,
-} from './utils/fullTextSearch';
+import { getFullTextSearchRankCalcSql } from './utils/fullTextSearch';
 
 type ModelDependencies = {
     database: Knex;
@@ -71,9 +68,11 @@ export class SearchModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .column({ uuid: 'space_uuid' }, 'spaces.name', searchRankRawSql)
+            .column({ uuid: 'space_uuid' }, 'spaces.name', {
+                search_rank: searchRankRawSql,
+            })
             .where('projects.project_uuid', projectUuid)
-            .orderBy(SEARCH_RANK_COLUMN_NAME, 'desc');
+            .orderBy('search_rank', 'desc');
 
         subquery = filterByCreatedAt(SpaceTableName, subquery, filters);
         subquery = filterByCreatedByUuid(
@@ -93,7 +92,7 @@ export class SearchModel {
         return this.database(SpaceTableName)
             .select()
             .from(subquery.as('spaces_with_rank'))
-            .where(SEARCH_RANK_COLUMN_NAME, '>', 0)
+            .where('search_rank', '>', 0)
             .limit(10);
     }
 
@@ -129,10 +128,10 @@ export class SearchModel {
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { spaceUuid: 'space_uuid' },
-                searchRankRawSql,
+                { search_rank: searchRankRawSql },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .orderBy(SEARCH_RANK_COLUMN_NAME, 'desc');
+            .orderBy('search_rank', 'desc');
 
         subquery = filterByCreatedAt(DashboardsTableName, subquery, filters);
         subquery = filterByCreatedByUuid(
@@ -153,7 +152,7 @@ export class SearchModel {
         const dashboards = await this.database(DashboardsTableName)
             .select()
             .from(subquery.as('dashboards_with_rank'))
-            .where(SEARCH_RANK_COLUMN_NAME, '>', 0)
+            .where('search_rank', '>', 0)
             .limit(10);
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
@@ -221,10 +220,10 @@ export class SearchModel {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
                 { spaceUuid: 'space_uuid' },
-                searchRankRawSql,
+                { search_rank: searchRankRawSql },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .orderBy(SEARCH_RANK_COLUMN_NAME, 'desc');
+            .orderBy('search_rank', 'desc');
 
         subquery = filterByCreatedAt(SavedChartsTableName, subquery, filters);
         subquery = filterByCreatedByUuid(
@@ -239,7 +238,7 @@ export class SearchModel {
         const savedCharts = await this.database(SavedChartsTableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
-            .where(SEARCH_RANK_COLUMN_NAME, '>', 0)
+            .where('search_rank', '>', 0)
             .limit(10);
 
         const chartUuids = savedCharts.map((chart) => chart.uuid);
