@@ -1,3 +1,10 @@
+# [0.1018.0](https://github.com/lightdash/lightdash/compare/0.1017.0...0.1018.0) (2024-02-27)
+
+
+### Features
+
+* send once option for threshold alerts ([#9089](https://github.com/lightdash/lightdash/issues/9089)) ([bed8230](https://github.com/lightdash/lightdash/commit/bed82307693a72ccffe1406d6fd3e40121c7bdc8))
+
 # [0.1017.0](https://github.com/lightdash/lightdash/compare/0.1016.0...0.1017.0) (2024-02-27)
 
 
