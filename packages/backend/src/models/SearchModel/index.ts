@@ -17,7 +17,6 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { compact, escapeRegExp } from 'lodash';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -34,7 +33,11 @@ import {
     filterByCreatedByUuid,
     shouldSearchForType,
 } from './utils/filters';
-import { getFullTextSearchRankCalcSql } from './utils/fullTextSearch';
+import {
+    getFullTextSearchRankCalcSql,
+    getRegexFromUserQuery,
+    getTableOrFieldMatchCount,
+} from './utils/search';
 
 type ModelDependencies = {
     database: Knex;
@@ -330,37 +333,21 @@ export class SearchModel {
 
         // Building regex to match any of the words in the query and then using it to match against the label and description
         // results are sorted by the number of matches - we create a set out of the matches to remove duplicates
-        const sanitizedQuery = escapeRegExp(query);
-        const splitQuery = compact(
-            Array.from(new Set(sanitizedQuery.split(' '))),
-        );
+        const queryRegex = getRegexFromUserQuery(query);
 
-        const splitQueryRegex = new RegExp(splitQuery.join('|'), 'ig');
-
-        const result = explores
+        const [unsortedTables, unsortedFields] = explores
             .filter((explore) => !isExploreError(explore))
             .reduce<[TableSearchResult[], FieldSearchResult[]]>(
                 (acc, explore) =>
                     Object.values(explore.tables).reduce<
                         [TableSearchResult[], FieldSearchResult[]]
                     >(([tables, fields], table) => {
-                        const regexTableLabelMatches = new Set(
-                            table.label.match(splitQueryRegex),
+                        const tableRegexMatchCount = getTableOrFieldMatchCount(
+                            queryRegex,
+                            table,
                         );
 
-                        const regexTableDescriptionMatches = new Set(
-                            table.description?.match(splitQueryRegex),
-                        );
-
-                        const tableRegexMatchCount =
-                            regexTableLabelMatches.size +
-                            regexTableDescriptionMatches.size;
-
-                        if (
-                            shouldSearchForTables &&
-                            tables.length < SEARCH_LIMIT_PER_ITEM_TYPE &&
-                            tableRegexMatchCount > 0
-                        ) {
+                        if (shouldSearchForTables && tableRegexMatchCount > 0) {
                             tables.push({
                                 name: table.name,
                                 label: table.label,
@@ -377,22 +364,11 @@ export class SearchModel {
                                 ...Object.values(table.dimensions),
                                 ...Object.values(table.metrics),
                             ].forEach((field) => {
-                                if (
-                                    fields.length >= SEARCH_LIMIT_PER_ITEM_TYPE
-                                ) {
-                                    return;
-                                }
-
-                                const regexFieldLabelMatches = new Set(
-                                    field.label.match(splitQueryRegex),
-                                );
-                                const regexFieldDescriptionMatches = new Set(
-                                    field.description?.match(splitQueryRegex),
-                                );
-
                                 const fieldRegexMatchCount =
-                                    regexFieldLabelMatches.size +
-                                    regexFieldDescriptionMatches.size;
+                                    getTableOrFieldMatchCount(
+                                        queryRegex,
+                                        field,
+                                    );
 
                                 if (!field.hidden && fieldRegexMatchCount > 0) {
                                     fields.push({
@@ -421,14 +397,13 @@ export class SearchModel {
                 [[], []],
             );
 
-        const [unsortedTables, unsortedFields] = result;
-        const sortedTables = unsortedTables.sort(
-            (a, b) => b.regexMatchCount - a.regexMatchCount,
-        );
+        const sortedTables = unsortedTables
+            .sort((a, b) => b.regexMatchCount - a.regexMatchCount)
+            .slice(0, SEARCH_LIMIT_PER_ITEM_TYPE);
 
-        const sortedFields = unsortedFields.sort(
-            (a, b) => b.regexMatchCount - a.regexMatchCount,
-        );
+        const sortedFields = unsortedFields
+            .sort((a, b) => b.regexMatchCount - a.regexMatchCount)
+            .slice(0, SEARCH_LIMIT_PER_ITEM_TYPE);
 
         return [sortedTables, sortedFields];
     }
