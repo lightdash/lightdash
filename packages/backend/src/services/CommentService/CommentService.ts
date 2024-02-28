@@ -200,6 +200,7 @@ export class CommentService {
         );
 
         const comment = await this.commentModel.getComment(commentId);
+
         if (canRemoveAnyComment) {
             await this.commentModel.deleteComment(commentId);
         } else {
