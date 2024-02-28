@@ -10,6 +10,7 @@ import {
     groupsModel,
     inviteLinkModel,
     jobModel,
+    notificationsModel,
     onboardingModel,
     openIdIdentityModel,
     organizationAllowedEmailDomainsModel,
@@ -43,6 +44,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
@@ -240,4 +242,10 @@ export const commentService = new CommentService({
     dashboardModel,
     spaceModel,
     commentModel,
+    notificationsModel,
+    userModel,
+});
+
+export const notificationsService = new NotificationsService({
+    notificationsModel,
 });

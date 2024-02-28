@@ -128,6 +128,7 @@ export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/integrations';
+export * from './types/api/notifications';
 export * from './types/api/share';
 export * from './types/api/success';
 export * from './types/api/uuid';
