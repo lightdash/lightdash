@@ -1,13 +1,13 @@
 import {
     ApiNotificationResourceType,
     ApiNotificationUpdateParams,
+    Comment,
     Dashboard,
     DashboardTile,
     LightdashUser,
     NotificationDashboardComment,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { DbDashboardTileComments } from '../../database/entities/comments';
 import {
     DbNotificationResourceType,
     NotificationsTableName,
@@ -28,7 +28,7 @@ export class NotificationsModel {
         userUuid: string,
     ): Promise<NotificationDashboardComment[]> {
         const notifications = await this.database(NotificationsTableName)
-            .select(`*`)
+            .select()
             .where(`${NotificationsTableName}.user_uuid`, userUuid)
             .andWhere(
                 `${NotificationsTableName}.resource_type`,
@@ -67,7 +67,7 @@ export class NotificationsModel {
     async createDashboardCommentNotification(
         userUuid: string,
         commentAuthor: LightdashUser,
-        comment: DbDashboardTileComments,
+        comment: Comment,
         dashboard: Dashboard,
         dashboardTile: DashboardTile | undefined,
     ) {
@@ -77,7 +77,7 @@ export class NotificationsModel {
                     if (mentionUserUuid !== userUuid) {
                         await this.database(NotificationsTableName).insert({
                             user_uuid: mentionUserUuid,
-                            resource_uuid: comment.comment_id,
+                            resource_uuid: comment.commentId,
                             resource_type:
                                 DbNotificationResourceType.DashboardComments,
                             message: `You were mentioned in a comment by ${

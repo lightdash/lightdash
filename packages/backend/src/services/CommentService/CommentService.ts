@@ -123,7 +123,7 @@ export class CommentService {
             );
 
             const commentAuthor = await this.userModel.getUserDetailsByUuid(
-                comment.user_uuid,
+                user.userUuid,
             );
 
             await this.notificationsModel.createDashboardCommentNotification(
@@ -135,7 +135,7 @@ export class CommentService {
             );
         }
 
-        return comment.comment_id;
+        return comment.commentId;
     }
 
     async findCommentsForDashboard(

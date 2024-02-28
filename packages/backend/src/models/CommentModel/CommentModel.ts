@@ -150,7 +150,7 @@ export class CommentModel {
         replyTo: string | null,
         user: LightdashUser,
         mentions: string[],
-    ): Promise<DbDashboardTileComments> {
+    ): Promise<Comment> {
         const { savedChartUuid } =
             await this.checkDashboardTileExistsInDashboard(
                 dashboardUuid,
@@ -168,7 +168,18 @@ export class CommentModel {
             })
             .returning('*');
 
-        return comment;
+        return {
+            commentId: comment.comment_id,
+            text: comment.text,
+            textHtml: comment.text_html,
+            replyTo: comment.reply_to ?? undefined,
+            user: { name: `${user.firstName} ${user.lastName}` },
+            createdAt: comment.created_at,
+            resolved: comment.resolved,
+            replies: [],
+            canRemove: true,
+            mentions: comment.mentions,
+        };
     }
 
     async findCommentsForDashboard(

@@ -1,6 +1,7 @@
 import {
     ApiNotificationResourceType,
     ApiNotificationUpdateParams,
+    assertUnreachable,
     Notification,
 } from '@lightdash/common';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
@@ -26,7 +27,10 @@ export class NotificationsService {
                     userUuid,
                 );
             default:
-                return [];
+                return assertUnreachable(
+                    type,
+                    `Unknown notification resource type ${type}`,
+                );
         }
     }
 
