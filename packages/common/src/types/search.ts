@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { Dashboard } from './dashboard';
 import { Table } from './explore';
 import { Dimension, Metric } from './field';
@@ -129,6 +130,30 @@ export enum SearchItemType {
     TABLE = 'table',
     FIELD = 'field',
     PAGE = 'page',
+}
+
+export function getSearchItemTypeFromResultKey(
+    searchResultKey: keyof SearchResults,
+) {
+    switch (searchResultKey) {
+        case 'spaces':
+            return SearchItemType.SPACE;
+        case 'dashboards':
+            return SearchItemType.DASHBOARD;
+        case 'savedCharts':
+            return SearchItemType.CHART;
+        case 'tables':
+            return SearchItemType.TABLE;
+        case 'fields':
+            return SearchItemType.FIELD;
+        case 'pages':
+            return SearchItemType.PAGE;
+        default:
+            return assertUnreachable(
+                searchResultKey,
+                `unexpected search result key: ${searchResultKey}`,
+            );
+    }
 }
 
 export type SearchFilters = {
