@@ -33,11 +33,17 @@ import {
     filterByCreatedByUuid,
     shouldSearchForType,
 } from './utils/filters';
-import { getFullTextSearchRankCalcSql } from './utils/fullTextSearch';
+import {
+    getFullTextSearchRankCalcSql,
+    getRegexFromUserQuery,
+    getTableOrFieldMatchCount,
+} from './utils/search';
 
 type ModelDependencies = {
     database: Knex;
 };
+
+const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
 
 export class SearchModel {
     private database: Knex;
@@ -314,7 +320,7 @@ export class SearchModel {
         query: string,
         explores: Explore[],
         filters?: SearchFilters,
-    ) {
+    ): [TableSearchResult[], FieldSearchResult[]] {
         const shouldSearchForTables = shouldSearchForType(
             SearchItemType.TABLE,
             filters?.type,
@@ -325,23 +331,23 @@ export class SearchModel {
             filters?.type,
         );
 
-        const lowerCaseQuery = query.toLowerCase();
-        return explores
+        // Building regex to match any of the words in the query and then using it to match against the label and description
+        // results are sorted by the number of matches - we create a set out of the matches to remove duplicates
+        const queryRegex = getRegexFromUserQuery(query);
+
+        const [unsortedTables, unsortedFields] = explores
             .filter((explore) => !isExploreError(explore))
             .reduce<[TableSearchResult[], FieldSearchResult[]]>(
                 (acc, explore) =>
                     Object.values(explore.tables).reduce<
                         [TableSearchResult[], FieldSearchResult[]]
                     >(([tables, fields], table) => {
-                        if (
-                            shouldSearchForTables &&
-                            (table.label
-                                .toLowerCase()
-                                .includes(lowerCaseQuery) ||
-                                table.description
-                                    ?.toLowerCase()
-                                    .includes(lowerCaseQuery))
-                        ) {
+                        const tableRegexMatchCount = getTableOrFieldMatchCount(
+                            queryRegex,
+                            table,
+                        );
+
+                        if (shouldSearchForTables && tableRegexMatchCount > 0) {
                             tables.push({
                                 name: table.name,
                                 label: table.label,
@@ -349,6 +355,7 @@ export class SearchModel {
                                 explore: explore.name,
                                 exploreLabel: explore.label,
                                 requiredAttributes: table.requiredAttributes,
+                                regexMatchCount: tableRegexMatchCount,
                             });
                         }
 
@@ -357,15 +364,13 @@ export class SearchModel {
                                 ...Object.values(table.dimensions),
                                 ...Object.values(table.metrics),
                             ].forEach((field) => {
-                                if (
-                                    !field.hidden &&
-                                    (field.label
-                                        .toLowerCase()
-                                        .includes(lowerCaseQuery) ||
-                                        field.description
-                                            ?.toLowerCase()
-                                            .includes(lowerCaseQuery))
-                                ) {
+                                const fieldRegexMatchCount =
+                                    getTableOrFieldMatchCount(
+                                        queryRegex,
+                                        field,
+                                    );
+
+                                if (!field.hidden && fieldRegexMatchCount > 0) {
                                     fields.push({
                                         name: field.name,
                                         label: field.label,
@@ -381,6 +386,7 @@ export class SearchModel {
                                             : undefined,
                                         tablesRequiredAttributes:
                                             field.tablesRequiredAttributes,
+                                        regexMatchCount: fieldRegexMatchCount,
                                     });
                                 }
                             });
@@ -390,6 +396,16 @@ export class SearchModel {
                     }, acc),
                 [[], []],
             );
+
+        const sortedTables = unsortedTables
+            .sort((a, b) => b.regexMatchCount - a.regexMatchCount)
+            .slice(0, SEARCH_LIMIT_PER_ITEM_TYPE);
+
+        const sortedFields = unsortedFields
+            .sort((a, b) => b.regexMatchCount - a.regexMatchCount)
+            .slice(0, SEARCH_LIMIT_PER_ITEM_TYPE);
+
+        return [sortedTables, sortedFields];
     }
 
     private async searchTableErrors(
