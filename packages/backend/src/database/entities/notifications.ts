@@ -2,25 +2,49 @@ import { Knex } from 'knex';
 
 export const NotificationsTableName = 'notifications';
 
-export type DbNotifications = {
+enum NotificationResourceType {
+    Comment = 'comment',
+}
+
+interface NotificationDashboardTileCommentMetadata {
+    dashboard_uuid: string;
+    dashboard_name: string;
+    dashboard_tile_uuid: string;
+    dashboard_tile_name: string;
+}
+
+type NotificationMetadataTypes = {
+    [NotificationResourceType.Comment]: NotificationDashboardTileCommentMetadata;
+};
+
+type DbNotificationBase = {
     notification_id: string;
     created_at: Date;
     viewed: boolean;
     user_uuid: string;
-    // Dashboard tile comment-related fields
-    comment_id: string | null;
-    dashboard_uuid: string | null;
+    resource_uuid: string | null;
+    message: string | null;
+    url: string | null;
 };
 
-type DbNotificationsInsert = Pick<
-    DbNotifications,
-    'user_uuid' | 'comment_id' | 'dashboard_uuid'
+type DbNotifications<T extends NotificationResourceType> =
+    DbNotificationBase & {
+        resource_type: T;
+        metadata: NotificationMetadataTypes[T] | null;
+    };
+
+type DbNotificationsInsertComment = Pick<
+    DbNotifications<NotificationResourceType.Comment>,
+    'user_uuid' | 'metadata' | 'resource_uuid' | 'message' | 'url'
 >;
 
-type DbNotificationsUpdate = Pick<DbNotifications, 'viewed'>;
+type DbNotificationsUpdate = Pick<
+    DbNotifications<NotificationResourceType>,
+    'viewed'
+>;
 
 export type NotificationsTable = Knex.CompositeTableType<
-    DbNotifications,
-    DbNotificationsInsert,
+    DbNotifications<NotificationResourceType>,
+    DbNotificationsInsertComment,
     DbNotificationsUpdate
 >;
