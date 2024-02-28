@@ -17,7 +17,7 @@ type NotificationMetadataTypes = {
     [NotificationResourceType.Comment]: NotificationDashboardTileCommentMetadata;
 };
 
-type DbNotificationBase = {
+type DbNotifications<T extends NotificationResourceType> = {
     notification_id: string;
     created_at: Date;
     viewed: boolean;
@@ -25,13 +25,9 @@ type DbNotificationBase = {
     resource_uuid: string | null;
     message: string | null;
     url: string | null;
+    resource_type: T;
+    metadata: NotificationMetadataTypes[T] | null;
 };
-
-type DbNotifications<T extends NotificationResourceType> =
-    DbNotificationBase & {
-        resource_type: T;
-        metadata: NotificationMetadataTypes[T] | null;
-    };
 
 type DbNotificationsInsertComment = Pick<
     DbNotifications<NotificationResourceType.Comment>,
