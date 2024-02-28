@@ -15,6 +15,19 @@ import {
 import { Filters, MetricFilterRule } from './filter';
 import { DateGranularity } from './timeFrames';
 
+/**
+ * If specified as a property of a metric query, is stored alongside the
+ * saved query, and ultimately may affect how the query is executed.
+ *
+ * If you greatly modify how a query strategy works, consider instead adding
+ * it as a new version (e.g InMemoryTableCalculationsV2)
+ *
+ * If no value is specified, the organization/global default is assumed.
+ */
+export enum MetricQueryStrategy {
+    InMemoryTableCalculations = 'in_memory_table_calculations',
+}
+
 export interface AdditionalMetric {
     label?: string;
     type: MetricType;
@@ -63,7 +76,8 @@ export type MetricQuery = {
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     customDimensions?: CustomDimension[];
     metadata?: {
-        hasADateDimension: Pick<CompiledDimension, 'label' | 'name'>;
+        hasADateDimension?: Pick<CompiledDimension, 'label' | 'name'>;
+        queryStrategy?: MetricQueryStrategy;
     };
 };
 export type CompiledMetricQuery = MetricQuery & {
@@ -121,7 +135,8 @@ export type MetricQueryResponse = {
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     customDimensions?: CustomDimension[];
     metadata?: {
-        hasADateDimension: Pick<CompiledDimension, 'label' | 'name'>;
+        hasADateDimension?: Pick<CompiledDimension, 'label' | 'name'>;
+        queryStrategy?: MetricQueryStrategy;
     };
 };
 

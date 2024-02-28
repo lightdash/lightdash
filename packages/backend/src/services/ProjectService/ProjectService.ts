@@ -62,6 +62,7 @@ import {
     JobStepType,
     JobType,
     MetricQuery,
+    MetricQueryStrategy,
     MetricType,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -1375,6 +1376,7 @@ export class ProjectService {
 
         if (hasADateDimension) {
             metricQueryWithDashboardOverrides.metadata = {
+                ...metricQueryWithDashboardOverrides.metadata,
                 hasADateDimension: {
                     name: hasADateDimension.name,
                     label: hasADateDimension.label,
@@ -1747,11 +1749,12 @@ export class ProjectService {
                      *
                      * In a follow-up after initial testing, this check should be done somewhere further
                      * down the stack.
-                     *
-                     * NOTE: Temporarily removed due to Posthog outage. Will follow-up with change adding
-                     * a timeout.
                      */
-                    const newTableCalculationsFeatureFlagEnabled = false;
+                    const newTableCalculationsFeatureFlagEnabled =
+                        await isFeatureFlagEnabled(
+                            FeatureFlags.UseInMemoryTableCalculations,
+                            user,
+                        );
 
                     const useNewTableCalculationsEngine =
                         newTableCalculationsFeatureFlagEnabled &&
@@ -1820,12 +1823,25 @@ export class ProjectService {
                     ] as const;
 
                     /**
+                     * Check if this metric query should be done using the new table calculations engine.
+                     *
+                     * This is currently combined with a check for the related feature flag, allowing us to
+                     * ignore the strategy entirely if we disable the flag.
+                     */
+                    const isQueryWithTableCalculationsStrategy =
+                        metricQuery.metadata?.queryStrategy ===
+                        MetricQueryStrategy.InMemoryTableCalculations;
+
+                    /**
                      * If we're using the new table calculations engine, we're actually going to be
                      * doing two separate queries - the parent query which excludes table calculations,
                      * and a separate query that runs against the result of the parent query, exclusively
                      * to generate table calculation values, and apply table calculation filters.
                      */
-                    if (useNewTableCalculationsEngine) {
+                    if (
+                        isQueryWithTableCalculationsStrategy &&
+                        newTableCalculationsFeatureFlagEnabled
+                    ) {
                         const [parentQuery, tableCalculationsSubQuery] =
                             await ProjectService._compileMetricQueryWithNewTableCalculationsEngine(
                                 ...compileQueryArgs,

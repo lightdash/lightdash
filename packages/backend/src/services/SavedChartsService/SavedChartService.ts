@@ -10,11 +10,13 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
+    FeatureFlags,
     ForbiddenError,
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isUserWithOrg,
+    MetricQueryStrategy,
     SavedChart,
     SchedulerAndTargets,
     SchedulerFormat,
@@ -39,6 +41,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
@@ -531,6 +534,7 @@ export class SavedChartService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+
         if (
             user.ability.cannot(
                 'create',
@@ -539,6 +543,7 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
+
         if (savedChart.spaceUuid) {
             const space = await this.spaceModel.getSpaceSummary(
                 savedChart.spaceUuid,
@@ -548,11 +553,35 @@ export class SavedChartService {
             }
         }
 
+        /**
+         * If we're using the new in memory table calculations, save this version
+         * with the correct query strategy.
+         *
+         * We take extra steps here to avoid mutating the incoming metadata object,
+         * in case we're _not_ actualy using this strategy.
+         */
+        const useInMemoryTableCalculations = await isFeatureFlagEnabled(
+            FeatureFlags.UseInMemoryTableCalculations,
+            user,
+        );
+
+        let metricQueryMetadata = savedChart.metricQuery.metadata;
+        if (useInMemoryTableCalculations) {
+            metricQueryMetadata = {
+                ...(metricQueryMetadata ?? {}),
+                queryStrategy: MetricQueryStrategy.InMemoryTableCalculations,
+            };
+        }
+
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
             {
                 ...savedChart,
+                metricQuery: {
+                    ...savedChart.metricQuery,
+                    metadata: metricQueryMetadata,
+                },
                 updatedByUser: user,
             },
         );

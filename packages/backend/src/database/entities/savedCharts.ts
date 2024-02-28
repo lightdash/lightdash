@@ -7,8 +7,8 @@ import {
     CustomFormat,
     DBFieldTypes,
     MetricFilterRule,
+    MetricQueryStrategy,
     MetricType,
-    NumberSeparator,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -82,6 +82,7 @@ export type DbSavedChartVersion = {
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
     updated_by_user_uuid: string | undefined;
+    query_strategy: MetricQueryStrategy | undefined;
 };
 
 export type SavedChartVersionsTable = Knex.CompositeTableType<
@@ -99,6 +100,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'pivot_dimensions'
     | 'chart_config'
     | 'updated_by_user_uuid'
+    | 'query_strategy'
 >;
 
 type DbSavedChartVersionField = {

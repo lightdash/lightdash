@@ -988,6 +988,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricQueryStrategy: {
+        dataType: 'refEnum',
+        enums: ['in_memory_table_calculations'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricQuery: {
         dataType: 'refAlias',
         type: {
@@ -996,9 +1001,9 @@ const models: TsoaRoute.Models = {
                 metadata: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        queryStrategy: { ref: 'MetricQueryStrategy' },
                         hasADateDimension: {
                             ref: 'Pick_CompiledDimension.label-or-name_',
-                            required: true,
                         },
                     },
                 },
@@ -1157,6 +1162,7 @@ const models: TsoaRoute.Models = {
                 metadata: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        queryStrategy: { ref: 'MetricQueryStrategy' },
                         hasADateDimension: {
                             ref: 'Pick_CompiledDimension.label-or-name_',
                             required: true,
@@ -3102,9 +3108,9 @@ const models: TsoaRoute.Models = {
                 metadata: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        queryStrategy: { ref: 'MetricQueryStrategy' },
                         hasADateDimension: {
                             ref: 'Pick_CompiledDimension.label-or-name_',
-                            required: true,
                         },
                     },
                 },

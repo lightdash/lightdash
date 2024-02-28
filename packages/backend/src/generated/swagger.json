@@ -1028,15 +1028,22 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "MetricQueryStrategy": {
+                "description": "If specified as a property of a metric query, is stored alongside the\nsaved query, and ultimately may affect how the query is executed.\n\nIf you greatly modify how a query strategy works, consider instead adding\nit as a new version (e.g InMemoryTableCalculationsV2)\n\nIf no value is specified, the organization/global default is assumed.",
+                "enum": ["in_memory_table_calculations"],
+                "type": "string"
+            },
             "MetricQuery": {
                 "properties": {
                     "metadata": {
                         "properties": {
+                            "queryStrategy": {
+                                "$ref": "#/components/schemas/MetricQueryStrategy"
+                            },
                             "hasADateDimension": {
                                 "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
                             }
                         },
-                        "required": ["hasADateDimension"],
                         "type": "object"
                     },
                     "customDimensions": {
@@ -1215,6 +1222,9 @@
                 "properties": {
                     "metadata": {
                         "properties": {
+                            "queryStrategy": {
+                                "$ref": "#/components/schemas/MetricQueryStrategy"
+                            },
                             "hasADateDimension": {
                                 "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
                             }
@@ -3465,11 +3475,13 @@
                 "properties": {
                     "metadata": {
                         "properties": {
+                            "queryStrategy": {
+                                "$ref": "#/components/schemas/MetricQueryStrategy"
+                            },
                             "hasADateDimension": {
                                 "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
                             }
                         },
-                        "required": ["hasADateDimension"],
                         "type": "object"
                     },
                     "granularity": {
@@ -6529,7 +6541,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1018.4",
+        "version": "0.1018.7",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

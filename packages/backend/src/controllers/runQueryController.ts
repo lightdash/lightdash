@@ -70,6 +70,7 @@ export class RunViewChartQueryController extends Controller {
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
+            metadata: body.metadata,
         };
         const results: ApiQueryResults =
             await projectService.runUnderlyingDataQuery(
@@ -114,6 +115,7 @@ export class RunViewChartQueryController extends Controller {
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
+            metadata: body.metadata,
         };
         const results: ApiQueryResults = await projectService.runExploreQuery(
             req.user!,

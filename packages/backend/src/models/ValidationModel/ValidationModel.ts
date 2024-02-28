@@ -25,8 +25,6 @@ import {
 import {
     SavedChartsTableName,
     SavedChartTable,
-    SavedChartVersionsTable,
-    SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
 import { DbSpace, SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';

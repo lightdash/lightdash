@@ -13,6 +13,7 @@ import {
     getCustomDimensionId,
     isFormat,
     LightdashUser,
+    MetricQueryStrategy,
     NotFoundError,
     Organization,
     Project,
@@ -74,6 +75,7 @@ type DbSavedChartDetails = {
     last_name: string;
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
+    query_strategy: MetricQueryStrategy | undefined;
 };
 
 const createSavedChartVersionField = async (
@@ -140,6 +142,7 @@ const createSavedChartVersion = async (
             tableCalculations,
             additionalMetrics,
             customDimensions,
+            metadata,
         },
         chartConfig,
         tableConfig,
@@ -158,6 +161,7 @@ const createSavedChartVersion = async (
                 chart_type: chartConfig.type,
                 chart_config: chartConfig.config,
                 updated_by_user_uuid: updatedByUser?.userUuid,
+                query_strategy: metadata?.queryStrategy,
             })
             .returning('*');
         const promises: Promise<any>[] = [];
@@ -624,6 +628,7 @@ export class SavedChartModel {
                     'saved_queries_versions.created_at',
                     'saved_queries_versions.chart_config',
                     'saved_queries_versions.pivot_dimensions',
+                    'saved_queries_versions.query_strategy',
                     `${OrganizationTableName}.organization_uuid`,
                     `${OrganizationTableName}.chart_colors`,
                     `${UserTableName}.user_uuid`,
@@ -819,6 +824,13 @@ export class SavedChartModel {
                         binWidth: cd.bin_width,
                         customRange: cd.custom_range,
                     })),
+                    ...(savedQuery.query_strategy
+                        ? {
+                              metadata: {
+                                  queryStrategy: savedQuery.query_strategy,
+                              },
+                          }
+                        : {}),
                 },
                 chartConfig,
                 tableConfig: {
