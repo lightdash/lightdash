@@ -1,5 +1,8 @@
-import { NotificationResourceType } from '@lightdash/common';
 import { Knex } from 'knex';
+
+export enum DbNotificationResourceType {
+    DashboardComments = 'dashboard_comments',
+}
 
 export const NotificationsTableName = 'notifications';
 
@@ -10,11 +13,7 @@ interface NotificationDashboardTileCommentMetadata {
     dashboard_tile_name: string;
 }
 
-type NotificationMetadataTypes = {
-    [NotificationResourceType.DashboardComments]: NotificationDashboardTileCommentMetadata;
-};
-
-type DbNotifications<T extends NotificationResourceType> = {
+type DbNotifications = {
     notification_id: string;
     created_at: Date;
     viewed: boolean;
@@ -22,24 +21,21 @@ type DbNotifications<T extends NotificationResourceType> = {
     resource_uuid: string | null;
     message: string | null;
     url: string | null;
-    resource_type: T;
-    metadata: NotificationMetadataTypes[T] | null;
+    resource_type: DbNotificationResourceType;
+    metadata: NotificationDashboardTileCommentMetadata | null;
 };
 
 type DbNotificationsInsertComment = Pick<
-    DbNotifications<NotificationResourceType.DashboardComments>,
+    DbNotifications,
     'user_uuid' | 'resource_uuid' | 'resource_type' | 'message' | 'url'
 > & {
     metadata: string; // JSON string
 };
 
-type DbNotificationsUpdate = Pick<
-    DbNotifications<NotificationResourceType>,
-    'viewed'
->;
+type DbNotificationsUpdate = Pick<DbNotifications, 'viewed'>;
 
 export type NotificationsTable = Knex.CompositeTableType<
-    DbNotifications<NotificationResourceType>,
+    DbNotifications,
     DbNotificationsInsertComment,
     DbNotificationsUpdate
 >;

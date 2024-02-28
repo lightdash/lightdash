@@ -1,15 +1,17 @@
 import {
+    ApiNotificationResourceType,
     ApiNotificationUpdateParams,
     Dashboard,
     DashboardTile,
     LightdashUser,
-    Notification,
     NotificationDashboardComment,
-    NotificationResourceType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DbDashboardTileComments } from '../../database/entities/comments';
-import { NotificationsTableName } from '../../database/entities/notifications';
+import {
+    DbNotificationResourceType,
+    NotificationsTableName,
+} from '../../database/entities/notifications';
 
 type NotificationsModelDependencies = {
     database: Knex;
@@ -30,13 +32,13 @@ export class NotificationsModel {
             .where(`${NotificationsTableName}.user_uuid`, userUuid)
             .andWhere(
                 `${NotificationsTableName}.resource_type`,
-                NotificationResourceType.DashboardComments,
+                DbNotificationResourceType.DashboardComments,
             )
             .orderBy(`${NotificationsTableName}.created_at`, 'desc');
 
         return notifications.map((notif) => ({
             notificationId: notif.notification_id,
-            resourceType: notif.resource_type,
+            resourceType: ApiNotificationResourceType.DashboardComments,
             message: notif.message ?? undefined,
             url: notif.url ?? undefined,
             viewed: notif.viewed,
@@ -77,7 +79,7 @@ export class NotificationsModel {
                             user_uuid: mentionUserUuid,
                             resource_uuid: comment.comment_id,
                             resource_type:
-                                NotificationResourceType.DashboardComments,
+                                DbNotificationResourceType.DashboardComments,
                             message: `You were mentioned in a comment by ${
                                 commentAuthor.firstName
                             } ${commentAuthor.lastName} on the dashboard ${

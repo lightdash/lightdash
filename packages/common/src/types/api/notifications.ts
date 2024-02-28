@@ -1,5 +1,5 @@
-export enum NotificationResourceType {
-    DashboardComments = 'dashboard_comments',
+export enum ApiNotificationResourceType {
+    DashboardComments = 'dashboardComments',
 }
 
 interface NotificationDashboardTileCommentMetadata {
@@ -19,7 +19,7 @@ export type NotificationBase = {
 };
 
 export type NotificationDashboardComment = NotificationBase & {
-    resourceType: NotificationResourceType.DashboardComments;
+    resourceType: ApiNotificationResourceType.DashboardComments;
     metadata: NotificationDashboardTileCommentMetadata | undefined;
 };
 

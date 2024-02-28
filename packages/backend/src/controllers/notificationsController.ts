@@ -1,9 +1,9 @@
 import {
     ApiErrorPayload,
     ApiGetNotifications,
+    ApiNotificationResourceType,
     ApiNotificationUpdateParams,
     ApiSuccessEmpty,
-    NotificationResourceType,
 } from '@lightdash/common';
 import {
     Body,
@@ -40,7 +40,7 @@ export class NotificationsController extends Controller {
     @OperationId('getNotifications')
     async getNotifications(
         @Request() req: express.Request,
-        @Query() type: NotificationResourceType,
+        @Query() type: ApiNotificationResourceType,
     ): Promise<ApiGetNotifications> {
         const results = await notificationsService.getNotifications(
             req.user!.userUuid,
