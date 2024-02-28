@@ -1,37 +1,29 @@
 import { SearchItemType } from '@lightdash/common';
 import { Accordion, Text } from '@mantine/core';
-import { FC, useMemo } from 'react';
-import { SearchItem } from '../types/searchItem';
-import { SearchResultMap } from '../types/searchResultMap';
+import { FC } from 'react';
+import { FocusedItemIndex, SearchItem } from '../types/searchItem';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import OmnibarItem from './OmnibarItem';
 
 type Props = {
     openPanels: SearchItemType[];
     onOpenPanelsChange: (panels: SearchItemType[]) => void;
-    searchResults: SearchResultMap;
     projectUuid: string;
     canUserManageValidation: boolean;
     onClick: (item: SearchItem) => void;
+    focusedItemIndex?: FocusedItemIndex;
+    groupedItems: [string, SearchItem[]][];
 };
 
 const OmnibarItemGroups: FC<Props> = ({
     openPanels,
     onOpenPanelsChange,
     projectUuid,
-    searchResults,
+    groupedItems,
     canUserManageValidation,
     onClick,
+    focusedItemIndex,
 }) => {
-    const sortedGroupEntries = useMemo(() => {
-        return Object.entries(searchResults)
-            .filter(([_type, items]) => items.length > 0)
-            .sort(
-                ([_a, itemsA], [_b, itemsB]) =>
-                    (itemsB[0].searchRank ?? 0) - (itemsA[0].searchRank ?? 0),
-            );
-    }, [searchResults]);
-
     return (
         <Accordion
             styles={(theme) => ({
@@ -57,7 +49,7 @@ const OmnibarItemGroups: FC<Props> = ({
                 onOpenPanelsChange(newPanels)
             }
         >
-            {sortedGroupEntries.map(([groupType, groupItems]) => (
+            {groupedItems.map(([groupType, groupItems], groupIndex) => (
                 <Accordion.Item key={groupType} value={groupItems[0].type}>
                     <Accordion.Control>
                         <Text color="dark" fw={500} fz="xs">
@@ -66,14 +58,19 @@ const OmnibarItemGroups: FC<Props> = ({
                     </Accordion.Control>
 
                     <Accordion.Panel>
-                        {groupItems.map((item, index) => (
+                        {groupItems.map((item, itemIndex) => (
                             <OmnibarItem
-                                key={index}
+                                key={itemIndex}
                                 item={item}
                                 onClick={() => onClick(item)}
                                 projectUuid={projectUuid}
                                 canUserManageValidation={
                                     canUserManageValidation
+                                }
+                                hovered={
+                                    groupIndex ===
+                                        focusedItemIndex?.groupIndex &&
+                                    itemIndex === focusedItemIndex?.itemIndex
                                 }
                             />
                         ))}

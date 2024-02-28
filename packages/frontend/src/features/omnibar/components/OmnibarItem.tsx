@@ -37,6 +37,7 @@ type Props = {
     item: SearchItem;
     styles?: Record<string, CSSObject>;
     classNames?: Record<string, string>;
+    hovered?: boolean;
     onClick: () => void;
 };
 
@@ -52,6 +53,7 @@ const OmnibarItem: FC<Props> = ({
     classNames,
     projectUuid,
     canUserManageValidation,
+    hovered,
     onClick,
 }) => {
     const { classes } = useStyles(null, {
@@ -63,8 +65,7 @@ const OmnibarItem: FC<Props> = ({
     return (
         <Group
             role="menuitem"
-            // TODO: add back in when we have keyboard navigation
-            // data-hovered={hovered || undefined}
+            data-hovered={hovered || undefined}
             className={classes.action}
             tabIndex={-1}
             onClick={onClick}

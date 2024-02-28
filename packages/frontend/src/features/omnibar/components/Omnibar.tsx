@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, useDisclosure, useHotkeys } from '@mantine/hooks';
 import { IconCircleXFilled, IconSearch } from '@tabler/icons-react';
-import { FC, MouseEventHandler, useState } from 'react';
+import { FC, MouseEventHandler, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/Page';
@@ -25,11 +25,16 @@ import { useValidationUserAbility } from '../../../hooks/validation/useValidatio
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import useSearch, { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
-import { allSearchItemTypes, SearchItem } from '../types/searchItem';
+import {
+    allSearchItemTypes,
+    FocusedItemIndex,
+    SearchItem,
+} from '../types/searchItem';
 import { isSearchResultEmpty } from '../utils/isSearchResultEmpty';
 import OmnibarEmptyState from './OmnibarEmptyState';
 import OmnibarFilters from './OmnibarFilters';
 import OmnibarItemGroups from './OmnibarItemGroups';
+import { OmnibarKeyboardNav } from './OmnibarKeyboardNav';
 import OmnibarTarget from './OmnibarTarget';
 
 interface Props {
@@ -51,6 +56,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const [searchFilters, setSearchFilters] = useState<SearchFilters>();
     const [query, setQuery] = useState<string>();
     const [debouncedValue] = useDebouncedValue(query, 300);
+    const [focusedItemIndex, setFocusedItemIndex] =
+        useState<FocusedItemIndex>();
 
     const { data: searchResults, isFetching } = useSearch(
         projectUuid,
@@ -99,6 +106,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             },
         });
 
+        setFocusedItemIndex(undefined);
         closeOmnibar();
     };
 
@@ -136,8 +144,29 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const hasSearchResults =
         searchResults && !isSearchResultEmpty(searchResults);
 
+    const sortedGroupEntries = useMemo(() => {
+        return searchResults
+            ? Object.entries(searchResults)
+                  .filter(([_type, items]) => items.length > 0)
+                  .sort(
+                      ([_a, itemsA], [_b, itemsB]) =>
+                          (itemsB[0].searchRank ?? 0) -
+                          (itemsA[0].searchRank ?? 0),
+                  )
+            : [];
+    }, [searchResults]);
+
+    useEffect(() => {
+        setFocusedItemIndex(undefined);
+    }, [query, searchFilters]);
+
     return (
-        <>
+        <OmnibarKeyboardNav
+            groupedItems={sortedGroupEntries}
+            onEnterPressed={handleItemClick}
+            onFocusedItemChange={setFocusedItemIndex}
+            currentFocusedItemIndex={focusedItemIndex}
+        >
             <Transition
                 mounted={!isOmnibarOpen}
                 transition="fade"
@@ -242,7 +271,6 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             <OmnibarEmptyState message="No results found." />
                         ) : (
                             <OmnibarItemGroups
-                                searchResults={searchResults}
                                 projectUuid={projectUuid}
                                 canUserManageValidation={
                                     canUserManageValidation
@@ -250,12 +278,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 openPanels={openPanels}
                                 onOpenPanelsChange={setOpenPanels}
                                 onClick={handleItemClick}
+                                focusedItemIndex={focusedItemIndex}
+                                groupedItems={sortedGroupEntries}
                             />
                         )}
                     </Stack>
                 </Modal>
             </MantineProvider>
-        </>
+        </OmnibarKeyboardNav>
     );
 };
 
