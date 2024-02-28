@@ -206,7 +206,15 @@ type Action =
           >;
       };
 
+export enum ExploreMode {
+    INDEX = 'index',
+    VIEW = 'view',
+    EDIT = 'edit',
+    CREATE = 'create',
+}
+
 export interface ExplorerReduceState {
+    mode?: ExploreMode;
     shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
@@ -230,7 +238,6 @@ export interface ExplorerState extends ExplorerReduceState {
     activeFields: Set<FieldId>;
     isValidQuery: boolean;
     hasUnsavedChanges: boolean;
-    isEditMode: boolean;
     savedChart: SavedChart | undefined;
 }
 
@@ -301,6 +308,7 @@ export interface ExplorerContext {
 const Context = createContext<ExplorerContext | undefined>(undefined);
 
 const defaultState: ExplorerReduceState = {
+    mode: ExploreMode.VIEW,
     shouldFetchResults: false,
     previouslyFetchedState: undefined,
     expandedSections: [ExplorerSection.RESULTS],
@@ -1203,17 +1211,17 @@ type ConfigCacheMap = {
     [ChartType.CUSTOM]: CustomVisConfig['config'];
 };
 
-export const ExplorerProvider: FC<
-    React.PropsWithChildren<{
-        isEditMode?: boolean;
-        initialState?: ExplorerReduceState;
-        savedChart?: SavedChart;
-        queryResults: ReturnType<
-            typeof useQueryResults | typeof useChartVersionResultsMutation
-        >;
-    }>
-> = ({
-    isEditMode = false,
+type Props = {
+    mode?: ExploreMode;
+    initialState?: ExplorerReduceState;
+    savedChart?: SavedChart;
+    queryResults: ReturnType<
+        typeof useQueryResults | typeof useChartVersionResultsMutation
+    >;
+};
+
+export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
+    mode = ExploreMode.VIEW,
     initialState,
     savedChart,
     children,
@@ -1585,14 +1593,14 @@ export const ExplorerProvider: FC<
     const state = useMemo(
         () => ({
             ...reducerState,
-            isEditMode,
+            mode,
             activeFields,
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
         }),
         [
-            isEditMode,
+            mode,
             reducerState,
             activeFields,
             isValidQuery,

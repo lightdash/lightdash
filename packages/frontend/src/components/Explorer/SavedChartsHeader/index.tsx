@@ -59,7 +59,10 @@ import {
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import {
+    ExploreMode,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -121,7 +124,7 @@ const useCreatePullRequestForChartFieldsMutation = (
     /* useMutation<GitIntegrationConfiguration, ApiError>(
         ['git-integration', 'pull-request'],
         () => createPullRequestForChartFields(projectUuid, chartUuid!),
-        
+
     );*/
     const { showToastSuccess, showToastError } = useToaster();
 
@@ -163,7 +166,7 @@ const SavedChartsHeader: FC = () => {
 
     const history = useHistory();
     const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
+        (context) => context.state.mode === ExploreMode.EDIT,
     );
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,

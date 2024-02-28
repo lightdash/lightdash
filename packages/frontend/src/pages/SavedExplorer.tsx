@@ -10,6 +10,7 @@ import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
+    ExploreMode,
     ExplorerProvider,
     ExplorerSection,
 } from '../providers/ExplorerProvider';
@@ -52,8 +53,8 @@ const SavedExplorer = () => {
 
     return (
         <ExplorerProvider
+            mode={isEditMode ? ExploreMode.EDIT : ExploreMode.VIEW}
             queryResults={queryResults}
-            isEditMode={isEditMode}
             initialState={
                 data
                     ? {

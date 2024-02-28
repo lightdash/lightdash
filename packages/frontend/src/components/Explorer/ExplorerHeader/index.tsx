@@ -2,7 +2,10 @@ import { Badge, Box, Group, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { FC, memo, useEffect } from 'react';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import {
+    ExploreMode,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
@@ -13,7 +16,7 @@ import SaveChartButton from '../SaveChartButton';
 
 const ExplorerHeader: FC = memo(() => {
     const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
+        (context) => context.state.mode === ExploreMode.EDIT,
     );
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,

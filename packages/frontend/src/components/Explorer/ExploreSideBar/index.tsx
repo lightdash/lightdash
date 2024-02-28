@@ -1,3 +1,4 @@
+import { SummaryExplore } from '@lightdash/common';
 import { ActionIcon, Skeleton, Stack, TextInput } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -8,10 +9,12 @@ import {
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-
-import { SummaryExplore } from '@lightdash/common';
 import { useExplores } from '../../../hooks/useExplores';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { ProjectCatalogTreeNode } from '../../../hooks/useProjectCatalogTree';
+import {
+    ExploreMode,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -21,6 +24,7 @@ import ExplorePanel from '../ExplorePanel';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
 import ExploreGroup from './ExploreGroup';
 import ExploreNavLink from './ExploreNavLink';
+import ExploreProjectCatalog from './ExploreProjectCatalog';
 
 const LoadingSkeleton = () => (
     <Stack>
@@ -177,6 +181,7 @@ const ExploreSideBar = memo(() => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+    const mode = useExplorerContext((context) => context.state.mode);
 
     const clearExplore = useExplorerContext(
         (context) => context.actions.clearExplore,
@@ -188,10 +193,16 @@ const ExploreSideBar = memo(() => {
         history.push(`/projects/${projectUuid}/tables`);
     }, [clearExplore, history, projectUuid]);
 
+    const handleTableSelect = useCallback((node: ProjectCatalogTreeNode) => {
+        console.log(node);
+    }, []);
+
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <Stack h="100%" sx={{ flexGrow: 1 }}>
-                {!tableName ? (
+                {mode === ExploreMode.CREATE ? (
+                    <ExploreProjectCatalog onSelect={handleTableSelect} />
+                ) : !tableName ? (
                     <BasePanel />
                 ) : (
                     <ExplorePanel onBack={handleBack} />

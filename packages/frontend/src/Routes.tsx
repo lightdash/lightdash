@@ -17,7 +17,7 @@ import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
-import Explorer from './pages/Explorer';
+import ExplorerPage from './pages/Explorer';
 import Home from './pages/Home';
 import Invite from './pages/Invite';
 import JoinOrganization from './pages/JoinOrganization';
@@ -212,19 +212,17 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/tables/:tableId">
+                                    <Route
+                                        path={[
+                                            '/projects/:projectUuid/tables/:tableId',
+                                            '/projects/:projectUuid/tables',
+                                            '/projects/:projectUuid/explore/new',
+                                        ]}
+                                    >
                                         <NavBar />
+                                        {/* TODO: PageName.EXPLORE_TABLES */}
                                         <TrackPage name={PageName.EXPLORER}>
-                                            <Explorer />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/tables">
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.EXPLORE_TABLES}
-                                        >
-                                            <Explorer />
+                                            <ExplorerPage />
                                         </TrackPage>
                                     </Route>
 

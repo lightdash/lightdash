@@ -8,7 +8,10 @@ import {
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { Dispatch, FC, SetStateAction, useCallback } from 'react';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import {
+    ExploreMode,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import FilterRuleForm from '../../common/Filters/FilterRuleForm';
 import { useFiltersContext } from '../../common/Filters/FiltersProvider';
 import { addFieldRefToFilterRule } from './utils';
@@ -31,7 +34,7 @@ export const FilterForm: FC<{
     setCustomMetricFiltersWithIds,
 }) => {
     const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
+        (context) => context.state.mode === ExploreMode.EDIT,
     );
     const { fieldsMap } = useFiltersContext();
 

@@ -7,6 +7,7 @@ import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useApp } from '../../../providers/AppProvider';
 import {
+    ExploreMode,
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
@@ -23,7 +24,7 @@ import { ExplorerResults } from './ExplorerResults';
 
 const ResultsCard: FC = memo(() => {
     const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
+        (context) => context.state.mode === ExploreMode.EDIT,
     );
     const expandedSections = useExplorerContext(
         (context) => context.state.expandedSections,

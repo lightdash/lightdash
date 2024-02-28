@@ -23,6 +23,7 @@ type StyleProps = {
     withPaddedContent?: boolean;
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
+    withMode?: boolean;
     hasBanner?: boolean;
 };
 
@@ -62,6 +63,35 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                   }
                 : {}),
         },
+
+        mode: params.withMode
+            ? {
+                  position: 'fixed',
+                  width: '100%',
+                  height: containerHeight,
+                  borderWidth: '3px',
+                  borderColor: theme.colors.violet[8],
+                  borderStyle: 'solid',
+                  pointerEvents: 'none',
+              }
+            : {},
+
+        floatingModeLabel: params.withMode
+            ? {
+                  position: 'absolute',
+                  top: 0,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: theme.colors.violet[8],
+                  borderBottomLeftRadius: theme.radius.sm,
+                  borderBottomRightRadius: theme.radius.sm,
+                  color: theme.white,
+                  padding: theme.spacing.xs,
+                  fontSize: theme.fontSizes.xs,
+                  zIndex: 100,
+                  pointerEvents: 'unset',
+              }
+            : {},
 
         content: {
             paddingTop: theme.spacing.lg,
@@ -152,6 +182,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
+    withMode = undefined,
     hasBanner = false,
 
     children,
@@ -180,6 +211,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withPaddedContent,
             withSidebar: !!sidebar,
             withSidebarFooter,
+            withMode: !!withMode,
             hasBanner,
         },
         { name: 'Page' },
@@ -210,6 +242,14 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                 </Box>
 
                 {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
+
+                {withMode && (
+                    <Box className={classes.mode}>
+                        <Box className={classes.floatingModeLabel}>
+                            {withMode}
+                        </Box>
+                    </Box>
+                )}
             </Box>
         </>
     );

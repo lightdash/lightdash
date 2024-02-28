@@ -14,6 +14,7 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
 import { useApp } from '../../../providers/AppProvider';
 import {
+    ExploreMode,
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
@@ -61,7 +62,7 @@ const VisualizationCard: FC<{
         (context) => context.state.expandedSections,
     );
     const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
+        (context) => context.state.mode === ExploreMode.EDIT,
     );
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,

@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { memo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useRouteMatch } from 'react-router-dom';
 
 import { useHotkeys } from '@mantine/hooks';
 import Page from '../components/common/Page/Page';
@@ -17,12 +17,14 @@ import {
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useApp } from '../providers/AppProvider';
 import {
+    ExploreMode,
     ExplorerProvider,
     useExplorerContext,
 } from '../providers/ExplorerProvider';
 
 const ExplorerWithUrlParams = memo(() => {
     useExplorerRoute();
+    const mode = useExplorerContext((context) => context.state.mode);
     const tableId = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -37,10 +39,17 @@ const ExplorerWithUrlParams = memo(() => {
 
     return (
         <Page
-            title={data ? data?.label : 'Tables'}
+            title={
+                mode === ExploreMode.CREATE
+                    ? 'Custom Explore'
+                    : data
+                    ? data?.label
+                    : 'Tables'
+            }
             sidebar={<ExploreSideBar />}
             withFullHeight
             withPaddedContent
+            withMode={mode === ExploreMode.CREATE ? 'SQL Mode' : undefined}
             hasBanner={getIsEditingDashboardChart()}
         >
             <Explorer />
@@ -49,9 +58,16 @@ const ExplorerWithUrlParams = memo(() => {
 });
 
 const ExplorerPage = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid, tableId } = useParams<{
+        projectUuid: string;
+        tableId?: string;
+    }>();
+
+    const match = useRouteMatch('/projects/:projectUuid/explore/new');
+    const isCreatingNewExplore = match?.isExact;
 
     const explorerUrlState = useExplorerUrlState();
+
     const { user } = useApp();
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
@@ -79,7 +95,13 @@ const ExplorerPage = memo(() => {
 
     return (
         <ExplorerProvider
-            isEditMode={true}
+            mode={
+                isCreatingNewExplore
+                    ? ExploreMode.CREATE
+                    : tableId
+                    ? ExploreMode.EDIT
+                    : ExploreMode.INDEX
+            }
             initialState={explorerUrlState}
             queryResults={queryResults}
         >

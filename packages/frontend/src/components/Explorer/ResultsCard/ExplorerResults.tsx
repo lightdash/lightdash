@@ -4,7 +4,10 @@ import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import {
+    ExploreMode,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import Table from '../../common/Table';
@@ -21,7 +24,7 @@ import {
 export const ExplorerResults = memo(() => {
     const columns = useColumns();
     const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
+        (context) => context.state.mode === ExploreMode.EDIT,
     );
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,

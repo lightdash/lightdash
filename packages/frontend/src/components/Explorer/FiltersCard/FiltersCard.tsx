@@ -14,6 +14,7 @@ import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import {
+    ExploreMode,
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
@@ -30,7 +31,7 @@ const FiltersCard: FC = memo(() => {
         (context) => context.state.expandedSections,
     );
     const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
+        (context) => context.state.mode === ExploreMode.EDIT,
     );
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,

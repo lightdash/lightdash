@@ -1,66 +1,25 @@
-import { ProjectType } from '@lightdash/common';
-import { Stack } from '@mantine/core';
 import { FC, memo } from 'react';
-import { useParams } from 'react-router-dom';
-import { useExplore } from '../../hooks/useExplore';
-import { useProjects } from '../../hooks/useProjects';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
-import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
-import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
-import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
-import { CustomDimensionModal } from './CustomDimensionModal';
-import { CustomMetricModal } from './CustomMetricModal';
-import ExplorerHeader from './ExplorerHeader';
-import FiltersCard from './FiltersCard/FiltersCard';
-import ResultsCard from './ResultsCard/ResultsCard';
-import SqlCard from './SqlCard/SqlCard';
-import VisualizationCard from './VisualizationCard/VisualizationCard';
+import {
+    ExploreMode,
+    useExplorerContext,
+} from '../../providers/ExplorerProvider';
+import ExploreCreate from './ExploreCreate';
+import ExploreIndex from './ExploreIndex';
+import ExploreViewAndEdit from './ExploreViewAndEdit';
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
-        const unsavedChartVersionTableName = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.tableName,
-        );
-        const unsavedChartVersionMetricQuery = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.metricQuery,
-        );
-        const { projectUuid } = useParams<{ projectUuid: string }>();
+        const mode = useExplorerContext((context) => context.state.mode);
 
-        const { data: projects } = useProjects({ refetchOnMount: false });
-        const isProjectPreview = !!projects?.find(
-            (project) =>
-                project.projectUuid === projectUuid &&
-                project.type === ProjectType.PREVIEW,
-        );
-        const { data: explore } = useExplore(unsavedChartVersionTableName);
-
-        return (
-            <MetricQueryDataProvider
-                metricQuery={unsavedChartVersionMetricQuery}
-                tableName={unsavedChartVersionTableName}
-                explore={explore}
-            >
-                <Stack sx={{ flexGrow: 1 }}>
-                    {!hideHeader && <ExplorerHeader />}
-
-                    <FiltersCard />
-
-                    <VisualizationCard
-                        projectUuid={projectUuid}
-                        isProjectPreview={isProjectPreview}
-                    />
-
-                    <ResultsCard />
-
-                    <SqlCard projectUuid={projectUuid} />
-                </Stack>
-
-                <UnderlyingDataModal />
-                <DrillDownModal />
-                <CustomMetricModal />
-                <CustomDimensionModal />
-            </MetricQueryDataProvider>
-        );
+        switch (mode) {
+            case ExploreMode.INDEX:
+                return <ExploreIndex />;
+            case ExploreMode.VIEW:
+            case ExploreMode.EDIT:
+                return <ExploreViewAndEdit hideHeader={hideHeader} />;
+            case ExploreMode.CREATE:
+                return <ExploreCreate />;
+        }
     },
 );
 
