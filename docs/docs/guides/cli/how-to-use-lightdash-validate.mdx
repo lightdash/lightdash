@@ -46,7 +46,7 @@ You can use this output to block a deploy on Github actions like this
 - name: Start preview 
   run: lightdash start-preview 
 - name: Validate 
-  run: lightdash validate 
+  run: lightdash validate --project ${{ steps.start-preview.outputs.project_uuid }}
 ```
 
 To learn more about setting up GitHub actions for Lightdash, check out the docs [here](/snippets/automatically-deploy-your-changes-using-github-action)

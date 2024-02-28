@@ -91,7 +91,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
 
     if (options.project) {
         console.error(`Validating project ${projectUuid}\n`);
-    } else if (config.context?.previewProject) {
+    } else if (config.context?.previewProject === projectUuid) {
         console.error(
             `Validating preview project ${styles.bold(
                 config.context?.previewName,
