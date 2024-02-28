@@ -131,6 +131,27 @@ export enum SearchItemType {
     PAGE = 'page',
 }
 
+export function getSearchItemTypeFromResultKey(
+    searchResultKey: keyof SearchResults,
+): SearchItemType {
+    switch (searchResultKey) {
+        case 'spaces':
+            return SearchItemType.SPACE;
+        case 'dashboards':
+            return SearchItemType.DASHBOARD;
+        case 'savedCharts':
+            return SearchItemType.CHART;
+        case 'tables':
+            return SearchItemType.TABLE;
+        case 'fields':
+            return SearchItemType.FIELD;
+        case 'pages':
+            return SearchItemType.PAGE;
+        default:
+            throw new Error(`Unexpected search result key: ${searchResultKey}`);
+    }
+}
+
 export type SearchFilters = {
     type?: string; // the type filter can be any string, but it should be one of the EntityType to be valid, see shouldSearchForType function
     fromDate?: string;

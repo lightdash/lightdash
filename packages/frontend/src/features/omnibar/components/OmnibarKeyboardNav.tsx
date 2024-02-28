@@ -1,9 +1,10 @@
+import { SearchItemType } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { PropsWithChildren } from 'react';
 import { FocusedItemIndex, SearchItem } from '../types/searchItem';
 
 interface Props {
-    groupedItems: [string, SearchItem[]][];
+    groupedItems: [SearchItemType, SearchItem[]][];
     onEnterPressed: (item: SearchItem) => void;
     onFocusedItemChange: (index?: FocusedItemIndex) => void;
     currentFocusedItemIndex?: FocusedItemIndex;

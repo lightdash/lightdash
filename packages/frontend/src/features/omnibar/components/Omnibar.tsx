@@ -1,7 +1,9 @@
 import {
+    getSearchItemTypeFromResultKey,
     getSearchResultId,
     SearchFilters,
     SearchItemType,
+    SearchResults,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -52,16 +54,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const { data: projectData } = useProject(projectUuid);
     const { track } = useTracking();
     const theme = useMantineTheme();
-
     const canUserManageValidation = useValidationUserAbility(projectUuid);
-
-    const [openPanels, setOpenPanels] =
-        useState<SearchItemType[]>(allSearchItemTypes);
-
     const [searchFilters, setSearchFilters] = useState<SearchFilters>();
     const [query, setQuery] = useState<string>();
     const [debouncedValue] = useDebouncedValue(query, 300);
     const { targetRef: scrollRef } = useScrollIntoView<HTMLDivElement>(); // couldn't get scroll to work with mantine's function
+    const [openPanels, setOpenPanels] =
+        useState<SearchItemType[]>(allSearchItemTypes);
+
     const [focusedItemIndex, setFocusedItemIndex] =
         useState<FocusedItemIndex>();
 
@@ -153,6 +153,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const sortedGroupEntries = useMemo(() => {
         return searchResults
             ? Object.entries(searchResults)
+                  .map((items) => {
+                      return [
+                          getSearchItemTypeFromResultKey(
+                              items[0] as keyof SearchResults,
+                          ),
+                          items[1],
+                      ] as [SearchItemType, SearchItem[]];
+                  })
                   .filter(([_type, items]) => items.length > 0)
                   .sort(
                       ([_a, itemsA], [_b, itemsB]) =>

@@ -12,7 +12,7 @@ type Props = {
     canUserManageValidation: boolean;
     onClick: (item: SearchItem) => void;
     focusedItemIndex?: FocusedItemIndex;
-    groupedItems: [string, SearchItem[]][];
+    groupedItems: [SearchItemType, SearchItem[]][];
     scrollRef?: MutableRefObject<HTMLDivElement>;
 };
 
@@ -33,6 +33,20 @@ const OmnibarItemGroups: FC<Props> = ({
             });
         }
     }, [scrollRef, focusedItemIndex]);
+
+    useEffect(() => {
+        if (focusedItemIndex) {
+            const currentGroupItemType =
+                groupedItems[focusedItemIndex.groupIndex][0];
+
+            if (
+                currentGroupItemType &&
+                !openPanels.includes(currentGroupItemType)
+            ) {
+                onOpenPanelsChange([currentGroupItemType, ...openPanels]);
+            }
+        }
+    }, [focusedItemIndex, openPanels, onOpenPanelsChange, groupedItems]);
 
     return (
         <Accordion
@@ -60,10 +74,10 @@ const OmnibarItemGroups: FC<Props> = ({
             }
         >
             {groupedItems.map(([groupType, groupItems], groupIndex) => (
-                <Accordion.Item key={groupType} value={groupItems[0].type}>
+                <Accordion.Item key={groupType} value={groupType}>
                     <Accordion.Control>
                         <Text color="dark" fw={500} fz="xs">
-                            {getSearchItemLabel(groupItems[0].type)}
+                            {getSearchItemLabel(groupType)}
                         </Text>
                     </Accordion.Control>
 
