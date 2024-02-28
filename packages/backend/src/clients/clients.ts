@@ -22,7 +22,9 @@ export const emailClient = new EmailClient({
     lightdashConfig,
 });
 
-export const googleDriveClient = new GoogleDriveClient();
+export const googleDriveClient = new GoogleDriveClient({
+    lightdashConfig,
+});
 
 export const dbtCloudGraphqlClient = new DbtCloudGraphqlClient();
 

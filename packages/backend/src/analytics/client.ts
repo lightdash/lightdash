@@ -3,17 +3,18 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import { postHogClient } from '../postHog';
 import { LightdashAnalytics } from './LightdashAnalytics';
 
-export const analytics: LightdashAnalytics = new LightdashAnalytics(
-    lightdashConfig.rudder.writeKey || 'notrack',
-    lightdashConfig.rudder.dataPlaneUrl
+export const analytics: LightdashAnalytics = new LightdashAnalytics({
+    lightdashConfig,
+    writeKey: lightdashConfig.rudder.writeKey || 'notrack',
+    dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
         ? `${lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
         : 'notrack',
-    {
+    options: {
         enable:
             lightdashConfig.rudder.writeKey &&
             lightdashConfig.rudder.dataPlaneUrl,
     },
-);
+});
 
 export const identifyUser = (
     user: LightdashUser & { isMarketingOptedIn?: boolean },

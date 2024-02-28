@@ -61,6 +61,7 @@ import { ValidationService } from './ValidationService/ValidationService';
 const encryptionService = new EncryptionService({ lightdashConfig });
 
 export const userService = new UserService({
+    lightdashConfig,
     inviteLinkModel,
     userModel,
     groupsModel,
@@ -76,6 +77,7 @@ export const userService = new UserService({
     userWarehouseCredentialsModel,
 });
 export const organizationService = new OrganizationService({
+    lightdashConfig,
     organizationModel,
     projectModel,
     onboardingModel,
@@ -87,6 +89,7 @@ export const organizationService = new OrganizationService({
 });
 
 export const projectService = new ProjectService({
+    lightdashConfig,
     projectModel,
     onboardingModel,
     savedChartModel,
