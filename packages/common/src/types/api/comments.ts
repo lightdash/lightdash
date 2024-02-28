@@ -8,7 +8,7 @@ export type ApiCreateComment = {
 export type ApiGetComments = {
     status: 'ok';
     results: {
-        [key: string]: Comment[];
+        [dashboardTileUuid: string]: Comment[];
     };
 };
 

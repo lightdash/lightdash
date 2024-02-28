@@ -1,3 +1,17 @@
+## [0.1018.6](https://github.com/lightdash/lightdash/compare/0.1018.5...0.1018.6) (2024-02-28)
+
+
+### Bug Fixes
+
+* notification polling ([#9144](https://github.com/lightdash/lightdash/issues/9144)) ([728567a](https://github.com/lightdash/lightdash/commit/728567a1423128b0846d7da2f9d3031088596837))
+
+## [0.1018.5](https://github.com/lightdash/lightdash/compare/0.1018.4...0.1018.5) (2024-02-28)
+
+
+### Bug Fixes
+
+* semantic layer expired query ([#9139](https://github.com/lightdash/lightdash/issues/9139)) ([7cb1343](https://github.com/lightdash/lightdash/commit/7cb134364b6daf78a5b2d305aa53f59a802b2b9b))
+
 ## [0.1018.4](https://github.com/lightdash/lightdash/compare/0.1018.3...0.1018.4) (2024-02-27)
 
 

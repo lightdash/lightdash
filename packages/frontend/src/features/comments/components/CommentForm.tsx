@@ -10,7 +10,11 @@ import { CommentWithMentions } from './CommentWithMentions';
 
 type Props = {
     userName: string;
-    onSubmit: (text: string, html: string, mentions: string[]) => Promise<null>;
+    onSubmit: (
+        text: string,
+        html: string,
+        mentions: string[],
+    ) => Promise<string>;
     isSubmitting: boolean;
     onCancel?: () => void;
     mode?: 'reply' | 'new';
