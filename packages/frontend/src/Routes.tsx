@@ -217,6 +217,7 @@ const Routes: FC = () => {
                                             '/projects/:projectUuid/tables/:tableId',
                                             '/projects/:projectUuid/tables',
                                             '/projects/:projectUuid/explore/new',
+                                            '/projects/:projectUuid/explore/build',
                                         ]}
                                     >
                                         <NavBar />

@@ -4,6 +4,7 @@ import {
     ProjectCatalogTreeNode,
     useProjectCatalogTree,
 } from '../../../hooks/useProjectCatalogTree';
+import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import CatalogTree from '../../common/SqlRunner/CatalogTree';
 
 type Props = {
@@ -21,7 +22,18 @@ const ExploreProjectCatalog: FC<Props> = ({ onSelect }) => {
         return null;
     }
 
-    return <CatalogTree nodes={catalogTree} onSelect={onSelect} />;
+    return (
+        <>
+            <PageBreadcrumbs
+                size="md"
+                items={[{ title: 'Untitled explore', active: true }]}
+            />
+
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+                <CatalogTree nodes={catalogTree} onSelect={onSelect} />
+            </div>
+        </>
+    );
 };
 
 export default ExploreProjectCatalog;

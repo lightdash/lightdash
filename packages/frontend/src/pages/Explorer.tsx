@@ -63,8 +63,10 @@ const ExplorerPage = memo(() => {
         tableId?: string;
     }>();
 
-    const match = useRouteMatch('/projects/:projectUuid/explore/new');
-    const isCreatingNewExplore = match?.isExact;
+    const matchNew = useRouteMatch('/projects/:projectUuid/explore/new');
+    const matchBuild = useRouteMatch('/projects/:projectUuid/explore/build');
+    const isCreatingNewExplore = matchNew?.isExact;
+    const isBuildingNewExplore = matchBuild?.isExact;
 
     const explorerUrlState = useExplorerUrlState();
 
@@ -98,7 +100,7 @@ const ExplorerPage = memo(() => {
             mode={
                 isCreatingNewExplore
                     ? ExploreMode.CREATE
-                    : tableId
+                    : tableId || isBuildingNewExplore
                     ? ExploreMode.EDIT
                     : ExploreMode.INDEX
             }

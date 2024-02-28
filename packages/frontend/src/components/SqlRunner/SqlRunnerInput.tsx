@@ -1,8 +1,9 @@
 import { ProjectCatalog } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
+import 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import AceEditor from 'react-ace';
 import { useProjectCatalogAceEditorCompleter } from '../../hooks/useProjectCatalogAceEditorCompleter';
 import { SqlEditorActions } from './SqlEditorActions';

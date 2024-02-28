@@ -26,6 +26,10 @@ import ExploreGroup from './ExploreGroup';
 import ExploreNavLink from './ExploreNavLink';
 import ExploreProjectCatalog from './ExploreProjectCatalog';
 
+const generateBasicSqlQuery = (table: string) =>
+    `SELECT *
+     FROM ${table} LIMIT 25`;
+
 const LoadingSkeleton = () => (
     <Stack>
         <Skeleton h="md" />
@@ -178,14 +182,21 @@ const BasePanel = () => {
 
 const ExploreSideBar = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const mode = useExplorerContext((context) => context.state.mode);
 
-    const clearExplore = useExplorerContext(
-        (context) => context.actions.clearExplore,
+    const tableName = useExplorerContext(
+        (c) => c.state.unsavedChartVersion.tableName,
     );
+    const mode = useExplorerContext((c) => c.state.mode);
+
+    const customSql = useExplorerContext((c) => c.state.customSql?.sql);
+
+    const metricQuery = useExplorerContext((c) => c.state.metricQuery);
+
+    const updateCustomSql = useExplorerContext(
+        (c) => c.actions.updateCustomSql,
+    );
+
+    const clearExplore = useExplorerContext((c) => c.actions.clearExplore);
     const history = useHistory();
 
     const handleBack = useCallback(() => {
@@ -193,19 +204,26 @@ const ExploreSideBar = memo(() => {
         history.push(`/projects/${projectUuid}/tables`);
     }, [clearExplore, history, projectUuid]);
 
-    const handleTableSelect = useCallback((node: ProjectCatalogTreeNode) => {
-        console.log(node);
-    }, []);
+    const handleTableSelect = useCallback(
+        (node: ProjectCatalogTreeNode) => {
+            if (!node.sqlTable) return;
+            updateCustomSql(generateBasicSqlQuery(node.sqlTable));
+        },
+        [updateCustomSql],
+    );
+
+    console.log(customSql, metricQuery);
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <Stack h="100%" sx={{ flexGrow: 1 }}>
-                {mode === ExploreMode.CREATE ? (
+                {/* TODO: I don't like this approach, need to refactor */}
+                {mode === ExploreMode.CREATE && !(customSql && metricQuery) ? (
                     <ExploreProjectCatalog onSelect={handleTableSelect} />
-                ) : !tableName ? (
-                    <BasePanel />
-                ) : (
+                ) : tableName || (customSql && metricQuery) ? (
                     <ExplorePanel onBack={handleBack} />
+                ) : (
+                    <BasePanel />
                 )}
             </Stack>
         </TrackSection>

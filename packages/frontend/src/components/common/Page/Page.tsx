@@ -1,4 +1,4 @@
-import { Box, createStyles } from '@mantine/core';
+import { Box, createStyles, getDefaultZIndex } from '@mantine/core';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 
@@ -23,7 +23,7 @@ type StyleProps = {
     withPaddedContent?: boolean;
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
-    withMode?: boolean;
+    withMode?: string;
     hasBanner?: boolean;
 };
 
@@ -67,10 +67,11 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
         mode: params.withMode
             ? {
                   position: 'fixed',
+                  zIndex: getDefaultZIndex('app'),
                   width: '100%',
                   height: containerHeight,
-                  borderWidth: '3px',
-                  borderColor: theme.colors.violet[8],
+                  borderWidth: '4px',
+                  borderColor: theme.colors.violet[7],
                   borderStyle: 'solid',
                   pointerEvents: 'none',
               }
@@ -82,13 +83,16 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                   top: 0,
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  backgroundColor: theme.colors.violet[8],
-                  borderBottomLeftRadius: theme.radius.sm,
-                  borderBottomRightRadius: theme.radius.sm,
+                  backgroundColor: theme.colors.violet[7],
+                  borderBottomLeftRadius: theme.radius.md,
+                  borderBottomRightRadius: theme.radius.md,
                   color: theme.white,
-                  padding: theme.spacing.xs,
+                  paddingLeft: theme.spacing.xs,
+                  paddingRight: theme.spacing.xs,
+                  paddingTop: theme.spacing.two,
+                  paddingBottom: theme.spacing.two,
                   fontSize: theme.fontSizes.xs,
-                  zIndex: 100,
+                  zIndex: getDefaultZIndex('app'),
                   pointerEvents: 'unset',
               }
             : {},
@@ -211,7 +215,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withPaddedContent,
             withSidebar: !!sidebar,
             withSidebarFooter,
-            withMode: !!withMode,
+            withMode: withMode,
             hasBanner,
         },
         { name: 'Page' },

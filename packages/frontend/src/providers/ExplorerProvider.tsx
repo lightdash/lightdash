@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    ApiQueryResults,
     assertUnreachable,
     BigNumberConfig,
     CartesianChartConfig,
@@ -71,7 +72,7 @@ export enum ActionType {
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
     SET_FETCH_RESULTS_FALSE,
-    SET_PREVIOUSLY_FETCHED_STATE,
+    SET_METRIC_QUERY,
     ADD_ADDITIONAL_METRIC,
     EDIT_ADDITIONAL_METRIC,
     REMOVE_ADDITIONAL_METRIC,
@@ -84,13 +85,16 @@ export enum ActionType {
     EDIT_CUSTOM_DIMENSION,
     REMOVE_CUSTOM_DIMENSION,
     TOGGLE_CUSTOM_DIMENSION_MODAL,
+    SET_MODE,
+    UPDATE_CUSTOM_SQL,
+    UPDATE_CUSTOM_SQL_RESULTS,
 }
 
 type Action =
     | { type: ActionType.RESET; payload: ExplorerReduceState }
     | { type: ActionType.SET_FETCH_RESULTS_FALSE }
     | {
-          type: ActionType.SET_PREVIOUSLY_FETCHED_STATE;
+          type: ActionType.SET_METRIC_QUERY;
           payload: MetricQuery;
       }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
@@ -204,6 +208,18 @@ type Action =
               ExplorerReduceState['modals']['customDimension'],
               'isOpen'
           >;
+      }
+    | {
+          type: ActionType.SET_MODE;
+          payload: ExploreMode;
+      }
+    | {
+          type: ActionType.UPDATE_CUSTOM_SQL;
+          payload: string;
+      }
+    | {
+          type: ActionType.UPDATE_CUSTOM_SQL_RESULTS;
+          payload: ApiQueryResults;
       };
 
 export enum ExploreMode {
@@ -218,7 +234,11 @@ export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
-    previouslyFetchedState?: MetricQuery;
+    metricQuery?: MetricQuery;
+    customSql?: {
+        sql: string;
+        results?: ApiQueryResults;
+    };
     modals: {
         additionalMetric: {
             isOpen: boolean;
@@ -302,6 +322,10 @@ export interface ExplorerContext {
                 'isOpen'
             >,
         ) => void;
+        setMode: (mode: ExploreMode) => void;
+        updateCustomSql: (sql: string) => void;
+        setMetricQuery: (metricQuery: MetricQuery) => void;
+        setCustomSqlResults: (results: ApiQueryResults) => void;
     };
 }
 
@@ -310,7 +334,7 @@ const Context = createContext<ExplorerContext | undefined>(undefined);
 const defaultState: ExplorerReduceState = {
     mode: ExploreMode.VIEW,
     shouldFetchResults: false,
-    previouslyFetchedState: undefined,
+    metricQuery: undefined,
     expandedSections: [ExplorerSection.RESULTS],
     unsavedChartVersion: {
         tableName: '',
@@ -474,10 +498,10 @@ function reducer(
         case ActionType.SET_FETCH_RESULTS_FALSE: {
             return { ...state, shouldFetchResults: false };
         }
-        case ActionType.SET_PREVIOUSLY_FETCHED_STATE: {
+        case ActionType.SET_METRIC_QUERY: {
             return {
                 ...state,
-                previouslyFetchedState: action.payload,
+                metricQuery: action.payload,
             };
         }
         case ActionType.TOGGLE_EXPANDED_SECTION: {
@@ -1194,6 +1218,33 @@ function reducer(
                 },
             };
         }
+
+        case ActionType.SET_MODE: {
+            return {
+                ...state,
+                mode: action.payload,
+            };
+        }
+
+        case ActionType.UPDATE_CUSTOM_SQL: {
+            return {
+                ...state,
+                customSql: {
+                    sql: action.payload,
+                },
+            };
+        }
+
+        case ActionType.UPDATE_CUSTOM_SQL_RESULTS: {
+            return {
+                ...state,
+                customSql: {
+                    sql: state.customSql?.sql ?? '',
+                    results: action.payload,
+                },
+            };
+        }
+
         default: {
             return assertUnreachable(
                 action,
@@ -1590,6 +1641,27 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
         return isValidQuery;
     }, [unsavedChartVersion, isValidQuery, savedChart]);
 
+    const setMode = useCallback((newMode: ExploreMode) => {
+        dispatch({
+            type: ActionType.SET_MODE,
+            payload: newMode,
+        });
+    }, []);
+
+    const updateCustomSql = useCallback((sql: string) => {
+        dispatch({
+            type: ActionType.UPDATE_CUSTOM_SQL,
+            payload: sql,
+        });
+    }, []);
+
+    const setMetricQuery = useCallback((metricQuery: MetricQuery) => {
+        dispatch({
+            type: ActionType.SET_METRIC_QUERY,
+            payload: metricQuery,
+        });
+    }, []);
+
     const state = useMemo(
         () => ({
             ...reducerState,
@@ -1620,10 +1692,7 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
                 unsavedChartVersion.metricQuery,
             );
 
-            dispatch({
-                type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
-                payload: cloneDeep(unsavedChartVersion.metricQuery),
-            });
+            setMetricQuery(cloneDeep(unsavedChartVersion.metricQuery));
 
             return result;
         } catch (e) {
@@ -1631,9 +1700,17 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
         }
     }, [
         mutateAsyncQuery,
+        setMetricQuery,
         unsavedChartVersion.tableName,
         unsavedChartVersion.metricQuery,
     ]);
+
+    const setCustomSqlResults = useCallback((results: ApiQueryResults) => {
+        dispatch({
+            type: ActionType.UPDATE_CUSTOM_SQL_RESULTS,
+            payload: results,
+        });
+    }, []);
 
     useEffect(() => {
         if (!state.shouldFetchResults) return;
@@ -1716,6 +1793,10 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            setMode,
+            updateCustomSql,
+            setMetricQuery,
+            setCustomSqlResults,
         }),
         [
             clearExplore,
@@ -1748,6 +1829,10 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            setMode,
+            updateCustomSql,
+            setMetricQuery,
+            setCustomSqlResults,
         ],
     );
 

@@ -1,6 +1,11 @@
-import { fieldId as getFieldId, getVisibleFields } from '@lightdash/common';
+import {
+    Explore,
+    fieldId as getFieldId,
+    getVisibleFields,
+    SupportedDbtAdapter,
+} from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine/core';
-import { FC, memo, useMemo } from 'react';
+import { FC, memo, useEffect, useMemo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
@@ -28,31 +33,50 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    const customSqlResults = useExplorerContext(
+        (context) => context.state.customSql?.results,
     );
-    const dimensions = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
+    const customMetricQuery = customSqlResults?.metricQuery;
+    const metricQuery = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
     );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const metrics = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.metrics,
-    );
+
+    const additionalMetrics = useMemo(() => {
+        return (
+            customMetricQuery?.additionalMetrics ??
+            metricQuery?.additionalMetrics
+        );
+    }, [customMetricQuery, metricQuery]);
+
+    const dimensions = useMemo(() => {
+        return customMetricQuery?.dimensions ?? metricQuery?.dimensions;
+    }, [customMetricQuery, metricQuery]);
+
+    const metrics = useMemo(() => {
+        return customMetricQuery?.metrics ?? metricQuery?.metrics;
+    }, [customMetricQuery, metricQuery]);
+
+    const customDimensions = useMemo(() => {
+        return (
+            customMetricQuery?.customDimensions ?? metricQuery?.customDimensions
+        );
+    }, [customMetricQuery, metricQuery]);
+
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
     );
     const toggleActiveField = useExplorerContext(
         (context) => context.actions.toggleActiveField,
     );
-    const { data, status } = useExplore(activeTableName);
+    const {
+        data: savedExplore,
+        isInitialLoading,
+        isError,
+    } = useExplore(activeTableName);
 
     const missingFields = useMemo(() => {
-        if (data) {
-            const visibleFields = getVisibleFields(data);
+        if (savedExplore) {
+            const visibleFields = getVisibleFields(savedExplore);
             const allFields = [...visibleFields, ...(additionalMetrics || [])];
 
             const selectedFields = [...metrics, ...dimensions];
@@ -60,25 +84,42 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             const fieldIds = allFields.map(getFieldId);
             return selectedFields.filter((node) => !fieldIds.includes(node));
         }
-    }, [data, additionalMetrics, metrics, dimensions]);
+    }, [savedExplore, additionalMetrics, metrics, dimensions]);
 
-    if (status === 'loading') {
-        return <LoadingSkeleton />;
-    }
+    useEffect(() => {
+        if (isError) onBack?.();
+    }, [isError, onBack]);
 
-    if (!data) return null;
+    const customExplore: Explore | undefined = useMemo(() => {
+        if (!customSqlResults) return undefined;
 
-    if (status === 'error') {
-        if (onBack) onBack();
-        return null;
-    }
+        return {
+            name: 'custom',
+            label: 'Custom explore',
+            tags: [],
+            baseTable: 'custom',
+            joinedTables: [],
+            tables: {},
+            targetDatabase: SupportedDbtAdapter.POSTGRES,
+        };
+    }, [customSqlResults]);
+
+    if (isError) return null;
+
+    if (isInitialLoading) return <LoadingSkeleton />;
+
+    const explore = customExplore ? customExplore : savedExplore;
+
+    if (!explore) return null;
+
+    console.log(explore);
 
     return (
         <>
             <PageBreadcrumbs
                 size="md"
                 items={[
-                    ...(onBack
+                    ...(onBack && !customMetricQuery
                         ? [
                               {
                                   title: 'Tables',
@@ -87,7 +128,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                           ]
                         : []),
                     {
-                        title: data.label,
+                        title: explore.label,
                         active: true,
                     },
                 ]}
@@ -95,7 +136,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
             <ItemDetailProvider>
                 <ExploreTree
-                    explore={data}
+                    explore={explore}
                     additionalMetrics={additionalMetrics || []}
                     selectedNodes={activeFields}
                     onSelectedFieldChange={toggleActiveField}

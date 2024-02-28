@@ -254,7 +254,7 @@ const ChartHistory = () => {
                     queryResults={queryResults}
                     initialState={{
                         shouldFetchResults: true,
-                        previouslyFetchedState: undefined,
+                        metricQuery: undefined,
                         expandedSections: [ExplorerSection.VISUALIZATION],
                         unsavedChartVersion: chartVersionQuery.data.chart,
                         modals: {
