@@ -124,7 +124,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';

@@ -43,7 +43,9 @@ export async function isFeatureFlagEnabled(
                 : {},
         ),
         new Promise<boolean>((resolve) => {
-            setTimeout(() => resolve(false), FLAG_CHECK_TIMEOUT);
+            setTimeout(() => {
+                resolve(false);
+            }, FLAG_CHECK_TIMEOUT);
         }),
     ]);
 
