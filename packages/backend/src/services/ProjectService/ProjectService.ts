@@ -1757,14 +1757,11 @@ export class ProjectService {
                      *
                      * In a follow-up after initial testing, this check should be done somewhere further
                      * down the stack.
+                     *
+                     * NOTE: Temporarily removed due to Posthog outage. Will follow-up with change adding
+                     * a timeout.
                      */
-                    const newTableCalculationsFeatureFlagEnabled =
-                        await isFeatureFlagEnabled(
-                            FeatureFlags.UseInMemoryTableCalculations,
-                            {
-                                userUuid: user.userUuid,
-                            },
-                        );
+                    const newTableCalculationsFeatureFlagEnabled = false;
 
                     const useNewTableCalculationsEngine =
                         newTableCalculationsFeatureFlagEnabled &&
