@@ -1456,9 +1456,9 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'NotificationResourceType.DashboardComments': {
+    'ApiNotificationResourceType.DashboardComments': {
         dataType: 'refEnum',
-        enums: ['dashboard_comments'],
+        enums: ['dashboardComments'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     NotificationDashboardTileCommentMetadata: {
@@ -1492,7 +1492,7 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         resourceType: {
-                            ref: 'NotificationResourceType.DashboardComments',
+                            ref: 'ApiNotificationResourceType.DashboardComments',
                             required: true,
                         },
                     },
@@ -1528,9 +1528,9 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    NotificationResourceType: {
+    ApiNotificationResourceType: {
         dataType: 'refEnum',
-        enums: ['dashboard_comments'],
+        enums: ['dashboardComments'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Notification.viewed_': {
@@ -7606,7 +7606,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'query',
                     name: 'type',
                     required: true,
-                    ref: 'NotificationResourceType',
+                    ref: 'ApiNotificationResourceType',
                 },
             };
 
