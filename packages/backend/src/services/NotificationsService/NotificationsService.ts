@@ -1,7 +1,7 @@
 import {
+    ApiNotificationResourceType,
     ApiNotificationUpdateParams,
     Notification,
-    NotificationResourceType,
 } from '@lightdash/common';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 
@@ -18,10 +18,10 @@ export class NotificationsService {
 
     async getNotifications(
         userUuid: string,
-        type: NotificationResourceType,
+        type: ApiNotificationResourceType,
     ): Promise<Notification[]> {
         switch (type) {
-            case NotificationResourceType.DashboardComments:
+            case ApiNotificationResourceType.DashboardComments:
                 return this.notificationsModel.getDashboardCommentNotifications(
                     userUuid,
                 );
