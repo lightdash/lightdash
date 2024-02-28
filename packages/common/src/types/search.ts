@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { Dashboard } from './dashboard';
 import { Table } from './explore';
 import { Dimension, Metric } from './field';
@@ -133,7 +134,7 @@ export enum SearchItemType {
 
 export function getSearchItemTypeFromResultKey(
     searchResultKey: keyof SearchResults,
-): SearchItemType {
+) {
     switch (searchResultKey) {
         case 'spaces':
             return SearchItemType.SPACE;
@@ -148,7 +149,10 @@ export function getSearchItemTypeFromResultKey(
         case 'pages':
             return SearchItemType.PAGE;
         default:
-            throw new Error(`Unexpected search result key: ${searchResultKey}`);
+            return assertUnreachable(
+                searchResultKey,
+                `unexpected search result key: ${searchResultKey}`,
+            );
     }
 }
 
