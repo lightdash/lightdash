@@ -150,10 +150,12 @@ const GeneralSettings: FC = () => {
         setShowColumnCalculation,
         setShowResultsTotal,
         setShowRowCalculation,
+        setShowSubtotals,
         setShowTableNames,
         showColumnCalculation,
         showResultsTotal,
         showRowCalculation,
+        showSubtotals,
         showTableNames,
     } = chartConfig;
 
@@ -248,6 +250,25 @@ const GeneralSettings: FC = () => {
                         setShowResultsTotal(!showResultsTotal);
                     }}
                 />
+                <Tooltip
+                    disabled={!canUsePivotTable}
+                    label="Subtotals can only be used on tables that aren't pivoted"
+                    w={300}
+                    multiline
+                    withinPortal
+                    position="top-start"
+                >
+                    <Box>
+                        <Checkbox
+                            label="Show subtotals"
+                            checked={showSubtotals}
+                            onChange={() => {
+                                setShowSubtotals(!showSubtotals);
+                            }}
+                            disabled={!!canUsePivotTable}
+                        />
+                    </Box>
+                </Tooltip>
             </Stack>
         </Stack>
     );

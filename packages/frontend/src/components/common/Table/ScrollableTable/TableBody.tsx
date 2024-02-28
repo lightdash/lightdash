@@ -5,11 +5,13 @@ import {
     isNumericItem,
     type ResultRow,
 } from '@lightdash/common';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { type FC } from 'react';
 import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/FilterInputs';
+import MantineIcon from '../../MantineIcon';
 import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
 import { useTableContext, type TableContext } from '../TableProvider';
 import BodyCell from './BodyCell';
@@ -61,14 +63,14 @@ const TableRow: FC<TableRowProps> = ({
                 const conditionalFormattingConfig =
                     getConditionalFormattingConfig(
                         field,
-                        cellValue?.value.raw,
+                        cellValue?.value?.raw,
                         conditionalFormattings,
                     );
 
                 const conditionalFormattingColor =
                     getConditionalFormattingColor(
                         field,
-                        cellValue?.value.raw,
+                        cellValue?.value?.raw,
                         conditionalFormattingConfig,
                         getColorFromRange,
                     );
@@ -79,19 +81,20 @@ const TableRow: FC<TableRowProps> = ({
                     getConditionalRuleLabel,
                 );
 
+                const toggleExpander = row.getToggleExpandedHandler();
+                const fontColor =
+                    conditionalFormattingColor &&
+                    readableColor(conditionalFormattingColor) === 'white'
+                        ? 'white'
+                        : undefined;
+
                 return (
                     <BodyCell
                         minimal={minimal}
                         key={cell.id}
                         style={meta?.style}
                         backgroundColor={conditionalFormattingColor}
-                        fontColor={
-                            conditionalFormattingColor &&
-                            readableColor(conditionalFormattingColor) ===
-                                'white'
-                                ? 'white'
-                                : undefined
-                        }
+                        fontColor={fontColor}
                         className={meta?.className}
                         index={index}
                         cell={cell}
@@ -99,14 +102,68 @@ const TableRow: FC<TableRowProps> = ({
                         hasData={!!meta?.item}
                         cellContextMenu={cellContextMenu}
                         isLargeText={
-                            (cellValue?.value.formatted || '').length >
+                            (cellValue?.value?.formatted || '').length >
                             SMALL_TEXT_LENGTH
                         }
                         tooltipContent={tooltipContent}
                     >
-                        {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
+                        {cell.getIsGrouped() ? (
+                            <>
+                                <button
+                                    {...{
+                                        onClick: (e) => {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            toggleExpander();
+                                        },
+                                        style: {
+                                            cursor: row.getCanExpand()
+                                                ? 'pointer'
+                                                : 'normal',
+                                            border: 'none',
+                                            background: 'none',
+                                            float: 'left',
+                                        },
+                                    }}
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            row.getIsExpanded()
+                                                ? IconChevronDown
+                                                : IconChevronRight
+                                        }
+                                        color={fontColor}
+                                        size="xl"
+                                        style={{
+                                            float: 'left',
+                                            margin: -4,
+                                        }}
+                                    />
+                                    <span
+                                        style={{
+                                            color: fontColor,
+                                            marginLeft: 4,
+                                        }}
+                                    >
+                                        ({row.subRows.length})
+                                    </span>
+                                </button>
+                                {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext(),
+                                )}
+                            </>
+                        ) : cell.getIsAggregated() ? (
+                            flexRender(
+                                cell.column.columnDef.aggregatedCell ??
+                                    cell.column.columnDef.cell,
+                                cell.getContext(),
+                            )
+                        ) : cell.getIsPlaceholder() ? null : (
+                            flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                            )
                         )}
                     </BodyCell>
                 );

@@ -49,6 +49,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         getFieldLabel,
         getField,
         showResultsTotal,
+        showSubtotals,
     } = visualizationConfig.chartConfig;
 
     if (isLoading) return <LoadingChart />;
@@ -116,6 +117,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 columnOrder={columnOrder}
                 hideRowNumbers={hideRowNumbers}
                 showColumnCalculation={showColumnCalculation}
+                showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
                 footer={{
                     show: showColumnCalculation,
