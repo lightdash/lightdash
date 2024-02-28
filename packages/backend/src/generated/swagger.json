@@ -76,18 +76,75 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Record_string.Comment-Array_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ApiCommentsResults": {
-                "$ref": "#/components/schemas/Record_string.Comment-Array_"
+            "Comment": {
+                "properties": {
+                    "mentions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "canRemove": {
+                        "type": "boolean"
+                    },
+                    "resolved": {
+                        "type": "boolean"
+                    },
+                    "replies": {
+                        "items": {
+                            "$ref": "#/components/schemas/Comment"
+                        },
+                        "type": "array"
+                    },
+                    "replyTo": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name"],
+                        "type": "object"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "textHtml": {
+                        "type": "string"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "commentId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "mentions",
+                    "canRemove",
+                    "resolved",
+                    "user",
+                    "createdAt",
+                    "textHtml",
+                    "text",
+                    "commentId"
+                ],
+                "type": "object"
             },
             "ApiGetComments": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ApiCommentsResults"
+                        "properties": {},
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/Comment"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object"
                     },
                     "status": {
                         "type": "string",

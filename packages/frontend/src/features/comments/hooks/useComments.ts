@@ -1,4 +1,10 @@
-import { ApiCommentsResults, ApiError, Comment } from '@lightdash/common';
+import {
+    ApiCreateComment,
+    ApiDeleteComment,
+    ApiError,
+    ApiGetComments,
+    Comment,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
@@ -20,7 +26,7 @@ const createDashboardTileComment = async ({
     replyTo,
     mentions,
 }: CreateDashboardTileComment) =>
-    lightdashApi<null>({
+    lightdashApi<ApiCreateComment['results']>({
         url: `/comments/dashboards/${dashboardUuid}/${dashboardTileUuid}`,
         method: 'POST',
         body: JSON.stringify({
@@ -33,32 +39,30 @@ const createDashboardTileComment = async ({
 
 export const useCreateComment = () => {
     const queryClient = useQueryClient();
-    return useMutation<null, ApiError, CreateDashboardTileComment>(
-        (data) => createDashboardTileComment(data),
-        {
-            mutationKey: ['create-comment'],
-            onSuccess: async (_, { dashboardUuid }) => {
-                await queryClient.invalidateQueries([
-                    'comments',
-                    dashboardUuid,
-                ]);
-            },
-            retry: (_, error) => error.error.statusCode !== 403,
+
+    return useMutation<
+        ApiCreateComment['results'],
+        ApiError,
+        CreateDashboardTileComment
+    >((data) => createDashboardTileComment(data), {
+        mutationKey: ['create-comment'],
+        onSuccess: async (_, { dashboardUuid }) => {
+            await queryClient.invalidateQueries(['comments', dashboardUuid]);
         },
-    );
+    });
 };
 
 const getDashboardComments = async ({
     dashboardUuid,
 }: Pick<CreateDashboardTileComment, 'dashboardUuid'>) =>
-    lightdashApi<ApiCommentsResults>({
+    lightdashApi<ApiGetComments['results']>({
         url: `/comments/dashboards/${dashboardUuid}`,
         method: 'GET',
         body: undefined,
     });
 
-export const useGetComments = (dashboardUuid: string, enabled: boolean) => {
-    return useQuery<ApiCommentsResults, ApiError>(
+export const useGetComments = (dashboardUuid: string, enabled: boolean) =>
+    useQuery<ApiGetComments['results'], ApiError>(
         ['comments', dashboardUuid],
         () => getDashboardComments({ dashboardUuid }),
         {
@@ -66,13 +70,17 @@ export const useGetComments = (dashboardUuid: string, enabled: boolean) => {
             enabled,
         },
     );
-};
+
+type RemoveCommentParams = { commentId: string } & Pick<
+    CreateDashboardTileComment,
+    'dashboardUuid'
+>;
 
 const removeComment = async ({
     commentId,
     dashboardUuid,
-}: { commentId: string } & Pick<CreateDashboardTileComment, 'dashboardUuid'>) =>
-    lightdashApi<null>({
+}: RemoveCommentParams) =>
+    lightdashApi<ApiDeleteComment>({
         url: `/comments/dashboards/${dashboardUuid}/${commentId}`,
         method: 'DELETE',
         body: undefined,
@@ -81,17 +89,16 @@ const removeComment = async ({
 export const useRemoveComment = () => {
     const queryClient = useQueryClient();
 
-    return useMutation<
-        null,
-        ApiError,
-        { commentId: string } & Pick<
-            CreateDashboardTileComment,
-            'dashboardUuid'
-        >
-    >((data) => removeComment(data), {
-        mutationKey: ['remove-comment'],
-        onSuccess: async (_, { dashboardUuid }) => {
-            await queryClient.invalidateQueries(['comments', dashboardUuid]);
+    return useMutation<ApiDeleteComment, ApiError, RemoveCommentParams>(
+        (data) => removeComment(data),
+        {
+            mutationKey: ['remove-comment'],
+            onSuccess: async (_, { dashboardUuid }) => {
+                await queryClient.invalidateQueries([
+                    'comments',
+                    dashboardUuid,
+                ]);
+            },
         },
-    });
+    );
 };

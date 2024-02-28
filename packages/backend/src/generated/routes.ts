@@ -119,18 +119,44 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.Comment-Array_': {
+    Comment: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
+            nestedProperties: {
+                mentions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                canRemove: { dataType: 'boolean', required: true },
+                resolved: { dataType: 'boolean', required: true },
+                replies: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'Comment' },
+                },
+                replyTo: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                user: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        name: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                createdAt: { dataType: 'datetime', required: true },
+                textHtml: { dataType: 'string', required: true },
+                text: { dataType: 'string', required: true },
+                commentId: { dataType: 'string', required: true },
+            },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiCommentsResults: {
-        dataType: 'refAlias',
-        type: { ref: 'Record_string.Comment-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetComments: {
@@ -138,7 +164,15 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'ApiCommentsResults', required: true },
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    additionalProperties: {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'Comment' },
+                    },
+                    required: true,
+                },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},

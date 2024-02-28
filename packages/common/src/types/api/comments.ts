@@ -1,4 +1,4 @@
-import { ApiCommentsResults, Comment } from '../comments';
+import { Comment } from '../comments';
 
 export type ApiCreateComment = {
     status: 'ok';
@@ -7,7 +7,9 @@ export type ApiCreateComment = {
 
 export type ApiGetComments = {
     status: 'ok';
-    results: ApiCommentsResults;
+    results: {
+        [dashboardTileUuid: string]: Comment[];
+    };
 };
 
 export type ApiResolveComment = {
