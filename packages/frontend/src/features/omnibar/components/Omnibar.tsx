@@ -14,7 +14,12 @@ import {
     Transition,
     useMantineTheme,
 } from '@mantine/core';
-import { useDebouncedValue, useDisclosure, useHotkeys } from '@mantine/hooks';
+import {
+    useDebouncedValue,
+    useDisclosure,
+    useHotkeys,
+    useScrollIntoView,
+} from '@mantine/hooks';
 import { IconCircleXFilled, IconSearch } from '@tabler/icons-react';
 import { FC, MouseEventHandler, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
@@ -56,6 +61,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const [searchFilters, setSearchFilters] = useState<SearchFilters>();
     const [query, setQuery] = useState<string>();
     const [debouncedValue] = useDebouncedValue(query, 300);
+    const { targetRef: scrollRef } = useScrollIntoView<HTMLDivElement>(); // couldn't get scroll to work with mantine's function
     const [focusedItemIndex, setFocusedItemIndex] =
         useState<FocusedItemIndex>();
 
@@ -280,6 +286,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 onClick={handleItemClick}
                                 focusedItemIndex={focusedItemIndex}
                                 groupedItems={sortedGroupEntries}
+                                scrollRef={scrollRef}
                             />
                         )}
                     </Stack>

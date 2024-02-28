@@ -1,6 +1,6 @@
 import { SearchItemType } from '@lightdash/common';
 import { Accordion, Text } from '@mantine/core';
-import { FC } from 'react';
+import { FC, MutableRefObject, useEffect } from 'react';
 import { FocusedItemIndex, SearchItem } from '../types/searchItem';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import OmnibarItem from './OmnibarItem';
@@ -13,6 +13,7 @@ type Props = {
     onClick: (item: SearchItem) => void;
     focusedItemIndex?: FocusedItemIndex;
     groupedItems: [string, SearchItem[]][];
+    scrollRef?: MutableRefObject<HTMLDivElement>;
 };
 
 const OmnibarItemGroups: FC<Props> = ({
@@ -23,7 +24,16 @@ const OmnibarItemGroups: FC<Props> = ({
     canUserManageValidation,
     onClick,
     focusedItemIndex,
+    scrollRef,
 }) => {
+    useEffect(() => {
+        if (scrollRef?.current && focusedItemIndex) {
+            scrollRef.current.scrollIntoView({
+                block: 'center',
+            });
+        }
+    }, [scrollRef, focusedItemIndex]);
+
     return (
         <Accordion
             styles={(theme) => ({
@@ -58,22 +68,26 @@ const OmnibarItemGroups: FC<Props> = ({
                     </Accordion.Control>
 
                     <Accordion.Panel>
-                        {groupItems.map((item, itemIndex) => (
-                            <OmnibarItem
-                                key={itemIndex}
-                                item={item}
-                                onClick={() => onClick(item)}
-                                projectUuid={projectUuid}
-                                canUserManageValidation={
-                                    canUserManageValidation
-                                }
-                                hovered={
-                                    groupIndex ===
-                                        focusedItemIndex?.groupIndex &&
-                                    itemIndex === focusedItemIndex?.itemIndex
-                                }
-                            />
-                        ))}
+                        {groupItems.map((item, itemIndex) => {
+                            const isFocused =
+                                groupIndex === focusedItemIndex?.groupIndex &&
+                                itemIndex === focusedItemIndex?.itemIndex;
+                            return (
+                                <OmnibarItem
+                                    key={itemIndex}
+                                    item={item}
+                                    scrollRef={
+                                        isFocused ? scrollRef : undefined
+                                    }
+                                    onClick={() => onClick(item)}
+                                    projectUuid={projectUuid}
+                                    canUserManageValidation={
+                                        canUserManageValidation
+                                    }
+                                    hovered={isFocused}
+                                />
+                            );
+                        })}
                     </Accordion.Panel>
                 </Accordion.Item>
             ))}

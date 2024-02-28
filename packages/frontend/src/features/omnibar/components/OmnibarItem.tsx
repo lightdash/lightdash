@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { FC } from 'react';
+import { FC, MutableRefObject } from 'react';
 import { SearchItem } from '../types/searchItem';
 import {
     OmnibarItemIcon,
@@ -38,6 +38,7 @@ type Props = {
     styles?: Record<string, CSSObject>;
     classNames?: Record<string, string>;
     hovered?: boolean;
+    scrollRef?: MutableRefObject<HTMLDivElement>;
     onClick: () => void;
 };
 
@@ -55,6 +56,7 @@ const OmnibarItem: FC<Props> = ({
     canUserManageValidation,
     hovered,
     onClick,
+    scrollRef,
 }) => {
     const { classes } = useStyles(null, {
         styles,
@@ -86,7 +88,7 @@ const OmnibarItem: FC<Props> = ({
             </Box>
 
             <Stack spacing="two" style={{ flexGrow: 1, overflow: 'hidden' }}>
-                <Text fw={500} size="sm" truncate>
+                <Text fw={500} size="sm" truncate ref={scrollRef}>
                     {item.prefix} {item.title}
                 </Text>
 
