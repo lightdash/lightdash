@@ -124,7 +124,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -734,10 +734,6 @@ export class ProjectService {
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs = await isFeatureFlagEnabled(
-            FeatureFlags.UseDbtLs,
-            user,
-        );
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -746,7 +742,6 @@ export class ProjectService {
                 onWarehouseCatalogChange: () => {},
             },
             data.dbtVersion || DefaultSupportedDbtVersion,
-            useDbtLs,
         );
         try {
             await adapter.test();
@@ -803,10 +798,6 @@ export class ProjectService {
             await this.projectModel.getWarehouseFromCache(projectUuid);
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs = await isFeatureFlagEnabled(
-            FeatureFlags.UseDbtLs,
-            user,
-        );
 
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
@@ -821,7 +812,6 @@ export class ProjectService {
                 },
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
-            useDbtLs,
         );
         return { adapter, sshTunnel };
     }
@@ -1757,14 +1747,11 @@ export class ProjectService {
                      *
                      * In a follow-up after initial testing, this check should be done somewhere further
                      * down the stack.
+                     *
+                     * NOTE: Temporarily removed due to Posthog outage. Will follow-up with change adding
+                     * a timeout.
                      */
-                    const newTableCalculationsFeatureFlagEnabled =
-                        await isFeatureFlagEnabled(
-                            FeatureFlags.UseInMemoryTableCalculations,
-                            {
-                                userUuid: user.userUuid,
-                            },
-                        );
+                    const newTableCalculationsFeatureFlagEnabled = false;
 
                     const useNewTableCalculationsEngine =
                         newTableCalculationsFeatureFlagEnabled &&

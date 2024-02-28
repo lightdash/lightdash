@@ -20,7 +20,7 @@ export const projectAdapterFromConfig = async (
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersion: SupportedDbtVersions,
-    useDbtLs: boolean,
+    useDbtLs: boolean = true,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
