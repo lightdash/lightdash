@@ -41,6 +41,8 @@ const useMetricFlowQueryResults = (
         queryKey: ['metric_flow_query', projectUuid, query],
         enabled: !!projectUuid && !!Object.keys(query?.metrics ?? {}).length,
         queryFn: () => createMetricFlowQuery(projectUuid!, query!),
+        staleTime: 0,
+        cacheTime: 0,
         ...useCreateQueryOptions,
     });
     const queryId = metricFlowQuery.data?.createQuery.queryId;
