@@ -1,15 +1,15 @@
-import { Notification } from '@lightdash/common';
+import {
+    ApiNotificationUpdateParams,
+    Dashboard,
+    DashboardTile,
+    LightdashUser,
+    Notification,
+    NotificationDashboardComment,
+    NotificationResourceType,
+} from '@lightdash/common';
 import { Knex } from 'knex';
-import {
-    DashboardTileCommentsTableName,
-    DbDashboardTileComments,
-} from '../../database/entities/comments';
-import { DashboardsTableName } from '../../database/entities/dashboards';
-import {
-    DbNotifications,
-    NotificationsTableName,
-} from '../../database/entities/notifications';
-import { UserTableName } from '../../database/entities/users';
+import { DbDashboardTileComments } from '../../database/entities/comments';
+import { NotificationsTableName } from '../../database/entities/notifications';
 
 type NotificationsModelDependencies = {
     database: Knex;
@@ -24,101 +24,80 @@ export class NotificationsModel {
 
     async getDashboardCommentNotifications(
         userUuid: string,
-    ): Promise<Notification[]> {
-        const notificationsWithUserAndDashboardAndAuthor: (DbNotifications &
-            Pick<DbDashboardTileComments, 'dashboard_tile_uuid'> & {
-                user_first_name: string;
-                user_last_name: string;
-                dashboard_name: string;
-                author_first_name: string;
-                author_last_name: string;
-            })[] = await this.database(NotificationsTableName)
-            .join(
-                UserTableName,
-                `${NotificationsTableName}.user_uuid`,
-                '=',
-                `${UserTableName}.user_uuid`,
-            )
-            .join(
-                DashboardTileCommentsTableName,
-                `${NotificationsTableName}.comment_id`,
-                '=',
-                `${DashboardTileCommentsTableName}.comment_id`,
-            )
-            .join(
-                `${UserTableName} as comment_authors`,
-                `${DashboardTileCommentsTableName}.user_uuid`,
-                '=',
-                'comment_authors.user_uuid',
-            )
-            .join(
-                DashboardsTableName,
-                `${NotificationsTableName}.dashboard_uuid`,
-                '=',
-                `${DashboardsTableName}.dashboard_uuid`,
-            )
-            .select(
-                `${NotificationsTableName}.*`,
-                `${UserTableName}.first_name as user_first_name`,
-                `${UserTableName}.last_name as user_last_name`,
-                `${DashboardsTableName}.name as dashboard_name`,
-                `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
-                'comment_authors.first_name as author_first_name',
-                'comment_authors.last_name as author_last_name',
-            )
+    ): Promise<NotificationDashboardComment[]> {
+        const notifications = await this.database(NotificationsTableName)
+            .select(`*`)
             .where(`${NotificationsTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${NotificationsTableName}.resource_type`,
+                NotificationResourceType.DashboardComments,
+            )
             .orderBy(`${NotificationsTableName}.created_at`, 'desc');
 
-        return notificationsWithUserAndDashboardAndAuthor.map((notif) => ({
+        return notifications.map((notif) => ({
             notificationId: notif.notification_id,
-            user: {
-                name: `${notif.user_first_name} ${notif.user_last_name}`,
-            },
-            author: {
-                name: `${notif.author_first_name} ${notif.author_last_name}`,
-            },
-            dashboard: {
-                uuid: notif.dashboard_uuid,
-                name: notif.dashboard_name,
-                tileUuid: notif.dashboard_tile_uuid,
-            },
+            resourceType: notif.resource_type,
+            message: notif.message ?? undefined,
+            url: notif.url ?? undefined,
             viewed: notif.viewed,
             createdAt: notif.created_at,
+            resourceUuid: notif.resource_uuid ?? undefined,
+            metadata: notif.metadata
+                ? {
+                      dashboardUuid: notif.metadata.dashboard_uuid,
+                      dashboardName: notif.metadata.dashboard_name,
+                      dashboardTileUuid: notif.metadata.dashboard_tile_uuid,
+                      dashboardTileName: notif.metadata.dashboard_tile_name,
+                  }
+                : undefined,
         }));
     }
 
-    async markNotificationAsRead(notificationUuid: string) {
-        return this.database('notifications')
+    async updateNotification(
+        notificationUuid: string,
+        updateData: ApiNotificationUpdateParams,
+    ) {
+        return this.database(NotificationsTableName)
             .where({ notification_id: notificationUuid })
-            .update({ viewed: true });
+            .update(updateData);
     }
 
     async createDashboardCommentNotification(
         userUuid: string,
-        commentId: string,
-        dashboardUuid: string,
+        commentAuthor: LightdashUser,
+        comment: DbDashboardTileComments,
+        dashboard: Dashboard,
+        dashboardTile: DashboardTile | undefined,
     ) {
-        const comment = await this.database(DashboardTileCommentsTableName)
-            .where({ comment_id: commentId })
-            .first();
-
-        if (!comment) {
-            throw new Error('Comment not found');
-        }
-
-        if (comment.mentions.length > 0) {
+        if (comment.mentions.length > 0 && dashboardTile) {
             await Promise.all(
-                comment.mentions.map((mentionUserUuid) =>
-                    this.database.transaction(async (trx) => {
-                        if (mentionUserUuid !== userUuid) {
-                            await trx(NotificationsTableName).insert({
-                                user_uuid: mentionUserUuid,
-                                comment_id: comment.comment_id,
-                                dashboard_uuid: dashboardUuid,
-                            });
-                        }
-                    }),
-                ),
+                comment.mentions.map(async (mentionUserUuid) => {
+                    if (mentionUserUuid !== userUuid) {
+                        await this.database(NotificationsTableName).insert({
+                            user_uuid: mentionUserUuid,
+                            resource_uuid: comment.comment_id,
+                            resource_type:
+                                NotificationResourceType.DashboardComments,
+                            message: `You were mentioned in a comment by ${
+                                commentAuthor.firstName
+                            } ${commentAuthor.lastName} on the dashboard ${
+                                dashboard.name
+                            } ${
+                                dashboardTile.properties.title
+                                    ? `in tile "${dashboardTile.properties.title}"`
+                                    : ''
+                            }`,
+                            url: `/dashboards/${dashboard.uuid}`,
+                            metadata: JSON.stringify({
+                                dashboard_uuid: dashboard.uuid,
+                                dashboard_name: dashboard.name,
+                                dashboard_tile_uuid: dashboardTile.uuid,
+                                dashboard_tile_name:
+                                    dashboardTile.properties.title ?? '',
+                            }),
+                        });
+                    }
+                }),
             );
         }
     }

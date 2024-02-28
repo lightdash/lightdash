@@ -242,6 +242,8 @@ export const commentService = new CommentService({
     dashboardModel,
     spaceModel,
     commentModel,
+    notificationsModel,
+    userModel,
 });
 
 export const notificationsService = new NotificationsService({

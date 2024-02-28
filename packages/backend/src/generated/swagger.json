@@ -1540,62 +1540,80 @@
             "UpdateDBProjectGroupAccess": {
                 "$ref": "#/components/schemas/Pick_DBProjectGroupAccess.role_"
             },
-            "Notification": {
+            "NotificationBase": {
                 "properties": {
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
+                    "url": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
                     },
                     "viewed": {
                         "type": "boolean"
                     },
-                    "dashboard": {
-                        "properties": {
-                            "tileUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string",
-                                "nullable": true
-                            }
-                        },
-                        "required": ["tileUuid", "name", "uuid"],
-                        "type": "object"
-                    },
-                    "author": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name"],
-                        "type": "object"
-                    },
-                    "user": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name"],
-                        "type": "object"
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "notificationId": {
                         "type": "string"
                     }
                 },
-                "required": [
-                    "createdAt",
-                    "viewed",
-                    "author",
-                    "user",
-                    "notificationId"
-                ],
+                "required": ["viewed", "createdAt", "notificationId"],
                 "type": "object"
+            },
+            "NotificationResourceType.DashboardComments": {
+                "enum": ["dashboard_comments"],
+                "type": "string"
+            },
+            "NotificationDashboardTileCommentMetadata": {
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string"
+                    },
+                    "dashboardName": {
+                        "type": "string"
+                    },
+                    "dashboardTileUuid": {
+                        "type": "string"
+                    },
+                    "dashboardTileName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dashboardUuid",
+                    "dashboardName",
+                    "dashboardTileUuid",
+                    "dashboardTileName"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "NotificationDashboardComment": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/NotificationBase"
+                    },
+                    {
+                        "properties": {
+                            "metadata": {
+                                "$ref": "#/components/schemas/NotificationDashboardTileCommentMetadata"
+                            },
+                            "resourceType": {
+                                "$ref": "#/components/schemas/NotificationResourceType.DashboardComments"
+                            }
+                        },
+                        "required": ["resourceType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Notification": {
+                "$ref": "#/components/schemas/NotificationDashboardComment"
             },
             "ApiNotificationsResults": {
                 "items": {
@@ -1617,20 +1635,22 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "NotificationType": {
-                "enum": ["dashboardComments"],
+            "NotificationResourceType": {
+                "enum": ["dashboard_comments"],
                 "type": "string"
             },
-            "ApiCreateNotification": {
+            "Pick_Notification.viewed_": {
                 "properties": {
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
+                    "viewed": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["status"],
-                "type": "object"
+                "required": ["viewed"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiNotificationUpdateParams": {
+                "$ref": "#/components/schemas/Pick_Notification.viewed_"
             },
             "Organization": {
                 "properties": {
@@ -8249,71 +8269,22 @@
                         "name": "type",
                         "required": true,
                         "schema": {
-                            "$ref": "#/components/schemas/NotificationType"
+                            "$ref": "#/components/schemas/NotificationResourceType"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/notifications/{commentId}/dashboard/{dashboardUuid}": {
-            "post": {
-                "operationId": "createNotificationForDashboardComment",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiCreateNotification"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Create notification for a dashboard comment",
-                "tags": ["Notifications"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "commentId",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "the uuid of the dashboard",
-                        "in": "path",
-                        "name": "dashboardUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/notifications/{notificationId}/markAsRead": {
+        "/api/v1/notifications/{notificationId}": {
             "patch": {
-                "operationId": "markNotificationAsRead",
+                "operationId": "updateNotification",
                 "responses": {
                     "200": {
                         "description": "Success",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiCreateNotification"
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
                                 }
                             }
                         }
@@ -8329,7 +8300,7 @@
                         }
                     }
                 },
-                "description": "Mark a notification as read",
+                "description": "Update notification",
                 "tags": ["Notifications"],
                 "security": [],
                 "parameters": [
@@ -8342,7 +8313,17 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiNotificationUpdateParams"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org": {

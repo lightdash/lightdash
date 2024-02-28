@@ -1,31 +1,34 @@
-export type Notification = {
+export enum NotificationResourceType {
+    DashboardComments = 'dashboard_comments',
+}
+
+interface NotificationDashboardTileCommentMetadata {
+    dashboardUuid: string;
+    dashboardName: string;
+    dashboardTileUuid: string;
+    dashboardTileName: string;
+}
+
+export type NotificationBase = {
     notificationId: string;
-    user: {
-        name: string;
-    };
-    author: {
-        name: string;
-    };
-    dashboard?: {
-        uuid: string | null;
-        name: string;
-        tileUuid: string | null;
-    };
-    viewed: boolean;
     createdAt: Date;
+    viewed: boolean;
+    resourceUuid: string | undefined;
+    message: string | undefined;
+    url: string | undefined;
 };
 
-export type ApiNotificationsResults = Notification[];
+export type NotificationDashboardComment = NotificationBase & {
+    resourceType: NotificationResourceType.DashboardComments;
+    metadata: NotificationDashboardTileCommentMetadata | undefined;
+};
 
-export enum NotificationType {
-    DASHBOARD_COMMENTS = 'dashboardComments',
-}
+export type Notification = NotificationDashboardComment;
+
+export type ApiNotificationUpdateParams = Pick<Notification, 'viewed'>;
+export type ApiNotificationsResults = Notification[];
 
 export type ApiGetNotifications = {
     status: 'ok';
     results: ApiNotificationsResults;
-};
-
-export type ApiCreateNotification = {
-    status: 'ok';
 };

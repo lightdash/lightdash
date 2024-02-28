@@ -1,17 +1,18 @@
 import {
-    ApiCreateNotification,
     ApiErrorPayload,
     ApiGetNotifications,
-    NotificationType,
+    ApiNotificationUpdateParams,
+    ApiSuccessEmpty,
+    NotificationResourceType,
 } from '@lightdash/common';
 import {
+    Body,
     Controller,
     Get,
     Middlewares,
     OperationId,
     Patch,
     Path,
-    Post,
     Query,
     Request,
     Response,
@@ -39,19 +40,13 @@ export class NotificationsController extends Controller {
     @OperationId('getNotifications')
     async getNotifications(
         @Request() req: express.Request,
-        @Query() type: NotificationType,
+        @Query() type: NotificationResourceType,
     ): Promise<ApiGetNotifications> {
-        let results: ApiGetNotifications['results'] = [];
-        switch (type) {
-            case NotificationType.DASHBOARD_COMMENTS:
-                results =
-                    await notificationsService.getDashboardCommentNotifications(
-                        req.user!.userUuid,
-                    );
-                break;
-            default:
-                break;
-        }
+        const results = await notificationsService.getNotifications(
+            req.user!.userUuid,
+            type,
+        );
+
         this.setStatus(200);
         return {
             status: 'ok',
@@ -60,48 +55,24 @@ export class NotificationsController extends Controller {
     }
 
     /**
-     * Create notification for a dashboard comment
-     * @param req express request
-     * @param dashboardUuid the uuid of the dashboard
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('{commentId}/dashboard/{dashboardUuid}')
-    @OperationId('createNotificationForDashboardComment')
-    async createDashboardCommentNotification(
-        @Path() commentId: string,
-        @Path() dashboardUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiCreateNotification> {
-        await notificationsService.createDashboardCommentNotification(
-            req.user!.userUuid,
-            commentId,
-            dashboardUuid,
-        );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-        };
-    }
-
-    /**
-     * Mark a notification as read
+     * Update notification
      * @param req express request
      * @param notificationId the id of the notification
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Patch('{notificationId}/markAsRead')
-    @OperationId('markNotificationAsRead')
-    async markNotificationAsRead(
+    @Patch('{notificationId}')
+    @OperationId('updateNotification')
+    async updateNotification(
         @Path() notificationId: string,
-    ): Promise<ApiCreateNotification> {
-        await notificationsService.markNotificationAsRead(notificationId);
+        @Body() body: ApiNotificationUpdateParams,
+    ): Promise<ApiSuccessEmpty> {
+        await notificationsService.updateNotification(notificationId, body);
 
         this.setStatus(200);
         return {
             status: 'ok',
+            results: undefined,
         };
     }
 }

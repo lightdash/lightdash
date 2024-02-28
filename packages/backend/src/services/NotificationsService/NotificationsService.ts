@@ -1,4 +1,8 @@
-import { Notification } from '@lightdash/common';
+import {
+    ApiNotificationUpdateParams,
+    Notification,
+    NotificationResourceType,
+} from '@lightdash/common';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 
 type Dependencies = {
@@ -12,27 +16,27 @@ export class NotificationsService {
         this.notificationsModel = notificationsModel;
     }
 
-    async getDashboardCommentNotifications(
+    async getNotifications(
         userUuid: string,
+        type: NotificationResourceType,
     ): Promise<Notification[]> {
-        return this.notificationsModel.getDashboardCommentNotifications(
-            userUuid,
-        );
+        switch (type) {
+            case NotificationResourceType.DashboardComments:
+                return this.notificationsModel.getDashboardCommentNotifications(
+                    userUuid,
+                );
+            default:
+                return [];
+        }
     }
 
-    async markNotificationAsRead(notificationUuid: string) {
-        return this.notificationsModel.markNotificationAsRead(notificationUuid);
-    }
-
-    async createDashboardCommentNotification(
-        userUuid: string,
-        commentId: string,
-        dashboardUuid: string,
-    ) {
-        return this.notificationsModel.createDashboardCommentNotification(
-            userUuid,
-            commentId,
-            dashboardUuid,
+    async updateNotification(
+        notificationId: string,
+        updateData: ApiNotificationUpdateParams,
+    ): Promise<number> {
+        return this.notificationsModel.updateNotification(
+            notificationId,
+            updateData,
         );
     }
 }
