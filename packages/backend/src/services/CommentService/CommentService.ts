@@ -117,21 +117,23 @@ export class CommentService {
             throw new Error('Failed to create comment');
         }
 
-        const dashboardTile = dashboard.tiles.find(
-            (t) => t.uuid === dashboardTileUuid,
-        );
+        if (comment.mentions.length > 0) {
+            const dashboardTile = dashboard.tiles.find(
+                (t) => t.uuid === dashboardTileUuid,
+            );
 
-        const commentAuthor = await this.userModel.getUserDetailsByUuid(
-            comment.user_uuid,
-        );
+            const commentAuthor = await this.userModel.getUserDetailsByUuid(
+                comment.user_uuid,
+            );
 
-        await this.notificationsModel.createDashboardCommentNotification(
-            user.userUuid,
-            commentAuthor,
-            comment,
-            dashboard,
-            dashboardTile,
-        );
+            await this.notificationsModel.createDashboardCommentNotification(
+                user.userUuid,
+                commentAuthor,
+                comment,
+                dashboard,
+                dashboardTile,
+            );
+        }
 
         return comment.comment_id;
     }
