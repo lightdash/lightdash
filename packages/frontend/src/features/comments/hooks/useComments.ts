@@ -62,6 +62,7 @@ export const useGetComments = (dashboardUuid: string, enabled: boolean) => {
         ['comments', dashboardUuid],
         () => getDashboardComments({ dashboardUuid }),
         {
+            refetchInterval: 30 * 1000, // 30 seconds
             retry: (_, error) => error.error.statusCode !== 403,
             enabled,
         },

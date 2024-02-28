@@ -234,13 +234,7 @@ export class CommentModel {
 
     async getComment(commentId: string) {
         const result = await this.database(DashboardTileCommentsTableName)
-            .select(
-                'user_uuid',
-                'dashboard_tile_uuid',
-                'reply_to',
-                'mentions',
-                'dashboards.dashboard_uuid',
-            )
+            .select('user_uuid', 'dashboard_tile_uuid', 'reply_to', 'mentions')
             .where('comment_id', commentId)
             .first();
 
