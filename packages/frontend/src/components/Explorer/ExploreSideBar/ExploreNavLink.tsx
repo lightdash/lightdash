@@ -2,13 +2,14 @@ import { InlineErrorType, SummaryExplore } from '@lightdash/common';
 import {
     Anchor,
     Box,
+    Group,
     Highlight,
     NavLink,
+    Popover,
     Text,
     Tooltip,
-    Transition,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+import { useToggle } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconInfoCircle,
@@ -16,6 +17,11 @@ import {
 } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import { useItemDetail } from '../ExploreTree/TableTree/ItemDetailContext';
+import {
+    ItemDetailMarkdown,
+    ItemDetailPreview,
+} from '../ExploreTree/TableTree/ItemDetailPreview';
 
 type ExploreNavLinkProps = {
     explore: SummaryExplore;
@@ -28,7 +34,21 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     query,
     onClick,
 }: ExploreNavLinkProps) => {
-    const { ref, hovered } = useHover<HTMLButtonElement>();
+    const { showItemDetail, isItemDetailOpen } = useItemDetail();
+    const [isHover, toggleHover] = useToggle();
+
+    const onOpenDescriptionView = () => {
+        toggleHover(false);
+        showItemDetail({
+            header: (
+                <Group spacing="sm">
+                    <MantineIcon icon={IconTable} size="lg" color="gray.7" />
+                    <Text size="md">{explore.label}</Text>
+                </Group>
+            ),
+            detail: <ItemDetailMarkdown source={explore.description ?? ''} />,
+        });
+    };
 
     if ('errors' in explore) {
         const showNoDimensionsIcon = explore.errors.every(
@@ -90,33 +110,48 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
 
     return (
         <NavLink
-            ref={ref}
             role="listitem"
             icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
             onClick={onClick}
+            onMouseEnter={() => toggleHover(true)}
+            onMouseLeave={() => toggleHover(false)}
             label={
-                <Highlight component={Text} highlight={query ?? ''} truncate>
-                    {explore.label}
-                </Highlight>
-            }
-            rightSection={
-                <Transition mounted={hovered} transition="fade">
-                    {(styles) => (
-                        <Tooltip
-                            withinPortal
-                            position="right"
-                            label={explore.description}
-                            multiline
+                <Popover
+                    opened={isHover}
+                    keepMounted={false}
+                    shadow="sm"
+                    withinPortal
+                    disabled={!explore.description || isItemDetailOpen}
+                    position="right"
+                >
+                    <Popover.Target>
+                        <Highlight
+                            component={Text}
+                            highlight={query ?? ''}
+                            truncate
                         >
-                            <MantineIcon
-                                icon={IconInfoCircle}
-                                color="gray.7"
-                                size="lg"
-                                style={styles}
-                            />
-                        </Tooltip>
-                    )}
-                </Transition>
+                            {explore.label}
+                        </Highlight>
+                    </Popover.Target>
+                    <Popover.Dropdown
+                        p="xs"
+                        /**
+                         * Takes up space to the right, so it's OK to go fairly wide in the interest
+                         * of readability.
+                         */
+                        maw={500}
+                        /**
+                         * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
+                         * while interacting with the hovercard.
+                         */
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <ItemDetailPreview
+                            onViewDescription={onOpenDescriptionView}
+                            description={explore.description}
+                        />
+                    </Popover.Dropdown>
+                </Popover>
             }
         />
     );
