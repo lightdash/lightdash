@@ -1,3 +1,10 @@
+# [0.1019.0](https://github.com/lightdash/lightdash/compare/0.1018.7...0.1019.0) (2024-02-28)
+
+
+### Features
+
+* dashboard comments mentions notifications (BE) ([#9131](https://github.com/lightdash/lightdash/issues/9131)) ([2d8862b](https://github.com/lightdash/lightdash/commit/2d8862b852a0bac9522a23c68fca71e7d211a4ef))
+
 ## [0.1018.7](https://github.com/lightdash/lightdash/compare/0.1018.6...0.1018.7) (2024-02-28)
 
 
