@@ -1,6 +1,4 @@
----
-sidebar_position: 3
----
+import HideJoinTableColumns from './assets/hide-join-table-columns.jpg';
 
 # Joins reference doc
 
@@ -232,7 +230,7 @@ Check out our [dimensions](/references/dimensions) and [metrics](/references/met
 
 ## Hide joined tables
 
-Sometimes, you need to use an intermediate model to join two models together and don't want to show it in the UI.
+Sometimes, you need to use an intermediate model to join two models together and don't want to show its columns in the list of available metrics/dimensions.
 You can add a `hidden: true` tag to joins, like this to hide these intermediate models:
 
 ```yaml
@@ -246,6 +244,11 @@ models:
    - join: organizations
      sql_on: organizations.organization_id = map_users_organizations.organization_id
 ```
+
+Using just the `hidden` tag in the join and changing nothing else will remove the joined table from the sidebar of metrics/dimensions in `users`, but it will still appear in the "Tables" list as a table to explore on its own. 
+
+<img src={HideJoinTableColumns} width="928" height="527" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+
 
 ### Managing hidden joined tables using tags
 
