@@ -1,3 +1,10 @@
+# [0.1020.0](https://github.com/lightdash/lightdash/compare/0.1019.0...0.1020.0) (2024-02-28)
+
+
+### Features
+
+* limit results 10 per type and improve query matching for tables and fields ([#9123](https://github.com/lightdash/lightdash/issues/9123)) ([7e337b0](https://github.com/lightdash/lightdash/commit/7e337b01dc1a8e10f60af2eb01cd0bb3aa1c18ac))
+
 # [0.1019.0](https://github.com/lightdash/lightdash/compare/0.1018.7...0.1019.0) (2024-02-28)
 
 
