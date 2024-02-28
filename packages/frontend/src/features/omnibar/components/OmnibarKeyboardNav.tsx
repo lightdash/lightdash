@@ -1,3 +1,4 @@
+import { Box } from '@mantine/core';
 import { PropsWithChildren } from 'react';
 import { FocusedItemIndex, SearchItem } from '../types/searchItem';
 
@@ -121,5 +122,9 @@ export const OmnibarKeyboardNav = ({
         }
     }
 
-    return <div onKeyDown={onKeyDown}>{children}</div>;
+    return (
+        <Box display="contents" onKeyDown={onKeyDown}>
+            {children}
+        </Box>
+    );
 };
