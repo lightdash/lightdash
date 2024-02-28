@@ -734,10 +734,6 @@ export class ProjectService {
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs = await isFeatureFlagEnabled(
-            FeatureFlags.UseDbtLs,
-            user,
-        );
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -746,7 +742,6 @@ export class ProjectService {
                 onWarehouseCatalogChange: () => {},
             },
             data.dbtVersion || DefaultSupportedDbtVersion,
-            useDbtLs,
         );
         try {
             await adapter.test();
@@ -803,10 +798,6 @@ export class ProjectService {
             await this.projectModel.getWarehouseFromCache(projectUuid);
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs = await isFeatureFlagEnabled(
-            FeatureFlags.UseDbtLs,
-            user,
-        );
 
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
@@ -821,7 +812,6 @@ export class ProjectService {
                 },
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
-            useDbtLs,
         );
         return { adapter, sshTunnel };
     }
