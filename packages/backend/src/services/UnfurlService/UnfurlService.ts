@@ -375,31 +375,8 @@ export class UnfurlService {
         const startTime = Date.now();
         let hasError = false;
 
-        const isPuppeteerSetViewportDynamicallyEnabled =
-            (await postHogClient?.isFeatureEnabled(
-                'puppeteer-set-viewport-dynamically',
-                userUuid,
-                organizationUuid !== undefined
-                    ? {
-                          groups: {
-                              organization: organizationUuid,
-                          },
-                      }
-                    : {},
-            )) ?? false;
-
-        const isPuppeteerScrollElementIntoViewEnabled =
-            (await postHogClient?.isFeatureEnabled(
-                'puppeteer-scroll-element-into-view',
-                userUuid,
-                organizationUuid !== undefined
-                    ? {
-                          groups: {
-                              organization: organizationUuid,
-                          },
-                      }
-                    : {},
-            )) ?? false;
+        const isPuppeteerSetViewportDynamicallyEnabled = false;
+        const isPuppeteerScrollElementIntoViewEnabled = false;
 
         return tracer.startActiveSpan(
             'UnfurlService.saveScreenshot',

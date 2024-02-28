@@ -1,3 +1,10 @@
+## [0.1018.7](https://github.com/lightdash/lightdash/compare/0.1018.6...0.1018.7) (2024-02-28)
+
+
+### Bug Fixes
+
+* timeout on posthog API failures, remove unused feature flags ([#9154](https://github.com/lightdash/lightdash/issues/9154)) ([c8d7400](https://github.com/lightdash/lightdash/commit/c8d74003d219f1d06113c42a44369c6099cd5d12))
+
 ## [0.1018.6](https://github.com/lightdash/lightdash/compare/0.1018.5...0.1018.6) (2024-02-28)
 
 
