@@ -41,6 +41,7 @@ type Props<T> = {
     onEdit: (tile: T) => void;
     children?: ReactNode;
     extraHeaderElement?: ReactNode;
+    visibleHeaderElement?: ReactNode;
     minimal?: boolean;
     lockHeaderVisibility?: boolean;
 };
@@ -58,6 +59,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     onEdit,
     children,
     extraHeaderElement,
+    visibleHeaderElement,
     titleHref,
     minimal = false,
     lockHeaderVisibility = false,
@@ -167,7 +169,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         </TitleWrapper>
                     </Tooltip>
                 )}
-
+                {visibleHeaderElement && (
+                    <ButtonsWrapper className="non-draggable">
+                        {visibleHeaderElement}
+                    </ButtonsWrapper>
+                )}
                 {(containerHovered && !titleHovered) ||
                 isMenuOpen ||
                 lockHeaderVisibility ? (

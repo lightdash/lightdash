@@ -1,5 +1,5 @@
 import { DashboardLoomTile } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { DashboardTileComments } from '../../features/comments';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import TileBase from './TileBase/index';
@@ -22,20 +22,32 @@ const LoomTile: FC<Props> = (props) => {
             properties: { title, url },
         },
     } = props;
+
+    const comments = useDashboardContext(
+        (c) => c.dashboardComments && c.dashboardComments[props.tile.uuid],
+    );
+
+    const hasComments = useMemo(() => {
+        return (comments || []).length > 0;
+    }, [comments]);
+    const dashboardComments = useMemo(() => {
+        return (
+            !!showComments && (
+                <DashboardTileComments
+                    opened={isCommentsMenuOpen}
+                    onOpen={() => setIsCommentsMenuOpen(true)}
+                    onClose={() => setIsCommentsMenuOpen(false)}
+                    dashboardTileUuid={props.tile.uuid}
+                />
+            )
+        );
+    }, [showComments, isCommentsMenuOpen, props.tile.uuid]);
     return (
         <TileBase
             title={title}
             lockHeaderVisibility={isCommentsMenuOpen}
-            extraHeaderElement={
-                !!showComments && (
-                    <DashboardTileComments
-                        opened={isCommentsMenuOpen}
-                        onOpen={() => setIsCommentsMenuOpen(true)}
-                        onClose={() => setIsCommentsMenuOpen(false)}
-                        dashboardTileUuid={props.tile.uuid}
-                    />
-                )
-            }
+            visibleHeaderElement={hasComments ? dashboardComments : undefined}
+            extraHeaderElement={hasComments ? undefined : dashboardComments}
             {...props}
         >
             <iframe
