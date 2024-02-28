@@ -99,18 +99,24 @@ export const OmnibarKeyboardNav = ({
 
         switch (event.key) {
             case 'ArrowDown':
+                event.preventDefault();
+
                 onFocusedItemChange(
                     handleArrowDown(maxGroupIndex, maxCurrentGroupItemIndex),
                 );
 
                 break;
             case 'ArrowUp':
+                event.preventDefault();
+
                 onFocusedItemChange(
                     handleArrowUp(maxGroupIndex, lastItemIndex),
                 );
 
                 break;
             case 'Enter':
+                event.preventDefault();
+
                 if (currentFocusedItemIndex) {
                     const item =
                         groupedItems[currentFocusedItemIndex.groupIndex][1][
@@ -118,6 +124,7 @@ export const OmnibarKeyboardNav = ({
                         ];
                     onEnterPressed(item);
                 }
+
                 break;
         }
     }
