@@ -396,8 +396,11 @@ FROM "postgres"."jaffle"."orders" AS "orders"
 
 ## Additional dimensions
 
-Additional dimensions let you define multiple dimensions off of a single column. This is useful when handling JSONB
+Additional dimensions let you define multiple dimensions off of a single column from your dbt model. This is useful when handling JSONB
 columns, adding different formatting options to a column, or creating persisted groups/buckets based off of a column.
+
+A "normal" dimension is a column created in your .sql file in dbt that is written to/stored in your data warehouse. 
+An additional dimension is not included in yoru dbt .sql file, so it's not written to/stored in your data warehouse. When used in Lightdash, it just adds the dimension definition to your SQL query (so it's "created" at runtime).
 
 All the [dimension configuration](#dimension-configuration), beside `time_intervals`, are available for additional
 dimensions.
