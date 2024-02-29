@@ -11,6 +11,7 @@ import { convertDimensionNameToLabels } from '../utils/convertDimensionNameToLab
 import MetricFlowFieldIcon from './MetricFlowFieldIcon';
 
 type Props = {
+    disabled: boolean;
     fields:
         | GetMetricFlowFieldsResponse['dimensions']
         | GetMetricFlowFieldsResponse['metricsForDimensions']
@@ -24,6 +25,7 @@ type Props = {
 };
 
 const MetricFlowFieldList: FC<Props> = ({
+    disabled,
     fields,
     selectedFields,
     onClick,
@@ -53,6 +55,7 @@ const MetricFlowFieldList: FC<Props> = ({
                                 {labels.dimensionLabel}
                             </Group>
                         }
+                        disabled={disabled}
                         description={field.description}
                         rightSection={
                             isSelected &&

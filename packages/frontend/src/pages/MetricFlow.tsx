@@ -27,9 +27,10 @@ import VisualizationProvider from '../components/LightdashVisualization/Visualiz
 import MetricFlowFieldList from '../features/metricFlow/components/MetricFlowFieldList';
 import MetricFlowSqlCard from '../features/metricFlow/components/MetricFlowSqlCard';
 import MetricFlowResultsTable from '../features/metricFlow/components/ResultsTable';
-import useMetricFlowFields from '../features/metricFlow/hooks/useMetricFlowFields';
 import useMetricFlowQueryResults from '../features/metricFlow/hooks/useMetricFlowQueryResults';
 import useMetricFlowVisualization from '../features/metricFlow/hooks/useMetricFlowVisualization';
+import useSemanticLayerDimensions from '../features/metricFlow/hooks/useSemanticLayerDimensions';
+import useSemanticLayerMetrics from '../features/metricFlow/hooks/useSemanticLayerMetrics';
 import convertFieldMapToTableColumns from '../features/metricFlow/utils/convertFieldMapToTableColumns';
 import convertMetricFlowFieldsToExplore from '../features/metricFlow/utils/convertMetricFlowFieldsToExplore';
 import convertMetricFlowQueryResultsToResultsData from '../features/metricFlow/utils/convertMetricFlowQueryResultsToResultsData';
@@ -51,19 +52,28 @@ const MetricFlowPage = () => {
     const [selectedDimensions, setSelectedDimensions] = useState<
         Record<string, { grain: TimeGranularity }>
     >({});
-    const metricFlowFieldsQuery = useMetricFlowFields(
+    const semanticLayerDimensionsQuery = useSemanticLayerDimensions(
         activeProjectUuid,
-        {
-            metrics: selectedMetrics,
-            dimensions: selectedDimensions,
-        },
+        selectedMetrics,
         {
             onError: (err) => {
                 showToastError({
-                    title: 'Error fetching metrics and dimensions',
+                    title: 'Error fetching dimensions',
                     subtitle: err.error.message,
                 });
                 setSelectedMetrics({});
+            },
+        },
+    );
+    const semanticLayerMetricsQuery = useSemanticLayerMetrics(
+        activeProjectUuid,
+        selectedDimensions,
+        {
+            onError: (err) => {
+                showToastError({
+                    title: 'Error fetching metrics',
+                    subtitle: err.error.message,
+                });
                 setSelectedDimensions({});
             },
         },
@@ -93,15 +103,19 @@ const MetricFlowPage = () => {
     );
 
     const explore = useMemo(() => {
-        if (!metricFlowFieldsQuery.data) {
+        if (
+            !semanticLayerDimensionsQuery.data ||
+            !semanticLayerMetricsQuery.data
+        ) {
             return undefined;
         }
 
         return convertMetricFlowFieldsToExplore(
             MOCK_TABLE_NAME,
-            metricFlowFieldsQuery.data,
+            semanticLayerDimensionsQuery.data?.dimensions ?? [],
+            semanticLayerMetricsQuery.data?.metricsForDimensions ?? [],
         );
-    }, [metricFlowFieldsQuery.data]);
+    }, [semanticLayerDimensionsQuery.data, semanticLayerMetricsQuery.data]);
 
     const { resultsData, columns } = useMemo(() => {
         if (!explore || !metricFlowQueryResultsQuery.data?.query.jsonResult) {
@@ -242,10 +256,14 @@ const MetricFlowPage = () => {
                                 <Button
                                     size="xs"
                                     variant="default"
-                                    disabled={metricFlowFieldsQuery.isFetching}
-                                    onClick={() =>
-                                        metricFlowFieldsQuery.refetch()
+                                    disabled={
+                                        semanticLayerDimensionsQuery.isFetching ||
+                                        semanticLayerMetricsQuery.isFetching
                                     }
+                                    onClick={() => {
+                                        semanticLayerDimensionsQuery.refetch();
+                                        semanticLayerMetricsQuery.refetch();
+                                    }}
                                 >
                                     <IconRefresh size={12} />
                                 </Button>
@@ -275,7 +293,7 @@ const MetricFlowPage = () => {
                             </Title>
                             <Text span fz="xs" color="gray.6">
                                 (
-                                {metricFlowFieldsQuery.data
+                                {semanticLayerMetricsQuery.data
                                     ?.metricsForDimensions.length ?? 0}
                                 {Object.keys(selectedDimensions).length > 0 && (
                                     <> available based on selected dimensions</>
@@ -285,8 +303,9 @@ const MetricFlowPage = () => {
                         </Flex>
                         <ScrollArea offsetScrollbars sx={{ flex: 1 }}>
                             <MetricFlowFieldList
+                                disabled={semanticLayerMetricsQuery.isFetching}
                                 fields={
-                                    metricFlowFieldsQuery.data
+                                    semanticLayerMetricsQuery.data
                                         ?.metricsForDimensions
                                 }
                                 selectedFields={selectedMetrics}
@@ -299,7 +318,7 @@ const MetricFlowPage = () => {
                             </Title>
                             <Text span fz="xs" color="gray.6">
                                 (
-                                {metricFlowFieldsQuery.data?.dimensions
+                                {semanticLayerDimensionsQuery.data?.dimensions
                                     .length ?? 0}
                                 {selectedMetrics.size > 0 && (
                                     <> available based on selected metrics</>
@@ -309,7 +328,13 @@ const MetricFlowPage = () => {
                         </Flex>
                         <ScrollArea offsetScrollbars sx={{ flex: 1 }}>
                             <MetricFlowFieldList
-                                fields={metricFlowFieldsQuery.data?.dimensions}
+                                disabled={
+                                    semanticLayerDimensionsQuery.isFetching
+                                }
+                                fields={
+                                    semanticLayerDimensionsQuery.data
+                                        ?.dimensions
+                                }
                                 selectedFields={selectedDimensions}
                                 onClick={(name) => handleDimensionSelect(name)}
                                 onClickTimeGranularity={
