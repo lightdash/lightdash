@@ -176,7 +176,7 @@ const ProjectSwitcher = () => {
                     >
                         <Group spacing="sm">
                             {item.type === ProjectType.PREVIEW && (
-                                <Badge color="blue" variant="filled" size="sm">
+                                <Badge color="blue" variant="filled" size="xs">
                                     Preview
                                 </Badge>
                             )}
