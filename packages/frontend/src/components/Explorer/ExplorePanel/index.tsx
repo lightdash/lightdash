@@ -88,12 +88,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     {
                         title: data.label,
                         active: true,
-                        tooltipProps: {
-                            withinPortal: true,
-                            disabled: !data.tables[data.baseTable].description,
-                            label: data.tables[data.baseTable].description,
-                            position: 'right',
-                        },
                     },
                 ]}
             />
