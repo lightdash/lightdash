@@ -15,6 +15,7 @@ import {
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
+    getCustomExploreFromQueryResultsAndSql,
     getFieldRef,
     lightdashVariablePattern,
     MetricQuery,
@@ -38,6 +39,7 @@ import { EMPTY_CARTESIAN_CHART_CONFIG } from '../hooks/cartesianChartConfig/useC
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import {
     useChartVersionResultsMutation,
+    useCustomSqlQueryResults,
     useQueryResults,
 } from '../hooks/useQueryResults';
 
@@ -1685,20 +1687,38 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
     const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
         queryResults;
 
+    const customQueryResults = useCustomSqlQueryResults();
+
     const mutateAsync = useCallback(async () => {
         try {
-            const result = await mutateAsyncQuery(
-                unsavedChartVersion.tableName,
-                unsavedChartVersion.metricQuery,
-            );
+            if (!reducerState.customSql || !reducerState.customSql.results) {
+                const result = await mutateAsyncQuery(
+                    unsavedChartVersion.tableName,
+                    unsavedChartVersion.metricQuery,
+                );
 
-            setMetricQuery(cloneDeep(unsavedChartVersion.metricQuery));
+                setMetricQuery(cloneDeep(unsavedChartVersion.metricQuery));
 
-            return result;
+                return result;
+            } else {
+                const customExplore = getCustomExploreFromQueryResultsAndSql(
+                    reducerState.customSql.sql,
+                    reducerState.customSql.results,
+                );
+
+                const result = await customQueryResults.mutateAsync({
+                    metricQuery: reducerState.customSql.results.metricQuery,
+                    explore: customExplore,
+                });
+
+                return result;
+            }
         } catch (e) {
             console.error(e);
         }
     }, [
+        customQueryResults,
+        reducerState,
         mutateAsyncQuery,
         setMetricQuery,
         unsavedChartVersion.tableName,
@@ -1839,10 +1859,18 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
     const value: ExplorerContext = useMemo(
         () => ({
             state,
-            queryResults,
+            queryResults: reducerState.customSql?.sql
+                ? customQueryResults
+                : queryResults,
             actions,
         }),
-        [actions, queryResults, state],
+        [
+            actions,
+            reducerState.customSql,
+            customQueryResults,
+            queryResults,
+            state,
+        ],
     );
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

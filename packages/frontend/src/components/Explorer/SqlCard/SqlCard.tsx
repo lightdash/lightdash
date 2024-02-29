@@ -32,7 +32,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             title="SQL"
             isOpen={sqlIsOpen}
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
-            disabled={!unsavedChartVersionTableName}
+            // disabled={!unsavedChartVersionTableName}
             rightHeaderElement={
                 sqlIsOpen && (
                     <Can

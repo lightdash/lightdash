@@ -4,6 +4,7 @@ import {
     ApiExploreResults,
     ApiExploresResults,
     ApiSuccessEmpty,
+    Explore,
     MetricQuery,
 } from '@lightdash/common';
 import {
@@ -117,6 +118,38 @@ export class ExploreController extends BaseController {
             await this.services
                 .getProjectService()
                 .compileQuery(req.user!, body, projectUuid, exploreId)
+        ).query;
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/compileCustomQuery')
+    @OperationId('CompileCustomQuery')
+    async CompileCustomQuery(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body()
+        body: {
+            metricQuery: MetricQuery;
+            explore: Explore;
+        },
+    ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
+        this.setStatus(200);
+
+        const results = (
+            await this.services
+                .getProjectService()
+                .compileCustomQuery(
+                    req.user!,
+                    projectUuid,
+                    body.explore,
+                    body.metricQuery,
+                )
         ).query;
 
         return {

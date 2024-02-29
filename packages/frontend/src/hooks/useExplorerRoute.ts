@@ -93,25 +93,25 @@ export const useExplorerRoute = () => {
     );
 
     // Update url params based on pristine state
-    useEffect(() => {
-        if (queryResultsData?.metricQuery) {
-            history.replace(
-                getExplorerUrlFromCreateSavedChartVersion(
-                    pathParams.projectUuid,
-                    {
-                        ...unsavedChartVersion,
-                        metricQuery: queryResultsData.metricQuery,
-                    },
-                ),
-            );
-        }
-    }, [
-        queryResultsData,
-        history,
-        pathParams.projectUuid,
-        unsavedChartVersion,
-        dateZoom,
-    ]);
+    // useEffect(() => {
+    //     if (queryResultsData?.metricQuery) {
+    //         history.replace(
+    //             getExplorerUrlFromCreateSavedChartVersion(
+    //                 pathParams.projectUuid,
+    //                 {
+    //                     ...unsavedChartVersion,
+    //                     metricQuery: queryResultsData.metricQuery,
+    //                 },
+    //             ),
+    //         );
+    //     }
+    // }, [
+    //     queryResultsData,
+    //     history,
+    //     pathParams.projectUuid,
+    //     unsavedChartVersion,
+    //     dateZoom,
+    // ]);
 
     useEffect(() => {
         if (!pathParams.tableId) {

@@ -1,8 +1,7 @@
 import {
-    Explore,
     fieldId as getFieldId,
+    getCustomExploreFromQueryResultsAndSql,
     getVisibleFields,
-    SupportedDbtAdapter,
 } from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine/core';
 import { FC, memo, useEffect, useMemo } from 'react';
@@ -33,9 +32,14 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+
+    const customSql = useExplorerContext(
+        (context) => context.state.customSql?.sql,
+    );
     const customSqlResults = useExplorerContext(
         (context) => context.state.customSql?.results,
     );
+
     const customMetricQuery = customSqlResults?.metricQuery;
     const metricQuery = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
@@ -90,19 +94,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         if (isError) onBack?.();
     }, [isError, onBack]);
 
-    const customExplore: Explore | undefined = useMemo(() => {
-        if (!customSqlResults) return undefined;
-
-        return {
-            name: 'custom',
-            label: 'Custom explore',
-            tags: [],
-            baseTable: 'custom',
-            joinedTables: [],
-            tables: {},
-            targetDatabase: SupportedDbtAdapter.POSTGRES,
-        };
-    }, [customSqlResults]);
+    const customExplore =
+        customSqlResults && customSql
+            ? getCustomExploreFromQueryResultsAndSql(
+                  customSql,
+                  customSqlResults,
+              )
+            : undefined;
 
     if (isError) return null;
 

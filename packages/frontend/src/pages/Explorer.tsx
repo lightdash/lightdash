@@ -41,7 +41,7 @@ const ExplorerWithUrlParams = memo(() => {
         <Page
             title={
                 mode === ExploreMode.CREATE
-                    ? 'Custom Explore'
+                    ? 'Untitled Explore'
                     : data
                     ? data?.label
                     : 'Tables'

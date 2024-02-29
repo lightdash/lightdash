@@ -35,6 +35,8 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     selectedDimensions,
     missingFields,
 }) => {
+    console.log(explore);
+
     const [search, setSearch] = useState<string>('');
     const isSearching = !!search && search !== '';
 

@@ -1114,6 +1114,44 @@ export class ProjectService {
         return compiledQuery;
     }
 
+    async compileCustomQuery(
+        user: SessionUser,
+        projectUuid: string,
+        explore: Explore,
+        metricQuery: MetricQuery,
+    ) {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+            explore.warehouse,
+        );
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+        const compiledQuery = await ProjectService._compileQuery(
+            metricQuery,
+            explore,
+            warehouseClient,
+            userAttributes,
+        );
+        await sshTunnel.disconnect();
+        return compiledQuery;
+    }
+
     private metricQueryWithLimit(
         metricQuery: MetricQuery,
         csvLimit: number | null | undefined,
@@ -1446,6 +1484,49 @@ export class ProjectService {
             metricQuery,
             projectUuid,
             exploreName,
+            explore,
+            csvLimit,
+            context: QueryExecutionContext.EXPLORE,
+            queryTags,
+            granularity: dateZoomGranularity,
+        });
+    }
+
+    async runCustomExploreQuery(
+        user: SessionUser,
+        projectUuid: string,
+        metricQuery: MetricQuery,
+        explore: Explore,
+        csvLimit: number | null | undefined,
+        dateZoomGranularity?: DateGranularity,
+    ): Promise<ApiQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+        };
+
+        return this.runQueryAndFormatRows({
+            user,
+            metricQuery,
+            projectUuid,
+            // TODO: use `CUSTOM_EXPLORE_ALIAS_NAME`
+            exploreName: 'custom_explore',
             explore,
             csvLimit,
             context: QueryExecutionContext.EXPLORE,

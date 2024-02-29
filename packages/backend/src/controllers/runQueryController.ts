@@ -3,6 +3,7 @@ import {
     ApiErrorPayload,
     ApiQueryResults,
     CacheMetadata,
+    DateGranularity,
     Item,
     MetricQuery,
     MetricQueryRequest,
@@ -118,6 +119,47 @@ export class RunViewChartQueryController extends BaseController {
                 metricQuery,
                 projectUuid,
                 exploreId,
+                body.csvLimit,
+                body.granularity,
+            );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Run a query for explore
+     * @param projectUuid The uuid of the project
+     * @param body metricQuery for the chart to run
+     * @param exploreId table name
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/explores/runCustomExploreQuery')
+    @OperationId('RunCustomExploreQuery')
+    async runCustomExploreQuery(
+        @Body()
+        body: // TODO: improve types
+        {
+            metricQuery: any;
+            explore: any;
+            csvLimit?: number | undefined;
+            granularity?: DateGranularity | undefined;
+        },
+        @Path() projectUuid: string,
+
+        @Request() req: express.Request,
+    ): Promise<ApiRunQueryResponse> {
+        const results: ApiQueryResults = await this.services
+            .getProjectService()
+            .runCustomExploreQuery(
+                req.user!,
+                projectUuid,
+                req.body.metricQuery,
+                req.body.explore,
                 body.csvLimit,
                 body.granularity,
             );
