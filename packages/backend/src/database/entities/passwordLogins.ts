@@ -1,6 +1,4 @@
-import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
-import database from '../database';
 
 export type DbPasswordLogin = {
     user_id: number;
