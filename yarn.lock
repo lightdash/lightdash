@@ -3709,13 +3709,6 @@
     "@mantine/utils" "6.0.21"
     prism-react-renderer "^1.2.1"
 
-"@mantine/spotlight@^6.0.21":
-  version "6.0.21"
-  resolved "https://registry.yarnpkg.com/@mantine/spotlight/-/spotlight-6.0.21.tgz#98f507bd3429fee1f2b57ad5ef9f88d1d8d8ff32"
-  integrity sha512-xJqF2Vpn8s6I4mSF+iCi7IzqL8iaqbvq0RcYlF1usLZYW2HrArX31s1r11DmzqM1PIuBQUhquW8jUXx/MZy3oA==
-  dependencies:
-    "@mantine/utils" "6.0.21"
-
 "@mantine/styles@6.0.21":
   version "6.0.21"
   resolved "https://registry.yarnpkg.com/@mantine/styles/-/styles-6.0.21.tgz#8ea097fc76cbb3ed55f5cfd719d2f910aff5031b"
@@ -5814,7 +5807,7 @@
   resolved "https://registry.yarnpkg.com/@tabler/icons-react/-/icons-react-2.47.0.tgz#b704e7ae98f95be8bd6e938b4b2e84cd20b0cf31"
   integrity sha512-iqly2FvCF/qUbgmvS8E40rVeYY7laltc5GUjRxQj59DuX0x/6CpKHTXt86YlI2whg4czvd/c8Ce8YR08uEku0g==
   dependencies:
-    "@tabler/icons" "2.47.0"
+    "@tabler/icons" "2.32.0"
     prop-types "^15.7.2"
 
 "@tabler/icons@2.32.0":
