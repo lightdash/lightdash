@@ -26,30 +26,45 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     const canUserManageValidations = useValidationUserAbility(projectUuid);
     const [hasReadValidationNotification, setHasReadValidationNotification] =
         useValidationNotificationChecker();
-    const hasValidationErrors = validationData && validationData?.length > 0;
+    const hasValidationNotifications =
+        validationData && validationData.length > 0;
 
     // Dashboard comments notifications
-    const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
-    const userCanViewDashboardComments =
-        dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
-        dashboardCommentsCheck.userCanViewDashboardComments;
+    const { isDashboardTileCommentsFeatureEnabled } = useDashboardCommentsCheck(
+        user?.data,
+    );
     const { data: dashboardCommentsNotifications } = useGetNotifications(
         NotificationResourceType.DashboardComments,
-        userCanViewDashboardComments,
+        isDashboardTileCommentsFeatureEnabled,
     );
-    const disableBadge =
-        (!canUserManageValidations ||
-            !hasValidationErrors ||
-            hasReadValidationNotification) &&
-        !dashboardCommentsNotifications?.filter((n) => !n.viewed)?.length;
-
-    const hasValidationNotifications =
-        canUserManageValidations && hasValidationErrors;
-
     const hasDashboardCommentsNotifications =
-        !!dashboardCommentsNotifications?.length;
+        dashboardCommentsNotifications &&
+        dashboardCommentsNotifications.length > 0;
 
-    return validationData ? (
+    const showNotificationBadge = () => {
+        /**
+         * Show notification badge if:
+         * - User can manage validations and there are unread validation errors
+         * - Feature flag for Dashboard Comments is on and there are unread dashboard comments
+         */
+        if (canUserManageValidations && hasValidationNotifications) {
+            return !hasReadValidationNotification;
+        }
+
+        if (isDashboardTileCommentsFeatureEnabled) {
+            const hasUnreadComments = dashboardCommentsNotifications?.some(
+                (n) => !n.viewed,
+            );
+            return hasUnreadComments;
+        }
+
+        return false;
+    };
+
+    const shouldDisplayMenu =
+        isDashboardTileCommentsFeatureEnabled || canUserManageValidations;
+
+    return shouldDisplayMenu ? (
         <Menu
             withArrow
             shadow="lg"
@@ -61,25 +76,23 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                 <Button
                     variant="default"
                     size="xs"
-                    onClick={() => setHasReadValidationNotification()}
+                    // NOTE: Set validation notification as read (Local Storage)
+                    onClick={setHasReadValidationNotification}
                     sx={{
                         // NOTE: Revert overflow so badge doesn't get cropped off
-                        '.mantine-Button-label': {
-                            overflow: 'revert',
-                        },
+                        '.mantine-Button-label': { overflow: 'revert' },
                     }}
                 >
                     <Indicator
                         size={12}
                         color="red"
                         offset={1}
-                        disabled={disableBadge}
+                        disabled={!showNotificationBadge()}
                     >
                         <MantineIcon icon={IconBell} />
                     </Indicator>
                 </Button>
             </Menu.Target>
-
             <Menu.Dropdown maw="400px">
                 {hasValidationNotifications && (
                     <ValidationErrorNotification
@@ -87,14 +100,12 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                         validationData={validationData}
                     />
                 )}
-
                 {hasDashboardCommentsNotifications && (
                     <DashboardCommentsNotifications
                         notifications={dashboardCommentsNotifications}
                         projectUuid={projectUuid}
                     />
                 )}
-
                 {!hasValidationNotifications &&
                     !hasDashboardCommentsNotifications && (
                         <Menu.Item>No notifications</Menu.Item>
