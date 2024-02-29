@@ -9,12 +9,12 @@ export const useDashboardCommentsCheck = (
         FeatureFlags.DashboardTileComments,
     );
 
-    const userCanViewDashboardComments = user?.ability?.can(
+    const userCanViewDashboardComments = !!user?.ability?.can(
         'view',
         'DashboardComments',
     );
 
-    const userCanManageDashboardComments = user?.ability?.can(
+    const userCanManageDashboardComments = !!user?.ability?.can(
         'manage',
         'DashboardComments',
     );
