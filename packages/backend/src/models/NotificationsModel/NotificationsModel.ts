@@ -80,7 +80,7 @@ export class NotificationsModel {
                             resource_uuid: comment.commentId,
                             resource_type:
                                 DbNotificationResourceType.DashboardComments,
-                            message: `You were mentioned in a comment by ${
+                            message: `You were tagged in a comment by ${
                                 commentAuthor.firstName
                             } ${commentAuthor.lastName} on the dashboard ${
                                 dashboard.name
