@@ -513,22 +513,18 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             ),
         [chartWithDashboardFilters],
     );
-    const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
 
+    const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
         (c) =>
             c.dashboardCommentsCheck?.userCanViewDashboardComments &&
             c.dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled,
     );
-    const comments = useDashboardContext(
-        (c) => c.dashboardComments && c.dashboardComments[props.tile.uuid],
+    const tileHasComments = useDashboardContext((c) =>
+        c.hasTileComments(tileUuid),
     );
-
-    const hasComments = useMemo(() => {
-        return (comments || []).length > 0;
-    }, [comments]);
-    const dashboardComments = useMemo(() => {
-        return (
+    const dashboardComments = useMemo(
+        () =>
             !!showComments && (
                 <DashboardTileComments
                     opened={isCommentsMenuOpen}
@@ -536,20 +532,22 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     onClose={() => setIsCommentsMenuOpen(false)}
                     dashboardTileUuid={tileUuid}
                 />
-            )
-        );
-    }, [showComments, isCommentsMenuOpen, tileUuid]);
+            ),
+        [showComments, isCommentsMenuOpen, tileUuid],
+    );
 
     return (
         <>
             <TileBase
                 lockHeaderVisibility={isCommentsMenuOpen}
                 visibleHeaderElement={
-                    hasComments ? dashboardComments : undefined
+                    // Dashboard comments are always visible if they exist
+                    tileHasComments ? dashboardComments : undefined
                 }
                 extraHeaderElement={
                     <>
-                        {hasComments ? undefined : dashboardComments}
+                        {/* Dashboard comments only appear on hover if there are no comments yet */}
+                        {tileHasComments ? undefined : dashboardComments}
                         {appliedFilterRules.length > 0 && (
                             <HoverCard
                                 withArrow
