@@ -1,28 +1,53 @@
+import { NotificationResourceType } from '@lightdash/common';
 import { Button, Indicator, Menu } from '@mantine/core';
 import { IconBell } from '@tabler/icons-react';
 import { FC } from 'react';
+import { useDashboardCommentsCheck } from '../../../features/comments';
+import {
+    DashboardCommentsNotifications,
+    useGetNotifications,
+} from '../../../features/notifications';
 import {
     useValidation,
     useValidationNotificationChecker,
     useValidationUserAbility,
 } from '../../../hooks/validation/useValidation';
+import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 import { ValidationErrorNotification } from './ValidationErrorNotification';
 
 export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const { user } = useApp();
+
+    // Validator notifications
     const { data: validationData } = useValidation(projectUuid, false);
     const canUserManageValidations = useValidationUserAbility(projectUuid);
     const [hasReadValidationNotification, setHasReadValidationNotification] =
         useValidationNotificationChecker();
-
     const hasValidationErrors = validationData && validationData?.length > 0;
 
+    // Dashboard comments notifications
+    const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
+    const userCanViewDashboardComments =
+        !!dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
+        !!dashboardCommentsCheck.userCanViewDashboardComments;
+    const { data: dashboardCommentsNotifications } = useGetNotifications(
+        NotificationResourceType.DashboardComments,
+        userCanViewDashboardComments,
+    );
     const disableBadge =
-        !canUserManageValidations ||
-        !hasValidationErrors ||
-        hasReadValidationNotification;
+        (!canUserManageValidations ||
+            !hasValidationErrors ||
+            hasReadValidationNotification) &&
+        !dashboardCommentsNotifications?.filter((n) => !n.viewed)?.length;
+
+    const hasValidationNotifications =
+        canUserManageValidations && hasValidationErrors;
+
+    const hasDashboardCommentsNotifications =
+        !!dashboardCommentsNotifications?.length;
 
     return validationData ? (
         <Menu
@@ -55,15 +80,25 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                 </Button>
             </Menu.Target>
 
-            <Menu.Dropdown>
-                {canUserManageValidations && hasValidationErrors ? (
+            <Menu.Dropdown maw="400px">
+                {hasValidationNotifications && (
                     <ValidationErrorNotification
                         projectUuid={projectUuid}
                         validationData={validationData}
                     />
-                ) : (
-                    <Menu.Item>No notifications</Menu.Item>
                 )}
+
+                {hasDashboardCommentsNotifications && (
+                    <DashboardCommentsNotifications
+                        notifications={dashboardCommentsNotifications}
+                        projectUuid={projectUuid}
+                    />
+                )}
+
+                {!hasValidationNotifications &&
+                    !hasDashboardCommentsNotifications && (
+                        <Menu.Item>No notifications</Menu.Item>
+                    )}
             </Menu.Dropdown>
         </Menu>
     ) : null;

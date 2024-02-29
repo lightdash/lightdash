@@ -152,6 +152,7 @@ export * from './types/gitIntegration';
 export * from './types/groups';
 export * from './types/job';
 export * from './types/metricQuery';
+export * from './types/notifications';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
