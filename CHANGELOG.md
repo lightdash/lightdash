@@ -1,3 +1,10 @@
+## [0.1021.9](https://github.com/lightdash/lightdash/compare/0.1021.8...0.1021.9) (2024-02-29)
+
+
+### Bug Fixes
+
+* upgrade databricks library to 1.8.1 ([#9182](https://github.com/lightdash/lightdash/issues/9182)) ([5bae709](https://github.com/lightdash/lightdash/commit/5bae70948735a87ee16e39d66360ea87a246e9d0))
+
 ## [0.1021.8](https://github.com/lightdash/lightdash/compare/0.1021.7...0.1021.8) (2024-02-29)
 
 
