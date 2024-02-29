@@ -1,3 +1,11 @@
+## [0.1021.2](https://github.com/lightdash/lightdash/compare/0.1021.1...0.1021.2) (2024-02-29)
+
+
+### Bug Fixes
+
+* assume yes in cli generate command ([#9114](https://github.com/lightdash/lightdash/issues/9114)) ([09d969c](https://github.com/lightdash/lightdash/commit/09d969c58740f9de69169ef1d0a40958e7f85aec))
+* dashboard filter label inside modal ([#9074](https://github.com/lightdash/lightdash/issues/9074)) ([14f4744](https://github.com/lightdash/lightdash/commit/14f4744d4edf604e13d3e3a0c556ce583f8ce8af))
+
 ## [0.1021.1](https://github.com/lightdash/lightdash/compare/0.1021.0...0.1021.1) (2024-02-29)
 
 
