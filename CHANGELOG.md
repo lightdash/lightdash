@@ -1,3 +1,10 @@
+## [0.1021.3](https://github.com/lightdash/lightdash/compare/0.1021.2...0.1021.3) (2024-02-29)
+
+
+### Bug Fixes
+
+* semantic layer required dimension message ([#9143](https://github.com/lightdash/lightdash/issues/9143)) ([324d505](https://github.com/lightdash/lightdash/commit/324d5056e9e3cf9024fea46b3a3a8eae9dbbfd6f))
+
 ## [0.1021.2](https://github.com/lightdash/lightdash/compare/0.1021.1...0.1021.2) (2024-02-29)
 
 
