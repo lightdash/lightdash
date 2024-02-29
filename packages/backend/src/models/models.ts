@@ -36,9 +36,12 @@ import { ValidationModel } from './ValidationModel/ValidationModel';
 
 export const encryptionService = new EncryptionService({ lightdashConfig });
 
-export const inviteLinkModel = new InviteLinkModel(database);
+export const inviteLinkModel = new InviteLinkModel({
+    database,
+    lightdashConfig,
+});
 export const organizationModel = new OrganizationModel(database);
-export const userModel = new UserModel(database);
+export const userModel = new UserModel({ database, lightdashConfig });
 export const sessionModel = new SessionModel(database);
 export const dashboardModel = new DashboardModel({ database });
 export const projectModel = new ProjectModel({

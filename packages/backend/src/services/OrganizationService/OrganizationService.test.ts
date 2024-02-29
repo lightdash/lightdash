@@ -1,4 +1,5 @@
 import { LightdashInstallType } from '@lightdash/common';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
     groupsModel,
     inviteLinkModel,
@@ -24,6 +25,7 @@ jest.mock('../../models/models', () => ({
 }));
 describe('organization service', () => {
     const organizationService = new OrganizationService({
+        lightdashConfig: lightdashConfigMock,
         organizationModel,
         projectModel,
         onboardingModel,

@@ -1,0 +1,98 @@
+import { LightdashMode } from '@lightdash/common';
+import { LightdashConfig } from './parseConfig';
+
+export const lightdashConfigMock: LightdashConfig = {
+    allowMultiOrgs: false,
+    auth: {
+        enableGroupSync: false,
+        disablePasswordAuthentication: false,
+        google: {
+            loginPath: '',
+            oauth2ClientId: undefined,
+            oauth2ClientSecret: undefined,
+            callbackPath: '',
+            googleDriveApiKey: undefined,
+            enabled: false,
+        },
+        okta: {
+            loginPath: '',
+            oauth2Issuer: undefined,
+            oauth2ClientId: undefined,
+            oauth2ClientSecret: undefined,
+            authorizationServerId: undefined,
+            extraScopes: undefined,
+            oktaDomain: undefined,
+            callbackPath: '',
+        },
+        oneLogin: {
+            oauth2Issuer: undefined,
+            oauth2ClientId: undefined,
+            oauth2ClientSecret: undefined,
+            callbackPath: '',
+            loginPath: '',
+        },
+        azuread: {
+            oauth2ClientId: undefined,
+            oauth2ClientSecret: undefined,
+            oauth2TenantId: undefined,
+            loginPath: '',
+            callbackPath: '',
+        },
+    },
+    chart: { versionHistory: { daysLimit: 0 } },
+    customVisualizations: { enabled: false },
+    database: {
+        connectionUri: undefined,
+        maxConnections: undefined,
+        minConnections: undefined,
+    },
+    intercom: {
+        appId: '',
+        apiBase: '',
+    },
+    lightdashSecret: '',
+    logging: {
+        level: 'debug',
+        format: 'pretty',
+        outputs: [],
+        consoleFormat: undefined,
+        consoleLevel: undefined,
+        fileFormat: undefined,
+        fileLevel: undefined,
+        filePath: '',
+    },
+    maxPayloadSize: '',
+    pivotTable: { maxColumnLimit: 0 },
+    posthog: {
+        projectApiKey: '',
+        apiHost: '',
+    },
+    resultsCache: { cacheStateTimeSeconds: 0, enabled: false, s3: {} },
+    rudder: {
+        writeKey: '',
+        dataPlaneUrl: '',
+    },
+    scheduler: { concurrency: 0, enabled: false, jobTimeout: 0 },
+    secureCookies: false,
+    sentry: {
+        dsn: '',
+        release: '',
+        environment: '',
+    },
+    staticIp: '',
+    trustProxy: false,
+    version: '1.0',
+    mode: LightdashMode.DEFAULT,
+    groups: {
+        enabled: false,
+    },
+    extendedUsageAnalytics: {
+        enabled: false,
+    },
+    smtp: undefined,
+    siteUrl: 'https://test.lightdash.cloud',
+    query: {
+        maxLimit: 5000,
+        csvCellsLimit: 100000,
+    },
+};

@@ -22,7 +22,7 @@ import {
 } from '@lightdash/common';
 import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
 import { analytics } from '../../analytics/client';
-import { lightdashConfig } from '../../config/lightdashConfig';
+import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -33,6 +33,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
 
 type OrganizationServiceDependencies = {
+    lightdashConfig: LightdashConfig;
     organizationModel: OrganizationModel;
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
@@ -45,6 +46,8 @@ type OrganizationServiceDependencies = {
 };
 
 export class OrganizationService {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly organizationModel: OrganizationModel;
 
     private readonly projectModel: ProjectModel;
@@ -62,6 +65,7 @@ export class OrganizationService {
     private readonly groupsModel: GroupsModel;
 
     constructor({
+        lightdashConfig,
         organizationModel,
         projectModel,
         onboardingModel,
@@ -71,6 +75,7 @@ export class OrganizationService {
         groupsModel,
         organizationAllowedEmailDomainsModel,
     }: OrganizationServiceDependencies) {
+        this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -120,7 +125,7 @@ export class OrganizationService {
             event: 'organization.updated',
             properties: {
                 type:
-                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                    this.lightdashConfig.mode === LightdashMode.CLOUD_BETA
                         ? 'cloud'
                         : 'self-hosted',
                 organizationId: organizationUuid,
@@ -176,7 +181,7 @@ export class OrganizationService {
                 organizationId: organizationUuid,
                 organizationName: organization.name,
                 type:
-                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                    this.lightdashConfig.mode === LightdashMode.CLOUD_BETA
                         ? 'cloud'
                         : 'self-hosted',
             },
@@ -407,7 +412,7 @@ export class OrganizationService {
         data: CreateOrganization,
     ): Promise<void> {
         if (
-            !lightdashConfig.allowMultiOrgs &&
+            !this.lightdashConfig.allowMultiOrgs &&
             (await this.userModel.hasUsers()) &&
             (await this.organizationModel.hasOrgs())
         ) {
@@ -424,7 +429,7 @@ export class OrganizationService {
             userId: user.userUuid,
             properties: {
                 type:
-                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                    this.lightdashConfig.mode === LightdashMode.CLOUD_BETA
                         ? 'cloud'
                         : 'self-hosted',
                 organizationId: org.organizationUuid,

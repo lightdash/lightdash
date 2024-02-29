@@ -8,6 +8,7 @@ import {
 import { analytics } from '../../analytics/client';
 import { s3CacheClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
     analyticsModel,
     dashboardModel,
@@ -102,6 +103,7 @@ jest.mock('../../models/models', () => ({
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = new ProjectService({
+        lightdashConfig: lightdashConfigMock,
         projectModel,
         onboardingModel,
         savedChartModel,
@@ -266,20 +268,25 @@ describe('ProjectService', () => {
 
         test('should limit CSV results', async () => {
             expect(
-                ProjectService.metricQueryWithLimit(METRIC_QUERY, undefined),
+                // @ts-ignore
+                projectService.metricQueryWithLimit(METRIC_QUERY, undefined),
             ).toEqual(METRIC_QUERY); // Returns same metricquery
 
             expect(
-                ProjectService.metricQueryWithLimit(METRIC_QUERY, 5).limit,
+                // @ts-ignore
+                projectService.metricQueryWithLimit(METRIC_QUERY, 5).limit,
             ).toEqual(5);
             expect(
-                ProjectService.metricQueryWithLimit(METRIC_QUERY, null).limit,
+                // @ts-ignore
+                projectService.metricQueryWithLimit(METRIC_QUERY, null).limit,
             ).toEqual(33333);
             expect(
-                ProjectService.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
+                // @ts-ignore
+                projectService.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
             ).toEqual(9999);
             expect(
-                ProjectService.metricQueryWithLimit(METRIC_QUERY, 9999999)
+                // @ts-ignore
+                projectService.metricQueryWithLimit(METRIC_QUERY, 9999999)
                     .limit,
             ).toEqual(33333);
 
@@ -290,12 +297,14 @@ describe('ProjectService', () => {
                 tableCalculations: [],
             };
             expect(() =>
-                ProjectService.metricQueryWithLimit(metricWithoutRows, null),
+                // @ts-ignore
+                projectService.metricQueryWithLimit(metricWithoutRows, null),
             ).toThrowError(ParameterError);
 
             const metricWithDimension = { ...METRIC_QUERY, metrics: [] };
             expect(
-                ProjectService.metricQueryWithLimit(metricWithDimension, null)
+                // @ts-ignore
+                projectService.metricQueryWithLimit(metricWithDimension, null)
                     .limit,
             ).toEqual(50000);
         });
