@@ -137,6 +137,12 @@ const ProjectSwitcher = () => {
             arrowOffset={16}
             offset={-2}
             disabled={!hasMultipleProjects}
+            styles={{
+                dropdown: {
+                    maxHeight: 450,
+                    overflow: 'auto',
+                },
+            }}
         >
             <Menu.Target>
                 <Button
@@ -168,14 +174,14 @@ const ProjectSwitcher = () => {
                         key={item.projectUuid}
                         onClick={() => handleProjectChange(item.projectUuid)}
                     >
-                        <Group>
-                            <Text>{item.name}</Text>
-
+                        <Group spacing="sm">
                             {item.type === ProjectType.PREVIEW && (
                                 <Badge color="blue" variant="filled" size="sm">
                                     Preview
                                 </Badge>
                             )}
+
+                            <Text>{item.name}</Text>
                         </Group>
                     </Menu.Item>
                 ))}
