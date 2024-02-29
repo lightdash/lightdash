@@ -105,8 +105,10 @@ import { uniq } from 'lodash';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
-import { analytics } from '../../analytics/client';
-import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
+import {
+    LightdashAnalytics,
+    QueryExecutionContext,
+} from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -151,6 +153,7 @@ type RunQueryTags = {
 
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
     savedChartModel: SavedChartModel;
@@ -167,6 +170,8 @@ type ProjectServiceArguments = {
 
 export class ProjectService {
     lightdashConfig: LightdashConfig;
+
+    analytics: LightdashAnalytics;
 
     projectModel: ProjectModel;
 
@@ -196,6 +201,7 @@ export class ProjectService {
 
     constructor({
         lightdashConfig,
+        analytics,
         projectModel,
         onboardingModel,
         savedChartModel,
@@ -210,6 +216,7 @@ export class ProjectService {
         userWarehouseCredentialsModel,
     }: ProjectServiceArguments) {
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.warehouseClients = {};
@@ -368,7 +375,7 @@ export class ProjectService {
             );
         }
 
-        analytics.track({
+        this.analytics.track({
             event: 'project.created',
             userId: user.userUuid,
             properties: {
@@ -499,7 +506,7 @@ export class ProjectService {
                         projectUuid,
                     },
                 });
-                analytics.track({
+                this.analytics.track({
                     event: 'project.created',
                     userId: user.userUuid,
                     properties: {
@@ -706,7 +713,7 @@ export class ProjectService {
                     projectUuid,
                 },
             });
-            analytics.track({
+            this.analytics.track({
                 event: 'project.updated',
                 userId: user.userUuid,
                 properties: {
@@ -774,7 +781,7 @@ export class ProjectService {
 
         await this.projectModel.delete(projectUuid);
 
-        analytics.track({
+        this.analytics.track({
             event: 'project.deleted',
             userId: user.userUuid,
             properties: {
@@ -1876,7 +1883,7 @@ export class ProjectService {
                         );
                     }
 
-                    await analytics.track({
+                    await this.analytics.track({
                         userId: user.userUuid,
                         event: 'query.executed',
                         properties: {
@@ -2029,7 +2036,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        await analytics.track({
+        await this.analytics.track({
             userId: user.userUuid,
             event: 'sql.executed',
             properties: {
@@ -2161,7 +2168,7 @@ export class ProjectService {
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
 
-        analytics.track({
+        this.analytics.track({
             event: 'field_value.search',
             userId: user.userUuid,
             properties: {
@@ -2193,7 +2200,7 @@ export class ProjectService {
         const packages = await adapter.getDbtPackages();
         try {
             const explores = await adapter.compileAllExplores();
-            analytics.track({
+            this.analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
                 properties: {
@@ -2328,7 +2335,7 @@ export class ProjectService {
             return explores;
         } catch (e) {
             const errorResponse = errorHandler(e);
-            analytics.track({
+            this.analytics.track({
                 event: 'project.error',
                 userId: user.userUuid,
                 properties: {
@@ -2725,7 +2732,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
         await this.projectModel.updateTablesConfiguration(projectUuid, data);
-        analytics.track({
+        this.analytics.track({
             event: 'project_tables_configuration.updated',
             userId: user.userUuid,
             properties: {
@@ -3112,7 +3119,7 @@ export class ProjectService {
             projectUuid,
             integration,
         );
-        analytics.track({
+        this.analytics.track({
             event: 'dbt_cloud_integration.updated',
             userId: user.userUuid,
             properties: {
@@ -3135,7 +3142,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
         await this.projectModel.deleteDbtCloudIntegration(projectUuid);
-        analytics.track({
+        this.analytics.track({
             event: 'dbt_cloud_integration.deleted',
             userId: user.userUuid,
             properties: {

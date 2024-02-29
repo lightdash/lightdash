@@ -5,7 +5,7 @@ import {
     ParameterError,
     SessionUser,
 } from '@lightdash/common';
-import { analytics } from '../../analytics/client';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { s3CacheClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -47,14 +47,6 @@ import {
     user,
     validExplore,
 } from './ProjectService.mock';
-
-jest.mock('../../analytics/client', () => ({
-    analytics: {
-        track: jest.fn(),
-    },
-    s3Client: {},
-    s3CacheClient: {},
-}));
 
 jest.mock('../../clients/clients', () => ({}));
 
@@ -104,6 +96,7 @@ describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = new ProjectService({
         lightdashConfig: lightdashConfigMock,
+        analytics: analyticsMock,
         projectModel,
         onboardingModel,
         savedChartModel,
@@ -123,11 +116,12 @@ describe('ProjectService', () => {
         jest.clearAllMocks();
     });
     test('should run sql query', async () => {
+        jest.spyOn(analyticsMock, 'track');
         const result = await service.runSqlQuery(user, projectUuid, 'fake sql');
 
         expect(result).toEqual(resultsWith1Row);
-        expect(analytics.track).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(1);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'sql.executed',
             }),
@@ -148,9 +142,10 @@ describe('ProjectService', () => {
             projectUuid,
             tablesConfigurationWithNames,
         );
+        jest.spyOn(analyticsMock, 'track');
         expect(projectModel.updateTablesConfiguration).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(1);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'project_tables_configuration.updated',
             }),

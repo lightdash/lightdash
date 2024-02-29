@@ -6,7 +6,7 @@ import {
     SpaceSummary,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { analytics } from '../../analytics/client';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { CommentModel } from '../../models/CommentModel/CommentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
@@ -15,6 +15,7 @@ import { UserModel } from '../../models/UserModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type CommentServiceArguments = {
+    analytics: LightdashAnalytics;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     commentModel: CommentModel;
@@ -23,6 +24,8 @@ type CommentServiceArguments = {
 };
 
 export class CommentService {
+    analytics: LightdashAnalytics;
+
     dashboardModel: DashboardModel;
 
     spaceModel: SpaceModel;
@@ -34,12 +37,14 @@ export class CommentService {
     userModel: UserModel;
 
     constructor({
+        analytics,
         dashboardModel,
         spaceModel,
         commentModel,
         notificationsModel,
         userModel,
     }: CommentServiceArguments) {
+        this.analytics = analytics;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.commentModel = commentModel;
@@ -92,7 +97,7 @@ export class CommentService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
-        analytics.track({
+        this.analytics.track({
             event: 'comment.created',
             userId: user.userUuid,
             properties: {
@@ -203,7 +208,7 @@ export class CommentService {
 
         const comment = await this.commentModel.getComment(commentId);
 
-        analytics.track({
+        this.analytics.track({
             event: 'comment.resolved',
             userId: user.userUuid,
             properties: {
@@ -253,7 +258,7 @@ export class CommentService {
             throw new ForbiddenError();
         }
 
-        analytics.track({
+        this.analytics.track({
             event: 'comment.deleted',
             userId: user.userUuid,
             properties: {
