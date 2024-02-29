@@ -5,7 +5,7 @@ import { UserWithAbility } from '../../../hooks/user/useUser';
 export const useDashboardCommentsCheck = (
     user: UserWithAbility | undefined,
 ) => {
-    const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
+    const isDashboardTileCommentsFeatureEnabled = !!useFeatureFlagEnabled(
         FeatureFlags.DashboardTileComments,
     );
 

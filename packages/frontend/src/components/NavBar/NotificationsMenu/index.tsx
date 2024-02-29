@@ -31,8 +31,8 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     // Dashboard comments notifications
     const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
     const userCanViewDashboardComments =
-        !!dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
-        !!dashboardCommentsCheck.userCanViewDashboardComments;
+        dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
+        dashboardCommentsCheck.userCanViewDashboardComments;
     const { data: dashboardCommentsNotifications } = useGetNotifications(
         NotificationResourceType.DashboardComments,
         userCanViewDashboardComments,
