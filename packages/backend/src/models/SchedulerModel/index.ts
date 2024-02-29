@@ -422,11 +422,25 @@ export class SchedulerModel {
                 `${SavedChartsTableName}.saved_query_uuid`,
                 `${SchedulerTableName}.saved_chart_uuid`,
             )
-            .leftJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${SavedChartsTableName}.space_id`,
-            )
+            .leftJoin(DashboardsTableName, function joinDashboards() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`);
+            })
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                ).andOnNotNull(`${SavedChartsTableName}.space_id`);
+                this.orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                );
+            })
             .leftJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
