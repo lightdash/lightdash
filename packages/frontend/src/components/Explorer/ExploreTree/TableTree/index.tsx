@@ -12,7 +12,6 @@ import { getMantineThemeOverride } from '../../../../mantineTheme';
 import { TrackSection } from '../../../../providers/TrackingProvider';
 import { SectionName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
-import { ItemDetailProvider } from './ItemDetailContext';
 import TableTreeSections from './TableTreeSections';
 
 type TableTreeWrapperProps = {
@@ -114,24 +113,22 @@ const TableTree: FC<Props> = ({
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <MantineProvider inherit theme={themeOverride}>
-                <ItemDetailProvider>
-                    <Wrapper
-                        isOpen={isSearching || isOpen}
-                        toggle={toggle}
+                <Wrapper
+                    isOpen={isSearching || isOpen}
+                    toggle={toggle}
+                    table={table}
+                >
+                    <TableTreeSections
                         table={table}
-                    >
-                        <TableTreeSections
-                            table={table}
-                            searchQuery={searchQuery}
-                            additionalMetrics={additionalMetrics}
-                            customDimensions={customDimensions}
-                            missingCustomMetrics={missingCustomMetrics}
-                            missingFields={missingFields}
-                            selectedDimensions={selectedDimensions}
-                            {...rest}
-                        />
-                    </Wrapper>
-                </ItemDetailProvider>
+                        searchQuery={searchQuery}
+                        additionalMetrics={additionalMetrics}
+                        customDimensions={customDimensions}
+                        missingCustomMetrics={missingCustomMetrics}
+                        missingFields={missingFields}
+                        selectedDimensions={selectedDimensions}
+                        {...rest}
+                    />
+                </Wrapper>
             </MantineProvider>
         </TrackSection>
     );
