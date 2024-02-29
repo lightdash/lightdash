@@ -1,11 +1,21 @@
-import { ActionIcon, Popover, PopoverProps, Stack, Text } from '@mantine/core';
+import { NotificationResourceType } from '@lightdash/common';
+import {
+    ActionIcon,
+    Indicator,
+    Popover,
+    PopoverProps,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { IconMessage } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useApp } from '../../../providers/AppProvider';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import { useGetNotifications } from '../../notifications';
+import { useUpdateNotification } from '../../notifications/hooks/useNotifications';
 import { useCreateComment } from '../hooks/useComments';
 import { CommentForm } from './CommentForm';
 import { DashboardCommentAndReplies } from './DashboardCommentAndReplies';
@@ -31,6 +41,65 @@ export const DashboardTileComments: FC<
 
     const { mutateAsync, isLoading } = useCreateComment();
 
+    const { data: notifications } = useGetNotifications(
+        NotificationResourceType.DashboardComments,
+        true,
+    );
+    const { mutate: updateNotification } = useUpdateNotification();
+
+    // TODO: This is a temporary solution. We should probably have a separate endpoint for unread comments
+    const unreadCommentsForThisTile = useMemo(
+        () =>
+            notifications?.filter(
+                (n) =>
+                    !n.viewed &&
+                    n.metadata?.dashboardTileUuid === dashboardTileUuid &&
+                    n.metadata?.dashboardUuid === dashboardUuid,
+            ),
+        [notifications, dashboardTileUuid, dashboardUuid],
+    );
+
+    const showIndicator = useMemo(
+        () => !comments || (comments && comments.length === 0),
+
+        [comments],
+    );
+
+    const indicatorColor = useMemo(() => {
+        if (unreadCommentsForThisTile && unreadCommentsForThisTile.length > 0)
+            return 'red';
+
+        return 'gray';
+    }, [unreadCommentsForThisTile]);
+
+    const handleOnOpen = useCallback(() => {
+        track({
+            name: EventName.COMMENTS_CLICKED,
+            properties: {
+                dashboardUuid,
+                dashboardTileUuid,
+            },
+        });
+        unreadCommentsForThisTile?.forEach((n) => {
+            // Don't await, we don't want to block the UI
+            updateNotification({
+                notificationId: n.notificationId,
+                resourceType: NotificationResourceType.DashboardComments,
+                toUpdate: {
+                    viewed: true,
+                },
+            });
+        });
+        onOpen?.();
+    }, [
+        dashboardTileUuid,
+        dashboardUuid,
+        onOpen,
+        track,
+        unreadCommentsForThisTile,
+        updateNotification,
+    ]);
+
     if (!projectUuid || !dashboardUuid) {
         return null;
     }
@@ -44,16 +113,7 @@ export const DashboardTileComments: FC<
             offset={4}
             arrowOffset={10}
             opened={opened}
-            onOpen={() => {
-                track({
-                    name: EventName.COMMENTS_CLICKED,
-                    properties: {
-                        dashboardUuid,
-                        dashboardTileUuid,
-                    },
-                });
-                onOpen?.();
-            }}
+            onOpen={handleOnOpen}
             onClose={() => {
                 onClose?.();
             }}
@@ -106,12 +166,26 @@ export const DashboardTileComments: FC<
             </Popover.Dropdown>
 
             <Popover.Target>
-                <ActionIcon
-                    size="sm"
-                    onClick={() => (opened ? onClose?.() : onOpen?.())}
+                <Indicator
+                    label={comments && comments.length}
+                    size={12}
+                    disabled={!showIndicator}
+                    offset={4}
+                    color={indicatorColor}
+                    styles={{
+                        common: {
+                            fontSize: 11,
+                            padding: 0,
+                        },
+                    }}
                 >
-                    <MantineIcon icon={IconMessage} />
-                </ActionIcon>
+                    <ActionIcon
+                        size="sm"
+                        onClick={() => (opened ? onClose?.() : onOpen?.())}
+                    >
+                        <MantineIcon icon={IconMessage} />
+                    </ActionIcon>
+                </Indicator>
             </Popover.Target>
         </Popover>
     );
