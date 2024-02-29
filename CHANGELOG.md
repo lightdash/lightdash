@@ -1,3 +1,10 @@
+## [0.1021.1](https://github.com/lightdash/lightdash/compare/0.1021.0...0.1021.1) (2024-02-29)
+
+
+### Bug Fixes
+
+* chart context menu item ([#9138](https://github.com/lightdash/lightdash/issues/9138)) ([7a4423c](https://github.com/lightdash/lightdash/commit/7a4423cbc226d5541db5854ea418a8fb99cb9bb7))
+
 # [0.1021.0](https://github.com/lightdash/lightdash/compare/0.1020.0...0.1021.0) (2024-02-28)
 
 
