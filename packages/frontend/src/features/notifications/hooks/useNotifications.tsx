@@ -60,6 +60,8 @@ export const useUpdateNotification = () => {
                     'notifications',
                     resourceType,
                 ]);
+
+                // TODO: Invalidate dashboard comments query if after viewing a dashboard comment notification and on the current dashboard
             },
         },
     );
