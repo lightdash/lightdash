@@ -2624,13 +2624,14 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@databricks/sql@1.6.0":
-  version "1.6.0"
-  resolved "https://registry.yarnpkg.com/@databricks/sql/-/sql-1.6.0.tgz#ac6fda8dfa040b9af72b0daca8dced49ce267099"
-  integrity sha512-3x6pTWHuJo0cPFMMK8rQZziPDxBLnVC+YQxwrdxUonF1rSH+Crnj/Wt+nkBlkqHzBbsXUJNJYZ+EaSa6ZfqhNA==
+"@databricks/sql@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@databricks/sql/-/sql-1.8.1.tgz#10d6d5ed2e75671b39023a2a55e0545a407fbad4"
+  integrity sha512-6H8ianbDIMJqTpYiWfBbVC2qv6RIbm0WBfyzutl/QoFu+rb6n1sWxmLtEZcFdq9l2KLv7MNDY7bpT5rZlSHNMg==
   dependencies:
     apache-arrow "^13.0.0"
     commander "^9.3.0"
+    lz4 "^0.6.5"
     node-fetch "^2.6.12"
     node-int64 "^0.4.0"
     open "^8.4.2"
@@ -5807,7 +5808,7 @@
   resolved "https://registry.yarnpkg.com/@tabler/icons-react/-/icons-react-2.47.0.tgz#b704e7ae98f95be8bd6e938b4b2e84cd20b0cf31"
   integrity sha512-iqly2FvCF/qUbgmvS8E40rVeYY7laltc5GUjRxQj59DuX0x/6CpKHTXt86YlI2whg4czvd/c8Ce8YR08uEku0g==
   dependencies:
-    "@tabler/icons" "2.32.0"
+    "@tabler/icons" "2.47.0"
     prop-types "^15.7.2"
 
 "@tabler/icons@2.32.0":
@@ -9402,6 +9403,11 @@ csv-stringify@^6.2.4:
   version "6.2.4"
   resolved "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.2.4.tgz"
   integrity sha512-RVzGaBeHl0IspzOSiNr1e7XDM7ajuESlqetQbxH2pBPplIWycx0gAVclxNEa4lc91brK6LIE0PrdEoHtZYIHIQ==
+
+cuint@^0.2.2:
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/cuint/-/cuint-0.2.2.tgz#408086d409550c2631155619e9fa7bcadc3b991b"
+  integrity sha512-d4ZVpCW31eWwCMe1YT3ur7mUDnTXbgwyzaL320DrcRT45rfjYxkt5QWLrmOJ+/UEAI2+fQgKe/fCjR8l4TpRgw==
 
 cypress-file-upload@^5.0.8:
   version "5.0.8"
@@ -14535,6 +14541,16 @@ lz-string@^1.5.0:
   resolved "https://registry.npmjs.org/lz-string/-/lz-string-1.5.0.tgz"
   integrity sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==
 
+lz4@^0.6.5:
+  version "0.6.5"
+  resolved "https://registry.yarnpkg.com/lz4/-/lz4-0.6.5.tgz#ae8b7522681b6ab155023e6c56bf73087090122b"
+  integrity sha512-KSZcJU49QZOlJSItaeIU3p8WoAvkTmD9fJqeahQXNu1iQ/kR0/mQLdbrK8JY9MY8f6AhJoMrihp1nu1xDbscSQ==
+  dependencies:
+    buffer "^5.2.1"
+    cuint "^0.2.2"
+    nan "^2.13.2"
+    xxhashjs "^0.2.2"
+
 magic-string@^0.30.5:
   version "0.30.5"
   resolved "https://registry.yarnpkg.com/magic-string/-/magic-string-0.30.5.tgz#1994d980bd1c8835dc6e78db7cbd4ae4f24746f9"
@@ -15500,6 +15516,11 @@ mute-stream@0.0.8:
   version "0.0.8"
   resolved "https://registry.npmjs.org/mute-stream/-/mute-stream-0.0.8.tgz"
   integrity sha512-nnbWWOkoWyUsTjKrhgD0dcz22mdkSnpYqbEjIm2nhwhuxlSkpywJmBo8h0ZqJdkp73mb90SssHkN4rsRaBAfAA==
+
+nan@^2.13.2:
+  version "2.18.0"
+  resolved "https://registry.yarnpkg.com/nan/-/nan-2.18.0.tgz#26a6faae7ffbeb293a39660e88a76b82e30b7554"
+  integrity sha512-W7tfG7vMOGtD30sHoZSSc/JVYiyDPEyQVso/Zz+/uQd0B0L46gtC+pHha5FFMRpil6fm/AoEcRWyOVi4+E/f8w==
 
 nan@^2.17.0:
   version "2.17.0"
@@ -21073,6 +21094,13 @@ xtend@^4.0.0, xtend@~4.0.0, xtend@~4.0.1:
   version "4.0.2"
   resolved "https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz"
   integrity sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==
+
+xxhashjs@^0.2.2:
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/xxhashjs/-/xxhashjs-0.2.2.tgz#8a6251567621a1c46a5ae204da0249c7f8caa9d8"
+  integrity sha512-AkTuIuVTET12tpsVIQo+ZU6f/qDmKuRUcjaqR+OIvm+aCBsZ95i7UVY5WJ9TMsSaZ0DA2WxoZ4acu0sPH+OKAw==
+  dependencies:
+    cuint "^0.2.2"
 
 y18n@^4.0.0:
   version "4.0.3"
