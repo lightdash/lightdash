@@ -1,3 +1,10 @@
+## [0.1021.5](https://github.com/lightdash/lightdash/compare/0.1021.4...0.1021.5) (2024-02-29)
+
+
+### Bug Fixes
+
+* disable sidebar options when fetching new options ([#9132](https://github.com/lightdash/lightdash/issues/9132)) ([ec3c6b7](https://github.com/lightdash/lightdash/commit/ec3c6b7a0fd429218bfa184e60e0155c3b8304b3))
+
 ## [0.1021.4](https://github.com/lightdash/lightdash/compare/0.1021.3...0.1021.4) (2024-02-29)
 
 
