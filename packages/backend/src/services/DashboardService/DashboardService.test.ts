@@ -42,10 +42,6 @@ jest.mock('../../analytics/client', () => ({
 jest.mock('../../database/database', () => ({}));
 jest.mock('../../clients/clients', () => ({}));
 
-jest.mock('../../database/entities/spaces', () => ({
-    getFirstAccessibleSpace: jest.fn(async () => space),
-}));
-
 jest.mock('../../models/models', () => ({
     dashboardModel: {
         getAllByProject: jest.fn(async () => dashboardsDetails),
@@ -66,6 +62,7 @@ jest.mock('../../models/models', () => ({
     spaceModel: {
         getFullSpace: jest.fn(async () => publicSpace),
         getSpaceSummary: jest.fn(async () => publicSpace),
+        getFirstAccessibleSpace: jest.fn(async () => space),
     },
     analyticsModel: {
         addDashboardViewEvent: jest.fn(async () => null),

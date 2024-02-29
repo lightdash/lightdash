@@ -53,13 +53,14 @@ import {
     SavedChartsTableName,
     SavedChartTable,
 } from '../../database/entities/savedCharts';
-import { getSpaceId, SpaceTableName } from '../../database/entities/spaces';
+import { SpaceTableName } from '../../database/entities/spaces';
 import {
     DbUser,
     UserTable,
     UserTableName,
 } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
+import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
@@ -711,7 +712,12 @@ export class DashboardModel {
         dashboard: DashboardUnversionedFields,
     ): Promise<Dashboard> {
         const withSpaceId = dashboard.spaceUuid
-            ? { space_id: await getSpaceId(this.database, dashboard.spaceUuid) }
+            ? {
+                  space_id: await SpaceModel.getSpaceId(
+                      this.database,
+                      dashboard.spaceUuid,
+                  ),
+              }
             : {};
         await this.database(DashboardsTableName)
             .update({
@@ -732,7 +738,7 @@ export class DashboardModel {
                 dashboards.map(async (dashboard) => {
                     const withSpaceId = dashboard.spaceUuid
                         ? {
-                              space_id: await getSpaceId(
+                              space_id: await SpaceModel.getSpaceId(
                                   this.database,
                                   dashboard.spaceUuid,
                               ),
