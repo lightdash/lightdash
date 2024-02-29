@@ -35,7 +35,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type ServiceDependencies = {
+type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
     schedulerModel: SchedulerModel;
 
@@ -63,7 +63,7 @@ export class SchedulerService {
         dashboardModel,
         savedChartModel,
         spaceModel,
-    }: ServiceDependencies) {
+    }: SchedulerServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.schedulerModel = schedulerModel;
         this.dashboardModel = dashboardModel;

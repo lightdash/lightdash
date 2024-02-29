@@ -20,7 +20,7 @@ import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 
-type Dependencies = {
+type SearchServiceArguments = {
     searchModel: SearchModel;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
@@ -36,11 +36,11 @@ export class SearchService {
 
     private readonly userAttributesModel: UserAttributesModel;
 
-    constructor(dependencies: Dependencies) {
-        this.searchModel = dependencies.searchModel;
-        this.projectModel = dependencies.projectModel;
-        this.spaceModel = dependencies.spaceModel;
-        this.userAttributesModel = dependencies.userAttributesModel;
+    constructor(args: SearchServiceArguments) {
+        this.searchModel = args.searchModel;
+        this.projectModel = args.projectModel;
+        this.spaceModel = args.spaceModel;
+        this.userAttributesModel = args.userAttributesModel;
     }
 
     async getSearchResults(

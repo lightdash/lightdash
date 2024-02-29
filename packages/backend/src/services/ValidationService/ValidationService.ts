@@ -38,7 +38,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type ServiceDependencies = {
+type ValidationServiceArguments = {
     lightdashConfig: LightdashConfig;
     validationModel: ValidationModel;
     projectModel: ProjectModel;
@@ -67,7 +67,7 @@ export class ValidationService {
         savedChartModel,
         dashboardModel,
         spaceModel,
-    }: ServiceDependencies) {
+    }: ValidationServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.projectModel = projectModel;
         this.savedChartModel = savedChartModel;

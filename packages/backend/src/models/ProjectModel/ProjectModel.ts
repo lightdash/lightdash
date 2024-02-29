@@ -63,7 +63,7 @@ import { EncryptionService } from '../../services/EncryptionService/EncryptionSe
 import { wrapOtelSpan } from '../../utils';
 import Transaction = Knex.Transaction;
 
-type ProjectModelDependencies = {
+type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionService: EncryptionService;
@@ -78,10 +78,10 @@ export class ProjectModel {
 
     private encryptionService: EncryptionService;
 
-    constructor(deps: ProjectModelDependencies) {
-        this.database = deps.database;
-        this.lightdashConfig = deps.lightdashConfig;
-        this.encryptionService = deps.encryptionService;
+    constructor(args: ProjectModelArguments) {
+        this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
+        this.encryptionService = args.encryptionService;
     }
 
     static mergeMissingDbtConfigSecrets(

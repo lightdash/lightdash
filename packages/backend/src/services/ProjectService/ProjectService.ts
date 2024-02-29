@@ -149,7 +149,7 @@ type RunQueryTags = {
     dashboard_uuid?: string;
 };
 
-type ProjectServiceDependencies = {
+type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
@@ -208,7 +208,7 @@ export class ProjectService {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
-    }: ProjectServiceDependencies) {
+    }: ProjectServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;

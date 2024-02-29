@@ -95,15 +95,15 @@ export type GetChartTileQuery = Pick<
 > &
     Pick<SavedChartTable['base'], 'saved_query_uuid'>;
 
-type DashboardModelDependencies = {
+type DashboardModelArguments = {
     database: Knex;
 };
 
 export class DashboardModel {
     private readonly database: Knex;
 
-    constructor(deps: DashboardModelDependencies) {
-        this.database = deps.database;
+    constructor(args: DashboardModelArguments) {
+        this.database = args.database;
     }
 
     private static async createVersion(

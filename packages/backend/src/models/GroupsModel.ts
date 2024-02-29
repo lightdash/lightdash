@@ -25,8 +25,8 @@ import { UserTableName } from '../database/entities/users';
 export class GroupsModel {
     database: Knex;
 
-    constructor(deps: { database: Knex }) {
-        this.database = deps.database;
+    constructor(args: { database: Knex }) {
+        this.database = args.database;
     }
 
     async find(filters: { organizationUuid: string }): Promise<Group[]> {

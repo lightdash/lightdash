@@ -1,14 +1,14 @@
 import { SshKeyPair } from '@lightdash/common';
 import { SshKeyPairModel } from '../models/SshKeyPairModel';
 
-type Dependencies = {
+type SshKeyPairServiceArguments = {
     sshKeyPairModel: SshKeyPairModel;
 };
 
 export class SshKeyPairService {
     private readonly sshKeyPairModel: SshKeyPairModel;
 
-    constructor({ sshKeyPairModel }: Dependencies) {
+    constructor({ sshKeyPairModel }: SshKeyPairServiceArguments) {
         this.sshKeyPairModel = sshKeyPairModel;
     }
 

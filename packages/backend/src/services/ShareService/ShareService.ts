@@ -10,7 +10,7 @@ import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ShareModel } from '../../models/ShareModel';
 
-type Dependencies = {
+type ShareServiceArguments = {
     shareModel: ShareModel;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
 };
@@ -20,9 +20,9 @@ export class ShareService {
 
     private readonly shareModel: ShareModel;
 
-    constructor(dependencies: Dependencies) {
-        this.lightdashConfig = dependencies.lightdashConfig;
-        this.shareModel = dependencies.shareModel;
+    constructor(args: ShareServiceArguments) {
+        this.lightdashConfig = args.lightdashConfig;
+        this.shareModel = args.shareModel;
     }
 
     private shareUrlWithHost(shareUrl: ShareUrl) {

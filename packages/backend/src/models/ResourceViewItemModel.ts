@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
-type Dependencies = {
+type ResourceViewItemModelArguments = {
     database: Knex;
 };
 
@@ -252,8 +252,8 @@ const getAllSpaces = async (
 export class ResourceViewItemModel {
     database: Knex;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
+    constructor(args: ResourceViewItemModelArguments) {
+        this.database = args.database;
     }
 
     async getAllowedChartsAndDashboards(

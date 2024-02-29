@@ -55,7 +55,7 @@ import { DbValidationTable } from '../database/entities/validation';
 import { wrapOtelSpan } from '../utils';
 import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
-type Dependencies = {
+type SpaceModelArguments = {
     database: Knex;
 };
 
@@ -64,8 +64,8 @@ export class SpaceModel {
 
     public MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: number;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
+    constructor(args: SpaceModelArguments) {
+        this.database = args.database;
         this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT = 10;
     }
 

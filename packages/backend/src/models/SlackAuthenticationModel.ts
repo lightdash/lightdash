@@ -8,7 +8,7 @@ import {
 } from '../database/entities/slackAuthentication';
 import { DbUser } from '../database/entities/users';
 
-type Dependencies = {
+type SlackAuthenticationModelArguments = {
     database: Knex;
 };
 
@@ -24,8 +24,8 @@ const getTeamId = (payload: Installation) => {
 export class SlackAuthenticationModel {
     private database: Knex;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
+    constructor(args: SlackAuthenticationModelArguments) {
+        this.database = args.database;
     }
 
     async getOrganizationId(organizationUuid: string | undefined) {

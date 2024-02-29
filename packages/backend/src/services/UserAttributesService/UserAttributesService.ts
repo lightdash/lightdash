@@ -10,15 +10,15 @@ import { analytics } from '../../analytics/client';
 import { UserAttributeCreateAndUpdateEvent } from '../../analytics/LightdashAnalytics';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 
-type Dependencies = {
+type UserAttributesServiceArguments = {
     userAttributesModel: UserAttributesModel;
 };
 
 export class UserAttributesService {
     private readonly userAttributesModel: UserAttributesModel;
 
-    constructor(dependencies: Dependencies) {
-        this.userAttributesModel = dependencies.userAttributesModel;
+    constructor(args: UserAttributesServiceArguments) {
+        this.userAttributesModel = args.userAttributesModel;
     }
 
     static getAnalyticsEventProperties(

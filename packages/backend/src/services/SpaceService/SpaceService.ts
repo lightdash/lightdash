@@ -13,7 +13,7 @@ import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 
-type Dependencies = {
+type SpaceServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     pinnedListModel: PinnedListModel;
@@ -59,10 +59,10 @@ export class SpaceService {
 
     private readonly pinnedListModel: PinnedListModel;
 
-    constructor(dependencies: Dependencies) {
-        this.projectModel = dependencies.projectModel;
-        this.spaceModel = dependencies.spaceModel;
-        this.pinnedListModel = dependencies.pinnedListModel;
+    constructor(args: SpaceServiceArguments) {
+        this.projectModel = args.projectModel;
+        this.spaceModel = args.spaceModel;
+        this.pinnedListModel = args.pinnedListModel;
     }
 
     async getAllSpaces(

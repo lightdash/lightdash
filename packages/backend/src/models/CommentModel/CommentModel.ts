@@ -11,15 +11,15 @@ import {
 } from '../../database/entities/dashboards';
 import { DbUser, UserTableName } from '../../database/entities/users';
 
-type CommentModelDependencies = {
+type CommentModelArguments = {
     database: Knex;
 };
 
 export class CommentModel {
     private readonly database: Knex;
 
-    constructor(deps: CommentModelDependencies) {
-        this.database = deps.database;
+    constructor(args: CommentModelArguments) {
+        this.database = args.database;
     }
 
     private static parseComments(

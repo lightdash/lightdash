@@ -14,7 +14,7 @@ import {
 } from '../database/entities/organizations';
 import { DbUser, UserTableName } from '../database/entities/users';
 
-type Dependencies = {
+type InviteLinkModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
 };
@@ -24,7 +24,7 @@ export class InviteLinkModel {
 
     private database: Knex;
 
-    constructor({ database, lightdashConfig }: Dependencies) {
+    constructor({ database, lightdashConfig }: InviteLinkModelArguments) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
     }

@@ -11,7 +11,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { wrapOtelSpan } from '../../utils';
 
-type ClientDependencies = {
+type S3CacheClientArguments = {
     lightdashConfig: LightdashConfig;
 };
 
@@ -20,7 +20,7 @@ export class S3CacheClient {
 
     private readonly s3?: S3;
 
-    constructor({ lightdashConfig }: ClientDependencies) {
+    constructor({ lightdashConfig }: S3CacheClientArguments) {
         const endpoint = lightdashConfig.s3?.endpoint;
         this.configuration = lightdashConfig.resultsCache.s3;
         const { region, accessKey, secretKey } = this.configuration;

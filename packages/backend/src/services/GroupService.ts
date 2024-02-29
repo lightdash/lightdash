@@ -14,7 +14,7 @@ import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAcc
 import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 
-type GroupServiceDependencies = {
+type GroupServiceArguments = {
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
 };
@@ -24,9 +24,9 @@ export class GroupsService {
 
     private readonly projectModel: ProjectModel;
 
-    constructor(deps: GroupServiceDependencies) {
-        this.groupsModel = deps.groupsModel;
-        this.projectModel = deps.projectModel;
+    constructor(args: GroupServiceArguments) {
+        this.groupsModel = args.groupsModel;
+        this.projectModel = args.projectModel;
     }
 
     async addGroupMember(

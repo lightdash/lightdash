@@ -942,7 +942,7 @@ type Track =
     | ConditionalFormattingRuleSavedEvent
     | CommentsEvent;
 
-type Dependencies = {
+type LightdashAnalyticsArguments = {
     lightdashConfig: LightdashConfig;
     writeKey: string;
     dataPlaneUrl: string;
@@ -958,7 +958,7 @@ export class LightdashAnalytics extends Analytics {
         writeKey,
         dataPlaneUrl,
         options,
-    }: Dependencies) {
+    }: LightdashAnalyticsArguments) {
         super(writeKey, dataPlaneUrl, options);
         this.lightdashConfig = lightdashConfig;
         this.lightdashContext = {
