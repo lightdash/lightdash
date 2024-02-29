@@ -80,11 +80,9 @@ export class NotificationsModel {
                             resource_uuid: comment.commentId,
                             resource_type:
                                 DbNotificationResourceType.DashboardComments,
-                            message: `You were tagged in a comment by ${
-                                commentAuthor.firstName
-                            } ${commentAuthor.lastName} on the dashboard ${
-                                dashboard.name
-                            } ${
+                            message: `${commentAuthor.firstName} ${
+                                commentAuthor.lastName
+                            } tagged you in dashboard "${dashboard.name}" ${
                                 dashboardTile.properties.title
                                     ? `in tile "${dashboardTile.properties.title}"`
                                     : ''

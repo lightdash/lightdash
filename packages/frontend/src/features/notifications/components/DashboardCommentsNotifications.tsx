@@ -1,14 +1,35 @@
 import { Notification } from '@lightdash/common';
-import { Menu, useMantineTheme } from '@mantine/core';
+import { Menu, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
+import moment from 'moment';
 import { FC, useCallback } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useUpdateNotification } from '../hooks/useNotifications';
 
 type Props = {
     projectUuid: string;
     notifications: Notification[];
+};
+
+const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
+    const date = useTimeAgo(createdAt);
+    return (
+        <Tooltip
+            position="top-end"
+            offset={-2}
+            label={
+                <Text fz="xs">
+                    {moment(createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                </Text>
+            }
+        >
+            <Text ta="right" mb="one" fw={500} color="gray.5">
+                {date}
+            </Text>
+        </Tooltip>
+    );
 };
 
 export const DashboardCommentsNotifications: FC<Props> = ({
@@ -38,6 +59,7 @@ export const DashboardCommentsNotifications: FC<Props> = ({
         <>
             {notifications.map((notification) => (
                 <Menu.Item
+                    p="xs"
                     key={notification.notificationId}
                     icon={
                         <MantineIcon
@@ -53,7 +75,10 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                     onClick={() => handleOnNotificationClick(notification)}
                     fz="xs"
                 >
-                    {notification.message}
+                    <>
+                        <NotificationTime createdAt={notification.createdAt} />
+                        <Text c="gray.3">{notification.message} </Text>
+                    </>
                 </Menu.Item>
             ))}
         </>
