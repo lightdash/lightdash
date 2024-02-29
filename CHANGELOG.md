@@ -1,3 +1,10 @@
+## [0.1021.4](https://github.com/lightdash/lightdash/compare/0.1021.3...0.1021.4) (2024-02-29)
+
+
+### Bug Fixes
+
+* inject lightdashConfig dependency ([#9156](https://github.com/lightdash/lightdash/issues/9156)) ([824e845](https://github.com/lightdash/lightdash/commit/824e8456b9c19a3334a60d27ffbfb6ca729ad932))
+
 ## [0.1021.3](https://github.com/lightdash/lightdash/compare/0.1021.2...0.1021.3) (2024-02-29)
 
 
