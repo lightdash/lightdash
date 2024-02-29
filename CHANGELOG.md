@@ -1,3 +1,10 @@
+## [0.1021.7](https://github.com/lightdash/lightdash/compare/0.1021.6...0.1021.7) (2024-02-29)
+
+
+### Bug Fixes
+
+* database dependency injection ([#9166](https://github.com/lightdash/lightdash/issues/9166)) ([62742dd](https://github.com/lightdash/lightdash/commit/62742ddfe249bd9e523bf3e8e66f30bb07604d1e))
+
 ## [0.1021.6](https://github.com/lightdash/lightdash/compare/0.1021.5...0.1021.6) (2024-02-29)
 
 
