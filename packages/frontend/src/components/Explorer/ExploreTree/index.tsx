@@ -79,6 +79,8 @@ const ExploreTree: FC<ExploreTreeProps> = ({
         );
     }, [explore, additionalMetrics]);
 
+    console.log(tableTrees, explore);
+
     return (
         <>
             <TextInput

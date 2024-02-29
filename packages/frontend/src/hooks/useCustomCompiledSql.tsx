@@ -33,14 +33,9 @@ const getCustomCompiledQuery = async (
 
 export const useCustomCompiledSql = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const metricQuery = useExplorerContext(
-        (context) => context.state.customSql?.results?.metricQuery,
-    );
+    const customExplore = useExplorerContext((c) => c.state.customExplore);
 
-    // TODO:cleanup
-    if (!metricQuery) {
-        throw new Error('No metric query found');
-    }
+    const explore = customExplore?.explore;
 
     const {
         dimensions,
@@ -51,26 +46,35 @@ export const useCustomCompiledSql = () => {
         tableCalculations,
         additionalMetrics,
         customDimensions,
-    } = metricQuery;
+    } = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
+    );
 
     const setErrorResponse = useQueryError();
+
     const customMetricQuery: MetricQuery = {
         exploreName: 'custom_explore',
         dimensions: Array.from(dimensions),
         metrics: Array.from(metrics),
-        sorts,
-        filters,
+        sorts: sorts,
+        filters: filters,
         limit: limit || 500,
-        tableCalculations,
+        tableCalculations: tableCalculations,
         additionalMetrics,
         customDimensions,
     };
 
-    const queryKey = ['customCompiledQuery', metricQuery, projectUuid];
     return useQuery<ApiCompiledQueryResults, ApiError>({
-        queryKey,
+        // TODO: better key
+        queryKey: ['customCompiledQuery', projectUuid],
+        enabled: !!explore,
         queryFn: () =>
-            getCustomCompiledQuery(projectUuid, explore, customMetricQuery),
+            getCustomCompiledQuery(
+                projectUuid,
+                // TODO: fix bangs
+                explore!,
+                customMetricQuery,
+            ),
         onError: (result) => setErrorResponse(result),
     });
 };

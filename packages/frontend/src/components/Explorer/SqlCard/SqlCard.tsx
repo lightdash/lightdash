@@ -7,7 +7,8 @@ import {
 } from '../../../providers/ExplorerProvider';
 import { Can } from '../../common/Authorization';
 import CollapsableCard from '../../common/CollapsableCard';
-import { RenderedSql } from '../../RenderedSql';
+import RenderCustomSql from '../../RenderedCustomSql';
+import RenderedSql from '../../RenderedSql';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
 interface SqlCardProps {
@@ -16,23 +17,25 @@ interface SqlCardProps {
 
 const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const expandedSections = useExplorerContext(
-        (context) => context.state.expandedSections,
+        (c) => c.state.expandedSections,
     );
-    const unsavedChartVersionTableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
+    const hasTableName = useExplorerContext(
+        (c) => !!c.state.unsavedChartVersion.tableName,
     );
+    const hasCustomExplore = useExplorerContext((c) => !!c.state.customExplore);
     const toggleExpandedSection = useExplorerContext(
-        (context) => context.actions.toggleExpandedSection,
+        (c) => c.actions.toggleExpandedSection,
     );
     const { user } = useApp();
 
     const sqlIsOpen = expandedSections.includes(ExplorerSection.SQL);
+
     return (
         <CollapsableCard
             title="SQL"
             isOpen={sqlIsOpen}
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
-            // disabled={!unsavedChartVersionTableName}
+            disabled={!hasTableName && !hasCustomExplore}
             rightHeaderElement={
                 sqlIsOpen && (
                     <Can
@@ -47,7 +50,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 )
             }
         >
-            <RenderedSql />
+            {hasCustomExplore ? <RenderCustomSql /> : <RenderedSql />}
         </CollapsableCard>
     );
 });

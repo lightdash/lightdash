@@ -1,10 +1,7 @@
 import {
-    CompiledDimension,
-    CompiledMetric,
-    FieldId,
-    fieldId,
-    FieldType,
-    friendlyName,
+    convertQueryResultsToFields,
+    CUSTOM_EXPLORE_ALIAS_NAME,
+    getMetricQueryFromResults,
 } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconHammer, IconPlayerPlay } from '@tabler/icons-react';
@@ -12,6 +9,7 @@ import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useProjectCatalog } from '../../hooks/useProjectCatalog';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
+import { useCustomExplore } from '../../providers/CustomExploreProvider';
 import {
     ExploreMode,
     useExplorerContext,
@@ -21,8 +19,6 @@ import MantineIcon from '../common/MantineIcon';
 import SqlRunnerInput from '../SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../SqlRunner/SqlRunnerResultsTable';
 
-const CUSTOM_EXPLORE_ALIAS_NAME = 'custom_explore';
-
 type Props = {};
 
 const ExploreCreate: FC<Props> = ({}) => {
@@ -30,23 +26,21 @@ const ExploreCreate: FC<Props> = ({}) => {
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const sql = useExplorerContext((c) => c.state.customSql?.sql);
-    const setMode = useExplorerContext((c) => c.actions.setMode);
-    const setMetricQuery = useExplorerContext((c) => c.actions.setMetricQuery);
-    const setCustomSqlResults = useExplorerContext(
-        (c) => c.actions.setCustomSqlResults,
-    );
+    const { sql, setSql } = useCustomExplore();
 
-    const updateCustomSql = useExplorerContext(
-        (state) => state.actions.updateCustomSql,
+    const setMode = useExplorerContext((c) => c.actions.setMode);
+
+    const setCustomExplore = useExplorerContext(
+        (c) => c.actions.setCustomExplore,
     );
+    const setMetricQuery = useExplorerContext((c) => c.actions.setMetricQuery);
 
     const { isLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
 
     const sqlQueryMutation = useSqlQueryMutation();
 
-    const { mutate, data, isLoading: isQueryLoading } = sqlQueryMutation;
+    const { mutateAsync, data, isLoading: isQueryLoading } = sqlQueryMutation;
 
     const isLoading = isCatalogLoading || isQueryLoading;
 
@@ -61,56 +55,13 @@ const ExploreCreate: FC<Props> = ({}) => {
         setExpandedCards((prev) => new Map(prev).set(card, value));
     };
 
-    const fields = useMemo(() => {
-        return Object.entries(data?.fields || []).reduce<{
-            sqlQueryDimensions: Record<FieldId, CompiledDimension>;
-            sqlQueryMetrics: Record<FieldId, CompiledMetric>;
-        }>(
-            (acc, [key, { type }]) => {
-                const dimension: CompiledDimension = {
-                    fieldType: FieldType.DIMENSION,
-                    type,
-                    name: key,
-                    label: friendlyName(key),
-                    table: CUSTOM_EXPLORE_ALIAS_NAME,
-                    tableLabel: '',
-                    sql: `${CUSTOM_EXPLORE_ALIAS_NAME}.${key}`,
-                    compiledSql: `${CUSTOM_EXPLORE_ALIAS_NAME}.${key}`,
-                    tablesReferences: [CUSTOM_EXPLORE_ALIAS_NAME],
-                    hidden: false,
-                };
-                return {
-                    ...acc,
-                    sqlQueryDimensions: {
-                        ...acc.sqlQueryDimensions,
-                        [fieldId(dimension)]: dimension,
-                    },
-                };
-            },
-            { sqlQueryDimensions: {}, sqlQueryMetrics: {} },
-        );
-    }, [data]);
-
-    const [dimensionKeys, metricKeys]: [string[], string[]] = useMemo(() => {
-        return [
-            Object.keys(fields.sqlQueryDimensions),
-            Object.keys(fields.sqlQueryMetrics),
-        ];
-    }, [fields]);
-
     const resultsData = useMemo(() => {
-        if (!data?.rows) return undefined;
+        if (!data) return undefined;
+
+        const dimensions = convertQueryResultsToFields(data.fields);
 
         return {
-            metricQuery: {
-                exploreName: CUSTOM_EXPLORE_ALIAS_NAME,
-                dimensions: dimensionKeys,
-                metrics: metricKeys,
-                filters: {},
-                sorts: [],
-                limit: 0,
-                tableCalculations: [],
-            },
+            metricQuery: getMetricQueryFromResults(data),
             cacheMetadata: {
                 cacheHit: false,
             },
@@ -129,23 +80,23 @@ const ExploreCreate: FC<Props> = ({}) => {
                 }, {}),
             ),
             fields: {
-                ...fields.sqlQueryDimensions,
-                ...fields.sqlQueryMetrics,
+                ...dimensions,
             },
         };
-    }, [data, fields, dimensionKeys, metricKeys]);
+    }, [data]);
 
     useEffect(() => {
         if (!resultsData) return;
-        setCustomSqlResults(resultsData);
         setMetricQuery(resultsData.metricQuery);
-    }, [resultsData, setMetricQuery, setCustomSqlResults]);
+    }, [resultsData, setMetricQuery]);
 
-    const handleSubmit = useCallback(() => {
+    const handleSubmit = useCallback(async () => {
         if (!sql) return;
 
-        mutate(sql);
-    }, [mutate, sql]);
+        const result = await mutateAsync(sql);
+
+        setCustomExplore(sql, result);
+    }, [mutateAsync, setCustomExplore, sql]);
 
     const handleChartBuild = useCallback(() => {
         // TODO: don't like this approach, need to refactor
@@ -188,7 +139,7 @@ const ExploreCreate: FC<Props> = ({}) => {
             >
                 <SqlRunnerInput
                     sql={sql ?? ''}
-                    onChange={updateCustomSql}
+                    onChange={setSql}
                     projectCatalog={catalogData}
                     isDisabled={isLoading}
                 />
@@ -202,10 +153,7 @@ const ExploreCreate: FC<Props> = ({}) => {
                 <SqlRunnerResultsTable
                     onSubmit={handleSubmit}
                     resultsData={resultsData}
-                    fieldsMap={{
-                        ...fields.sqlQueryDimensions,
-                        ...fields.sqlQueryMetrics,
-                    }}
+                    fieldsMap={resultsData?.fields ?? {}}
                     sqlQueryMutation={sqlQueryMutation}
                 />
             </CollapsableCard>

@@ -30,9 +30,8 @@ const FiltersCard: FC = memo(() => {
     const expandedSections = useExplorerContext(
         (context) => context.state.expandedSections,
     );
-    const isEditMode = useExplorerContext(
-        (context) => context.state.mode === ExploreMode.EDIT,
-    );
+    const mode = useExplorerContext((context) => context.state.mode);
+    const customExplore = useExplorerContext((c) => c.state.customExplore);
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -105,13 +104,19 @@ const FiltersCard: FC = memo(() => {
         [data],
     );
 
+    console.log(mode);
+
     return (
         <CollapsableCard
             isOpen={filterIsOpen}
             title="Filters"
-            disabled={!tableName || (totalActiveFilters === 0 && !isEditMode)}
+            disabled={
+                !tableName ||
+                (totalActiveFilters === 0 &&
+                    (mode !== ExploreMode.EDIT || !!customExplore))
+            }
             toggleTooltip={
-                totalActiveFilters === 0 && !isEditMode
+                totalActiveFilters === 0 && mode !== ExploreMode.EDIT
                     ? 'This chart has no filters'
                     : ''
             }
@@ -148,7 +153,9 @@ const FiltersCard: FC = memo(() => {
                             </Badge>
                         </Tooltip>
                     ) : null}
-                    {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
+                    {totalActiveFilters > 0 &&
+                    filterIsOpen &&
+                    mode !== ExploreMode.EDIT ? (
                         <Text color="gray">
                             You must be in 'edit' or 'explore' mode to change
                             the filters
@@ -165,7 +172,7 @@ const FiltersCard: FC = memo(() => {
                 }
             >
                 <FiltersForm
-                    isEditMode={isEditMode}
+                    isEditMode={mode === ExploreMode.EDIT}
                     filters={filters}
                     setFilters={setFilters}
                 />

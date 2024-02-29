@@ -2445,7 +2445,7 @@ export function RegisterRoutes(app: express.Router) {
             const args = {
                     projectUuid: {"in":"path","name":"projectUuid","required":true,"dataType":"string"},
                     req: {"in":"request","name":"req","required":true,"dataType":"object"},
-                    body: {"in":"body","name":"body","required":true,"dataType":"nestedObjectLiteral","nestedProperties":{"explore":{"ref":"Explore","required":true},"metricQuery":{"ref":"MetricQuery","required":true}}},
+                    body: {"in":"body","name":"body","required":true,"dataType":"nestedObjectLiteral","nestedProperties":{"explore":{"dataType":"any","required":true},"metricQuery":{"dataType":"any","required":true}}},
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

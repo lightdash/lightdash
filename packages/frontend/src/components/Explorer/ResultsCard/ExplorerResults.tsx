@@ -26,6 +26,10 @@ export const ExplorerResults = memo(() => {
     const isEditMode = useExplorerContext(
         (context) => context.state.mode === ExploreMode.EDIT,
     );
+    // TODO: need a better name
+    const customExplore = useExplorerContext(
+        (c) => c.state.customExplore?.explore,
+    );
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -138,7 +142,7 @@ export const ExplorerResults = memo(() => {
         [],
     );
 
-    if (!activeTableName) return <NoTableSelected />;
+    if (!activeTableName && !customExplore) return <NoTableSelected />;
 
     if (isInitialLoading) return <EmptyStateExploreLoading />;
 

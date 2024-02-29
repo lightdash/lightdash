@@ -65,6 +65,10 @@ export const useColumns = (): TableColumn[] => {
         (context) => context.queryResults.data,
     );
 
+    const customExplore = useExplorerContext(
+        (c) => c.state.customExplore?.explore,
+    );
+
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,
     });
@@ -73,42 +77,40 @@ export const useColumns = (): TableColumn[] => {
         activeItemsMap: ItemsMap;
         invalidActiveItems: string[];
     }>(() => {
-        if (exploreData) {
-            const allItemsMap = getItemMap(
-                exploreData,
-                additionalMetrics,
-                tableCalculations,
-                customDimensions,
-            );
+        const explore = exploreData || customExplore;
+        if (!explore) return { activeItemsMap: {}, invalidActiveItems: [] };
 
-            return Array.from(activeFields).reduce<{
-                activeItemsMap: ItemsMap;
-                invalidActiveItems: string[];
-            }>(
-                (acc, key) => {
-                    return allItemsMap[key]
-                        ? {
-                              ...acc,
-                              activeItemsMap: {
-                                  ...acc.activeItemsMap,
-                                  [key]: allItemsMap[key],
-                              },
-                          }
-                        : {
-                              ...acc,
-                              invalidActiveItems: [
-                                  ...acc.invalidActiveItems,
-                                  key,
-                              ],
-                          };
-                },
-                { activeItemsMap: {}, invalidActiveItems: [] },
-            );
-        }
-        return { activeItemsMap: {}, invalidActiveItems: [] };
+        const allItemsMap = getItemMap(
+            explore,
+            additionalMetrics,
+            tableCalculations,
+            customDimensions,
+        );
+
+        return Array.from(activeFields).reduce<{
+            activeItemsMap: ItemsMap;
+            invalidActiveItems: string[];
+        }>(
+            (acc, key) => {
+                return allItemsMap[key]
+                    ? {
+                          ...acc,
+                          activeItemsMap: {
+                              ...acc.activeItemsMap,
+                              [key]: allItemsMap[key],
+                          },
+                      }
+                    : {
+                          ...acc,
+                          invalidActiveItems: [...acc.invalidActiveItems, key],
+                      };
+            },
+            { activeItemsMap: {}, invalidActiveItems: [] },
+        );
     }, [
         additionalMetrics,
         exploreData,
+        customExplore,
         tableCalculations,
         activeFields,
         customDimensions,

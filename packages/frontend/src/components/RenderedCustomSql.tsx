@@ -1,10 +1,10 @@
 import { Alert, Loader, Stack, Title } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useCompiledSql } from '../hooks/useCompiledSql';
+import { useCustomCompiledSql } from '../hooks/useCustomCompiledSql';
 
-const RenderedSql = () => {
-    const { data, error, isInitialLoading } = useCompiledSql();
+const RenderCustomSql = () => {
+    const { data, error, isInitialLoading } = useCustomCompiledSql();
 
     if (isInitialLoading) {
         return (
@@ -39,4 +39,4 @@ const RenderedSql = () => {
     );
 };
 
-export default RenderedSql;
+export default RenderCustomSql;

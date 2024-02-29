@@ -8231,12 +8231,8 @@
 						"application/json": {
 							"schema": {
 								"properties": {
-									"explore": {
-										"$ref": "#/components/schemas/Explore"
-									},
-									"metricQuery": {
-										"$ref": "#/components/schemas/MetricQuery"
-									}
+									"explore": {},
+									"metricQuery": {}
 								},
 								"required": [
 									"explore",

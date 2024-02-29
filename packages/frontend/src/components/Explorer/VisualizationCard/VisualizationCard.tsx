@@ -42,6 +42,7 @@ const VisualizationCard: FC<{
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
+    const customExplore = useExplorerContext((c) => c.state.customExplore);
 
     const isLoadingQueryResults = useExplorerContext(
         (context) => context.queryResults.isLoading,
@@ -104,7 +105,7 @@ const VisualizationCard: FC<{
         [unsavedChartVersion],
     );
 
-    if (!unsavedChartVersion.tableName) {
+    if (!unsavedChartVersion.tableName && !customExplore) {
         return <CollapsableCard title="Charts" disabled />;
     }
 

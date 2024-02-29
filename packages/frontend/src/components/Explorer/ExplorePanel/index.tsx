@@ -1,8 +1,4 @@
-import {
-    fieldId as getFieldId,
-    getCustomExploreFromQueryResultsAndSql,
-    getVisibleFields,
-} from '@lightdash/common';
+import { fieldId as getFieldId, getVisibleFields } from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine/core';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
@@ -33,38 +29,29 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         (context) => context.state.unsavedChartVersion.tableName,
     );
 
-    const customSql = useExplorerContext(
-        (context) => context.state.customSql?.sql,
-    );
-    const customSqlResults = useExplorerContext(
-        (context) => context.state.customSql?.results,
+    const customExplore = useExplorerContext(
+        (context) => context.state.customExplore,
     );
 
-    const customMetricQuery = customSqlResults?.metricQuery;
     const metricQuery = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
 
     const additionalMetrics = useMemo(() => {
-        return (
-            customMetricQuery?.additionalMetrics ??
-            metricQuery?.additionalMetrics
-        );
-    }, [customMetricQuery, metricQuery]);
+        return metricQuery?.additionalMetrics;
+    }, [metricQuery]);
 
     const dimensions = useMemo(() => {
-        return customMetricQuery?.dimensions ?? metricQuery?.dimensions;
-    }, [customMetricQuery, metricQuery]);
+        return metricQuery?.dimensions;
+    }, [metricQuery]);
 
     const metrics = useMemo(() => {
-        return customMetricQuery?.metrics ?? metricQuery?.metrics;
-    }, [customMetricQuery, metricQuery]);
+        return metricQuery?.metrics;
+    }, [metricQuery]);
 
     const customDimensions = useMemo(() => {
-        return (
-            customMetricQuery?.customDimensions ?? metricQuery?.customDimensions
-        );
-    }, [customMetricQuery, metricQuery]);
+        return metricQuery?.customDimensions;
+    }, [metricQuery]);
 
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
@@ -94,30 +81,20 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         if (isError) onBack?.();
     }, [isError, onBack]);
 
-    const customExplore =
-        customSqlResults && customSql
-            ? getCustomExploreFromQueryResultsAndSql(
-                  customSql,
-                  customSqlResults,
-              )
-            : undefined;
-
     if (isError) return null;
 
     if (isInitialLoading) return <LoadingSkeleton />;
 
-    const explore = customExplore ? customExplore : savedExplore;
+    const explore = customExplore ? customExplore.explore : savedExplore;
 
     if (!explore) return null;
-
-    console.log(explore);
 
     return (
         <>
             <PageBreadcrumbs
                 size="md"
                 items={[
-                    ...(onBack && !customMetricQuery
+                    ...(onBack && !customExplore
                         ? [
                               {
                                   title: 'Tables',

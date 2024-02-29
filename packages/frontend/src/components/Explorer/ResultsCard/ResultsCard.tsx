@@ -32,6 +32,7 @@ const ResultsCard: FC = memo(() => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+    const customExplore = useExplorerContext((c) => c.state.customExplore);
     const sorts = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
@@ -94,7 +95,7 @@ const ResultsCard: FC = memo(() => {
             title="Results"
             isOpen={resultsIsOpen}
             onToggle={toggleCard}
-            disabled={!tableName}
+            disabled={!tableName && !customExplore}
             headerElement={
                 <>
                     {tableName && sorts.length > 0 && (

@@ -16,6 +16,7 @@ import {
 } from '../hooks/useExplorerRoute';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useApp } from '../providers/AppProvider';
+import CustomExploreProvider from '../providers/CustomExploreProvider';
 import {
     ExploreMode,
     ExplorerProvider,
@@ -96,19 +97,21 @@ const ExplorerPage = memo(() => {
     }
 
     return (
-        <ExplorerProvider
-            mode={
-                isCreatingNewExplore
-                    ? ExploreMode.CREATE
-                    : tableId || isBuildingNewExplore
-                    ? ExploreMode.EDIT
-                    : ExploreMode.INDEX
-            }
-            initialState={explorerUrlState}
-            queryResults={queryResults}
-        >
-            <ExplorerWithUrlParams />
-        </ExplorerProvider>
+        <CustomExploreProvider>
+            <ExplorerProvider
+                mode={
+                    isCreatingNewExplore
+                        ? ExploreMode.CREATE
+                        : tableId || isBuildingNewExplore
+                        ? ExploreMode.EDIT
+                        : ExploreMode.INDEX
+                }
+                initialState={explorerUrlState}
+                queryResults={queryResults}
+            >
+                <ExplorerWithUrlParams />
+            </ExplorerProvider>
+        </CustomExploreProvider>
     );
 });
 
