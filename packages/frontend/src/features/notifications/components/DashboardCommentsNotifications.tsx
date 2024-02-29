@@ -8,7 +8,7 @@ import { useUpdateNotification } from '../hooks/useNotifications';
 
 type Props = {
     projectUuid: string;
-    notifications: Notification[] | undefined;
+    notifications: Notification[];
 };
 
 export const DashboardCommentsNotifications: FC<Props> = ({
@@ -36,30 +36,26 @@ export const DashboardCommentsNotifications: FC<Props> = ({
 
     return (
         <>
-            {!!notifications?.length
-                ? notifications.map((notification) => (
-                      <Menu.Item
-                          key={notification.notificationId}
-                          icon={
-                              <MantineIcon
-                                  size={10}
-                                  icon={IconCircleFilled}
-                                  style={{
-                                      color: notification.viewed
-                                          ? 'transparent'
-                                          : theme.colors.blue[4],
-                                  }}
-                              />
-                          }
-                          onClick={() =>
-                              handleOnNotificationClick(notification)
-                          }
-                          fz="xs"
-                      >
-                          {notification.message}
-                      </Menu.Item>
-                  ))
-                : null}
+            {notifications.map((notification) => (
+                <Menu.Item
+                    key={notification.notificationId}
+                    icon={
+                        <MantineIcon
+                            size={10}
+                            icon={IconCircleFilled}
+                            style={{
+                                color: notification.viewed
+                                    ? 'transparent'
+                                    : theme.colors.blue[4],
+                            }}
+                        />
+                    }
+                    onClick={() => handleOnNotificationClick(notification)}
+                    fz="xs"
+                >
+                    {notification.message}
+                </Menu.Item>
+            ))}
         </>
     );
 };
