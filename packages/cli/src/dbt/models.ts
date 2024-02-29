@@ -111,6 +111,7 @@ const askOverwriteDescription = async (
     columnName: string,
     existingDescription: string | undefined,
     newDescription: string | undefined,
+    assumeYes: boolean,
 ): Promise<string> => {
     if (!existingDescription) return newDescription || '';
     if (!newDescription) return existingDescription;
@@ -119,6 +120,8 @@ const askOverwriteDescription = async (
         isDocBlock(existingDescription)
     )
         return existingDescription;
+
+    if (assumeYes) return newDescription;
 
     const shortDescription = `${existingDescription.substring(0, 20)}${
         existingDescription.length > 20 ? '...' : ''
@@ -139,6 +142,7 @@ type FindAndUpdateModelYamlArgs = {
     includeMeta: boolean;
     projectDir: string;
     projectName: string;
+    assumeYes: boolean;
 };
 export const findAndUpdateModelYaml = async ({
     model,
@@ -147,6 +151,7 @@ export const findAndUpdateModelYaml = async ({
     includeMeta,
     projectDir,
     projectName,
+    assumeYes,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: YamlSchema;
     outputFilePath: string;
@@ -220,6 +225,7 @@ export const findAndUpdateModelYaml = async ({
                         column.name,
                         existingDescription,
                         newDescription,
+                        assumeYes,
                     ),
                     ...(meta !== undefined ? { meta } : {}),
                 };
@@ -237,22 +243,29 @@ export const findAndUpdateModelYaml = async ({
         );
         let updatedColumns = [...existingColumnsUpdated, ...newColumns];
         if (deletedColumnNames.length > 0 && process.env.CI !== 'true') {
-            const spinner = GlobalState.getActiveSpinner();
-            spinner?.stop();
-            console.error(`
-These columns in your model ${styles.bold(model.name)} on file ${styles.bold(
-                match.filename.split('/').slice(-1),
-            )} no longer exist in your warehouse:
-${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
-            `);
-            const answers = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'isConfirm',
-                    message: `Would you like to remove them from your .yml file? `,
-                },
-            ]);
-            spinner?.start();
+            let answers = { isConfirm: assumeYes };
+
+            if (!assumeYes) {
+                const spinner = GlobalState.getActiveSpinner();
+                spinner?.stop();
+                console.error(`
+    These columns in your model ${styles.bold(
+        model.name,
+    )} on file ${styles.bold(
+                    match.filename.split('/').slice(-1),
+                )} no longer exist in your warehouse:
+    ${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
+                `);
+
+                answers = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'isConfirm',
+                        message: `Would you like to remove them from your .yml file? `,
+                    },
+                ]);
+                spinner?.start();
+            }
 
             if (answers.isConfirm) {
                 updatedColumns = updatedColumns.filter(
