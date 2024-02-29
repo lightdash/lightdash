@@ -15,7 +15,7 @@ interface AppContext {
 
 // used in test mocks
 // ts-unused-exports:disable-next-line
-export const AppProviderContext = createContext<AppContext>(undefined as any);
+export const AppProviderContext = createContext<AppContext>(undefined as unknown);
 
 export const AppProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     const health = useHealth();

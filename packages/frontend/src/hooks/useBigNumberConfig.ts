@@ -94,7 +94,7 @@ const formatComparisonValue = (
     }
 };
 
-const isNumber = (i: ItemsMap[string] | undefined, value: any) =>
+const isNumber = (i: ItemsMap[string] | undefined, value: unknown) =>
     isNumericItem(i) && !(value instanceof Date) && !valueIsNaN(value);
 
 const getItemPriority = (item: ItemsMap[string]): number => {

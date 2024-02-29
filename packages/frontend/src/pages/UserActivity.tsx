@@ -132,7 +132,7 @@ const chartWeeklyQueryingUsers = (
         {
             name: '% of weekly querying users',
             yAxisIndex: 1,
-            data: data.map((queries: any) => [
+            data: data.map((queries: unknown) => [
                 queries.date,
                 queries.percent_7d_active_users,
             ]),
