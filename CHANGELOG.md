@@ -1,3 +1,10 @@
+## [0.1021.6](https://github.com/lightdash/lightdash/compare/0.1021.5...0.1021.6) (2024-02-29)
+
+
+### Bug Fixes
+
+* query for schedulers of charts that belong to dashboards and not space ([#9164](https://github.com/lightdash/lightdash/issues/9164)) ([8b8f08a](https://github.com/lightdash/lightdash/commit/8b8f08a1e3db147693a360033cec1cbecb262c58))
+
 ## [0.1021.5](https://github.com/lightdash/lightdash/compare/0.1021.4...0.1021.5) (2024-02-29)
 
 
