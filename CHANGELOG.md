@@ -1,3 +1,10 @@
+## [0.1021.8](https://github.com/lightdash/lightdash/compare/0.1021.7...0.1021.8) (2024-02-29)
+
+
+### Bug Fixes
+
+* project switcher long list ([#9177](https://github.com/lightdash/lightdash/issues/9177)) ([c643054](https://github.com/lightdash/lightdash/commit/c643054b8da5608bd79f75d860ce15325153d582))
+
 ## [0.1021.7](https://github.com/lightdash/lightdash/compare/0.1021.6...0.1021.7) (2024-02-29)
 
 
