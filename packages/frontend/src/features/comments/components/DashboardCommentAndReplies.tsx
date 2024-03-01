@@ -94,6 +94,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                                 <CommentDetail
                                     key={reply.commentId}
                                     comment={reply}
+                                    // Can't reply to a reply
                                     canReply={false}
                                     // can remove any comment or the comment is created by the current user
                                     canRemove={reply.canRemove}
