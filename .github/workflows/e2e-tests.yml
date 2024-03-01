@@ -76,6 +76,9 @@ jobs:
   build-cypress-e2e-image:
     runs-on: ubuntu-latest
     name: Build cypress e2e image
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
