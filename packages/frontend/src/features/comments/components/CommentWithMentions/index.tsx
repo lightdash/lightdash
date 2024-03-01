@@ -40,7 +40,7 @@ export const CommentWithMentions: FC<Props> = ({
                     : undefined,
             }),
             Placeholder.configure({
-                placeholder: 'Add comment (type @ to mention someone)',
+                placeholder: 'Add comment (type @ to tag someone)',
             }),
         ],
         content,
