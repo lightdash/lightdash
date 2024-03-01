@@ -43,6 +43,8 @@ export const DashboardTileComments: FC<
         return null;
     }
 
+    const hasComments = comments && comments.length === 0;
+
     return (
         <Popover
             withArrow
@@ -66,7 +68,7 @@ export const DashboardTileComments: FC<
                 onClose?.();
             }}
         >
-            <Popover.Dropdown p={0} miw={400}>
+            <Popover.Dropdown p={0} w={400}>
                 <Stack
                     p="sm"
                     spacing="xs"
@@ -84,12 +86,12 @@ export const DashboardTileComments: FC<
                             dashboardTileUuid={dashboardTileUuid}
                         />
                     ))}
-                    {!userCanManageDashboardComments &&
-                        (!comments || comments.length === 0) && (
-                            <Text fz="xs">No comments yet</Text>
-                        )}
+                    {!userCanManageDashboardComments && !hasComments && (
+                        <Text fz="xs">No comments yet</Text>
+                    )}
                 </Stack>
-                <Divider />
+
+                {hasComments && <Divider />}
                 <Box p="sm" pt="xs">
                     {userCanManageDashboardComments && (
                         <CommentForm
