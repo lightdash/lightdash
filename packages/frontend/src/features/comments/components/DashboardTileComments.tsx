@@ -59,12 +59,7 @@ export const DashboardTileComments: FC<
         [notifications, dashboardTileUuid, dashboardUuid],
     );
 
-    const showIndicator = useMemo(
-        () => !comments || (comments && comments.length === 0),
-
-        [comments],
-    );
-
+    const showIndicator = comments && comments.length > 0;
     const indicatorColor = useMemo(() => {
         if (unreadCommentsForThisTile && unreadCommentsForThisTile.length > 0)
             return 'red';
