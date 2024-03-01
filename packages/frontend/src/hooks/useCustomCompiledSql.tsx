@@ -66,7 +66,7 @@ export const useCustomCompiledSql = () => {
 
     return useQuery<ApiCompiledQueryResults, ApiError>({
         // TODO: better key
-        queryKey: ['customCompiledQuery', projectUuid],
+        queryKey: ['customCompiledQuery', projectUuid, customMetricQuery],
         enabled: !!explore,
         queryFn: () =>
             getCustomCompiledQuery(

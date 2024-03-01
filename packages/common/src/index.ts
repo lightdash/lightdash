@@ -103,6 +103,7 @@ import {
 } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
+import { ApiSqlQueryResults } from './types/sqlRunner';
 import { ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { TableBase } from './types/table';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
@@ -172,6 +173,7 @@ export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
 export * from './types/space';
+export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/table';
 export * from './types/timeFrames';
@@ -377,11 +379,6 @@ export type ApiChartAndResults = {
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
     fields: ItemsMap;
-};
-
-export type ApiSqlQueryResults = {
-    fields: Record<string, { type: DimensionType }>;
-    rows: Record<string, unknown>[];
 };
 
 export type ApiScheduledDownloadCsv = {

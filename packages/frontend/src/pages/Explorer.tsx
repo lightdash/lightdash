@@ -1,8 +1,11 @@
 import { subject } from '@casl/ability';
 import { memo } from 'react';
-import { useParams, useRouteMatch } from 'react-router-dom';
+import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
 
+import { ActionIcon, Group, Text } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
+import { IconCircleXFilled } from '@tabler/icons-react';
+import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
@@ -24,11 +27,15 @@ import {
 } from '../providers/ExplorerProvider';
 
 const ExplorerWithUrlParams = memo(() => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     useExplorerRoute();
     const mode = useExplorerContext((context) => context.state.mode);
     const tableId = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+
+    const history = useHistory();
+
     const { data } = useExplore(tableId);
 
     const { getIsEditingDashboardChart } = useDashboardStorage();
@@ -37,6 +44,10 @@ const ExplorerWithUrlParams = memo(() => {
         (context) => context.actions.clearQuery,
     );
     useHotkeys([['mod + alt + k', clearQuery]]);
+
+    const handleExit = () => {
+        history.push(`/projects/${projectUuid}/tables`);
+    };
 
     return (
         <Page
@@ -50,7 +61,26 @@ const ExplorerWithUrlParams = memo(() => {
             sidebar={<ExploreSideBar />}
             withFullHeight
             withPaddedContent
-            withMode={mode === ExploreMode.CREATE ? 'SQL Mode' : undefined}
+            withMode={
+                mode === ExploreMode.CREATE ? (
+                    <Group
+                        spacing="xs"
+                        pos="relative"
+                        top={-2}
+                        style={{ pointerEvents: 'all' }}
+                    >
+                        <Text fw={500}>SQL mode</Text>
+                        <ActionIcon size="sm" variant="transparent" c="white">
+                            <MantineIcon
+                                onClick={handleExit}
+                                icon={IconCircleXFilled}
+                                color="white"
+                                fill="white"
+                            />
+                        </ActionIcon>
+                    </Group>
+                ) : undefined
+            }
             hasBanner={getIsEditingDashboardChart()}
         >
             <Explorer />

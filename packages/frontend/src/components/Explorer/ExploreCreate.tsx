@@ -7,6 +7,7 @@ import { Button, Group, Stack } from '@mantine/core';
 import { IconHammer, IconPlayerPlay } from '@tabler/icons-react';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectCatalog } from '../../hooks/useProjectCatalog';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
 import { useCustomExplore } from '../../providers/CustomExploreProvider';
@@ -30,9 +31,12 @@ const ExploreCreate: FC<Props> = ({}) => {
 
     const setMode = useExplorerContext((c) => c.actions.setMode);
 
+    const { showToastSuccess } = useToaster();
+
     const setCustomExplore = useExplorerContext(
         (c) => c.actions.setCustomExplore,
     );
+    const customExplore = useExplorerContext((c) => c.state.customExplore);
     const setMetricQuery = useExplorerContext((c) => c.actions.setMetricQuery);
 
     const { isLoading: isCatalogLoading, data: catalogData } =
@@ -102,7 +106,13 @@ const ExploreCreate: FC<Props> = ({}) => {
         // TODO: don't like this approach, need to refactor
         setMode(ExploreMode.EDIT);
         history.push(`/projects/${projectUuid}/explore/build`);
-    }, [setMode, history, projectUuid]);
+
+        showToastSuccess({
+            title: 'Successfully generated an Explore from your SQL. ',
+            subtitle:
+                "Your fields came from your custom SQL query. To edit them, go to the SQL tab and hit 'edit query'.",
+        });
+    }, [setMode, history, projectUuid, showToastSuccess]);
 
     // TODO: add proper loading state
     if (isCatalogLoading) {
@@ -122,7 +132,7 @@ const ExploreCreate: FC<Props> = ({}) => {
                 </Button>
 
                 <Button
-                    disabled={isLoading}
+                    disabled={isLoading || !customExplore}
                     size="xs"
                     variant="outline"
                     leftIcon={<MantineIcon icon={IconHammer} />}

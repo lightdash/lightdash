@@ -1,13 +1,13 @@
+import { SupportedDbtAdapter } from '../types/dbt';
+import { Explore } from '../types/explore';
 import {
-    ApiSqlQueryResults,
     CompiledDimension,
     DimensionType,
-    Explore,
     FieldType,
     friendlyName,
-    MetricQuery,
-    SupportedDbtAdapter,
-} from '..';
+} from '../types/field';
+import { MetricQuery } from '../types/metricQuery';
+import { ApiSqlQueryResults } from '../types/sqlRunner';
 
 export const CUSTOM_EXPLORE_ALIAS_NAME = 'custom_explore';
 
@@ -24,8 +24,10 @@ export const convertQueryResultsToFields = (
                 label: friendlyName(key),
                 table: CUSTOM_EXPLORE_ALIAS_NAME,
                 tableLabel: '',
-                sql: `${CUSTOM_EXPLORE_ALIAS_NAME}.${key}`,
-                compiledSql: `${CUSTOM_EXPLORE_ALIAS_NAME}.${key}`,
+                // sql: `${CUSTOM_EXPLORE_ALIAS_NAME}.${key}`,
+                // compiledSql: `${CUSTOM_EXPLORE_ALIAS_NAME}.${key}`,
+                sql: `{TABLE}."${key}"`,
+                compiledSql: `"${CUSTOM_EXPLORE_ALIAS_NAME}"."${key}"`,
                 tablesReferences: [CUSTOM_EXPLORE_ALIAS_NAME],
                 hidden: false,
             },
@@ -51,7 +53,9 @@ export const getCustomExploreFromQueryResultsAndSql = (
             database: 'postgres',
             schema: 'jaffle',
             dimensions: convertQueryResultsToFields(queryResults.fields),
-            sqlTable: `( ${sql} )`,
+            sqlTable: `(
+  ${sql}
+)`,
             metrics: {},
             lineageGraph: {},
         },
@@ -64,7 +68,9 @@ export const getMetricQueryFromResults = (
     results: ApiSqlQueryResults,
 ): MetricQuery => ({
     exploreName: CUSTOM_EXPLORE_ALIAS_NAME,
-    dimensions: Object.keys(results.fields),
+    dimensions: Object.keys(results.fields).map(
+        (f) => `${CUSTOM_EXPLORE_ALIAS_NAME}_${f}`,
+    ),
     metrics: [],
     filters: {},
     sorts: [],

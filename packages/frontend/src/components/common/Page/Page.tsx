@@ -1,5 +1,5 @@
 import { Box, createStyles, getDefaultZIndex } from '@mantine/core';
-import { FC } from 'react';
+import { FC, ReactNode } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { ProjectType } from '@lightdash/common';
@@ -23,7 +23,7 @@ type StyleProps = {
     withPaddedContent?: boolean;
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
-    withMode?: string;
+    withMode?: ReactNode;
     hasBanner?: boolean;
 };
 

@@ -9,6 +9,7 @@ import { Can } from '../../common/Authorization';
 import CollapsableCard from '../../common/CollapsableCard';
 import RenderCustomSql from '../../RenderedCustomSql';
 import RenderedSql from '../../RenderedSql';
+import OpenInCustomExplore from './OpenInCustomExplore';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
 interface SqlCardProps {
@@ -45,7 +46,11 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                             projectUuid,
                         })}
                     >
-                        <OpenInSqlRunnerButton projectUuid={projectUuid} />
+                        {hasCustomExplore ? (
+                            <OpenInCustomExplore projectUuid={projectUuid} />
+                        ) : (
+                            <OpenInSqlRunnerButton projectUuid={projectUuid} />
+                        )}
                     </Can>
                 )
             }
