@@ -93,7 +93,7 @@ jobs:
           context: .
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          tags: lightdash-cypress-e2e:latest
+          tags: ghcr.io/lightdash/lightdash-cypress-e2e:latest
           push: true
 
 
