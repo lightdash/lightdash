@@ -1,7 +1,6 @@
 import {
     Anchor,
     Box,
-    Flex,
     Group,
     Popover,
     Text,
@@ -62,31 +61,24 @@ export const ItemDetailPreview: FC<{
     const isTruncated = description.length > 180;
 
     return (
-        <Flex direction="column" gap={'xs'}>
+        <Box>
             <Box
-                mah={140}
+                mah={120}
                 style={{
                     overflow: 'hidden',
-                    textOverflow: 'clip',
+
+                    // If we're over the truncation limit, use a mask to fade out the bottom of the container.
+                    maskImage: isTruncated
+                        ? 'linear-gradient(180deg, white 0%, white 80%, transparent 100%)'
+                        : undefined,
                 }}
             >
                 <ItemDetailMarkdown source={description} />
             </Box>
             {isTruncated && (
-                <Box
-                    ta={'center'}
-                    /**
-                     * Forces the 'Read more' option to slightly overlap with the content, and show
-                     * a slight fade effect.
-                     */
-                    mt={-30}
-                    pt={20}
-                    style={{
-                        background:
-                            'linear-gradient(rgba(255,255,255,0) 0%, rgba(255,255,255,1) 60%, rgba(255,255,255,1) 100%)',
-                    }}
-                >
+                <Box ta={'center'}>
                     <Anchor
+                        size={'xs'}
                         onClick={(e) => {
                             e.preventDefault();
                             onViewDescription();
@@ -96,7 +88,7 @@ export const ItemDetailPreview: FC<{
                     </Anchor>
                 </Box>
             )}
-        </Flex>
+        </Box>
     );
 };
 
@@ -141,7 +133,6 @@ export const TableItemDetailPreview = ({
         >
             <Popover.Target>{children}</Popover.Target>
             <Popover.Dropdown
-                p="xs"
                 /**
                  * Takes up space to the right, so it's OK to go fairly wide in the interest
                  * of readability.
