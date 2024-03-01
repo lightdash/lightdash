@@ -5,11 +5,12 @@ import {
     Box,
     Grid,
     Group,
+    Menu,
     Text,
     Tooltip,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { IconMessage, IconTrash } from '@tabler/icons-react';
+import { IconDotsVertical, IconMessage, IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
@@ -43,18 +44,6 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                         </Group>
 
                         <Group spacing="two" opacity={hovered ? 1 : 0}>
-                            {comment.canRemove && (
-                                <Tooltip label="Remove">
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={() => onRemove()}
-                                        variant="subtle"
-                                        color="gray"
-                                    >
-                                        <MantineIcon icon={IconTrash} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
                             {onReply && (
                                 <Tooltip label="Reply">
                                     <ActionIcon
@@ -66,6 +55,36 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                                         <MantineIcon icon={IconMessage} />
                                     </ActionIcon>
                                 </Tooltip>
+                            )}
+                            {comment.canRemove && (
+                                <Menu position="right" withArrow>
+                                    <Menu.Target>
+                                        <ActionIcon
+                                            size="xs"
+                                            variant="subtle"
+                                            color="gray"
+                                        >
+                                            <MantineIcon
+                                                icon={IconDotsVertical}
+                                            />
+                                        </ActionIcon>
+                                    </Menu.Target>
+                                    <Menu.Dropdown p={0}>
+                                        <Menu.Item
+                                            p="xs"
+                                            fz="xs"
+                                            icon={
+                                                <MantineIcon
+                                                    color="red"
+                                                    icon={IconTrash}
+                                                />
+                                            }
+                                            onClick={() => onRemove()}
+                                        >
+                                            Delete
+                                        </Menu.Item>
+                                    </Menu.Dropdown>
+                                </Menu>
                             )}
                         </Group>
                     </Group>
