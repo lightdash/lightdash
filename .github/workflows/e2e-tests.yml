@@ -74,7 +74,6 @@ jobs:
           CYPRESS_TZ: 'UTC'
   
   build-cypress-e2e-image:
-    if: needs.files-changed.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     name: Build cypress e2e image
     steps:
