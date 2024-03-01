@@ -314,6 +314,7 @@ let worker: SchedulerWorker | undefined;
 if (lightdashConfig.scheduler?.enabled) {
     worker = new SchedulerWorker({
         lightdashConfig,
+        analytics,
         ...services,
         ...clients,
     });
