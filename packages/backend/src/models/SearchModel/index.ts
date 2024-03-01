@@ -39,7 +39,7 @@ import {
     getTableOrFieldMatchCount,
 } from './utils/search';
 
-type ModelDependencies = {
+type SearchModelArguments = {
     database: Knex;
 };
 
@@ -48,8 +48,8 @@ const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
 export class SearchModel {
     private database: Knex;
 
-    constructor(deps: ModelDependencies) {
-        this.database = deps.database;
+    constructor(args: SearchModelArguments) {
+        this.database = args.database;
     }
 
     private async searchSpaces(

@@ -85,7 +85,7 @@ export type ParsedUrl = {
     exploreModel?: string;
 };
 
-type UnfurlServiceDependencies = {
+type UnfurlServiceArguments = {
     lightdashConfig: LightdashConfig;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
@@ -126,7 +126,7 @@ export class UnfurlService {
         s3Client,
         projectModel,
         downloadFileModel,
-    }: UnfurlServiceDependencies) {
+    }: UnfurlServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;

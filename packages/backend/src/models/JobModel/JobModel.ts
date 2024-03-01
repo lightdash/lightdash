@@ -18,15 +18,15 @@ import {
     JobStepsTableName,
 } from '../../database/entities/jobs';
 
-type JobModelDependencies = {
+type JobModelArguments = {
     database: Knex;
 };
 
 export class JobModel {
     private database: Knex;
 
-    constructor(deps: JobModelDependencies) {
-        this.database = deps.database;
+    constructor(args: JobModelArguments) {
+        this.database = args.database;
     }
 
     async get(jobUuid: string): Promise<Job> {

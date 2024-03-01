@@ -52,7 +52,7 @@ import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 
-type UserServiceDependencies = {
+type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
@@ -117,7 +117,7 @@ export class UserService {
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
-    }: UserServiceDependencies) {
+    }: UserServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;

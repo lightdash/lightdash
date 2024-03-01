@@ -35,7 +35,7 @@ const notifySlackError = async (
         );
 };
 
-type SlackServiceDependencies = {
+type SlackServiceArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     lightdashConfig: LightdashConfig;
 };
@@ -48,7 +48,7 @@ export class SlackService {
     constructor({
         slackAuthenticationModel,
         lightdashConfig,
-    }: SlackServiceDependencies) {
+    }: SlackServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.start();

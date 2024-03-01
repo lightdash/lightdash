@@ -6,14 +6,14 @@ import {
 } from '@lightdash/common';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 
-type Dependencies = {
+type NotificationsServiceArguments = {
     notificationsModel: NotificationsModel;
 };
 
 export class NotificationsService {
     notificationsModel: NotificationsModel;
 
-    constructor({ notificationsModel }: Dependencies) {
+    constructor({ notificationsModel }: NotificationsServiceArguments) {
         this.notificationsModel = notificationsModel;
     }
 

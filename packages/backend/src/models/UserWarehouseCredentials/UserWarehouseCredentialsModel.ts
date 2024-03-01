@@ -14,7 +14,7 @@ import {
 } from '../../database/entities/userWarehouseCredentials';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 
-type ModelDependencies = {
+type UserWarehouseCredentialsModelArguments = {
     database: Knex;
     encryptionService: EncryptionService;
 };
@@ -24,9 +24,9 @@ export class UserWarehouseCredentialsModel {
 
     private readonly encryptionService: EncryptionService;
 
-    constructor(deps: ModelDependencies) {
-        this.database = deps.database;
-        this.encryptionService = deps.encryptionService;
+    constructor(args: UserWarehouseCredentialsModelArguments) {
+        this.database = args.database;
+        this.encryptionService = args.encryptionService;
     }
 
     private convertToUserWarehouseCredentialsWithSecrets(

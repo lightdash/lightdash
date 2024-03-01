@@ -6,7 +6,7 @@ import {
 } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 
-type EncryptionServiceDependencies = {
+type EncryptionServiceArguments = {
     lightdashConfig: Pick<LightdashConfig, 'lightdashSecret'>;
 };
 
@@ -37,7 +37,7 @@ export class EncryptionService {
 
     messageOffset: number;
 
-    constructor({ lightdashConfig }: EncryptionServiceDependencies) {
+    constructor({ lightdashConfig }: EncryptionServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.saltOffset = 0;
         this.tagOffset = this.saltLength;

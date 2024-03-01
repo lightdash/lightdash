@@ -29,7 +29,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { SchedulerModel } from '../models/SchedulerModel';
 
-type SchedulerClientDependencies = {
+type SchedulerClientArguments = {
     lightdashConfig: LightdashConfig;
     schedulerModel: SchedulerModel;
 };
@@ -63,10 +63,7 @@ export class SchedulerClient {
 
     schedulerModel: SchedulerModel;
 
-    constructor({
-        lightdashConfig,
-        schedulerModel,
-    }: SchedulerClientDependencies) {
+    constructor({ lightdashConfig, schedulerModel }: SchedulerClientArguments) {
         this.lightdashConfig = lightdashConfig;
         this.schedulerModel = schedulerModel;
         this.graphileUtils = makeWorkerUtils({

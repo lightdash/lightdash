@@ -2,15 +2,15 @@ import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 
-type Dependencies = {
+type AnalyticsServiceArguments = {
     analyticsModel: AnalyticsModel;
 };
 
 export class AnalyticsService {
     private readonly analyticsModel: AnalyticsModel;
 
-    constructor(dependencies: Dependencies) {
-        this.analyticsModel = dependencies.analyticsModel;
+    constructor(args: AnalyticsServiceArguments) {
+        this.analyticsModel = args.analyticsModel;
     }
 
     async getDashboardViews(dashboardUuid: string): Promise<number> {

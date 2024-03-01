@@ -27,15 +27,15 @@ import {
     isDbPinnedSpace,
 } from '../utils';
 
-type PinnedListModelDependencies = {
+type PinnedListModelArguments = {
     database: Knex;
 };
 
 export class PinnedListModel {
     private readonly database: Knex;
 
-    constructor(deps: PinnedListModelDependencies) {
-        this.database = deps.database;
+    constructor(args: PinnedListModelArguments) {
+        this.database = args.database;
     }
 
     private async upsertPinnedList(projectUuid: string): Promise<PinnedList> {

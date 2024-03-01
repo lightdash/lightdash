@@ -7,15 +7,15 @@ import {
 import { analytics } from '../analytics/client';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 
-type Dependencies = {
+type PersonalAccessTokenServiceArguments = {
     personalAccessTokenModel: PersonalAccessTokenModel;
 };
 
 export class PersonalAccessTokenService {
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
 
-    constructor(dependencies: Dependencies) {
-        this.personalAccessTokenModel = dependencies.personalAccessTokenModel;
+    constructor(args: PersonalAccessTokenServiceArguments) {
+        this.personalAccessTokenModel = args.personalAccessTokenModel;
     }
 
     async createPersonalAccessToken(

@@ -35,15 +35,15 @@ import {
     ValidationTableName,
 } from '../../database/entities/validation';
 
-type ValidationModelDependencies = {
+type ValidationModelArguments = {
     database: Knex;
 };
 
 export class ValidationModel {
     private database: Knex;
 
-    constructor(deps: ValidationModelDependencies) {
-        this.database = deps.database;
+    constructor(args: ValidationModelArguments) {
+        this.database = args.database;
     }
 
     async create(

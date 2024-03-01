@@ -13,15 +13,15 @@ import {
     NotificationsTableName,
 } from '../../database/entities/notifications';
 
-type NotificationsModelDependencies = {
+type NotificationsModelArguments = {
     database: Knex;
 };
 
 export class NotificationsModel {
     private readonly database: Knex;
 
-    constructor(deps: NotificationsModelDependencies) {
-        this.database = deps.database;
+    constructor(args: NotificationsModelArguments) {
+        this.database = args.database;
     }
 
     async getDashboardCommentNotifications(

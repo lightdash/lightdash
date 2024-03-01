@@ -15,7 +15,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ShareModel } from '../../models/ShareModel';
 
-type Dependencies = {
+type DownloadFileServiceArguments = {
     downloadFileModel: DownloadFileModel;
     lightdashConfig: Pick<LightdashConfig, 's3'>;
 };
@@ -25,9 +25,9 @@ export class DownloadFileService {
 
     private readonly downloadFileModel: DownloadFileModel;
 
-    constructor(dependencies: Dependencies) {
-        this.lightdashConfig = dependencies.lightdashConfig;
-        this.downloadFileModel = dependencies.downloadFileModel;
+    constructor(args: DownloadFileServiceArguments) {
+        this.lightdashConfig = args.lightdashConfig;
+        this.downloadFileModel = args.downloadFileModel;
     }
 
     private isS3Enabled = () =>

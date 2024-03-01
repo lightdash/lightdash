@@ -39,7 +39,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type Dependencies = {
+type DashboardServiceArguments = {
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
@@ -68,7 +68,7 @@ export class DashboardService {
         pinnedListModel,
         schedulerModel,
         savedChartModel,
-    }: Dependencies) {
+    }: DashboardServiceArguments) {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.analyticsModel = analyticsModel;

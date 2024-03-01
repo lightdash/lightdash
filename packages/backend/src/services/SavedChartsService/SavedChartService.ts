@@ -41,7 +41,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type Dependencies = {
+type SavedChartServiceArguments = {
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
@@ -63,13 +63,13 @@ export class SavedChartService {
 
     private readonly schedulerModel: SchedulerModel;
 
-    constructor(dependencies: Dependencies) {
-        this.projectModel = dependencies.projectModel;
-        this.savedChartModel = dependencies.savedChartModel;
-        this.spaceModel = dependencies.spaceModel;
-        this.analyticsModel = dependencies.analyticsModel;
-        this.pinnedListModel = dependencies.pinnedListModel;
-        this.schedulerModel = dependencies.schedulerModel;
+    constructor(args: SavedChartServiceArguments) {
+        this.projectModel = args.projectModel;
+        this.savedChartModel = args.savedChartModel;
+        this.spaceModel = args.spaceModel;
+        this.analyticsModel = args.analyticsModel;
+        this.pinnedListModel = args.pinnedListModel;
+        this.schedulerModel = args.schedulerModel;
     }
 
     private async checkUpdateAccess(

@@ -56,7 +56,7 @@ import { UserModel } from '../../models/UserModel';
 import { runWorkerThread } from '../../utils';
 import { ProjectService } from '../ProjectService/ProjectService';
 
-type CsvServiceDependencies = {
+type CsvServiceArguments = {
     lightdashConfig: LightdashConfig;
 
     projectService: ProjectService;
@@ -154,7 +154,7 @@ export class CsvService {
         savedChartModel,
         dashboardModel,
         downloadFileModel,
-    }: CsvServiceDependencies) {
+    }: CsvServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.userModel = userModel;
         this.projectService = projectService;

@@ -14,7 +14,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type Dependencies = {
+type CommentServiceArguments = {
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     commentModel: CommentModel;
@@ -39,7 +39,7 @@ export class CommentService {
         commentModel,
         notificationsModel,
         userModel,
-    }: Dependencies) {
+    }: CommentServiceArguments) {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.commentModel = commentModel;

@@ -32,7 +32,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
 
-type OrganizationServiceDependencies = {
+type OrganizationServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationModel: OrganizationModel;
     projectModel: ProjectModel;
@@ -74,7 +74,7 @@ export class OrganizationService {
         userModel,
         groupsModel,
         organizationAllowedEmailDomainsModel,
-    }: OrganizationServiceDependencies) {
+    }: OrganizationServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
         this.projectModel = projectModel;

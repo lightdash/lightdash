@@ -7,7 +7,7 @@ import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { slackOptions } from './SlackOptions';
 
-type SlackClientDependencies = {
+type SlackClientArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     lightdashConfig: LightdashConfig;
 };
@@ -30,7 +30,7 @@ export class SlackClient {
     constructor({
         slackAuthenticationModel,
         lightdashConfig,
-    }: SlackClientDependencies) {
+    }: SlackClientArguments) {
         this.lightdashConfig = lightdashConfig;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.start();
