@@ -94,6 +94,10 @@ jobs:
         with:
           node-version: '20'
           cache: 'yarn'
+      - name: "Check make and node-gyp"
+        run: |
+            echo "TRYING TO FIND MAKE"
+            which make
       - name: Install packages
         run: yarn install --frozen-lockfile
       # Build packages
