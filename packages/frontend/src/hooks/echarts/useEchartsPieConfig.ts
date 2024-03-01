@@ -3,7 +3,6 @@ import { EChartsOption, PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
-import { useChartColorConfig } from '../useChartColorConfig';
 
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -15,10 +14,8 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const useEchartsPieConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, itemsMap, getGroupColor, colorPalette } =
+    const { visualizationConfig, itemsMap, getGroupColor } =
         useVisualizationContext();
-
-    const { useSharedColors } = useChartColorConfig({ colorPalette });
 
     const chartConfig = useMemo(() => {
         if (!isPieVisualizationConfig(visualizationConfig)) return;
@@ -32,7 +29,6 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
             selectedMetric,
             data,
             sortedGroupLabels,
-            groupColorDefaults,
             validConfig: {
                 valueLabel: valueLabelDefault,
                 showValue: showValueDefault,
@@ -63,10 +59,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                     showPercentageDefault;
 
                 const itemColor =
-                    groupColorOverrides?.[name] ??
-                    (useSharedColors
-                        ? getGroupColor(name)
-                        : groupColorDefaults?.[name]);
+                    groupColorOverrides?.[name] ?? getGroupColor(name);
 
                 const config: PieSeriesDataPoint = {
                     id: name,
@@ -97,7 +90,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
 
                 return config;
             });
-    }, [chartConfig, getGroupColor, useSharedColors]);
+    }, [chartConfig, getGroupColor]);
 
     const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;

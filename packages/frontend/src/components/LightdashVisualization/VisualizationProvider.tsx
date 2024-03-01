@@ -162,11 +162,8 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         [onChartTypeChange],
     );
 
-    const {
-        useSharedColors,
-        calculateKeyColorAssignment,
-        calculateSeriesColorAssignment,
-    } = useChartColorConfig({ colorPalette });
+    const { calculateKeyColorAssignment, calculateSeriesColorAssignment } =
+        useChartColorConfig({ colorPalette });
 
     // cartesian config related
     const [stacking, setStacking] = useState<boolean>();
@@ -237,17 +234,15 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
             if (seriesLike.color) return seriesLike.color;
 
             /**
-             * If shared colors are enabled AND this series is grouped, figure out a shared
-             * color assignment from the series.
-             *
-             * Otherwise, use the default behavior of picking a series color from the palette.
+             * If this series is grouped, figure out a shared color assignment from the series;
+             * otherwise, pick a series color from the palette based on its order.
              */
-            return useSharedColors && isGroupedSeries(seriesLike)
+            return isGroupedSeries(seriesLike)
                 ? calculateSeriesColorAssignment(seriesLike)
                 : colorPalette[seriesIndex % colorPalette.length] ??
                       getDefaultSeriesColor(seriesIndex);
         },
-        [useSharedColors, calculateSeriesColorAssignment, colorPalette],
+        [calculateSeriesColorAssignment, colorPalette],
     );
 
     const value: Omit<VisualizationContext, 'visualizationConfig'> = {

@@ -5,13 +5,6 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
-    /**
-     * Use shared color assignments for cartesian-type charts, when possible. This
-     * essentially means we try to have the same dimension translate into the same
-     * color in the org's color palette every time.
-     */
-    UseSharedColorAssignment = 'use-shared-color-assignment',
-
     /**/
     PassthroughLogin = 'passthrough-login',
 
