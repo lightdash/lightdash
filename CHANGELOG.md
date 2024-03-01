@@ -1,3 +1,10 @@
+# [0.1023.0](https://github.com/lightdash/lightdash/compare/0.1022.1...0.1023.0) (2024-03-01)
+
+
+### Features
+
+* Add support for markdown descriptions for models, in the Explore sidebar models list ([#9167](https://github.com/lightdash/lightdash/issues/9167)) ([ff2d650](https://github.com/lightdash/lightdash/commit/ff2d650771e03acbadfa496da9ee7ac708e96319))
+
 ## [0.1022.1](https://github.com/lightdash/lightdash/compare/0.1022.0...0.1022.1) (2024-03-01)
 
 
