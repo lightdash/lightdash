@@ -18,6 +18,7 @@ import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import ExplorePanel from '../ExplorePanel';
+import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
 import ExploreGroup from './ExploreGroup';
 import ExploreNavLink from './ExploreNavLink';
 
@@ -180,15 +181,17 @@ const ExploreSideBar = memo(() => {
     }, [clearExplore, history, projectUuid]);
 
     return (
-        <TrackSection name={SectionName.SIDEBAR}>
-            <Stack h="100%" sx={{ flexGrow: 1 }}>
-                {!tableName ? (
-                    <BasePanel />
-                ) : (
-                    <ExplorePanel onBack={handleBack} />
-                )}
-            </Stack>
-        </TrackSection>
+        <ItemDetailProvider>
+            <TrackSection name={SectionName.SIDEBAR}>
+                <Stack h="100%" sx={{ flexGrow: 1 }}>
+                    {!tableName ? (
+                        <BasePanel />
+                    ) : (
+                        <ExplorePanel onBack={handleBack} />
+                    )}
+                </Stack>
+            </TrackSection>
+        </ItemDetailProvider>
     );
 });
 

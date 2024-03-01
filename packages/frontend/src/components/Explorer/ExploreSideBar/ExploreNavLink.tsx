@@ -1,14 +1,6 @@
 import { InlineErrorType, SummaryExplore } from '@lightdash/common';
-import {
-    Anchor,
-    Box,
-    Highlight,
-    NavLink,
-    Text,
-    Tooltip,
-    Transition,
-} from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+import { Anchor, Box, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
+import { useToggle } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconInfoCircle,
@@ -16,6 +8,7 @@ import {
 } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
 
 type ExploreNavLinkProps = {
     explore: SummaryExplore;
@@ -28,7 +21,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     query,
     onClick,
 }: ExploreNavLinkProps) => {
-    const { ref, hovered } = useHover<HTMLButtonElement>();
+    const [isHover, toggleHover] = useToggle();
 
     if ('errors' in explore) {
         const showNoDimensionsIcon = explore.errors.every(
@@ -90,33 +83,27 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
 
     return (
         <NavLink
-            ref={ref}
             role="listitem"
             icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
             onClick={onClick}
+            onMouseEnter={() => toggleHover(true)}
+            onMouseLeave={() => toggleHover(false)}
             label={
-                <Highlight component={Text} highlight={query ?? ''} truncate>
-                    {explore.label}
-                </Highlight>
-            }
-            rightSection={
-                <Transition mounted={hovered} transition="fade">
-                    {(styles) => (
-                        <Tooltip
-                            withinPortal
-                            position="right"
-                            label={explore.description}
-                            multiline
-                        >
-                            <MantineIcon
-                                icon={IconInfoCircle}
-                                color="gray.7"
-                                size="lg"
-                                style={styles}
-                            />
-                        </Tooltip>
-                    )}
-                </Transition>
+                <TableItemDetailPreview
+                    label={explore.label}
+                    description={explore.description}
+                    showPreview={isHover}
+                    closePreview={() => toggleHover(false)}
+                    offset={0}
+                >
+                    <Highlight
+                        component={Text}
+                        highlight={query ?? ''}
+                        truncate
+                    >
+                        {explore.label}
+                    </Highlight>
+                </TableItemDetailPreview>
             }
         />
     );
