@@ -136,10 +136,9 @@ export const DashboardTileComments: FC<
                         />
                     ))}
                     {!userCanManageDashboardComments &&
-                        (!comments ||
-                            (comments.length === 0 && (
-                                <Text fz="xs">No comments yet</Text>
-                            )))}
+                        (!comments || comments.length === 0) && (
+                            <Text fz="xs">No comments yet</Text>
+                        )}
                 </Stack>
                 {userCanManageDashboardComments && (
                     <CommentForm

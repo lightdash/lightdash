@@ -1,4 +1,4 @@
-import { ApiError } from '@lightdash/common';
+import { ApiError, friendlyName } from '@lightdash/common';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { ComponentProps } from 'react';
 import {
@@ -81,6 +81,18 @@ const useMetricFlowQueryResults = (
     }
 
     if (metricFlowQueryResultsQuery.data?.query.status === QueryStatus.FAILED) {
+        let errorMessage =
+            metricFlowQueryResultsQuery.data.query.error || 'Unknown error';
+
+        const requiredDimension = errorMessage.match(
+            /group-by-items do not include '(.*)'/,
+        );
+        if (requiredDimension && requiredDimension[1]) {
+            errorMessage = `The "${friendlyName(
+                requiredDimension[1],
+            )}" dimension is required to calculate metrics values.`;
+        }
+
         return {
             isLoading: false,
             error: {
@@ -88,9 +100,7 @@ const useMetricFlowQueryResults = (
                 error: {
                     name: 'ApiError',
                     statusCode: 500,
-                    message:
-                        metricFlowQueryResultsQuery.data.query.error ||
-                        'Unknown error',
+                    message: errorMessage,
                     data: {},
                 },
             },

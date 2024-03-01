@@ -2,30 +2,23 @@ import { ApiError } from '@lightdash/common';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import uniqWith from 'lodash/uniqWith';
 import {
-    getMetricFlowFields,
     GetMetricFlowFieldsResponse,
-    TimeGranularity,
+    getSemanticLayerDimensions,
 } from '../../../api/MetricFlowAPI';
 
-const useMetricFlowFields = (
+const useSemanticLayerDimensions = (
     projectUuid?: string,
-    selectedFields?: {
-        metrics: Record<string, {}>;
-        dimensions: Record<string, { grain: TimeGranularity }>;
-    },
+    metrics?: Record<string, {}>,
     useQueryOptions?: UseQueryOptions<GetMetricFlowFieldsResponse, ApiError>,
 ) => {
     return useQuery<GetMetricFlowFieldsResponse, ApiError>({
-        queryKey: ['metric_flow_fields', projectUuid, selectedFields],
+        queryKey: ['semantic_layer_dimensions', projectUuid, metrics],
         enabled: !!projectUuid,
-        queryFn: () => getMetricFlowFields(projectUuid!, selectedFields),
+        queryFn: () => getSemanticLayerDimensions(projectUuid!, metrics || {}),
         keepPreviousData: true,
         select: (data) => {
             // If no dimensions are returned, use the dimensions from the metrics
-            if (
-                !selectedFields ||
-                Object.keys(selectedFields.metrics).length === 0
-            ) {
+            if (!metrics || Object.keys(metrics).length === 0) {
                 const dimensionsFromMetrics = uniqWith(
                     data.metricsForDimensions
                         .map((metric) => metric.dimensions)
@@ -43,4 +36,4 @@ const useMetricFlowFields = (
     });
 };
 
-export default useMetricFlowFields;
+export default useSemanticLayerDimensions;

@@ -12,3 +12,8 @@ export type SearchItem = {
     item?: SearchResult;
     searchRank?: number;
 };
+
+export type FocusedItemIndex = {
+    groupIndex: number;
+    itemIndex: number;
+};

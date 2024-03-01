@@ -37,7 +37,7 @@ import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
-import { lightdashConfig } from '../config/lightdashConfig';
+import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
@@ -53,6 +53,7 @@ import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 
 type UserServiceDependencies = {
+    lightdashConfig: LightdashConfig;
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
     groupsModel: GroupsModel;
@@ -69,6 +70,8 @@ type UserServiceDependencies = {
 };
 
 export class UserService {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly inviteLinkModel: InviteLinkModel;
 
     private readonly userModel: UserModel;
@@ -100,6 +103,7 @@ export class UserService {
     private readonly emailOneTimePasscodeMaxAttempts = 5;
 
     constructor({
+        lightdashConfig,
         inviteLinkModel,
         userModel,
         groupsModel,
@@ -114,6 +118,7 @@ export class UserService {
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
     }: UserServiceDependencies) {
+        this.lightdashConfig = lightdashConfig;
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
         this.groupsModel = groupsModel;
@@ -157,7 +162,7 @@ export class UserService {
     ): Promise<LightdashUser> {
         if (
             !isOpenIdUser(activateUser) &&
-            lightdashConfig.auth.disablePasswordAuthentication
+            this.lightdashConfig.auth.disablePasswordAuthentication
         ) {
             throw new ForbiddenError('Password credentials are not allowed');
         }
@@ -397,8 +402,8 @@ export class UserService {
             });
 
             if (
-                lightdashConfig.groups.enabled === true &&
-                lightdashConfig.auth.enableGroupSync === true &&
+                this.lightdashConfig.groups.enabled === true &&
+                this.lightdashConfig.auth.enableGroupSync === true &&
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
                 loginUser.organizationUuid
@@ -432,8 +437,8 @@ export class UserService {
             });
 
             if (
-                lightdashConfig.groups.enabled === true &&
-                lightdashConfig.auth.enableGroupSync === true &&
+                this.lightdashConfig.groups.enabled === true &&
+                this.lightdashConfig.auth.enableGroupSync === true &&
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
                 sessionUser.organizationUuid
@@ -455,8 +460,8 @@ export class UserService {
         await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
 
         if (
-            lightdashConfig.groups.enabled === true &&
-            lightdashConfig.auth.enableGroupSync === true &&
+            this.lightdashConfig.groups.enabled === true &&
+            this.lightdashConfig.auth.enableGroupSync === true &&
             Array.isArray(openIdUser.openId.groups) &&
             openIdUser.openId.groups.length &&
             createdUser.organizationUuid
@@ -517,7 +522,7 @@ export class UserService {
                 event: 'organization.updated',
                 properties: {
                     type:
-                        lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        this.lightdashConfig.mode === LightdashMode.CLOUD_BETA
                             ? 'cloud'
                             : 'self-hosted',
                     organizationId: user.organizationUuid,
@@ -611,7 +616,7 @@ export class UserService {
         password: string,
     ): Promise<LightdashUser> {
         try {
-            if (lightdashConfig.auth.disablePasswordAuthentication) {
+            if (this.lightdashConfig.auth.disablePasswordAuthentication) {
                 throw new ForbiddenError(
                     'Password credentials are not allowed',
                 );
@@ -708,7 +713,7 @@ export class UserService {
     private async registerUser(createUser: CreateUserArgs | OpenIdUser) {
         if (
             !isOpenIdUser(createUser) &&
-            lightdashConfig.auth.disablePasswordAuthentication
+            this.lightdashConfig.auth.disablePasswordAuthentication
         ) {
             throw new ForbiddenError('Password credentials are not allowed');
         }
@@ -825,8 +830,8 @@ export class UserService {
         user: Pick<SessionUser, 'userUuid'>,
     ): Promise<EmailStatusExpiring> {
         const passcode =
-            lightdashConfig.mode === LightdashMode.PR ||
-            lightdashConfig.mode === LightdashMode.DEV
+            this.lightdashConfig.mode === LightdashMode.PR ||
+            this.lightdashConfig.mode === LightdashMode.DEV
                 ? '000000'
                 : randomInt(999999).toString().padStart(6, '0');
         const emailStatus = await this.emailModel.createPrimaryEmailOtp({

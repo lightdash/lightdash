@@ -10,6 +10,7 @@ import {
     groupsModel,
     inviteLinkModel,
     jobModel,
+    notificationsModel,
     onboardingModel,
     openIdIdentityModel,
     organizationAllowedEmailDomainsModel,
@@ -43,6 +44,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
@@ -61,6 +63,7 @@ import { ValidationService } from './ValidationService/ValidationService';
 const encryptionService = new EncryptionService({ lightdashConfig });
 
 export const userService = new UserService({
+    lightdashConfig,
     inviteLinkModel,
     userModel,
     groupsModel,
@@ -76,6 +79,7 @@ export const userService = new UserService({
     userWarehouseCredentialsModel,
 });
 export const organizationService = new OrganizationService({
+    lightdashConfig,
     organizationModel,
     projectModel,
     onboardingModel,
@@ -87,6 +91,7 @@ export const organizationService = new OrganizationService({
 });
 
 export const projectService = new ProjectService({
+    lightdashConfig,
     projectModel,
     onboardingModel,
     savedChartModel,
@@ -240,4 +245,10 @@ export const commentService = new CommentService({
     dashboardModel,
     spaceModel,
     commentModel,
+    notificationsModel,
+    userModel,
+});
+
+export const notificationsService = new NotificationsService({
+    notificationsModel,
 });

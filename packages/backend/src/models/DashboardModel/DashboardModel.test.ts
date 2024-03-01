@@ -3,7 +3,6 @@ import {
     CreateDashboardMarkdownTile,
     DashboardChartTile,
     deepEqual,
-    LightdashMode,
     NotFoundError,
 } from '@lightdash/common';
 import knex from 'knex';
@@ -43,12 +42,6 @@ import {
     updateDashboard,
     user,
 } from './DashboardModel.mock';
-
-jest.mock('../../config/lightdashConfig', () => ({
-    lightdashConfig: {
-        mode: LightdashMode.DEFAULT,
-    },
-}));
 
 function queryMatcher(
     tableName: string,

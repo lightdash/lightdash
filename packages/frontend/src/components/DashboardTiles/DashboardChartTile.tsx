@@ -541,12 +541,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             <TileBase
                 lockHeaderVisibility={isCommentsMenuOpen}
                 visibleHeaderElement={
-                    // Dashboard comments are always visible if they exist
+                    // Dashboard comments button is always visible if they exist
                     tileHasComments ? dashboardComments : undefined
                 }
                 extraHeaderElement={
                     <>
-                        {/* Dashboard comments only appear on hover if there are no comments yet */}
+                        {/* Dashboard comments button only appears on hover if there are no comments yet */}
                         {tileHasComments ? undefined : dashboardComments}
                         {appliedFilterRules.length > 0 && (
                             <HoverCard

@@ -150,15 +150,13 @@ export class CommentModel {
         replyTo: string | null,
         user: LightdashUser,
         mentions: string[],
-    ): Promise<string> {
+    ): Promise<Comment> {
         const { savedChartUuid } =
             await this.checkDashboardTileExistsInDashboard(
                 dashboardUuid,
                 dashboardTileUuid,
             );
-        const [{ comment_id: commentId }] = await this.database(
-            DashboardTileCommentsTableName,
-        )
+        const [comment] = await this.database(DashboardTileCommentsTableName)
             .insert({
                 text,
                 text_html: textHtml,
@@ -168,9 +166,20 @@ export class CommentModel {
                 saved_chart_uuid: savedChartUuid ?? null,
                 mentions,
             })
-            .returning('comment_id');
+            .returning('*');
 
-        return commentId;
+        return {
+            commentId: comment.comment_id,
+            text: comment.text,
+            textHtml: comment.text_html,
+            replyTo: comment.reply_to ?? undefined,
+            user: { name: `${user.firstName} ${user.lastName}` },
+            createdAt: comment.created_at,
+            resolved: comment.resolved,
+            replies: [],
+            canRemove: true,
+            mentions: comment.mentions,
+        };
     }
 
     async findCommentsForDashboard(

@@ -298,7 +298,14 @@ const FilterConfiguration: FC<Props> = ({
                             selectedField && (
                                 <Group spacing="xs">
                                     <FieldIcon item={selectedField} />
-                                    <FieldLabel item={selectedField} />
+                                    {originalFilterRule?.label &&
+                                    !isEditMode ? (
+                                        <Text span fw={500}>
+                                            {originalFilterRule.label}
+                                        </Text>
+                                    ) : (
+                                        <FieldLabel item={selectedField} />
+                                    )}
                                 </Group>
                             )
                         )}

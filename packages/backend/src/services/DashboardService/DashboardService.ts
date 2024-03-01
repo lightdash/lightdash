@@ -29,9 +29,7 @@ import {
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
-import database from '../../database/database';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
-import { getFirstAccessibleSpace } from '../../database/entities/spaces';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -230,8 +228,7 @@ export class DashboardService {
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
         const getFirstSpace = async () => {
-            const space = await getFirstAccessibleSpace(
-                database,
+            const space = await this.spaceModel.getFirstAccessibleSpace(
                 projectUuid,
                 user.userUuid,
             );
@@ -527,8 +524,7 @@ export class DashboardService {
         projectUuid: string,
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
-        const space = await getFirstAccessibleSpace(
-            database,
+        const space = await this.spaceModel.getFirstAccessibleSpace(
             projectUuid,
             user.userUuid,
         );

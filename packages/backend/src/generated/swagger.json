@@ -1540,6 +1540,118 @@
             "UpdateDBProjectGroupAccess": {
                 "$ref": "#/components/schemas/Pick_DBProjectGroupAccess.role_"
             },
+            "NotificationBase": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
+                    },
+                    "viewed": {
+                        "type": "boolean"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "notificationId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["viewed", "createdAt", "notificationId"],
+                "type": "object"
+            },
+            "ApiNotificationResourceType.DashboardComments": {
+                "enum": ["dashboardComments"],
+                "type": "string"
+            },
+            "NotificationDashboardTileCommentMetadata": {
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string"
+                    },
+                    "dashboardName": {
+                        "type": "string"
+                    },
+                    "dashboardTileUuid": {
+                        "type": "string"
+                    },
+                    "dashboardTileName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dashboardUuid",
+                    "dashboardName",
+                    "dashboardTileUuid",
+                    "dashboardTileName"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "NotificationDashboardComment": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/NotificationBase"
+                    },
+                    {
+                        "properties": {
+                            "metadata": {
+                                "$ref": "#/components/schemas/NotificationDashboardTileCommentMetadata"
+                            },
+                            "resourceType": {
+                                "$ref": "#/components/schemas/ApiNotificationResourceType.DashboardComments"
+                            }
+                        },
+                        "required": ["resourceType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Notification": {
+                "$ref": "#/components/schemas/NotificationDashboardComment"
+            },
+            "ApiNotificationsResults": {
+                "items": {
+                    "$ref": "#/components/schemas/Notification"
+                },
+                "type": "array"
+            },
+            "ApiGetNotifications": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiNotificationsResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiNotificationResourceType": {
+                "enum": ["dashboardComments"],
+                "type": "string"
+            },
+            "Pick_Notification.viewed_": {
+                "properties": {
+                    "viewed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["viewed"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiNotificationUpdateParams": {
+                "$ref": "#/components/schemas/Pick_Notification.viewed_"
+            },
             "Organization": {
                 "properties": {
                     "defaultProjectUuid": {
@@ -6529,7 +6641,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1018.4",
+        "version": "0.1018.6",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -8117,6 +8229,97 @@
                                 "required": ["query"],
                                 "type": "object",
                                 "description": "graphql query"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
+                "operationId": "getNotifications",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetNotifications"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets notifications for a user based on the type",
+                "tags": ["Notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "type",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/ApiNotificationResourceType"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/notifications/{notificationId}": {
+            "patch": {
+                "operationId": "updateNotification",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update notification",
+                "tags": ["Notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the id of the notification",
+                        "in": "path",
+                        "name": "notificationId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiNotificationUpdateParams"
                             }
                         }
                     }

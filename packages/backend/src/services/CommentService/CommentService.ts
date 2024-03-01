@@ -9,13 +9,17 @@ import * as Sentry from '@sentry/node';
 import { analytics } from '../../analytics/client';
 import { CommentModel } from '../../models/CommentModel/CommentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { UserModel } from '../../models/UserModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     commentModel: CommentModel;
+    notificationsModel: NotificationsModel;
+    userModel: UserModel;
 };
 
 export class CommentService {
@@ -25,10 +29,22 @@ export class CommentService {
 
     commentModel: CommentModel;
 
-    constructor({ dashboardModel, spaceModel, commentModel }: Dependencies) {
+    notificationsModel: NotificationsModel;
+
+    userModel: UserModel;
+
+    constructor({
+        dashboardModel,
+        spaceModel,
+        commentModel,
+        notificationsModel,
+        userModel,
+    }: Dependencies) {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.commentModel = commentModel;
+        this.notificationsModel = notificationsModel;
+        this.userModel = userModel;
     }
 
     async hasDashboardSpaceAccess(
@@ -87,7 +103,7 @@ export class CommentService {
             },
         });
 
-        return this.commentModel.createComment(
+        const comment = await this.commentModel.createComment(
             dashboardUuid,
             dashboardTileUuid,
             text,
@@ -96,6 +112,30 @@ export class CommentService {
             user,
             mentions,
         );
+
+        if (!comment) {
+            throw new Error('Failed to create comment');
+        }
+
+        if (comment.mentions.length > 0) {
+            const dashboardTile = dashboard.tiles.find(
+                (t) => t.uuid === dashboardTileUuid,
+            );
+
+            const commentAuthor = await this.userModel.getUserDetailsByUuid(
+                user.userUuid,
+            );
+
+            await this.notificationsModel.createDashboardCommentNotification(
+                user.userUuid,
+                commentAuthor,
+                comment,
+                dashboard,
+                dashboardTile,
+            );
+        }
+
+        return comment.commentId;
     }
 
     async findCommentsForDashboard(

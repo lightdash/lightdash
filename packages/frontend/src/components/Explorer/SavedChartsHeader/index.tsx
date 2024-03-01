@@ -784,7 +784,7 @@ const SavedChartsHeader: FC = () => {
                                             )
                                         }
                                     >
-                                        Sync with Google Sheets
+                                        Google Sheets Sync
                                     </Menu.Item>
                                 ) : null}
                                 {gitIntegration?.enabled && (

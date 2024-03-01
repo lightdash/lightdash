@@ -1,10 +1,9 @@
-import { FeatureFlags, ProjectType } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
     Center,
-    Divider,
     getDefaultZIndex,
     Group,
     Header,
@@ -13,7 +12,6 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import Omnibar from '../../features/omnibar';
@@ -25,7 +23,6 @@ import Logo from '../../svgs/logo-icon.svg?react';
 import MantineIcon from '../common/MantineIcon';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
-import GlobalSearch from './GlobalSearch';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
 import { NotificationsMenu } from './NotificationsMenu';
@@ -115,8 +112,6 @@ const NavBar = memo(() => {
         clearDashboardStorage,
     } = useDashboardStorage();
 
-    const useOmnibar = useFeatureFlagEnabled(FeatureFlags.Omnibar);
-
     const { isFullscreen } = useApp();
 
     const dashboardInfo = getEditingDashboardInfo();
@@ -184,22 +179,7 @@ const NavBar = memo(() => {
                                 <ExploreMenu projectUuid={activeProjectUuid} />
                                 <BrowseMenu projectUuid={activeProjectUuid} />
                             </Button.Group>
-
-                            {useOmnibar ? (
-                                <Omnibar projectUuid={activeProjectUuid} />
-                            ) : (
-                                <>
-                                    <Divider
-                                        orientation="vertical"
-                                        my="xs"
-                                        color="gray.8"
-                                    />
-
-                                    <GlobalSearch
-                                        projectUuid={activeProjectUuid}
-                                    />
-                                </>
-                            )}
+                            <Omnibar projectUuid={activeProjectUuid} />
                         </>
                     ) : null}
                 </Group>
