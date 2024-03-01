@@ -95,7 +95,7 @@ jobs:
           node-version: '20'
           cache: 'yarn'
       - name: "Install cypress image deps"
-        run: apt-get update && apt-get install build-essentials -y # this should be in it's own image extending cypress
+        run: sudo apt-get update && sudo apt-get install build-essentials -y # this should be in it's own image extending cypress
       - name: Install packages
         run: yarn install --frozen-lockfile
       # Build packages
@@ -168,7 +168,7 @@ jobs:
           node-version: '20'
           cache: 'yarn'
       - name: "Install cypress image deps"
-        run: apt-get update && apt-get install build-essentials -y # this should be in it's own image extending cypress
+        run: sudo apt-get update && sudo apt-get install build-essentials -y # this should be in it's own image extending cypress
       - name: Install packages
         run: yarn install --frozen-lockfile
       # Build packages
