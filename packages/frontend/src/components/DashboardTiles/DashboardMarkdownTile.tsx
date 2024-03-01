@@ -16,7 +16,7 @@ type Props = Pick<
 const MarkdownTile: FC<Props> = (props) => {
     const showComments = useDashboardContext(
         (c) =>
-            c.dashboardCommentsCheck?.userCanViewDashboardComments &&
+            c.dashboardCommentsCheck?.canViewDashboardComments &&
             c.dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled,
     );
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
