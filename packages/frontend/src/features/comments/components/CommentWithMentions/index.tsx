@@ -65,7 +65,7 @@ export const CommentWithMentions: FC<Props> = ({
                 },
                 content: {
                     '& > .tiptap': {
-                        padding: readonly ? 0 : '4',
+                        padding: readonly ? 0 : 6,
                     },
                 },
             }}

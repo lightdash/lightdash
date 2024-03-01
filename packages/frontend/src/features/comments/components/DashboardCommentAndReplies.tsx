@@ -97,7 +97,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
             )}
 
             {(isReplyingTo || isRepliesOpen) && (
-                <Box ml="xl">
+                <Box ml="lg">
                     <CommentForm
                         userName={
                             user.data?.firstName + ' ' + user.data?.lastName

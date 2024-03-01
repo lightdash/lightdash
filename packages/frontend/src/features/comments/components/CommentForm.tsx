@@ -72,13 +72,13 @@ export const CommentForm: FC<Props> = ({
     return (
         <form onSubmit={handleSubmit}>
             <Stack spacing="xs" mt="xs">
-                <Grid columns={24}>
+                <Grid columns={20}>
                     <Grid.Col span={2}>
                         <Avatar radius="xl" size="sm">
                             {getNameInitials(userName)}
                         </Avatar>
                     </Grid.Col>
-                    <Grid.Col span={22}>
+                    <Grid.Col span={18} w={mode === 'reply' ? 300 : 350}>
                         {isSuccess && userNames && (
                             <CommentWithMentions
                                 readonly={false}

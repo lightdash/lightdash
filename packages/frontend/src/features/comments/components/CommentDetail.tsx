@@ -27,13 +27,13 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
 
     return (
         <Box ref={ref}>
-            <Grid columns={24}>
+            <Grid columns={20}>
                 <Grid.Col span={2}>
                     <Avatar radius="xl" size="sm">
                         {getNameInitials(comment.user.name)}
                     </Avatar>
                 </Grid.Col>
-                <Grid.Col span={22}>
+                <Grid.Col span={18}>
                     <Group position="apart">
                         <Group spacing="xs">
                             <Text fz="xs" fw={500}>
