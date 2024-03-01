@@ -98,36 +98,32 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                 </Box>
             )}
 
-            {(isReplyingTo || isRepliesOpen) && (
-                <Box ml="lg">
-                    <CommentForm
-                        userName={
-                            user.data?.firstName + ' ' + user.data?.lastName
-                        }
-                        onSubmit={(
-                            text: string,
-                            textHtml: string,
-                            mentions: string[],
-                        ) =>
-                            createReply({
-                                projectUuid,
-                                dashboardUuid,
-                                dashboardTileUuid,
-                                text,
-                                textHtml,
-                                replyTo: comment.commentId,
-                                mentions,
-                            })
-                        }
-                        onCancel={() => {
-                            toggleReplies();
-                            setIsReplyingTo(undefined);
-                        }}
-                        isSubmitting={isCreatingReply}
-                        mode="reply"
-                    />
-                </Box>
-            )}
+            <Collapse in={!!isReplyingTo} ml="lg">
+                <CommentForm
+                    userName={user.data?.firstName + ' ' + user.data?.lastName}
+                    onSubmit={(
+                        text: string,
+                        textHtml: string,
+                        mentions: string[],
+                    ) =>
+                        createReply({
+                            projectUuid,
+                            dashboardUuid,
+                            dashboardTileUuid,
+                            text,
+                            textHtml,
+                            replyTo: comment.commentId,
+                            mentions,
+                        })
+                    }
+                    onCancel={() => {
+                        toggleReplies();
+                        setIsReplyingTo(undefined);
+                    }}
+                    isSubmitting={isCreatingReply}
+                    mode="reply"
+                />
+            </Collapse>
         </Stack>
     );
 };
