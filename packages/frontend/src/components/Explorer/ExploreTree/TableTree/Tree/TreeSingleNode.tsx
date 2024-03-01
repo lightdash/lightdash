@@ -154,6 +154,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         keepMounted={false}
                         shadow="sm"
                         withinPortal
+                        withArrow
                         disabled={!description && !isMissing}
                         position="right"
                         /** Ensures the hover card does not overlap with the right-hand menu. */

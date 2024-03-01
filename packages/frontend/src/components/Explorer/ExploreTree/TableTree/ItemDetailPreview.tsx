@@ -100,12 +100,15 @@ export const TableItemDetailPreview = ({
     closePreview,
     label,
     description,
+    /** Position offset for the preview popover */
+    offset = 20,
     children,
 }: PropsWithChildren<{
     showPreview: boolean;
     closePreview: () => void;
     description?: string;
     label: string;
+    offset?: number;
 }>) => {
     const { showItemDetail } = useItemDetail();
 
@@ -130,6 +133,8 @@ export const TableItemDetailPreview = ({
             withinPortal
             disabled={!description}
             position="right"
+            withArrow
+            offset={offset}
         >
             <Popover.Target>{children}</Popover.Target>
             <Popover.Dropdown

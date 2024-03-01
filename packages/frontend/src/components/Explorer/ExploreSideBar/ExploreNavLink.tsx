@@ -94,6 +94,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                     description={explore.description}
                     showPreview={isHover}
                     closePreview={() => toggleHover(false)}
+                    offset={0}
                 >
                     <Highlight
                         component={Text}
