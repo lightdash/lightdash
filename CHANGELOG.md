@@ -1,3 +1,10 @@
+# [0.1022.0](https://github.com/lightdash/lightdash/compare/0.1021.9...0.1022.0) (2024-03-01)
+
+
+### Features
+
+* display notification if user mentioned in comment ([#9168](https://github.com/lightdash/lightdash/issues/9168)) ([3cb602d](https://github.com/lightdash/lightdash/commit/3cb602deaaec475e14133c6f3fcfe22fe647f6c0))
+
 ## [0.1021.9](https://github.com/lightdash/lightdash/compare/0.1021.8...0.1021.9) (2024-02-29)
 
 
