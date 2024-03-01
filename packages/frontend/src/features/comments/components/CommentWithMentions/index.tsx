@@ -64,6 +64,8 @@ export const CommentWithMentions: FC<Props> = ({
                     border: readonly ? 'none' : 'default',
                 },
                 content: {
+                    maxHeight: 100,
+                    overflowY: 'auto',
                     '& > .tiptap': {
                         padding: readonly ? 0 : 6,
                     },
