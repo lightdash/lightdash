@@ -12,6 +12,7 @@ type Props = {
     dashboardUuid: string;
     dashboardTileUuid: string;
     comment: Comment;
+    targetRef: React.RefObject<HTMLDivElement> | null;
 };
 
 export const DashboardCommentAndReplies: FC<Props> = ({
@@ -19,6 +20,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     projectUuid,
     dashboardTileUuid,
     dashboardUuid,
+    targetRef,
 }) => {
     const { user } = useApp();
     const [isRepliesOpen, { toggle: toggleReplies }] = useDisclosure(false);
@@ -41,7 +43,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     );
 
     return (
-        <Stack spacing="two">
+        <Stack spacing="two" ref={targetRef}>
             <CommentDetail
                 comment={comment}
                 onRemove={() => handleRemove(comment.commentId)}

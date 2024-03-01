@@ -14,7 +14,7 @@ type Props = {
         text: string,
         html: string,
         mentions: string[],
-    ) => Promise<string>;
+    ) => Promise<string | undefined>;
     isSubmitting: boolean;
     onCancel?: () => void;
     mode?: 'reply' | 'new';

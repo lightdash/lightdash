@@ -7,8 +7,9 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
+import { useScrollIntoView } from '@mantine/hooks';
 import { IconMessage } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useCallback } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useApp } from '../../../providers/AppProvider';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
@@ -21,6 +22,8 @@ import { DashboardCommentAndReplies } from './DashboardCommentAndReplies';
 type Props = {
     dashboardTileUuid: string;
 };
+
+const COMMENTS_LIST_MAX_HEIGHT = 500;
 
 export const DashboardTileComments: FC<
     Props & Pick<PopoverProps, 'opened' | 'onClose' | 'onOpen'>
@@ -37,7 +40,40 @@ export const DashboardTileComments: FC<
         (c) => c.dashboardComments && c.dashboardComments[dashboardTileUuid],
     );
 
+    // Scroll to the last comment when a new comment is added
+    const { scrollIntoView, targetRef, scrollableRef } =
+        useScrollIntoView<HTMLDivElement>({
+            duration: 200,
+            offset: COMMENTS_LIST_MAX_HEIGHT, // Ensures the last comment is always visible
+        });
+
     const { mutateAsync, isLoading } = useCreateComment();
+    const handleOnSubmit = useCallback(
+        async (text: string, textHtml: string, mentions: string[]) => {
+            if (!projectUuid || !dashboardUuid) return;
+
+            const result = await mutateAsync({
+                projectUuid,
+                dashboardUuid,
+                dashboardTileUuid,
+                text,
+                textHtml,
+                mentions,
+            });
+
+            // Scroll to the bottom of the comments stack
+            scrollIntoView({ alignment: 'end' });
+
+            return result;
+        },
+        [
+            mutateAsync,
+            projectUuid,
+            dashboardUuid,
+            dashboardTileUuid,
+            scrollIntoView,
+        ],
+    );
 
     if (!projectUuid || !dashboardUuid) {
         return null;
@@ -62,6 +98,7 @@ export const DashboardTileComments: FC<
                         dashboardTileUuid,
                     },
                 });
+
                 onOpen?.();
             }}
             onClose={() => {
@@ -70,20 +107,26 @@ export const DashboardTileComments: FC<
         >
             <Popover.Dropdown p={0} w={400}>
                 <Stack
+                    id="comments-stack"
+                    ref={scrollableRef}
                     p="sm"
                     spacing="xs"
                     sx={{
-                        maxHeight: 500,
+                        maxHeight: COMMENTS_LIST_MAX_HEIGHT,
                         overflowY: 'auto',
                     }}
                 >
-                    {comments?.map((comment) => (
+                    {comments?.map((comment, index) => (
                         <DashboardCommentAndReplies
                             key={comment.commentId}
                             comment={comment}
                             projectUuid={projectUuid}
                             dashboardUuid={dashboardUuid}
                             dashboardTileUuid={dashboardTileUuid}
+                            targetRef={
+                                // Assign the target ref to the last comment
+                                index === comments.length - 1 ? targetRef : null
+                            }
                         />
                     ))}
                     {!userCanManageDashboardComments && !hasComments && (
@@ -98,20 +141,7 @@ export const DashboardTileComments: FC<
                             userName={
                                 user.data?.firstName + ' ' + user.data?.lastName
                             }
-                            onSubmit={(
-                                text: string,
-                                textHtml: string,
-                                mentions: string[],
-                            ) =>
-                                mutateAsync({
-                                    projectUuid,
-                                    dashboardUuid,
-                                    dashboardTileUuid,
-                                    text,
-                                    textHtml,
-                                    mentions,
-                                })
-                            }
+                            onSubmit={handleOnSubmit}
                             isSubmitting={isLoading}
                         />
                     )}
