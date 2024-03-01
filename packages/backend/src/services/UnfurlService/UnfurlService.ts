@@ -379,12 +379,12 @@ export class UnfurlService {
         const isPuppeteerSetViewportDynamicallyEnabled =
             await isFeatureFlagEnabled(
                 FeatureFlags.PuppeteerSetViewportDynamically,
-                { userUuid },
+                { userUuid, organizationUuid },
             );
         const isPuppeteerScrollElementIntoViewEnabled =
             await isFeatureFlagEnabled(
                 FeatureFlags.PuppeteerScrollElementIntoView,
-                { userUuid },
+                { userUuid, organizationUuid },
             );
 
         return tracer.startActiveSpan(
