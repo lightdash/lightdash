@@ -22,8 +22,8 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     dashboardUuid,
 }) => {
     const { user } = useApp();
-    const userCanManageDashboardComments = !!useDashboardContext(
-        (c) => c.dashboardCommentsCheck?.userCanManageDashboardComments,
+    const canCreateDashboardComments = !!useDashboardContext(
+        (c) => c.dashboardCommentsCheck?.canCreateDashboardComments,
     );
 
     const [isRepliesOpen, { toggle: toggleReplies }] = useDisclosure(false);
@@ -31,7 +31,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
         undefined,
     );
     const canReply =
-        userCanManageDashboardComments && (isReplyingTo || isRepliesOpen);
+        canCreateDashboardComments && (isReplyingTo || isRepliesOpen);
 
     const { mutateAsync: createReply, isLoading: isCreatingReply } =
         useCreateComment();
@@ -60,7 +60,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
         <Stack spacing="two">
             <CommentDetail
                 comment={comment}
-                canReply={userCanManageDashboardComments}
+                canReply={canCreateDashboardComments}
                 onReply={() => handleReply()}
                 canRemove={comment.canRemove}
                 onRemove={() => handleRemove(comment.commentId)}

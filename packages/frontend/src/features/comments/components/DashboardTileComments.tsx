@@ -22,8 +22,8 @@ export const DashboardTileComments: FC<
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
-    const userCanManageDashboardComments = useDashboardContext(
-        (c) => c.dashboardCommentsCheck?.userCanManageDashboardComments,
+    const canCreateDashboardComments = useDashboardContext(
+        (c) => c.dashboardCommentsCheck?.canCreateDashboardComments,
     );
     const comments = useDashboardContext(
         (c) => c.dashboardComments && c.dashboardComments[dashboardTileUuid],
@@ -75,12 +75,12 @@ export const DashboardTileComments: FC<
                             dashboardTileUuid={dashboardTileUuid}
                         />
                     ))}
-                    {!userCanManageDashboardComments &&
+                    {!canCreateDashboardComments &&
                         (!comments || comments.length === 0) && (
                             <Text fz="xs">No comments yet</Text>
                         )}
                 </Stack>
-                {userCanManageDashboardComments && (
+                {canCreateDashboardComments && (
                     <CommentForm
                         userName={
                             user.data?.firstName + ' ' + user.data?.lastName

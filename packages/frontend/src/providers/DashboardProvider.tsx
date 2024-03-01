@@ -157,7 +157,7 @@ export const DashboardProvider: React.FC<
         dashboardUuid,
         !!dashboardCommentsCheck &&
             !!dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
-            !!dashboardCommentsCheck.userCanViewDashboardComments,
+            !!dashboardCommentsCheck.canViewDashboardComments,
     );
 
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
