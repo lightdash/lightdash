@@ -3,7 +3,9 @@ import { PostHog } from 'posthog-node';
 import { lightdashConfig } from './config/lightdashConfig';
 
 // How long to wait for Posthog to reply:
-const FLAG_CHECK_TIMEOUT = 350; // ms
+const FLAG_CHECK_TIMEOUT = process.env.POSTHOG_CHECK_TIMEOUT
+    ? parseInt(process.env.POSTHOG_CHECK_TIMEOUT, 10)
+    : 500;
 
 export const postHogClient = lightdashConfig.posthog.projectApiKey
     ? new PostHog(lightdashConfig.posthog.projectApiKey, {
