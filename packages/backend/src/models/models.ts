@@ -2,6 +2,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import database from '../database/database';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 import { AnalyticsModel } from './AnalyticsModel';
+import { CommentModel } from './CommentModel/CommentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DownloadFileModel } from './DownloadFileModel';
@@ -10,6 +11,7 @@ import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppI
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
+import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
@@ -34,9 +36,12 @@ import { ValidationModel } from './ValidationModel/ValidationModel';
 
 export const encryptionService = new EncryptionService({ lightdashConfig });
 
-export const inviteLinkModel = new InviteLinkModel(database);
+export const inviteLinkModel = new InviteLinkModel({
+    database,
+    lightdashConfig,
+});
 export const organizationModel = new OrganizationModel(database);
-export const userModel = new UserModel(database);
+export const userModel = new UserModel({ database, lightdashConfig });
 export const sessionModel = new SessionModel(database);
 export const dashboardModel = new DashboardModel({ database });
 export const projectModel = new ProjectModel({
@@ -112,3 +117,7 @@ export const githubAppInstallationsModel = new GithubAppInstallationsModel({
     database,
     encryptionService,
 });
+
+export const commentModel = new CommentModel({ database });
+
+export const notificationsModel = new NotificationsModel({ database });

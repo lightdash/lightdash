@@ -1,16 +1,21 @@
 import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
-import { analytics } from '../../analytics/client';
+
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 
-type Dependencies = {
+type AnalyticsServiceArguments = {
+    analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
 };
 
 export class AnalyticsService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly analyticsModel: AnalyticsModel;
 
-    constructor(dependencies: Dependencies) {
-        this.analyticsModel = dependencies.analyticsModel;
+    constructor(args: AnalyticsServiceArguments) {
+        this.analytics = args.analytics;
+        this.analyticsModel = args.analyticsModel;
     }
 
     async getDashboardViews(dashboardUuid: string): Promise<number> {
@@ -28,7 +33,7 @@ export class AnalyticsService {
             throw new ForbiddenError();
         }
 
-        analytics.track({
+        this.analytics.track({
             event: 'usage_analytics.dashboard_viewed',
             userId: user.userUuid,
             properties: {

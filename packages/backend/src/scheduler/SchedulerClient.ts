@@ -23,14 +23,14 @@ import {
 import { getSchedule, stringToArray } from 'cron-converter';
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
 import moment from 'moment';
-import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { SchedulerModel } from '../models/SchedulerModel';
 
-type SchedulerClientDependencies = {
+type SchedulerClientArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
 };
 
@@ -59,15 +59,19 @@ export const getDailyDatesFromCron = (
 export class SchedulerClient {
     lightdashConfig: LightdashConfig;
 
+    analytics: LightdashAnalytics;
+
     graphileUtils: Promise<WorkerUtils>;
 
     schedulerModel: SchedulerModel;
 
     constructor({
         lightdashConfig,
+        analytics,
         schedulerModel,
-    }: SchedulerClientDependencies) {
+    }: SchedulerClientArguments) {
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.schedulerModel = schedulerModel;
         this.graphileUtils = makeWorkerUtils({
             connectionString: lightdashConfig.database.connectionUri,
@@ -105,7 +109,7 @@ export class SchedulerClient {
         await graphileClient.completeJobs(jobIdsToDelete);
 
         jobsToDelete.forEach(({ id }) => {
-            analytics.track({
+            this.analytics.track({
                 event: 'scheduler_job.deleted',
                 anonymousId: LightdashAnalytics.anonymousId,
                 properties: {
@@ -136,7 +140,7 @@ export class SchedulerClient {
                 maxAttempts: 1,
             },
         );
-        analytics.track({
+        this.analytics.track({
             event: 'scheduler_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
@@ -165,7 +169,7 @@ export class SchedulerClient {
             runAt: date,
             maxAttempts: 1,
         });
-        analytics.track({
+        this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
@@ -245,7 +249,7 @@ export class SchedulerClient {
             runAt: date,
             maxAttempts: 1,
         });
-        analytics.track({
+        this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {

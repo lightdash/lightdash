@@ -119,6 +119,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     includeMeta: !options.excludeMeta,
                     projectDir: absoluteProjectPath,
                     projectName: context.projectName,
+                    assumeYes: options.assumeYes,
                 },
             );
             try {

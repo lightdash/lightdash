@@ -40,6 +40,132 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
+            "ApiCreateComment": {
+                "properties": {
+                    "results": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "replyTo": {
+                        "type": "string"
+                    },
+                    "mentions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "textHtml": {
+                        "type": "string"
+                    }
+                },
+                "required": ["text", "mentions", "textHtml"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Comment": {
+                "properties": {
+                    "mentions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "canRemove": {
+                        "type": "boolean"
+                    },
+                    "resolved": {
+                        "type": "boolean"
+                    },
+                    "replies": {
+                        "items": {
+                            "$ref": "#/components/schemas/Comment"
+                        },
+                        "type": "array"
+                    },
+                    "replyTo": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name"],
+                        "type": "object"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "textHtml": {
+                        "type": "string"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "commentId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "mentions",
+                    "canRemove",
+                    "resolved",
+                    "user",
+                    "createdAt",
+                    "textHtml",
+                    "text",
+                    "commentId"
+                ],
+                "type": "object"
+            },
+            "ApiGetComments": {
+                "properties": {
+                    "results": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/Comment"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiResolveComment": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "ApiCsvUrlResponse": {
                 "properties": {
                     "results": {
@@ -1413,6 +1539,118 @@
             },
             "UpdateDBProjectGroupAccess": {
                 "$ref": "#/components/schemas/Pick_DBProjectGroupAccess.role_"
+            },
+            "NotificationBase": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
+                    },
+                    "viewed": {
+                        "type": "boolean"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "notificationId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["viewed", "createdAt", "notificationId"],
+                "type": "object"
+            },
+            "ApiNotificationResourceType.DashboardComments": {
+                "enum": ["dashboardComments"],
+                "type": "string"
+            },
+            "NotificationDashboardTileCommentMetadata": {
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string"
+                    },
+                    "dashboardName": {
+                        "type": "string"
+                    },
+                    "dashboardTileUuid": {
+                        "type": "string"
+                    },
+                    "dashboardTileName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dashboardUuid",
+                    "dashboardName",
+                    "dashboardTileUuid",
+                    "dashboardTileName"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "NotificationDashboardComment": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/NotificationBase"
+                    },
+                    {
+                        "properties": {
+                            "metadata": {
+                                "$ref": "#/components/schemas/NotificationDashboardTileCommentMetadata"
+                            },
+                            "resourceType": {
+                                "$ref": "#/components/schemas/ApiNotificationResourceType.DashboardComments"
+                            }
+                        },
+                        "required": ["resourceType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Notification": {
+                "$ref": "#/components/schemas/NotificationDashboardComment"
+            },
+            "ApiNotificationsResults": {
+                "items": {
+                    "$ref": "#/components/schemas/Notification"
+                },
+                "type": "array"
+            },
+            "ApiGetNotifications": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiNotificationsResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiNotificationResourceType": {
+                "enum": ["dashboardComments"],
+                "type": "string"
+            },
+            "Pick_Notification.viewed_": {
+                "properties": {
+                    "viewed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["viewed"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiNotificationUpdateParams": {
+                "$ref": "#/components/schemas/Pick_Notification.viewed_"
             },
             "Organization": {
                 "properties": {
@@ -4575,7 +4813,7 @@
                     }
                 ]
             },
-            "ThresoldOperator": {
+            "ThresholdOperator": {
                 "enum": [
                     "greaterThan",
                     "lessThan",
@@ -4594,14 +4832,21 @@
                         "type": "string"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ThresoldOperator"
+                        "$ref": "#/components/schemas/ThresholdOperator"
                     }
                 },
                 "required": ["value", "fieldId", "operator"],
                 "type": "object"
             },
+            "NotificationFrequency": {
+                "enum": ["always", "once"],
+                "type": "string"
+            },
             "SchedulerBase": {
                 "properties": {
+                    "notificationFrequency": {
+                        "$ref": "#/components/schemas/NotificationFrequency"
+                    },
                     "enabled": {
                         "type": "boolean"
                     },
@@ -5410,10 +5655,34 @@
             "SpaceDashboard": {
                 "$ref": "#/components/schemas/DashboardBasicDetails"
             },
+            "SpaceMemberRole": {
+                "enum": ["viewer", "editor"],
+                "type": "string"
+            },
             "SpaceShare": {
                 "properties": {
+                    "inheritedFrom": {
+                        "type": "string",
+                        "enum": ["organization", "project", "group"]
+                    },
+                    "inheritedRole": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ]
+                    },
+                    "hasDirectAccess": {
+                        "type": "boolean"
+                    },
                     "role": {
-                        "$ref": "#/components/schemas/ProjectMemberRole"
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string"
                     },
                     "lastName": {
                         "type": "string"
@@ -5425,7 +5694,14 @@
                         "type": "string"
                     }
                 },
-                "required": ["role", "lastName", "firstName", "userUuid"],
+                "required": [
+                    "hasDirectAccess",
+                    "role",
+                    "email",
+                    "lastName",
+                    "firstName",
+                    "userUuid"
+                ],
                 "type": "object"
             },
             "Space": {
@@ -5476,6 +5752,7 @@
                 "required": [
                     "pinnedListOrder",
                     "pinnedListUuid",
+                    "access",
                     "dashboards",
                     "projectUuid",
                     "queries",
@@ -6364,7 +6641,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.998.5",
+        "version": "0.1018.6",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -6377,6 +6654,207 @@
     },
     "openapi": "3.0.0",
     "paths": {
+        "/api/v1/comments/dashboards/{dashboardUuid}/{dashboardTileUuid}": {
+            "post": {
+                "operationId": "createComment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateComment"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates a comment on a dashboard tile",
+                "tags": ["Comments"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid of the dashboard tile",
+                        "in": "path",
+                        "name": "dashboardTileUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the comment to create",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_",
+                                "description": "the comment to create"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/comments/dashboards/{dashboardUuid}": {
+            "get": {
+                "operationId": "getComments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetComments"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets all comments for a dashboard",
+                "tags": ["Comments"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/comments/dashboards/{dashboardUuid}/{commentId}": {
+            "patch": {
+                "operationId": "resolveComment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResolveComment"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Resolves a comment on a dashboard",
+                "tags": ["Comments"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid of the comment",
+                        "in": "path",
+                        "name": "commentId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "deleteComment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResolveComment"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Deletes a comment on a dashboard",
+                "tags": ["Comments"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid of the comment",
+                        "in": "path",
+                        "name": "commentId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/csv/{jobId}": {
             "get": {
                 "operationId": "getCsvUrl",
@@ -7751,6 +8229,97 @@
                                 "required": ["query"],
                                 "type": "object",
                                 "description": "graphql query"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
+                "operationId": "getNotifications",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetNotifications"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets notifications for a user based on the type",
+                "tags": ["Notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "type",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/ApiNotificationResourceType"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/notifications/{notificationId}": {
+            "patch": {
+                "operationId": "updateNotification",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update notification",
+                "tags": ["Notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the id of the notification",
+                        "in": "path",
+                        "name": "notificationId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiNotificationUpdateParams"
                             }
                         }
                     }

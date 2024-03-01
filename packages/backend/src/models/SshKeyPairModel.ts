@@ -4,7 +4,7 @@ import { Knex } from 'knex';
 import { parseKey } from 'sshpk';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 
-type Dependencies = {
+type SshKeyPairModelArguments = {
     encryptionService: EncryptionService;
     database: Knex;
 };
@@ -45,7 +45,7 @@ export class SshKeyPairModel {
 
     private readonly encryptionService: EncryptionService;
 
-    constructor({ encryptionService, database }: Dependencies) {
+    constructor({ encryptionService, database }: SshKeyPairModelArguments) {
         this.database = database;
         this.encryptionService = encryptionService;
     }

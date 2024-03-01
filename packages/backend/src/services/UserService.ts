@@ -35,9 +35,9 @@ import {
 import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
-import { analytics, identifyUser } from '../analytics/client';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import EmailClient from '../clients/EmailClient/EmailClient';
-import { lightdashConfig } from '../config/lightdashConfig';
+import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
@@ -51,8 +51,11 @@ import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { postHogClient } from '../postHog';
 
-type UserServiceDependencies = {
+type UserServiceArguments = {
+    lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
     groupsModel: GroupsModel;
@@ -69,6 +72,10 @@ type UserServiceDependencies = {
 };
 
 export class UserService {
+    private readonly lightdashConfig: LightdashConfig;
+
+    private readonly analytics: LightdashAnalytics;
+
     private readonly inviteLinkModel: InviteLinkModel;
 
     private readonly userModel: UserModel;
@@ -100,6 +107,8 @@ export class UserService {
     private readonly emailOneTimePasscodeMaxAttempts = 5;
 
     constructor({
+        lightdashConfig,
+        analytics,
         inviteLinkModel,
         userModel,
         groupsModel,
@@ -113,7 +122,9 @@ export class UserService {
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
-    }: UserServiceDependencies) {
+    }: UserServiceArguments) {
+        this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
         this.groupsModel = groupsModel;
@@ -130,6 +141,60 @@ export class UserService {
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
     }
 
+    private identifyUser(
+        user: LightdashUser & { isMarketingOptedIn?: boolean },
+    ): void {
+        if (this.lightdashConfig.mode === LightdashMode.DEMO) {
+            return;
+        }
+        this.analytics.identify({
+            userId: user.userUuid,
+            traits: user.isTrackingAnonymized
+                ? { is_tracking_anonymized: user.isTrackingAnonymized }
+                : {
+                      email: user.email,
+                      first_name: user.firstName,
+                      last_name: user.lastName,
+                      is_tracking_anonymized: user.isTrackingAnonymized,
+                      is_marketing_opted_in: user.isMarketingOptedIn,
+                  },
+        });
+
+        postHogClient?.identify({
+            distinctId: user.userUuid,
+            properties: {
+                uuid: user.userUuid,
+                ...(user.isTrackingAnonymized
+                    ? {}
+                    : {
+                          email: user.email,
+                          first_name: user.firstName,
+                          last_name: user.lastName,
+                      }),
+            },
+        });
+
+        if (user.organizationUuid) {
+            this.analytics.group({
+                userId: user.userUuid,
+                groupId: user.organizationUuid,
+                traits: {
+                    name: user.organizationName,
+                },
+            });
+
+            postHogClient?.groupIdentify({
+                groupType: 'organization',
+                groupKey: user.organizationUuid,
+                properties: {
+                    uuid: user.organizationUuid,
+                    name: user.organizationName,
+                },
+                distinctId: user.userUuid,
+            });
+        }
+    }
+
     private async tryVerifyUserEmail(
         user: LightdashUser,
         email: string,
@@ -139,7 +204,7 @@ export class UserService {
             email,
         );
         if (updatedEmails.length > 0) {
-            analytics.track({
+            this.analytics.track({
                 userId: user.userUuid,
                 event: 'user.verified',
                 properties: {
@@ -157,7 +222,7 @@ export class UserService {
     ): Promise<LightdashUser> {
         if (
             !isOpenIdUser(activateUser) &&
-            lightdashConfig.auth.disablePasswordAuthentication
+            this.lightdashConfig.auth.disablePasswordAuthentication
         ) {
             throw new ForbiddenError('Password credentials are not allowed');
         }
@@ -180,8 +245,8 @@ export class UserService {
             activateUser,
         );
         await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
-        identifyUser(user);
-        analytics.track({
+        this.identifyUser(user);
+        this.analytics.track({
             event: 'user.created',
             userId: user.userUuid,
             properties: {
@@ -218,7 +283,7 @@ export class UserService {
         await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);
 
         await this.userModel.delete(userUuidToDelete);
-        analytics.track({
+        this.analytics.track({
             event: 'user.deleted',
             userId: user.userUuid,
             properties: {
@@ -284,13 +349,13 @@ export class UserService {
             userUuid,
         );
         await this.emailClient.sendInviteEmail(user, inviteLink);
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'invite_link.created',
         });
 
         const organization = await this.organizationModel.get(organizationUuid);
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'permission.updated',
             properties: {
@@ -318,7 +383,7 @@ export class UserService {
             throw new NotExistsError('Organization not found');
         }
         await this.inviteLinkModel.deleteByOrganization(organizationUuid);
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'invite_link.all_revoked',
         });
@@ -335,7 +400,7 @@ export class UserService {
                 updatedGroups.map(async (groupUuid) => {
                     const updatedGroup =
                         await this.groupsModel.getGroupWithMembers(groupUuid);
-                    analytics.track({
+                    this.analytics.track({
                         event: 'group.updated',
                         userId: data[0].userUuid,
                         properties: {
@@ -387,8 +452,8 @@ export class UserService {
                 refreshToken,
             });
             await this.tryVerifyUserEmail(loginUser, openIdUser.openId.email);
-            identifyUser(loginUser);
-            analytics.track({
+            this.identifyUser(loginUser);
+            this.analytics.track({
                 userId: loginUser.userUuid,
                 event: 'user.logged_in',
                 properties: {
@@ -397,8 +462,8 @@ export class UserService {
             });
 
             if (
-                lightdashConfig.groups.enabled === true &&
-                lightdashConfig.auth.enableGroupSync === true &&
+                this.lightdashConfig.groups.enabled === true &&
+                this.lightdashConfig.auth.enableGroupSync === true &&
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
                 loginUser.organizationUuid
@@ -423,7 +488,7 @@ export class UserService {
                 refreshToken,
             });
             await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
-            analytics.track({
+            this.analytics.track({
                 userId: sessionUser.userUuid,
                 event: 'user.identity_linked',
                 properties: {
@@ -432,8 +497,8 @@ export class UserService {
             });
 
             if (
-                lightdashConfig.groups.enabled === true &&
-                lightdashConfig.auth.enableGroupSync === true &&
+                this.lightdashConfig.groups.enabled === true &&
+                this.lightdashConfig.auth.enableGroupSync === true &&
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
                 sessionUser.organizationUuid
@@ -455,8 +520,8 @@ export class UserService {
         await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
 
         if (
-            lightdashConfig.groups.enabled === true &&
-            lightdashConfig.auth.enableGroupSync === true &&
+            this.lightdashConfig.groups.enabled === true &&
+            this.lightdashConfig.auth.enableGroupSync === true &&
             Array.isArray(openIdUser.openId.groups) &&
             openIdUser.openId.groups.length &&
             createdUser.organizationUuid
@@ -512,12 +577,12 @@ export class UserService {
             await this.organizationModel.update(user.organizationUuid, {
                 name: organizationName,
             });
-            analytics.track({
+            this.analytics.track({
                 userId: user.userUuid,
                 event: 'organization.updated',
                 properties: {
                     type:
-                        lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        this.lightdashConfig.mode === LightdashMode.CLOUD_BETA
                             ? 'cloud'
                             : 'self-hosted',
                     organizationId: user.organizationUuid,
@@ -554,8 +619,8 @@ export class UserService {
             },
         );
 
-        identifyUser(completeUser);
-        analytics.track({
+        this.identifyUser(completeUser);
+        this.analytics.track({
             event: 'user.updated',
             userId: completeUser.userUuid,
             properties: {
@@ -583,7 +648,7 @@ export class UserService {
             openIdentity.issuer,
             openIdentity.email,
         );
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'user.identity_removed',
             properties: {
@@ -611,7 +676,7 @@ export class UserService {
         password: string,
     ): Promise<LightdashUser> {
         try {
-            if (lightdashConfig.auth.disablePasswordAuthentication) {
+            if (this.lightdashConfig.auth.disablePasswordAuthentication) {
                 throw new ForbiddenError(
                     'Password credentials are not allowed',
                 );
@@ -621,8 +686,8 @@ export class UserService {
                 email,
                 password,
             );
-            identifyUser(user);
-            analytics.track({
+            this.identifyUser(user);
+            this.analytics.track({
                 userId: user.userUuid,
                 event: 'user.logged_in',
                 properties: {
@@ -659,7 +724,7 @@ export class UserService {
         } else {
             await this.userModel.createPassword(user.userId, data.newPassword);
         }
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'password.updated',
         });
@@ -674,8 +739,8 @@ export class UserService {
             user.email,
             data,
         );
-        identifyUser(updatedUser);
-        analytics.track({
+        this.identifyUser(updatedUser);
+        this.analytics.track({
             userId: updatedUser.userUuid,
             event: 'user.updated',
             properties: updatedUser,
@@ -708,16 +773,16 @@ export class UserService {
     private async registerUser(createUser: CreateUserArgs | OpenIdUser) {
         if (
             !isOpenIdUser(createUser) &&
-            lightdashConfig.auth.disablePasswordAuthentication
+            this.lightdashConfig.auth.disablePasswordAuthentication
         ) {
             throw new ForbiddenError('Password credentials are not allowed');
         }
         const user = await this.userModel.createUser(createUser);
-        identifyUser({
+        this.identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,
         });
-        analytics.track({
+        this.analytics.track({
             event: 'user.created',
             userId: user.userUuid,
             properties: {
@@ -727,7 +792,7 @@ export class UserService {
             },
         });
         if (isOpenIdUser(createUser)) {
-            analytics.track({
+            this.analytics.track({
                 userId: user.userUuid,
                 event: 'user.identity_linked',
                 properties: {
@@ -762,7 +827,7 @@ export class UserService {
                 expiresAt,
                 data.email,
             );
-            analytics.track({
+            this.analytics.track({
                 userId: user.userUuid,
                 event: 'password_reset_link.created',
             });
@@ -782,7 +847,7 @@ export class UserService {
                 data.newPassword,
             );
             await this.passwordResetLinkModel.deleteByCode(link.code);
-            analytics.track({
+            this.analytics.track({
                 userId: user.userUuid,
                 event: 'password_reset_link.used',
             });
@@ -825,8 +890,8 @@ export class UserService {
         user: Pick<SessionUser, 'userUuid'>,
     ): Promise<EmailStatusExpiring> {
         const passcode =
-            lightdashConfig.mode === LightdashMode.PR ||
-            lightdashConfig.mode === LightdashMode.DEV
+            this.lightdashConfig.mode === LightdashMode.PR ||
+            this.lightdashConfig.mode === LightdashMode.DEV
                 ? '000000'
                 : randomInt(999999).toString().padStart(6, '0');
         const emailStatus = await this.emailModel.createPrimaryEmailOtp({
@@ -963,7 +1028,7 @@ export class UserService {
                 : undefined,
         );
 
-        await analytics.track({
+        await this.analytics.track({
             userId: user.userUuid,
             event: 'user.joined_organization',
             properties: {
@@ -1033,7 +1098,7 @@ export class UserService {
                 user.userUuid,
                 data,
             );
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'user_warehouse_credentials.created',
             properties: {
@@ -1056,7 +1121,7 @@ export class UserService {
             userWarehouseCredentialsUuid,
             data,
         );
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'user_warehouse_credentials.updated',
             properties: {
@@ -1077,7 +1142,7 @@ export class UserService {
             user.userUuid,
             userWarehouseCredentialsUuid,
         );
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'user_warehouse_credentials.deleted',
             properties: {

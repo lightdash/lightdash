@@ -25,6 +25,7 @@ import {
     isSchedulerImageOptions,
     isTableChartConfig,
     LightdashPage,
+    NotificationFrequency,
     NotificationPayloadBase,
     operatorAction,
     ScheduledDeliveryPayload,
@@ -41,7 +42,6 @@ import {
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
-import { analytics } from '../analytics/client';
 import {
     DownloadCsv,
     LightdashAnalytics,
@@ -73,6 +73,20 @@ import {
     userService,
     validationService,
 } from '../services/services';
+
+// TODO: to be removed once this is converted to a Class. https://github.com/lightdash/lightdash/issues/9173
+export const analytics = new LightdashAnalytics({
+    lightdashConfig,
+    writeKey: lightdashConfig.rudder.writeKey || 'notrack',
+    dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
+        ? `${lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
+        : 'notrack',
+    options: {
+        enable:
+            lightdashConfig.rudder.writeKey &&
+            lightdashConfig.rudder.dataPlaneUrl,
+    },
+});
 
 const getChartOrDashboard = async (
     chartUuid: string | null,
@@ -1049,7 +1063,7 @@ export const sendEmailNotification = async (
     }
 };
 
-const isPositiveThesholdAlert = (
+const isPositiveThresholdAlert = (
     thresholds: ThresholdOptions[],
     results: Record<string, any>[],
 ): boolean => {
@@ -1441,6 +1455,7 @@ export const handleScheduledDelivery = async (
             savedChartUuid,
             dashboardUuid,
             thresholds,
+            notificationFrequency,
         } = scheduler;
         if (thresholds !== undefined && thresholds.length > 0) {
             // TODO add multiple AND conditions
@@ -1452,7 +1467,22 @@ export const handleScheduledDelivery = async (
                     savedChartUuid,
                 );
 
-                if (isPositiveThesholdAlert(thresholds, rows)) {
+                if (isPositiveThresholdAlert(thresholds, rows)) {
+                    // If the delivery frequency is once, we disable the scheduler.
+                    // It will get sent once this time.
+                    if (
+                        notificationFrequency === NotificationFrequency.ONCE &&
+                        schedulerUuid
+                    ) {
+                        console.debug(
+                            'Alert is set to ONCE, disabling scheduler after delivery',
+                        );
+                        await schedulerService.setSchedulerEnabled(
+                            user,
+                            schedulerUuid,
+                            false,
+                        );
+                    }
                     console.debug(
                         'Positive threshold alert, continue with notification',
                     );

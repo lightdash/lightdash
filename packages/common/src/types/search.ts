@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { Dashboard } from './dashboard';
 import { Table } from './explore';
 import { Dimension, Metric } from './field';
@@ -40,6 +41,7 @@ export type TableSearchResult = Pick<
 > & {
     explore: string;
     exploreLabel: string;
+    regexMatchCount: number;
 };
 
 export type TableErrorSearchResult = Pick<
@@ -68,6 +70,7 @@ export type FieldSearchResult = Pick<
     >;
     explore: string;
     exploreLabel: string;
+    regexMatchCount: number;
 };
 
 type PageResult = {
@@ -129,8 +132,33 @@ export enum SearchItemType {
     PAGE = 'page',
 }
 
+export function getSearchItemTypeFromResultKey(
+    searchResultKey: keyof SearchResults,
+) {
+    switch (searchResultKey) {
+        case 'spaces':
+            return SearchItemType.SPACE;
+        case 'dashboards':
+            return SearchItemType.DASHBOARD;
+        case 'savedCharts':
+            return SearchItemType.CHART;
+        case 'tables':
+            return SearchItemType.TABLE;
+        case 'fields':
+            return SearchItemType.FIELD;
+        case 'pages':
+            return SearchItemType.PAGE;
+        default:
+            return assertUnreachable(
+                searchResultKey,
+                `unexpected search result key: ${searchResultKey}`,
+            );
+    }
+}
+
 export type SearchFilters = {
     type?: string; // the type filter can be any string, but it should be one of the EntityType to be valid, see shouldSearchForType function
     fromDate?: string;
     toDate?: string;
+    createdByUuid?: string;
 };

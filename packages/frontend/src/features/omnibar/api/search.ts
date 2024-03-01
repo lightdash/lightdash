@@ -1,4 +1,5 @@
 import { SearchFilters, SearchResults } from '@lightdash/common';
+import { isNil, omitBy } from 'lodash';
 import { lightdashApi } from '../../../api';
 
 export const getSearchResults = async ({
@@ -10,8 +11,9 @@ export const getSearchResults = async ({
     query: string;
     filters?: SearchFilters;
 }) => {
-    const searchParams = filters
-        ? new URLSearchParams(filters).toString()
+    const sanitisedFilters = omitBy(filters, isNil);
+    const searchParams = sanitisedFilters
+        ? new URLSearchParams(sanitisedFilters).toString()
         : undefined;
 
     return lightdashApi<SearchResults>({

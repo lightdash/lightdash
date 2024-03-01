@@ -64,6 +64,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'ExportCsv', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'DashboardComments', {
+            projectUuid: member.projectUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
@@ -77,6 +80,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('create', 'ScheduledDeliveries', {
+            projectUuid: member.projectUuid,
+        });
+        can('create', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });
     },
@@ -116,6 +122,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'ScheduledDeliveries', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });
     },

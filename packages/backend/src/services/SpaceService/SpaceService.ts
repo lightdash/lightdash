@@ -8,12 +8,13 @@ import {
     SpaceSummary,
     UpdateSpace,
 } from '@lightdash/common';
-import { analytics } from '../../analytics/client';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 
-type Dependencies = {
+type SpaceServiceArguments = {
+    analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     pinnedListModel: PinnedListModel;
@@ -53,16 +54,19 @@ export const hasSpaceAccess = (
 };
 
 export class SpaceService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly projectModel: ProjectModel;
 
     private readonly spaceModel: SpaceModel;
 
     private readonly pinnedListModel: PinnedListModel;
 
-    constructor(dependencies: Dependencies) {
-        this.projectModel = dependencies.projectModel;
-        this.spaceModel = dependencies.spaceModel;
-        this.pinnedListModel = dependencies.pinnedListModel;
+    constructor(args: SpaceServiceArguments) {
+        this.analytics = args.analytics;
+        this.projectModel = args.projectModel;
+        this.spaceModel = args.spaceModel;
+        this.pinnedListModel = args.pinnedListModel;
     }
 
     async getAllSpaces(
@@ -140,7 +144,7 @@ export class SpaceService {
                 ),
             );
         await this.spaceModel.addSpaceAccess(newSpace.uuid, user.userUuid);
-        analytics.track({
+        this.analytics.track({
             event: 'space.created',
             userId: user.userUuid,
             properties: {
@@ -184,7 +188,7 @@ export class SpaceService {
             spaceUuid,
             updateSpace,
         );
-        analytics.track({
+        this.analytics.track({
             event: 'space.updated',
             userId: user.userUuid,
             properties: {
@@ -214,7 +218,7 @@ export class SpaceService {
         }
 
         await this.spaceModel.deleteSpace(spaceUuid);
-        analytics.track({
+        this.analytics.track({
             event: 'space.deleted',
             userId: user.userUuid,
             properties: {
@@ -305,7 +309,7 @@ export class SpaceService {
             existingSpace.projectUuid,
         );
 
-        analytics.track({
+        this.analytics.track({
             event: 'pinned_list.updated',
             userId: user.userUuid,
             properties: {

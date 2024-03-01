@@ -4,6 +4,7 @@ import {
     AuthorizationError,
     ChartType,
     DownloadFileType,
+    FeatureFlags,
     ForbiddenError,
     LightdashPage,
     SessionUser,
@@ -25,7 +26,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { postHogClient } from '../../postHog';
+import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { VERSION } from '../../version';
 import { EncryptionService } from '../EncryptionService/EncryptionService';
@@ -85,7 +86,7 @@ export type ParsedUrl = {
     exploreModel?: string;
 };
 
-type UnfurlServiceDependencies = {
+type UnfurlServiceArguments = {
     lightdashConfig: LightdashConfig;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
@@ -126,7 +127,7 @@ export class UnfurlService {
         s3Client,
         projectModel,
         downloadFileModel,
-    }: UnfurlServiceDependencies) {
+    }: UnfurlServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
@@ -376,30 +377,15 @@ export class UnfurlService {
         let hasError = false;
 
         const isPuppeteerSetViewportDynamicallyEnabled =
-            (await postHogClient?.isFeatureEnabled(
-                'puppeteer-set-viewport-dynamically',
-                userUuid,
-                organizationUuid !== undefined
-                    ? {
-                          groups: {
-                              organization: organizationUuid,
-                          },
-                      }
-                    : {},
-            )) ?? false;
-
+            await isFeatureFlagEnabled(
+                FeatureFlags.PuppeteerSetViewportDynamically,
+                { userUuid },
+            );
         const isPuppeteerScrollElementIntoViewEnabled =
-            (await postHogClient?.isFeatureEnabled(
-                'puppeteer-scroll-element-into-view',
-                userUuid,
-                organizationUuid !== undefined
-                    ? {
-                          groups: {
-                              organization: organizationUuid,
-                          },
-                      }
-                    : {},
-            )) ?? false;
+            await isFeatureFlagEnabled(
+                FeatureFlags.PuppeteerScrollElementIntoView,
+                { userUuid },
+            );
 
         return tracer.startActiveSpan(
             'UnfurlService.saveScreenshot',

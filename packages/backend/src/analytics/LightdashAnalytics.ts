@@ -19,7 +19,7 @@ import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
 import { v4 as uuidv4 } from 'uuid';
-import { lightdashConfig } from '../config/lightdashConfig';
+import { LightdashConfig } from '../config/parseConfig';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -734,6 +734,18 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
+export type CommentsEvent = BaseTrack & {
+    event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
+    userId: string;
+    properties: {
+        dashboardTileUuid: string;
+        dashboardUuid: string;
+        isReply: boolean;
+        hasMention: boolean;
+        isOwner?: boolean;
+    };
+};
+
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,
 ) => {
@@ -927,32 +939,52 @@ type Track =
     | MetricFlowQueryEvent
     | GroupCreateAndUpdateEvent
     | GroupDeleteEvent
-    | ConditionalFormattingRuleSavedEvent;
+    | ConditionalFormattingRuleSavedEvent
+    | CommentsEvent;
 
+type LightdashAnalyticsArguments = {
+    lightdashConfig: LightdashConfig;
+    writeKey: string;
+    dataPlaneUrl: string;
+    options?: ConstructorParameters<typeof Analytics>[2];
+};
 export class LightdashAnalytics extends Analytics {
-    static lightdashContext = {
-        app: {
-            namespace: 'lightdash',
-            name: 'lightdash_server',
-            version: VERSION,
-            mode: lightdashConfig.mode,
-            siteUrl:
-                lightdashConfig.mode === LightdashMode.CLOUD_BETA
-                    ? lightdashConfig.siteUrl
-                    : null,
-            installId: process.env.LIGHTDASH_INSTALL_ID || uuidv4(),
-            installType:
-                process.env.LIGHTDASH_INSTALL_TYPE ||
-                LightdashInstallType.UNKNOWN,
-        },
-    };
+    private readonly lightdashConfig: LightdashConfig;
+
+    private readonly lightdashContext: Record<string, any>;
+
+    constructor({
+        lightdashConfig,
+        writeKey,
+        dataPlaneUrl,
+        options,
+    }: LightdashAnalyticsArguments) {
+        super(writeKey, dataPlaneUrl, options);
+        this.lightdashConfig = lightdashConfig;
+        this.lightdashContext = {
+            app: {
+                namespace: 'lightdash',
+                name: 'lightdash_server',
+                version: VERSION,
+                mode: lightdashConfig.mode,
+                siteUrl:
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        ? lightdashConfig.siteUrl
+                        : null,
+                installId: process.env.LIGHTDASH_INSTALL_ID || uuidv4(),
+                installType:
+                    process.env.LIGHTDASH_INSTALL_TYPE ||
+                    LightdashInstallType.UNKNOWN,
+            },
+        };
+    }
 
     static anonymousId = process.env.LIGHTDASH_INSTALL_ID || uuidv4();
 
     identify(payload: Identify) {
         super.identify({
             ...payload,
-            context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+            context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
     }
 
@@ -967,8 +999,8 @@ export class LightdashAnalytics extends Analytics {
 
             super.track({
                 ...payload,
-                event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
-                context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+                event: `${this.lightdashContext.app.name}.${payload.event}`,
+                context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
                 properties: payload.properties.isTrackingAnonymized
                     ? basicEventProperties
                     : {
@@ -983,8 +1015,8 @@ export class LightdashAnalytics extends Analytics {
         if (payload.event === 'user.verified') {
             super.track({
                 ...payload,
-                event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
-                context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+                event: `${this.lightdashContext.app.name}.${payload.event}`,
+                context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
                 properties: {
                     ...payload.properties,
                     email: payload.properties.isTrackingAnonymized
@@ -997,15 +1029,15 @@ export class LightdashAnalytics extends Analytics {
 
         super.track({
             ...payload,
-            event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
-            context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+            event: `${this.lightdashContext.app.name}.${payload.event}`,
+            context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
     }
 
     group(payload: Group) {
         super.group({
             ...payload,
-            context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+            context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
     }
 }

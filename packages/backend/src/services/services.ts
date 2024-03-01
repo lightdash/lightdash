@@ -1,7 +1,9 @@
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { emailClient, s3CacheClient, s3Client } from '../clients/clients';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     analyticsModel,
+    commentModel,
     dashboardModel,
     downloadFileModel,
     emailModel,
@@ -9,6 +11,7 @@ import {
     groupsModel,
     inviteLinkModel,
     jobModel,
+    notificationsModel,
     onboardingModel,
     openIdIdentityModel,
     organizationAllowedEmailDomainsModel,
@@ -32,6 +35,7 @@ import {
     validationModel,
 } from '../models/models';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
+import { CommentService } from './CommentService/CommentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
@@ -41,6 +45,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
@@ -56,9 +61,24 @@ import { UserAttributesService } from './UserAttributesService/UserAttributesSer
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
 
+export const analytics = new LightdashAnalytics({
+    lightdashConfig,
+    writeKey: lightdashConfig.rudder.writeKey || 'notrack',
+    dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
+        ? `${lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
+        : 'notrack',
+    options: {
+        enable:
+            lightdashConfig.rudder.writeKey &&
+            lightdashConfig.rudder.dataPlaneUrl,
+    },
+});
+
 const encryptionService = new EncryptionService({ lightdashConfig });
 
 export const userService = new UserService({
+    lightdashConfig,
+    analytics,
     inviteLinkModel,
     userModel,
     groupsModel,
@@ -74,6 +94,8 @@ export const userService = new UserService({
     userWarehouseCredentialsModel,
 });
 export const organizationService = new OrganizationService({
+    lightdashConfig,
+    analytics,
     organizationModel,
     projectModel,
     onboardingModel,
@@ -85,6 +107,8 @@ export const organizationService = new OrganizationService({
 });
 
 export const projectService = new ProjectService({
+    lightdashConfig,
+    analytics,
     projectModel,
     onboardingModel,
     savedChartModel,
@@ -101,6 +125,7 @@ export const projectService = new ProjectService({
 
 export const shareService = new ShareService({
     lightdashConfig,
+    analytics,
     shareModel,
 });
 
@@ -110,6 +135,7 @@ export const healthService = new HealthService({
 });
 
 export const dashboardService = new DashboardService({
+    analytics,
     dashboardModel,
     spaceModel,
     analyticsModel,
@@ -119,6 +145,7 @@ export const dashboardService = new DashboardService({
 });
 
 export const savedChartsService = new SavedChartService({
+    analytics,
     projectModel,
     savedChartModel,
     spaceModel,
@@ -128,16 +155,19 @@ export const savedChartsService = new SavedChartService({
 });
 
 export const personalAccessTokenService = new PersonalAccessTokenService({
+    analytics,
     personalAccessTokenModel,
 });
 
 export const spaceService = new SpaceService({
+    analytics,
     projectModel,
     spaceModel,
     pinnedListModel,
 });
 
 export const searchService = new SearchService({
+    analytics,
     projectModel,
     searchModel,
     spaceModel,
@@ -157,11 +187,13 @@ export const unfurlService = new UnfurlService({
 });
 
 export const analyticsService = new AnalyticsService({
+    analytics,
     analyticsModel,
 });
 
 export const schedulerService = new SchedulerService({
     lightdashConfig,
+    analytics,
     schedulerModel,
     savedChartModel,
     dashboardModel,
@@ -170,6 +202,7 @@ export const schedulerService = new SchedulerService({
 
 export const csvService = new CsvService({
     lightdashConfig,
+    analytics,
     userModel,
     s3Client,
     projectService,
@@ -189,6 +222,7 @@ export const pinningService = new PinningService({
 
 export const validationService = new ValidationService({
     lightdashConfig,
+    analytics,
     projectModel,
     savedChartModel,
     validationModel,
@@ -197,6 +231,7 @@ export const validationService = new ValidationService({
 });
 
 export const groupService = new GroupsService({
+    analytics,
     groupsModel,
     projectModel,
 });
@@ -206,6 +241,7 @@ export const sshKeyPairService = new SshKeyPairService({
 });
 
 export const userAttributesService = new UserAttributesService({
+    analytics,
     userAttributesModel,
 });
 
@@ -232,4 +268,17 @@ export const gitIntegrationService = new GitIntegrationService({
 export const githubAppService = new GithubAppService({
     githubAppInstallationsModel,
     userModel,
+});
+
+export const commentService = new CommentService({
+    analytics,
+    dashboardModel,
+    spaceModel,
+    commentModel,
+    notificationsModel,
+    userModel,
+});
+
+export const notificationsService = new NotificationsService({
+    notificationsModel,
 });

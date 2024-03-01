@@ -13,7 +13,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
 import { ProjectService } from '../ProjectService/ProjectService';
 
-type GdriveServiceDependencies = {
+type GdriveServiceArguments = {
     lightdashConfig: LightdashConfig;
     projectService: ProjectService;
     savedChartModel: SavedChartModel;
@@ -38,7 +38,7 @@ export class GdriveService {
         projectService,
         savedChartModel,
         dashboardModel,
-    }: GdriveServiceDependencies) {
+    }: GdriveServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.userModel = userModel;
         this.projectService = projectService;

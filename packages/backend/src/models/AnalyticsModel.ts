@@ -22,7 +22,7 @@ import {
     usersInProjectSql,
 } from './AnalyticsModelSql';
 
-type Dependencies = {
+type DbUserWithCountArguments = {
     database: Knex;
 };
 
@@ -35,8 +35,8 @@ type DbUserWithCount = {
 export class AnalyticsModel {
     private database: Knex;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
+    constructor(args: DbUserWithCountArguments) {
+        this.database = args.database;
     }
 
     async getChartViewStats(chartUuid: string): Promise<ViewStatistics> {

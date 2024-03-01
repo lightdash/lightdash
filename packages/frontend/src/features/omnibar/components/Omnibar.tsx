@@ -1,20 +1,47 @@
-import { getSearchResultId, SearchItemType } from '@lightdash/common';
-import { Input, Loader, MantineProvider, Modal, Stack } from '@mantine/core';
-import { useDebouncedValue, useDisclosure, useHotkeys } from '@mantine/hooks';
-import { IconSearch } from '@tabler/icons-react';
-import { FC, MouseEventHandler, useState } from 'react';
+import {
+    getSearchItemTypeFromResultKey,
+    getSearchResultId,
+    SearchFilters,
+    SearchItemType,
+    SearchResults,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Input,
+    Loader,
+    MantineProvider,
+    Modal,
+    rem,
+    Stack,
+    Transition,
+    useMantineTheme,
+} from '@mantine/core';
+import {
+    useDebouncedValue,
+    useDisclosure,
+    useHotkeys,
+    useScrollIntoView,
+} from '@mantine/hooks';
+import { IconCircleXFilled, IconSearch } from '@tabler/icons-react';
+import { FC, MouseEventHandler, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/Page';
 import { useProject } from '../../../hooks/useProject';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import useSearch, { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
-import { allSearchItemTypes, SearchItem } from '../types/searchItem';
+import {
+    allSearchItemTypes,
+    FocusedItemIndex,
+    SearchItem,
+} from '../types/searchItem';
 import { isSearchResultEmpty } from '../utils/isSearchResultEmpty';
 import OmnibarEmptyState from './OmnibarEmptyState';
 import OmnibarFilters from './OmnibarFilters';
 import OmnibarItemGroups from './OmnibarItemGroups';
+import { OmnibarKeyboardNav } from './OmnibarKeyboardNav';
 import OmnibarTarget from './OmnibarTarget';
 
 interface Props {
@@ -26,25 +53,22 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const location = useLocation();
     const { data: projectData } = useProject(projectUuid);
     const { track } = useTracking();
-
+    const theme = useMantineTheme();
     const canUserManageValidation = useValidationUserAbility(projectUuid);
-
+    const [searchFilters, setSearchFilters] = useState<SearchFilters>();
+    const [query, setQuery] = useState<string>();
+    const [debouncedValue] = useDebouncedValue(query, 300);
+    const { targetRef: scrollRef } = useScrollIntoView<HTMLDivElement>(); // couldn't get scroll to work with mantine's function
     const [openPanels, setOpenPanels] =
         useState<SearchItemType[]>(allSearchItemTypes);
 
-    const [searchFilter, setSearchFilter] = useState<SearchItemType>();
-
-    const [query, setQuery] = useState<string>();
-    const [debouncedValue] = useDebouncedValue(query, 300);
+    const [focusedItemIndex, setFocusedItemIndex] =
+        useState<FocusedItemIndex>();
 
     const { data: searchResults, isFetching } = useSearch(
         projectUuid,
         debouncedValue,
-        searchFilter
-            ? {
-                  type: searchFilter,
-              }
-            : undefined,
+        searchFilters,
     );
 
     const [isOmnibarOpen, { open: openOmnibar, close: closeOmnibar }] =
@@ -88,6 +112,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             },
         });
 
+        setFocusedItemIndex(undefined);
         closeOmnibar();
     };
 
@@ -122,21 +147,63 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const hasEnteredQuery = query !== undefined && query !== '';
     const hasEnteredMinQueryLength =
         hasEnteredQuery && query.length >= OMNIBAR_MIN_QUERY_LENGTH;
-    const hasValidSearchQuery = hasEnteredQuery && hasEnteredMinQueryLength;
     const hasSearchResults =
         searchResults && !isSearchResultEmpty(searchResults);
 
+    const sortedGroupEntries = useMemo(() => {
+        return searchResults
+            ? Object.entries(searchResults)
+                  .map((items) => {
+                      return [
+                          getSearchItemTypeFromResultKey(
+                              items[0] as keyof SearchResults,
+                          ),
+                          items[1],
+                      ] as [SearchItemType, SearchItem[]];
+                  })
+                  .filter(([_type, items]) => items.length > 0)
+                  .sort(
+                      ([_a, itemsA], [_b, itemsB]) =>
+                          (itemsB[0].searchRank ?? 0) -
+                          (itemsA[0].searchRank ?? 0),
+                  )
+            : [];
+    }, [searchResults]);
+
+    useEffect(() => {
+        setFocusedItemIndex(undefined);
+    }, [query, searchFilters]);
+
     return (
-        <>
-            {!isOmnibarOpen && (
-                <OmnibarTarget onOpen={handleOmnibarOpenInputClick} />
-            )}
+        <OmnibarKeyboardNav
+            groupedItems={sortedGroupEntries}
+            onEnterPressed={handleItemClick}
+            onFocusedItemChange={setFocusedItemIndex}
+            currentFocusedItemIndex={focusedItemIndex}
+        >
+            <Transition
+                mounted={!isOmnibarOpen}
+                transition="fade"
+                duration={400}
+                timingFunction="ease"
+            >
+                {(style) => (
+                    <OmnibarTarget
+                        placeholder={`Search ${
+                            projectData?.name ?? 'your project'
+                        }`}
+                        style={style}
+                        onOpen={handleOmnibarOpenInputClick}
+                    />
+                )}
+            </Transition>
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
                 <Modal
-                    transitionProps={{ transition: 'slide-down' }}
-                    size="xl"
                     withCloseButton={false}
+                    size={`calc(${rem(PAGE_CONTENT_WIDTH)} - ${
+                        theme.spacing.lg
+                    } * 2)`}
                     closeOnClickOutside
                     closeOnEscape
                     opened={isOmnibarOpen}
@@ -159,6 +226,19 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                     <MantineIcon icon={IconSearch} size="lg" />
                                 )
                             }
+                            rightSection={
+                                query ? (
+                                    <ActionIcon
+                                        onClick={() => setQuery('')}
+                                        color="gray.5"
+                                    >
+                                        <MantineIcon
+                                            icon={IconCircleXFilled}
+                                            size="lg"
+                                        />
+                                    </ActionIcon>
+                                ) : null
+                            }
                             placeholder={`Search ${
                                 projectData?.name ?? 'in your project'
                             }...`}
@@ -180,12 +260,12 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             onChange={(e) => setQuery(e.currentTarget.value)}
                         />
 
-                        {hasValidSearchQuery && (
-                            <OmnibarFilters
-                                searchFilter={searchFilter}
-                                onSearchFilterChange={setSearchFilter}
-                            />
-                        )}
+                        <OmnibarFilters
+                            filters={searchFilters}
+                            onSearchFilterChange={(filters) => {
+                                setSearchFilters(filters);
+                            }}
+                        />
 
                         {!hasEnteredQuery ? (
                             <OmnibarEmptyState
@@ -205,7 +285,6 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             <OmnibarEmptyState message="No results found." />
                         ) : (
                             <OmnibarItemGroups
-                                searchResults={searchResults}
                                 projectUuid={projectUuid}
                                 canUserManageValidation={
                                     canUserManageValidation
@@ -213,12 +292,15 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 openPanels={openPanels}
                                 onOpenPanelsChange={setOpenPanels}
                                 onClick={handleItemClick}
+                                focusedItemIndex={focusedItemIndex}
+                                groupedItems={sortedGroupEntries}
+                                scrollRef={scrollRef}
                             />
                         )}
                     </Stack>
                 </Modal>
             </MantineProvider>
-        </>
+        </OmnibarKeyboardNav>
     );
 };
 

@@ -47,12 +47,9 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
-import {
-    getFirstAccessibleSpace,
-    getSpaceId,
-    SpaceTableName,
-} from '../database/entities/spaces';
+import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import { SpaceModel } from './SpaceModel';
 
 type DbSavedChartDetails = {
     project_uuid: string;
@@ -300,9 +297,14 @@ export const createSavedChart = async (
             };
         } else {
             const spaceId = spaceUuid
-                ? await getSpaceId(trx, spaceUuid)
-                : (await getFirstAccessibleSpace(trx, projectUuid, userUuid))
-                      .space_id;
+                ? await SpaceModel.getSpaceId(trx, spaceUuid)
+                : (
+                      await SpaceModel.getFirstAccessibleSpace(
+                          trx,
+                          projectUuid,
+                          userUuid,
+                      )
+                  ).space_id;
             if (!spaceId) throw new NotFoundError('No space found');
             chart = {
                 ...baseChart,
@@ -324,7 +326,7 @@ export const createSavedChart = async (
         return newSavedChart.saved_query_uuid;
     });
 
-type Dependencies = {
+type SavedChartModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
 };
@@ -343,9 +345,9 @@ export class SavedChartModel {
 
     private lightdashConfig: LightdashConfig;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
-        this.lightdashConfig = dependencies.lightdashConfig;
+    constructor(args: SavedChartModelArguments) {
+        this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
     }
 
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
@@ -506,7 +508,10 @@ export class SavedChartModel {
             .update({
                 name: data.name,
                 description: data.description,
-                space_id: await getSpaceId(this.database, data.spaceUuid),
+                space_id: await SpaceModel.getSpaceId(
+                    this.database,
+                    data.spaceUuid,
+                ),
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
             })
             .where('saved_query_uuid', savedChartUuid);
@@ -522,7 +527,10 @@ export class SavedChartModel {
                     .update({
                         name: savedChart.name,
                         description: savedChart.description,
-                        space_id: await getSpaceId(trx, savedChart.spaceUuid),
+                        space_id: await SpaceModel.getSpaceId(
+                            trx,
+                            savedChart.spaceUuid,
+                        ),
                     })
                     .where('saved_query_uuid', savedChart.uuid),
             );

@@ -12,7 +12,7 @@ import {
     TableErrorSearchResult,
     TableSearchResult,
 } from '@lightdash/common';
-import { analytics } from '../../analytics/client';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -20,7 +20,8 @@ import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 
-type Dependencies = {
+type SearchServiceArguments = {
+    analytics: LightdashAnalytics;
     searchModel: SearchModel;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
@@ -30,17 +31,20 @@ type Dependencies = {
 export class SearchService {
     private readonly searchModel: SearchModel;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly projectModel: ProjectModel;
 
     private readonly spaceModel: SpaceModel;
 
     private readonly userAttributesModel: UserAttributesModel;
 
-    constructor(dependencies: Dependencies) {
-        this.searchModel = dependencies.searchModel;
-        this.projectModel = dependencies.projectModel;
-        this.spaceModel = dependencies.spaceModel;
-        this.userAttributesModel = dependencies.userAttributesModel;
+    constructor(args: SearchServiceArguments) {
+        this.analytics = args.analytics;
+        this.searchModel = args.searchModel;
+        this.projectModel = args.projectModel;
+        this.spaceModel = args.spaceModel;
+        this.userAttributesModel = args.userAttributesModel;
     }
 
     async getSearchResults(
@@ -174,7 +178,7 @@ export class SearchService {
                 ? results.pages
                 : [], // For now there is only 1 page and it is for admins only
         };
-        analytics.track({
+        this.analytics.track({
             event: 'project.search',
             userId: user.userUuid,
             properties: {

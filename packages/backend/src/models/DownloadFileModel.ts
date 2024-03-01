@@ -6,14 +6,14 @@ import {
 import { Knex } from 'knex';
 import { DownloadFileTableName } from '../database/entities/downloadFile';
 
-type Dependencies = {
+type DownloadFileModelArguments = {
     database: Knex;
 };
 export class DownloadFileModel {
     private database: Knex;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
+    constructor(args: DownloadFileModelArguments) {
+        this.database = args.database;
     }
 
     async createDownloadFile(

@@ -6,12 +6,6 @@
  */
 export enum FeatureFlags {
     /**
-     * Use dbt ls when compiling lightdash projects with "refresh dbt"
-     * See  ProjectService for example usage.
-     */
-    UseDbtLs = 'use-dbt-ls',
-
-    /**
      * Use shared color assignments for cartesian-type charts, when possible. This
      * essentially means we try to have the same dimension translate into the same
      * color in the org's color palette every time.
@@ -35,7 +29,15 @@ export enum FeatureFlags {
     UseInMemoryTableCalculations = 'new-table-calculations-engine',
 
     /**
-     * Enables the new omnibar search
+     * Use the new dashboard comments feature. Users can add/resolve/delete comments
+     * in a tile. This also includes the new notifications feature.
      */
-    Omnibar = 'omnibar',
+    DashboardTileComments = 'dashboard-tile-comments',
+
+    /**/
+    CustomSQLEnabled = 'custom-sql-enabled',
+
+    /**/
+    PuppeteerScrollElementIntoView = 'puppeteer-scroll-element-into-view',
+    PuppeteerSetViewportDynamically = 'puppeteer-set-viewport-dynamically',
 }

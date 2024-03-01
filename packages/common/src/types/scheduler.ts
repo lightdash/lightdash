@@ -67,6 +67,12 @@ export enum ThresholdOperator {
     DECREASED_BY = 'decreasedBy',
     // HAS_CHANGED = '=',
 }
+
+export enum NotificationFrequency {
+    ALWAYS = 'always',
+    ONCE = 'once',
+    // DAILY = 'daily',
+}
 export const operatorAction = (operator: ThresholdOperator) => {
     switch (operator) {
         case ThresholdOperator.GREATER_THAN:
@@ -105,6 +111,7 @@ export type SchedulerBase = {
     options: SchedulerOptions;
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
+    notificationFrequency?: NotificationFrequency;
 };
 
 export type ChartScheduler = SchedulerBase & {
@@ -196,6 +203,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'format'
     | 'options'
     | 'thresholds'
+    | 'notificationFrequency'
 > &
     Pick<DashboardScheduler, 'filters' | 'customViewportWidth'> & {
         targets: Array<

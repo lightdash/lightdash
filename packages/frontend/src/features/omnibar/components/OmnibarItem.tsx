@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { FC } from 'react';
+import { FC, MutableRefObject } from 'react';
 import { SearchItem } from '../types/searchItem';
 import {
     OmnibarItemIcon,
@@ -21,14 +21,11 @@ const useStyles = createStyles<string, null>((theme) => ({
         paddingLeft: theme.spacing.xs,
         paddingRight: theme.spacing.xs,
         borderRadius: theme.radius.sm,
-        '&[data-hovered]': {
-            backgroundColor: theme.colors.blue[6],
-        },
-        '&:hover': {
-            backgroundColor: theme.colors.blue[3],
+        '&:hover, &[data-hovered]': {
+            backgroundColor: theme.colors.blue[0],
         },
         '&:active': {
-            backgroundColor: theme.colors.blue[4],
+            backgroundColor: theme.colors.blue[1],
         },
     },
     item: {},
@@ -40,6 +37,8 @@ type Props = {
     item: SearchItem;
     styles?: Record<string, CSSObject>;
     classNames?: Record<string, string>;
+    hovered?: boolean;
+    scrollRef?: MutableRefObject<HTMLDivElement>;
     onClick: () => void;
 };
 
@@ -55,7 +54,9 @@ const OmnibarItem: FC<Props> = ({
     classNames,
     projectUuid,
     canUserManageValidation,
+    hovered,
     onClick,
+    scrollRef,
 }) => {
     const { classes } = useStyles(null, {
         styles,
@@ -66,8 +67,7 @@ const OmnibarItem: FC<Props> = ({
     return (
         <Group
             role="menuitem"
-            // TODO: add back in when we have keyboard navigation
-            // data-hovered={hovered || undefined}
+            data-hovered={hovered || undefined}
             className={classes.action}
             tabIndex={-1}
             onClick={onClick}
@@ -88,12 +88,12 @@ const OmnibarItem: FC<Props> = ({
             </Box>
 
             <Stack spacing="two" style={{ flexGrow: 1, overflow: 'hidden' }}>
-                <Text fw={500} size="sm" truncate>
+                <Text fw={500} size="sm" truncate ref={scrollRef}>
                     {item.prefix} {item.title}
                 </Text>
 
                 {item.description || item.typeLabel ? (
-                    <Text size="xs" truncate>
+                    <Text size="xs" truncate color="dimmed">
                         {item.typeLabel}
                         {item.typeLabel && item.description ? <> · </> : null}
                         {item.description}

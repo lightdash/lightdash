@@ -4,24 +4,32 @@ import {
     ItemsMap,
 } from '@lightdash/common';
 import { google, sheets_v4 } from 'googleapis';
-import { lightdashConfig } from '../../config/lightdashConfig';
+import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
+type GoogleDriveClientArguments = {
+    lightdashConfig: LightdashConfig;
+};
+
 export class GoogleDriveClient {
+    private readonly lightdashConfig: LightdashConfig;
+
     public isEnabled: boolean = false;
 
-    constructor() {
+    constructor({ lightdashConfig }: GoogleDriveClientArguments) {
+        this.lightdashConfig = lightdashConfig;
         this.isEnabled =
             lightdashConfig.auth.google.oauth2ClientId !== undefined &&
             lightdashConfig.auth.google.oauth2ClientSecret !== undefined;
     }
 
-    static async getCredentials(refreshToken: string) {
+    private async getCredentials(refreshToken: string) {
         try {
             const credentials = {
                 type: 'authorized_user',
-                client_id: lightdashConfig.auth.google.oauth2ClientId,
-                client_secret: lightdashConfig.auth.google.oauth2ClientSecret,
+                client_id: this.lightdashConfig.auth.google.oauth2ClientId,
+                client_secret:
+                    this.lightdashConfig.auth.google.oauth2ClientSecret,
                 refresh_token: refreshToken,
             };
             const authClient = google.auth.fromJSON(credentials);
@@ -65,7 +73,7 @@ export class GoogleDriveClient {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
         }
-        const auth = await GoogleDriveClient.getCredentials(refreshToken);
+        const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
         // Creates a new tab in the sheet
@@ -105,7 +113,7 @@ export class GoogleDriveClient {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
         }
-        const auth = await GoogleDriveClient.getCredentials(refreshToken);
+        const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
         const response = await sheets.spreadsheets.create({
@@ -129,7 +137,7 @@ export class GoogleDriveClient {
         }
 
         const metadataTabName = 'metadata';
-        const auth = await GoogleDriveClient.getCredentials(refreshToken);
+        const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
         await this.createNewTab(refreshToken, fileId, metadataTabName);
 
@@ -235,7 +243,7 @@ export class GoogleDriveClient {
             throw new Error('Google Drive is not enabled');
         }
 
-        const auth = await GoogleDriveClient.getCredentials(refreshToken);
+        const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
         // Clear first sheet before writting

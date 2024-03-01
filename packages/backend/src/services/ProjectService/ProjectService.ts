@@ -105,12 +105,14 @@ import { uniq } from 'lodash';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
-import { analytics } from '../../analytics/client';
-import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
+import {
+    LightdashAnalytics,
+    QueryExecutionContext,
+} from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
-import { lightdashConfig } from '../../config/lightdashConfig';
+import { LightdashConfig } from '../../config/parseConfig';
 import { errorHandler } from '../../errors';
 import { runQueryInMemoryDatabaseContext } from '../../inMemoryTableCalculations';
 import Logger from '../../logging/logger';
@@ -124,7 +126,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -149,7 +151,9 @@ type RunQueryTags = {
     dashboard_uuid?: string;
 };
 
-type ProjectServiceDependencies = {
+type ProjectServiceArguments = {
+    lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
     savedChartModel: SavedChartModel;
@@ -165,6 +169,10 @@ type ProjectServiceDependencies = {
 };
 
 export class ProjectService {
+    lightdashConfig: LightdashConfig;
+
+    analytics: LightdashAnalytics;
+
     projectModel: ProjectModel;
 
     onboardingModel: OnboardingModel;
@@ -192,6 +200,8 @@ export class ProjectService {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
     constructor({
+        lightdashConfig,
+        analytics,
         projectModel,
         onboardingModel,
         savedChartModel,
@@ -204,7 +214,9 @@ export class ProjectService {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
-    }: ProjectServiceDependencies) {
+    }: ProjectServiceArguments) {
+        this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.warehouseClients = {};
@@ -363,7 +375,7 @@ export class ProjectService {
             );
         }
 
-        analytics.track({
+        this.analytics.track({
             event: 'project.created',
             userId: user.userUuid,
             properties: {
@@ -494,7 +506,7 @@ export class ProjectService {
                         projectUuid,
                     },
                 });
-                analytics.track({
+                this.analytics.track({
                     event: 'project.created',
                     userId: user.userUuid,
                     properties: {
@@ -701,7 +713,7 @@ export class ProjectService {
                     projectUuid,
                 },
             });
-            analytics.track({
+            this.analytics.track({
                 event: 'project.updated',
                 userId: user.userUuid,
                 properties: {
@@ -734,10 +746,6 @@ export class ProjectService {
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs = await isFeatureFlagEnabled(
-            FeatureFlags.UseDbtLs,
-            user,
-        );
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             sshTunnel.overrideCredentials,
@@ -746,7 +754,6 @@ export class ProjectService {
                 onWarehouseCatalogChange: () => {},
             },
             data.dbtVersion || DefaultSupportedDbtVersion,
-            useDbtLs,
         );
         try {
             await adapter.test();
@@ -774,7 +781,7 @@ export class ProjectService {
 
         await this.projectModel.delete(projectUuid);
 
-        analytics.track({
+        this.analytics.track({
             event: 'project.deleted',
             userId: user.userUuid,
             properties: {
@@ -803,10 +810,6 @@ export class ProjectService {
             await this.projectModel.getWarehouseFromCache(projectUuid);
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
-        const useDbtLs = await isFeatureFlagEnabled(
-            FeatureFlags.UseDbtLs,
-            user,
-        );
 
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
@@ -821,7 +824,6 @@ export class ProjectService {
                 },
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
-            useDbtLs,
         );
         return { adapter, sshTunnel };
     }
@@ -1112,14 +1114,14 @@ export class ProjectService {
         return compiledQuery;
     }
 
-    static metricQueryWithLimit(
+    private metricQueryWithLimit(
         metricQuery: MetricQuery,
         csvLimit: number | null | undefined,
     ): MetricQuery {
         if (csvLimit === undefined) {
-            if (metricQuery.limit > lightdashConfig.query?.maxLimit) {
+            if (metricQuery.limit > this.lightdashConfig.query?.maxLimit) {
                 throw new ParameterError(
-                    `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
+                    `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
                 );
             }
             return metricQuery;
@@ -1134,7 +1136,7 @@ export class ProjectService {
                 'Query must have at least one dimension or metric',
             );
 
-        const cellsLimit = lightdashConfig.query?.csvCellsLimit || 100000;
+        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
         const maxRows = Math.floor(cellsLimit / numberColumns);
         const csvRowLimit =
             csvLimit === null ? maxRows : Math.min(csvLimit, maxRows);
@@ -1614,7 +1616,10 @@ export class ProjectService {
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
 
-                if (lightdashConfig.resultsCache?.enabled && !invalidateCache) {
+                if (
+                    this.lightdashConfig.resultsCache?.enabled &&
+                    !invalidateCache
+                ) {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
                         .catch((e) => undefined); // ignore since error is tracked in s3Client
@@ -1623,7 +1628,8 @@ export class ProjectService {
                         cacheEntryMetadata?.LastModified &&
                         new Date().getTime() -
                             cacheEntryMetadata.LastModified.getTime() <
-                            lightdashConfig.resultsCache.cacheStateTimeSeconds *
+                            this.lightdashConfig.resultsCache
+                                .cacheStateTimeSeconds *
                                 1000
                     ) {
                         Logger.debug(
@@ -1693,7 +1699,7 @@ export class ProjectService {
                           }
                         : warehouseResults;
 
-                if (lightdashConfig.resultsCache?.enabled) {
+                if (this.lightdashConfig.resultsCache?.enabled) {
                     Logger.debug(`Writing data to cache with key ${queryHash}`);
                     const buffer = Buffer.from(
                         JSON.stringify(warehouseResultsWithTableCalculations),
@@ -1761,9 +1767,7 @@ export class ProjectService {
                     const newTableCalculationsFeatureFlagEnabled =
                         await isFeatureFlagEnabled(
                             FeatureFlags.UseInMemoryTableCalculations,
-                            {
-                                userUuid: user.userUuid,
-                            },
+                            user,
                         );
 
                     const useNewTableCalculationsEngine =
@@ -1785,11 +1789,10 @@ export class ProjectService {
                         throw new ForbiddenError();
                     }
 
-                    const metricQueryWithLimit =
-                        ProjectService.metricQueryWithLimit(
-                            metricQuery,
-                            csvLimit,
-                        );
+                    const metricQueryWithLimit = this.metricQueryWithLimit(
+                        metricQuery,
+                        csvLimit,
+                    );
 
                     const explore =
                         loadedExplore ??
@@ -1881,7 +1884,7 @@ export class ProjectService {
                         );
                     }
 
-                    await analytics.track({
+                    await this.analytics.track({
                         userId: user.userUuid,
                         event: 'query.executed',
                         properties: {
@@ -2034,7 +2037,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        await analytics.track({
+        await this.analytics.track({
             userId: user.userUuid,
             event: 'sql.executed',
             properties: {
@@ -2077,9 +2080,9 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        if (limit > lightdashConfig.query.maxLimit) {
+        if (limit > this.lightdashConfig.query.maxLimit) {
             throw new ParameterError(
-                `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
+                `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
             );
         }
 
@@ -2166,7 +2169,7 @@ export class ProjectService {
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
 
-        analytics.track({
+        this.analytics.track({
             event: 'field_value.search',
             userId: user.userUuid,
             properties: {
@@ -2198,7 +2201,7 @@ export class ProjectService {
         const packages = await adapter.getDbtPackages();
         try {
             const explores = await adapter.compileAllExplores();
-            analytics.track({
+            this.analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
                 properties: {
@@ -2333,7 +2336,7 @@ export class ProjectService {
             return explores;
         } catch (e) {
             const errorResponse = errorHandler(e);
-            analytics.track({
+            this.analytics.track({
                 event: 'project.error',
                 userId: user.userUuid,
                 properties: {
@@ -2730,7 +2733,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
         await this.projectModel.updateTablesConfiguration(projectUuid, data);
-        analytics.track({
+        this.analytics.track({
             event: 'project_tables_configuration.updated',
             userId: user.userUuid,
             properties: {
@@ -3012,7 +3015,7 @@ export class ProjectService {
         const project = await this.projectModel.getSummary(projectUuid);
         const projectUrl = new URL(
             `/projects/${projectUuid}/home`,
-            lightdashConfig.siteUrl,
+            this.lightdashConfig.siteUrl,
         ).href;
 
         if (data.sendEmail)
@@ -3117,7 +3120,7 @@ export class ProjectService {
             projectUuid,
             integration,
         );
-        analytics.track({
+        this.analytics.track({
             event: 'dbt_cloud_integration.updated',
             userId: user.userUuid,
             properties: {
@@ -3140,7 +3143,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
         await this.projectModel.deleteDbtCloudIntegration(projectUuid);
-        analytics.track({
+        this.analytics.track({
             event: 'dbt_cloud_integration.deleted',
             userId: user.userUuid,
             properties: {
@@ -3570,7 +3573,7 @@ export class ProjectService {
                 },
                 label: chart.name,
                 description: chart.description ?? '',
-                url: `${lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
+                url: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 dependsOn: Object.keys(
                     explores.find(({ name }) => name === chart.tableName)
                         ?.tables || {},
@@ -3595,7 +3598,7 @@ export class ProjectService {
                     },
                     label: dashboard.name,
                     description: dashboard.description ?? '',
-                    url: `${lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboard.uuid}/view`,
+                    url: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboard.uuid}/view`,
                     dependsOn: dashboard.chartUuids
                         ? uniq(
                               dashboard.chartUuids
@@ -3630,7 +3633,7 @@ export class ProjectService {
             },
             label: `Lightdash - ${projectSummary.name}`,
             description: 'Lightdash project',
-            url: `${lightdashConfig.siteUrl}/projects/${projectUuid}/home`,
+            url: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/home`,
             dependsOn: uniq(
                 chartExposures.map(({ dependsOn }) => dependsOn).flat(),
             ),
@@ -3727,7 +3730,7 @@ export class ProjectService {
                         quotingType: "'",
                     }),
                     chartLabel: chart.name,
-                    chartUrl: `${lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
+                    chartUrl: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 })),
             ];
             console.log('metrics', metrics);

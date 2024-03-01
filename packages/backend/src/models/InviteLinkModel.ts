@@ -2,7 +2,7 @@ import { InviteLink, NotExistsError } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';
-import { lightdashConfig } from '../config/lightdashConfig';
+import { LightdashConfig } from '../config/parseConfig';
 import { DbEmail, EmailTableName } from '../database/entities/emails';
 import {
     DbInviteLink,
@@ -14,29 +14,37 @@ import {
 } from '../database/entities/organizations';
 import { DbUser, UserTableName } from '../database/entities/users';
 
+type InviteLinkModelArguments = {
+    database: Knex;
+    lightdashConfig: LightdashConfig;
+};
+
 export class InviteLinkModel {
+    private readonly lightdashConfig: LightdashConfig;
+
     private database: Knex;
 
-    constructor(database: Knex) {
+    constructor({ database, lightdashConfig }: InviteLinkModelArguments) {
         this.database = database;
+        this.lightdashConfig = lightdashConfig;
     }
 
-    static mapDbObjectToInviteLink(
+    private mapDbObjectToInviteLink(
         inviteCode: string,
         data: DbInviteLink & DbOrganization & DbUser & DbEmail,
     ): InviteLink {
         return {
             inviteCode,
             expiresAt: data.expires_at,
-            inviteUrl: InviteLinkModel.transformInviteCodeToUrl(inviteCode),
+            inviteUrl: this.transformInviteCodeToUrl(inviteCode),
             organizationUuid: data.organization_uuid,
             userUuid: data.user_uuid,
             email: data.email,
         };
     }
 
-    static transformInviteCodeToUrl(code: string): string {
-        return new URL(`/invite/${code}`, lightdashConfig.siteUrl).href;
+    private transformInviteCodeToUrl(code: string): string {
+        return new URL(`/invite/${code}`, this.lightdashConfig.siteUrl).href;
     }
 
     static _hash(s: string): string {
@@ -73,10 +81,7 @@ export class InviteLinkModel {
         if (inviteLinks.length === 0) {
             throw new NotExistsError('No invite link found');
         }
-        return InviteLinkModel.mapDbObjectToInviteLink(
-            inviteCode,
-            inviteLinks[0],
-        );
+        return this.mapDbObjectToInviteLink(inviteCode, inviteLinks[0]);
     }
 
     async upsert(

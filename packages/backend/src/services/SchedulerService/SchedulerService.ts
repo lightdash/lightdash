@@ -19,9 +19,8 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
-import { get } from 'lodash';
-import { analytics } from '../../analytics/client';
 import {
+    LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
@@ -37,8 +36,9 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type ServiceDependencies = {
+type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
 
     dashboardModel: DashboardModel;
@@ -51,6 +51,8 @@ type ServiceDependencies = {
 export class SchedulerService {
     lightdashConfig: LightdashConfig;
 
+    analytics: LightdashAnalytics;
+
     schedulerModel: SchedulerModel;
 
     dashboardModel: DashboardModel;
@@ -61,12 +63,14 @@ export class SchedulerService {
 
     constructor({
         lightdashConfig,
+        analytics,
         schedulerModel,
         dashboardModel,
         savedChartModel,
         spaceModel,
-    }: ServiceDependencies) {
+    }: SchedulerServiceArguments) {
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.schedulerModel = schedulerModel;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
@@ -234,7 +238,7 @@ export class SchedulerService {
                 }),
             },
         };
-        analytics.track(updateSchedulerEventData);
+        this.analytics.track(updateSchedulerEventData);
         await slackClient.joinChannels(
             user.organizationUuid,
             SchedulerModel.getSlackChannels(scheduler.targets),
@@ -286,7 +290,7 @@ export class SchedulerService {
         await this.schedulerModel.deleteScheduler(schedulerUuid);
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'scheduler.deleted',
             properties: {
@@ -348,7 +352,7 @@ export class SchedulerService {
             projectUuid,
         );
 
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'scheduled_deliveries.dashboard_viewed',
             properties: {
