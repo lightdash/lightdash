@@ -3,7 +3,6 @@ import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 
-
 type AnalyticsServiceArguments = {
     analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
