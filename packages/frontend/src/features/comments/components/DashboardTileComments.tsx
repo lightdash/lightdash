@@ -1,4 +1,12 @@
-import { ActionIcon, Popover, PopoverProps, Stack, Text } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Divider,
+    Popover,
+    PopoverProps,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { IconMessage } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -58,8 +66,9 @@ export const DashboardTileComments: FC<
                 onClose?.();
             }}
         >
-            <Popover.Dropdown miw={400}>
+            <Popover.Dropdown p={0} miw={400}>
                 <Stack
+                    p="sm"
                     spacing="xs"
                     sx={{
                         maxHeight: 300,
@@ -80,28 +89,31 @@ export const DashboardTileComments: FC<
                             <Text fz="xs">No comments yet</Text>
                         )}
                 </Stack>
-                {userCanManageDashboardComments && (
-                    <CommentForm
-                        userName={
-                            user.data?.firstName + ' ' + user.data?.lastName
-                        }
-                        onSubmit={(
-                            text: string,
-                            textHtml: string,
-                            mentions: string[],
-                        ) =>
-                            mutateAsync({
-                                projectUuid,
-                                dashboardUuid,
-                                dashboardTileUuid,
-                                text,
-                                textHtml,
-                                mentions,
-                            })
-                        }
-                        isSubmitting={isLoading}
-                    />
-                )}
+                <Divider />
+                <Box p="sm" pt="xs">
+                    {userCanManageDashboardComments && (
+                        <CommentForm
+                            userName={
+                                user.data?.firstName + ' ' + user.data?.lastName
+                            }
+                            onSubmit={(
+                                text: string,
+                                textHtml: string,
+                                mentions: string[],
+                            ) =>
+                                mutateAsync({
+                                    projectUuid,
+                                    dashboardUuid,
+                                    dashboardTileUuid,
+                                    text,
+                                    textHtml,
+                                    mentions,
+                                })
+                            }
+                            isSubmitting={isLoading}
+                        />
+                    )}
+                </Box>
             </Popover.Dropdown>
 
             <Popover.Target>
