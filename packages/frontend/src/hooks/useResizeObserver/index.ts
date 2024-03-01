@@ -17,7 +17,7 @@ const defaultState: ObserverRect = {
  * Implementation taken from: https://github.com/mantinedev/mantine/blob/master/src/mantine-hooks/src/use-resize-observer/use-resize-observer.ts
  * But dependencies of useMemo and useEffect react to changes to ref - which is crucial for this hook's usage
  */
-export const useResizeObserver = <T extends HTMLElement = any>() => {
+export const useResizeObserver = <T extends HTMLElement = unknown>() => {
     const frameID = useRef(0);
     const [ref, setState] = useState<T | null>(null);
 
@@ -26,7 +26,7 @@ export const useResizeObserver = <T extends HTMLElement = any>() => {
     const observer = useMemo(
         () =>
             typeof window !== 'undefined'
-                ? new ResizeObserver((entries: any) => {
+                ? new ResizeObserver((entries: unknown) => {
                       if (!Array.isArray(entries) || !entries.length) {
                           return;
                       }

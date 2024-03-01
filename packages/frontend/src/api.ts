@@ -18,7 +18,7 @@ const defaultHeaders = {
     [LightdashRequestMethodHeader]: RequestMethod.WEB_APP,
 };
 
-const handleError = (err: any): ApiError => {
+const handleError = (err: unknown): ApiError => {
     if (err.error?.statusCode && err.error?.name) return err;
     return {
         status: 'error',

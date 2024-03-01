@@ -40,7 +40,11 @@ export const useFilters = () => {
     );
 
     const addFilter = useCallback(
-        (field: FilterableField, value: any, shouldFetchResults?: boolean) => {
+        (
+            field: FilterableField,
+            value: unknown,
+            shouldFetchResults?: boolean,
+        ) => {
             setFilters(
                 addFilterRule({ filters, field, value }),
                 !!shouldFetchResults,

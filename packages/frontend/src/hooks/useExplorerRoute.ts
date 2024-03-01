@@ -172,7 +172,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                         },
                     },
                 };
-            } catch (e: any) {
+            } catch (e: unknown) {
                 showToastError({ title: 'Error parsing url', subtitle: e });
             }
         }

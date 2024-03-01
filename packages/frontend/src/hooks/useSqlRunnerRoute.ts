@@ -64,7 +64,7 @@ export const useSqlRunnerUrlState = (): SqlRunnerState | undefined => {
                 createSavedChart,
                 sqlRunner,
             };
-        } catch (e: any) {
+        } catch (e: unknown) {
             showToastError({ title: 'Error parsing url', subtitle: e });
         }
     }, [search, showToastError]);

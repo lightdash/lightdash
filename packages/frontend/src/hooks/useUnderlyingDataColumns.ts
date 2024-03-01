@@ -32,7 +32,7 @@ const useUnderlyingDataColumns = ({
                         columnHeader !== undefined
                             ? columnHeader(dimension)
                             : dimension.label,
-                    cell: (info: any) =>
+                    cell: (info: unknown) =>
                         info.getValue()?.value.formatted || '-',
                     footer: () =>
                         totals[fieldId]

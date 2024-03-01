@@ -16,7 +16,7 @@ import useQueryError from './useQueryError';
 
 // gets users access tokens
 const getAccessToken = async () =>
-    lightdashApi<any[]>({
+    lightdashApi<unknown[]>({
         url: `/user/me/personal-access-tokens`,
         method: 'GET',
         body: undefined,

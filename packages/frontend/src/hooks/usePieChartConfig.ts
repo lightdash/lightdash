@@ -54,10 +54,10 @@ type PieChartConfig = {
 
     sortedGroupLabels: string[];
     groupLabelOverrides: Record<string, string>;
-    groupLabelChange: (prevValue: any, newValue: any) => void;
+    groupLabelChange: (prevValue: unknown, newValue: unknown) => void;
     groupColorOverrides: Record<string, string>;
     groupColorDefaults: Record<string, string>;
-    groupColorChange: (prevValue: any, newValue: any) => void;
+    groupColorChange: (prevValue: unknown, newValue: unknown) => void;
     groupValueOptionOverrides: Record<string, Partial<PieChartValueOptions>>;
     groupValueOptionChange: (
         label: string,

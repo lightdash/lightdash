@@ -24,12 +24,12 @@ interface ContextType {
     isJobsDrawerOpen: boolean;
     setIsJobsDrawerOpen: Dispatch<SetStateAction<boolean>>;
     activeJobId: string | undefined;
-    setActiveJobId: Dispatch<SetStateAction<any>>;
+    setActiveJobId: Dispatch<SetStateAction<unknown>>;
     activeJob: Job | undefined;
     activeJobIsRunning: boolean | undefined;
 }
 
-const Context = createContext<ContextType>(undefined as any);
+const Context = createContext<ContextType>(undefined as unknown);
 
 export const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({
     children,

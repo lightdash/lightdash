@@ -171,8 +171,8 @@ export const getAxisDefaultMinValue = ({
     min,
     max,
 }: {
-    min: any;
-    max: any;
+    min: unknown;
+    max: unknown;
 }) => {
     if (
         isNaN(parseInt(min)) ||
@@ -194,8 +194,8 @@ export const getAxisDefaultMaxValue = ({
     min,
     max,
 }: {
-    min: any;
-    max: any;
+    min: unknown;
+    max: unknown;
 }) => {
     if (
         isNaN(parseInt(min)) ||
@@ -234,7 +234,7 @@ export type EChartSeries = {
     emphasis?: {
         focus?: string;
     };
-    areaStyle?: any;
+    areaStyle?: unknown;
     pivotReference?: PivotReference;
     label?: {
         show?: boolean;
@@ -255,7 +255,7 @@ export type EChartSeries = {
 };
 
 const getFormattedValue = (
-    value: any,
+    value: unknown,
     key: string,
     itemsMap: ItemsMap,
     convertToUTC: boolean = true,
@@ -264,11 +264,13 @@ const getFormattedValue = (
 };
 
 const valueFormatter =
-    (yFieldId: string, itemsMap: ItemsMap) => (rawValue: any) => {
+    (yFieldId: string, itemsMap: ItemsMap) => (rawValue: unknown) => {
         return getFormattedValue(rawValue, yFieldId, itemsMap);
     };
 
-const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
+const removeEmptyProperties = <T = Record<unknown, unknown>>(
+    obj: T | undefined,
+) => {
     if (!obj) return undefined;
     return Object.entries(obj).reduce(
         (sum, [key, value]) =>
@@ -279,7 +281,7 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
     );
 };
 
-const mergeLegendSettings = <T = Record<any, any>>(
+const mergeLegendSettings = <T = Record<unknown, unknown>>(
     legendConfig: T | undefined,
     legendsSelected: LegendValues,
     series: EChartSeries[],
@@ -595,7 +597,7 @@ const getPivotSeries = ({
                 ...series.label,
                 ...(itemsMap &&
                     itemsMap[series.encode.yRef.field] && {
-                        formatter: (value: any) => {
+                        formatter: (value: unknown) => {
                             const field = itemsMap[series.encode.yRef.field];
                             if (isCustomDimension(field)) {
                                 return value;
@@ -673,7 +675,7 @@ const getSimpleSeries = ({
             ...series.label,
             ...(itemsMap &&
                 itemsMap[yFieldHash] && {
-                    formatter: (value: any) => {
+                    formatter: (value: unknown) => {
                         const field = itemsMap[yFieldHash];
                         if (isCustomDimension(field)) {
                             return value;
@@ -849,17 +851,17 @@ const getEchartAxes = ({
             axisItem.timeInterval &&
             isTimeInterval(axisItem.timeInterval) &&
             timeFrameConfigs[axisItem.timeInterval].getAxisLabelFormatter();
-        const axisConfig: Record<string, any> = {};
+        const axisConfig: Record<string, unknown> = {};
 
         if (axisItem && (hasFormattingConfig || axisMinInterval)) {
             axisConfig.axisLabel = {
-                formatter: (value: any) => {
+                formatter: (value: unknown) => {
                     return formatItemValue(axisItem, value, true);
                 },
             };
             axisConfig.axisPointer = {
                 label: {
-                    formatter: (value: any) => {
+                    formatter: (value: unknown) => {
                         return formatItemValue(axisItem, value.value, true);
                     },
                 },
@@ -870,20 +872,20 @@ const getEchartAxes = ({
             };
             axisConfig.axisPointer = {
                 label: {
-                    formatter: (value: any) => {
+                    formatter: (value: unknown) => {
                         return formatItemValue(axisItem, value.value, true);
                     },
                 },
             };
         } else if (axisItem !== undefined && isTableCalculation(axisItem)) {
             axisConfig.axisLabel = {
-                formatter: (value: any) => {
+                formatter: (value: unknown) => {
                     return formatItemValue(axisItem, value);
                 },
             };
             axisConfig.axisPointer = {
                 label: {
-                    formatter: (value: any) => {
+                    formatter: (value: unknown) => {
                         return formatItemValue(axisItem, value.value);
                     },
                 },
@@ -899,13 +901,13 @@ const getEchartAxes = ({
             switch (axisItem.timeInterval) {
                 case TimeFrames.WEEK_NUM:
                     axisConfig.axisLabel = {
-                        formatter: (value: any) => {
+                        formatter: (value: unknown) => {
                             return formatItemValue(axisItem, value, false);
                         },
                     };
                     axisConfig.axisPointer = {
                         label: {
-                            formatter: (value: any) => {
+                            formatter: (value: unknown) => {
                                 return formatItemValue(
                                     axisItem,
                                     value.value,
@@ -1636,7 +1638,7 @@ const useEchartsCartesianConfig = (
                     validCartesianConfig?.eChartsConfig.grid,
                 ),
             },
-            // If using shared chart colors, we don't specify any colors at the top level,
+            // If using shared chart colors, we don't specify unknown colors at the top level,
             // and instead assign them per-series.
             color: useSharedColors ? [] : colors,
         }),

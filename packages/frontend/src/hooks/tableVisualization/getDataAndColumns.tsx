@@ -88,7 +88,7 @@ const getDataAndColumns = ({
                             )}
                         </TableHeaderLabelContainer>
                     ),
-                    cell: (info: any) =>
+                    cell: (info: unknown) =>
                         info.getValue()?.value.formatted || '-',
 
                     footer: () =>

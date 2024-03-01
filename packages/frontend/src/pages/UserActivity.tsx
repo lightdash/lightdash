@@ -122,7 +122,7 @@ const chartWeeklyQueryingUsers = (
     series: [
         {
             name: 'Number of weekly querying users',
-            data: data.map((queries: any) => [
+            data: data.map((queries: unknown) => [
                 queries.date,
                 queries.num_7d_active_users,
             ]),

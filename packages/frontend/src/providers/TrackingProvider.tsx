@@ -123,7 +123,7 @@ export type FormClickedEvent = {
     name: EventName.FORM_STATE_CHANGED;
     properties: {
         form: string;
-        formState: FormState<any>;
+        formState: FormState<unknown>;
     };
 };
 
@@ -169,7 +169,7 @@ export type EventData =
 
 type IdentifyData = {
     id: string;
-    traits?: Record<string, any>;
+    traits?: Record<string, unknown>;
 };
 
 interface PageData {
@@ -196,7 +196,7 @@ export interface TrackingActions {
 
 type TrackingContext = { data: TrackingData } & TrackingActions;
 
-const Context = createContext<TrackingContext>(undefined as any);
+const Context = createContext<TrackingContext>(undefined as unknown);
 
 const LIGHTDASH_APP_NAME = 'lightdash_webapp';
 
@@ -222,7 +222,7 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
                 name: LIGHTDASH_APP_NAME,
                 version,
                 build: version,
-            } as any as rudderSDK.apiObject),
+            } as unknown as rudderSDK.apiObject),
         [version],
     );
 
@@ -244,10 +244,10 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
 
     const lightdashContext = useMemo<rudderSDK.apiOptions>(
         () => ({
-            app: appContext as any as rudderSDK.apiObject,
+            app: appContext as unknown as rudderSDK.apiObject,
             page: getLightdashPageProperties(
                 pageContext,
-            ) as any as rudderSDK.apiObject,
+            ) as unknown as rudderSDK.apiObject,
         }),
         [appContext, pageContext, getLightdashPageProperties],
     );
@@ -269,11 +269,11 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
             rudderAnalytics?.page(
                 rudderPageEvent.category,
                 rudderPageEvent.name,
-                newPageContext as any as rudderSDK.apiObject,
+                newPageContext as unknown as rudderSDK.apiObject,
                 {
                     ...lightdashContext,
                     page: newPageContext,
-                } as any as rudderSDK.apiOptions,
+                } as unknown as rudderSDK.apiOptions,
             );
         },
         [rudderAnalytics, lightdashContext, getLightdashPageProperties],
