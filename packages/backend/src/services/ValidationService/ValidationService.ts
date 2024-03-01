@@ -27,7 +27,7 @@ import {
     ValidationResponse,
     ValidationSourceType,
 } from '@lightdash/common';
-import { analytics } from '../../analytics/client';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { schedulerClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -40,6 +40,7 @@ import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     validationModel: ValidationModel;
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
@@ -49,6 +50,8 @@ type ValidationServiceArguments = {
 
 export class ValidationService {
     lightdashConfig: LightdashConfig;
+
+    analytics: LightdashAnalytics;
 
     validationModel: ValidationModel;
 
@@ -62,6 +65,7 @@ export class ValidationService {
 
     constructor({
         lightdashConfig,
+        analytics,
         validationModel,
         projectModel,
         savedChartModel,
@@ -69,6 +73,7 @@ export class ValidationService {
         spaceModel,
     }: ValidationServiceArguments) {
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.projectModel = projectModel;
         this.savedChartModel = savedChartModel;
         this.validationModel = validationModel;
@@ -670,7 +675,7 @@ export class ValidationService {
                     validation.name,
             );
 
-            analytics.track({
+            this.analytics.track({
                 event: 'validation.page_viewed',
                 userId: user.userUuid,
                 properties: {
@@ -709,7 +714,7 @@ export class ValidationService {
             throw new ForbiddenError();
         }
 
-        analytics.track({
+        this.analytics.track({
             event: 'validation.error_dismissed',
             userId: user.userUuid,
             properties: {

@@ -18,7 +18,6 @@ import refresh from 'passport-oauth2-refresh';
 import path from 'path';
 import reDoc from 'redoc-express';
 import apiSpec from './generated/swagger.json';
-import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { SlackService } from './clients/Slack/Slackbot';
 import { lightdashConfig } from './config/lightdashConfig';
@@ -58,6 +57,20 @@ process
         Logger.error('Uncaught Exception thrown', err);
         process.exit(1);
     });
+
+// TODO: to be removed once this is inside App class. https://github.com/lightdash/lightdash/issues/9099
+const analytics = new LightdashAnalytics({
+    lightdashConfig,
+    writeKey: lightdashConfig.rudder.writeKey || 'notrack',
+    dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
+        ? `${lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
+        : 'notrack',
+    options: {
+        enable:
+            lightdashConfig.rudder.writeKey &&
+            lightdashConfig.rudder.dataPlaneUrl,
+    },
+});
 
 const KnexSessionStore = connectSessionKnex(expressSession);
 
@@ -292,6 +305,7 @@ passport.deserializeUser(async (id: string, done) => {
 export const slackService = new SlackService({
     slackAuthenticationModel,
     lightdashConfig,
+    analytics,
 });
 
 let worker: SchedulerWorker | undefined;

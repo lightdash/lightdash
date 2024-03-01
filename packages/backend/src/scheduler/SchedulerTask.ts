@@ -42,7 +42,6 @@ import {
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
-import { analytics } from '../analytics/client';
 import {
     DownloadCsv,
     LightdashAnalytics,
@@ -74,6 +73,20 @@ import {
     userService,
     validationService,
 } from '../services/services';
+
+// TODO: to be removed once this is converted to a Class. https://github.com/lightdash/lightdash/issues/9173
+export const analytics = new LightdashAnalytics({
+    lightdashConfig,
+    writeKey: lightdashConfig.rudder.writeKey || 'notrack',
+    dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
+        ? `${lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
+        : 'notrack',
+    options: {
+        enable:
+            lightdashConfig.rudder.writeKey &&
+            lightdashConfig.rudder.dataPlaneUrl,
+    },
+});
 
 const getChartOrDashboard = async (
     chartUuid: string | null,
