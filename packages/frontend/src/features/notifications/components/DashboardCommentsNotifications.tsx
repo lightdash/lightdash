@@ -18,6 +18,7 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
     return (
         <Tooltip
             position="top-end"
+            // Add offset so toolip pointer is closer to the text
             offset={-2}
             label={
                 <Text fz="xs">
