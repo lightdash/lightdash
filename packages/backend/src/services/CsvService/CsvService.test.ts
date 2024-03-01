@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import moment from 'moment';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { s3Client } from '../../clients/clients';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import {
@@ -31,6 +32,7 @@ jest.mock('../services', () => ({
 describe('Csv service', () => {
     const csvService = new CsvService({
         lightdashConfig,
+        analytics: analyticsMock,
         userModel,
         projectService,
         s3Client,

@@ -13,7 +13,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type Dependencies = {
+type PinningServiceArguments = {
     dashboardModel: DashboardModel;
 
     savedChartModel: SavedChartModel;
@@ -45,7 +45,7 @@ export class PinningService {
         pinnedListModel,
         resourceViewItemModel,
         projectModel,
-    }: Dependencies) {
+    }: PinningServiceArguments) {
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;

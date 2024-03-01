@@ -7,7 +7,7 @@ import { google, sheets_v4 } from 'googleapis';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
-type Dependencies = {
+type GoogleDriveClientArguments = {
     lightdashConfig: LightdashConfig;
 };
 
@@ -16,7 +16,7 @@ export class GoogleDriveClient {
 
     public isEnabled: boolean = false;
 
-    constructor({ lightdashConfig }: Dependencies) {
+    constructor({ lightdashConfig }: GoogleDriveClientArguments) {
         this.lightdashConfig = lightdashConfig;
         this.isEnabled =
             lightdashConfig.auth.google.oauth2ClientId !== undefined &&

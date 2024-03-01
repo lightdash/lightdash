@@ -30,7 +30,7 @@ import {
 } from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 
-type SchedulerWorkerDependencies = {
+type SchedulerWorkerArguments = {
     lightdashConfig: LightdashConfig;
 };
 
@@ -154,7 +154,7 @@ export class SchedulerWorker {
 
     isRunning: boolean = false;
 
-    constructor({ lightdashConfig }: SchedulerWorkerDependencies) {
+    constructor({ lightdashConfig }: SchedulerWorkerArguments) {
         this.lightdashConfig = lightdashConfig;
     }
 

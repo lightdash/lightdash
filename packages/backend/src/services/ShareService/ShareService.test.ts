@@ -1,4 +1,5 @@
 import { ForbiddenError } from '@lightdash/common';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { shareModel } from '../../models/models';
 import { ShareService } from './ShareService';
 import {
@@ -20,6 +21,7 @@ jest.mock('../../models/models', () => ({
 
 describe('share', () => {
     const shareService = new ShareService({
+        analytics: analyticsMock,
         shareModel,
         lightdashConfig: Config,
     });

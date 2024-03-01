@@ -17,15 +17,15 @@ import {
 } from '../database/entities/userAttributes';
 import { UserTableName } from '../database/entities/users';
 
-type Dependencies = {
+type UserAttributesModelArguments = {
     database: Knex;
 };
 
 export class UserAttributesModel {
     private database: Knex;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
+    constructor(args: UserAttributesModelArguments) {
+        this.database = args.database;
     }
 
     async getAttributeValuesForOrgMember(filters: {

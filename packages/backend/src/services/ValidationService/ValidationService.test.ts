@@ -7,6 +7,7 @@ import {
     validationModel,
 } from '../../models/models';
 
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { ValidationService } from './ValidationService';
 import {
     chart,
@@ -48,6 +49,7 @@ jest.mock('../../models/models', () => ({
 
 describe('validation', () => {
     const validationService = new ValidationService({
+        analytics: analyticsMock,
         validationModel,
         projectModel,
         savedChartModel,

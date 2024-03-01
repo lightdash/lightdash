@@ -9,24 +9,28 @@ import {
     SessionUser,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
-import { analytics } from '../analytics/client';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 
-type GroupServiceDependencies = {
+type GroupServiceArguments = {
+    analytics: LightdashAnalytics;
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
 };
 
 export class GroupsService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly groupsModel: GroupsModel;
 
     private readonly projectModel: ProjectModel;
 
-    constructor(deps: GroupServiceDependencies) {
-        this.groupsModel = deps.groupsModel;
-        this.projectModel = deps.projectModel;
+    constructor(args: GroupServiceArguments) {
+        this.analytics = args.analytics;
+        this.groupsModel = args.groupsModel;
+        this.projectModel = args.projectModel;
     }
 
     async addGroupMember(
@@ -49,7 +53,7 @@ export class GroupsService {
             const updatedGroup = await this.groupsModel.getGroupWithMembers(
                 member.groupUuid,
             );
-            analytics.track({
+            this.analytics.track({
                 userId: actor.userUuid,
                 event: 'group.updated',
                 properties: {
@@ -87,7 +91,7 @@ export class GroupsService {
             const updatedGroup = await this.groupsModel.getGroupWithMembers(
                 member.groupUuid,
             );
-            analytics.track({
+            this.analytics.track({
                 userId: actor.userUuid,
                 event: 'group.updated',
                 properties: {
@@ -115,7 +119,7 @@ export class GroupsService {
             throw new ForbiddenError();
         }
         await this.groupsModel.deleteGroup(groupUuid);
-        analytics.track({
+        this.analytics.track({
             userId: actor.userUuid,
             event: 'group.deleted',
             properties: {
@@ -173,7 +177,7 @@ export class GroupsService {
             groupUuid,
             update,
         );
-        analytics.track({
+        this.analytics.track({
             userId: actor.userUuid,
             event: 'group.updated',
             properties: {

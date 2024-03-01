@@ -6,15 +6,29 @@ import {
 import { ExpressReceiver } from '@slack/bolt';
 import express from 'express';
 import path from 'path';
-import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { slackOptions } from '../clients/Slack/SlackOptions';
+import { lightdashConfig } from '../config/lightdashConfig';
 import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { slackAuthenticationModel } from '../models/models';
 import { downloadFileService } from '../services/services';
+
+// TODO: to be removed once this is refactored. https://github.com/lightdash/lightdash/issues/9174
+const analytics = new LightdashAnalytics({
+    lightdashConfig,
+    writeKey: lightdashConfig.rudder.writeKey || 'notrack',
+    dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
+        ? `${lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
+        : 'notrack',
+    options: {
+        enable:
+            lightdashConfig.rudder.writeKey &&
+            lightdashConfig.rudder.dataPlaneUrl,
+    },
+});
 
 export const slackRouter = express.Router({ mergeParams: true });
 
