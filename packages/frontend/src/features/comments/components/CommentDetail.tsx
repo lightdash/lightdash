@@ -36,7 +36,7 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                 <Grid.Col span={18}>
                     <Group position="apart">
                         <Group spacing="xs">
-                            <Text fz="xs" fw={500}>
+                            <Text fz="xs" fw={600}>
                                 {comment.user.name}
                             </Text>
                             <CommentTimestamp timestamp={comment.createdAt} />
@@ -69,7 +69,7 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                             )}
                         </Group>
                     </Group>
-                    <Box fz="xs" mb="xs">
+                    <Box fz="xs" mb="two">
                         <CommentWithMentions
                             readonly
                             content={comment.textHtml}
