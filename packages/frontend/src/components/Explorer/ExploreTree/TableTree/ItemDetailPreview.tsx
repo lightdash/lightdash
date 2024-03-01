@@ -1,7 +1,19 @@
-import { Anchor, Box, Flex, Title, useMantineTheme } from '@mantine/core';
+import {
+    Anchor,
+    Box,
+    Flex,
+    Group,
+    Popover,
+    Text,
+    Title,
+    useMantineTheme,
+} from '@mantine/core';
+import { IconTable } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
-import { FC } from 'react';
+import { FC, PropsWithChildren } from 'react';
 import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
+import MantineIcon from '../../../common/MantineIcon';
+import { useItemDetail } from './ItemDetailContext';
 
 /**
  * Renders markdown for an item's description, with additional constraints
@@ -85,5 +97,67 @@ export const ItemDetailPreview: FC<{
                 </Box>
             )}
         </Flex>
+    );
+};
+
+/**
+ * Helper for using ItemDetailPreview with tables or models.
+ */
+export const TableItemDetailPreview = ({
+    showPreview,
+    closePreview,
+    label,
+    description,
+    children,
+}: PropsWithChildren<{
+    showPreview: boolean;
+    closePreview: () => void;
+    description?: string;
+    label: string;
+}>) => {
+    const { showItemDetail } = useItemDetail();
+
+    const onOpenDescriptionView = () => {
+        closePreview();
+        showItemDetail({
+            header: (
+                <Group spacing="sm">
+                    <MantineIcon icon={IconTable} size="lg" color="gray.7" />
+                    <Text size="md">{label}</Text>
+                </Group>
+            ),
+            detail: <ItemDetailMarkdown source={description ?? ''} />,
+        });
+    };
+
+    return (
+        <Popover
+            opened={showPreview}
+            keepMounted={false}
+            shadow="sm"
+            withinPortal
+            disabled={!description}
+            position="right"
+        >
+            <Popover.Target>{children}</Popover.Target>
+            <Popover.Dropdown
+                p="xs"
+                /**
+                 * Takes up space to the right, so it's OK to go fairly wide in the interest
+                 * of readability.
+                 */
+                maw={500}
+                /**
+                 * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
+                 * while interacting with the hovercard.
+                 */
+                onClick={(event) => event.stopPropagation()}
+            >
+                <ItemDetailPreview
+                    onViewDescription={onOpenDescriptionView}
+                    description={description}
+                />
+            </Popover.Dropdown>
+        </Popover>
     );
 };

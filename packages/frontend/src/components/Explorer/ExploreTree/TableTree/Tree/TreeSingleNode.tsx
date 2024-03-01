@@ -109,9 +109,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                 </Group>
             ),
             detail: description ? (
-                <ItemDetailMarkdown
-                    source={description ?? ''}
-                ></ItemDetailMarkdown>
+                <ItemDetailMarkdown source={description}></ItemDetailMarkdown>
             ) : (
                 <Text color="gray">No description available.</Text>
             ),
