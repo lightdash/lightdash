@@ -48,7 +48,7 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                                     <ActionIcon
                                         size="xs"
                                         onClick={() => onRemove()}
-                                        variant="light"
+                                        variant="subtle"
                                         color="gray"
                                     >
                                         <MantineIcon icon={IconTrash} />
@@ -60,7 +60,7 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                                     <ActionIcon
                                         size="xs"
                                         onClick={() => onReply()}
-                                        variant="light"
+                                        variant="subtle"
                                         color="blue"
                                     >
                                         <MantineIcon icon={IconMessage} />
