@@ -41,4 +41,5 @@ export const adminProjectProfile = {
 export const conditions = {
     organizationUuid: orgProfile.organizationUuid,
     projectUuid: projectProfile.projectUuid,
+    isPrivate: false,
 };

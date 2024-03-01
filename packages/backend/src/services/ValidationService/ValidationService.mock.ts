@@ -207,6 +207,8 @@ export const dashboard: Dashboard = {
     firstViewedAt: null,
     pinnedListUuid: null,
     pinnedListOrder: null,
+    isPrivate: false,
+    access: [],
 };
 
 export const explore: Explore = {

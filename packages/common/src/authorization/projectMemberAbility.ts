@@ -1,25 +1,59 @@
 import { AbilityBuilder } from '@casl/ability';
 import { ProjectMemberProfile } from '../types/projectMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
+import { SpaceMemberRole } from '../types/space';
 import { MemberAbility } from './types';
 
 // eslint-disable-next-line import/prefer-default-export
 export const projectMemberAbilities: Record<
     ProjectMemberRole,
     (
-        member: Pick<ProjectMemberProfile, 'role' | 'projectUuid'>,
+        member: Pick<ProjectMemberProfile, 'role' | 'projectUuid' | 'userUuid'>,
         builder: Pick<AbilityBuilder<MemberAbility>, 'can'>,
     ) => void
 > = {
     viewer(member, { can }) {
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
-        });
-        can('view', 'Space', {
-            projectUuid: member.projectUuid,
+            isPrivate: false,
         });
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
+            isPrivate: false,
+        });
+        can('view', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            isPrivate: true,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('view', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            isPrivate: true,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
+        });
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+            isPrivate: true,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
         });
         can('view', 'Project', {
             projectUuid: member.projectUuid,
@@ -50,12 +84,29 @@ export const projectMemberAbilities: Record<
         projectMemberAbilities.interactive_viewer(member, { can });
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
+            isPrivate: false,
         });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
+            isPrivate: false,
         });
         can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
+            isPrivate: false,
+        });
+        can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            isPrivate: true,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            isPrivate: true,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
@@ -80,6 +131,24 @@ export const projectMemberAbilities: Record<
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
         can('manage', 'Project', {
+            projectUuid: member.projectUuid,
+        });
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+        });
+        can('view', 'Dashboard', {
+            projectUuid: member.projectUuid,
+        });
+        can('view', 'SavedChart', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
         });
     },

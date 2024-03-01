@@ -4,6 +4,7 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     Dashboard,
+    DashboardScheduler,
     ForbiddenError,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
@@ -18,6 +19,7 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { get } from 'lodash';
 import { analytics } from '../../analytics/client';
 import {
     SchedulerDashboardUpsertEvent,
@@ -76,7 +78,26 @@ export class SchedulerService {
     ): Promise<ChartSummary | Dashboard> {
         return isChartScheduler(scheduler)
             ? this.savedChartModel.getSummary(scheduler.savedChartUuid)
-            : this.dashboardModel.getById(scheduler.dashboardUuid);
+            : this.getSchedulerDashboard(scheduler);
+    }
+
+    private async getSchedulerDashboard(
+        scheduler: DashboardScheduler,
+    ): Promise<Dashboard> {
+        const dashboardDao = await this.dashboardModel.getById(
+            scheduler.dashboardUuid,
+        );
+        const space = await this.spaceModel.getSpaceSummary(
+            dashboardDao.spaceUuid,
+        );
+        const spaceAccess = await this.spaceModel.getSpaceAccess(
+            dashboardDao.spaceUuid,
+        );
+        return {
+            ...dashboardDao,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
     }
 
     private async checkUserCanUpdateSchedulerResource(

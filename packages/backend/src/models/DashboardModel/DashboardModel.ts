@@ -1,9 +1,9 @@
 import {
     assertUnreachable,
     CreateDashboard,
-    Dashboard,
     DashboardBasicDetails,
     DashboardChartTile,
+    DashboardDAO,
     DashboardLoomTile,
     DashboardMarkdownTile,
     DashboardTileTypes,
@@ -385,7 +385,7 @@ export class DashboardModel {
         );
     }
 
-    async getById(dashboardUuid: string): Promise<Dashboard> {
+    async getById(dashboardUuid: string): Promise<DashboardDAO> {
         const [dashboard] = await this.database(DashboardsTableName)
             .leftJoin(
                 DashboardVersionsTableName,
@@ -590,7 +590,7 @@ export class DashboardModel {
                     last_version_chart_kind,
                 }) => {
                     const base: Omit<
-                        Dashboard['tiles'][number],
+                        DashboardDAO['tiles'][number],
                         'type' | 'properties'
                     > = {
                         uuid: dashboard_tile_uuid,
@@ -670,7 +670,7 @@ export class DashboardModel {
         dashboard: CreateDashboard,
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
-    ): Promise<Dashboard> {
+    ): Promise<DashboardDAO> {
         const dashboardId = await this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
                 .where('space_uuid', spaceUuid)
@@ -700,7 +700,7 @@ export class DashboardModel {
     async update(
         dashboardUuid: string,
         dashboard: DashboardUnversionedFields,
-    ): Promise<Dashboard> {
+    ): Promise<DashboardDAO> {
         const withSpaceId = dashboard.spaceUuid
             ? { space_id: await getSpaceId(this.database, dashboard.spaceUuid) }
             : {};
@@ -717,7 +717,7 @@ export class DashboardModel {
     async updateMultiple(
         projectUuid: string,
         dashboards: UpdateMultipleDashboards[],
-    ): Promise<Dashboard[]> {
+    ): Promise<DashboardDAO[]> {
         await this.database.transaction(async (trx) => {
             await Promise.all(
                 dashboards.map(async (dashboard) => {
@@ -745,7 +745,7 @@ export class DashboardModel {
         );
     }
 
-    async delete(dashboardUuid: string): Promise<Dashboard> {
+    async delete(dashboardUuid: string): Promise<DashboardDAO> {
         const dashboard = await this.getById(dashboardUuid);
         await this.database(DashboardsTableName)
             .where('dashboard_uuid', dashboardUuid)
@@ -758,7 +758,7 @@ export class DashboardModel {
         version: DashboardVersionedFields,
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
-    ): Promise<Dashboard> {
+    ): Promise<DashboardDAO> {
         const [dashboard] = await this.database(DashboardsTableName)
             .select(['dashboard_id'])
             .where('dashboard_uuid', dashboardUuid)
@@ -807,7 +807,7 @@ export class DashboardModel {
 
     async findInfoForDbtExposures(projectUuid: string): Promise<
         Array<
-            Pick<Dashboard, 'uuid' | 'name' | 'description'> &
+            Pick<DashboardDAO, 'uuid' | 'name' | 'description'> &
                 Pick<LightdashUser, 'firstName' | 'lastName'> & {
                     chartUuids: string[] | null;
                 }

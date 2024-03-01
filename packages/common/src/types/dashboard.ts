@@ -1,6 +1,8 @@
 import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
 import { ChartKind, SavedChartType } from './savedCharts';
+// eslint-disable-next-line import/no-cycle
+import { SpaceShare } from './space';
 import { UpdatedByUser } from './user';
 import { ValidationSummary } from './validation';
 
@@ -90,6 +92,8 @@ export const isDashboardChartTileType = (
     tile: DashboardTile,
 ): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
 
+export type DashboardDAO = Omit<Dashboard, 'isPrivate' | 'access'>;
+
 export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
@@ -106,6 +110,8 @@ export type Dashboard = {
     firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    isPrivate: boolean | null;
+    access: SpaceShare[] | null;
 };
 
 export type DashboardBasicDetails = Pick<
@@ -193,7 +199,7 @@ export const getDefaultChartTileSize = (
     }
 };
 
-export const hasChartsInDashboard = (dashboard: Dashboard) =>
+export const hasChartsInDashboard = (dashboard: DashboardDAO) =>
     dashboard.tiles.some(
         (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
     );

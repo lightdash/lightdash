@@ -70,16 +70,18 @@ export class SpaceService {
         user: SessionUser,
     ): Promise<Space[]> {
         const spaces = await this.spaceModel.getAllSpaces(projectUuid);
-        return spaces.filter(
-            (space) =>
-                user.ability.can(
-                    'view',
-                    subject('SavedChart', {
-                        organizationUuid: space.organizationUuid,
-                        projectUuid,
-                    }),
-                ) && hasSpaceAccess(user, space, false),
-        );
+        return spaces.filter((space) => {
+            const x = user.ability.can(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: space.organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                }),
+            );
+            console.log(x);
+            return x;
+        });
     }
 
     async getSpace(
@@ -95,9 +97,9 @@ export class SpaceService {
                 subject('Space', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
+                    isPrivate: space.isPrivate,
                 }),
-            ) ||
-            !hasSpaceAccess(user, space, true) // admins can also view private spaces
+            ) // admins can also view private spaces
         ) {
             throw new ForbiddenError();
         }

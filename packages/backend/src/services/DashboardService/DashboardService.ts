@@ -4,6 +4,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardBasicDetails,
+    DashboardDAO,
     DashboardTileTypes,
     ForbiddenError,
     hasChartsInDashboard,
@@ -80,7 +81,7 @@ export class DashboardService {
     }
 
     static getCreateEventProperties(
-        dashboard: Dashboard,
+        dashboard: DashboardDAO,
     ): CreateDashboardOrVersionEvent['properties'] {
         return {
             projectId: dashboard.projectUuid,
@@ -126,23 +127,6 @@ export class DashboardService {
         );
     }
 
-    async hasDashboardSpaceAccess(
-        user: SessionUser,
-        spaceUuid: string,
-    ): Promise<boolean> {
-        let space: SpaceSummary;
-
-        try {
-            space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        } catch (e) {
-            Sentry.captureException(e);
-            console.error(e);
-            return false;
-        }
-
-        return hasSpaceAccess(user, space);
-    }
-
     async getAllByProject(
         user: SessionUser,
         projectUuid: string,
@@ -182,11 +166,20 @@ export class DashboardService {
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
+        const space = await this.spaceModel.getSpaceSummary(
+            dashboardDao.spaceUuid,
+        );
+        const spaceAccess = await this.spaceModel.getSpaceAccess(
+            dashboardDao.spaceUuid,
+        );
+        const dashboard = {
+            ...dashboardDao,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
+
         if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
-            throw new ForbiddenError();
-        }
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -238,11 +231,14 @@ export class DashboardService {
             return {
                 organizationUuid: space.organization_uuid,
                 uuid: space.space_uuid,
+                isPrivate: space.is_private,
             };
         };
         const space = dashboard.spaceUuid
             ? await this.spaceModel.get(dashboard.spaceUuid)
             : await getFirstSpace();
+
+        const spaceAccess = await this.spaceModel.getSpaceAccess(space.uuid);
 
         if (
             user.ability.cannot(
@@ -250,16 +246,16 @@ export class DashboardService {
                 subject('Dashboard', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
+                    isPrivate: space.isPrivate,
+                    access: spaceAccess,
                 }),
             )
         ) {
-            throw new ForbiddenError();
-        }
-        if (!(await this.hasDashboardSpaceAccess(user, space.uuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             dashboard,
@@ -272,7 +268,15 @@ export class DashboardService {
             properties: DashboardService.getCreateEventProperties(newDashboard),
         });
 
-        return this.dashboardModel.getById(newDashboard.uuid);
+        const dashboardDao = await this.dashboardModel.getById(
+            newDashboard.uuid,
+        );
+
+        return {
+            ...dashboardDao,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
     }
 
     async duplicate(
@@ -280,13 +284,20 @@ export class DashboardService {
         projectUuid: string,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
+        const space = await this.spaceModel.getSpaceSummary(
+            dashboardDao.spaceUuid,
+        );
+        const spaceAccess = await this.spaceModel.getSpaceAccess(
+            dashboardDao.spaceUuid,
+        );
+        const dashboard = {
+            ...dashboardDao,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
 
         if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
-            throw new ForbiddenError();
-        }
-
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -384,7 +395,15 @@ export class DashboardService {
             },
         });
 
-        return this.dashboardModel.getById(newDashboard.uuid);
+        const updatedNewDashboard = await this.dashboardModel.getById(
+            newDashboard.uuid,
+        );
+
+        return {
+            ...updatedNewDashboard,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
     }
 
     async update(
@@ -392,23 +411,27 @@ export class DashboardService {
         dashboardUuid: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
-        const existingDashboard = await this.dashboardModel.getById(
+        const existingDashboardDao = await this.dashboardModel.getById(
             dashboardUuid,
         );
+
+        const space = await this.spaceModel.getSpaceSummary(
+            existingDashboardDao.spaceUuid,
+        );
+        const spaceAccess = await this.spaceModel.getSpaceAccess(
+            existingDashboardDao.spaceUuid,
+        );
+        const existingDashboard = {
+            ...existingDashboardDao,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
+
         if (
             user.ability.cannot(
                 'update',
                 subject('Dashboard', existingDashboard),
             )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (
-            !(await this.hasDashboardSpaceAccess(
-                user,
-                existingDashboard.spaceUuid,
-            ))
         ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
@@ -465,16 +488,37 @@ export class DashboardService {
             });
             await this.deleteOrphanedChartsInDashboards(user, dashboardUuid);
         }
-        return this.dashboardModel.getById(dashboardUuid);
+
+        const updatedNewDashboard = await this.dashboardModel.getById(
+            dashboardUuid,
+        );
+
+        return {
+            ...updatedNewDashboard,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
     }
 
     async togglePinning(
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        const existingDashboard = await this.dashboardModel.getById(
+        const existingDashboardDao = await this.dashboardModel.getById(
             dashboardUuid,
         );
+        const space = await this.spaceModel.getSpaceSummary(
+            existingDashboardDao.spaceUuid,
+        );
+        const spaceAccess = await this.spaceModel.getSpaceAccess(
+            existingDashboardDao.spaceUuid,
+        );
+        const existingDashboard = {
+            ...existingDashboardDao,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
+
         const { projectUuid, organizationUuid, pinnedListUuid, spaceUuid } =
             existingDashboard;
         if (
@@ -486,11 +530,14 @@ export class DashboardService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasDashboardSpaceAccess(user, spaceUuid))) {
+        if (
+            user.ability.cannot('view', subject('Dashboard', existingDashboard))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+
         if (pinnedListUuid) {
             await this.pinnedListModel.deleteItem({
                 pinnedListUuid,
@@ -532,6 +579,9 @@ export class DashboardService {
             projectUuid,
             user.userUuid,
         );
+        const spaceAccess = await this.spaceModel.getSpaceAccess(
+            space.space_uuid,
+        );
 
         if (
             user.ability.cannot(
@@ -539,16 +589,12 @@ export class DashboardService {
                 subject('Dashboard', {
                     organizationUuid: space.organization_uuid,
                     projectUuid,
+                    isPrivate: space.is_private,
+                    access: spaceAccess,
                 }),
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        if (!(await this.hasDashboardSpaceAccess(user, space.space_uuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
         }
 
         analytics.track({
@@ -559,26 +605,51 @@ export class DashboardService {
                 projectId: projectUuid,
             },
         });
-        return this.dashboardModel.updateMultiple(projectUuid, dashboards);
+
+        const updatedDashboards = await this.dashboardModel.updateMultiple(
+            projectUuid,
+            dashboards,
+        );
+
+        const updatedDashboardsWithSpacesAccess = updatedDashboards.map(
+            async (dashboard) => {
+                const dashboardSpace = await this.spaceModel.getSpaceSummary(
+                    dashboard.spaceUuid,
+                );
+                const dashboardSpaceAccess =
+                    await this.spaceModel.getSpaceAccess(dashboard.spaceUuid);
+                return {
+                    ...dashboard,
+                    isPrivate: dashboardSpace.isPrivate,
+                    access: dashboardSpaceAccess,
+                };
+            },
+        );
+
+        return Promise.all(updatedDashboardsWithSpacesAccess);
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
         const { organizationUuid, projectUuid, spaceUuid } =
             await this.dashboardModel.getById(dashboardUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
         if (
             user.ability.cannot(
                 'delete',
-                subject('Dashboard', { organizationUuid, projectUuid }),
+                subject('Dashboard', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access: spaceAccess,
+                }),
             )
         ) {
-            throw new ForbiddenError();
-        }
-
-        if (!(await this.hasDashboardSpaceAccess(user, spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+
         const deletedDashboard = await this.dashboardModel.delete(
             dashboardUuid,
         );
@@ -659,7 +730,18 @@ export class DashboardService {
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
+        const space = await this.spaceModel.getSpaceSummary(
+            dashboardDao.spaceUuid,
+        );
+        const spaceAccess = await this.spaceModel.getSpaceAccess(
+            dashboardDao.spaceUuid,
+        );
+        const dashboard = {
+            ...dashboardDao,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
         const { organizationUuid, projectUuid } = dashboard;
         if (
             user.ability.cannot(
@@ -672,10 +754,16 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError();
+        if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
 
-        return dashboard;
+        return {
+            ...dashboard,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
     }
 }

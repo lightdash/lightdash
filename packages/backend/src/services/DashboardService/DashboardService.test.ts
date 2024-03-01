@@ -333,7 +333,13 @@ describe('DashboardService', () => {
                     ...user,
                     organizationUuid: 'another-org-uuid',
                 },
-                [{ projectUuid, role: ProjectMemberRole.VIEWER }],
+                [
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: user.userUuid,
+                    },
+                ],
             ),
         };
         await expect(

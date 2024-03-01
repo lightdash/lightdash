@@ -3,9 +3,9 @@ import {
     ChartKind,
     CreateDashboard,
     CreateDashboardChartTile,
-    Dashboard,
     DashboardBasicDetails,
     DashboardChartTile,
+    DashboardDAO,
     DashboardLoomTile,
     DashboardMarkdownTile,
     DashboardTileTypes,
@@ -224,7 +224,7 @@ export const dashboardChartTileEntry: GetChartTileQuery = {
 
 // Expected returns
 
-export const expectedDashboard: Dashboard = {
+export const expectedDashboard: DashboardDAO = {
     organizationUuid: 'organizationUuid',
     projectUuid: projectEntry.project_uuid,
     uuid: dashboardEntry.dashboard_uuid,
