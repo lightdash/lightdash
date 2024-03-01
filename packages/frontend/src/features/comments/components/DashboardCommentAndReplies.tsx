@@ -62,6 +62,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                 comment={comment}
                 canReply={canCreateDashboardComments}
                 onReply={() => handleReply()}
+                // can remove any comment or the comment is created by the current user
                 canRemove={comment.canRemove}
                 onRemove={() => handleRemove(comment.commentId)}
             />
@@ -94,6 +95,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                                     key={reply.commentId}
                                     comment={reply}
                                     canReply={false}
+                                    // can remove any comment or the comment is created by the current user
                                     canRemove={reply.canRemove}
                                     onRemove={() =>
                                         handleRemove(reply.commentId)
