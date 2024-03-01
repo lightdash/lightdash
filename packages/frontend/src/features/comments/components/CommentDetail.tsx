@@ -18,11 +18,19 @@ import { CommentWithMentions } from './CommentWithMentions';
 
 type Props = {
     comment: Comment;
+    canRemove: boolean;
+    canReply: boolean;
     onRemove: () => void;
     onReply?: () => void;
 };
 
-export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
+export const CommentDetail: FC<Props> = ({
+    comment,
+    canRemove,
+    onRemove,
+    canReply,
+    onReply,
+}) => {
     const { ref, hovered } = useHover();
 
     return (
@@ -43,7 +51,7 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                         </Group>
 
                         <Group spacing="two" opacity={hovered ? 1 : 0}>
-                            {comment.canRemove && (
+                            {canRemove && (
                                 <Tooltip label="Remove">
                                     <ActionIcon
                                         size="xs"
@@ -55,7 +63,7 @@ export const CommentDetail: FC<Props> = ({ comment, onRemove, onReply }) => {
                                     </ActionIcon>
                                 </Tooltip>
                             )}
-                            {onReply && (
+                            {canReply && onReply && (
                                 <Tooltip label="Reply">
                                     <ActionIcon
                                         size="xs"
