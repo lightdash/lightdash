@@ -64,18 +64,17 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                 : {}),
         },
 
-        mode: params.withMode
-            ? {
-                  position: 'fixed',
-                  zIndex: getDefaultZIndex('app'),
-                  width: '100%',
-                  height: containerHeight,
-                  borderWidth: '4px',
-                  borderColor: theme.colors.violet[7],
-                  borderStyle: 'solid',
-                  pointerEvents: 'none',
-              }
-            : {},
+        mode: {
+            transition: 'border 400ms linear',
+            position: 'fixed',
+            zIndex: getDefaultZIndex('app'),
+            width: '100%',
+            height: containerHeight,
+            borderWidth: params.withMode ? 6 : 0,
+            borderColor: theme.colors.violet[7],
+            borderStyle: 'solid',
+            pointerEvents: 'none',
+        },
 
         floatingModeLabel: params.withMode
             ? {
@@ -247,13 +246,9 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
                 {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
 
-                {withMode && (
-                    <Box className={classes.mode}>
-                        <Box className={classes.floatingModeLabel}>
-                            {withMode}
-                        </Box>
-                    </Box>
-                )}
+                <Box className={classes.mode}>
+                    <Box className={classes.floatingModeLabel}>{withMode}</Box>
+                </Box>
             </Box>
         </>
     );

@@ -37,10 +37,10 @@ import { FC, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { useCustomSqlQueryResults } from '../hooks/useCustomQueryResults';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import {
     useChartVersionResultsMutation,
-    useCustomSqlQueryResults,
     useQueryResults,
 } from '../hooks/useQueryResults';
 
@@ -91,6 +91,7 @@ export enum ActionType {
     SET_MODE,
     UPDATE_CUSTOM_SQL,
     UPDATE_CUSTOM_EXPLORE,
+    RESET_CUSTOM_EXPLORE,
 }
 
 type Action =
@@ -1676,35 +1677,53 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const customQueryResults = useCustomSqlQueryResults();
 
-    const mutateAsync = useCallback(async () => {
+    const fetchQueryResults = useCallback(async () => {
+        if (!unsavedChartVersion.tableName) return;
+
         try {
-            if (unsavedChartVersion.tableName) {
-                const result = await mutateAsyncQuery(
-                    unsavedChartVersion.tableName,
-                    unsavedChartVersion.metricQuery,
-                );
+            const result = await mutateAsyncQuery(
+                unsavedChartVersion.tableName,
+                unsavedChartVersion.metricQuery,
+            );
 
-                setMetricQuery(cloneDeep(unsavedChartVersion.metricQuery));
+            setMetricQuery(cloneDeep(unsavedChartVersion.metricQuery));
 
-                return result;
-            } else if (reducerState.customExplore && reducerState.metricQuery) {
-                const result = await customQueryResults.mutateAsync({
-                    metricQuery: reducerState.metricQuery,
-                    explore: reducerState.customExplore.explore,
-                });
-
-                return result;
-            }
+            return result;
         } catch (e) {
             console.error(e);
+        } finally {
+            dispatch({
+                type: ActionType.SET_FETCH_RESULTS_FALSE,
+            });
+        }
+    }, [
+        setMetricQuery,
+        mutateAsyncQuery,
+        unsavedChartVersion.tableName,
+        unsavedChartVersion.metricQuery,
+    ]);
+
+    const fetchCustomQueryResults = useCallback(async () => {
+        if (!reducerState.customExplore || !reducerState.metricQuery) return;
+
+        try {
+            const result = await customQueryResults.mutateAsync({
+                metricQuery: reducerState.metricQuery,
+                explore: reducerState.customExplore.explore,
+            });
+
+            return result;
+        } catch (e) {
+            console.error(e);
+        } finally {
+            dispatch({
+                type: ActionType.SET_FETCH_RESULTS_FALSE,
+            });
         }
     }, [
         customQueryResults,
-        reducerState,
-        mutateAsyncQuery,
-        setMetricQuery,
-        unsavedChartVersion.tableName,
-        unsavedChartVersion.metricQuery,
+        reducerState.customExplore,
+        reducerState.metricQuery,
     ]);
 
     const setCustomExplore = useCallback(
@@ -1716,16 +1735,6 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
         },
         [],
     );
-
-    useEffect(() => {
-        if (!state.shouldFetchResults) return;
-
-        mutateAsync().then(() => {
-            dispatch({
-                type: ActionType.SET_FETCH_RESULTS_FALSE,
-            });
-        });
-    }, [mutateAsync, state.shouldFetchResults]);
 
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
@@ -1758,13 +1767,37 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const defaultSort = useDefaultSortField(unsavedChartVersion);
 
-    const fetchResults = useCallback(() => {
+    const fetchResults = useCallback(async () => {
+        // TODO: I don't like this...
         if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
-        } else {
-            mutateAsync();
         }
-    }, [defaultSort, mutateAsync, unsavedChartVersion, setSortFields]);
+
+        if (reducerState.customExplore) {
+            await fetchCustomQueryResults();
+        } else {
+            await fetchQueryResults();
+        }
+    }, [
+        defaultSort,
+        fetchCustomQueryResults,
+        fetchQueryResults,
+        setSortFields,
+        reducerState.customExplore,
+        unsavedChartVersion.metricQuery.sorts.length,
+    ]);
+
+    useEffect(() => {
+        if (!state.shouldFetchResults) return;
+
+        console.log('fetching results');
+
+        (async () => {
+            await fetchResults();
+        })();
+        // TODO: check if we can optimize this
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [/*fetchResults, */ state.shouldFetchResults]);
 
     const actions = useMemo(
         () => ({

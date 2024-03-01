@@ -1,7 +1,10 @@
+import { MetricQuery } from '@lightdash/common';
 import { Alert, Loader, Stack, Title } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useCustomCompiledSql } from '../hooks/useCustomCompiledSql';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 
@@ -46,15 +49,59 @@ function findMatchingLines(fullSql: string, sqlChunk: string): number[] {
 }
 
 const RenderCustomSql = () => {
-    const { data: fullSql, error, isInitialLoading } = useCustomCompiledSql();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const customExplore = useExplorerContext((c) => c.state.customExplore);
+
+    const tableId = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+
+    const {
+        dimensions,
+        metrics,
+        sorts,
+        filters,
+        limit,
+        tableCalculations,
+        additionalMetrics,
+        customDimensions,
+    } = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
+    );
+
+    const metricQuery: MetricQuery = {
+        exploreName: tableId ?? customExplore?.explore.name,
+        dimensions: Array.from(dimensions),
+        metrics: Array.from(metrics),
+        sorts,
+        filters,
+        limit: limit || 500,
+        tableCalculations,
+        additionalMetrics,
+        customDimensions,
+    };
+
+    const {
+        data: fullCustomSql,
+        isInitialLoading: isLoadingCustomSql,
+        error,
+    } = useCustomCompiledSql(projectUuid, customExplore?.explore, metricQuery);
+
+    const { data: fullSql, isInitialLoading: isLoadingSql } = useCompiledSql(
+        projectUuid,
+        tableId,
+        metricQuery,
+    );
+
     const customSql = useExplorerContext((c) => c.state.customExplore?.sql);
 
     const matchingLines = useMemo(() => {
-        if (!fullSql || !customSql) return [];
-        return findMatchingLines(fullSql, customSql);
-    }, [fullSql, customSql]);
+        if (!fullCustomSql || !customSql) return [];
+        return findMatchingLines(fullCustomSql, customSql);
+    }, [fullCustomSql, customSql]);
 
-    if (isInitialLoading) {
+    if (isLoadingCustomSql || isLoadingSql) {
         return (
             <Stack my="xs" align="center">
                 <Loader size="lg" color="gray" mt="xs" />
@@ -89,7 +136,7 @@ const RenderCustomSql = () => {
                 matchingLines.map((line) => [line, { color: 'violet' }]),
             )}
         >
-            {fullSql ?? ''}
+            {fullCustomSql ?? fullSql ?? ''}
         </Prism>
     );
 };

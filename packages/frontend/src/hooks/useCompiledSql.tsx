@@ -4,9 +4,7 @@ import {
     MetricQuery,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useExplorerContext } from '../providers/ExplorerProvider';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
@@ -27,42 +25,19 @@ const getCompiledQuery = async (
     });
 };
 
-export const useCompiledSql = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const tableId = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const {
-        dimensions,
-        metrics,
-        sorts,
-        filters,
-        limit,
-        tableCalculations,
-        additionalMetrics,
-        customDimensions,
-    } = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery,
-    );
-
+export const useCompiledSql = (
+    projectUuid: string,
+    tableId: string,
+    metricQuery: MetricQuery,
+) => {
     const setErrorResponse = useQueryError();
-    const metricQuery: MetricQuery = {
-        exploreName: tableId,
-        dimensions: Array.from(dimensions),
-        metrics: Array.from(metrics),
-        sorts,
-        filters,
-        limit: limit || 500,
-        tableCalculations,
-        additionalMetrics,
-        customDimensions,
-    };
-    const queryKey = ['compiledQuery', tableId, metricQuery, projectUuid];
+
     return useQuery<ApiCompiledQueryResults, ApiError>({
-        enabled: tableId !== undefined,
-        queryKey,
+        queryKey: [projectUuid, 'compiledQuery', tableId, metricQuery],
         queryFn: () =>
             getCompiledQuery(projectUuid, tableId || '', metricQuery),
         onError: (result) => setErrorResponse(result),
+
+        enabled: !!tableId,
     });
 };

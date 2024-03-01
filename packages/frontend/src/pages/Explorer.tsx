@@ -34,6 +34,8 @@ const ExplorerWithUrlParams = memo(() => {
         (context) => context.state.unsavedChartVersion.tableName,
     );
 
+    const reset = useExplorerContext((context) => context.actions.reset);
+
     const history = useHistory();
 
     const { data } = useExplore(tableId);
@@ -46,6 +48,7 @@ const ExplorerWithUrlParams = memo(() => {
     useHotkeys([['mod + alt + k', clearQuery]]);
 
     const handleExit = () => {
+        reset();
         history.push(`/projects/${projectUuid}/tables`);
     };
 

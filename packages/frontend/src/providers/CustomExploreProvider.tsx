@@ -3,8 +3,10 @@ import {
     FC,
     PropsWithChildren,
     useContext,
+    useEffect,
     useState,
 } from 'react';
+import useSearchParams from '../hooks/useSearchParams';
 
 type ContextType = {
     sql: string;
@@ -14,7 +16,15 @@ type ContextType = {
 const Context = createContext<ContextType | undefined>(undefined);
 
 const CustomExploreProvider: FC<PropsWithChildren> = ({ children }) => {
+    const base64SqlQuery = useSearchParams('query');
+
     const [sql, setSql] = useState('');
+
+    useEffect(() => {
+        if (base64SqlQuery) {
+            setSql(atob(base64SqlQuery));
+        }
+    }, [base64SqlQuery]);
 
     return (
         <Context.Provider value={{ sql, setSql }}>{children}</Context.Provider>

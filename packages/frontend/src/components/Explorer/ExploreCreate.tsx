@@ -4,7 +4,8 @@ import {
     getMetricQueryFromResults,
 } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
-import { IconHammer, IconPlayerPlay } from '@tabler/icons-react';
+import { useClipboard } from '@mantine/hooks';
+import { IconHammer, IconLink, IconPlayerPlay } from '@tabler/icons-react';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -24,6 +25,8 @@ type Props = {};
 
 const ExploreCreate: FC<Props> = ({}) => {
     const history = useHistory();
+
+    const clipboard = useClipboard();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -114,6 +117,19 @@ const ExploreCreate: FC<Props> = ({}) => {
         });
     }, [setMode, history, projectUuid, showToastSuccess]);
 
+    const handleCopyLink = useCallback(() => {
+        // base64 encode the sql
+        const base64Sql = btoa(sql);
+        clipboard.copy(
+            `${window.location.origin}/projects/${projectUuid}/explore/new?query=${base64Sql}`,
+        );
+
+        showToastSuccess({
+            title: 'Copied link to clipboard',
+            subtitle: 'You can now share this link with your team',
+        });
+    }, [clipboard, projectUuid, sql, showToastSuccess]);
+
     // TODO: add proper loading state
     if (isCatalogLoading) {
         return null;
@@ -139,6 +155,16 @@ const ExploreCreate: FC<Props> = ({}) => {
                     onClick={handleChartBuild}
                 >
                     Build a chart
+                </Button>
+
+                <Button
+                    disabled={isLoading || !customExplore}
+                    size="xs"
+                    px="xs"
+                    variant="outline"
+                    onClick={handleCopyLink}
+                >
+                    <MantineIcon icon={IconLink} />
                 </Button>
             </Group>
 

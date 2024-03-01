@@ -4,7 +4,6 @@ import {
     ApiQueryResults,
     DashboardFilters,
     DateGranularity,
-    Explore,
     getCustomDimensionId,
     MetricQuery,
     SortField,
@@ -121,12 +120,7 @@ export const useQueryResults = (props?: {
     const { mutateAsync } = mutation;
 
     const mutateAsyncOverride = useCallback(
-        async (
-            tableNameOrCustomExploreQuery: string,
-            metricQuery: MetricQuery,
-        ) => {
-            console.log(tableNameOrCustomExploreQuery, metricQuery);
-
+        async (tableName: string, metricQuery: MetricQuery) => {
             const fields = new Set([
                 ...metricQuery.dimensions,
                 ...metricQuery.metrics,
@@ -135,10 +129,10 @@ export const useQueryResults = (props?: {
                     []),
             ]);
             const isValidQuery = fields.size > 0;
-            if (!!tableNameOrCustomExploreQuery && isValidQuery) {
+            if (!!tableName && isValidQuery) {
                 await mutateAsync({
                     projectUuid,
-                    tableId: tableNameOrCustomExploreQuery,
+                    tableId: tableName,
                     query: metricQuery,
                     chartUuid: props?.chartUuid,
                     dateZoomGranularity: props?.dateZoomGranularity,
@@ -146,7 +140,7 @@ export const useQueryResults = (props?: {
             } else {
                 console.warn(
                     `Can't make SQL request, invalid state`,
-                    tableNameOrCustomExploreQuery,
+                    tableName,
                     isValidQuery,
                     metricQuery,
                 );
@@ -165,40 +159,6 @@ export const useQueryResults = (props?: {
         () => ({ ...mutation, mutateAsync: mutateAsyncOverride }),
         [mutation, mutateAsyncOverride],
     );
-};
-
-const getCustomSqlQueryResults = (props: {
-    projectUuid: string;
-    metricQuery: MetricQuery;
-    explore: Explore;
-}) => {
-    return lightdashApi<ApiQueryResults>({
-        url: `/projects/${props.projectUuid}/explores/runCustomExploreQuery`,
-        method: 'POST',
-        body: JSON.stringify({
-            metricQuery: props.metricQuery,
-            explore: props.explore,
-            csvLimit: 100,
-        }),
-    });
-};
-
-export const useCustomSqlQueryResults = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    // TODO: better key,
-    return useMutation<
-        ApiQueryResults,
-        ApiError,
-        { metricQuery: MetricQuery; explore: Explore }
-    >({
-        mutationKey: ['customSqlQuery'],
-        mutationFn: (props) =>
-            getCustomSqlQueryResults({
-                projectUuid,
-                ...props,
-            }),
-    });
 };
 
 const getUnderlyingDataResults = async ({
