@@ -71,7 +71,7 @@ export const DashboardTileComments: FC<
                     p="sm"
                     spacing="xs"
                     sx={{
-                        maxHeight: 300,
+                        maxHeight: 500,
                         overflowY: 'auto',
                     }}
                 >
