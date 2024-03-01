@@ -1,11 +1,11 @@
 import { FeatureFlags } from '@lightdash/common';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { UserWithAbility } from '../../../hooks/user/useUser';
 
 export const useDashboardCommentsCheck = (
     user: UserWithAbility | undefined,
 ) => {
-    const isDashboardTileCommentsFeatureEnabled = !!useFeatureFlagEnabled(
+    const isDashboardTileCommentsFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.DashboardTileComments,
     );
 
