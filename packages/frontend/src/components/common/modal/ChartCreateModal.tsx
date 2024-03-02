@@ -253,12 +253,24 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         </Stack>
                     )}
                     {showSpaceInput && (
-                        <TextInput
-                            label="Space"
-                            description="Create a new space to add this chart to"
-                            placeholder="eg. KPIs"
-                            {...form.getInputProps('newSpaceName')}
-                        />
+                        <Stack spacing="xss">
+                            <TextInput
+                                label="Space"
+                                description="Create a new space to add this chart to"
+                                placeholder="eg. KPIs"
+                                {...form.getInputProps('newSpaceName')}
+                            />
+                            <Button
+                                variant="subtle"
+                                compact
+                                onClick={() => setShouldCreateNewSpace(false)}
+                                sx={{
+                                    alignSelf: 'start',
+                                }}
+                            >
+                                Select existing space
+                            </Button>
+                        </Stack>
                     )}
                 </Stack>
 
