@@ -1,3 +1,24 @@
+# [0.1023.0](https://github.com/lightdash/lightdash/compare/0.1022.1...0.1023.0) (2024-03-01)
+
+
+### Features
+
+* Add support for markdown descriptions for models, in the Explore sidebar models list ([#9167](https://github.com/lightdash/lightdash/issues/9167)) ([ff2d650](https://github.com/lightdash/lightdash/commit/ff2d650771e03acbadfa496da9ee7ac708e96319))
+
+## [0.1022.1](https://github.com/lightdash/lightdash/compare/0.1022.0...0.1022.1) (2024-03-01)
+
+
+### Bug Fixes
+
+* analytics dependency injection ([#9176](https://github.com/lightdash/lightdash/issues/9176)) ([2ae2f19](https://github.com/lightdash/lightdash/commit/2ae2f19057133df93ee67748055a3d5147154b6c))
+
+# [0.1022.0](https://github.com/lightdash/lightdash/compare/0.1021.9...0.1022.0) (2024-03-01)
+
+
+### Features
+
+* display notification if user mentioned in comment ([#9168](https://github.com/lightdash/lightdash/issues/9168)) ([3cb602d](https://github.com/lightdash/lightdash/commit/3cb602deaaec475e14133c6f3fcfe22fe647f6c0))
+
 ## [0.1021.9](https://github.com/lightdash/lightdash/compare/0.1021.8...0.1021.9) (2024-02-29)
 
 

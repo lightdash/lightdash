@@ -3,7 +3,7 @@ import {
     CompiledTable,
     CustomDimension,
 } from '@lightdash/common';
-import { Group, MantineProvider, NavLink, Text, Tooltip } from '@mantine/core';
+import { MantineProvider, NavLink, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import type { FC } from 'react';
 import { useToggle } from 'react-use';
@@ -12,7 +12,7 @@ import { getMantineThemeOverride } from '../../../../mantineTheme';
 import { TrackSection } from '../../../../providers/TrackingProvider';
 import { SectionName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
-import { ItemDetailProvider } from './ItemDetailContext';
+import { TableItemDetailPreview } from './ItemDetailPreview';
 import TableTreeSections from './TableTreeSections';
 
 type TableTreeWrapperProps = {
@@ -27,26 +27,26 @@ const TableTreeWrapper: FC<React.PropsWithChildren<TableTreeWrapperProps>> = ({
     table,
     children,
 }) => {
+    const [isHover, toggleHover] = useToggle(false);
+
     return (
         <NavLink
             opened={isOpen}
             onChange={toggle}
+            onMouseEnter={() => toggleHover(true)}
+            onMouseLeave={() => toggleHover(false)}
             icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
             label={
-                <Tooltip
-                    label={table.description}
-                    position="top-start"
-                    withinPortal
-                    maw={350}
-                    multiline
-                    sx={{ whiteSpace: 'normal' }}
+                <TableItemDetailPreview
+                    label={table.label}
+                    description={table.description}
+                    showPreview={isHover}
+                    closePreview={() => toggleHover(false)}
                 >
-                    <Group>
-                        <Text truncate fw={600}>
-                            {table.label}
-                        </Text>
-                    </Group>
-                </Tooltip>
+                    <Text truncate fw={600}>
+                        {table.label}
+                    </Text>
+                </TableItemDetailPreview>
             }
             styles={{
                 root: {
@@ -114,24 +114,22 @@ const TableTree: FC<Props> = ({
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <MantineProvider inherit theme={themeOverride}>
-                <ItemDetailProvider>
-                    <Wrapper
-                        isOpen={isSearching || isOpen}
-                        toggle={toggle}
+                <Wrapper
+                    isOpen={isSearching || isOpen}
+                    toggle={toggle}
+                    table={table}
+                >
+                    <TableTreeSections
                         table={table}
-                    >
-                        <TableTreeSections
-                            table={table}
-                            searchQuery={searchQuery}
-                            additionalMetrics={additionalMetrics}
-                            customDimensions={customDimensions}
-                            missingCustomMetrics={missingCustomMetrics}
-                            missingFields={missingFields}
-                            selectedDimensions={selectedDimensions}
-                            {...rest}
-                        />
-                    </Wrapper>
-                </ItemDetailProvider>
+                        searchQuery={searchQuery}
+                        additionalMetrics={additionalMetrics}
+                        customDimensions={customDimensions}
+                        missingCustomMetrics={missingCustomMetrics}
+                        missingFields={missingFields}
+                        selectedDimensions={selectedDimensions}
+                        {...rest}
+                    />
+                </Wrapper>
             </MantineProvider>
         </TrackSection>
     );

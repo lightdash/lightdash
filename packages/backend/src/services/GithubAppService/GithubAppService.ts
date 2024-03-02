@@ -3,7 +3,7 @@ import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { UserModel } from '../../models/UserModel';
 
-type Dependencies = {
+type GithubAppServiceArguments = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     userModel: UserModel;
 };
@@ -13,9 +13,9 @@ export class GithubAppService {
 
     private readonly userModel: UserModel;
 
-    constructor(deps: Dependencies) {
-        this.githubAppInstallationsModel = deps.githubAppInstallationsModel;
-        this.userModel = deps.userModel;
+    constructor(args: GithubAppServiceArguments) {
+        this.githubAppInstallationsModel = args.githubAppInstallationsModel;
+        this.userModel = args.userModel;
     }
 
     async getInstallationId(user: SessionUser) {

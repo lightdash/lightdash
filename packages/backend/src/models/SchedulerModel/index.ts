@@ -34,7 +34,7 @@ import {
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 
-type ModelDependencies = {
+type SchedulerModelArguments = {
     database: Knex;
 };
 
@@ -48,8 +48,8 @@ const statusOrder = [
 export class SchedulerModel {
     private database: Knex;
 
-    constructor(deps: ModelDependencies) {
-        this.database = deps.database;
+    constructor(args: SchedulerModelArguments) {
+        this.database = args.database;
     }
 
     static convertScheduler(scheduler: SchedulerDb): Scheduler {

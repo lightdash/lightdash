@@ -7,7 +7,7 @@ import { Knex } from 'knex';
 import { GithubAppInstallationTableName } from '../../database/entities/githubAppInstallation';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 
-type Dependencies = {
+type GithubAppInstallationsModelArguments = {
     database: Knex;
     encryptionService: EncryptionService;
 };
@@ -17,9 +17,9 @@ export class GithubAppInstallationsModel {
 
     readonly encryptionService: EncryptionService;
 
-    constructor(deps: Dependencies) {
-        this.database = deps.database;
-        this.encryptionService = deps.encryptionService;
+    constructor(args: GithubAppInstallationsModelArguments) {
+        this.database = args.database;
+        this.encryptionService = args.encryptionService;
     }
 
     async findInstallationId(

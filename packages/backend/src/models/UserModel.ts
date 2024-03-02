@@ -98,7 +98,7 @@ const userDetailsQueryBuilder = (
             'organizations.organization_id',
         );
 
-type Dependencies = {
+type UserModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
 };
@@ -108,7 +108,7 @@ export class UserModel {
 
     private readonly database: Knex;
 
-    constructor({ database, lightdashConfig }: Dependencies) {
+    constructor({ database, lightdashConfig }: UserModelArguments) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
     }

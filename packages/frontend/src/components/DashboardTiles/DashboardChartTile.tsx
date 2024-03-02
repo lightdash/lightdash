@@ -527,7 +527,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 extraHeaderElement={
                     <>
                         {dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled &&
-                            dashboardCommentsCheck.userCanManageDashboardComments && (
+                            dashboardCommentsCheck.userCanViewDashboardComments && (
                                 <DashboardTileComments
                                     opened={isCommentsMenuOpen}
                                     onOpen={() => setIsCommentsMenuOpen(true)}

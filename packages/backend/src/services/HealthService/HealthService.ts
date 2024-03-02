@@ -10,7 +10,7 @@ import { getMigrationStatus } from '../../database/database';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { VERSION } from '../../version';
 
-type HealthServiceDependencies = {
+type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationModel: OrganizationModel;
 };
@@ -23,7 +23,7 @@ export class HealthService {
     constructor({
         organizationModel,
         lightdashConfig,
-    }: HealthServiceDependencies) {
+    }: HealthServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
     }

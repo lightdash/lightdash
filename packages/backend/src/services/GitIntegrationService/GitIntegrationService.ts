@@ -31,7 +31,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ProjectService } from '../ProjectService/ProjectService';
 
-type Dependencies = {
+type GitIntegrationServiceArguments = {
     lightdashConfig: LightdashConfig;
     savedChartModel: SavedChartModel;
     projectModel: ProjectModel;
@@ -72,11 +72,11 @@ export class GitIntegrationService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
-    constructor(deps: Dependencies) {
-        this.lightdashConfig = deps.lightdashConfig;
-        this.savedChartModel = deps.savedChartModel;
-        this.projectModel = deps.projectModel;
-        this.githubAppInstallationsModel = deps.githubAppInstallationsModel;
+    constructor(args: GitIntegrationServiceArguments) {
+        this.lightdashConfig = args.lightdashConfig;
+        this.savedChartModel = args.savedChartModel;
+        this.projectModel = args.projectModel;
+        this.githubAppInstallationsModel = args.githubAppInstallationsModel;
     }
 
     async getConfiguration(

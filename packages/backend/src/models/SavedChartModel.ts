@@ -326,7 +326,7 @@ export const createSavedChart = async (
         return newSavedChart.saved_query_uuid;
     });
 
-type Dependencies = {
+type SavedChartModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
 };
@@ -345,9 +345,9 @@ export class SavedChartModel {
 
     private lightdashConfig: LightdashConfig;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
-        this.lightdashConfig = dependencies.lightdashConfig;
+    constructor(args: SavedChartModelArguments) {
+        this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
     }
 
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {

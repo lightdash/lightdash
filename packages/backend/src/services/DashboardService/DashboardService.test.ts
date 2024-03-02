@@ -6,7 +6,6 @@ import {
     ProjectMemberRole,
     SessionUser,
 } from '@lightdash/common';
-import { analytics } from '../../analytics/client';
 import {
     analyticsModel,
     dashboardModel,
@@ -16,6 +15,7 @@ import {
     spaceModel,
 } from '../../models/models';
 
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { DashboardService } from './DashboardService';
 import {
     chart,
@@ -32,12 +32,6 @@ import {
     updateDashboardTilesWithIds,
     user,
 } from './DashboardService.mock';
-
-jest.mock('../../analytics/client', () => ({
-    analytics: {
-        track: jest.fn(),
-    },
-}));
 
 jest.mock('../../database/database', () => ({}));
 jest.mock('../../clients/clients', () => ({}));
@@ -78,10 +72,12 @@ jest.mock('../../models/models', () => ({
     },
 }));
 
+jest.spyOn(analyticsMock, 'track');
 describe('DashboardService', () => {
     const projectUuid = 'projectUuid';
     const { uuid: dashboardUuid } = dashboard;
     const service = new DashboardService({
+        analytics: analyticsMock,
         dashboardModel,
         spaceModel,
         analyticsModel,
@@ -124,8 +120,8 @@ describe('DashboardService', () => {
             user,
             projectUuid,
         );
-        expect(analytics.track).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(1);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'dashboard.created',
             }),
@@ -146,8 +142,8 @@ describe('DashboardService', () => {
             user,
             projectUuid,
         );
-        expect(analytics.track).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(1);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'dashboard.created',
             }),
@@ -166,8 +162,8 @@ describe('DashboardService', () => {
             dashboardUuid,
             updateDashboard,
         );
-        expect(analytics.track).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(1);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'dashboard.updated',
             }),
@@ -188,8 +184,8 @@ describe('DashboardService', () => {
             user,
             projectUuid,
         );
-        expect(analytics.track).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(1);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'dashboard_version.created',
             }),
@@ -210,8 +206,8 @@ describe('DashboardService', () => {
             user,
             projectUuid,
         );
-        expect(analytics.track).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(1);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'dashboard_version.created',
             }),
@@ -237,14 +233,14 @@ describe('DashboardService', () => {
             user,
             projectUuid,
         );
-        expect(analytics.track).toHaveBeenCalledTimes(2);
-        expect(analytics.track).toHaveBeenNthCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(2);
+        expect(analyticsMock.track).toHaveBeenNthCalledWith(
             1,
             expect.objectContaining({
                 event: 'dashboard.updated',
             }),
         );
-        expect(analytics.track).toHaveBeenNthCalledWith(
+        expect(analyticsMock.track).toHaveBeenNthCalledWith(
             2,
             expect.objectContaining({
                 event: 'dashboard_version.created',
@@ -259,8 +255,8 @@ describe('DashboardService', () => {
         await service.update(user, dashboardUuid, updateDashboardTiles);
 
         expect(savedChartModel.delete).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledTimes(2);
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(2);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'saved_chart.deleted',
             }),
@@ -271,8 +267,8 @@ describe('DashboardService', () => {
 
         expect(dashboardModel.delete).toHaveBeenCalledTimes(1);
         expect(dashboardModel.delete).toHaveBeenCalledWith(dashboardUuid);
-        expect(analytics.track).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledWith(
+        expect(analyticsMock.track).toHaveBeenCalledTimes(1);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'dashboard.deleted',
             }),

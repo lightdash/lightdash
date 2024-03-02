@@ -13,15 +13,15 @@ import {
     NotificationsTableName,
 } from '../../database/entities/notifications';
 
-type NotificationsModelDependencies = {
+type NotificationsModelArguments = {
     database: Knex;
 };
 
 export class NotificationsModel {
     private readonly database: Knex;
 
-    constructor(deps: NotificationsModelDependencies) {
-        this.database = deps.database;
+    constructor(args: NotificationsModelArguments) {
+        this.database = args.database;
     }
 
     async getDashboardCommentNotifications(
@@ -80,11 +80,9 @@ export class NotificationsModel {
                             resource_uuid: comment.commentId,
                             resource_type:
                                 DbNotificationResourceType.DashboardComments,
-                            message: `You were mentioned in a comment by ${
-                                commentAuthor.firstName
-                            } ${commentAuthor.lastName} on the dashboard ${
-                                dashboard.name
-                            } ${
+                            message: `${commentAuthor.firstName} ${
+                                commentAuthor.lastName
+                            } tagged you in dashboard "${dashboard.name}" ${
                                 dashboardTile.properties.title
                                     ? `in tile "${dashboardTile.properties.title}"`
                                     : ''

@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { UserWithAbility } from '../../../hooks/user/useUser';
 
 export const useDashboardCommentsCheck = (
@@ -9,12 +9,12 @@ export const useDashboardCommentsCheck = (
         FeatureFlags.DashboardTileComments,
     );
 
-    const userCanViewDashboardComments = user?.ability?.can(
+    const userCanViewDashboardComments = !!user?.ability?.can(
         'view',
         'DashboardComments',
     );
 
-    const userCanManageDashboardComments = user?.ability?.can(
+    const userCanManageDashboardComments = !!user?.ability?.can(
         'manage',
         'DashboardComments',
     );

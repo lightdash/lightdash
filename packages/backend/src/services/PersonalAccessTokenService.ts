@@ -4,18 +4,22 @@ import {
     RequestMethod,
     SessionUser,
 } from '@lightdash/common';
-import { analytics } from '../analytics/client';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 
-type Dependencies = {
+type PersonalAccessTokenServiceArguments = {
+    analytics: LightdashAnalytics;
     personalAccessTokenModel: PersonalAccessTokenModel;
 };
 
 export class PersonalAccessTokenService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
 
-    constructor(dependencies: Dependencies) {
-        this.personalAccessTokenModel = dependencies.personalAccessTokenModel;
+    constructor(args: PersonalAccessTokenServiceArguments) {
+        this.analytics = args.analytics;
+        this.personalAccessTokenModel = args.personalAccessTokenModel;
     }
 
     async createPersonalAccessToken(
@@ -24,7 +28,7 @@ export class PersonalAccessTokenService {
         method: RequestMethod,
     ): Promise<PersonalAccessToken & { token: string }> {
         const result = await this.personalAccessTokenModel.create(user, data);
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'personal_access_token.created',
             properties: {
@@ -41,7 +45,7 @@ export class PersonalAccessTokenService {
         personalAccessTokenUuid: string,
     ): Promise<void> {
         await this.personalAccessTokenModel.delete(personalAccessTokenUuid);
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'personal_access_token.deleted',
         });

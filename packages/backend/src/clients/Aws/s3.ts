@@ -9,7 +9,7 @@ import * as Sentry from '@sentry/node';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
-type ClientDependencies = {
+type S3ClientArguments = {
     lightdashConfig: LightdashConfig;
 };
 
@@ -18,7 +18,7 @@ export class S3Client {
 
     private readonly s3?: S3;
 
-    constructor({ lightdashConfig }: ClientDependencies) {
+    constructor({ lightdashConfig }: S3ClientArguments) {
         this.lightdashConfig = lightdashConfig;
 
         if (lightdashConfig.s3?.endpoint && lightdashConfig.s3.region) {

@@ -21,7 +21,7 @@ import {
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
-import { analytics } from '../../analytics/client';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
@@ -32,8 +32,9 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
 
-type OrganizationServiceDependencies = {
+type OrganizationServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     organizationModel: OrganizationModel;
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
@@ -47,6 +48,8 @@ type OrganizationServiceDependencies = {
 
 export class OrganizationService {
     private readonly lightdashConfig: LightdashConfig;
+
+    private readonly analytics: LightdashAnalytics;
 
     private readonly organizationModel: OrganizationModel;
 
@@ -66,6 +69,7 @@ export class OrganizationService {
 
     constructor({
         lightdashConfig,
+        analytics,
         organizationModel,
         projectModel,
         onboardingModel,
@@ -74,8 +78,9 @@ export class OrganizationService {
         userModel,
         groupsModel,
         organizationAllowedEmailDomainsModel,
-    }: OrganizationServiceDependencies) {
+    }: OrganizationServiceArguments) {
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.organizationModel = organizationModel;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -120,7 +125,7 @@ export class OrganizationService {
             throw new NotExistsError('Organization not found');
         }
         const org = await this.organizationModel.update(organizationUuid, data);
-        analytics.track({
+        this.analytics.track({
             userId: userUuid,
             event: 'organization.updated',
             properties: {
@@ -162,7 +167,7 @@ export class OrganizationService {
         );
 
         orgUsers.forEach((orgUser) => {
-            analytics.track({
+            this.analytics.track({
                 event: 'user.deleted',
                 userId: orgUser.userUuid,
                 properties: {
@@ -174,7 +179,7 @@ export class OrganizationService {
             });
         });
 
-        analytics.track({
+        this.analytics.track({
             event: 'organization.deleted',
             userId: user.userUuid,
             properties: {
@@ -315,7 +320,7 @@ export class OrganizationService {
             const organization = await this.organizationModel.get(
                 organizationUuid,
             );
-            analytics.track({
+            this.analytics.track({
                 userId: authenticatedUser.userUuid,
                 event: 'permission.updated',
                 properties: {
@@ -390,7 +395,7 @@ export class OrganizationService {
             await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
                 { ...data, organizationUuid },
             );
-        analytics.track({
+        this.analytics.track({
             event: 'organization_allowed_email_domains.updated',
             userId: user.userUuid,
             properties: {
@@ -424,7 +429,7 @@ export class OrganizationService {
             throw new ForbiddenError('User already has an organization');
         }
         const org = await this.organizationModel.create(data);
-        analytics.track({
+        this.analytics.track({
             event: 'organization.created',
             userId: user.userUuid,
             properties: {
@@ -442,7 +447,7 @@ export class OrganizationService {
             OrganizationMemberRole.ADMIN,
             undefined,
         );
-        await analytics.track({
+        await this.analytics.track({
             userId: user.userUuid,
             event: 'user.joined_organization',
             properties: {
@@ -490,7 +495,7 @@ export class OrganizationService {
         const groupWithMembers = await this.groupsModel.getGroupWithMembers(
             group.uuid,
         );
-        analytics.track({
+        this.analytics.track({
             userId: actor.userUuid,
             event: 'group.created',
             properties: {

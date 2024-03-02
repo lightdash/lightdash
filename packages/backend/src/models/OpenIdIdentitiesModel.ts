@@ -15,15 +15,15 @@ import {
 } from '../database/entities/openIdIdentities';
 import { PasswordLoginTableName } from '../database/entities/passwordLogins';
 
-type OpenIdIdentityModelDependencies = {
+type OpenIdIdentityModelArguments = {
     database: Knex;
 };
 
 export class OpenIdIdentityModel {
     private database: Knex;
 
-    constructor(dependencies: OpenIdIdentityModelDependencies) {
-        this.database = dependencies.database;
+    constructor(args: OpenIdIdentityModelArguments) {
+        this.database = args.database;
     }
 
     private static _parseDbIdentity(
