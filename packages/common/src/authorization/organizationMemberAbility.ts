@@ -3,6 +3,7 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
+import { SpaceMemberRole } from '../types/space';
 import { MemberAbility } from './types';
 
 // eslint-disable-next-line import/prefer-default-export
@@ -39,36 +40,37 @@ export const organizationMemberAbilities: Record<
         });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
+
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
         });
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
-            access: { $size: 0 },
-            // {
-            // $elemMatch: { userUuid: member.userUuid, role: SpaceMemberRole.EDITOR }
-            // }
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
         });
+
         can('view', 'Project', {
             organizationUuid: member.organizationUuid,
         });
@@ -121,14 +123,12 @@ export const organizationMemberAbilities: Record<
         });
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
         can('manage', 'SavedChart', {
             organizationUuid: member.organizationUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },

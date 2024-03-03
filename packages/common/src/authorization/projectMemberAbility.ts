@@ -23,14 +23,12 @@ export const projectMemberAbilities: Record<
         });
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
@@ -41,7 +39,6 @@ export const projectMemberAbilities: Record<
         });
         can('view', 'Space', {
             projectUuid: member.projectUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
@@ -102,14 +99,12 @@ export const projectMemberAbilities: Record<
         });
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
         can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
-            isPrivate: true,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },

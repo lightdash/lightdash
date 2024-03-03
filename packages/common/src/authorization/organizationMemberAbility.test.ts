@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { OrganizationMemberProfile } from '../types/organizationMemberProfile';
+import { SpaceMemberRole } from '../types/space';
 import { organizationMemberAbilities } from './organizationMemberAbility';
 import {
     ORGANIZATION_ADMIN,
@@ -70,13 +71,32 @@ describe('Organization member permissions', () => {
                 ),
             ).toEqual(false);
         });
-        it('can view and manage private dashboards', () => {
+        it('can view and manage all kinds of dashboards', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
             expect(
                 ability.can(
                     'view',
                     subject('Dashboard', {
                         organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
                         isPrivate: true,
+                        access: [],
                     }),
                 ),
             ).toEqual(true);
@@ -86,17 +106,97 @@ describe('Organization member permissions', () => {
                     subject('Dashboard', {
                         organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
                         isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
                     }),
                 ),
             ).toEqual(true);
         });
-        it('can view and manage private saved charts', () => {
+        it('can view and manage all kinds of saved charts', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
             expect(
                 ability.can(
                     'view',
                     subject('SavedChart', {
                         organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
                         isPrivate: true,
+                        access: [],
                     }),
                 ),
             ).toEqual(true);
@@ -106,17 +206,97 @@ describe('Organization member permissions', () => {
                     subject('SavedChart', {
                         organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
                         isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
                     }),
                 ),
             ).toEqual(true);
         });
-        it('can view and manage private space', () => {
+        it('can view and manage all kinds of space', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
             expect(
                 ability.can(
                     'view',
                     subject('Space', {
                         organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
                         isPrivate: true,
+                        access: [],
                     }),
                 ),
             ).toEqual(true);
@@ -126,6 +306,67 @@ describe('Organization member permissions', () => {
                     subject('Space', {
                         organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
                         isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
                     }),
                 ),
             ).toEqual(true);
@@ -139,27 +380,8 @@ describe('Organization member permissions', () => {
         it('cannot manage organizations', () => {
             expect(ability.can('manage', 'Organization')).toEqual(false);
         });
-        it('cannot view and manage private dashboards', () => {
-            expect(
-                ability.can(
-                    'view',
-                    subject('Dashboard', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
-                        isPrivate: true,
-                    }),
-                ),
-            ).toEqual(false);
-            expect(
-                ability.can(
-                    'manage',
-                    subject('Dashboard', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
-                        isPrivate: true,
-                    }),
-                ),
-            ).toEqual(false);
-        });
-        it('can view and manage public dashboards', () => {
+
+        it('can view and manage public & accessable dashboards', () => {
             expect(
                 ability.can(
                     'view',
@@ -178,28 +400,88 @@ describe('Organization member permissions', () => {
                     }),
                 ),
             ).toEqual(true);
-        });
-        it('cannot view and manage private saved charts', () => {
             expect(
                 ability.can(
                     'view',
-                    subject('SavedChart', {
+                    subject('Dashboard', {
                         organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
                         isPrivate: true,
+                        access: [],
                     }),
                 ),
             ).toEqual(false);
             expect(
                 ability.can(
                     'manage',
-                    subject('SavedChart', {
+                    subject('Dashboard', {
                         organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
                         isPrivate: true,
+                        access: [],
                     }),
                 ),
             ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
         });
-        it('can view and manage public saved charts', () => {
+        it('can view and manage public & accessable saved charts', () => {
             expect(
                 ability.can(
                     'view',
@@ -218,28 +500,88 @@ describe('Organization member permissions', () => {
                     }),
                 ),
             ).toEqual(true);
-        });
-        it('cannot view and manage private space', () => {
             expect(
                 ability.can(
                     'view',
-                    subject('Space', {
+                    subject('SavedChart', {
                         organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
                         isPrivate: true,
+                        access: [],
                     }),
                 ),
             ).toEqual(false);
             expect(
                 ability.can(
                     'manage',
-                    subject('Space', {
+                    subject('SavedChart', {
                         organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
                         isPrivate: true,
+                        access: [],
                     }),
                 ),
             ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
         });
-        it('can view and manage public space', () => {
+        it('can view and manage public & accessable space', () => {
             expect(
                 ability.can(
                     'view',
@@ -258,7 +600,88 @@ describe('Organization member permissions', () => {
                     }),
                 ),
             ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
         });
+
         it('can manage public dashboards from their own organization', () => {
             expect(
                 ability.can(
@@ -266,6 +689,7 @@ describe('Organization member permissions', () => {
                     subject('Dashboard', {
                         organizationUuid: '456',
                         isPrivate: false,
+                        access: [],
                     }),
                 ),
             ).toEqual(true);
@@ -277,6 +701,7 @@ describe('Organization member permissions', () => {
                     subject('Dashboard', {
                         organizationUuid: '789',
                         isPrivate: false,
+                        access: [],
                     }),
                 ),
             ).toEqual(false);
@@ -327,32 +752,12 @@ describe('Organization member permissions', () => {
         beforeEach(() => {
             ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
         });
-        it('cannot view and manage private dashboards', () => {
+        it('can only view public & accessable dashboards', () => {
             expect(
                 ability.can(
                     'view',
                     subject('Dashboard', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
-                        isPrivate: true,
-                    }),
-                ),
-            ).toEqual(false);
-            expect(
-                ability.can(
-                    'manage',
-                    subject('Dashboard', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
-                        isPrivate: true,
-                    }),
-                ),
-            ).toEqual(false);
-        });
-        it('can view but can not manage public dashboards', () => {
-            expect(
-                ability.can(
-                    'view',
-                    subject('Dashboard', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: false,
                     }),
                 ),
@@ -361,38 +766,98 @@ describe('Organization member permissions', () => {
                 ability.can(
                     'manage',
                     subject('Dashboard', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: false,
                     }),
                 ),
             ).toEqual(false);
-        });
-        it('cannot view and manage private saved charts', () => {
             expect(
                 ability.can(
                     'view',
-                    subject('SavedChart', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: true,
+                        access: [],
                     }),
                 ),
             ).toEqual(false);
             expect(
                 ability.can(
                     'manage',
-                    subject('SavedChart', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
                     }),
                 ),
             ).toEqual(false);
         });
-        it('can view but can not  manage public saved charts', () => {
+        it('can view and manage public & accessable saved charts', () => {
             expect(
                 ability.can(
                     'view',
                     subject('SavedChart', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: false,
                     }),
                 ),
@@ -401,38 +866,98 @@ describe('Organization member permissions', () => {
                 ability.can(
                     'manage',
                     subject('SavedChart', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: false,
                     }),
                 ),
             ).toEqual(false);
-        });
-        it('cannot view and manage private space', () => {
             expect(
                 ability.can(
                     'view',
-                    subject('Space', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: true,
+                        access: [],
                     }),
                 ),
             ).toEqual(false);
             expect(
                 ability.can(
                     'manage',
-                    subject('Space', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
                     }),
                 ),
             ).toEqual(false);
         });
-        it('can view but can not  manage public space', () => {
+        it('can view and manage public & accessable space', () => {
             expect(
                 ability.can(
                     'view',
                     subject('Space', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: false,
                     }),
                 ),
@@ -441,11 +966,91 @@ describe('Organization member permissions', () => {
                 ability.can(
                     'manage',
                     subject('Space', {
-                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
                         isPrivate: false,
                     }),
                 ),
             ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
         });
         it('can view member profiles', () => {
             expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
@@ -462,18 +1067,8 @@ describe('Organization member permissions', () => {
                 false,
             );
         });
-        it('cannot create any resource', () => {
-            expect(
-                ability.can('create', subject('Space', { isPrivate: false })),
-            ).toEqual(false);
-            expect(
-                ability.can('create', subject('Space', { isPrivate: true })),
-            ).toEqual(false);
-            expect(
-                ability.can('create', subject('Space', { access: [] })),
-            ).toEqual(true);
-
-            expect(ability.can('create', 'Space')).toEqual(false);
+        it('cannot create any resource, except space when have editor space role', () => {
+            expect(ability.can('create', 'Space')).toEqual(true);
             expect(ability.can('create', 'Dashboard')).toEqual(false);
             expect(ability.can('create', 'SavedChart')).toEqual(false);
             expect(ability.can('create', 'Organization')).toEqual(false);
@@ -481,16 +1076,16 @@ describe('Organization member permissions', () => {
         it('cannot run SQL queries', () => {
             expect(ability.can('manage', 'SqlRunner')).toEqual(false);
         });
-        it('cannot update any resource', () => {
-            expect(ability.can('update', 'Space')).toEqual(false);
+        it('cannot update any resource, except space when have editor space role', () => {
+            expect(ability.can('update', 'Space')).toEqual(true);
             expect(ability.can('update', 'Dashboard')).toEqual(false);
             expect(ability.can('update', 'SavedChart')).toEqual(false);
             expect(ability.can('update', 'Project')).toEqual(false);
             expect(ability.can('update', 'Organization')).toEqual(false);
             expect(ability.can('update', 'InviteLink')).toEqual(false);
         });
-        it('cannot delete any resource', () => {
-            expect(ability.can('delete', 'Space')).toEqual(false);
+        it('cannot delete any resource, except space when have editor space role', () => {
+            expect(ability.can('delete', 'Space')).toEqual(true);
             expect(ability.can('delete', 'Dashboard')).toEqual(false);
             expect(ability.can('delete', 'SavedChart')).toEqual(false);
             expect(ability.can('delete', 'Project')).toEqual(false);
@@ -601,8 +1196,8 @@ describe('Organization member permissions', () => {
             );
         });
 
-        it('cannot create any resource', () => {
-            expect(ability.can('create', 'Space')).toEqual(false);
+        it('cannot create any resource, except space when have editor space role', () => {
+            expect(ability.can('create', 'Space')).toEqual(true);
             expect(ability.can('create', 'Dashboard')).toEqual(false);
             expect(ability.can('create', 'SavedChart')).toEqual(false);
             expect(ability.can('create', 'Organization')).toEqual(false);
@@ -610,16 +1205,16 @@ describe('Organization member permissions', () => {
         it('cannot run SQL queries', () => {
             expect(ability.can('manage', 'SqlRunner')).toEqual(false);
         });
-        it('cannot update any resource', () => {
-            expect(ability.can('update', 'Space')).toEqual(false);
+        it('cannot update any resource, except space when have editor space role', () => {
+            expect(ability.can('update', 'Space')).toEqual(true);
             expect(ability.can('update', 'Dashboard')).toEqual(false);
             expect(ability.can('update', 'SavedChart')).toEqual(false);
             expect(ability.can('update', 'Project')).toEqual(false);
             expect(ability.can('update', 'Organization')).toEqual(false);
             expect(ability.can('update', 'InviteLink')).toEqual(false);
         });
-        it('cannot delete any resource', () => {
-            expect(ability.can('delete', 'Space')).toEqual(false);
+        it('cannot delete any resource, except space when have editor space role', () => {
+            expect(ability.can('delete', 'Space')).toEqual(true);
             expect(ability.can('delete', 'Dashboard')).toEqual(false);
             expect(ability.can('delete', 'SavedChart')).toEqual(false);
             expect(ability.can('delete', 'Project')).toEqual(false);
