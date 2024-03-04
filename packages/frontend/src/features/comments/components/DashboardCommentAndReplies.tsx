@@ -3,6 +3,7 @@ import { Box, Button, Collapse, Divider, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { FC, useCallback, useState } from 'react';
 import { useApp } from '../../../providers/AppProvider';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useCreateComment, useRemoveComment } from '../hooks/useComments';
 import { CommentDetail } from './CommentDetail';
 import { CommentForm } from './CommentForm';
@@ -23,11 +24,19 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     targetRef,
 }) => {
     const { user } = useApp();
-    const [isRepliesOpen, { toggle: toggleReplies }] = useDisclosure(false);
+    const canCreateDashboardComments = !!useDashboardContext(
+        (c) => c.dashboardCommentsCheck?.canCreateDashboardComments,
+    );
 
+    const [isRepliesOpen, { toggle: toggleReplies }] = useDisclosure(false);
     const [isReplyingTo, setIsReplyingTo] = useState<string | undefined>(
         undefined,
     );
+    const canReply = !!(
+        canCreateDashboardComments &&
+        (isReplyingTo || isRepliesOpen)
+    );
+
     const { mutateAsync: createReply, isLoading: isCreatingReply } =
         useCreateComment();
     const { mutateAsync: removeComment } = useRemoveComment();
@@ -42,23 +51,24 @@ export const DashboardCommentAndReplies: FC<Props> = ({
         [dashboardUuid, removeComment],
     );
 
+    const handleReply = useCallback(() => {
+        setIsReplyingTo((prev) =>
+            prev === comment.commentId ? undefined : comment.commentId,
+        );
+        if (!isRepliesOpen) {
+            toggleReplies();
+        }
+    }, [isRepliesOpen, comment.commentId, toggleReplies]);
+
     return (
         <Stack spacing="two" ref={targetRef}>
             <CommentDetail
                 comment={comment}
+                canReply={canReply}
+                onReply={() => handleReply()}
+                // can remove any comment or the comment is created by the current user
+                canRemove={comment.canRemove}
                 onRemove={() => handleRemove(comment.commentId)}
-                onReply={() => {
-                    {
-                        setIsReplyingTo((prev) =>
-                            prev === comment.commentId
-                                ? undefined
-                                : comment.commentId,
-                        );
-                        if (!isRepliesOpen) {
-                            toggleReplies();
-                        }
-                    }
-                }}
             />
 
             {comment.replies && comment.replies.length > 0 && (
@@ -88,6 +98,10 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                                 <CommentDetail
                                     key={reply.commentId}
                                     comment={reply}
+                                    // Can't reply to a reply
+                                    canReply={false}
+                                    // can remove any comment or the comment is created by the current user
+                                    canRemove={reply.canRemove}
                                     onRemove={() =>
                                         handleRemove(reply.commentId)
                                     }

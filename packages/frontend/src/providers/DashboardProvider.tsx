@@ -158,7 +158,7 @@ export const DashboardProvider: React.FC<
         dashboardUuid,
         !!dashboardCommentsCheck &&
             !!dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
-            !!dashboardCommentsCheck.userCanViewDashboardComments,
+            !!dashboardCommentsCheck.canViewDashboardComments,
     );
     const hasTileComments = useCallback(
         (tileUuid: string) =>
