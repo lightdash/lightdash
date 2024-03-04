@@ -11,6 +11,9 @@ import Logger from './logging/logger';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
 import { registerWorkerMetrics } from './schedulerMetrics';
+import * as services from './services/services';
+import * as clients from './clients/clients';
+import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 
 process
     .on('unhandledRejection', (reason, p) => {
@@ -34,7 +37,24 @@ Sentry.init({
 
 let worker: SchedulerWorker;
 if (process.env.CI !== 'true') {
-    worker = new SchedulerWorker({ lightdashConfig });
+    const analytics = new LightdashAnalytics({
+        lightdashConfig,
+        writeKey: lightdashConfig.rudder.writeKey || 'notrack',
+        dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
+            ? `${lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
+            : 'notrack',
+        options: {
+            enable:
+                lightdashConfig.rudder.writeKey &&
+                lightdashConfig.rudder.dataPlaneUrl,
+        },
+    });
+    worker = new SchedulerWorker({
+        lightdashConfig,
+        analytics,
+        ...services,
+        ...clients,
+    });
     registerWorkerMetrics();
     worker.run().catch((e) => {
         Logger.error('Error starting standalone scheduler worker', e);

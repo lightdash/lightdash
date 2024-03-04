@@ -61,7 +61,7 @@ import { UserAttributesService } from './UserAttributesService/UserAttributesSer
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
 
-export const analytics = new LightdashAnalytics({
+const analytics = new LightdashAnalytics({
     lightdashConfig,
     writeKey: lightdashConfig.rudder.writeKey || 'notrack',
     dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
