@@ -6,6 +6,7 @@ import {
     getDefaultChartTileSize,
 } from '@lightdash/common';
 import {
+    Anchor,
     Button,
     Group,
     Input,
@@ -18,7 +19,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
-import { IconChartBar } from '@tabler/icons-react';
+import { IconArrowLeft, IconChartBar, IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
@@ -230,7 +231,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         </Stack>
                     )}
                     {!showSpaceInput && !fromDashboard && (
-                        <Stack spacing="xxs">
+                        <Stack spacing="sm">
                             <Select
                                 label="Select space"
                                 withinPortal
@@ -240,36 +241,34 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                                 }))}
                                 {...form.getInputProps('spaceUuid')}
                             />
-                            <Button
-                                variant="subtle"
-                                compact
+                            <Anchor
+                                component="span"
                                 onClick={() => setShouldCreateNewSpace(true)}
-                                sx={{
-                                    alignSelf: 'start',
-                                }}
                             >
-                                + Create new space
-                            </Button>
+                                <Group spacing="two">
+                                    <MantineIcon icon={IconPlus} />
+                                    Create new space
+                                </Group>
+                            </Anchor>
                         </Stack>
                     )}
                     {showSpaceInput && (
-                        <Stack spacing="xss">
+                        <Stack spacing="sm">
                             <TextInput
                                 label="Space"
                                 description="Create a new space to add this chart to"
                                 placeholder="eg. KPIs"
                                 {...form.getInputProps('newSpaceName')}
                             />
-                            <Button
-                                variant="subtle"
-                                compact
+                            <Anchor
+                                component="span"
                                 onClick={() => setShouldCreateNewSpace(false)}
-                                sx={{
-                                    alignSelf: 'start',
-                                }}
                             >
-                                Select existing space
-                            </Button>
+                                <Group spacing="two">
+                                    <MantineIcon icon={IconArrowLeft} />
+                                    Save to existing space
+                                </Group>
+                            </Anchor>
                         </Stack>
                     )}
                 </Stack>
