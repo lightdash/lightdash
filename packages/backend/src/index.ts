@@ -42,6 +42,8 @@ import { VERSION } from './version';
 import { registerNodeMetrics } from './nodeMetrics';
 import { wrapOtelSpan } from './utils';
 import { postHogClient } from './postHog';
+import * as services from './services/services';
+import * as clients from './clients/clients';
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native, func-names
@@ -310,7 +312,12 @@ export const slackService = new SlackService({
 
 let worker: SchedulerWorker | undefined;
 if (lightdashConfig.scheduler?.enabled) {
-    worker = new SchedulerWorker({ lightdashConfig });
+    worker = new SchedulerWorker({
+        lightdashConfig,
+        analytics,
+        ...services,
+        ...clients,
+    });
     worker.run().catch((e) => {
         Logger.error('Error starting scheduler worker', e);
     });

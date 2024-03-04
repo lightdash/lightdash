@@ -1,4 +1,4 @@
-import { Card, List, UnstyledButton } from '@mantine/core';
+import { Menu } from '@mantine/core';
 import { SuggestionProps } from '@tiptap/suggestion';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { SuggestionsItem } from '../../types';
@@ -60,30 +60,33 @@ export const SuggestionList = forwardRef<
         },
     }));
 
-    return props.items.length > 0 ? (
-        <Card shadow="xs" p="xs">
-            <List withPadding={false} listStyleType="none">
+    return (
+        <Menu opened={props.items.length > 0}>
+            <Menu.Dropdown
+                mah={120}
+                sx={{
+                    overflowY: 'auto',
+                }}
+            >
+                <Menu.Label p={0} pb="two">
+                    Users
+                </Menu.Label>
                 {props.items.map((item, index) => (
-                    <List.Item key={index} fz="xs">
-                        <UnstyledButton
-                            fz="sm"
-                            p="two"
-                            c={index === selectedIndex ? 'blue.6' : 'inherit'}
-                            variant="default"
-                            ta="left"
-                            onClick={() => {
-                                selectItem(index);
-                            }}
-                            sx={{
-                                border: 'none',
-                                alignSelf: 'flex-start',
-                            }}
-                        >
-                            {item.label}
-                        </UnstyledButton>
-                    </List.Item>
+                    <Menu.Item
+                        key={index}
+                        fz="xs"
+                        p="two"
+                        ta="left"
+                        onClick={() => selectItem(index)}
+                        sx={{
+                            border: 'none',
+                            alignSelf: 'flex-start',
+                        }}
+                    >
+                        {item.label}
+                    </Menu.Item>
                 ))}
-            </List>
-        </Card>
-    ) : null;
+            </Menu.Dropdown>
+        </Menu>
+    );
 });

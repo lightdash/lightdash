@@ -304,10 +304,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
 
-    const dashboardCommentsCheck = useDashboardContext(
-        (c) => c.dashboardCommentsCheck,
-    );
-
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -519,22 +515,39 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     );
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
+    const showComments = useDashboardContext(
+        (c) =>
+            c.dashboardCommentsCheck?.canViewDashboardComments &&
+            c.dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled,
+    );
+    const tileHasComments = useDashboardContext((c) =>
+        c.hasTileComments(tileUuid),
+    );
+    const dashboardComments = useMemo(
+        () =>
+            !!showComments && (
+                <DashboardTileComments
+                    opened={isCommentsMenuOpen}
+                    onOpen={() => setIsCommentsMenuOpen(true)}
+                    onClose={() => setIsCommentsMenuOpen(false)}
+                    dashboardTileUuid={tileUuid}
+                />
+            ),
+        [showComments, isCommentsMenuOpen, tileUuid],
+    );
 
     return (
         <>
             <TileBase
                 lockHeaderVisibility={isCommentsMenuOpen}
+                visibleHeaderElement={
+                    // Dashboard comments button is always visible if they exist
+                    tileHasComments ? dashboardComments : undefined
+                }
                 extraHeaderElement={
                     <>
-                        {dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled &&
-                            dashboardCommentsCheck.userCanViewDashboardComments && (
-                                <DashboardTileComments
-                                    opened={isCommentsMenuOpen}
-                                    onOpen={() => setIsCommentsMenuOpen(true)}
-                                    onClose={() => setIsCommentsMenuOpen(false)}
-                                    dashboardTileUuid={tileUuid}
-                                />
-                            )}
+                        {/* Dashboard comments button only appears on hover if there are no comments yet */}
+                        {tileHasComments ? undefined : dashboardComments}
                         {appliedFilterRules.length > 0 && (
                             <HoverCard
                                 withArrow

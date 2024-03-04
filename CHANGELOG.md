@@ -1,3 +1,24 @@
+## [0.1024.2](https://github.com/lightdash/lightdash/compare/0.1024.1...0.1024.2) (2024-03-04)
+
+
+### Bug Fixes
+
+* viewers cant reply to dashboard comments ([#9196](https://github.com/lightdash/lightdash/issues/9196)) ([45f4da7](https://github.com/lightdash/lightdash/commit/45f4da7f6cd45b79344b6617cd2169e6bfb07657))
+
+## [0.1024.1](https://github.com/lightdash/lightdash/compare/0.1024.0...0.1024.1) (2024-03-04)
+
+
+### Bug Fixes
+
+* always show toast on version update ([#9189](https://github.com/lightdash/lightdash/issues/9189)) ([bc73458](https://github.com/lightdash/lightdash/commit/bc734586551ac8f80c6b4482552e45a198daedfe))
+
+# [0.1024.0](https://github.com/lightdash/lightdash/compare/0.1023.0...0.1024.0) (2024-03-04)
+
+
+### Features
+
+* display indicator on dashboard tile comments icon ([#9152](https://github.com/lightdash/lightdash/issues/9152)) ([6ed5e43](https://github.com/lightdash/lightdash/commit/6ed5e43fce21eb271ec87bfffa6013d6d9690ddb))
+
 # [0.1023.0](https://github.com/lightdash/lightdash/compare/0.1022.1...0.1023.0) (2024-03-01)
 
 
