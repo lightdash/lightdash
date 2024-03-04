@@ -87,7 +87,6 @@ export const CommentForm: FC<Props> = ({
                     <Grid.Col span={18} w={mode === 'reply' ? 300 : 350}>
                         {isSuccess && userNames && (
                             <CommentWithMentions
-                                readonly={false}
                                 suggestions={userNames}
                                 shouldClearEditor={shouldClearEditor}
                                 setShouldClearEditor={setShouldClearEditor}

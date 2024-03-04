@@ -9,7 +9,6 @@ import { SuggestionsItem } from '../../types';
 import { generateSuggestionWrapper } from './generateSuggestionWrapper';
 
 type Props = {
-    readonly: boolean;
     suggestions?: SuggestionsItem[];
     content?: string;
     onUpdate?: (editor: Editor | null) => void;
@@ -18,7 +17,6 @@ type Props = {
 };
 
 export const CommentWithMentions: FC<Props> = ({
-    readonly,
     suggestions,
     onUpdate,
     content,
@@ -28,7 +26,6 @@ export const CommentWithMentions: FC<Props> = ({
     const theme = useMantineTheme();
 
     const editor = useEditor({
-        editable: !readonly,
         extensions: [
             StarterKit,
             Mention.configure({
@@ -60,14 +57,11 @@ export const CommentWithMentions: FC<Props> = ({
         <RichTextEditor
             editor={editor}
             styles={{
-                root: {
-                    border: readonly ? 'none' : 'default',
-                },
                 content: {
                     maxHeight: 100,
                     overflowY: 'auto',
                     '& > .tiptap': {
-                        padding: readonly ? 0 : 6,
+                        padding: 6,
                     },
                 },
             }}
