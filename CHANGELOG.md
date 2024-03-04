@@ -1,3 +1,10 @@
+# [0.1024.0](https://github.com/lightdash/lightdash/compare/0.1023.0...0.1024.0) (2024-03-04)
+
+
+### Features
+
+* display indicator on dashboard tile comments icon ([#9152](https://github.com/lightdash/lightdash/issues/9152)) ([6ed5e43](https://github.com/lightdash/lightdash/commit/6ed5e43fce21eb271ec87bfffa6013d6d9690ddb))
+
 # [0.1023.0](https://github.com/lightdash/lightdash/compare/0.1022.1...0.1023.0) (2024-03-01)
 
 
