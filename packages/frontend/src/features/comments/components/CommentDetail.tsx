@@ -5,11 +5,12 @@ import {
     Box,
     Grid,
     Group,
+    Menu,
     Text,
     Tooltip,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { IconMessage, IconTrash } from '@tabler/icons-react';
+import { IconDotsVertical, IconMessage, IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
@@ -35,49 +36,67 @@ export const CommentDetail: FC<Props> = ({
 
     return (
         <Box ref={ref}>
-            <Grid columns={24}>
+            <Grid columns={20}>
                 <Grid.Col span={2}>
                     <Avatar radius="xl" size="sm">
                         {getNameInitials(comment.user.name)}
                     </Avatar>
                 </Grid.Col>
-                <Grid.Col span={22}>
+                <Grid.Col span={18}>
                     <Group position="apart">
                         <Group spacing="xs">
-                            <Text fz="xs" fw={500}>
+                            <Text fz="xs" fw={600}>
                                 {comment.user.name}
                             </Text>
                             <CommentTimestamp timestamp={comment.createdAt} />
                         </Group>
 
                         <Group spacing="two" opacity={hovered ? 1 : 0}>
-                            {canRemove && (
-                                <Tooltip label="Remove">
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={() => onRemove()}
-                                        variant="light"
-                                        color="gray"
-                                    >
-                                        <MantineIcon icon={IconTrash} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
                             {canReply && onReply && (
                                 <Tooltip label="Reply">
                                     <ActionIcon
                                         size="xs"
                                         onClick={() => onReply()}
-                                        variant="light"
+                                        variant="subtle"
                                         color="blue"
                                     >
                                         <MantineIcon icon={IconMessage} />
                                     </ActionIcon>
                                 </Tooltip>
                             )}
+                            {canRemove && (
+                                <Menu position="right" withArrow>
+                                    <Menu.Target>
+                                        <ActionIcon
+                                            size="xs"
+                                            variant="subtle"
+                                            color="gray"
+                                        >
+                                            <MantineIcon
+                                                icon={IconDotsVertical}
+                                            />
+                                        </ActionIcon>
+                                    </Menu.Target>
+                                    <Menu.Dropdown p={0}>
+                                        <Menu.Item
+                                            p="xs"
+                                            fz="xs"
+                                            icon={
+                                                <MantineIcon
+                                                    color="red"
+                                                    icon={IconTrash}
+                                                />
+                                            }
+                                            onClick={() => onRemove()}
+                                        >
+                                            Delete
+                                        </Menu.Item>
+                                    </Menu.Dropdown>
+                                </Menu>
+                            )}
                         </Group>
                     </Group>
-                    <Box fz="xs" mb="xs">
+                    <Box fz="xs" mb="two">
                         <CommentWithMentions
                             readonly
                             content={comment.textHtml}

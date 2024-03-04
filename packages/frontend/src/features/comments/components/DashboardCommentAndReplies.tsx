@@ -13,6 +13,7 @@ type Props = {
     dashboardUuid: string;
     dashboardTileUuid: string;
     comment: Comment;
+    targetRef: React.RefObject<HTMLDivElement> | null;
 };
 
 export const DashboardCommentAndReplies: FC<Props> = ({
@@ -20,6 +21,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     projectUuid,
     dashboardTileUuid,
     dashboardUuid,
+    targetRef,
 }) => {
     const { user } = useApp();
     const canCreateDashboardComments = !!useDashboardContext(
@@ -30,8 +32,10 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     const [isReplyingTo, setIsReplyingTo] = useState<string | undefined>(
         undefined,
     );
-    const canReply =
-        canCreateDashboardComments && (isReplyingTo || isRepliesOpen);
+    const canReply = !!(
+        canCreateDashboardComments &&
+        (isReplyingTo || isRepliesOpen)
+    );
 
     const { mutateAsync: createReply, isLoading: isCreatingReply } =
         useCreateComment();
@@ -57,10 +61,10 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     }, [isRepliesOpen, comment.commentId, toggleReplies]);
 
     return (
-        <Stack spacing="two">
+        <Stack spacing="two" ref={targetRef}>
             <CommentDetail
                 comment={comment}
-                canReply={canCreateDashboardComments}
+                canReply={canReply}
                 onReply={() => handleReply()}
                 // can remove any comment or the comment is created by the current user
                 canRemove={comment.canRemove}
@@ -108,36 +112,32 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                 </Box>
             )}
 
-            {canReply && (
-                <Box ml="xl">
-                    <CommentForm
-                        userName={
-                            user.data?.firstName + ' ' + user.data?.lastName
-                        }
-                        onSubmit={(
-                            text: string,
-                            textHtml: string,
-                            mentions: string[],
-                        ) =>
-                            createReply({
-                                projectUuid,
-                                dashboardUuid,
-                                dashboardTileUuid,
-                                text,
-                                textHtml,
-                                replyTo: comment.commentId,
-                                mentions,
-                            })
-                        }
-                        onCancel={() => {
-                            toggleReplies();
-                            setIsReplyingTo(undefined);
-                        }}
-                        isSubmitting={isCreatingReply}
-                        mode="reply"
-                    />
-                </Box>
-            )}
+            <Collapse in={!!isReplyingTo} ml="lg">
+                <CommentForm
+                    userName={user.data?.firstName + ' ' + user.data?.lastName}
+                    onSubmit={(
+                        text: string,
+                        textHtml: string,
+                        mentions: string[],
+                    ) =>
+                        createReply({
+                            projectUuid,
+                            dashboardUuid,
+                            dashboardTileUuid,
+                            text,
+                            textHtml,
+                            replyTo: comment.commentId,
+                            mentions,
+                        })
+                    }
+                    onCancel={() => {
+                        toggleReplies();
+                        setIsReplyingTo(undefined);
+                    }}
+                    isSubmitting={isCreatingReply}
+                    mode="reply"
+                />
+            </Collapse>
         </Stack>
     );
 };

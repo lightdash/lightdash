@@ -1,12 +1,15 @@
 import { NotificationResourceType } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
+    Divider,
     Indicator,
     Popover,
     PopoverProps,
     Stack,
     Text,
 } from '@mantine/core';
+import { useScrollIntoView } from '@mantine/hooks';
 import { IconMessage } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -24,6 +27,8 @@ type Props = {
     dashboardTileUuid: string;
 };
 
+const COMMENTS_LIST_MAX_HEIGHT = 500;
+
 export const DashboardTileComments: FC<
     Props & Pick<PopoverProps, 'opened' | 'onClose' | 'onOpen'>
 > = ({ dashboardTileUuid, opened, onClose, onOpen }) => {
@@ -39,7 +44,40 @@ export const DashboardTileComments: FC<
         (c) => c.dashboardComments && c.dashboardComments[dashboardTileUuid],
     );
 
+    // Scroll to the last comment when a new comment is added
+    const { scrollIntoView, targetRef, scrollableRef } =
+        useScrollIntoView<HTMLDivElement>({
+            duration: 200,
+            offset: COMMENTS_LIST_MAX_HEIGHT, // Ensures the last comment is always visible
+        });
+
     const { mutateAsync, isLoading } = useCreateComment();
+    const handleOnSubmit = useCallback(
+        async (text: string, textHtml: string, mentions: string[]) => {
+            if (!projectUuid || !dashboardUuid) return;
+
+            const result = await mutateAsync({
+                projectUuid,
+                dashboardUuid,
+                dashboardTileUuid,
+                text,
+                textHtml,
+                mentions,
+            });
+
+            // Scroll to the bottom of the comments stack
+            scrollIntoView({ alignment: 'end' });
+
+            return result;
+        },
+        [
+            mutateAsync,
+            projectUuid,
+            dashboardUuid,
+            dashboardTileUuid,
+            scrollIntoView,
+        ],
+    );
 
     const { data: notifications } = useGetNotifications(
         NotificationResourceType.DashboardComments,
@@ -99,6 +137,8 @@ export const DashboardTileComments: FC<
         return null;
     }
 
+    const hasComments = comments && comments.length === 0;
+
     return (
         <Popover
             withArrow
@@ -113,50 +153,46 @@ export const DashboardTileComments: FC<
                 onClose?.();
             }}
         >
-            <Popover.Dropdown miw={400}>
+            <Popover.Dropdown p={0} w={400}>
                 <Stack
+                    id="comments-stack"
+                    ref={scrollableRef}
+                    p="sm"
                     spacing="xs"
                     sx={{
-                        maxHeight: 300,
+                        maxHeight: COMMENTS_LIST_MAX_HEIGHT,
                         overflowY: 'auto',
                     }}
                 >
-                    {comments?.map((comment) => (
+                    {comments?.map((comment, index) => (
                         <DashboardCommentAndReplies
                             key={comment.commentId}
                             comment={comment}
                             projectUuid={projectUuid}
                             dashboardUuid={dashboardUuid}
                             dashboardTileUuid={dashboardTileUuid}
+                            targetRef={
+                                // Assign the target ref to the last comment
+                                index === comments.length - 1 ? targetRef : null
+                            }
                         />
                     ))}
-                    {!canCreateDashboardComments &&
-                        (!comments || comments.length === 0) && (
-                            <Text fz="xs">No comments yet</Text>
-                        )}
+                    {!canCreateDashboardComments && !hasComments && (
+                        <Text fz="xs">No comments yet</Text>
+                    )}
                 </Stack>
-                {canCreateDashboardComments && (
-                    <CommentForm
-                        userName={
-                            user.data?.firstName + ' ' + user.data?.lastName
-                        }
-                        onSubmit={(
-                            text: string,
-                            textHtml: string,
-                            mentions: string[],
-                        ) =>
-                            mutateAsync({
-                                projectUuid,
-                                dashboardUuid,
-                                dashboardTileUuid,
-                                text,
-                                textHtml,
-                                mentions,
-                            })
-                        }
-                        isSubmitting={isLoading}
-                    />
-                )}
+                {hasComments && <Divider />}
+                <Box p="sm" pt="xs">
+                    {canCreateDashboardComments && (
+                        <CommentForm
+                            userName={
+                                user.data?.firstName + ' ' + user.data?.lastName
+                            }
+                            onSubmit={handleOnSubmit}
+                            isSubmitting={isLoading}
+                        />
+                    )}
+                </Box>
             </Popover.Dropdown>
 
             <Popover.Target>
