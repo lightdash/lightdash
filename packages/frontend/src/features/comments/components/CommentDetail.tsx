@@ -41,7 +41,7 @@ export const CommentDetail: FC<Props> = ({
                         {getNameInitials(comment.user.name)}
                     </Avatar>
                 </Grid.Col>
-                <Grid.Col span={18} maw="inherit">
+                <Grid.Col span={18}>
                     <Group position="apart">
                         <Group spacing="xs">
                             <Text fz="xs" fw={600}>
