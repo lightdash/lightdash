@@ -68,7 +68,7 @@ describe('Global search', () => {
         search('Customers');
         cy.findByRole('dialog')
             .findByRole('menuitem', {
-                name: "Customers Table · This table has basic information about a customer, as well as some derived facts based on a customer's orders",
+                name: /^Customers Table · # Customers/,
             })
             .scrollIntoView()
             .click();
