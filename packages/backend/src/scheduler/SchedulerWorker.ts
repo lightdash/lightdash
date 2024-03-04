@@ -11,28 +11,11 @@ import {
     TaskList,
 } from 'graphile-worker';
 import moment from 'moment';
-import { schedulerClient } from '../clients/clients';
-import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
-import { schedulerService } from '../services/services';
 import { VERSION } from '../version';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
-import {
-    compileProject,
-    downloadCsv,
-    handleScheduledDelivery,
-    sendEmailNotification,
-    sendSlackNotification,
-    testAndCompileProject,
-    uploadGsheetFromQuery,
-    uploadGsheets,
-    validateProject,
-} from './SchedulerTask';
+import SchedulerTask from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
-
-type SchedulerWorkerArguments = {
-    lightdashConfig: LightdashConfig;
-};
 
 const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
 const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);
@@ -147,20 +130,14 @@ const workerLogger = new GraphileLogger((scope) => (_, message, meta) => {
     Logger.debug(message, { meta, scope });
 });
 
-export class SchedulerWorker {
-    lightdashConfig: LightdashConfig;
-
+export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
 
     isRunning: boolean = false;
 
-    constructor({ lightdashConfig }: SchedulerWorkerArguments) {
-        this.lightdashConfig = lightdashConfig;
-    }
-
     async run() {
         // Wait for graphile utils to finish migration and prevent race conditions
-        await schedulerClient.graphileUtils;
+        await this.schedulerClient.graphileUtils;
         // Run a worker to execute jobs:
         Logger.info('Running scheduler');
 
@@ -183,9 +160,9 @@ export class SchedulerWorker {
             taskList: traceTasks({
                 generateDailyJobs: async () => {
                     const schedulers =
-                        await schedulerService.getAllSchedulers();
+                        await this.schedulerService.getAllSchedulers();
                     const promises = schedulers.map(async (scheduler) => {
-                        await schedulerClient.generateDailyJobsForScheduler(
+                        await this.schedulerClient.generateDailyJobsForScheduler(
                             scheduler,
                         );
                     });
@@ -197,7 +174,7 @@ export class SchedulerWorker {
                     helpers: JobHelpers,
                 ) => {
                     await tryJobOrTimeout(
-                        handleScheduledDelivery(
+                        this.handleScheduledDelivery(
                             helpers.job.id,
                             helpers.job.run_at,
                             payload,
@@ -205,7 +182,7 @@ export class SchedulerWorker {
                         helpers.job,
                         this.lightdashConfig.scheduler.jobTimeout,
                         async (job, e) => {
-                            await schedulerService.logSchedulerJob({
+                            await this.schedulerService.logSchedulerJob({
                                 task: 'handleScheduledDelivery',
                                 schedulerUuid: payload.schedulerUuid,
                                 jobId: job.id,
@@ -222,11 +199,11 @@ export class SchedulerWorker {
                     helpers: JobHelpers,
                 ) => {
                     await tryJobOrTimeout(
-                        sendSlackNotification(helpers.job.id, payload),
+                        this.sendSlackNotification(helpers.job.id, payload),
                         helpers.job,
                         this.lightdashConfig.scheduler.jobTimeout,
                         async (job, e) => {
-                            await schedulerService.logSchedulerJob({
+                            await this.schedulerService.logSchedulerJob({
                                 task: 'sendSlackNotification',
                                 schedulerUuid: payload.schedulerUuid,
                                 jobId: job.id,
@@ -244,11 +221,11 @@ export class SchedulerWorker {
                     helpers: JobHelpers,
                 ) => {
                     await tryJobOrTimeout(
-                        sendEmailNotification(helpers.job.id, payload),
+                        this.sendEmailNotification(helpers.job.id, payload),
                         helpers.job,
                         this.lightdashConfig.scheduler.jobTimeout,
                         async (job, e) => {
-                            await schedulerService.logSchedulerJob({
+                            await this.schedulerService.logSchedulerJob({
                                 task: 'sendEmailNotification',
                                 schedulerUuid: payload.schedulerUuid,
                                 jobId: job.id,
@@ -263,11 +240,11 @@ export class SchedulerWorker {
                 },
                 uploadGsheets: async (payload: any, helpers: JobHelpers) => {
                     await tryJobOrTimeout(
-                        uploadGsheets(helpers.job.id, payload),
+                        this.uploadGsheets(helpers.job.id, payload),
                         helpers.job,
                         this.lightdashConfig.scheduler.jobTimeout,
                         async (job, e) => {
-                            await schedulerService.logSchedulerJob({
+                            await this.schedulerService.logSchedulerJob({
                                 task: 'uploadGsheets',
                                 schedulerUuid: payload.schedulerUuid,
                                 jobId: job.id,
@@ -282,7 +259,7 @@ export class SchedulerWorker {
                 },
                 downloadCsv: async (payload: any, helpers: JobHelpers) => {
                     await tryJobOrTimeout(
-                        downloadCsv(
+                        this.downloadCsv(
                             helpers.job.id,
                             helpers.job.run_at,
                             payload,
@@ -290,7 +267,7 @@ export class SchedulerWorker {
                         helpers.job,
                         this.lightdashConfig.scheduler.jobTimeout,
                         async (job, e) => {
-                            await schedulerService.logSchedulerJob({
+                            await this.schedulerService.logSchedulerJob({
                                 task: 'downloadCsv',
                                 jobId: job.id,
                                 scheduledTime: job.run_at,
@@ -308,7 +285,7 @@ export class SchedulerWorker {
                     helpers: JobHelpers,
                 ) => {
                     await tryJobOrTimeout(
-                        uploadGsheetFromQuery(
+                        this.uploadGsheetFromQuery(
                             helpers.job.id,
                             helpers.job.run_at,
                             payload,
@@ -316,7 +293,7 @@ export class SchedulerWorker {
                         helpers.job,
                         this.lightdashConfig.scheduler.jobTimeout,
                         async (job, e) => {
-                            await schedulerService.logSchedulerJob({
+                            await this.schedulerService.logSchedulerJob({
                                 task: 'uploadGsheetFromQuery',
                                 jobId: job.id,
                                 scheduledTime: job.run_at,
@@ -330,7 +307,7 @@ export class SchedulerWorker {
                     );
                 },
                 compileProject: async (payload: any, helpers: JobHelpers) => {
-                    await compileProject(
+                    await this.compileProject(
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -340,14 +317,14 @@ export class SchedulerWorker {
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    await testAndCompileProject(
+                    await this.testAndCompileProject(
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
                     );
                 },
                 validateProject: async (payload: any, helpers: JobHelpers) => {
-                    await validateProject(
+                    await this.validateProject(
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,

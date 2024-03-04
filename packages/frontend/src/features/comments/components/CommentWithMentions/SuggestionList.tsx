@@ -61,19 +61,35 @@ export const SuggestionList = forwardRef<
     }));
 
     return props.items.length > 0 ? (
-        <Card shadow="xs" p="xs">
-            <List withPadding={false} listStyleType="none">
+        <Card shadow="xs" p={0}>
+            <List
+                withPadding={false}
+                listStyleType="none"
+                mah={120}
+                styles={(theme) => ({
+                    root: {
+                        overflowY: 'auto',
+                    },
+                    itemWrapper: {
+                        width: '100%',
+                        '&:hover': {
+                            backgroundColor: theme.colors.blue['1'],
+                        },
+                    },
+                })}
+            >
                 {props.items.map((item, index) => (
                     <List.Item key={index} fz="xs">
                         <UnstyledButton
-                            fz="sm"
-                            p="two"
-                            c={index === selectedIndex ? 'blue.6' : 'inherit'}
-                            variant="default"
-                            ta="left"
                             onClick={() => {
                                 selectItem(index);
                             }}
+                            variant="default"
+                            c={index === selectedIndex ? 'blue.6' : 'inherit'}
+                            fz="xs"
+                            w="100%"
+                            p="two"
+                            ta="left"
                             sx={{
                                 border: 'none',
                                 alignSelf: 'flex-start',

@@ -14,6 +14,9 @@ export const CommentTimestamp: FC<Props> = ({ timestamp }) => {
     return (
         <Tooltip
             position="top-start"
+            fz="10px"
+            // Render tooltip closer to the text
+            offset={-2}
             label={moment(timestamp).format('YYYY-MM-DD HH:mm:ss')}
         >
             <Text fz="xs" color="gray.5">

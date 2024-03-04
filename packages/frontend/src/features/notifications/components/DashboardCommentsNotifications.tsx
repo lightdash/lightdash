@@ -6,6 +6,8 @@ import { FC, useCallback } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { useUpdateNotification } from '../hooks/useNotifications';
 
 type Props = {
@@ -37,6 +39,7 @@ export const DashboardCommentsNotifications: FC<Props> = ({
     projectUuid,
     notifications,
 }) => {
+    const { track } = useTracking();
     const theme = useMantineTheme();
     const history = useHistory();
     const { mutateAsync: updateNotification } = useUpdateNotification();
@@ -51,9 +54,18 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                 },
             });
 
+            track({
+                name: EventName.NOTIFICATIONS_COMMENTS_ITEM_CLICKED,
+                properties: {
+                    hasMention: true, // TODO: At the moment, comments' notifications are always mentions
+                    dashboardUuid: notification.metadata?.dashboardUuid,
+                    dashboardTileUuid: notification.metadata?.dashboardTileUuid,
+                },
+            });
+
             history.push(`/projects/${projectUuid}${notification.url}`);
         },
-        [history, projectUuid, updateNotification],
+        [history, projectUuid, track, updateNotification],
     );
 
     return (

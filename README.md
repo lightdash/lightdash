@@ -12,7 +12,7 @@
     <a href="http://www.lightdash.com"><b>Website</b></a> •
     <a href="https://www.loom.com/share/c0805a236a994de397ac5142fdfe4b7f"><b>Watch demo</b></a> •
     <a href="http://docs.lightdash.com/"><b>Docs</b></a> •
-    <a href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"><b>Join Slack Community</b></a>
+    <a href="https://join.slack.com/t/lightdash-community/shared_invite/zt-1nvwh36o0-gd3jOUx6DuVLNNeng1pPcw"><b>Join Slack Community</b></a>
 </p>
 <div align="center">
 <img src="https://img.shields.io/github/license/lightdash/lightdash" />
@@ -107,7 +107,7 @@ Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-s
 
 ## Community Support
 
-📣 If you want something a bit more, then [head on over to our Slack Community](https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A) where you’ll be able to chat directly with all of us at Lightdash and all the other amazing members of our community. We’re happy to talk about anything from feature requests, implementation details or dbt quirks to memes and SQL jokes!
+📣 If you want something a bit more, then [head on over to our Slack Community](https://join.slack.com/t/lightdash-community/shared_invite/zt-1nvwh36o0-gd3jOUx6DuVLNNeng1pPcw) where you’ll be able to chat directly with all of us at Lightdash and all the other amazing members of our community. We’re happy to talk about anything from feature requests, implementation details or dbt quirks to memes and SQL jokes!
 
 You can also keep up to date with Lightdash by following us here:
 
@@ -360,10 +360,11 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://ulisesgascon.com/"><img src="https://avatars.githubusercontent.com/u/5110813?v=4?s=100" width="100px;" alt="Ulises Gascón"/><br /><sub><b>Ulises Gascón</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=UlisesGascon" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/GtheSheep"><img src="https://avatars.githubusercontent.com/u/13685708?v=4?s=100" width="100px;" alt="Gary James"/><br /><sub><b>Gary James</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=GtheSheep" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/almeidabbm"><img src="https://avatars.githubusercontent.com/u/22939015?v=4?s=100" width="100px;" alt="Bruno Almeida"/><br /><sub><b>Bruno Almeida</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=almeidabbm" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/filp"><img src="https://avatars.githubusercontent.com/u/382538?v=4?s=100" width="100px;" alt="Filipe Dobreira"/><br /><sub><b>Filipe Dobreira</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=filp" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/filp"><img src="https://avatars.githubusercontent.com/u/382538?v=4?s=100" width="100px;" alt="Filipe Dobreira"/><br /><sub><b>Filipe Dobreira</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=filp" title="Documentation">📖</a> <a href="https://github.com/lightdash/lightdash/commits?author=filp" title="Code">💻</a></td>
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/joemiltonm"><img src="https://avatars.githubusercontent.com/u/64725924?v=4?s=100" width="100px;" alt="Joe Milton"/><br /><sub><b>Joe Milton</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=joemiltonm" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://lassu.dev"><img src="https://avatars.githubusercontent.com/u/30611343?v=4?s=100" width="100px;" alt="Andras Lassu"/><br /><sub><b>Andras Lassu</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=la55u" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

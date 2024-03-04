@@ -29,7 +29,6 @@ import {
     IconGripVertical,
 } from '@tabler/icons-react';
 import { FC, forwardRef, useCallback } from 'react';
-import { useChartColorConfig } from '../../../hooks/useChartColorConfig';
 import MantineIcon from '../../common/MantineIcon';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
@@ -250,7 +249,6 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
 const PieChartSeriesConfig: FC = () => {
     const { visualizationConfig, colorPalette, getGroupColor } =
         useVisualizationContext();
-    const { useSharedColors } = useChartColorConfig({ colorPalette });
 
     const isPieChartConfig = isPieVisualizationConfig(visualizationConfig);
 
@@ -369,17 +367,10 @@ const PieChartSeriesConfig: FC = () => {
                                                 }
                                                 defaultLabel={groupLabel}
                                                 color={
-                                                    // Temporary until shared colors flag is removed - allows
-                                                    // falling back into the previous behavior:
                                                     groupColorOverrides[
                                                         groupLabel
                                                     ] ??
-                                                    (useSharedColors
-                                                        ? getGroupColor(
-                                                              groupLabel,
-                                                          )
-                                                        : // Will fall back to defaults:
-                                                          undefined)
+                                                    getGroupColor(groupLabel)
                                                 }
                                                 label={
                                                     groupLabelOverrides[
