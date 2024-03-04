@@ -1,3 +1,12 @@
+## [0.1024.3](https://github.com/lightdash/lightdash/compare/0.1024.2...0.1024.3) (2024-03-04)
+
+
+### Bug Fixes
+
+* save chart modal ([#9208](https://github.com/lightdash/lightdash/issues/9208)) ([8957d38](https://github.com/lightdash/lightdash/commit/8957d38e9b0a6ff0de43091449004ec5321ecdce))
+* scheduler dependency injection ([#9195](https://github.com/lightdash/lightdash/issues/9195)) ([02a6c14](https://github.com/lightdash/lightdash/commit/02a6c14e18493a8deeffcc6a48fe78eb669b2caa))
+* wraps components with provider rather than condition ([#9217](https://github.com/lightdash/lightdash/issues/9217)) ([0a91d48](https://github.com/lightdash/lightdash/commit/0a91d48c95d3101c98dbdca1123106e1a0c5cf63))
+
 ## [0.1024.2](https://github.com/lightdash/lightdash/compare/0.1024.1...0.1024.2) (2024-03-04)
 
 
