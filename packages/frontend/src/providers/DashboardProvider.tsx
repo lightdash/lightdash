@@ -104,6 +104,7 @@ type DashboardContext = {
     >;
     dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
+    hasTileComments: (tileUuid: string) => boolean;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -158,6 +159,15 @@ export const DashboardProvider: React.FC<
         !!dashboardCommentsCheck &&
             !!dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
             !!dashboardCommentsCheck.canViewDashboardComments,
+    );
+    const hasTileComments = useCallback(
+        (tileUuid: string) =>
+            !!(
+                dashboardComments &&
+                dashboardComments[tileUuid] &&
+                dashboardComments[tileUuid].length > 0
+            ),
+        [dashboardComments],
     );
 
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
@@ -599,6 +609,7 @@ export const DashboardProvider: React.FC<
         setChartsWithDateZoomApplied,
         dashboardCommentsCheck,
         dashboardComments,
+        hasTileComments,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

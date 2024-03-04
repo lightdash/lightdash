@@ -66,7 +66,6 @@ export const TitleWrapper = styled.div<TileTitleProps>`
                       }
                   `
                 : ''}
-        }
     }
 `;
 
