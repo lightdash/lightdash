@@ -21,7 +21,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { projectService, savedChartsService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -57,7 +56,7 @@ export class SavedChartController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.runViewChartQuery({
+            results: await this.services.getProjectService().runViewChartQuery({
                 user: req.user!,
                 chartUuid,
                 versionUuid: undefined,
@@ -85,15 +84,17 @@ export class SavedChartController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.getChartAndResults({
-                user: req.user!,
-                chartUuid,
-                dashboardFilters: body.dashboardFilters,
-                invalidateCache: body.invalidateCache,
-                dashboardSorts: body.dashboardSorts,
-                granularity: body.granularity,
-                dashboardUuid: body.dashboardUuid,
-            }),
+            results: await this.services
+                .getProjectService()
+                .getChartAndResults({
+                    user: req.user!,
+                    chartUuid,
+                    dashboardFilters: body.dashboardFilters,
+                    invalidateCache: body.invalidateCache,
+                    dashboardSorts: body.dashboardSorts,
+                    granularity: body.granularity,
+                    dashboardUuid: body.dashboardUuid,
+                }),
         };
     }
 
@@ -113,7 +114,9 @@ export class SavedChartController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await savedChartsService.getHistory(req.user!, chartUuid),
+            results: await this.services
+                .getSavedChartService()
+                .getHistory(req.user!, chartUuid),
         };
     }
 
@@ -135,11 +138,9 @@ export class SavedChartController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await savedChartsService.getVersion(
-                req.user!,
-                chartUuid,
-                versionUuid,
-            ),
+            results: await this.services
+                .getSavedChartService()
+                .getVersion(req.user!, chartUuid, versionUuid),
         };
     }
 
@@ -161,7 +162,7 @@ export class SavedChartController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.runViewChartQuery({
+            results: await this.services.getProjectService().runViewChartQuery({
                 user: req.user!,
                 chartUuid,
                 versionUuid,
@@ -189,7 +190,9 @@ export class SavedChartController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await savedChartsService.rollback(req.user!, chartUuid, versionUuid);
+        await this.services
+            .getSavedChartService()
+            .rollback(req.user!, chartUuid, versionUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -215,12 +218,14 @@ export class SavedChartController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
-        const totalResult = await projectService.calculateTotalFromSavedChart(
-            req.user!,
-            chartUuid,
-            body.dashboardFilters,
-            body.invalidateCache,
-        );
+        const totalResult = await this.services
+            .getProjectService()
+            .calculateTotalFromSavedChart(
+                req.user!,
+                chartUuid,
+                body.dashboardFilters,
+                body.invalidateCache,
+            );
         return {
             status: 'ok',
             results: totalResult,

@@ -17,7 +17,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { shareService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -40,7 +39,9 @@ export class ShareController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await shareService.getShareUrl(req.user!, nanoId),
+            results: await this.services
+                .getShareService()
+                .getShareUrl(req.user!, nanoId),
         };
     }
 
@@ -57,11 +58,9 @@ export class ShareController extends BaseController {
         @Body() body: CreateShareUrl,
         @Request() req: express.Request,
     ): Promise<ApiShareResponse> {
-        const shareUrl = await shareService.createShareUrl(
-            req.user!,
-            body.path,
-            body.params,
-        );
+        const shareUrl = await this.services
+            .getShareService()
+            .createShareUrl(req.user!, body.path, body.params);
         this.setStatus(201);
         return {
             status: 'ok',

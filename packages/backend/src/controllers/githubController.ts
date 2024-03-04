@@ -13,7 +13,6 @@ import {
 import express from 'express';
 import { getGithubApp, getOctokitRestForApp } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
-import { githubAppService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 
@@ -116,12 +115,14 @@ export class GithubInstallController extends BaseController {
             if (installation === undefined)
                 throw new Error('Invalid installation id');
 
-            await githubAppService.upsertInstallation(
-                state,
-                installation_id,
-                token,
-                refreshToken,
-            );
+            await this.services
+                .getGithubAppService()
+                .upsertInstallation(
+                    state,
+                    installation_id,
+                    token,
+                    refreshToken,
+                );
             const redirectUrl = new URL(req.session.oauth?.returnTo || '/');
             req.session.oauth = {};
             this.setStatus(302);
@@ -135,7 +136,9 @@ export class GithubInstallController extends BaseController {
     async uninstallGithubAppForOrganization(
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        await githubAppService.deleteAppInstallation(req.user!);
+        await this.services
+            .getGithubAppService()
+            .deleteAppInstallation(req.user!);
         // todo: uninstall app with octokit
         this.setStatus(200);
         return {
@@ -155,9 +158,9 @@ export class GithubInstallController extends BaseController {
         this.setStatus(200);
 
         // todo: move all to service
-        const installationId = await githubAppService.getInstallationId(
-            req.user!,
-        );
+        const installationId = await this.services
+            .getGithubAppService()
+            .getInstallationId(req.user!);
 
         if (installationId === undefined)
             throw new Error('Invalid Github installation id');

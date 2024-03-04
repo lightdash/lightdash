@@ -22,7 +22,6 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { CsvService } from '../services/CsvService/CsvService';
-import { projectService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -48,7 +47,9 @@ export class ExploreController extends BaseController {
         @Body() body: any[], // tsoa doesn't seem to work with explores from CLI
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await projectService.setExplores(req.user!, projectUuid, body);
+        await this.services
+            .getProjectService()
+            .setExplores(req.user!, projectUuid, body);
 
         return {
             status: 'ok',
@@ -65,8 +66,9 @@ export class ExploreController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiExploresResults }> {
         this.setStatus(200);
-        const results: ApiExploresResults =
-            await projectService.getAllExploresSummary(
+        const results: ApiExploresResults = await this.services
+            .getProjectService()
+            .getAllExploresSummary(
                 req.user!,
                 projectUuid,
                 req.query.filtered === 'true',
@@ -89,11 +91,9 @@ export class ExploreController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiExploreResults }> {
         this.setStatus(200);
-        const results = await projectService.getExplore(
-            req.user!,
-            projectUuid,
-            exploreId,
-        );
+        const results = await this.services
+            .getProjectService()
+            .getExplore(req.user!, projectUuid, exploreId);
 
         return {
             status: 'ok',
@@ -114,12 +114,9 @@ export class ExploreController extends BaseController {
         this.setStatus(200);
 
         const results = (
-            await projectService.compileQuery(
-                req.user!,
-                body,
-                projectUuid,
-                exploreId,
-            )
+            await this.services
+                .getProjectService()
+                .compileQuery(req.user!, body, projectUuid, exploreId)
         ).query;
 
         return {

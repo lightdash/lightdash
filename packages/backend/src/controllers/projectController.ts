@@ -32,7 +32,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { projectService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -58,7 +57,9 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.getProject(projectUuid, req.user!),
+            results: await this.services
+                .getProjectService()
+                .getProject(projectUuid, req.user!),
         };
     }
 
@@ -78,7 +79,9 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.getCharts(req.user!, projectUuid),
+            results: await this.services
+                .getProjectService()
+                .getCharts(req.user!, projectUuid),
         };
     }
 
@@ -98,7 +101,9 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.getSpaces(req.user!, projectUuid),
+            results: await this.services
+                .getProjectService()
+                .getSpaces(req.user!, projectUuid),
         };
     }
 
@@ -116,10 +121,9 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiProjectAccessListResponse> {
         this.setStatus(200);
-        const results = await projectService.getProjectAccess(
-            req.user!,
-            projectUuid,
-        );
+        const results = await this.services
+            .getProjectService()
+            .getProjectAccess(req.user!, projectUuid);
         return {
             status: 'ok',
             results,
@@ -144,11 +148,9 @@ export class ProjectController extends BaseController {
         @Path() userUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetProjectMemberResponse> {
-        const results = await projectService.getProjectMemberAccess(
-            req.user!,
-            projectUuid,
-            userUuid,
-        );
+        const results = await this.services
+            .getProjectService()
+            .getProjectMemberAccess(req.user!, projectUuid, userUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -174,7 +176,9 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await projectService.createProjectAccess(req.user!, projectUuid, body);
+        await this.services
+            .getProjectService()
+            .createProjectAccess(req.user!, projectUuid, body);
         return {
             status: 'ok',
             results: undefined,
@@ -200,12 +204,9 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await projectService.updateProjectAccess(
-            req.user!,
-            projectUuid,
-            userUuid,
-            body,
-        );
+        await this.services
+            .getProjectService()
+            .updateProjectAccess(req.user!, projectUuid, userUuid, body);
         return {
             status: 'ok',
             results: undefined,
@@ -230,11 +231,9 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await projectService.deleteProjectAccess(
-            req.user!,
-            projectUuid,
-            userUuid,
-        );
+        await this.services
+            .getProjectService()
+            .deleteProjectAccess(req.user!, projectUuid, userUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -253,10 +252,9 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiGetProjectGroupAccesses> {
         this.setStatus(200);
-        const results = await projectService.getProjectGroupAccesses(
-            req.user!,
-            projectUuid,
-        );
+        const results = await this.services
+            .getProjectService()
+            .getProjectGroupAccesses(req.user!, projectUuid);
         return {
             status: 'ok',
             results,
@@ -286,11 +284,9 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.runSqlQuery(
-                req.user!,
-                projectUuid,
-                body.sql,
-            ),
+            results: await this.services
+                .getProjectService()
+                .runSqlQuery(req.user!, projectUuid, body.sql),
         };
     }
 
@@ -310,11 +306,9 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
-        const totalResult = await projectService.calculateTotalFromQuery(
-            req.user!,
-            projectUuid,
-            body,
-        );
+        const totalResult = await this.services
+            .getProjectService()
+            .calculateTotalFromQuery(req.user!, projectUuid, body);
         return {
             status: 'ok',
             results: totalResult,
@@ -331,10 +325,9 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: Record<string, DbtExposure> }> {
         this.setStatus(200);
-        const exposures = await projectService.getDbtExposures(
-            req.user!,
-            projectUuid,
-        );
+        const exposures = await this.services
+            .getProjectService()
+            .getDbtExposures(req.user!, projectUuid);
         return {
             status: 'ok',
             results: exposures,
@@ -355,10 +348,9 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.getProjectCredentialsPreference(
-                req.user!,
-                projectUuid,
-            ),
+            results: await this.services
+                .getProjectService()
+                .getProjectCredentialsPreference(req.user!, projectUuid),
         };
     }
 
@@ -372,11 +364,13 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await projectService.upsertProjectCredentialsPreference(
-            req.user!,
-            projectUuid,
-            userWarehouseCredentialsUuid,
-        );
+        await this.services
+            .getProjectService()
+            .upsertProjectCredentialsPreference(
+                req.user!,
+                projectUuid,
+                userWarehouseCredentialsUuid,
+            );
         return {
             status: 'ok',
             results: undefined,
@@ -404,10 +398,9 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.getCustomMetrics(
-                req.user!,
-                projectUuid,
-            ),
+            results: await this.services
+                .getProjectService()
+                .getCustomMetrics(req.user!, projectUuid),
         };
     }
 }

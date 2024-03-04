@@ -23,7 +23,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { schedulerService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -51,10 +50,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await schedulerService.getSchedulerLogs(
-                req.user!,
-                projectUuid,
-            ),
+            results: await this.services
+                .getSchedulerService()
+                .getSchedulerLogs(req.user!, projectUuid),
         };
     }
 
@@ -74,10 +72,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await schedulerService.getScheduler(
-                req.user!,
-                schedulerUuid,
-            ),
+            results: await this.services
+                .getSchedulerService()
+                .getScheduler(req.user!, schedulerUuid),
         };
     }
 
@@ -103,11 +100,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await schedulerService.updateScheduler(
-                req.user!,
-                schedulerUuid,
-                body,
-            ),
+            results: await this.services
+                .getSchedulerService()
+                .updateScheduler(req.user!, schedulerUuid, body),
         };
     }
 
@@ -133,11 +128,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await schedulerService.setSchedulerEnabled(
-                req.user!,
-                schedulerUuid,
-                body.enabled,
-            ),
+            results: await this.services
+                .getSchedulerService()
+                .setSchedulerEnabled(req.user!, schedulerUuid, body.enabled),
         };
     }
 
@@ -162,7 +155,9 @@ export class SchedulerController extends BaseController {
         results: undefined;
     }> {
         this.setStatus(200);
-        await schedulerService.deleteScheduler(req.user!, schedulerUuid);
+        await this.services
+            .getSchedulerService()
+            .deleteScheduler(req.user!, schedulerUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -185,10 +180,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await schedulerService.getScheduledJobs(
-                req.user!,
-                schedulerUuid,
-            ),
+            results: await this.services
+                .getSchedulerService()
+                .getScheduledJobs(req.user!, schedulerUuid),
         };
     }
 
@@ -207,7 +201,9 @@ export class SchedulerController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiJobStatusResponse> {
         this.setStatus(200);
-        const { status, details } = await schedulerService.getJobStatus(jobId);
+        const { status, details } = await this.services
+            .getSchedulerService()
+            .getJobStatus(jobId);
         return {
             status: 'ok',
             results: {
@@ -239,8 +235,11 @@ export class SchedulerController extends BaseController {
         return {
             status: 'ok',
             results: {
-                jobId: (await schedulerService.sendScheduler(req.user!, body))
-                    .jobId,
+                jobId: (
+                    await this.services
+                        .getSchedulerService()
+                        .sendScheduler(req.user!, body)
+                ).jobId,
             },
         };
     }
