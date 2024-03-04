@@ -41,10 +41,16 @@ export const CommentForm: FC<Props> = ({
     const { data: listUsers, isSuccess } = useOrganizationUsers();
     let userNames: SuggestionsItem[] = useMemo(
         () =>
-            listUsers?.map((user) => ({
-                label: user.firstName + ' ' + user.lastName,
-                id: user.userUuid,
-            })) || [],
+            listUsers?.reduce<{ label: string; id: string }[]>((acc, user) => {
+                if (!user.isActive) return acc;
+                return [
+                    ...acc,
+                    {
+                        label: `${user.firstName} ${user.lastName}`,
+                        id: user.userUuid,
+                    },
+                ];
+            }, []) || [],
 
         [listUsers],
     );
