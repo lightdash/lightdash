@@ -1,3 +1,10 @@
+## [0.1024.1](https://github.com/lightdash/lightdash/compare/0.1024.0...0.1024.1) (2024-03-04)
+
+
+### Bug Fixes
+
+* always show toast on version update ([#9189](https://github.com/lightdash/lightdash/issues/9189)) ([bc73458](https://github.com/lightdash/lightdash/commit/bc734586551ac8f80c6b4482552e45a198daedfe))
+
 # [0.1024.0](https://github.com/lightdash/lightdash/compare/0.1023.0...0.1024.0) (2024-03-04)
 
 
