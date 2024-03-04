@@ -137,7 +137,7 @@ export const DashboardTileComments: FC<
         return null;
     }
 
-    const hasComments = comments && comments.length === 0;
+    const hasComments = comments && comments.length > 0;
 
     return (
         <Popover
@@ -153,7 +153,7 @@ export const DashboardTileComments: FC<
                 onClose?.();
             }}
         >
-            <Popover.Dropdown p={0} w={400}>
+            <Popover.Dropdown p={0} w={400} maw={400}>
                 <Stack
                     id="comments-stack"
                     ref={scrollableRef}
