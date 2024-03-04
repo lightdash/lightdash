@@ -128,7 +128,7 @@ module.exports = {
                 },
                 {
                     label: 'Company',
-                    href: 'https://www.lightdash.com/company',
+                    href: 'https://www.lightdash.com/about',
                 },
                 {
                     label: 'Careers',
