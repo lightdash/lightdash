@@ -5,6 +5,7 @@ import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
+import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
 const LoadingSkeleton = () => (
     <Stack>
         <Skeleton h="md" />
@@ -92,15 +93,17 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 ]}
             />
 
-            <ExploreTree
-                explore={data}
-                additionalMetrics={additionalMetrics || []}
-                selectedNodes={activeFields}
-                onSelectedFieldChange={toggleActiveField}
-                customDimensions={customDimensions}
-                selectedDimensions={dimensions}
-                missingFields={missingFields}
-            />
+            <ItemDetailProvider>
+                <ExploreTree
+                    explore={data}
+                    additionalMetrics={additionalMetrics || []}
+                    selectedNodes={activeFields}
+                    onSelectedFieldChange={toggleActiveField}
+                    customDimensions={customDimensions}
+                    selectedDimensions={dimensions}
+                    missingFields={missingFields}
+                />
+            </ItemDetailProvider>
         </>
     );
 });
