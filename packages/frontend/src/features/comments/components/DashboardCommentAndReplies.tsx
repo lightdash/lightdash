@@ -32,10 +32,6 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     const [isReplyingTo, setIsReplyingTo] = useState<string | undefined>(
         undefined,
     );
-    const canReply = !!(
-        canCreateDashboardComments &&
-        (isReplyingTo || isRepliesOpen)
-    );
 
     const { mutateAsync: createReply, isLoading: isCreatingReply } =
         useCreateComment();
@@ -64,7 +60,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
         <Stack spacing="two" ref={targetRef}>
             <CommentDetail
                 comment={comment}
-                canReply={canReply}
+                canReply={canCreateDashboardComments}
                 onReply={() => handleReply()}
                 // can remove any comment or the comment is created by the current user
                 canRemove={comment.canRemove}
