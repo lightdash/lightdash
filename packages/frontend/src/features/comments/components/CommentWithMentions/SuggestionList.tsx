@@ -71,24 +71,21 @@ export const SuggestionList = forwardRef<
                 <Menu.Label p={0} pb="two">
                     Users
                 </Menu.Label>
-                {props.items
-                    .concat(props.items)
-                    .concat(props.items)
-                    .map((item, index) => (
-                        <Menu.Item
-                            key={index}
-                            fz="xs"
-                            p="two"
-                            ta="left"
-                            onClick={() => selectItem(index)}
-                            sx={{
-                                border: 'none',
-                                alignSelf: 'flex-start',
-                            }}
-                        >
-                            {item.label}
-                        </Menu.Item>
-                    ))}
+                {props.items.map((item, index) => (
+                    <Menu.Item
+                        key={index}
+                        fz="xs"
+                        p="two"
+                        ta="left"
+                        onClick={() => selectItem(index)}
+                        sx={{
+                            border: 'none',
+                            alignSelf: 'flex-start',
+                        }}
+                    >
+                        {item.label}
+                    </Menu.Item>
+                ))}
             </Menu.Dropdown>
         </Menu>
     );
