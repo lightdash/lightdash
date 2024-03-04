@@ -1,3 +1,10 @@
+## [0.1024.2](https://github.com/lightdash/lightdash/compare/0.1024.1...0.1024.2) (2024-03-04)
+
+
+### Bug Fixes
+
+* viewers cant reply to dashboard comments ([#9196](https://github.com/lightdash/lightdash/issues/9196)) ([45f4da7](https://github.com/lightdash/lightdash/commit/45f4da7f6cd45b79344b6617cd2169e6bfb07657))
+
 ## [0.1024.1](https://github.com/lightdash/lightdash/compare/0.1024.0...0.1024.1) (2024-03-04)
 
 
