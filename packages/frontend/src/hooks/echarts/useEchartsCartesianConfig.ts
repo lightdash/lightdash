@@ -1638,7 +1638,7 @@ const useEchartsCartesianConfig = (
                     validCartesianConfig?.eChartsConfig.grid,
                 ),
             },
-            // If using shared chart colors, we don't specify unknown colors at the top level,
+            // If using shared chart colors, we don't specify any colors at the top level,
             // and instead assign them per-series.
             color: useSharedColors ? [] : colors,
         }),
