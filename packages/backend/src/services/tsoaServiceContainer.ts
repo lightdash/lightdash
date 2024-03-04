@@ -1,6 +1,7 @@
 import { Controller, type IocContainerFactory } from '@tsoa/runtime';
-import { BaseController } from '../controllers/baseController';
-import { ServiceRepository } from './ServiceRepository';
+import type { BaseController } from '../controllers/baseController';
+import type { ServiceRepository } from './ServiceRepository';
+import { serviceRepository } from './services';
 
 /**
  * For now, we allow both classes extending tsoa's Controller directly, as well as those
@@ -8,7 +9,7 @@ import { ServiceRepository } from './ServiceRepository';
  */
 type TsoaControllerKlass = new () => Controller;
 type BaseControllerKlass = new (
-    serviceRepository: ServiceRepository,
+    repository: ServiceRepository,
 ) => BaseController;
 type RouteControllerKlass = TsoaControllerKlass | BaseControllerKlass;
 
@@ -32,6 +33,6 @@ export const iocContainer: IocContainerFactory = () => ({
             return new Ctor();
         }
 
-        return new Ctor(new ServiceRepository());
+        return new Ctor(serviceRepository);
     },
 });

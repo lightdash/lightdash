@@ -6,7 +6,7 @@ import type { ServiceRepository } from '../services/ServiceRepository';
  */
 export class BaseController extends Controller {
     // TODO: This is currently just a placeholder layer over Controller.
-    constructor(protected readonly serviceRepository: ServiceRepository) {
+    constructor(protected readonly services: ServiceRepository) {
         super();
     }
 }
