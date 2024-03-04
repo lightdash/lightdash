@@ -1,3 +1,10 @@
+## [0.1024.5](https://github.com/lightdash/lightdash/compare/0.1024.4...0.1024.5) (2024-03-04)
+
+
+### Bug Fixes
+
+* hide unregistered users ([#9223](https://github.com/lightdash/lightdash/issues/9223)) ([7e9578f](https://github.com/lightdash/lightdash/commit/7e9578f90fb01d281b64cdb12996f3e368557c42))
+
 ## [0.1024.4](https://github.com/lightdash/lightdash/compare/0.1024.3...0.1024.4) (2024-03-04)
 
 
