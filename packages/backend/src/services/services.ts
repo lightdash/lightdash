@@ -262,6 +262,7 @@ export const gitIntegrationService = new GitIntegrationService({
     lightdashConfig,
     savedChartModel,
     projectModel,
+    spaceModel,
     githubAppInstallationsModel,
 });
 

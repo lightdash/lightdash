@@ -135,6 +135,8 @@ export const chart: SavedChart = {
     dashboardUuid: dashboard.uuid,
     dashboardName: dashboard.name,
     colorPalette: [],
+    isPrivate: false,
+    access: [],
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [

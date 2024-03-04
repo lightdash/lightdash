@@ -17,11 +17,9 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
-    SpaceSummary,
     UpdateDashboard,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -38,7 +36,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
 type DashboardServiceArguments = {
     analytics: LightdashAnalytics;
@@ -140,7 +138,6 @@ export class DashboardService {
             projectUuid,
             chartUuid,
         );
-
         const spaceUuids = [
             ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
         ];
@@ -149,18 +146,38 @@ export class DashboardService {
                 this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
+        const dashboardAccesses = await Promise.all(
+            dashboards.map(async (dashboard) => {
+                const spaceAccess = await this.spaceModel.getSpaceAccess(
+                    dashboard.spaceUuid,
+                );
+                return {
+                    uuid: dashboard.uuid,
+                    access: spaceAccess,
+                };
+            }),
+        );
         return dashboards.filter((dashboard) => {
-            const hasAbility = user.ability.can(
-                'view',
-                subject('Dashboard', dashboard),
-            );
             const dashboardSpace = spaces.find(
                 (space) => space.uuid === dashboard.spaceUuid,
             );
+            const spaceAccess = dashboardAccesses.find(
+                (access) => access.uuid === dashboard.uuid,
+            );
+            const hasAbility = user.ability.can(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    isPrivate: dashboardSpace?.isPrivate,
+                    access: spaceAccess,
+                }),
+            );
             return (
-                hasAbility &&
                 dashboardSpace &&
-                hasSpaceAccess(user, dashboardSpace, includePrivate)
+                (includePrivate
+                    ? hasAbility
+                    : hasAbility &&
+                      hasDirectAccessToSpace(user, dashboardSpace))
             );
         });
     }
@@ -598,7 +615,7 @@ export class DashboardService {
             throw new ForbiddenError();
         }
 
-        analytics.track({
+        this.analytics.track({
             event: 'dashboard.updated_multiple',
             userId: user.userUuid,
             properties: {

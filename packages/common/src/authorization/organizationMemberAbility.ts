@@ -113,6 +113,10 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
             isPrivate: false,
         });
+        // should not check space access when creating a space
+        can('create', 'Space', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,

@@ -3,6 +3,7 @@ import {
     Comment,
     ForbiddenError,
     SessionUser,
+    SpaceShare,
     SpaceSummary,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -12,7 +13,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type CommentServiceArguments = {
     analytics: LightdashAnalytics;
@@ -57,16 +58,18 @@ export class CommentService {
         spaceUuid: string,
     ): Promise<boolean> {
         let space: SpaceSummary;
+        let spaceAccess: SpaceShare[];
 
         try {
             space = await this.spaceModel.getSpaceSummary(spaceUuid);
+            spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
         } catch (e) {
             Sentry.captureException(e);
             console.error(e);
             return false;
         }
 
-        return hasSpaceAccess(user, space);
+        return hasViewAccessToSpace(user, space, spaceAccess);
     }
 
     async createComment(

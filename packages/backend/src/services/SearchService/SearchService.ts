@@ -17,7 +17,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 
 type SearchServiceArguments = {
@@ -89,7 +89,7 @@ export class SearchService {
                 this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
-        const filterItem = (
+        const filterItem = async (
             item:
                 | DashboardSearchResult
                 | SpaceSearchResult
@@ -98,7 +98,8 @@ export class SearchService {
             const spaceUuid: string =
                 'spaceUuid' in item ? item.spaceUuid : item.uuid;
             const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
-            return itemSpace && hasSpaceAccess(user, itemSpace, true);
+            const access = await this.spaceModel.getSpaceAccess(spaceUuid);
+            return itemSpace && hasViewAccessToSpace(user, itemSpace, access);
         };
 
         const hasExploreAccess = user.ability.can(

@@ -89,6 +89,10 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             isPrivate: false,
         });
+        // should not check space access when creating a space
+        can('create', 'Space', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
             isPrivate: false,

@@ -581,6 +581,16 @@ describe('Organization member permissions', () => {
                 ),
             ).toEqual(true);
         });
+        it('can create a space', () => {
+            expect(
+                ability.can(
+                    'create',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                    }),
+                ),
+            ).toEqual(true);
+        });
         it('can view and manage public & accessable space', () => {
             expect(
                 ability.can(

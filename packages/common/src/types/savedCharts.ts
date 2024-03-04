@@ -3,6 +3,8 @@ import { ViewStatistics } from './analytics';
 import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
 import { MetricQuery, MetricQueryRequest } from './metricQuery';
+// eslint-disable-next-line import/no-cycle
+import { SpaceShare } from './space';
 import { LightdashUser, UpdatedByUser } from './user';
 import { ValidationSummary } from './validation';
 
@@ -282,6 +284,8 @@ export type ChartConfig =
 
 export type SavedChartType = ChartType;
 
+export type SavedChartDAO = Omit<SavedChart, 'isPrivate' | 'access'>;
+
 export type SavedChart = {
     uuid: string;
     projectUuid: string;
@@ -306,6 +310,8 @@ export type SavedChart = {
     dashboardUuid: string | null;
     dashboardName: string | null;
     colorPalette: string[];
+    isPrivate: boolean;
+    access: SpaceShare[];
 };
 
 type CreateChartBase = Pick<
@@ -347,6 +353,8 @@ export type CreateSavedChartVersion = Omit<
     | 'dashboardUuid'
     | 'dashboardName'
     | 'colorPalette'
+    | 'isPrivate'
+    | 'access'
 >;
 
 export type UpdateSavedChart = Partial<

@@ -136,7 +136,10 @@ import {
     wrapOtelSpan,
     wrapSentryTransaction,
 } from '../../utils';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import {
+    hasDirectAccessToSpace,
+    hasViewAccessToSpace,
+} from '../SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
     exploreHasFilteredAttribute,
@@ -1233,7 +1236,9 @@ export class ProjectService {
             ),
         ]);
 
-        if (!hasSpaceAccess(user, space)) {
+        const access = await this.spaceModel.getSpaceAccess(space.uuid);
+
+        if (!hasViewAccessToSpace(user, space, access)) {
             throw new ForbiddenError();
         }
 
@@ -1291,22 +1296,6 @@ export class ProjectService {
         const savedChart = await this.savedChartModel.get(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
-        if (
-            user.ability.cannot(
-                'view',
-                subject('SavedChart', { organizationUuid, projectUuid }),
-            ) ||
-            user.ability.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         const [space, explore] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
             this.getExplore(
@@ -1317,7 +1306,26 @@ export class ProjectService {
             ),
         ]);
 
-        if (!hasSpaceAccess(user, space)) {
+        const access = await this.spaceModel.getSpaceAccess(space.uuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -1395,7 +1403,7 @@ export class ProjectService {
         }
 
         return {
-            chart: savedChart,
+            chart: { ...savedChart, isPrivate: space.isPrivate, access },
             explore,
             metricQuery: metricQueryWithDashboardOverrides,
             cacheMetadata,
@@ -2770,7 +2778,10 @@ export class ProjectService {
             const space = await this.spaceModel.getSpaceSummary(
                 savedChart.spaceUuid,
             );
-            if (!hasSpaceAccess(user, space)) {
+
+            const access = await this.spaceModel.getSpaceAccess(space.uuid);
+
+            if (!hasViewAccessToSpace(user, space, access)) {
                 throw new ForbiddenError();
             }
 
@@ -2855,7 +2866,14 @@ export class ProjectService {
                 }
 
                 const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
-                if (!spaceAccess || !hasSpaceAccess(user, spaceAccess)) {
+                const access = await this.spaceModel.getSpaceAccess(
+                    savedChart.spaceUuid,
+                );
+
+                if (
+                    !spaceAccess ||
+                    !hasViewAccessToSpace(user, spaceAccess, access)
+                ) {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
@@ -3184,10 +3202,15 @@ export class ProjectService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
+
         const allowedSpaces = spaces.filter(
-            (space) =>
+            async (space) =>
                 space.projectUuid === projectUuid &&
-                hasSpaceAccess(user, space, true),
+                hasViewAccessToSpace(
+                    user,
+                    space,
+                    await this.spaceModel.getSpaceAccess(space.uuid),
+                ),
         );
 
         const charts = await this.savedChartModel.find({
@@ -3217,7 +3240,7 @@ export class ProjectService {
         const allowedSpaces = spaces.filter(
             (space) =>
                 space.projectUuid === projectUuid &&
-                hasSpaceAccess(user, space, false), // NOTE: We don't check for admin access to the space - exclude private spaces from this panel if admin
+                hasDirectAccessToSpace(user, space), // NOTE: We don't check for admin access to the space - exclude private spaces from this panel if admin
         );
 
         const mostPopular = await this.getMostPopular(allowedSpaces);
@@ -3297,8 +3320,12 @@ export class ProjectService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const allowedSpaces = spaces.filter((space) =>
-            hasSpaceAccess(user, space, true),
+        const allowedSpaces = spaces.filter(async (space) =>
+            hasViewAccessToSpace(
+                user,
+                space,
+                await this.spaceModel.getSpaceAccess(space.uuid),
+            ),
         );
         return allowedSpaces;
     }

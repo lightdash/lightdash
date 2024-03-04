@@ -2,7 +2,7 @@ import {
     ApiNotificationResourceType,
     ApiNotificationUpdateParams,
     Comment,
-    Dashboard,
+    DashboardDAO,
     DashboardTile,
     LightdashUser,
     NotificationDashboardComment,
@@ -68,7 +68,7 @@ export class NotificationsModel {
         userUuid: string,
         commentAuthor: LightdashUser,
         comment: Comment,
-        dashboard: Dashboard,
+        dashboard: DashboardDAO,
         dashboardTile: DashboardTile | undefined,
     ) {
         if (comment.mentions.length > 0 && dashboardTile) {

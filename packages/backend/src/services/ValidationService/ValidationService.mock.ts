@@ -157,6 +157,8 @@ export const chart: SavedChart = {
     pinnedListUuid: null,
     pinnedListOrder: null,
     colorPalette: [],
+    isPrivate: false,
+    access: [],
 };
 
 export const chartWithJoinedField: SavedChart = {

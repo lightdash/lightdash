@@ -581,6 +581,16 @@ describe('Project member permissions', () => {
                 ),
             ).toEqual(true);
         });
+        it('can create a space', () => {
+            expect(
+                ability.can(
+                    'create',
+                    subject('Space', {
+                        projectUuid: PROJECT_EDITOR.projectUuid,
+                    }),
+                ),
+            ).toEqual(true);
+        });
         it('can view and manage public & accessable space', () => {
             expect(
                 ability.can(

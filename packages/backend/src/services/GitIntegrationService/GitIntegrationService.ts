@@ -25,16 +25,17 @@ import {
     getOrRefreshToken,
     updateFile,
 } from '../../clients/github/Github';
-import { LightdashConfig, SentryConfig } from '../../config/parseConfig';
+import { LightdashConfig } from '../../config/parseConfig';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
-import { ProjectService } from '../ProjectService/ProjectService';
+import { SpaceModel } from '../../models/SpaceModel';
 
 type GitIntegrationServiceArguments = {
     lightdashConfig: LightdashConfig;
     savedChartModel: SavedChartModel;
     projectModel: ProjectModel;
+    spaceModel: SpaceModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
 };
 
@@ -70,12 +71,15 @@ export class GitIntegrationService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly spaceModel: SpaceModel;
+
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
     constructor(args: GitIntegrationServiceArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.savedChartModel = args.savedChartModel;
         this.projectModel = args.projectModel;
+        this.spaceModel = args.spaceModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
     }
 
@@ -318,19 +322,23 @@ Affected charts:
         projectUuid: string,
         chartUuid: string,
     ): Promise<PullRequestCreated> {
+        const chartDao = await this.savedChartModel.get(chartUuid);
+        const space = await this.spaceModel.getSpaceSummary(chartDao.spaceUuid);
+        const access = await this.spaceModel.getSpaceAccess(chartDao.spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
                 subject('SavedChart', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
-        const chart = await this.savedChartModel.get(chartUuid);
-        const customMetrics = chart.metricQuery.additionalMetrics;
+        const customMetrics = chartDao.metricQuery.additionalMetrics;
         if (customMetrics === undefined || customMetrics.length === 0)
             throw new Error('Missing custom metrics');
 
@@ -353,6 +361,12 @@ Affected charts:
             branchName,
             token,
         });
+
+        const chart = {
+            ...chartDao,
+            isPrivate: space.isPrivate,
+            access,
+        };
 
         return this.getPullRequestDetails({
             user,

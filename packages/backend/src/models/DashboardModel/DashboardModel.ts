@@ -20,10 +20,6 @@ import {
 import { Knex } from 'knex';
 import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
 import {
-    DashboardTileCommentsTableName,
-    DbDashboardTileComments,
-} from '../../database/entities/comments';
-import {
     DashboardsTableName,
     DashboardTable,
     DashboardTileChartTable,
