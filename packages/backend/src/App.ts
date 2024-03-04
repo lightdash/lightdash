@@ -20,6 +20,7 @@ import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
 import path from 'path';
 import reDoc from 'redoc-express';
+import { URL } from 'url';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import * as clients from './clients/clients';
 import { SlackService } from './clients/Slack/Slackbot';
@@ -348,7 +349,8 @@ export default class App {
                 if (
                     breadcrumb.category === 'http' &&
                     breadcrumb?.data?.url &&
-                    breadcrumb.data.url.startsWith('https://hub.docker.com')
+                    new URL(breadcrumb?.data.url).host ===
+                        new URL('https://hub.docker.com').host
                 ) {
                     return null;
                 }
