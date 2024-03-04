@@ -55,7 +55,8 @@ type GenericEvent = {
         | EventName.SCHEDULER_SEND_NOW_BUTTON
         | EventName.ADD_CUSTOM_DIMENSION_CLICKED
         | EventName.DATE_ZOOM_CLICKED
-        | EventName.COMMENTS_CLICKED;
+        | EventName.COMMENTS_CLICKED
+        | EventName.NOTIFICATIONS_COMMENTS_ITEM_CLICKED;
     properties?: {};
 };
 

@@ -4,6 +4,7 @@ import {
     AuthorizationError,
     ChartType,
     DownloadFileType,
+    FeatureFlags,
     ForbiddenError,
     LightdashPage,
     SessionUser,
@@ -25,7 +26,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { postHogClient } from '../../postHog';
+import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { VERSION } from '../../version';
 import { EncryptionService } from '../EncryptionService/EncryptionService';
@@ -375,8 +376,16 @@ export class UnfurlService {
         const startTime = Date.now();
         let hasError = false;
 
-        const isPuppeteerSetViewportDynamicallyEnabled = false;
-        const isPuppeteerScrollElementIntoViewEnabled = false;
+        const isPuppeteerSetViewportDynamicallyEnabled =
+            await isFeatureFlagEnabled(
+                FeatureFlags.PuppeteerSetViewportDynamically,
+                { userUuid },
+            );
+        const isPuppeteerScrollElementIntoViewEnabled =
+            await isFeatureFlagEnabled(
+                FeatureFlags.PuppeteerScrollElementIntoView,
+                { userUuid },
+            );
 
         return tracer.startActiveSpan(
             'UnfurlService.saveScreenshot',

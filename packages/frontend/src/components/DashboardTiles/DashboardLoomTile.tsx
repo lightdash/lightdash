@@ -1,5 +1,5 @@
 import { DashboardLoomTile } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { DashboardTileComments } from '../../features/comments';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import TileBase from './TileBase/index';
@@ -11,31 +11,41 @@ type Props = Pick<
 > & { tile: DashboardLoomTile };
 
 const LoomTile: FC<Props> = (props) => {
+    const {
+        tile: {
+            properties: { title, url },
+            uuid,
+        },
+    } = props;
+
+    const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
         (c) =>
             c.dashboardCommentsCheck?.userCanViewDashboardComments &&
             c.dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled,
     );
-    const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
-    const {
-        tile: {
-            properties: { title, url },
-        },
-    } = props;
+    const tileHasComments = useDashboardContext((c) => c.hasTileComments(uuid));
+    const dashboardComments = useMemo(
+        () =>
+            !!showComments && (
+                <DashboardTileComments
+                    opened={isCommentsMenuOpen}
+                    onOpen={() => setIsCommentsMenuOpen(true)}
+                    onClose={() => setIsCommentsMenuOpen(false)}
+                    dashboardTileUuid={props.tile.uuid}
+                />
+            ),
+        [showComments, isCommentsMenuOpen, props.tile.uuid],
+    );
+
     return (
         <TileBase
             title={title}
             lockHeaderVisibility={isCommentsMenuOpen}
-            extraHeaderElement={
-                !!showComments && (
-                    <DashboardTileComments
-                        opened={isCommentsMenuOpen}
-                        onOpen={() => setIsCommentsMenuOpen(true)}
-                        onClose={() => setIsCommentsMenuOpen(false)}
-                        dashboardTileUuid={props.tile.uuid}
-                    />
-                )
+            visibleHeaderElement={
+                tileHasComments ? dashboardComments : undefined
             }
+            extraHeaderElement={tileHasComments ? undefined : dashboardComments}
             {...props}
         >
             <iframe

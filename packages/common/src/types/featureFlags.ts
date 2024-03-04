@@ -34,5 +34,10 @@ export enum FeatureFlags {
      */
     DashboardTileComments = 'dashboard-tile-comments',
 
+    /**/
     CustomSQLEnabled = 'custom-sql-enabled',
+
+    /**/
+    PuppeteerScrollElementIntoView = 'puppeteer-scroll-element-into-view',
+    PuppeteerSetViewportDynamically = 'puppeteer-set-viewport-dynamically',
 }
