@@ -38,4 +38,6 @@ process.on('SIGHUP', onExit);
 process.on('SIGABRT', onExit);
 
 // Start the Lightdash server
-app.start();
+app.start().catch((e) => {
+    Logger.error('Error starting Lightdash', e);
+});
