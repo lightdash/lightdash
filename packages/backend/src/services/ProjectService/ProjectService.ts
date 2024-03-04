@@ -1210,22 +1210,6 @@ export class ProjectService {
         );
         const { organizationUuid, projectUuid } = savedChart;
 
-        if (
-            user.ability.cannot(
-                'view',
-                subject('SavedChart', { organizationUuid, projectUuid }),
-            ) ||
-            user.ability.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         const [space, explore] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
             this.getExplore(
@@ -1238,7 +1222,24 @@ export class ProjectService {
 
         const access = await this.spaceModel.getSpaceAccess(space.uuid);
 
-        if (!hasViewAccessToSpace(user, space, access)) {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -2769,19 +2770,22 @@ export class ProjectService {
                     savedChartUuid,
                 ]);
 
-            if (
-                user.ability.cannot('view', subject('SavedChart', savedChart))
-            ) {
-                throw new ForbiddenError();
-            }
-
             const space = await this.spaceModel.getSpaceSummary(
                 savedChart.spaceUuid,
             );
 
             const access = await this.spaceModel.getSpaceAccess(space.uuid);
 
-            if (!hasViewAccessToSpace(user, space, access)) {
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        ...savedChart,
+                        isPrivate: space.isPrivate,
+                        access,
+                    }),
+                )
+            ) {
                 throw new ForbiddenError();
             }
 

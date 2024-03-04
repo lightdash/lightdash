@@ -448,7 +448,7 @@ export class SavedChartService {
             const access = await this.spaceModel.getSpaceAccess(
                 chart.spaceUuid,
             );
-            return user.ability.cannot(
+            return user.ability.can(
                 'update',
                 subject('SavedChart', {
                     organizationUuid: project.organizationUuid,

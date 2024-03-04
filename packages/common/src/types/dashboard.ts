@@ -1,5 +1,6 @@
 import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
+// eslint-disable-next-line import/no-cycle
 import { ChartKind, SavedChartType } from './savedCharts';
 // eslint-disable-next-line import/no-cycle
 import { SpaceShare } from './space';

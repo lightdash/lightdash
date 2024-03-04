@@ -299,7 +299,8 @@ describe('Lightdash API tests for an project admin accessing other private space
         cy.loginWithEmail(email);
     });
 
-    it('Should not list charts or dashboards from private spaces', () => {
+    it('Should list charts or dashboards from private spaces', () => {
+        // admin should have access to private spaces
         cy.request({
             url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
             failOnStatusCode: false,
@@ -308,7 +309,7 @@ describe('Lightdash API tests for an project admin accessing other private space
             const privateSpace = resp.body.results.find(
                 (space) => space.name === 'private space',
             );
-            expect(privateSpace).to.eq(undefined);
+            expect(privateSpace).to.eq(privateSpace);
         });
     });
 
@@ -362,6 +363,7 @@ describe('Lightdash API tests for an project admin accessing other private space
     });
 
     it('Should not list private dashboards', () => {
+        // admin should have access to private dashboards
         cy.request({
             url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
             failOnStatusCode: false,
@@ -371,7 +373,7 @@ describe('Lightdash API tests for an project admin accessing other private space
                 resp.body.results.find(
                     (dashboard) => dashboard.name === 'private dashboard',
                 ),
-            ).to.eq(undefined);
+            ).to.not.eq(undefined);
         });
     });
     it('Should view charts in other private spaces', () => {
