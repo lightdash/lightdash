@@ -1,3 +1,10 @@
+## [0.1024.6](https://github.com/lightdash/lightdash/compare/0.1024.5...0.1024.6) (2024-03-04)
+
+
+### Bug Fixes
+
+* app class ([#9204](https://github.com/lightdash/lightdash/issues/9204)) ([865b954](https://github.com/lightdash/lightdash/commit/865b95481bd45df285b4e2e5d4ba35e7d9babbc0))
+
 ## [0.1024.5](https://github.com/lightdash/lightdash/compare/0.1024.4...0.1024.5) (2024-03-04)
 
 
