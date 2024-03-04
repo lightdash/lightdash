@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -28,12 +27,13 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 import { ApiRunQueryResponse } from './runQueryController';
 
 @Route('/api/v1/saved/{chartUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Charts')
-export class SavedChartController extends Controller {
+export class SavedChartController extends BaseController {
     /**
      * Run a query for a chart
      * @param chartUuid chartUuid for the chart to run

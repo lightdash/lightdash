@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -23,11 +22,12 @@ import {
 import express from 'express';
 import { notificationsService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/notifications')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Notifications')
-export class NotificationsController extends Controller {
+export class NotificationsController extends BaseController {
     /**
      * Gets notifications for a user based on the type
      * @param req express request

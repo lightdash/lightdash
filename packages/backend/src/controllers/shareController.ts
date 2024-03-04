@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -20,11 +19,12 @@ import {
 import express from 'express';
 import { shareService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/share')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Share links')
-export class ShareController extends Controller {
+export class ShareController extends BaseController {
     /**
      * Get a share url from a short url id
      * @param nanoId the short id for the share url

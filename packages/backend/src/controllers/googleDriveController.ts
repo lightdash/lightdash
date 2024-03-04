@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -21,11 +20,12 @@ import express from 'express';
 import { GdriveService } from '../services/GdriveService/GdriveService';
 import { userService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/gdrive')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Integrations')
-export class GoogleDriveController extends Controller {
+export class GoogleDriveController extends BaseController {
     /**
      * Get access token for google drive
      * @param req express request

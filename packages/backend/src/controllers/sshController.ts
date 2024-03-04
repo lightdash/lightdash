@@ -1,6 +1,5 @@
 import { ApiErrorPayload, ApiSshKeyPairResponse } from '@lightdash/common';
 import {
-    Controller,
     Middlewares,
     OperationId,
     Post,
@@ -13,11 +12,12 @@ import {
 import express from 'express';
 import { sshKeyPairService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/ssh')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('SSH Keypairs')
-export class SshController extends Controller {
+export class SshController extends BaseController {
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('201', 'Success')
     @Post('key-pairs')

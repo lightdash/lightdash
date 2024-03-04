@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -29,11 +28,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/org/attributes')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('User attributes')
-export class UserAttributesController extends Controller {
+export class UserAttributesController extends BaseController {
     /**
      * Get all user attributes
      * @param req

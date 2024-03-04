@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -24,11 +23,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/pinned-lists')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Content')
-export class PinningController extends Controller {
+export class PinningController extends BaseController {
     /**
      * Get pinned items
      * @param projectUuid project uuid

@@ -1,9 +1,6 @@
 import { ApiSuccessEmpty, ForbiddenError, GitRepo } from '@lightdash/common';
-import { createAppAuth } from '@octokit/auth-app';
-import { createTokenAuth } from '@octokit/auth-token';
-import { Octokit, Octokit as OctokitRest } from '@octokit/rest';
+import { Octokit as OctokitRest } from '@octokit/rest';
 import {
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -18,6 +15,7 @@ import { getGithubApp, getOctokitRestForApp } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { githubAppService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import { BaseController } from './baseController';
 
 const githubAppName = 'lightdash-dev';
 
@@ -31,11 +29,9 @@ const githubAppName = 'lightdash-dev';
  *
  * and then you can use it on /api/v1/github/list
  * or /api/v1/github/create-branch to create a branch and push some code.
- *
- *
  */
 @Route('/api/v1/github')
-export class GithubInstallController extends Controller {
+export class GithubInstallController extends BaseController {
     /**
      * Install the Lightdash GitHub App and link to an organization
      *

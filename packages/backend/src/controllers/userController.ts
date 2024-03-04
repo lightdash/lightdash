@@ -13,10 +13,8 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
-    Inject,
     Middlewares,
     OperationId,
     Patch,
@@ -33,17 +31,17 @@ import express from 'express';
 import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
 import { userService } from '../services/services';
-import { UserService } from '../services/UserService';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/user')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('My Account')
-export class UserController extends Controller {
+export class UserController extends BaseController {
     /**
      * Get authenticated user
      * @param req express request
