@@ -5,10 +5,9 @@ import { lightdashConfig } from './config/lightdashConfig';
 import Logger from './logging/logger';
 import App from './App';
 
-const port = process.env.PORT || 8080;
 const app = new App({
     lightdashConfig,
-    port,
+    port: process.env.PORT || 8080,
     environment:
         process.env.NODE_ENV === 'development' ? 'development' : 'production',
     otelSdk,
