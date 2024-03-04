@@ -99,7 +99,7 @@ const TreeSingleNodeActions: FC<Props> = ({
         [item],
     );
 
-    return isHovered || isSelected || isOpened ? (
+    return (
         <Menu
             withArrow
             withinPortal
@@ -272,25 +272,25 @@ const TreeSingleNodeActions: FC<Props> = ({
                     e.preventDefault();
                 }}
             >
-                <Menu.Target>
-                    <Tooltip
-                        openDelay={500}
-                        position="top"
-                        label="View options"
-                        disabled={isOpened}
-                    >
-                        <ActionIcon variant="transparent">
-                            <MantineIcon
-                                icon={IconDots}
-                                color={isOpened ? 'black' : undefined}
-                            />
-                        </ActionIcon>
-                    </Tooltip>
-                </Menu.Target>
+                {isHovered || isSelected ? (
+                    <Menu.Target>
+                        <Tooltip
+                            openDelay={500}
+                            position="top"
+                            label="View options"
+                            disabled={isOpened}
+                        >
+                            <ActionIcon variant="transparent">
+                                <MantineIcon
+                                    icon={IconDots}
+                                    color={isOpened ? 'black' : undefined}
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Menu.Target>
+                ) : null}
             </Box>
         </Menu>
-    ) : (
-        <Box w={28} />
     );
 };
 

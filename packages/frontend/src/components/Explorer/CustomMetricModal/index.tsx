@@ -61,7 +61,11 @@ export const CustomMetricModal = () => {
         (context) => context.state.unsavedChartVersion.tableName,
     );
 
+    const customExplore = useExplorerContext((c) => c.state.customExplore);
+
     const { data: exploreData } = useExplore(tableName);
+
+    const finalExplore = customExplore?.explore ?? exploreData;
 
     let dimensionToCheck: Dimension | undefined;
 
@@ -70,7 +74,9 @@ export const CustomMetricModal = () => {
     }
     if (isEditing && isAdditionalMetric(item) && item.baseDimensionName) {
         dimensionToCheck =
-            exploreData?.tables[item.table]?.dimensions[item.baseDimensionName];
+            finalExplore?.tables[item.table]?.dimensions[
+                item.baseDimensionName
+            ];
     }
 
     const canApplyFormatting =
@@ -204,7 +210,7 @@ export const CustomMetricModal = () => {
                 customMetricLabel,
                 customMetricFiltersWithIds,
                 isEditingCustomMetric: !!isEditing,
-                exploreData,
+                exploreData: finalExplore,
                 percentile,
                 formatOptions: format,
             });

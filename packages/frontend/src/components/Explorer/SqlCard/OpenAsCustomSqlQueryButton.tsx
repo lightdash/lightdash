@@ -58,7 +58,6 @@ const OpenAsCustomSqlQueryButton: FC<Props> = memo(({ projectUuid }) => {
     );
 
     const query = customSql ?? sql;
-    console.log({ tableId, query });
 
     const searchParams = new URLSearchParams({
         query: query ? btoa(query) : '',

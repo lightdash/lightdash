@@ -1704,11 +1704,12 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
     ]);
 
     const fetchCustomQueryResults = useCallback(async () => {
-        if (!reducerState.customExplore || !reducerState.metricQuery) return;
+        if (!reducerState.customExplore || !unsavedChartVersion.metricQuery)
+            return;
 
         try {
             const result = await customQueryResults.mutateAsync({
-                metricQuery: reducerState.metricQuery,
+                metricQuery: unsavedChartVersion.metricQuery,
                 explore: reducerState.customExplore.explore,
             });
 
@@ -1723,7 +1724,7 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
     }, [
         customQueryResults,
         reducerState.customExplore,
-        reducerState.metricQuery,
+        unsavedChartVersion.metricQuery,
     ]);
 
     const setCustomExplore = useCallback(
@@ -1789,8 +1790,6 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
 
     useEffect(() => {
         if (!state.shouldFetchResults) return;
-
-        console.log('fetching results');
 
         (async () => {
             await fetchResults();

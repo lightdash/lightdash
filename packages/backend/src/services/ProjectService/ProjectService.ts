@@ -3814,7 +3814,6 @@ export class ProjectService {
                     chartUrl: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 })),
             ];
-            console.log('metrics', metrics);
             return metrics;
         }, []);
     }

@@ -55,7 +55,7 @@ const FiltersCard: FC = memo(() => {
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );
-    const { data } = useExplore(tableName);
+    const { data: explore } = useExplore(tableName);
     const filterIsOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.FILTERS),
         [expandedSections],
@@ -64,19 +64,26 @@ const FiltersCard: FC = memo(() => {
         () => countTotalFilterRules(filters),
         [filters],
     );
+
+    // TODO: better name
+    const finalExplore = customExplore?.explore ?? explore;
+
     const fieldsWithSuggestions = useFieldsWithSuggestions({
-        exploreData: data,
+        exploreData: finalExplore,
         queryResults,
         additionalMetrics,
         tableCalculations,
     });
+
     const allFilterRules = useMemo(
         () => getTotalFilterRules(filters),
         [filters],
     );
     const renderFilterRule = useCallback(
         (filterRule: FilterRule) => {
-            const fields: Field[] = data ? getVisibleFields(data) : [];
+            const fields: Field[] = finalExplore
+                ? getVisibleFields(finalExplore)
+                : [];
             const field = fields.find(
                 (f) => fieldId(f) === filterRule.target.fieldId,
             );
@@ -101,19 +108,16 @@ const FiltersCard: FC = memo(() => {
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
         },
-        [data],
+        [finalExplore],
     );
-
-    console.log(mode);
 
     return (
         <CollapsableCard
             isOpen={filterIsOpen}
             title="Filters"
             disabled={
-                !tableName ||
-                (totalActiveFilters === 0 &&
-                    (mode !== ExploreMode.EDIT || !!customExplore))
+                (!tableName && !finalExplore) ||
+                (totalActiveFilters === 0 && mode !== ExploreMode.EDIT)
             }
             toggleTooltip={
                 totalActiveFilters === 0 && mode !== ExploreMode.EDIT

@@ -35,8 +35,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     selectedDimensions,
     missingFields,
 }) => {
-    console.log(explore);
-
     const [search, setSearch] = useState<string>('');
     const isSearching = !!search && search !== '';
 
@@ -78,8 +76,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
             (metric) => !allTables.includes(metric.table),
         );
     }, [explore, additionalMetrics]);
-
-    console.log(tableTrees, explore);
 
     return (
         <>
