@@ -16,7 +16,6 @@ import {
     Controller,
     Delete,
     Get,
-    Inject,
     Middlewares,
     OperationId,
     Patch,
@@ -33,7 +32,6 @@ import express from 'express';
 import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
 import { userService } from '../services/services';
-import { UserService } from '../services/UserService';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -55,7 +53,6 @@ export class UserController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiGetAuthenticatedUserResponse> {
         this.setStatus(200);
-
         return {
             status: 'ok',
             results: UserModel.lightdashUserFromSession(req.user!),
