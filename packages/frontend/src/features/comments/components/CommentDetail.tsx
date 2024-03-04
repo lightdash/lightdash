@@ -15,7 +15,6 @@ import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
 import { CommentTimestamp } from './CommentTimestamp';
-import { CommentWithMentions } from './CommentWithMentions';
 
 type Props = {
     comment: Comment;
@@ -42,7 +41,7 @@ export const CommentDetail: FC<Props> = ({
                         {getNameInitials(comment.user.name)}
                     </Avatar>
                 </Grid.Col>
-                <Grid.Col span={18}>
+                <Grid.Col span={18} maw="inherit">
                     <Group position="apart">
                         <Group spacing="xs">
                             <Text fz="xs" fw={600}>
@@ -96,12 +95,15 @@ export const CommentDetail: FC<Props> = ({
                             )}
                         </Group>
                     </Group>
-                    <Box fz="xs" mb="two">
-                        <CommentWithMentions
-                            readonly
-                            content={comment.textHtml}
-                        />
-                    </Box>
+                    <Box
+                        dangerouslySetInnerHTML={{
+                            __html: comment.textHtml,
+                        }}
+                        fz="xs"
+                        sx={{
+                            wordBreak: 'break-word',
+                        }}
+                    />
                 </Grid.Col>
             </Grid>
         </Box>
