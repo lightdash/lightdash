@@ -48,7 +48,7 @@ export const DashboardTileComments: FC<
     const { mutate: updateNotification } = useUpdateNotification();
 
     // TODO: This is a temporary solution. We should probably have a separate endpoint for unread comments
-    const unreadCommentsForThisTile = useMemo(
+    const unreadNotificationsForTile = useMemo(
         () =>
             notifications?.filter(
                 (n) =>
@@ -61,11 +61,11 @@ export const DashboardTileComments: FC<
 
     const showIndicator = comments && comments.length > 0;
     const indicatorColor = useMemo(() => {
-        if (unreadCommentsForThisTile && unreadCommentsForThisTile.length > 0)
+        if (unreadNotificationsForTile && unreadNotificationsForTile.length > 0)
             return 'red';
 
         return 'gray';
-    }, [unreadCommentsForThisTile]);
+    }, [unreadNotificationsForTile]);
 
     const handleOnOpen = useCallback(() => {
         track({
@@ -75,7 +75,7 @@ export const DashboardTileComments: FC<
                 dashboardTileUuid,
             },
         });
-        unreadCommentsForThisTile?.forEach((n) => {
+        unreadNotificationsForTile?.forEach((n) => {
             // Don't await, we don't want to block the UI
             updateNotification({
                 notificationId: n.notificationId,
@@ -91,7 +91,7 @@ export const DashboardTileComments: FC<
         dashboardUuid,
         onOpen,
         track,
-        unreadCommentsForThisTile,
+        unreadNotificationsForTile,
         updateNotification,
     ]);
 
