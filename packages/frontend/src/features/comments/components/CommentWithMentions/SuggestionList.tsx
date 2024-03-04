@@ -79,23 +79,20 @@ export const SuggestionList = forwardRef<
                 })}
             >
                 {props.items.map((item, index) => (
-                    <List.Item key={index} fz="xs" w="100%">
+                    <List.Item key={index} fz="xs">
                         <UnstyledButton
-                            fz="xs"
-                            w="100%"
-                            p="two"
-                            c={index === selectedIndex ? 'blue.6' : 'inherit'}
-                            variant="default"
-                            ta="left"
                             onClick={() => {
                                 selectItem(index);
                             }}
+                            variant="default"
+                            c={index === selectedIndex ? 'blue.6' : 'inherit'}
+                            fz="xs"
+                            w="100%"
+                            p="two"
+                            ta="left"
                             sx={{
                                 border: 'none',
                                 alignSelf: 'flex-start',
-                                '&:hover': {
-                                    backgroundColor: 'gray.1',
-                                },
                             }}
                         >
                             {item.label}
