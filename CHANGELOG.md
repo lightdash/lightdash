@@ -1,3 +1,10 @@
+## [0.1024.4](https://github.com/lightdash/lightdash/compare/0.1024.3...0.1024.4) (2024-03-04)
+
+
+### Bug Fixes
+
+* allow search of tagged people again ([#9220](https://github.com/lightdash/lightdash/issues/9220)) ([b590cbb](https://github.com/lightdash/lightdash/commit/b590cbb494c45b64a2d85eae6e9269dc242ad951))
+
 ## [0.1024.3](https://github.com/lightdash/lightdash/compare/0.1024.2...0.1024.3) (2024-03-04)
 
 
