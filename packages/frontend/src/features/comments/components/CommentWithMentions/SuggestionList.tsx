@@ -1,4 +1,4 @@
-import { Menu } from '@mantine/core';
+import { Card, List, UnstyledButton } from '@mantine/core';
 import { SuggestionProps } from '@tiptap/suggestion';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { SuggestionsItem } from '../../types';
@@ -60,33 +60,49 @@ export const SuggestionList = forwardRef<
         },
     }));
 
-    return (
-        <Menu opened={props.items.length > 0}>
-            <Menu.Dropdown
+    return props.items.length > 0 ? (
+        <Card shadow="xs" p={0}>
+            <List
+                withPadding={false}
+                listStyleType="none"
                 mah={120}
-                sx={{
-                    overflowY: 'auto',
-                }}
+                styles={(theme) => ({
+                    root: {
+                        overflowY: 'auto',
+                    },
+                    itemWrapper: {
+                        width: '100%',
+                        '&:hover': {
+                            backgroundColor: theme.colors.blue['1'],
+                        },
+                    },
+                })}
             >
-                <Menu.Label p={0} pb="two">
-                    Users
-                </Menu.Label>
                 {props.items.map((item, index) => (
-                    <Menu.Item
-                        key={index}
-                        fz="xs"
-                        p="two"
-                        ta="left"
-                        onClick={() => selectItem(index)}
-                        sx={{
-                            border: 'none',
-                            alignSelf: 'flex-start',
-                        }}
-                    >
-                        {item.label}
-                    </Menu.Item>
+                    <List.Item key={index} fz="xs" w="100%">
+                        <UnstyledButton
+                            fz="xs"
+                            w="100%"
+                            p="two"
+                            c={index === selectedIndex ? 'blue.6' : 'inherit'}
+                            variant="default"
+                            ta="left"
+                            onClick={() => {
+                                selectItem(index);
+                            }}
+                            sx={{
+                                border: 'none',
+                                alignSelf: 'flex-start',
+                                '&:hover': {
+                                    backgroundColor: 'gray.1',
+                                },
+                            }}
+                        >
+                            {item.label}
+                        </UnstyledButton>
+                    </List.Item>
                 ))}
-            </Menu.Dropdown>
-        </Menu>
-    );
+            </List>
+        </Card>
+    ) : null;
 });
