@@ -22,6 +22,7 @@ export const useExplore = ({
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
+
     return useQuery<ApiExploreResults, ApiError>({
         // TODO: fix queryKey
         queryKey: [
@@ -33,7 +34,7 @@ export const useExplore = ({
             customExplore
                 ? Promise.resolve(customExplore)
                 : getExplore(projectUuid, exploreName!),
-        enabled: !!exploreName,
+        enabled: !!exploreName || !!customExplore,
         onError: (result) => setErrorResponse(result),
         retry: false,
         ...useQueryOptions,
