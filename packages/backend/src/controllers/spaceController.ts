@@ -22,7 +22,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { spaceService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -50,11 +49,9 @@ export class SpaceController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSpaceResponse> {
         this.setStatus(200);
-        const results = await spaceService.getSpace(
-            projectUuid,
-            req.user!,
-            spaceUuid,
-        );
+        const results = await this.services
+            .getSpaceService()
+            .getSpace(projectUuid, req.user!, spaceUuid);
         return {
             status: 'ok',
             results,
@@ -82,11 +79,9 @@ export class SpaceController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSpaceResponse> {
         this.setStatus(200);
-        const results = await spaceService.createSpace(
-            projectUuid,
-            req.user!,
-            body,
-        );
+        const results = await this.services
+            .getSpaceService()
+            .createSpace(projectUuid, req.user!, body);
         return {
             status: 'ok',
             results,
@@ -113,7 +108,7 @@ export class SpaceController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await spaceService.deleteSpace(req.user!, spaceUuid);
+        await this.services.getSpaceService().deleteSpace(req.user!, spaceUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -143,11 +138,9 @@ export class SpaceController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSpaceResponse> {
         this.setStatus(200);
-        const results = await spaceService.updateSpace(
-            req.user!,
-            spaceUuid,
-            body,
-        );
+        const results = await this.services
+            .getSpaceService()
+            .updateSpace(req.user!, spaceUuid, body);
         return {
             status: 'ok',
             results,
@@ -177,7 +170,9 @@ export class SpaceController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await spaceService.addSpaceShare(req.user!, spaceUuid, body.userUuid);
+        await this.services
+            .getSpaceService()
+            .addSpaceShare(req.user!, spaceUuid, body.userUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -207,7 +202,9 @@ export class SpaceController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await spaceService.removeSpaceShare(req.user!, spaceUuid, userUuid);
+        await this.services
+            .getSpaceService()
+            .removeSpaceShare(req.user!, spaceUuid, userUuid);
         return {
             status: 'ok',
             results: undefined,

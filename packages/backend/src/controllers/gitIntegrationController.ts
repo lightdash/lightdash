@@ -17,7 +17,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { gitIntegrationService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -40,10 +39,9 @@ export class GitIntegrationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await gitIntegrationService.getConfiguration(
-                req.user!,
-                projectUuid,
-            ),
+            results: await this.services
+                .getGitIntegrationService()
+                .getConfiguration(req.user!, projectUuid),
         };
     }
 
@@ -63,8 +61,9 @@ export class GitIntegrationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results:
-                await gitIntegrationService.createPullRequestForChartFields(
+            results: await this.services
+                .getGitIntegrationService()
+                .createPullRequestForChartFields(
                     req.user!,
                     projectUuid,
                     chartUuid,
@@ -92,8 +91,9 @@ export class GitIntegrationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results:
-                await gitIntegrationService.createPullRequestForCustomMetrics(
+            results: await this.services
+                .getGitIntegrationService()
+                .createPullRequestForCustomMetrics(
                     req.user!,
                     projectUuid,
                     body.customMetrics,

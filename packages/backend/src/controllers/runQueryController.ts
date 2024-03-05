@@ -21,7 +21,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { projectService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -67,8 +66,9 @@ export class RunViewChartQueryController extends BaseController {
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
         };
-        const results: ApiQueryResults =
-            await projectService.runUnderlyingDataQuery(
+        const results: ApiQueryResults = await this.services
+            .getProjectService()
+            .runUnderlyingDataQuery(
                 req.user!,
                 metricQuery,
                 projectUuid,
@@ -111,14 +111,16 @@ export class RunViewChartQueryController extends BaseController {
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
         };
-        const results: ApiQueryResults = await projectService.runExploreQuery(
-            req.user!,
-            metricQuery,
-            projectUuid,
-            exploreId,
-            body.csvLimit,
-            body.granularity,
-        );
+        const results: ApiQueryResults = await this.services
+            .getProjectService()
+            .runExploreQuery(
+                req.user!,
+                metricQuery,
+                projectUuid,
+                exploreId,
+                body.csvLimit,
+                body.granularity,
+            );
         this.setStatus(200);
         return {
             status: 'ok',

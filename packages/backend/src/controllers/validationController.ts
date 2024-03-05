@@ -22,7 +22,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { validationService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -55,12 +54,9 @@ export class ValidationController extends BaseController {
         return {
             status: 'ok',
             results: {
-                jobId: await validationService.validate(
-                    req.user!,
-                    projectUuid,
-                    context,
-                    body.explores,
-                ),
+                jobId: await this.services
+                    .getValidationService()
+                    .validate(req.user!, projectUuid, context, body.explores),
             },
         };
     }
@@ -85,12 +81,9 @@ export class ValidationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await validationService.get(
-                req.user!,
-                projectUuid,
-                fromSettings,
-                jobId,
-            ),
+            results: await this.services
+                .getValidationService()
+                .get(req.user!, projectUuid, fromSettings, jobId),
         };
     }
 
@@ -110,7 +103,9 @@ export class ValidationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiValidationDismissResponse> {
         this.setStatus(200);
-        await validationService.delete(req.user!, validationId);
+        await this.services
+            .getValidationService()
+            .delete(req.user!, validationId);
         return {
             status: 'ok',
         };

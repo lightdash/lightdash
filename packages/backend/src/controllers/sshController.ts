@@ -10,7 +10,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { sshKeyPairService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 
@@ -25,7 +24,7 @@ export class SshController extends BaseController {
     async createSshKeyPair(
         @Request() req: express.Request,
     ): Promise<ApiSshKeyPairResponse> {
-        const results = await sshKeyPairService.create();
+        const results = await this.services.getSshKeyPairService().create();
         this.setStatus(201);
         return {
             status: 'ok',

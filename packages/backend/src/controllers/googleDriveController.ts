@@ -18,7 +18,6 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { GdriveService } from '../services/GdriveService/GdriveService';
-import { userService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -40,7 +39,9 @@ export class GoogleDriveController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await userService.getAccessToken(req.user!),
+            results: await this.services
+                .getUserService()
+                .getAccessToken(req.user!),
         };
     }
 

@@ -20,7 +20,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { commentService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -47,15 +46,17 @@ export class CommentsController extends BaseController {
         @Body()
         body: Pick<Comment, 'text' | 'replyTo' | 'mentions' | 'textHtml'>,
     ): Promise<ApiCreateComment> {
-        const commentId = await commentService.createComment(
-            req.user!,
-            dashboardUuid,
-            dashboardTileUuid,
-            body.text,
-            body.textHtml,
-            body.replyTo ?? null,
-            body.mentions,
-        );
+        const commentId = await this.services
+            .getCommentService()
+            .createComment(
+                req.user!,
+                dashboardUuid,
+                dashboardTileUuid,
+                body.text,
+                body.textHtml,
+                body.replyTo ?? null,
+                body.mentions,
+            );
         this.setStatus(200);
         return {
             status: 'ok',
@@ -77,10 +78,9 @@ export class CommentsController extends BaseController {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetComments> {
-        const results = await commentService.findCommentsForDashboard(
-            req.user!,
-            dashboardUuid,
-        );
+        const results = await this.services
+            .getCommentService()
+            .findCommentsForDashboard(req.user!, dashboardUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -103,11 +103,9 @@ export class CommentsController extends BaseController {
         @Path() commentId: string,
         @Request() req: express.Request,
     ): Promise<ApiResolveComment> {
-        await commentService.resolveComment(
-            req.user!,
-            dashboardUuid,
-            commentId,
-        );
+        await this.services
+            .getCommentService()
+            .resolveComment(req.user!, dashboardUuid, commentId);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -129,7 +127,9 @@ export class CommentsController extends BaseController {
         @Path() commentId: string,
         @Request() req: express.Request,
     ): Promise<ApiResolveComment> {
-        await commentService.deleteComment(req.user!, dashboardUuid, commentId);
+        await this.services
+            .getCommentService()
+            .deleteComment(req.user!, dashboardUuid, commentId);
         this.setStatus(200);
         return {
             status: 'ok',

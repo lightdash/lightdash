@@ -1,6 +1,7 @@
 import { Controller, type IocContainerFactory } from '@tsoa/runtime';
 import { BaseController } from '../controllers/baseController';
-import { ServiceRepository } from './ServiceRepository';
+import type { ServiceRepository } from './ServiceRepository';
+import { serviceRepository } from './services';
 
 /**
  * For now, we allow both classes extending tsoa's Controller directly, as well as those
@@ -8,7 +9,7 @@ import { ServiceRepository } from './ServiceRepository';
  */
 type TsoaControllerKlass = new () => Controller;
 type BaseControllerKlass = new (
-    serviceRepository: ServiceRepository,
+    repository: ServiceRepository,
 ) => BaseController;
 type RouteControllerKlass = TsoaControllerKlass | BaseControllerKlass;
 
@@ -16,9 +17,9 @@ type RouteControllerKlass = TsoaControllerKlass | BaseControllerKlass;
  * Used to narrow the controller klass type, so that we can instantiate it with
  * the correct number of arguments.
  */
-const isTsoaControllerCtor = (
+const isBaseControllerCtor = (
     ctor: RouteControllerKlass,
-): ctor is TsoaControllerKlass => ctor.prototype instanceof Controller;
+): ctor is BaseControllerKlass => ctor.prototype instanceof BaseController;
 
 /**
  * See tsoa.yml
@@ -28,10 +29,10 @@ const isTsoaControllerCtor = (
  */
 export const iocContainer: IocContainerFactory = () => ({
     async get<T extends RouteControllerKlass>(Ctor: T) {
-        if (isTsoaControllerCtor(Ctor)) {
-            return new Ctor();
+        if (isBaseControllerCtor(Ctor)) {
+            return new Ctor(serviceRepository);
         }
 
-        return new Ctor(new ServiceRepository());
+        return new (Ctor as TsoaControllerKlass)();
     },
 });

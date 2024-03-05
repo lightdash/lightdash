@@ -33,7 +33,6 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { userModel } from '../models/models';
-import { organizationService, userService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -58,7 +57,9 @@ export class OrganizationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.get(req.user!),
+            results: await this.services
+                .getOrganizationService()
+                .get(req.user!),
         };
     }
 
@@ -75,7 +76,9 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
         @Body() body: CreateOrganization,
     ): Promise<ApiSuccessEmpty> {
-        await organizationService.createAndJoinOrg(req.user!, body);
+        await this.services
+            .getOrganizationService()
+            .createAndJoinOrg(req.user!, body);
         const sessionUser = await userModel.findSessionUserByUUID(
             req.user!.userUuid,
         );
@@ -106,7 +109,7 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
         @Body() body: UpdateOrganization,
     ): Promise<ApiSuccessEmpty> {
-        await organizationService.updateOrg(req.user!, body);
+        await this.services.getOrganizationService().updateOrg(req.user!, body);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -126,7 +129,9 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
         @Path() organizationUuid: string,
     ): Promise<ApiSuccessEmpty> {
-        await organizationService.delete(organizationUuid, req.user!);
+        await this.services
+            .getOrganizationService()
+            .delete(organizationUuid, req.user!);
         await new Promise<void>((resolve, reject) => {
             req.session.destroy((err) => {
                 if (err) {
@@ -155,7 +160,9 @@ export class OrganizationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.getProjects(req.user!),
+            results: await this.services
+                .getOrganizationService()
+                .getProjects(req.user!),
         };
     }
 
@@ -173,10 +180,9 @@ export class OrganizationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.getUsers(
-                req.user!,
-                includeGroups,
-            ),
+            results: await this.services
+                .getOrganizationService()
+                .getUsers(req.user!, includeGroups),
         };
     }
 
@@ -195,10 +201,9 @@ export class OrganizationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.getMemberByUuid(
-                req.user!,
-                userUuid,
-            ),
+            results: await this.services
+                .getOrganizationService()
+                .getMemberByUuid(req.user!, userUuid),
         };
     }
 
@@ -224,11 +229,9 @@ export class OrganizationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.updateMember(
-                req.user!,
-                userUuid,
-                body,
-            ),
+            results: await this.services
+                .getOrganizationService()
+                .updateMember(req.user!, userUuid, body),
         };
     }
 
@@ -248,7 +251,7 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
         @Path() userUuid: string,
     ): Promise<ApiSuccessEmpty> {
-        await userService.delete(req.user!, userUuid);
+        await this.services.getUserService().delete(req.user!, userUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -269,9 +272,9 @@ export class OrganizationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.getAllowedEmailDomains(
-                req.user!,
-            ),
+            results: await this.services
+                .getOrganizationService()
+                .getAllowedEmailDomains(req.user!),
         };
     }
 
@@ -290,10 +293,9 @@ export class OrganizationController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await organizationService.updateAllowedEmailDomains(
-                req.user!,
-                body,
-            ),
+            results: await this.services
+                .getOrganizationService()
+                .updateAllowedEmailDomains(req.user!, body),
         };
     }
 
@@ -313,10 +315,9 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
         @Body() body: CreateGroup,
     ): Promise<ApiGroupResponse> {
-        const group = await organizationService.addGroupToOrganization(
-            req.user!,
-            body,
-        );
+        const group = await this.services
+            .getOrganizationService()
+            .addGroupToOrganization(req.user!, body);
         this.setStatus(201);
         return {
             status: 'ok',
@@ -336,10 +337,9 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
         @Query() includeMembers?: number,
     ): Promise<ApiGroupListResponse> {
-        const groups = await organizationService.listGroupsInOrganization(
-            req.user!,
-            includeMembers,
-        );
+        const groups = await this.services
+            .getOrganizationService()
+            .listGroupsInOrganization(req.user!, includeMembers);
         this.setStatus(200);
         return {
             status: 'ok',

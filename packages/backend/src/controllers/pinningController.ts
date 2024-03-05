@@ -17,7 +17,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { pinningService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -44,11 +43,9 @@ export class PinningController extends BaseController {
         @Path() pinnedListUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiPinnedItems> {
-        const pinnedItems = await pinningService.getPinnedItems(
-            req.user!,
-            projectUuid,
-            pinnedListUuid,
-        );
+        const pinnedItems = await this.services
+            .getPinningService()
+            .getPinnedItems(req.user!, projectUuid, pinnedListUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -78,12 +75,14 @@ export class PinningController extends BaseController {
         @Body()
         body: Array<UpdatePinnedItemOrder>,
     ): Promise<ApiPinnedItems> {
-        const pinnedItems = await pinningService.updatePinnedItemsOrder(
-            req.user!,
-            projectUuid,
-            pinnedListUuid,
-            body,
-        );
+        const pinnedItems = await this.services
+            .getPinningService()
+            .updatePinnedItemsOrder(
+                req.user!,
+                projectUuid,
+                pinnedListUuid,
+                body,
+            );
         this.setStatus(200);
         return {
             status: 'ok',
