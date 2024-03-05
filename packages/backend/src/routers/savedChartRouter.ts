@@ -4,11 +4,6 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import {
-    analyticsService,
-    projectService,
-    savedChartsService,
-} from '../services/services';
 
 export const savedChartRouter = express.Router();
 
@@ -17,7 +12,8 @@ savedChartRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        savedChartsService
+        req.services
+            .getSavedChartService()
             .get(req.params.savedQueryUuid, req.user!)
             .then((results) => {
                 res.json({
@@ -34,7 +30,8 @@ savedChartRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        savedChartsService
+        req.services
+            .getSavedChartService()
             .getViewStats(req.user!, req.params.savedQueryUuid)
             .then((results) => {
                 res.json({
@@ -51,7 +48,8 @@ savedChartRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) =>
-        projectService
+        req.services
+            .getProjectService()
             .getAvailableFiltersForSavedQuery(
                 req.user!,
                 req.params.savedQueryUuid,
@@ -71,7 +69,8 @@ savedChartRouter.delete(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        savedChartsService
+        req.services
+            .getSavedChartService()
             .delete(req.user!, req.params.savedQueryUuid)
             .then(() => {
                 res.json({
@@ -89,7 +88,8 @@ savedChartRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        savedChartsService
+        req.services
+            .getSavedChartService()
             .update(req.user!, req.params.savedQueryUuid, req.body)
             .then((results) => {
                 res.json({
@@ -107,7 +107,8 @@ savedChartRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        savedChartsService
+        req.services
+            .getSavedChartService()
             .togglePinning(req.user!, req.params.savedQueryUuid)
             .then((results) => {
                 res.json({
@@ -125,7 +126,8 @@ savedChartRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        savedChartsService
+        req.services
+            .getSavedChartService()
             .createVersion(req.user!, req.params.savedQueryUuid, req.body)
             .then((results) => {
                 res.json({
@@ -145,10 +147,9 @@ savedChartRouter.get(
         try {
             res.json({
                 status: 'ok',
-                results: await savedChartsService.getSchedulers(
-                    req.user!,
-                    req.params.savedQueryUuid,
-                ),
+                results: await req.services
+                    .getSavedChartService()
+                    .getSchedulers(req.user!, req.params.savedQueryUuid),
             });
         } catch (e) {
             next(e);
@@ -165,11 +166,13 @@ savedChartRouter.post(
         try {
             res.json({
                 status: 'ok',
-                results: await savedChartsService.createScheduler(
-                    req.user!,
-                    req.params.savedQueryUuid,
-                    req.body,
-                ),
+                results: await req.services
+                    .getSavedChartService()
+                    .createScheduler(
+                        req.user!,
+                        req.params.savedQueryUuid,
+                        req.body,
+                    ),
             });
         } catch (e) {
             next(e);

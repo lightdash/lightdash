@@ -14,7 +14,6 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { slackAuthenticationModel } from '../models/models';
-import { downloadFileService } from '../services/services';
 
 // TODO: to be removed once this is refactored. https://github.com/lightdash/lightdash/issues/9174
 const analytics = new LightdashAnalytics({
@@ -74,8 +73,9 @@ slackRouter.get(
     async (req, res, next) => {
         try {
             const { nanoId } = req.params;
-            const { path: filePath } =
-                await downloadFileService.getDownloadFile(nanoId);
+            const { path: filePath } = await req.services
+                .getDownloadFileService()
+                .getDownloadFile(nanoId);
             const normalizedPath = path.normalize(filePath);
             if (!normalizedPath.startsWith('/tmp/')) {
                 throw new NotFoundError(`File not found ${normalizedPath}`);
