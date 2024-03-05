@@ -8,13 +8,13 @@ const ExploreIndex: FC = () => {
     return (
         <Center style={{ flex: 1 }}>
             <Group spacing="sm">
-                <Text>Start exploring or</Text>
+                <Text>Use existing explore or </Text>
                 <Button
                     compact
                     component={Link}
                     to={`/projects/${projectUuid}/explore/new`}
                 >
-                    create a new explore
+                    write a sql query
                 </Button>
             </Group>
         </Center>
