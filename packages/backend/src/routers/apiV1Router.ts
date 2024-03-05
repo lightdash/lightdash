@@ -8,7 +8,6 @@ import {
     storeOIDCRedirect,
 } from '../controllers/authentication';
 import { UserModel } from '../models/UserModel';
-import { healthService } from '../services/services';
 import { analyticsRouter } from './analyticsRouter';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
@@ -30,7 +29,8 @@ apiV1Router.get('/livez', async (req, res, next) => {
 });
 
 apiV1Router.get('/health', async (req, res, next) => {
-    healthService
+    req.services
+        .getHealthService()
         .getHealthState(!!req.user?.userUuid)
         .then((state) =>
             res.json({

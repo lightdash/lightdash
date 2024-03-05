@@ -398,7 +398,7 @@ const UsersView: FC = () => {
                                     disabled={
                                         user.data?.userUuid ===
                                             orgUser.userUuid ||
-                                        organizationUsers.length <= 1
+                                        organizationUsers.length < 1
                                     }
                                 />
                             ))

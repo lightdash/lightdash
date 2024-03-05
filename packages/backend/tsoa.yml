@@ -1,41 +1,42 @@
 entryFile: src/index.ts
 controllerPathGlobs:
-  - src/**/*Controller.ts
+    - src/**/*Controller.ts
 spec:
-  name: Lightdash API
-  description: >
-    Open API documentation for all public Lightdash API endpoints. 
-    # Authentication
-    Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens
-  contact:
-    name: Lightdash Support
-    email: support@lightdash.com
-    url: "https://docs.lightdash.com/help-and-contact/contact/contact_info/"
-  license: MIT
-  tags:
-    - name: My Account
-      description: These routes allow users to manage their own user account.
-    - name: Organizations
-      description: Each user is a member of a single organization. These routes allow users to manage their organization. Most actions are only available to admin users.
-    - name: Projects
-      description: Projects belong to a single organization. These routes allow users to manage their projects, browse content, and execute queries. Users inside an organization might have access to a project from an organization-level role or they might be granted access to a project directly.
-    - name: Spaces
-      description: Spaces allow you to organize charts and dashboards within a project. They also allow granular access to content by allowing you to create private spaces, which are only accessible to the creator and admins.
-    - name: Roles & Permissions
-      description: These routes allow users to manage roles and permissions for their organization.
-      externalDocs:
-        url: "https://docs.lightdash.com/references/roles"
-  outputDirectory: ./src/generated/
-  specVersion: 3
-  securityDefinitions:
-    session_cookie:
-      type: apiKey
-      in: cookie
-      name: connect.sid
-    api_key:
-      type: apiKey
-      in: header
-      name: Authorization
-      description: Value should be 'ApiKey <your key>'
+    name: Lightdash API
+    description: >
+        Open API documentation for all public Lightdash API endpoints. 
+        # Authentication
+        Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens
+    contact:
+        name: Lightdash Support
+        email: support@lightdash.com
+        url: 'https://docs.lightdash.com/help-and-contact/contact/contact_info/'
+    license: MIT
+    tags:
+        - name: My Account
+          description: These routes allow users to manage their own user account.
+        - name: Organizations
+          description: Each user is a member of a single organization. These routes allow users to manage their organization. Most actions are only available to admin users.
+        - name: Projects
+          description: Projects belong to a single organization. These routes allow users to manage their projects, browse content, and execute queries. Users inside an organization might have access to a project from an organization-level role or they might be granted access to a project directly.
+        - name: Spaces
+          description: Spaces allow you to organize charts and dashboards within a project. They also allow granular access to content by allowing you to create private spaces, which are only accessible to the creator and admins.
+        - name: Roles & Permissions
+          description: These routes allow users to manage roles and permissions for their organization.
+          externalDocs:
+              url: 'https://docs.lightdash.com/references/roles'
+    outputDirectory: ./src/generated/
+    specVersion: 3
+    securityDefinitions:
+        session_cookie:
+            type: apiKey
+            in: cookie
+            name: connect.sid
+        api_key:
+            type: apiKey
+            in: header
+            name: Authorization
+            description: Value should be 'ApiKey <your key>'
 routes:
-  routesDir: ./src/generated/
+    routesDir: ./src/generated/
+    iocModule: ./src/services/tsoaServiceContainer

@@ -1,9 +1,6 @@
 import { ApiSuccessEmpty, ForbiddenError, GitRepo } from '@lightdash/common';
-import { createAppAuth } from '@octokit/auth-app';
-import { createTokenAuth } from '@octokit/auth-token';
-import { Octokit, Octokit as OctokitRest } from '@octokit/rest';
+import { Octokit as OctokitRest } from '@octokit/rest';
 import {
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -16,8 +13,8 @@ import {
 import express from 'express';
 import { getGithubApp, getOctokitRestForApp } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
-import { githubAppService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import { BaseController } from './baseController';
 
 const githubAppName = 'lightdash-dev';
 
@@ -31,11 +28,9 @@ const githubAppName = 'lightdash-dev';
  *
  * and then you can use it on /api/v1/github/list
  * or /api/v1/github/create-branch to create a branch and push some code.
- *
- *
  */
 @Route('/api/v1/github')
-export class GithubInstallController extends Controller {
+export class GithubInstallController extends BaseController {
     /**
      * Install the Lightdash GitHub App and link to an organization
      *
@@ -120,12 +115,14 @@ export class GithubInstallController extends Controller {
             if (installation === undefined)
                 throw new Error('Invalid installation id');
 
-            await githubAppService.upsertInstallation(
-                state,
-                installation_id,
-                token,
-                refreshToken,
-            );
+            await this.services
+                .getGithubAppService()
+                .upsertInstallation(
+                    state,
+                    installation_id,
+                    token,
+                    refreshToken,
+                );
             const redirectUrl = new URL(req.session.oauth?.returnTo || '/');
             req.session.oauth = {};
             this.setStatus(302);
@@ -139,7 +136,9 @@ export class GithubInstallController extends Controller {
     async uninstallGithubAppForOrganization(
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        await githubAppService.deleteAppInstallation(req.user!);
+        await this.services
+            .getGithubAppService()
+            .deleteAppInstallation(req.user!);
         // todo: uninstall app with octokit
         this.setStatus(200);
         return {
@@ -159,9 +158,9 @@ export class GithubInstallController extends Controller {
         this.setStatus(200);
 
         // todo: move all to service
-        const installationId = await githubAppService.getInstallationId(
-            req.user!,
-        );
+        const installationId = await this.services
+            .getGithubAppService()
+            .getInstallationId(req.user!);
 
         if (installationId === undefined)
             throw new Error('Invalid Github installation id');

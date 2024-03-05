@@ -5,7 +5,6 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { userService } from '../services/services';
 
 export const inviteLinksRouter = express.Router();
 
@@ -15,7 +14,9 @@ inviteLinksRouter.get(
     async (req, res, next) => {
         try {
             const { inviteLinkCode } = req.params;
-            const inviteLink = await userService.getInviteLink(inviteLinkCode);
+            const inviteLink = await req.services
+                .getUserService()
+                .getInviteLink(inviteLinkCode);
             res.status(200).json({
                 status: 'ok',
                 results: inviteLink,
@@ -35,10 +36,9 @@ inviteLinksRouter.post(
         try {
             const createInviteLink = req.body as CreateInviteLink;
             const user = req.user!;
-            const inviteLink = await userService.createPendingUserAndInviteLink(
-                user,
-                createInviteLink,
-            );
+            const inviteLink = await req.services
+                .getUserService()
+                .createPendingUserAndInviteLink(user, createInviteLink);
             res.status(201).json({
                 status: 'ok',
                 results: inviteLink,
@@ -56,7 +56,7 @@ inviteLinksRouter.delete(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            await userService.revokeAllInviteLinks(req.user!);
+            await req.services.getUserService().revokeAllInviteLinks(req.user!);
             res.status(200).json({
                 status: 'ok',
             });

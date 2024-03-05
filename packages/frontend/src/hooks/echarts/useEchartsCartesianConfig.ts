@@ -42,7 +42,6 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import getPlottedData from '../plottedData/getPlottedData';
-import { useChartColorConfig } from '../useChartColorConfig';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -1308,13 +1307,8 @@ const useEchartsCartesianConfig = (
         pivotDimensions,
         resultsData,
         itemsMap,
-        colorPalette,
         getSeriesColor,
     } = useVisualizationContext();
-
-    const { useSharedColors } = useChartColorConfig({
-        colorPalette,
-    });
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -1411,23 +1405,6 @@ const useEchartsCartesianConfig = (
         validCartesianConfigLegend,
         getSeriesColor,
     ]);
-
-    /**
-     * We keep this around until the shared colors feature flag is removed.
-     */
-    const colors = useMemo<string[]>(() => {
-        //Do not use colors from hidden series
-        return validCartesianConfig?.eChartsConfig.series
-            ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
-                  (acc, serie, i) => {
-                      if (!serie.hidden)
-                          return [...acc, getSeriesColor(serie, i)];
-                      else return acc;
-                  },
-                  [],
-              )
-            : colorPalette;
-    }, [colorPalette, validCartesianConfig, getSeriesColor]);
 
     const sortedResults = useMemo(() => {
         const results =
@@ -1636,9 +1613,8 @@ const useEchartsCartesianConfig = (
                     validCartesianConfig?.eChartsConfig.grid,
                 ),
             },
-            // If using shared chart colors, we don't specify any colors at the top level,
-            // and instead assign them per-series.
-            color: useSharedColors ? [] : colors,
+            // We assign colors per series, so we specify an empty list here.
+            color: [],
         }),
         [
             axes.xAxis,
@@ -1651,8 +1627,6 @@ const useEchartsCartesianConfig = (
             series,
             sortedResults,
             tooltip,
-            colors,
-            useSharedColors,
         ],
     );
 

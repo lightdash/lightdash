@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -21,13 +20,13 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { notificationsService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/notifications')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Notifications')
-export class NotificationsController extends Controller {
+export class NotificationsController extends BaseController {
     /**
      * Gets notifications for a user based on the type
      * @param req express request
@@ -42,10 +41,9 @@ export class NotificationsController extends Controller {
         @Request() req: express.Request,
         @Query() type: ApiNotificationResourceType,
     ): Promise<ApiGetNotifications> {
-        const results = await notificationsService.getNotifications(
-            req.user!.userUuid,
-            type,
-        );
+        const results = await this.services
+            .getNotificationService()
+            .getNotifications(req.user!.userUuid, type);
 
         this.setStatus(200);
         return {
@@ -67,7 +65,9 @@ export class NotificationsController extends Controller {
         @Path() notificationId: string,
         @Body() body: ApiNotificationUpdateParams,
     ): Promise<ApiSuccessEmpty> {
-        await notificationsService.updateNotification(notificationId, body);
+        await this.services
+            .getNotificationService()
+            .updateNotification(notificationId, body);
 
         this.setStatus(200);
         return {

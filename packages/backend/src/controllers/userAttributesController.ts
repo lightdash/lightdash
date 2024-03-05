@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -23,17 +22,17 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { userAttributesService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/org/attributes')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('User attributes')
-export class UserAttributesController extends Controller {
+export class UserAttributesController extends BaseController {
     /**
      * Get all user attributes
      * @param req
@@ -50,7 +49,9 @@ export class UserAttributesController extends Controller {
         );
         return {
             status: 'ok',
-            results: await userAttributesService.getAll(req.user!, context),
+            results: await this.services
+                .getUserAttributesService()
+                .getAll(req.user!, context),
         };
     }
 
@@ -74,7 +75,9 @@ export class UserAttributesController extends Controller {
 
         return {
             status: 'ok',
-            results: await userAttributesService.create(req.user!, body),
+            results: await this.services
+                .getUserAttributesService()
+                .create(req.user!, body),
         };
     }
 
@@ -100,11 +103,9 @@ export class UserAttributesController extends Controller {
 
         return {
             status: 'ok',
-            results: await userAttributesService.update(
-                req.user!,
-                userAttributeUuid,
-                body,
-            ),
+            results: await this.services
+                .getUserAttributesService()
+                .update(req.user!, userAttributeUuid, body),
         };
     }
 
@@ -126,7 +127,9 @@ export class UserAttributesController extends Controller {
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
 
-        await userAttributesService.delete(req.user!, userAttributeUuid);
+        await this.services
+            .getUserAttributesService()
+            .delete(req.user!, userAttributeUuid);
         return {
             status: 'ok',
             results: undefined,

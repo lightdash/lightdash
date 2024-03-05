@@ -53,6 +53,7 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
+import { ServiceRepository } from './ServiceRepository';
 import { ShareService } from './ShareService/ShareService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { SshKeyPairService } from './SshKeyPairService';
@@ -61,7 +62,7 @@ import { UserAttributesService } from './UserAttributesService/UserAttributesSer
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
 
-export const analytics = new LightdashAnalytics({
+const analytics = new LightdashAnalytics({
     lightdashConfig,
     writeKey: lightdashConfig.rudder.writeKey || 'notrack',
     dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
@@ -281,4 +282,38 @@ export const commentService = new CommentService({
 
 export const notificationsService = new NotificationsService({
     notificationsModel,
+});
+
+/**
+ * See ./ServiceRepository for how this will work.
+ */
+export const serviceRepository = new ServiceRepository({
+    services: {
+        analyticsService,
+        commentService,
+        csvService,
+        dashboardService,
+        downloadFileService,
+        encryptionService,
+        gdriveService,
+        githubAppService,
+        gitIntegrationService,
+        groupService,
+        healthService,
+        organizationService,
+        personalAccessTokenService,
+        pinningService,
+        projectService,
+        schedulerService,
+        searchService,
+        shareService,
+        spaceService,
+        sshKeyPairService,
+        unfurlService,
+        userAttributesService,
+        userService,
+        validationService,
+        notificationService: notificationsService,
+        savedChartService: savedChartsService,
+    },
 });

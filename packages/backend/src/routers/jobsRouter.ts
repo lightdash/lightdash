@@ -3,7 +3,6 @@ import {
     allowApiKeyAuthentication,
     isAuthenticated,
 } from '../controllers/authentication';
-import { projectService } from '../services/services';
 
 export const jobsRouter = express.Router({ mergeParams: true });
 
@@ -18,7 +17,9 @@ jobsRouter.get(
     async (req, res, next) => {
         try {
             const { jobUuid } = req.params;
-            const job = await projectService.getJobStatus(jobUuid, req.user!);
+            const job = await req.services
+                .getProjectService()
+                .getJobStatus(jobUuid, req.user!);
             res.json({
                 status: 'ok',
                 results: job,
