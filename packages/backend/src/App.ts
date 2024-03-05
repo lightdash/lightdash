@@ -185,8 +185,10 @@ export default class App {
          * In a future iteration, the service repository will be aware of the surrounding
          * request context - for now we simply proxy the existing service repository singleton.
          */
-        expressApp.use((req) => {
+        expressApp.use((req, res, next) => {
             req.services = services.serviceRepository;
+
+            next();
         });
 
         // api router
