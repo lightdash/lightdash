@@ -1,3 +1,10 @@
+## [0.1024.8](https://github.com/lightdash/lightdash/compare/0.1024.7...0.1024.8) (2024-03-05)
+
+
+### Bug Fixes
+
+* scheduler app class ([#9228](https://github.com/lightdash/lightdash/issues/9228)) ([56213b7](https://github.com/lightdash/lightdash/commit/56213b7867820769c343050fbdcf51ade22ac30f))
+
 ## [0.1024.7](https://github.com/lightdash/lightdash/compare/0.1024.6...0.1024.7) (2024-03-05)
 
 
