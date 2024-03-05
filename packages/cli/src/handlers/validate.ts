@@ -52,6 +52,7 @@ const REFETCH_JOB_INTERVAL = 3000;
 type ValidateHandlerOptions = CompileHandlerOptions & {
     project?: string;
     verbose: boolean;
+    preview: boolean;
 };
 
 const waitUntilFinished = async (jobUuid: string): Promise<string> => {
@@ -75,10 +76,10 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     const explores = await compile(options);
     GlobalState.debug(`> Compiled ${explores.length} explores`);
 
-    const projectUuid =
-        options.project ||
-        config.context?.previewProject ||
-        config.context?.project;
+    const selectedProject = options.preview
+        ? config.context?.previewProject
+        : config.context?.project;
+    const projectUuid = options.project || selectedProject;
 
     if (projectUuid === undefined) {
         throw new ParameterError(
@@ -91,6 +92,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
             )}`,
         );
     }
+
     if (projectUuid === config.context?.previewProject) {
         console.error(
             `Validating preview project ${styles.bold(
