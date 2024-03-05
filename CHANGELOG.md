@@ -1,3 +1,10 @@
+## [0.1024.10](https://github.com/lightdash/lightdash/compare/0.1024.9...0.1024.10) (2024-03-05)
+
+
+### Bug Fixes
+
+* add missing next() call ([#9251](https://github.com/lightdash/lightdash/issues/9251)) ([9e10b22](https://github.com/lightdash/lightdash/commit/9e10b225932d6aee3e6820e8201e6d80d3672ce4))
+
 ## [0.1024.9](https://github.com/lightdash/lightdash/compare/0.1024.8...0.1024.9) (2024-03-05)
 
 
