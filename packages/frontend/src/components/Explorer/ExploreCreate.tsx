@@ -34,6 +34,8 @@ const ExploreCreate: FC<Props> = ({}) => {
 
     const setMode = useExplorerContext((c) => c.actions.setMode);
 
+    const reset = useExplorerContext((c) => c.actions.reset);
+
     const { showToastSuccess } = useToaster();
 
     const setCustomExplore = useExplorerContext(
@@ -94,6 +96,8 @@ const ExploreCreate: FC<Props> = ({}) => {
 
     useEffect(() => {
         if (!resultsData) return;
+
+        // TODO: this is a bit hacky, need to refactor
         setMetricQuery(resultsData.metricQuery);
     }, [resultsData, setMetricQuery]);
 
@@ -102,8 +106,10 @@ const ExploreCreate: FC<Props> = ({}) => {
 
         const result = await mutateAsync(sql);
 
+        // TODO: this is a bit hacky, need to refactor
+        reset();
         setCustomExplore(sql, result);
-    }, [mutateAsync, setCustomExplore, sql]);
+    }, [mutateAsync, reset, setCustomExplore, sql]);
 
     const handleChartBuild = useCallback(() => {
         // TODO: don't like this approach, need to refactor
@@ -111,6 +117,7 @@ const ExploreCreate: FC<Props> = ({}) => {
         history.push(`/projects/${projectUuid}/explore/build`);
 
         showToastSuccess({
+            key: 'explore-create-success',
             title: 'Successfully generated an Explore from your SQL. ',
             subtitle:
                 "Your fields came from your custom SQL query. To edit them, go to the SQL tab and hit 'edit query'.",
@@ -125,6 +132,7 @@ const ExploreCreate: FC<Props> = ({}) => {
         );
 
         showToastSuccess({
+            key: 'explore-create-link-copied',
             title: 'Copied link to clipboard',
             subtitle: 'You can now share this link with your team',
         });
