@@ -13,15 +13,15 @@ import {
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
 
-type Dependencies = {
+type OrganizationAllowedEmailDomainsModelArguments = {
     database: Knex;
 };
 
 export class OrganizationAllowedEmailDomainsModel {
     private database: Knex;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
+    constructor(args: OrganizationAllowedEmailDomainsModelArguments) {
+        this.database = args.database;
     }
 
     static mapDbOrganizationAllowedEmailDomainsToOrganizationAllowedEmailDomains(

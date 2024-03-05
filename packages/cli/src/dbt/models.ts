@@ -23,6 +23,7 @@ type CompiledModel = {
     database: string;
     originalFilePath: string;
     patchPath: string | null | undefined;
+    packageName: string;
     alias?: string;
 };
 
@@ -110,6 +111,7 @@ const askOverwriteDescription = async (
     columnName: string,
     existingDescription: string | undefined,
     newDescription: string | undefined,
+    assumeYes: boolean,
 ): Promise<string> => {
     if (!existingDescription) return newDescription || '';
     if (!newDescription) return existingDescription;
@@ -118,6 +120,8 @@ const askOverwriteDescription = async (
         isDocBlock(existingDescription)
     )
         return existingDescription;
+
+    if (assumeYes) return newDescription;
 
     const shortDescription = `${existingDescription.substring(0, 20)}${
         existingDescription.length > 20 ? '...' : ''
@@ -138,6 +142,7 @@ type FindAndUpdateModelYamlArgs = {
     includeMeta: boolean;
     projectDir: string;
     projectName: string;
+    assumeYes: boolean;
 };
 export const findAndUpdateModelYaml = async ({
     model,
@@ -146,6 +151,7 @@ export const findAndUpdateModelYaml = async ({
     includeMeta,
     projectDir,
     projectName,
+    assumeYes,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: YamlSchema;
     outputFilePath: string;
@@ -156,7 +162,7 @@ export const findAndUpdateModelYaml = async ({
         includeMeta,
     });
     const filenames = [];
-    const { patchPath } = model;
+    const { patchPath, packageName } = model;
     if (patchPath) {
         const { project: expectedYamlProject, path: expectedYamlSubPath } =
             patchPathParts(patchPath);
@@ -172,7 +178,14 @@ export const findAndUpdateModelYaml = async ({
         filenames.push(expectedYamlPath);
     }
     const defaultYmlPath = path.join(
-        path.dirname(path.join(projectDir, model.originalFilePath)),
+        path.dirname(
+            path.join(
+                packageName === projectName
+                    ? '.'
+                    : path.join('dbt_packages', packageName),
+                model.originalFilePath,
+            ),
+        ),
         `${model.name}.yml`,
     );
     filenames.push(defaultYmlPath);
@@ -212,6 +225,7 @@ export const findAndUpdateModelYaml = async ({
                         column.name,
                         existingDescription,
                         newDescription,
+                        assumeYes,
                     ),
                     ...(meta !== undefined ? { meta } : {}),
                 };
@@ -229,22 +243,29 @@ export const findAndUpdateModelYaml = async ({
         );
         let updatedColumns = [...existingColumnsUpdated, ...newColumns];
         if (deletedColumnNames.length > 0 && process.env.CI !== 'true') {
-            const spinner = GlobalState.getActiveSpinner();
-            spinner?.stop();
-            console.error(`
-These columns in your model ${styles.bold(model.name)} on file ${styles.bold(
-                match.filename.split('/').slice(-1),
-            )} no longer exist in your warehouse:
-${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
-            `);
-            const answers = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'isConfirm',
-                    message: `Would you like to remove them from your .yml file? `,
-                },
-            ]);
-            spinner?.start();
+            let answers = { isConfirm: assumeYes };
+
+            if (!assumeYes) {
+                const spinner = GlobalState.getActiveSpinner();
+                spinner?.stop();
+                console.error(`
+    These columns in your model ${styles.bold(
+        model.name,
+    )} on file ${styles.bold(
+                    match.filename.split('/').slice(-1),
+                )} no longer exist in your warehouse:
+    ${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
+                `);
+
+                answers = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'isConfirm',
+                        message: `Would you like to remove them from your .yml file? `,
+                    },
+                ]);
+                spinner?.start();
+            }
 
             if (answers.isConfirm) {
                 updatedColumns = updatedColumns.filter(
@@ -377,5 +398,6 @@ export const getCompiledModels = async (
         originalFilePath: modelLookup[modelId].original_file_path,
         patchPath: modelLookup[modelId].patch_path,
         alias: modelLookup[modelId].alias,
+        packageName: modelLookup[modelId].package_name,
     }));
 };

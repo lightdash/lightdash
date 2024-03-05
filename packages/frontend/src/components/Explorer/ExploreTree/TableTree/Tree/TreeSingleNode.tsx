@@ -10,16 +10,24 @@ import {
     Item,
     timeFrameConfigs,
 } from '@lightdash/common';
-import { Group, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
+import {
+    Group,
+    Highlight,
+    NavLink,
+    Popover,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
 import { darken, lighten } from 'polished';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
-
-import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import { useFilters } from '../../../../../hooks/useFilters';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
+import { useItemDetail } from '../ItemDetailContext';
+import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
 import { Node, useTableTreeContext } from './TreeProvider';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 
@@ -38,8 +46,9 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         onItemClick,
     } = useTableTreeContext();
     const { isFilteredField } = useFilters();
+    const { showItemDetail } = useItemDetail();
 
-    const [isHover, toggle] = useToggle(false);
+    const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
 
     const isSelected = selectedItems.has(node.key);
@@ -68,6 +77,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         missingCustomMetrics &&
         missingCustomMetrics.includes(item);
     const description = isField(item) ? item.description : undefined;
+
     const bgColor = getItemBgColor(item);
 
     // TODO: Add getFieldType function to common which should return FieldType enum (which should also have CUSTOM_METRIC, CUSTOM_DIMENSION, and TABLE_CALCULATION)
@@ -78,6 +88,37 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         if (isMetric(field)) return 'yellow.9';
 
         return 'yellow.9';
+    };
+
+    /**
+     * Handles putting together and opening the shared modal for a field's
+     * detailed description.
+     */
+    const onOpenDescriptionView = () => {
+        toggleHover(false);
+
+        showItemDetail({
+            header: (
+                <Group>
+                    <FieldIcon
+                        item={item}
+                        color={getFieldIconColor(item)}
+                        size="md"
+                    />
+                    <Text size="md">{label}</Text>
+                </Group>
+            ),
+            detail: description ? (
+                <ItemDetailMarkdown source={description}></ItemDetailMarkdown>
+            ) : (
+                <Text color="gray">No description available.</Text>
+            ),
+        });
+    };
+
+    const onToggleMenu = () => {
+        toggleHover(false);
+        toggleMenu();
     };
 
     return (
@@ -104,32 +145,54 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                 )
             }
             onClick={() => onItemClick(node.key, item)}
-            onMouseEnter={() => toggle(true)}
-            onMouseLeave={() => toggle(false)}
+            onMouseEnter={() => toggleHover(true)}
+            onMouseLeave={() => toggleHover(false)}
             label={
                 <Group noWrap>
-                    <Tooltip
+                    <Popover
+                        opened={isHover}
+                        keepMounted={false}
+                        shadow="sm"
                         withinPortal
-                        multiline
-                        sx={{ whiteSpace: 'normal' }}
+                        withArrow
                         disabled={!description && !isMissing}
-                        label={
-                            isMissing
-                                ? `This field from '${item.table}' table is no longer available`
-                                : description
-                        }
-                        position="top-start"
-                        maw={700}
+                        position="right"
+                        /** Ensures the hover card does not overlap with the right-hand menu. */
+                        offset={isFiltered ? 80 : 40}
                     >
-                        <Highlight
-                            component={Text}
-                            truncate
-                            sx={{ flexGrow: 1 }}
-                            highlight={searchQuery || ''}
+                        <Popover.Target>
+                            <Highlight
+                                component={Text}
+                                truncate
+                                sx={{ flexGrow: 1 }}
+                                highlight={searchQuery || ''}
+                            >
+                                {label}
+                            </Highlight>
+                        </Popover.Target>
+                        <Popover.Dropdown
+                            p="xs"
+                            /**
+                             * Takes up space to the right, so it's OK to go fairly wide in the interest
+                             * of readability.
+                             */
+                            maw={500}
+                            /**
+                             * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
+                             * while interacting with the hovercard.
+                             */
+                            onClick={(event) => event.stopPropagation()}
                         >
-                            {label}
-                        </Highlight>
-                    </Tooltip>
+                            {isMissing ? (
+                                `This field from '${item.table}' table is no longer available`
+                            ) : (
+                                <ItemDetailPreview
+                                    onViewDescription={onOpenDescriptionView}
+                                    description={description}
+                                />
+                            )}
+                        </Popover.Dropdown>
+                    </Popover>
 
                     {isFiltered ? (
                         <Tooltip withinPortal label="This field is filtered">
@@ -161,7 +224,9 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                     isHovered={isHover}
                     isSelected={isSelected}
                     isOpened={isMenuOpen}
-                    onMenuChange={toggleMenu}
+                    hasDescription={!!description}
+                    onViewDescription={onOpenDescriptionView}
+                    onMenuChange={onToggleMenu}
                 />
             }
             data-testid={`tree-single-node-${label}`}

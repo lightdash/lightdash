@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Stack, Text, Title } from '@mantine/core';
 import {
     IconBuildingSkyscraper,
@@ -12,13 +13,13 @@ import {
     IconPalette,
     IconPlug,
     IconReportAnalytics,
+    IconSql,
     IconTableOptions,
     IconUserCircle,
     IconUserPlus,
     IconUsers,
     IconUserShield,
 } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
@@ -31,9 +32,10 @@ import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
-import AppearancePanel from '../components/UserSettings/AppearancePanel';
+import AppearanceSettingsPanel from '../components/UserSettings/AppearanceSettingsPanel';
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
+import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
@@ -45,6 +47,7 @@ import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel'
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
+import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import { TrackPage, useTracking } from '../providers/TrackingProvider';
@@ -52,8 +55,13 @@ import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 
 const Settings: FC = () => {
-    const isPassthroughLoginFeatureEnabled =
-        useFeatureFlagEnabled('passthrough-login');
+    const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PassthroughLogin,
+    );
+
+    const isCustomSQLEnabled = useFeatureFlagEnabled(
+        FeatureFlags.CustomSQLEnabled,
+    );
 
     const {
         health: {
@@ -245,20 +253,14 @@ const Settings: FC = () => {
                                     />
                                 )}
 
-                                {health.hasSlack &&
-                                    user.ability.can(
-                                        'manage',
-                                        'Organization',
-                                    ) && (
-                                        <RouterNavLink
-                                            label="Integrations"
-                                            exact
-                                            to="/generalSettings/integrations/slack"
-                                            icon={
-                                                <MantineIcon icon={IconPlug} />
-                                            }
-                                        />
-                                    )}
+                                {user.ability.can('manage', 'Organization') && (
+                                    <RouterNavLink
+                                        label="Integrations"
+                                        exact
+                                        to="/generalSettings/integrations"
+                                        icon={<MantineIcon icon={IconPlug} />}
+                                    />
+                                )}
 
                                 {organization &&
                                     !organization.needsProject &&
@@ -387,6 +389,15 @@ const Settings: FC = () => {
                                         }
                                     />
                                 ) : null}
+
+                                {isCustomSQLEnabled && (
+                                    <RouterNavLink
+                                        label="Custom SQL"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/customSql`}
+                                        icon={<MantineIcon icon={IconSql} />}
+                                    />
+                                )}
                             </Box>
                         ) : null}
                     </Stack>
@@ -527,24 +538,23 @@ const Settings: FC = () => {
                     )}
 
                 <Route exact path="/generalSettings/appearance">
-                    <SettingsGridCard>
-                        <Title order={4}>Appearance settings</Title>
-                        <AppearancePanel />
-                    </SettingsGridCard>
+                    <AppearanceSettingsPanel />
                 </Route>
 
                 <Route exact path="/generalSettings/personalAccessTokens">
                     <AccessTokensPanel />
                 </Route>
 
-                {health.hasSlack && user.ability.can('manage', 'Organization') && (
-                    <Route exact path="/generalSettings/integrations/slack">
-                        <Stack>
-                            <Title order={4}>Integrations</Title>
-                            <SlackSettingsPanel />
-                        </Stack>
-                    </Route>
-                )}
+                {(health.hasSlack || health.hasGithub) &&
+                    user.ability.can('manage', 'Organization') && (
+                        <Route exact path="/generalSettings/integrations">
+                            <Stack>
+                                <Title order={4}>Integrations</Title>
+                                {health.hasSlack && <SlackSettingsPanel />}
+                                {health.hasGithub && <GithubSettingsPanel />}
+                            </Stack>
+                        </Route>
+                    )}
 
                 <Route exact path="/generalSettings">
                     <SettingsGridCard>

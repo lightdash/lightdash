@@ -2,6 +2,7 @@ import {
     ApiError,
     CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
+    ItemsMap,
     SchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -28,10 +29,17 @@ enum States {
 
 const ListStateContent: FC<{
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
+    isThresholdAlertList?: boolean;
     onClose: () => void;
     onConfirm: () => void;
     onEdit: (schedulerUuid: string) => void;
-}> = ({ schedulersQuery, onClose, onConfirm, onEdit }) => {
+}> = ({
+    schedulersQuery,
+    isThresholdAlertList,
+    onClose,
+    onConfirm,
+    onEdit,
+}) => {
     return (
         <>
             <Box
@@ -42,6 +50,7 @@ const ListStateContent: FC<{
             >
                 <SchedulersList
                     schedulersQuery={schedulersQuery}
+                    isThresholdAlertList={isThresholdAlertList}
                     onEdit={onEdit}
                 />
             </Box>
@@ -62,8 +71,17 @@ const CreateStateContent: FC<{
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
     isChart: boolean;
+    isThresholdAlert?: boolean;
+    itemsMap?: ItemsMap;
     onBack: () => void;
-}> = ({ resourceUuid, createMutation, isChart, onBack }) => {
+}> = ({
+    resourceUuid,
+    createMutation,
+    isChart,
+    isThresholdAlert,
+    itemsMap,
+    onBack,
+}) => {
     useEffect(() => {
         if (createMutation.isSuccess) {
             createMutation.reset();
@@ -121,10 +139,14 @@ const CreateStateContent: FC<{
                           }
                 }
                 onSubmit={handleSubmit}
-                confirmText="Create schedule"
+                confirmText={
+                    isThresholdAlert ? 'Create alert' : 'Create schedule'
+                }
                 onBack={onBack}
                 onSendNow={handleSendNow}
                 loading={createMutation.isLoading}
+                isThresholdAlert={isThresholdAlert}
+                itemsMap={itemsMap}
             />
         </>
     );
@@ -132,8 +154,10 @@ const CreateStateContent: FC<{
 
 const UpdateStateContent: FC<{
     schedulerUuid: string;
+    itemsMap?: ItemsMap;
     onBack: () => void;
-}> = ({ schedulerUuid, onBack }) => {
+    isThresholdAlert?: boolean;
+}> = ({ schedulerUuid, itemsMap, onBack, isThresholdAlert }) => {
     const scheduler = useScheduler(schedulerUuid);
 
     const mutation = useSchedulersUpdateMutation(schedulerUuid);
@@ -210,11 +234,13 @@ const UpdateStateContent: FC<{
                 }
                 disabled={mutation.isLoading}
                 savedSchedulerData={scheduler.data}
+                isThresholdAlert={isThresholdAlert}
                 onSubmit={handleSubmit}
                 confirmText="Save"
                 onBack={onBack}
                 onSendNow={handleSendNow}
                 loading={mutation.isLoading || scheduler.isInitialLoading}
+                itemsMap={itemsMap}
             />
         </>
     );
@@ -230,6 +256,8 @@ interface Props {
     >;
     onClose: () => void;
     isChart: boolean;
+    isThresholdAlert?: boolean;
+    itemsMap?: ItemsMap;
 }
 
 const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
@@ -237,6 +265,8 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
     schedulersQuery,
     createMutation,
     isChart,
+    isThresholdAlert,
+    itemsMap,
     onClose = () => {},
 }) => {
     const [state, setState] = useState<States>(States.LIST);
@@ -272,6 +302,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                         setState(States.EDIT);
                         setSchedulerUuid(schedulerUuidToUpdate);
                     }}
+                    isThresholdAlertList={isThresholdAlert}
                 />
             )}
             {state === States.CREATE && (
@@ -279,13 +310,17 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                     resourceUuid={resourceUuid}
                     createMutation={createMutation}
                     isChart={isChart}
+                    itemsMap={itemsMap}
                     onBack={() => setState(States.LIST)}
+                    isThresholdAlert={isThresholdAlert}
                 />
             )}
             {state === States.EDIT && schedulerUuid && (
                 <UpdateStateContent
                     schedulerUuid={schedulerUuid}
+                    itemsMap={itemsMap}
                     onBack={() => setState(States.LIST)}
+                    isThresholdAlert={isThresholdAlert}
                 />
             )}
         </>

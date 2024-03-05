@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { Dashboard } from './dashboard';
 import { Table } from './explore';
 import { Dimension, Metric } from './field';
@@ -9,7 +10,12 @@ import {
     ValidationErrorTableResponse,
 } from './validation';
 
-export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'>;
+type RankedItem = {
+    search_rank: number;
+};
+
+export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'> &
+    RankedItem;
 export type DashboardSearchResult = Pick<
     Dashboard,
     'uuid' | 'name' | 'description' | 'spaceUuid'
@@ -17,7 +23,7 @@ export type DashboardSearchResult = Pick<
     validationErrors: {
         validationId: ValidationErrorDashboardResponse['validationId'];
     }[];
-};
+} & RankedItem;
 
 export type SavedChartSearchResult = Pick<
     SavedChart,
@@ -27,13 +33,15 @@ export type SavedChartSearchResult = Pick<
     validationErrors: {
         validationId: ValidationErrorChartResponse['validationId'];
     }[];
-};
+} & RankedItem;
+
 export type TableSearchResult = Pick<
     Table,
     'name' | 'label' | 'description' | 'requiredAttributes'
 > & {
     explore: string;
     exploreLabel: string;
+    regexMatchCount: number;
 };
 
 export type TableErrorSearchResult = Pick<
@@ -62,6 +70,7 @@ export type FieldSearchResult = Pick<
     >;
     explore: string;
     exploreLabel: string;
+    regexMatchCount: number;
 };
 
 type PageResult = {
@@ -112,4 +121,44 @@ export const getSearchResultId = (meta: SearchResult | undefined) => {
         return `${meta.explore}.${meta.name}`;
     }
     return meta.uuid;
+};
+
+export enum SearchItemType {
+    DASHBOARD = 'dashboard',
+    CHART = 'saved_chart',
+    SPACE = 'space',
+    TABLE = 'table',
+    FIELD = 'field',
+    PAGE = 'page',
+}
+
+export function getSearchItemTypeFromResultKey(
+    searchResultKey: keyof SearchResults,
+) {
+    switch (searchResultKey) {
+        case 'spaces':
+            return SearchItemType.SPACE;
+        case 'dashboards':
+            return SearchItemType.DASHBOARD;
+        case 'savedCharts':
+            return SearchItemType.CHART;
+        case 'tables':
+            return SearchItemType.TABLE;
+        case 'fields':
+            return SearchItemType.FIELD;
+        case 'pages':
+            return SearchItemType.PAGE;
+        default:
+            return assertUnreachable(
+                searchResultKey,
+                `unexpected search result key: ${searchResultKey}`,
+            );
+    }
+}
+
+export type SearchFilters = {
+    type?: string; // the type filter can be any string, but it should be one of the EntityType to be valid, see shouldSearchForType function
+    fromDate?: string;
+    toDate?: string;
+    createdByUuid?: string;
 };

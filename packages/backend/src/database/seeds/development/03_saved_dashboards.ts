@@ -11,7 +11,7 @@ import {
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
-import { getSpaceWithQueries } from '../../entities/spaces';
+import { SpaceModel } from '../../../models/SpaceModel';
 
 const markdownSample = `### Lightdash is an open source analytics for your dbt project.
 
@@ -36,7 +36,11 @@ export async function seed(knex: Knex): Promise<void> {
         database: knex,
     });
 
-    const { queries, uuid: spaceUuid } = await getSpaceWithQueries(
+    const spaceModel = new SpaceModel({
+        database: knex,
+    });
+
+    const { queries, uuid: spaceUuid } = await spaceModel.getSpaceWithQueries(
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
     );

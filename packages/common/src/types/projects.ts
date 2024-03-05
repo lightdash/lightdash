@@ -235,9 +235,7 @@ export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
 export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
     type: DbtProjectType.DBT_CLOUD_IDE;
     api_key: string;
-    account_id: string | number;
-    environment_id: string | number;
-    project_id: string | number;
+    environment_id: string;
 }
 
 export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {

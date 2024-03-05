@@ -34,6 +34,7 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
+import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
 import {
     appendNewTilesToBottom,
@@ -46,6 +47,7 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
+import { useApp } from '../providers/AppProvider';
 import {
     DashboardProvider,
     useDashboardContext,
@@ -84,7 +86,10 @@ const GridTile: FC<
     Pick<
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    > & { isLazyLoadEnabled: boolean; index: number }
+    > & {
+        isLazyLoadEnabled: boolean;
+        index: number;
+    }
 > = memo((props) => {
     const { tile, isLazyLoadEnabled, index } = props;
     useProfiler(`Dashboard-${tile.type}`);
@@ -169,6 +174,7 @@ const Dashboard: FC = () => {
     );
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
+    const { isFullscreen, toggleFullscreen } = useApp();
     const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();
@@ -272,6 +278,40 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged,
         setHaveTilesChanged,
     ]);
+
+    const handleToggleFullscreen = () => {
+        const willBeFullscreen = !isFullscreen;
+
+        if (document.fullscreenElement && !willBeFullscreen) {
+            document.exitFullscreen();
+        } else if (
+            document.fullscreenEnabled &&
+            !document.fullscreenElement &&
+            willBeFullscreen
+        ) {
+            document.documentElement.requestFullscreen();
+        }
+
+        toggleFullscreen();
+    };
+
+    useEffect(() => {
+        const onFullscreenChange = () => {
+            if (isFullscreen && !document.fullscreenElement) {
+                toggleFullscreen(false);
+            } else if (!isFullscreen && document.fullscreenElement) {
+                toggleFullscreen(true);
+            }
+        };
+
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+
+        return () =>
+            document.removeEventListener(
+                'fullscreenchange',
+                onFullscreenChange,
+            );
+    });
 
     const handleUpdateTiles = useCallback(
         async (layout: Layout[]) => {
@@ -559,6 +599,8 @@ const Dashboard: FC = () => {
                         isEditMode={isEditMode}
                         isSaving={isSaving}
                         oldestCacheTime={oldestCacheTime}
+                        isFullscreen={isFullscreen}
+                        onToggleFullscreen={handleToggleFullscreen}
                         hasDashboardChanged={
                             haveTilesChanged ||
                             haveFiltersChanged ||
@@ -661,9 +703,16 @@ const Dashboard: FC = () => {
 };
 
 const DashboardPage: FC = () => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { user } = useApp();
+    const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
+
     useProfiler('Dashboard');
     return (
-        <DashboardProvider>
+        <DashboardProvider
+            projectUuid={projectUuid}
+            dashboardCommentsCheck={dashboardCommentsCheck}
+        >
             <Dashboard />
         </DashboardProvider>
     );

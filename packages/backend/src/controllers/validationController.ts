@@ -8,7 +8,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -23,13 +22,13 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { validationService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/validate')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
-export class ValidationController extends Controller {
+export class ValidationController extends BaseController {
     /**
      * Validate content inside a project. This will start a validation job and return the job id.
      *
@@ -55,12 +54,9 @@ export class ValidationController extends Controller {
         return {
             status: 'ok',
             results: {
-                jobId: await validationService.validate(
-                    req.user!,
-                    projectUuid,
-                    context,
-                    body.explores,
-                ),
+                jobId: await this.services
+                    .getValidationService()
+                    .validate(req.user!, projectUuid, context, body.explores),
             },
         };
     }
@@ -85,12 +81,9 @@ export class ValidationController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await validationService.get(
-                req.user!,
-                projectUuid,
-                fromSettings,
-                jobId,
-            ),
+            results: await this.services
+                .getValidationService()
+                .get(req.user!, projectUuid, fromSettings, jobId),
         };
     }
 
@@ -110,7 +103,9 @@ export class ValidationController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiValidationDismissResponse> {
         this.setStatus(200);
-        await validationService.delete(req.user!, validationId);
+        await this.services
+            .getValidationService()
+            .delete(req.user!, validationId);
         return {
             status: 'ok',
         };

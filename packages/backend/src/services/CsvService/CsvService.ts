@@ -38,9 +38,9 @@ import moment, { MomentInput } from 'moment';
 import { nanoid } from 'nanoid';
 import { pipeline, Readable, Transform, TransformCallback } from 'stream';
 import { Worker } from 'worker_threads';
-import { analytics } from '../../analytics/client';
 import {
     DownloadCsv,
+    LightdashAnalytics,
     parseAnalyticsLimit,
     QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
@@ -56,9 +56,9 @@ import { UserModel } from '../../models/UserModel';
 import { runWorkerThread } from '../../utils';
 import { ProjectService } from '../ProjectService/ProjectService';
 
-type CsvServiceDependencies = {
+type CsvServiceArguments = {
     lightdashConfig: LightdashConfig;
-
+    analytics: LightdashAnalytics;
     projectService: ProjectService;
     s3Client: S3Client;
     savedChartModel: SavedChartModel;
@@ -134,6 +134,8 @@ const getSchedulerCsvLimit = (
 export class CsvService {
     lightdashConfig: LightdashConfig;
 
+    analytics: LightdashAnalytics;
+
     projectService: ProjectService;
 
     s3Client: S3Client;
@@ -148,14 +150,16 @@ export class CsvService {
 
     constructor({
         lightdashConfig,
+        analytics,
         userModel,
         projectService,
         s3Client,
         savedChartModel,
         dashboardModel,
         downloadFileModel,
-    }: CsvServiceDependencies) {
+    }: CsvServiceArguments) {
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.userModel = userModel;
         this.projectService = projectService;
         this.s3Client = s3Client;
@@ -376,7 +380,7 @@ export class CsvService {
             : undefined;
 
         if (analyticProperties) {
-            analytics.track({
+            this.analytics.track({
                 event: 'download_results.started',
                 userId: user.userUuid,
                 properties: analyticProperties,
@@ -444,7 +448,7 @@ export class CsvService {
         );
 
         if (analyticProperties) {
-            analytics.track({
+            this.analytics.track({
                 event: 'download_results.completed',
                 userId: user.userUuid,
                 properties: { ...analyticProperties, numRows: numberRows },
@@ -477,7 +481,10 @@ export class CsvService {
             DownloadFileType.CSV,
         );
 
-        const localUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${downloadFileId}`;
+        const localUrl = new URL(
+            `/api/v1/projects/${chart.projectUuid}/csv/${downloadFileId}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
         return {
             filename: `${chart.name}`,
             path: localUrl,
@@ -562,7 +569,7 @@ export class CsvService {
                 throw new ForbiddenError();
             }
 
-            analytics.track({
+            this.analytics.track({
                 event: 'download_results.started',
                 userId: user.userUuid,
                 properties: {
@@ -593,10 +600,13 @@ export class CsvService {
                     filePath,
                     DownloadFileType.CSV,
                 );
-                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${downloadFileId}`;
+                fileUrl = new URL(
+                    `/api/v1/projects/${projectUuid}/csv/${downloadFileId}`,
+                    this.lightdashConfig.siteUrl,
+                ).href;
             }
 
-            analytics.track({
+            this.analytics.track({
                 event: 'download_results.completed',
                 userId: user.userUuid,
                 properties: {
@@ -608,7 +618,7 @@ export class CsvService {
 
             return fileUrl;
         } catch (e) {
-            analytics.track({
+            this.analytics.track({
                 event: 'download_results.error',
                 userId: user.userUuid,
                 properties: {
@@ -711,7 +721,7 @@ export class CsvService {
 
                 numColumns: numberColumns,
             };
-            analytics.track({
+            this.analytics.track({
                 event: 'download_results.started',
                 userId: user.userUuid!,
                 properties: analyticsProperties,
@@ -771,11 +781,13 @@ export class CsvService {
                     filePath,
                     DownloadFileType.CSV,
                 );
-
-                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${downloadFileId}`;
+                fileUrl = new URL(
+                    `/api/v1/projects/${projectUuid}/csv/${downloadFileId}`,
+                    this.lightdashConfig.siteUrl,
+                ).href;
             }
 
-            analytics.track({
+            this.analytics.track({
                 event: 'download_results.completed',
                 userId: user.userUuid,
                 properties: {
@@ -786,7 +798,7 @@ export class CsvService {
 
             return { fileUrl, truncated };
         } catch (e) {
-            analytics.track({
+            this.analytics.track({
                 event: 'download_results.error',
                 userId: user.userUuid,
                 properties: {

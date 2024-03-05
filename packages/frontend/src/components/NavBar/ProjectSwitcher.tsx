@@ -1,6 +1,7 @@
 import { ProjectType } from '@lightdash/common';
-import { Select } from '@mantine/core';
+import { Badge, Button, Group, Menu, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
+import { useCallback, useMemo } from 'react';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -59,6 +60,64 @@ const ProjectSwitcher = () => {
 
     const shouldSwapProjectRoute = !!swappableRouteMatch && activeProjectUuid;
 
+    const handleProjectChange = useCallback(
+        (newUuid: string) => {
+            if (!newUuid) return;
+
+            const project = projects?.find((p) => p.projectUuid === newUuid);
+            if (!project) return;
+
+            setLastProjectMutation(project.projectUuid);
+
+            showToastSuccess({
+                title: `You are now viewing ${project.name}`,
+                action:
+                    !isHomePage && shouldSwapProjectRoute
+                        ? {
+                              children: 'Go to project home',
+                              icon: IconArrowRight,
+                              onClick: () => {
+                                  history.push(
+                                      `/projects/${project.projectUuid}/home`,
+                                  );
+                              },
+                          }
+                        : undefined,
+            });
+
+            if (shouldSwapProjectRoute) {
+                history.push(
+                    swappableRouteMatch.path.replace(
+                        activeProjectUuid,
+                        project.projectUuid,
+                    ),
+                );
+            } else {
+                history.push(`/projects/${project.projectUuid}/home`);
+            }
+        },
+        [
+            activeProjectUuid,
+            history,
+            isHomePage,
+            projects,
+            setLastProjectMutation,
+            shouldSwapProjectRoute,
+            showToastSuccess,
+            swappableRouteMatch,
+        ],
+    );
+
+    const activeProject = useMemo(() => {
+        if (!activeProjectUuid || !projects) return null;
+        return projects.find((p) => p.projectUuid === activeProjectUuid);
+    }, [activeProjectUuid, projects]);
+
+    const inactiveProjects = useMemo(() => {
+        if (!activeProjectUuid || !projects) return [];
+        return projects.filter((p) => p.projectUuid !== activeProjectUuid);
+    }, [activeProjectUuid, projects]);
+
     if (
         isLoadingProjects ||
         isLoadingActiveProjectUuid ||
@@ -68,64 +127,66 @@ const ProjectSwitcher = () => {
         return null;
     }
 
-    const handleProjectChange = (newUuid: string) => {
-        if (!newUuid) return;
-
-        const project = projects?.find((p) => p.projectUuid === newUuid);
-        if (!project) return;
-
-        setLastProjectMutation(project.projectUuid);
-
-        showToastSuccess({
-            title: `You are now viewing ${project.name}`,
-            action:
-                !isHomePage && shouldSwapProjectRoute
-                    ? {
-                          children: 'Go to project home',
-                          icon: IconArrowRight,
-                          onClick: () => {
-                              history.push(
-                                  `/projects/${project.projectUuid}/home`,
-                              );
-                          },
-                      }
-                    : undefined,
-        });
-
-        if (shouldSwapProjectRoute) {
-            history.push(
-                swappableRouteMatch.path.replace(
-                    activeProjectUuid,
-                    project.projectUuid,
-                ),
-            );
-        } else {
-            history.push(`/projects/${project.projectUuid}/home`);
-        }
-    };
+    const hasMultipleProjects = projects.length > 1;
 
     return (
-        <Select
-            size="xs"
-            w={250}
-            dropdownComponent="div"
+        <Menu
+            position="bottom-end"
+            withArrow
+            shadow="lg"
+            arrowOffset={16}
+            offset={-2}
+            disabled={!hasMultipleProjects}
             styles={{
-                item: {
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
+                dropdown: {
+                    maxHeight: 450,
+                    overflow: 'auto',
                 },
             }}
-            disabled={isLoadingProjects || isLoadingActiveProjectUuid}
-            data={projects.map((item) => ({
-                value: item.projectUuid,
-                label: `${
-                    item.type === ProjectType.PREVIEW ? '[Preview] ' : ''
-                }${item.name}`,
-            }))}
-            value={activeProjectUuid}
-            onChange={handleProjectChange}
-        />
+        >
+            <Menu.Target>
+                <Button
+                    maw={200}
+                    variant="default"
+                    size="xs"
+                    disabled={
+                        isLoadingProjects ||
+                        isLoadingActiveProjectUuid ||
+                        !hasMultipleProjects
+                    }
+                    sx={(theme) => ({
+                        '&:disabled': {
+                            color: theme.white,
+                            backgroundColor: theme.colors.dark[6],
+                            borderColor: theme.colors.dark[4],
+                        },
+                    })}
+                >
+                    <Text truncate>
+                        {activeProject?.name ?? 'Select a project'}
+                    </Text>
+                </Button>
+            </Menu.Target>
+
+            <Menu.Dropdown>
+                {inactiveProjects.map((item) => (
+                    <Menu.Item
+                        key={item.projectUuid}
+                        onClick={() => handleProjectChange(item.projectUuid)}
+                    >
+                        <Group spacing="sm">
+                            {item.type === ProjectType.PREVIEW && (
+                                <Badge color="blue" variant="filled" size="xs">
+                                    Preview
+                                </Badge>
+                            )}
+
+                            <Text>{item.name}</Text>
+                        </Group>
+                    </Menu.Item>
+                ))}
+            </Menu.Dropdown>
+        </Menu>
     );
 };
 

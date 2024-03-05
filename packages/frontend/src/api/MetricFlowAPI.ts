@@ -40,16 +40,62 @@ export type GetMetricFlowFieldsResponse = {
     }>;
 };
 
-export function getMetricFlowFields(
+export type GetSemanticLayerMetricsResponse = {
+    metricsForDimensions: Array<{
+        name: string;
+        description?: string;
+        type: MetricFlowMetricType;
+        dimensions: Array<{
+            name: string;
+            description?: string;
+            type: MetricFlowDimensionType;
+            queryableGranularities: TimeGranularity[];
+        }>;
+    }>;
+};
+
+export function getSemanticLayerDimensions(
     projectUuid: string,
-    selectedFields?: {
-        metrics: Record<string, {}>;
-        dimensions: Record<string, { grain: TimeGranularity }>;
-    },
+    metrics: Record<string, {}>,
 ): Promise<GetMetricFlowFieldsResponse> {
     const query = `query GetFields($environmentId: BigInt!) {
+            metricsForDimensions(environmentId: $environmentId, dimensions: []) {
+                name
+                description
+                type
+                dimensions {
+                  name
+                  description
+                  type
+                  queryableGranularities
+                } 
+            }
+            dimensions(environmentId: $environmentId, metrics: [${
+                Object.entries(metrics).map(
+                    ([metric]) => `{ name: "${metric}" }`,
+                ) ?? ''
+            }]) {
+                name
+                description
+                type
+                queryableGranularities
+            }
+        }`;
+
+    return lightdashApi<any>({
+        url: `/projects/${projectUuid}/dbtsemanticlayer`,
+        method: 'POST',
+        body: JSON.stringify({ query, operationName: 'GetFields' }),
+    });
+}
+
+export function getSemanticLayerMetrics(
+    projectUuid: string,
+    dimensions: Record<string, { grain: TimeGranularity }>,
+): Promise<GetSemanticLayerMetricsResponse> {
+    const query = `query GetFields($environmentId: BigInt!) {
             metricsForDimensions(environmentId: $environmentId, dimensions: [${
-                Object.entries(selectedFields?.dimensions ?? {})
+                Object.entries(dimensions)
                     .filter(([dimension]) => dimension !== 'metric_time') // TODO: remove this when dbt stops throwing error when filtering by "metric_time"
                     .map(
                         ([dimension, options]) =>
@@ -65,16 +111,6 @@ export function getMetricFlowFields(
                   type
                   queryableGranularities
                 } 
-            }
-            dimensions(environmentId: $environmentId, metrics: [${
-                Object.entries(selectedFields?.metrics ?? {}).map(
-                    ([metric]) => `{ name: "${metric}" }`,
-                ) ?? ''
-            }]) {
-                name
-                description
-                type
-                queryableGranularities
             }
         }`;
 

@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    Comment,
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
@@ -18,6 +19,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
+import {
+    DashboardTileCommentsTableName,
+    DbDashboardTileComments,
+} from '../../database/entities/comments';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -48,9 +53,14 @@ import {
     SavedChartsTableName,
     SavedChartTable,
 } from '../../database/entities/savedCharts';
-import { getSpaceId, SpaceTableName } from '../../database/entities/spaces';
-import { UserTable, UserTableName } from '../../database/entities/users';
+import { SpaceTableName } from '../../database/entities/spaces';
+import {
+    DbUser,
+    UserTable,
+    UserTableName,
+} from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
+import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
@@ -86,15 +96,15 @@ export type GetChartTileQuery = Pick<
 > &
     Pick<SavedChartTable['base'], 'saved_query_uuid'>;
 
-type DashboardModelDependencies = {
+type DashboardModelArguments = {
     database: Knex;
 };
 
 export class DashboardModel {
     private readonly database: Knex;
 
-    constructor(deps: DashboardModelDependencies) {
-        this.database = deps.database;
+    constructor(args: DashboardModelArguments) {
+        this.database = args.database;
     }
 
     private static async createVersion(
@@ -702,7 +712,12 @@ export class DashboardModel {
         dashboard: DashboardUnversionedFields,
     ): Promise<Dashboard> {
         const withSpaceId = dashboard.spaceUuid
-            ? { space_id: await getSpaceId(this.database, dashboard.spaceUuid) }
+            ? {
+                  space_id: await SpaceModel.getSpaceId(
+                      this.database,
+                      dashboard.spaceUuid,
+                  ),
+              }
             : {};
         await this.database(DashboardsTableName)
             .update({
@@ -723,7 +738,7 @@ export class DashboardModel {
                 dashboards.map(async (dashboard) => {
                     const withSpaceId = dashboard.spaceUuid
                         ? {
-                              space_id: await getSpaceId(
+                              space_id: await SpaceModel.getSpaceId(
                                   this.database,
                                   dashboard.spaceUuid,
                               ),

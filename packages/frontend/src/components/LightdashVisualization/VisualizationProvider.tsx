@@ -5,6 +5,7 @@ import {
     ChartType,
     DashboardFilters,
     getCustomDimensionId,
+    getDefaultSeriesColor,
     ItemsMap,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
@@ -22,6 +23,11 @@ import {
 } from 'react';
 import { CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
+import {
+    isGroupedSeries,
+    SeriesLike,
+    useChartColorConfig,
+} from '../../hooks/useChartColorConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import VisualizationBigNumberConfig, {
@@ -67,6 +73,10 @@ type VisualizationContext = {
     ) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
+
+    getSeriesColor: (seriesLike: SeriesLike, seriesIndex: number) => string;
+    getGroupColor: (groupNameOrId: string) => string;
+
     colorPalette: string[];
 };
 
@@ -152,6 +162,9 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         [onChartTypeChange],
     );
 
+    const { calculateKeyColorAssignment, calculateSeriesColorAssignment } =
+        useChartColorConfig({ colorPalette });
+
     // cartesian config related
     const [stacking, setStacking] = useState<boolean>();
     const [cartesianType, setCartesianType] = useState<CartesianTypeOptions>();
@@ -200,6 +213,38 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
 
+    /**
+     * Gets a shared color for a given group name.
+     *
+     * NOTE: The feature flag is handled by the caller; until the flag is removed,
+     * it's the easiest way to access the necessary context to get a fallback color.
+     */
+    const getGroupColor = useCallback(
+        (groupNameOrId: string) => {
+            return calculateKeyColorAssignment(groupNameOrId);
+        },
+        [calculateKeyColorAssignment],
+    );
+
+    /**
+     * Gets a shared color for a given series.
+     */
+    const getSeriesColor = useCallback(
+        (seriesLike: SeriesLike, seriesIndex: number) => {
+            if (seriesLike.color) return seriesLike.color;
+
+            /**
+             * If this series is grouped, figure out a shared color assignment from the series;
+             * otherwise, pick a series color from the palette based on its order.
+             */
+            return isGroupedSeries(seriesLike)
+                ? calculateSeriesColorAssignment(seriesLike)
+                : colorPalette[seriesIndex % colorPalette.length] ??
+                      getDefaultSeriesColor(seriesIndex);
+        },
+        [calculateSeriesColorAssignment, colorPalette],
+    );
+
     const value: Omit<VisualizationContext, 'visualizationConfig'> = {
         minimal,
         pivotDimensions: validPivotDimensions,
@@ -215,6 +260,8 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         setChartType,
         setPivotDimensions,
         colorPalette,
+        getGroupColor,
+        getSeriesColor,
     };
 
     switch (chartConfig.type) {
@@ -230,6 +277,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                     cartesianType={cartesianType}
                     setPivotDimensions={setPivotDimensions}
                     onChartConfigChange={handleChartConfigChange}
+                    colorPalette={colorPalette}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

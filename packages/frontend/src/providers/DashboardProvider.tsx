@@ -30,6 +30,10 @@ import { createContext, useContextSelector } from 'use-context-selector';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import { hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
 import {
+    useDashboardCommentsCheck,
+    useGetComments,
+} from '../features/comments';
+import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
 } from '../hooks/dashboard/useDashboard';
@@ -45,6 +49,7 @@ const emptyFilters: DashboardFilters = {
 };
 
 type DashboardContext = {
+    projectUuid?: string;
     isDashboardLoading: boolean;
     dashboard: Dashboard | undefined;
     dashboardError: ApiError | null;
@@ -97,6 +102,9 @@ type DashboardContext = {
     setChartsWithDateZoomApplied: Dispatch<
         SetStateAction<Set<string> | undefined>
     >;
+    dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
+    dashboardComments?: ReturnType<typeof useGetComments>['data'];
+    hasTileComments: (tileUuid: string) => boolean;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -105,8 +113,16 @@ export const DashboardProvider: React.FC<
     React.PropsWithChildren<{
         schedulerFilters?: SchedulerFilterRule[] | undefined;
         dateZoom?: DateGranularity | undefined;
+        projectUuid?: string;
+        dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     }>
-> = ({ schedulerFilters, dateZoom, children }) => {
+> = ({
+    schedulerFilters,
+    dateZoom,
+    projectUuid,
+    dashboardCommentsCheck,
+    children,
+}) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
 
@@ -137,6 +153,22 @@ export const DashboardProvider: React.FC<
             return d;
         },
     });
+
+    const { data: dashboardComments } = useGetComments(
+        dashboardUuid,
+        !!dashboardCommentsCheck &&
+            !!dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
+            !!dashboardCommentsCheck.canViewDashboardComments,
+    );
+    const hasTileComments = useCallback(
+        (tileUuid: string) =>
+            !!(
+                dashboardComments &&
+                dashboardComments[tileUuid] &&
+                dashboardComments[tileUuid].length > 0
+            ),
+        [dashboardComments],
+    );
 
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
 
@@ -540,6 +572,7 @@ export const DashboardProvider: React.FC<
     );
 
     const value = {
+        projectUuid,
         isDashboardLoading,
         dashboard,
         dashboardError,
@@ -574,6 +607,9 @@ export const DashboardProvider: React.FC<
         setDateZoomGranularity,
         chartsWithDateZoomApplied,
         setChartsWithDateZoomApplied,
+        dashboardCommentsCheck,
+        dashboardComments,
+        hasTileComments,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

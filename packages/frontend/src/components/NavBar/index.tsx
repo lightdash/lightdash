@@ -4,7 +4,6 @@ import {
     Box,
     Button,
     Center,
-    Divider,
     getDefaultZIndex,
     Group,
     Header,
@@ -15,14 +14,15 @@ import {
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
+import Omnibar from '../../features/omnibar';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
+import { useApp } from '../../providers/AppProvider';
 import Logo from '../../svgs/logo-icon.svg?react';
 import MantineIcon from '../common/MantineIcon';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
-import GlobalSearch from './GlobalSearch';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
 import { NotificationsMenu } from './NotificationsMenu';
@@ -112,6 +112,8 @@ const NavBar = memo(() => {
         clearDashboardStorage,
     } = useDashboardStorage();
 
+    const { isFullscreen } = useApp();
+
     const dashboardInfo = getEditingDashboardInfo();
 
     const homeUrl = activeProjectUuid
@@ -140,21 +142,19 @@ const NavBar = memo(() => {
         );
     }
 
+    const headerContainerHeight =
+        NAVBAR_HEIGHT + (isCurrentProjectPreview ? BANNER_HEIGHT : 0);
+
     return (
         <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
             {isCurrentProjectPreview ? <PreviewBanner /> : null}
             {/* hack to make navbar fixed and maintain space */}
-            <Box
-                h={
-                    NAVBAR_HEIGHT +
-                    (isCurrentProjectPreview ? BANNER_HEIGHT : 0)
-                }
-            />
+            <Box h={!isFullscreen ? headerContainerHeight : 0} />
             <Header
                 height={NAVBAR_HEIGHT}
                 fixed
                 mt={isCurrentProjectPreview ? BANNER_HEIGHT : 'none'}
-                display="flex"
+                display={isFullscreen ? 'none' : 'flex'}
                 px="md"
                 zIndex={getDefaultZIndex('app')}
                 sx={{
@@ -179,14 +179,7 @@ const NavBar = memo(() => {
                                 <ExploreMenu projectUuid={activeProjectUuid} />
                                 <BrowseMenu projectUuid={activeProjectUuid} />
                             </Button.Group>
-
-                            <Divider
-                                orientation="vertical"
-                                my="xs"
-                                color="gray.8"
-                            />
-
-                            <GlobalSearch projectUuid={activeProjectUuid} />
+                            <Omnibar projectUuid={activeProjectUuid} />
                         </>
                     ) : null}
                 </Group>
@@ -208,11 +201,10 @@ const NavBar = memo(() => {
                         {!isLoadingActiveProject && activeProjectUuid ? (
                             <HeadwayMenuItem projectUuid={activeProjectUuid} />
                         ) : null}
+
+                        <ProjectSwitcher />
                     </Button.Group>
 
-                    <Divider orientation="vertical" my="xs" color="gray.8" />
-
-                    <ProjectSwitcher />
                     <UserCredentialsSwitcher />
                     <UserMenu />
                 </Group>

@@ -15,6 +15,7 @@ export type DbDashboard = {
     dashboard_uuid: string;
     name: string;
     description?: string;
+    search_vector: string;
     space_id: number;
     created_at: Date;
 };

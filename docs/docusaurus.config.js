@@ -59,6 +59,10 @@ module.exports = {
                         to: '/self-host/self-host-lightdash',
                         from: ['/self-host'],
                     },
+                    {
+                        to: '/contact/contact_info',
+                        from: ['/help-and-contact/contact/contact_info']
+                    },
                 ],
             },
         ],
@@ -124,7 +128,7 @@ module.exports = {
                 },
                 {
                     label: 'Company',
-                    href: 'https://www.lightdash.com/company',
+                    href: 'https://www.lightdash.com/about',
                 },
                 {
                     label: 'Careers',

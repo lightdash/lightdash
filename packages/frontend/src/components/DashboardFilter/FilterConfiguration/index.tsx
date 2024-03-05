@@ -114,14 +114,12 @@ const FilterConfiguration: FC<Props> = ({
 
             if (newField && isField(newField) && isFilterableField(newField)) {
                 setDraftFilterRule(
-                    createDashboardFilterRuleFromField(
-                        newField,
+                    createDashboardFilterRuleFromField({
+                        field: newField,
                         availableTileFilters,
-                        false,
-                        isCreatingTemporary,
-                    ),
+                        isTemporary: isCreatingTemporary,
+                    }),
                 );
-
                 setSelectedField(newField);
             }
         },
@@ -330,7 +328,14 @@ const FilterConfiguration: FC<Props> = ({
                             selectedField && (
                                 <Group spacing="xs">
                                     <FieldIcon item={selectedField} />
-                                    <FieldLabel item={selectedField} />
+                                    {originalFilterRule?.label &&
+                                    !isEditMode ? (
+                                        <Text span fw={500}>
+                                            {originalFilterRule.label}
+                                        </Text>
+                                    ) : (
+                                        <FieldLabel item={selectedField} />
+                                    )}
                                 </Group>
                             )
                         )}

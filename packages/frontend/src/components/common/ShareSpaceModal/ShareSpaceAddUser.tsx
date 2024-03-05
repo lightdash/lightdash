@@ -1,9 +1,4 @@
-import {
-    OrganizationMemberProfile,
-    OrganizationMemberRole,
-    ProjectMemberRole,
-    Space,
-} from '@lightdash/common';
+import { OrganizationMemberRole, Space } from '@lightdash/common';
 import {
     Avatar,
     Button,
@@ -14,6 +9,7 @@ import {
     Text,
 } from '@mantine/core';
 import { FC, forwardRef, useMemo, useState } from 'react';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import { getInitials, getUserNameOrEmail } from './Utils';
@@ -21,18 +17,16 @@ import { getInitials, getUserNameOrEmail } from './Utils';
 interface ShareSpaceAddUserProps {
     space: Space;
     projectUuid: string;
-    organizationUsers: OrganizationMemberProfile[] | undefined;
 }
 
 export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     space,
     projectUuid,
-    organizationUsers,
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const { data: projectAccess } = useProjectAccess(projectUuid);
-
+    const { data: organizationUsers } = useOrganizationUsers();
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
@@ -62,7 +56,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             return (
                 <Group ref={ref} {...props}>
                     <Avatar radius="xl" color="blue">
-                        {getInitials(user.userUuid, organizationUsers)}
+                        {getInitials(
+                            user.userUuid,
+                            user.firstName,
+                            user.lastName,
+                            user.email,
+                        )}
                     </Avatar>
 
                     <Stack spacing="two">
@@ -86,33 +85,30 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const data = useMemo(() => {
         return userUuids
             .map((userUuid): SelectItem | null => {
-                const projectUser = projectAccess?.find(
-                    (a) => a.userUuid === userUuid,
-                );
-
                 const user = organizationUsers?.find(
                     (a) => a.userUuid === userUuid,
                 );
 
                 if (!user) return null;
 
-                const isAdmin =
-                    user.role === OrganizationMemberRole.ADMIN ||
-                    projectUser?.role === ProjectMemberRole.ADMIN;
+                const hasDirectAccess = !!(space.access || []).find(
+                    (access) => access.userUuid === userUuid,
+                )?.hasDirectAccess;
 
-                const hasAccess = space.access
-                    ?.map((access) => access.userUuid)
-                    .includes(userUuid);
-
-                if (isAdmin || hasAccess) return null;
+                if (hasDirectAccess) return null;
 
                 return {
                     value: userUuid,
-                    label: getUserNameOrEmail(userUuid, organizationUsers),
+                    label: getUserNameOrEmail(
+                        user.userUuid,
+                        user.firstName,
+                        user.lastName,
+                        user.email,
+                    ),
                 };
             })
             .filter((item): item is SelectItem => item !== null);
-    }, [organizationUsers, userUuids, projectAccess, space.access]);
+    }, [organizationUsers, userUuids, space.access]);
 
     return (
         <Group>

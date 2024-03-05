@@ -340,32 +340,33 @@ const UsersView: FC = () => {
 
     return (
         <Stack spacing="xs">
-            {user.data?.ability?.can('create', 'InviteLink') && (
-                <Button
-                    compact
-                    leftIcon={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setShowInviteModal(true)}
-                    sx={{ alignSelf: 'end' }}
-                >
-                    Add user
-                </Button>
-            )}
             <SettingsCard shadow="none" p={0}>
-                <Paper p="sm">
-                    <TextInput
-                        size="xs"
-                        placeholder="Search users by name, email, or role"
-                        onChange={(e) => setSearch(e.target.value)}
-                        value={search}
-                        w={320}
-                        rightSection={
-                            search.length > 0 && (
-                                <ActionIcon onClick={() => setSearch('')}>
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            )
-                        }
-                    />
+                <Paper p="sm" radius={0}>
+                    <Group align="center" position="apart">
+                        <TextInput
+                            size="xs"
+                            placeholder="Search users by name, email, or role"
+                            onChange={(e) => setSearch(e.target.value)}
+                            value={search}
+                            w={320}
+                            rightSection={
+                                search.length > 0 && (
+                                    <ActionIcon onClick={() => setSearch('')}>
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                )
+                            }
+                        />
+                        {user.data?.ability?.can('create', 'InviteLink') && (
+                            <Button
+                                compact
+                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                onClick={() => setShowInviteModal(true)}
+                            >
+                                Add user
+                            </Button>
+                        )}
+                    </Group>
                 </Paper>
                 <Table className={classes.root}>
                     <thead>
@@ -397,7 +398,7 @@ const UsersView: FC = () => {
                                     disabled={
                                         user.data?.userUuid ===
                                             orgUser.userUuid ||
-                                        organizationUsers.length <= 1
+                                        organizationUsers.length < 1
                                     }
                                 />
                             ))

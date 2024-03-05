@@ -4,14 +4,14 @@ import { DbOrganization } from '../database/entities/organizations';
 import { DbShareUrl, ShareTableName } from '../database/entities/share';
 import { DbUser } from '../database/entities/users';
 
-type Dependencies = {
+type ShareModelArguments = {
     database: Knex;
 };
 export class ShareModel {
     private database: Knex;
 
-    constructor(dependencies: Dependencies) {
-        this.database = dependencies.database;
+    constructor(args: ShareModelArguments) {
+        this.database = args.database;
     }
 
     async createSharedUrl(shareUrl: ShareUrl): Promise<ShareUrl> {

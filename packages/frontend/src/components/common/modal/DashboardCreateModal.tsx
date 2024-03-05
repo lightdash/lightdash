@@ -1,6 +1,7 @@
 import { Dashboard, Space } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Button,
     Group,
     MantineProvider,
@@ -133,7 +134,11 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     return (
         <MantineProvider inherit theme={{ colorScheme: 'light' }}>
             <Modal
-                title={<Title order={5}>Create dashboard</Title>}
+                title={
+                    <Box>
+                        <Title order={4}>Create Dashboard</Title>
+                    </Box>
+                }
                 onClose={() => handleClose()}
                 {...modalProps}
             >

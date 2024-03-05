@@ -48,7 +48,7 @@ describe('Download CSV on SQL Runner', () => {
             find.forEach((text) => cy.findAllByText(text));
             cy.contains('Page 1 of 3');
 
-            cy.get('[data-testid=Charts-card-expand]').click();
+            cy.get('[data-testid=Chart-card-expand]').click();
             cy.findByText('Configure').click();
             cy.findByText('Bar chart').click();
 
@@ -195,12 +195,12 @@ describe('Download CSV on Explore', () => {
             cy.get('button').contains('Run query').click();
 
             // open chart
-            cy.findByTestId('Charts-card-expand').click();
+            cy.findByTestId('Chart-card-expand').click();
             // Close results
             cy.get('[data-testid=Results-card-expand]').click();
 
             // open chart menu and change chart type to Table
-            cy.get('[data-testid=Charts-card-expand]').click();
+            cy.get('[data-testid=Chart-card-expand]').click();
             cy.findByText('Configure').click();
             cy.get('button').contains('Bar chart').click();
             cy.get('[role="menuitem"]').contains('Table').click();

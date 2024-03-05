@@ -21,7 +21,7 @@ export type AttachmentUrl = {
     localPath: string;
     truncated: boolean;
 };
-type Dependencies = {
+type EmailClientArguments = {
     lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
 };
 
@@ -30,7 +30,7 @@ export default class EmailClient {
 
     transporter: nodemailer.Transporter | undefined;
 
-    constructor({ lightdashConfig }: Dependencies) {
+    constructor({ lightdashConfig }: EmailClientArguments) {
         this.lightdashConfig = lightdashConfig;
 
         if (this.lightdashConfig.smtp) {
@@ -195,6 +195,7 @@ export default class EmailClient {
         schedulerUrl: string,
         pdfFile?: string,
         expirationDays?: number,
+        deliveryType: string = 'Scheduled delivery',
     ) {
         return this.sendEmail({
             to: recipient,
@@ -212,6 +213,7 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                deliveryType,
             },
             text: title,
             attachments: pdfFile

@@ -14,7 +14,7 @@ In Lightdash, metrics are used to summarize dimensions or, sometimes, other metr
 There are two ways to add metrics to your project in Lightdash:
 
 1. (**Suggested**) [Using the `meta` tag](#using-the-meta-tag)
-2. [Using dbt's `metrics` tag](#using-dbts-metrics-tag) (this is still an Alpha feature)
+2. [Using dbt's Semantic Layer](#using-dbts-semantic-layer) (this integration is in public beta in Lightdash)
 
 ### 1. Using the column `meta` tag (Suggested)
 
@@ -52,84 +52,9 @@ models:
           sql: ${TABLE}.user_id
 ```
 
-### 3. Using dbt's `metrics` tag
+### 3. Using dbt's Semantic Layer
 
-You can also add some metric to Lightdash using dbt's `metrics` tag in your model's `.yml` file. Here's a tutorial explaining how to do it:
-
-[![demo create dbt metrics](./assets/loom-adding-dbt-metrics.png)](https://www.loom.com/share/811d8f71a3864a74a4849bdb164e7a4b)
-
-So, metrics defined using dbt's `metrics` tag look something like this:
-
-```yaml
-# schema.yml
-version: 2
-metrics:
-  - name: customer_count
-    label: DBT METRIC!
-    model: ref('customers')
-    description: "A NEW DBT METRIC nuuuuuts"
-    calculation_method: count_distinct
-    expression: customer_id # must be a simple column name that you want to apply this metric to
-    meta:
-      hidden: false
-```
-
-:::info
-
-Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in Lightdash we think are worth pointing out. Read more about them below.
-
-:::
-
-- **The `expression` field must be a simple column name.**
-
-It should be the column name that you want to apply your metric to (e.g. `customer_id` for the metric `total_customers`). Itcannot be anything more than a column name.
-
-The reason for this limitation is that dbt assumes metrics are only from a single table. In Lightdash, metrics can be queried from many tables.
-
-If you are using `calculation_method: derived` then you may reference other metrics such as `expression: metric('a')/metric('b')`
-
-```yaml
-# All non-derived metrics must be a single column name:
-metrics:
-  - name: customer_count
-    calculation_method: count_distinct
-    expression: customer_id # ok
-  - name: active_ratio
-    calculation_method: derived
-    expression: metric('active_customer_count') / metric('customer_count') # ok
-```
-
-- **Metrics automatically get all dimensions on the model**
-
-  The dbt metrics spec asks the user to specify explicit columns on the model that apply to that metric. So for a `customer_count` metric, a user might request that only 3 columns apply as valid dimensions for that metric. We ignore this because in the Lightdash UI a model simply shows all metrics and dimensions of that model.
-
-- **Metrics under the `meta:` tag on specific models take precedent over project metrics under the `metrics:` tag**
-
-  For example, if we have two metrics for `customer_count`: one using the dbt `metrics` tag and the other using the `meta` tag,
-
-  ``` yaml
-  metrics:
-    - name: customer_count
-      calculation_method: count_distinct
-      expression: customer_id
-      model: customers
-  ```
-
-  ```yaml
-  models:
-    - name: customers
-      columns:
-        - name: customer_id
-          meta:
-            metrics:
-              customer_count:
-                type: count
-  ```
-
-  The second metric has the same name `customer_count` on the same model `customers` but the first uses type: count_distinct and the second uses type: count. Because the second metric is defined on the column `meta:` tag, it'll take priority over the first.
-
-- The `calculation_method` must be [one of the Lightdash types](#metric-types).
-- `timestamp`, `time_grains`, and `dimensions` are all ignored because metrics get all dimensions of the model.
+Lightdash is dbt Semantic Layer ready and the integration is now available in public preview for Lightdash Cloud users. You can query your Semantic Layer via the Lightdash UI. To learn more about the Semantic Layer integration, click [here](https://docs.lightdash.com/guides/dbt-semantic-layer).
 
 ## Metric Categories
 
@@ -602,20 +527,22 @@ columns:
 
 ### Available filter types
 
-| Type                        | Example (in English)                           | Example (as code)     |
-|-----------------------------|------------------------------------------------|-----------------------|
+| Type                        | Example (in English)                           | Example (as code)       |
+|-----------------------------|------------------------------------------------|-------------------------|
 | is                          | User name is equal to katie                    | `user_name: "katie"`    |
 | is not                      | User name is not equal to katie                | `user_name: "!katie"`   |
 | contains                    | User name contains katie                       | `user_name: "%katie%"`  |
 | does not contain            | User name does not contain katie               | `user_name: "!%katie%"` |
 | starts with                 | User name starts with katie                    | `user_name: "katie%"`   |
 | ends with                   | User name ends with katie                      | `user_name: "%katie"`   |
-| is greater than             | Number of orders is greater than 4             | `num_orders: "> 4"`   |
-| is greater than or equal to | Number of orders is greater than or equal to 4 | `num_orders: ">= 4"`  |
-| is less than                | Number of orders is less than 4                | `num_orders: "< 4"`   |
-| is less than or equal to    | Number of orders is less than or equal to 4    | `num_orders: "<= 4"`  |
-| is null                     | Status is `NULL`                               | `status: "null"`         |
-| is not null                 | Status is not `NULL`                           | `status: "!null"`     |
+| is greater than             | Number of orders is greater than 4             | `num_orders: "> 4"`     |
+| is greater than or equal to | Number of orders is greater than or equal to 4 | `num_orders: ">= 4"`    |
+| is less than                | Number of orders is less than 4                | `num_orders: "< 4"`     |
+| is less than or equal to    | Number of orders is less than or equal to 4    | `num_orders: "<= 4"`    |
+| is null                     | Status is `NULL`                               | `status: "null"`        |
+| is not null                 | Status is not `NULL`                           | `status: "!null"`       |
+| is [boolean]                | Is complete is true                            | `is_complete: "true"`   |
+| is not [boolean]            | Is complete is false or null                   | `is_complete: "!true"`  |
 
 :::info
 

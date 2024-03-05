@@ -2,7 +2,7 @@ import { LightdashMode } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import { nanoid } from 'nanoid';
-import { analytics } from '../../analytics/client';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
@@ -35,9 +35,10 @@ const notifySlackError = async (
         );
 };
 
-type SlackServiceDependencies = {
+type SlackServiceArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
 };
 
 export class SlackService {
@@ -45,11 +46,15 @@ export class SlackService {
 
     lightdashConfig: LightdashConfig;
 
+    analytics: LightdashAnalytics;
+
     constructor({
         slackAuthenticationModel,
         lightdashConfig,
-    }: SlackServiceDependencies) {
+        analytics,
+    }: SlackServiceArguments) {
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.start();
     }
@@ -97,7 +102,7 @@ export class SlackService {
         }
     }
 
-    private static async sendUnfurl(
+    private async sendUnfurl(
         event: any,
         originalUrl: string,
         unfurl: Unfurl,
@@ -111,7 +116,7 @@ export class SlackService {
                 unfurls: unfurlBlocks,
             })
             .catch((e: any) => {
-                analytics.track({
+                this.analytics.track({
                     event: 'share_slack.unfurl_error',
                     userId: event.user,
                     properties: {
@@ -141,7 +146,7 @@ export class SlackService {
                 const details = await unfurlService.unfurlDetails(l.url);
 
                 if (details) {
-                    analytics.track({
+                    this.analytics.track({
                         event: 'share_slack.unfurl',
                         userId: eventUserId,
                         properties: {
@@ -153,12 +158,7 @@ export class SlackService {
                         `Unfurling ${details.pageType} with URL ${details.minimalUrl}`,
                     );
 
-                    await SlackService.sendUnfurl(
-                        event,
-                        l.url,
-                        details,
-                        client,
-                    );
+                    await this.sendUnfurl(event, l.url, details, client);
 
                     const imageId = `slack-image-${nanoid()}`;
                     const authUserUuid =
@@ -172,14 +172,14 @@ export class SlackService {
                     });
 
                     if (imageUrl) {
-                        await SlackService.sendUnfurl(
+                        await this.sendUnfurl(
                             event,
                             l.url,
                             { ...details, imageUrl },
                             client,
                         );
 
-                        analytics.track({
+                        this.analytics.track({
                             event: 'share_slack.unfurl_completed',
                             userId: eventUserId,
                             properties: {
@@ -195,7 +195,7 @@ export class SlackService {
 
                 Sentry.captureException(e);
 
-                analytics.track({
+                this.analytics.track({
                     event: 'share_slack.unfurl_error',
                     userId: eventUserId,
 

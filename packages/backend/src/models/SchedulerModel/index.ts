@@ -34,7 +34,7 @@ import {
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 
-type ModelDependencies = {
+type SchedulerModelArguments = {
     database: Knex;
 };
 
@@ -48,8 +48,8 @@ const statusOrder = [
 export class SchedulerModel {
     private database: Knex;
 
-    constructor(deps: ModelDependencies) {
-        this.database = deps.database;
+    constructor(args: SchedulerModelArguments) {
+        this.database = args.database;
     }
 
     static convertScheduler(scheduler: SchedulerDb): Scheduler {
@@ -67,6 +67,9 @@ export class SchedulerModel {
             options: scheduler.options,
             filters: scheduler.filters,
             customViewportWidth: scheduler.custom_viewport_width,
+            thresholds: scheduler.thresholds || undefined,
+            enabled: scheduler.enabled,
+            notificationFrequency: scheduler.notification_frequency,
         } as Scheduler;
     }
 
@@ -224,6 +227,12 @@ export class SchedulerModel {
                         newScheduler.customViewportWidth
                             ? newScheduler.customViewportWidth
                             : null,
+                    thresholds: newScheduler.thresholds
+                        ? JSON.stringify(newScheduler.thresholds)
+                        : null,
+                    enabled: true,
+                    notification_frequency:
+                        newScheduler.notificationFrequency || null,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -248,6 +257,20 @@ export class SchedulerModel {
         return this.getSchedulerAndTargets(schedulerUuid);
     }
 
+    async setSchedulerEnabled(
+        schedulerUuid: string,
+        enabled: boolean,
+    ): Promise<SchedulerAndTargets> {
+        await this.database(SchedulerTableName)
+            .update({
+                enabled,
+                updated_at: new Date(),
+            })
+            .where('scheduler_uuid', schedulerUuid);
+
+        return this.getSchedulerAndTargets(schedulerUuid);
+    }
+
     async updateScheduler(
         scheduler: UpdateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {
@@ -269,6 +292,11 @@ export class SchedulerModel {
                         scheduler.customViewportWidth
                             ? scheduler.customViewportWidth
                             : null,
+                    thresholds: scheduler.thresholds
+                        ? JSON.stringify(scheduler.thresholds)
+                        : null,
+                    notification_frequency:
+                        scheduler.notificationFrequency || null,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 
@@ -394,11 +422,25 @@ export class SchedulerModel {
                 `${SavedChartsTableName}.saved_query_uuid`,
                 `${SchedulerTableName}.saved_chart_uuid`,
             )
-            .leftJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${SavedChartsTableName}.space_id`,
-            )
+            .leftJoin(DashboardsTableName, function joinDashboards() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`);
+            })
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                ).andOnNotNull(`${SavedChartsTableName}.space_id`);
+                this.orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                );
+            })
             .leftJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,

@@ -4,7 +4,6 @@ import {
     CustomDimension,
     Field,
     getItemLabelWithoutTableName,
-    getSeriesId,
     Series,
     TableCalculation,
 } from '@lightdash/common';
@@ -19,17 +18,22 @@ type BasicSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
     series: Series;
     item: Field | TableCalculation | CustomDimension;
-    getSeriesColor: (key: string) => string | undefined;
     updateSingleSeries: (series: Series) => void;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
+
+    /**
+     * Temporary - we need to keep track of the series' index to assign a fallback color
+     * if shared colors are not enabled.
+     */
+    seriesIndex: number;
 };
 
 const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     isSingle,
     layout,
     series,
+    seriesIndex,
     item,
-    getSeriesColor,
     updateSingleSeries,
     dragHandleProps,
 }) => {
@@ -51,8 +55,8 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                 layout={layout}
                 series={series}
                 isSingle={isSingle}
+                seriesIndex={seriesIndex}
                 seriesLabel={getItemLabelWithoutTableName(item)}
-                fallbackColor={getSeriesColor(getSeriesId(series))}
                 updateSingleSeries={updateSingleSeries}
             />
         </Stack>

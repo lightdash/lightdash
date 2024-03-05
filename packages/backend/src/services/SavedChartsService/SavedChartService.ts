@@ -25,10 +25,10 @@ import {
     ViewStatistics,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
-import { analytics } from '../../analytics/client';
 import {
     ConditionalFormattingRuleSavedEvent,
     CreateSavedChartVersionEvent,
+    LightdashAnalytics,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
@@ -41,7 +41,8 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type Dependencies = {
+type SavedChartServiceArguments = {
+    analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
@@ -51,6 +52,8 @@ type Dependencies = {
 };
 
 export class SavedChartService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly projectModel: ProjectModel;
 
     private readonly savedChartModel: SavedChartModel;
@@ -63,13 +66,14 @@ export class SavedChartService {
 
     private readonly schedulerModel: SchedulerModel;
 
-    constructor(dependencies: Dependencies) {
-        this.projectModel = dependencies.projectModel;
-        this.savedChartModel = dependencies.savedChartModel;
-        this.spaceModel = dependencies.spaceModel;
-        this.analyticsModel = dependencies.analyticsModel;
-        this.pinnedListModel = dependencies.pinnedListModel;
-        this.schedulerModel = dependencies.schedulerModel;
+    constructor(args: SavedChartServiceArguments) {
+        this.analytics = args.analytics;
+        this.projectModel = args.projectModel;
+        this.savedChartModel = args.savedChartModel;
+        this.spaceModel = args.spaceModel;
+        this.analyticsModel = args.analyticsModel;
+        this.pinnedListModel = args.pinnedListModel;
+        this.schedulerModel = args.schedulerModel;
     }
 
     private async checkUpdateAccess(
@@ -81,7 +85,35 @@ export class SavedChartService {
         if (
             user.ability.cannot(
                 'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (!(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+        return savedChart;
+    }
+
+    private async checkCreateScheduledDeliveryAccess(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<ChartSummary> {
+        const savedChart = await this.savedChartModel.getSummary(chartUuid);
+        const { organizationUuid, projectUuid } = savedChart;
+        if (
+            user.ability.cannot(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -259,7 +291,7 @@ export class SavedChartService {
             user,
         );
 
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),
@@ -268,7 +300,7 @@ export class SavedChartService {
         SavedChartService.getConditionalFormattingEventProperties(
             savedChart,
         )?.forEach((properties) => {
-            analytics.track({
+            this.analytics.track({
                 event: 'conditional_formatting_rule.saved',
                 userId: user.userUuid,
                 properties,
@@ -304,7 +336,7 @@ export class SavedChartService {
             savedChartUuid,
             data,
         );
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
             properties: {
@@ -314,7 +346,7 @@ export class SavedChartService {
             },
         });
         if (dashboardUuid && !savedChart.dashboardUuid) {
-            analytics.track({
+            this.analytics.track({
                 event: 'dashboard_chart.moved',
                 userId: user.userUuid,
                 properties: {
@@ -363,7 +395,7 @@ export class SavedChartService {
             projectUuid,
         );
 
-        analytics.track({
+        this.analytics.track({
             event: 'pinned_list.updated',
             userId: user.userUuid,
             properties: {
@@ -407,7 +439,7 @@ export class SavedChartService {
         }
 
         const savedCharts = await this.savedChartModel.updateMultiple(data);
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart.updated_multiple',
             userId: user.userUuid,
             properties: {
@@ -437,7 +469,7 @@ export class SavedChartService {
         }
 
         const deletedChart = await this.savedChartModel.delete(savedChartUuid);
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart.deleted',
             userId: user.userUuid,
             properties: {
@@ -482,7 +514,7 @@ export class SavedChartService {
             user.userUuid,
         );
 
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart.view',
             userId: user.userUuid,
             properties: {
@@ -528,7 +560,7 @@ export class SavedChartService {
                 updatedByUser: user,
             },
         );
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
@@ -540,7 +572,7 @@ export class SavedChartService {
         SavedChartService.getConditionalFormattingEventProperties(
             newSavedChart,
         )?.forEach((properties) => {
-            analytics.track({
+            this.analytics.track({
                 event: 'conditional_formatting_rule.saved',
                 userId: user.userUuid,
                 properties,
@@ -593,7 +625,7 @@ export class SavedChartService {
         const newSavedChartProperties =
             SavedChartService.getCreateEventProperties(newSavedChart);
 
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
@@ -603,7 +635,7 @@ export class SavedChartService {
             },
         });
 
-        analytics.track({
+        this.analytics.track({
             event: 'duplicated_chart_created',
             userId: user.userUuid,
             properties: {
@@ -619,7 +651,7 @@ export class SavedChartService {
         user: SessionUser,
         chartUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        await this.checkUpdateAccess(user, chartUuid);
+        await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
         return this.schedulerModel.getChartSchedulers(chartUuid);
     }
 
@@ -631,10 +663,8 @@ export class SavedChartService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { projectUuid, organizationUuid } = await this.checkUpdateAccess(
-            user,
-            chartUuid,
-        );
+        const { projectUuid, organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
@@ -666,7 +696,7 @@ export class SavedChartService {
                         : scheduler.targets.map(getSchedulerTargetType),
             },
         };
-        analytics.track(createSchedulerEventData);
+        this.analytics.track(createSchedulerEventData);
 
         await slackClient.joinChannels(
             user.organizationUuid,
@@ -694,7 +724,7 @@ export class SavedChartService {
         const versions = await this.savedChartModel.getLatestVersionSummaries(
             chartUuid,
         );
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart_history.view',
             userId: user.userUuid,
             properties: {
@@ -728,7 +758,7 @@ export class SavedChartService {
             this.savedChartModel.get(chartUuid, versionUuid),
         ]);
 
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart_version.view',
             userId: user.userUuid,
             properties: {
@@ -759,7 +789,7 @@ export class SavedChartService {
             chartVersion,
             user,
         );
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart_version.rollback',
             userId: user.userUuid,
             properties: {
@@ -768,7 +798,7 @@ export class SavedChartService {
                 versionId: versionUuid,
             },
         });
-        analytics.track({
+        this.analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),

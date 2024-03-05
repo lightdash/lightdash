@@ -5,9 +5,8 @@ import {
     getCustomLabelsFromTableConfig,
     NotFoundError,
 } from '@lightdash/common';
-import { Alert, Box, Group, Stack, Tabs } from '@mantine/core';
+import { Box, Group, Stack, Tabs } from '@mantine/core';
 import { getHotkeyHandler } from '@mantine/hooks';
-import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
@@ -179,7 +178,6 @@ const SqlRunnerPage = () => {
     return (
         <Page
             title="SQL Runner"
-            withSidebarFooter
             withFullHeight
             withPaddedContent
             sidebar={
@@ -216,16 +214,6 @@ const SqlRunnerPage = () => {
                                             onSelect={handleTableSelect}
                                         />
                                     </Box>
-
-                                    <Alert
-                                        icon={<IconAlertCircle />}
-                                        title="Tables missing?"
-                                        color="blue"
-                                        sx={{ flexShrink: 0 }}
-                                    >
-                                        Currently we only display tables that
-                                        are declared in the dbt project.
-                                    </Alert>
                                 </Stack>
                             )}
                         </Tabs.Panel>
@@ -268,7 +256,7 @@ const SqlRunnerPage = () => {
                     colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
                 >
                     <CollapsableCard
-                        title="Charts"
+                        title="Chart"
                         rightHeaderElement={
                             expandedCards.get(SqlRunnerCards.CHART) && (
                                 <>

@@ -27,6 +27,9 @@ export type SchedulerDb = {
     options: Record<string, any>;
     filters: string | null;
     custom_viewport_width: number | null;
+    thresholds: string | null;
+    enabled: boolean;
+    notification_frequency: string | null;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {
@@ -60,17 +63,20 @@ export type SchedulerTable = Knex.CompositeTableType<
         ChartSchedulerDb | DashboardSchedulerDB,
         'scheduler_uuid' | 'created_at'
     >,
-    Pick<
-        SchedulerDb,
-        | 'name'
-        | 'message'
-        | 'updated_at'
-        | 'cron'
-        | 'format'
-        | 'options'
-        | 'filters'
-        | 'custom_viewport_width'
-    >
+    | Pick<
+          SchedulerDb,
+          | 'name'
+          | 'message'
+          | 'updated_at'
+          | 'cron'
+          | 'format'
+          | 'options'
+          | 'filters'
+          | 'custom_viewport_width'
+          | 'thresholds'
+          | 'notification_frequency'
+      >
+    | Pick<SchedulerDb, 'updated_at' | 'enabled'>
 >;
 
 export type SchedulerSlackTargetTable = Knex.CompositeTableType<

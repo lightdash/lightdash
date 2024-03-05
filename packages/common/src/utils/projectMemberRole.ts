@@ -7,6 +7,7 @@ import {
     ProjectRole,
     ProjectRoleOrder,
 } from '../types/projectMemberRole';
+import { SpaceMemberRole } from '../types/space';
 import assertUnreachable from './assertUnreachable';
 
 export const convertOrganizationRoleToProjectRole = (
@@ -57,3 +58,25 @@ export const getHighestProjectRole = (
         },
         undefined,
     );
+
+export const convertProjectRoleToSpaceRole = (
+    projectRole: ProjectMemberRole,
+): SpaceMemberRole => {
+    switch (projectRole) {
+        case ProjectMemberRole.VIEWER:
+            return SpaceMemberRole.VIEWER;
+        case ProjectMemberRole.INTERACTIVE_VIEWER:
+            return SpaceMemberRole.VIEWER;
+        case ProjectMemberRole.EDITOR:
+            return SpaceMemberRole.EDITOR;
+        case ProjectMemberRole.DEVELOPER:
+            return SpaceMemberRole.EDITOR;
+        case ProjectMemberRole.ADMIN:
+            return SpaceMemberRole.EDITOR;
+        default:
+            return assertUnreachable(
+                projectRole,
+                `Project role ${projectRole} does not match Space roles`,
+            );
+    }
+};

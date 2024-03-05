@@ -50,6 +50,13 @@ function parseStartOfWeekArgument(value: string) {
     return number;
 }
 
+function parseUseDbtListOption(value: string | undefined): boolean {
+    if (value === undefined) {
+        return true;
+    }
+    return value.toLowerCase() !== 'false';
+}
+
 program
     .version(VERSION)
     .name(styles.title('⚡️lightdash'))
@@ -334,9 +341,10 @@ program
         false,
     )
     .option(
-        '--use-dbt-list',
+        '--use-dbt-list [true|false]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
-        false,
+        parseUseDbtListOption,
+        true,
     )
     .action(previewHandler);
 
@@ -395,9 +403,10 @@ program
         false,
     )
     .option(
-        '--use-dbt-list',
+        '--use-dbt-list [true|false]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
-        false,
+        parseUseDbtListOption,
+        true,
     )
     .action(startPreviewHandler);
 
@@ -469,9 +478,10 @@ program
         false,
     )
     .option(
-        '--use-dbt-list',
+        '--use-dbt-list [true|false]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
-        false,
+        parseUseDbtListOption,
+        true,
     )
     .action(deployHandler);
 
@@ -515,6 +525,7 @@ program
     .option('--vars <vars>')
     .option('--threads <number>')
     .option('--no-version-check')
+    .option('--preview', 'Validate the last preview if available', false)
     .option(
         '-s, --select <models...>',
         'specify models (accepts dbt selection syntax)',
@@ -539,9 +550,10 @@ program
         false,
     )
     .option(
-        '--use-dbt-list',
+        '--use-dbt-list [true|false]',
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
-        false,
+        parseUseDbtListOption,
+        true,
     )
     .action(validateHandler);
 

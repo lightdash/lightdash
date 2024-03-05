@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -19,13 +18,13 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { GdriveService } from '../services/GdriveService/GdriveService';
-import { userService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/gdrive')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Integrations')
-export class GoogleDriveController extends Controller {
+export class GoogleDriveController extends BaseController {
     /**
      * Get access token for google drive
      * @param req express request
@@ -40,7 +39,9 @@ export class GoogleDriveController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await userService.getAccessToken(req.user!),
+            results: await this.services
+                .getUserService()
+                .getAccessToken(req.user!),
         };
     }
 

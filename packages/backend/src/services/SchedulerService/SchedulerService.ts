@@ -18,8 +18,8 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
-import { analytics } from '../../analytics/client';
 import {
+    LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
@@ -35,8 +35,9 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type ServiceDependencies = {
+type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
 
     dashboardModel: DashboardModel;
@@ -49,6 +50,8 @@ type ServiceDependencies = {
 export class SchedulerService {
     lightdashConfig: LightdashConfig;
 
+    analytics: LightdashAnalytics;
+
     schedulerModel: SchedulerModel;
 
     dashboardModel: DashboardModel;
@@ -59,12 +62,14 @@ export class SchedulerService {
 
     constructor({
         lightdashConfig,
+        analytics,
         schedulerModel,
         dashboardModel,
         savedChartModel,
         spaceModel,
-    }: ServiceDependencies) {
+    }: SchedulerServiceArguments) {
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.schedulerModel = schedulerModel;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
@@ -83,26 +88,35 @@ export class SchedulerService {
         user: SessionUser,
         schedulerUuid: string,
     ): Promise<{ scheduler: Scheduler; resource: ChartSummary | Dashboard }> {
+        // editors can "manage" scheduled deliveries,
+        // which means they can edit scheduled deliveries created from other users, even admins
+        // however, interactive users can only "create" scheduled deliveries,
+        // which means they can only edit their own scheduled deliveries
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;
-        if (
-            isChartScheduler(scheduler) &&
-            user.ability.cannot(
-                'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        } else if (
-            user.ability.cannot(
-                'update',
-                subject('Dashboard', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
+
+        const canManageDeliveries = user.ability.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+        const canCreateDeliveries = user.ability.can(
+            'create',
+            subject('ScheduledDeliveries', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+        const isDeliveryOwner = scheduler.createdBy === user.userUuid;
+
+        if (canManageDeliveries || (canCreateDeliveries && isDeliveryOwner)) {
+            return { scheduler, resource };
         }
-        return { scheduler, resource };
+
+        throw new ForbiddenError();
     }
 
     private async checkViewResource(
@@ -204,13 +218,42 @@ export class SchedulerService {
                 }),
             },
         };
-        analytics.track(updateSchedulerEventData);
+        this.analytics.track(updateSchedulerEventData);
         await slackClient.joinChannels(
             user.organizationUuid,
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
-        await schedulerClient.generateDailyJobsForScheduler(scheduler);
+        // We only generate jobs if the scheduler is enabled
+        if (scheduler.enabled)
+            await schedulerClient.generateDailyJobsForScheduler(scheduler);
+
+        return scheduler;
+    }
+
+    async setSchedulerEnabled(
+        user: SessionUser,
+        schedulerUuid: string,
+        enabled: boolean,
+    ): Promise<SchedulerAndTargets> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+
+        // Remove scheduled jobs, even if the scheduler is not enabled
+        await schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
+
+        const scheduler = await this.schedulerModel.setSchedulerEnabled(
+            schedulerUuid,
+            enabled,
+        );
+
+        if (enabled) {
+            // If the scheduler is enabled, we need to generate the daily jobs
+            await schedulerClient.generateDailyJobsForScheduler(scheduler);
+        }
 
         return scheduler;
     }
@@ -227,7 +270,7 @@ export class SchedulerService {
         await this.schedulerModel.deleteScheduler(schedulerUuid);
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'scheduler.deleted',
             properties: {
@@ -289,7 +332,7 @@ export class SchedulerService {
             projectUuid,
         );
 
-        analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
             event: 'scheduled_deliveries.dashboard_viewed',
             properties: {

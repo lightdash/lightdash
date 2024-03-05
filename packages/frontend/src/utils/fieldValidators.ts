@@ -58,7 +58,3 @@ export const isInvalidCronExpression: FieldValidator<string> =
                 : undefined;
         }
     };
-
-const VALID_EMAIL_DOMAIN_REGEX = /^[a-zA-Z0-9][\w\.-]+\.\w{2,4}/g;
-export const isValidEmailDomain = (value: string) =>
-    value.match(VALID_EMAIL_DOMAIN_REGEX);

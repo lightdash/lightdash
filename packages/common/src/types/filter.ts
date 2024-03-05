@@ -199,6 +199,50 @@ export const updateFieldIdInFilters = (
     }
 };
 
+export const removeFieldFromFilterGroup = (
+    filterGroup: FilterGroup | undefined,
+    fieldId: string,
+): FilterGroup | undefined => {
+    if (!filterGroup) {
+        return undefined;
+    }
+
+    const removeFiltersGroupItems = (
+        items: FilterGroupItem[],
+    ): FilterGroupItem[] =>
+        items.reduce<FilterGroupItem[]>((acc, item) => {
+            if (isFilterGroup(item)) {
+                const updatedGroup = removeFieldFromFilterGroup(item, fieldId); // remove field from filter groups recursively
+                if (updatedGroup) {
+                    acc.push(updatedGroup);
+                }
+            } else if (item.target.fieldId !== fieldId) {
+                // keep filter rule if fieldId does not match
+                acc.push(item);
+            }
+            return acc;
+        }, []);
+
+    if (isOrFilterGroup(filterGroup)) {
+        const updatedItems = removeFiltersGroupItems(filterGroup.or);
+        if (updatedItems.length === 0) {
+            return undefined;
+        }
+        return {
+            ...filterGroup,
+            or: updatedItems,
+        };
+    }
+    const updatedItems = removeFiltersGroupItems(filterGroup.and);
+    if (updatedItems.length === 0) {
+        return undefined;
+    }
+    return {
+        ...filterGroup,
+        and: updatedItems,
+    };
+};
+
 export const applyDimensionOverrides = (
     dashboardFilters: DashboardFilters,
     overrides: DashboardFilters | SchedulerFilterRule[],

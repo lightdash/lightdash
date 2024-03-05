@@ -1,15 +1,14 @@
 import {
     ApiQueryResults,
+    applyCustomFormat,
     CartesianChart,
     CartesianSeriesType,
     DimensionType,
     formatItemValue,
-    formatTableCalculationValue,
-    formatValue,
     friendlyName,
     getAxisName,
+    getCustomFormatFromLegacy,
     getDateGroupLabel,
-    getDefaultSeriesColor,
     getItemLabelWithoutTableName,
     getResultValueArray,
     hashFieldReference,
@@ -601,16 +600,19 @@ const getPivotSeries = ({
                                 return value;
                             }
                             if (isTableCalculation(field)) {
-                                return formatTableCalculationValue(
-                                    field.format,
+                                return formatItemValue(
+                                    field,
                                     value?.value?.[yFieldHash],
                                 );
                             } else {
-                                return formatValue(value?.value?.[yFieldHash], {
-                                    format: field.format,
-                                    round: field.round,
-                                    compact: field.compact,
-                                });
+                                return applyCustomFormat(
+                                    value?.value?.[yFieldHash],
+                                    getCustomFormatFromLegacy({
+                                        format: field.format,
+                                        round: field.round,
+                                        compact: field.compact,
+                                    }),
+                                );
                             }
                         },
                     }),
@@ -676,16 +678,19 @@ const getSimpleSeries = ({
                             return value;
                         }
                         if (isTableCalculation(field)) {
-                            return formatTableCalculationValue(
-                                field.format,
+                            return formatItemValue(
+                                field,
                                 value?.value?.[yFieldHash],
                             );
                         } else {
-                            return formatValue(value?.value?.[yFieldHash], {
-                                format: field.format,
-                                round: field.round,
-                                compact: field.compact,
-                            });
+                            return applyCustomFormat(
+                                value?.value?.[yFieldHash],
+                                getCustomFormatFromLegacy({
+                                    format: field.format,
+                                    round: field.round,
+                                    compact: field.compact,
+                                }),
+                            );
                         }
                     },
                 }),
@@ -872,16 +877,13 @@ const getEchartAxes = ({
         } else if (axisItem !== undefined && isTableCalculation(axisItem)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
-                    return formatTableCalculationValue(axisItem.format, value);
+                    return formatItemValue(axisItem, value);
                 },
             };
             axisConfig.axisPointer = {
                 label: {
                     formatter: (value: any) => {
-                        return formatTableCalculationValue(
-                            axisItem.format,
-                            value.value,
-                        );
+                        return formatItemValue(axisItem, value.value);
                     },
                 },
             };
@@ -1191,7 +1193,7 @@ const calculateStackTotal = (
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        const legendName = s.dimensions?.[1]?.displayName;
+        const legendName = s.name || s.dimensions?.[1]?.displayName;
         let selected = true;
         for (const key in selectedLegendNames) {
             if (legendName === key) {
@@ -1305,7 +1307,7 @@ const useEchartsCartesianConfig = (
         pivotDimensions,
         resultsData,
         itemsMap,
-        colorPalette,
+        getSeriesColor,
     } = useVisualizationContext();
 
     const validCartesianConfig = useMemo(() => {
@@ -1373,12 +1375,18 @@ const useEchartsCartesianConfig = (
         });
     }, [itemsMap, series, validCartesianConfig, resultsData]);
 
-    const stackedSeries = useMemo(() => {
+    const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
-        const seriesWithValidStack = series.map<EChartSeries>((serie) => ({
-            ...serie,
-            stack: getValidStack(serie),
-        }));
+
+        const seriesWithValidStack = series.map<EChartSeries>((serie, i) => {
+            const color = getSeriesColor(serie, i);
+
+            return {
+                ...serie,
+                color,
+                stack: getValidStack(serie),
+            };
+        });
         return [
             ...seriesWithValidStack,
             ...getStackTotalSeries(
@@ -1395,25 +1403,8 @@ const useEchartsCartesianConfig = (
         itemsMap,
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfigLegend,
+        getSeriesColor,
     ]);
-
-    const colors = useMemo<string[]>(() => {
-        //Do not use colors from hidden series
-        return validCartesianConfig?.eChartsConfig.series
-            ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
-                  (acc, serie, index) => {
-                      if (!serie.hidden)
-                          return [
-                              ...acc,
-                              colorPalette[index] ||
-                                  getDefaultSeriesColor(index),
-                          ];
-                      else return acc;
-                  },
-                  [],
-              )
-            : colorPalette;
-    }, [colorPalette, validCartesianConfig]);
 
     const sortedResults = useMemo(() => {
         const results =
@@ -1571,8 +1562,8 @@ const useEchartsCartesianConfig = (
                 if (dimensionId !== undefined) {
                     const field = itemsMap[dimensionId];
                     if (isTableCalculation(field)) {
-                        const tooltipHeader = formatTableCalculationValue(
-                            field.format,
+                        const tooltipHeader = formatItemValue(
+                            field,
                             params[0].axisValueLabel,
                         );
 
@@ -1604,7 +1595,7 @@ const useEchartsCartesianConfig = (
             xAxis: axes.xAxis,
             yAxis: axes.yAxis,
             useUTC: true,
-            series: stackedSeries,
+            series: stackedSeriesWithColorAssignments,
             animation: !isInDashboard,
             legend: mergeLegendSettings(
                 validCartesianConfig?.eChartsConfig.legend,
@@ -1622,12 +1613,13 @@ const useEchartsCartesianConfig = (
                     validCartesianConfig?.eChartsConfig.grid,
                 ),
             },
-            color: colors,
+            // We assign colors per series, so we specify an empty list here.
+            color: [],
         }),
         [
             axes.xAxis,
             axes.yAxis,
-            stackedSeries,
+            stackedSeriesWithColorAssignments,
             isInDashboard,
             validCartesianConfig?.eChartsConfig.legend,
             validCartesianConfig?.eChartsConfig.grid,
@@ -1635,7 +1627,6 @@ const useEchartsCartesianConfig = (
             series,
             sortedResults,
             tooltip,
-            colors,
         ],
     );
 

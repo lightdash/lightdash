@@ -560,6 +560,8 @@ export const convertExplores = async (
                 tables: tableLookup,
                 targetDatabase: adapterType,
                 warehouse: model.config?.snowflake_warehouse,
+                ymlPath: model.patch_path?.split('://')?.[1],
+                sqlPath: model.path,
             });
         } catch (e) {
             return {
@@ -618,9 +620,10 @@ export const attachTypesToModels = (
     });
 
     const getType = (
-        { database, schema, name }: DbtModelNode,
+        { database, schema, name, alias }: DbtModelNode,
         columnName: string,
     ): DimensionType | undefined => {
+        const tableName = alias || name;
         const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
             caseSensitiveMatching
                 ? db === database
@@ -639,8 +642,8 @@ export const attachTypesToModels = (
             Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
                 (t) =>
                     caseSensitiveMatching
-                        ? t === name
-                        : t.toLowerCase() === name.toLowerCase(),
+                        ? t === tableName
+                        : t.toLowerCase() === tableName.toLowerCase(),
             );
         const columnMatch =
             databaseMatch &&
@@ -660,7 +663,7 @@ export const attachTypesToModels = (
         }
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
-                `Column "${columnName}" from model "${name}" does not exist.\n "${name}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
+                `Column "${columnName}" from model "${tableName}" does not exist.\n "${tableName}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${tableName}. Try rerunning dbt to update your warehouse.`,
                 {},
             );
         }
@@ -682,8 +685,8 @@ export const attachTypesToModels = (
 export const getSchemaStructureFromDbtModels = (
     dbtModels: DbtModelNode[],
 ): { database: string; schema: string; table: string }[] =>
-    dbtModels.map(({ database, schema, name }) => ({
+    dbtModels.map(({ database, schema, name, alias }) => ({
         database,
         schema,
-        table: name,
+        table: alias || name,
     }));

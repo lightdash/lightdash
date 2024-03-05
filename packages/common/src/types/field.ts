@@ -120,6 +120,7 @@ export enum CustomFormatType {
     PERCENT = 'percent',
     CURRENCY = 'currency',
     NUMBER = 'number',
+    ID = 'id',
 }
 
 export type TableCalculation = {
@@ -139,7 +140,9 @@ export interface TableCalculationField extends Field {
     sql: string;
 }
 
-export const isTableCalculation = (item: Item): item is TableCalculation =>
+export const isTableCalculation = (
+    item: Item | AdditionalMetric,
+): item is TableCalculation =>
     item
         ? !('binType' in item) &&
           !!item.sql &&
@@ -311,7 +314,7 @@ export const isFilterableItem = (
     isDimension(item) ? isFilterableDimension(item) : true;
 
 export type FieldRef = string;
-export const getFieldRef = (field: Field): FieldRef =>
+export const getFieldRef = (field: Pick<Field, 'table' | 'name'>): FieldRef =>
     `${field.table}.${field.name}`;
 
 export const getFieldLabel = (field: Field): string =>

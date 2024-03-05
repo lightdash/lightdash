@@ -174,7 +174,7 @@ const VisualizationCard: FC<{
             colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
         >
             <CollapsableCard
-                title="Charts"
+                title="Chart"
                 isOpen={isOpen}
                 isVisualizationCard
                 onToggle={toggleSection}

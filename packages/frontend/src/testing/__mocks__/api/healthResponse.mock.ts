@@ -67,6 +67,7 @@ export default function mockHealthResponse(
         hasDbtSemanticLayer: false,
         hasGroups: false,
         hasExtendedUsageAnalytics: false,
+        hasGithub: false,
         ...overrides,
     };
 }

@@ -8,7 +8,6 @@ import {
     convertFieldRefToFieldId,
     Explore,
     ExploreCompiler,
-    FieldId,
     lightdashVariablePattern,
     MetricQuery,
     TableCalculation,
@@ -105,6 +104,7 @@ export const compileMetricQuery = ({
                 warehouseClient,
             }),
     );
+
     return {
         ...metricQuery,
         compiledTableCalculations,

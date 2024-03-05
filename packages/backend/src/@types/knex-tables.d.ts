@@ -123,6 +123,10 @@ import {
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
 import {
+    DashboardTileCommentsTable,
+    DashboardTileCommentsTableName,
+} from '../database/entities/comments';
+import {
     DownloadFileTable,
     DownloadFileTableName,
 } from '../database/entities/downloadFile';
@@ -131,10 +135,18 @@ import {
     EmailOneTimePasscodeTable,
 } from '../database/entities/emailOneTimePasscodes';
 import {
+    GithubAppInstallationTable,
+    GithubAppInstallationTableName,
+} from '../database/entities/githubAppInstallation';
+import {
     GroupMembershipTable,
     GroupMembershipTableName,
 } from '../database/entities/groupMemberships';
 import { GroupTable, GroupTableName } from '../database/entities/groups';
+import {
+    NotificationsTable,
+    NotificationsTableName,
+} from '../database/entities/notifications';
 import {
     OrganizationAllowedEmailDomainProjectsTable,
     OrganizationAllowedEmailDomainProjectsTableName,
@@ -243,5 +255,8 @@ declare module 'knex/types/tables' {
         [GroupUserAttributesTable]: DbGroupUserAttribute;
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
+        [GithubAppInstallationTableName]: GithubAppInstallationTable;
+        [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
+        [NotificationsTableName]: NotificationsTable;
     }
 }

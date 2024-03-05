@@ -1,21 +1,9 @@
-import { subject } from '@casl/ability';
-import {
-    DownloadFile,
-    DownloadFileType,
-    ForbiddenError,
-    isUserWithOrg,
-    NotFoundError,
-    SessionUser,
-    ShareUrl,
-} from '@lightdash/common';
+import { DownloadFile, ForbiddenError, NotFoundError } from '@lightdash/common';
 import fs from 'fs';
-import { nanoid as nanoidGenerator } from 'nanoid';
-import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
-import { ShareModel } from '../../models/ShareModel';
 
-type Dependencies = {
+type DownloadFileServiceArguments = {
     downloadFileModel: DownloadFileModel;
     lightdashConfig: Pick<LightdashConfig, 's3'>;
 };
@@ -25,9 +13,9 @@ export class DownloadFileService {
 
     private readonly downloadFileModel: DownloadFileModel;
 
-    constructor(dependencies: Dependencies) {
-        this.lightdashConfig = dependencies.lightdashConfig;
-        this.downloadFileModel = dependencies.downloadFileModel;
+    constructor(args: DownloadFileServiceArguments) {
+        this.lightdashConfig = args.lightdashConfig;
+        this.downloadFileModel = args.downloadFileModel;
     }
 
     private isS3Enabled = () =>

@@ -12,17 +12,25 @@ import {
     ValidationService,
 } from '@tsoa/runtime';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { CommentsController } from './../controllers/commentsController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { CsvController } from './../controllers/csvController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { DbtCloudIntegrationController } from './../controllers/dbtCloudIntegrationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ExploreController } from './../controllers/exploreController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { GithubInstallController } from './../controllers/githubController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { GitIntegrationController } from './../controllers/gitIntegrationController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { GoogleDriveController } from './../controllers/googleDriveController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { GroupsController } from './../controllers/groupsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MetricFlowController } from './../controllers/metricFlowController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { NotificationsController } from './../controllers/notificationsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationController } from './../controllers/organizationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -48,9 +56,11 @@ import { UserAttributesController } from './../controllers/userAttributesControl
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { UserController } from './../controllers/userController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { IocContainer, IocContainerFactory } from '@tsoa/runtime';
 import type { RequestHandler } from 'express';
 import * as express from 'express';
 import { ValidationController } from './../controllers/validationController';
+import { iocContainer } from './../services/tsoaServiceContainer';
 
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
@@ -71,6 +81,114 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['error'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCreateComment: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { dataType: 'string', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                text: { dataType: 'string', required: true },
+                replyTo: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                mentions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                textHtml: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Comment: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                mentions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                canRemove: { dataType: 'boolean', required: true },
+                resolved: { dataType: 'boolean', required: true },
+                replies: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'Comment' },
+                },
+                replyTo: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                user: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        name: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                createdAt: { dataType: 'datetime', required: true },
+                textHtml: { dataType: 'string', required: true },
+                text: { dataType: 'string', required: true },
+                commentId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetComments: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    additionalProperties: {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'Comment' },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiResolveComment: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -480,6 +598,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                sqlPath: { dataType: 'string' },
+                ymlPath: { dataType: 'string' },
                 warehouse: { dataType: 'string' },
                 targetDatabase: { ref: 'SupportedDbtAdapter', required: true },
                 tables: {
@@ -575,7 +695,7 @@ const models: TsoaRoute.Models = {
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FilterGroupItem: {
@@ -646,7 +766,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CustomFormatType: {
         dataType: 'refEnum',
-        enums: ['default', 'percent', 'currency', 'number'],
+        enums: ['default', 'percent', 'currency', 'number', 'id'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     NumberSeparator: {
@@ -718,7 +838,7 @@ const models: TsoaRoute.Models = {
                 subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
             },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculation: {
@@ -776,7 +896,7 @@ const models: TsoaRoute.Models = {
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AdditionalMetric: {
@@ -808,7 +928,7 @@ const models: TsoaRoute.Models = {
             percentile: { dataType: 'double' },
             formatOptions: { ref: 'CustomFormat' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BinType: {
@@ -857,7 +977,7 @@ const models: TsoaRoute.Models = {
                 array: { dataType: 'refAlias', ref: 'BinRange' },
             },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CompiledDimension.label-or-name_': {
@@ -922,11 +1042,38 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string_': {
+    GitRepo: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
+            nestedProperties: {
+                ownerLogin: { dataType: 'string', required: true },
+                fullName: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GitIntegrationConfiguration: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                enabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PullRequestCreated: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                prUrl: { dataType: 'string', required: true },
+                prTitle: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -1272,6 +1419,136 @@ const models: TsoaRoute.Models = {
     UpdateDBProjectGroupAccess: {
         dataType: 'refAlias',
         type: { ref: 'Pick_DBProjectGroupAccess.role_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NotificationBase: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                url: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                message: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                resourceUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                viewed: { dataType: 'boolean', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                notificationId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiNotificationResourceType.DashboardComments': {
+        dataType: 'refEnum',
+        enums: ['dashboardComments'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NotificationDashboardTileCommentMetadata: {
+        dataType: 'refObject',
+        properties: {
+            dashboardUuid: { dataType: 'string', required: true },
+            dashboardName: { dataType: 'string', required: true },
+            dashboardTileUuid: { dataType: 'string', required: true },
+            dashboardTileName: { dataType: 'string', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NotificationDashboardComment: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'NotificationBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        metadata: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    ref: 'NotificationDashboardTileCommentMetadata',
+                                },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        resourceType: {
+                            ref: 'ApiNotificationResourceType.DashboardComments',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Notification: {
+        dataType: 'refAlias',
+        type: { ref: 'NotificationDashboardComment', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiNotificationsResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'Notification' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetNotifications: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ApiNotificationsResults', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiNotificationResourceType: {
+        dataType: 'refEnum',
+        enums: ['dashboardComments'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Notification.viewed_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                viewed: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiNotificationUpdateParams: {
+        dataType: 'refAlias',
+        type: { ref: 'Pick_Notification.viewed_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Organization: {
@@ -1701,7 +1978,7 @@ const models: TsoaRoute.Models = {
             firstName: { dataType: 'string', required: true },
             lastName: { dataType: 'string', required: true },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_ValidationResponse.error-or-createdAt-or-validationId_': {
@@ -2082,7 +2359,7 @@ const models: TsoaRoute.Models = {
             profiles_dir: { dataType: 'string' },
             project_dir: { dataType: 'string' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.DBT_CLOUD_IDE': {
@@ -2095,23 +2372,9 @@ const models: TsoaRoute.Models = {
         properties: {
             type: { ref: 'DbtProjectType.DBT_CLOUD_IDE', required: true },
             api_key: { dataType: 'string', required: true },
-            account_id: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
-                required: true,
-            },
-            environment_id: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
-                required: true,
-            },
-            project_id: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
-                required: true,
-            },
+            environment_id: { dataType: 'string', required: true },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.GITHUB': {
@@ -2137,7 +2400,7 @@ const models: TsoaRoute.Models = {
             project_sub_path: { dataType: 'string', required: true },
             host_domain: { dataType: 'string' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.BITBUCKET': {
@@ -2164,7 +2427,7 @@ const models: TsoaRoute.Models = {
             project_sub_path: { dataType: 'string', required: true },
             host_domain: { dataType: 'string' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.GITLAB': {
@@ -2190,7 +2453,7 @@ const models: TsoaRoute.Models = {
             project_sub_path: { dataType: 'string', required: true },
             host_domain: { dataType: 'string' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.AZURE_DEVOPS': {
@@ -2217,7 +2480,7 @@ const models: TsoaRoute.Models = {
             branch: { dataType: 'string', required: true },
             project_sub_path: { dataType: 'string', required: true },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.NONE': {
@@ -2239,7 +2502,7 @@ const models: TsoaRoute.Models = {
             },
             hideRefreshButton: { dataType: 'boolean' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DbtProjectConfig: {
@@ -3607,7 +3870,7 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { code: { dataType: 'string' } },
+            nestedProperties: { spec: { dataType: 'object' } },
             validators: {},
         },
     },
@@ -3634,6 +3897,15 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'enum',
             enums: ['hidden', 'inside', 'outside'],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
             validators: {},
         },
     },
@@ -4053,11 +4325,40 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ThresholdOperator: {
+        dataType: 'refEnum',
+        enums: ['greaterThan', 'lessThan', 'increasedBy', 'decreasedBy'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ThresholdOptions: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: { dataType: 'double', required: true },
+                fieldId: { dataType: 'string', required: true },
+                operator: { ref: 'ThresholdOperator', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NotificationFrequency: {
+        dataType: 'refEnum',
+        enums: ['always', 'once'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerBase: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                notificationFrequency: { ref: 'NotificationFrequency' },
+                enabled: { dataType: 'boolean', required: true },
+                thresholds: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ThresholdOptions' },
+                },
                 options: { ref: 'SchedulerOptions', required: true },
                 dashboardUuid: {
                     dataType: 'union',
@@ -4132,7 +4433,7 @@ const models: TsoaRoute.Models = {
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Record_string.DashboardTileTarget_': {
@@ -4756,12 +5057,38 @@ const models: TsoaRoute.Models = {
         type: { ref: 'DashboardBasicDetails', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceMemberRole: {
+        dataType: 'refEnum',
+        enums: ['viewer', 'editor'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpaceShare: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                role: { ref: 'ProjectMemberRole', required: true },
+                inheritedFrom: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['organization'] },
+                        { dataType: 'enum', enums: ['project'] },
+                        { dataType: 'enum', enums: ['group'] },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                inheritedRole: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OrganizationMemberRole' },
+                        { ref: 'ProjectMemberRole' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                hasDirectAccess: { dataType: 'boolean', required: true },
+                role: { ref: 'SpaceMemberRole', required: true },
+                email: { dataType: 'string', required: true },
                 lastName: { dataType: 'string', required: true },
                 firstName: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string', required: true },
@@ -4792,14 +5119,8 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 access: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'array',
-                            array: { dataType: 'refAlias', ref: 'SpaceShare' },
-                        },
-                        { dataType: 'undefined' },
-                    ],
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SpaceShare' },
                     required: true,
                 },
                 dashboards: {
@@ -5100,7 +5421,7 @@ const models: TsoaRoute.Models = {
             role: { ref: 'OrganizationMemberRole' },
             isActive: { dataType: 'boolean', required: true },
         },
-        additionalProperties: false,
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetAuthenticatedUserResponse: {
@@ -5608,12 +5929,264 @@ export function RegisterRoutes(app: express.Router) {
     //  NOTE: If you do not see routes for all of your controllers in this file, then you might not have informed tsoa of where to look
     //      Please look into the "controllerPathGlobs" config option described in the readme: https://github.com/lukeautry/tsoa
     // ###########################################################################################################
+    app.post(
+        '/api/v1/comments/dashboards/:dashboardUuid/:dashboardTileUuid',
+        ...fetchMiddlewares<RequestHandler>(CommentsController),
+        ...fetchMiddlewares<RequestHandler>(
+            CommentsController.prototype.createComment,
+        ),
+
+        async function CommentsController_createComment(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                dashboardUuid: {
+                    in: 'path',
+                    name: 'dashboardUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                dashboardTileUuid: {
+                    in: 'path',
+                    name: 'dashboardTileUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<CommentsController>(
+                    CommentsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.createComment.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/comments/dashboards/:dashboardUuid',
+        ...fetchMiddlewares<RequestHandler>(CommentsController),
+        ...fetchMiddlewares<RequestHandler>(
+            CommentsController.prototype.getComments,
+        ),
+
+        async function CommentsController_getComments(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                dashboardUuid: {
+                    in: 'path',
+                    name: 'dashboardUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<CommentsController>(
+                    CommentsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getComments.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.patch(
+        '/api/v1/comments/dashboards/:dashboardUuid/:commentId',
+        ...fetchMiddlewares<RequestHandler>(CommentsController),
+        ...fetchMiddlewares<RequestHandler>(
+            CommentsController.prototype.resolveComment,
+        ),
+
+        async function CommentsController_resolveComment(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                dashboardUuid: {
+                    in: 'path',
+                    name: 'dashboardUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                commentId: {
+                    in: 'path',
+                    name: 'commentId',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<CommentsController>(
+                    CommentsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.resolveComment.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v1/comments/dashboards/:dashboardUuid/:commentId',
+        ...fetchMiddlewares<RequestHandler>(CommentsController),
+        ...fetchMiddlewares<RequestHandler>(
+            CommentsController.prototype.deleteComment,
+        ),
+
+        async function CommentsController_deleteComment(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                dashboardUuid: {
+                    in: 'path',
+                    name: 'dashboardUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                commentId: {
+                    in: 'path',
+                    name: 'commentId',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<CommentsController>(
+                    CommentsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.deleteComment.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
         '/api/v1/csv/:jobId',
         ...fetchMiddlewares<RequestHandler>(CsvController),
         ...fetchMiddlewares<RequestHandler>(CsvController.prototype.get),
 
-        function CsvController_get(request: any, response: any, next: any) {
+        async function CsvController_get(
+            request: any,
+            response: any,
+            next: any,
+        ) {
             const args = {
                 jobId: {
                     in: 'path',
@@ -5635,7 +6208,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new CsvController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<CsvController>(
+                    CsvController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.get.apply(
                     controller,
@@ -5655,7 +6238,7 @@ export function RegisterRoutes(app: express.Router) {
             DbtCloudIntegrationController.prototype.getSettings,
         ),
 
-        function DbtCloudIntegrationController_getSettings(
+        async function DbtCloudIntegrationController_getSettings(
             request: any,
             response: any,
             next: any,
@@ -5681,7 +6264,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new DbtCloudIntegrationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DbtCloudIntegrationController>(
+                        DbtCloudIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getSettings.apply(
                     controller,
@@ -5701,7 +6295,7 @@ export function RegisterRoutes(app: express.Router) {
             DbtCloudIntegrationController.prototype.updateSettings,
         ),
 
-        function DbtCloudIntegrationController_updateSettings(
+        async function DbtCloudIntegrationController_updateSettings(
             request: any,
             response: any,
             next: any,
@@ -5727,7 +6321,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new DbtCloudIntegrationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DbtCloudIntegrationController>(
+                        DbtCloudIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateSettings.apply(
                     controller,
@@ -5747,7 +6352,7 @@ export function RegisterRoutes(app: express.Router) {
             DbtCloudIntegrationController.prototype.deleteSettings,
         ),
 
-        function DbtCloudIntegrationController_deleteSettings(
+        async function DbtCloudIntegrationController_deleteSettings(
             request: any,
             response: any,
             next: any,
@@ -5773,7 +6378,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new DbtCloudIntegrationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DbtCloudIntegrationController>(
+                        DbtCloudIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.deleteSettings.apply(
                     controller,
@@ -5793,7 +6409,7 @@ export function RegisterRoutes(app: express.Router) {
             ExploreController.prototype.SetExplores,
         ),
 
-        function ExploreController_SetExplores(
+        async function ExploreController_SetExplores(
             request: any,
             response: any,
             next: any,
@@ -5826,7 +6442,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ExploreController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ExploreController>(
+                    ExploreController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.SetExplores.apply(
                     controller,
@@ -5846,7 +6472,7 @@ export function RegisterRoutes(app: express.Router) {
             ExploreController.prototype.GetExplores,
         ),
 
-        function ExploreController_GetExplores(
+        async function ExploreController_GetExplores(
             request: any,
             response: any,
             next: any,
@@ -5872,7 +6498,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ExploreController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ExploreController>(
+                    ExploreController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.GetExplores.apply(
                     controller,
@@ -5892,7 +6528,7 @@ export function RegisterRoutes(app: express.Router) {
             ExploreController.prototype.GetExplore,
         ),
 
-        function ExploreController_GetExplore(
+        async function ExploreController_GetExplore(
             request: any,
             response: any,
             next: any,
@@ -5924,7 +6560,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ExploreController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ExploreController>(
+                    ExploreController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.GetExplore.apply(
                     controller,
@@ -5944,7 +6590,7 @@ export function RegisterRoutes(app: express.Router) {
             ExploreController.prototype.CompileQuery,
         ),
 
-        function ExploreController_CompileQuery(
+        async function ExploreController_CompileQuery(
             request: any,
             response: any,
             next: any,
@@ -5982,7 +6628,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ExploreController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ExploreController>(
+                    ExploreController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.CompileQuery.apply(
                     controller,
@@ -6002,7 +6658,7 @@ export function RegisterRoutes(app: express.Router) {
             ExploreController.prototype.DownloadCsvFromExplore,
         ),
 
-        function ExploreController_DownloadCsvFromExplore(
+        async function ExploreController_DownloadCsvFromExplore(
             request: any,
             response: any,
             next: any,
@@ -6045,7 +6701,13 @@ export function RegisterRoutes(app: express.Router) {
                                     array: { dataType: 'string' },
                                     required: true,
                                 },
-                                customLabels: { ref: 'Record_string.string_' },
+                                customLabels: {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {},
+                                    additionalProperties: {
+                                        dataType: 'string',
+                                    },
+                                },
                                 showTableNames: {
                                     dataType: 'boolean',
                                     required: true,
@@ -6075,7 +6737,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ExploreController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ExploreController>(
+                    ExploreController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.DownloadCsvFromExplore.apply(
                     controller,
@@ -6089,13 +6761,13 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v1/gdrive/get-access-token',
-        ...fetchMiddlewares<RequestHandler>(GoogleDriveController),
+        '/api/v1/github/install',
+        ...fetchMiddlewares<RequestHandler>(GithubInstallController),
         ...fetchMiddlewares<RequestHandler>(
-            GoogleDriveController.prototype.get,
+            GithubInstallController.prototype.installGithubAppForOrganization,
         ),
 
-        function GoogleDriveController_get(
+        async function GithubInstallController_installGithubAppForOrganization(
             request: any,
             response: any,
             next: any,
@@ -6115,7 +6787,437 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GoogleDriveController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GithubInstallController>(
+                        GithubInstallController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise =
+                    controller.installGithubAppForOrganization.apply(
+                        controller,
+                        validatedArgs as any,
+                    );
+                promiseHandler(controller, promise, response, 302, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/github/oauth/callback',
+        ...fetchMiddlewares<RequestHandler>(GithubInstallController),
+        ...fetchMiddlewares<RequestHandler>(
+            GithubInstallController.prototype.githubOauthCallback,
+        ),
+
+        async function GithubInstallController_githubOauthCallback(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                code: { in: 'query', name: 'code', dataType: 'string' },
+                state: { in: 'query', name: 'state', dataType: 'string' },
+                installation_id: {
+                    in: 'query',
+                    name: 'installation_id',
+                    dataType: 'string',
+                },
+                setup_action: {
+                    in: 'query',
+                    name: 'setup_action',
+                    dataType: 'string',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GithubInstallController>(
+                        GithubInstallController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.githubOauthCallback.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v1/github/uninstall',
+        ...fetchMiddlewares<RequestHandler>(GithubInstallController),
+        ...fetchMiddlewares<RequestHandler>(
+            GithubInstallController.prototype.uninstallGithubAppForOrganization,
+        ),
+
+        async function GithubInstallController_uninstallGithubAppForOrganization(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GithubInstallController>(
+                        GithubInstallController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise =
+                    controller.uninstallGithubAppForOrganization.apply(
+                        controller,
+                        validatedArgs as any,
+                    );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/github/repos/list',
+        ...fetchMiddlewares<RequestHandler>(GithubInstallController),
+        ...fetchMiddlewares<RequestHandler>(
+            GithubInstallController.prototype.getGithubListRepositories,
+        ),
+
+        async function GithubInstallController_getGithubListRepositories(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GithubInstallController>(
+                        GithubInstallController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getGithubListRepositories.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/git-integration',
+        ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            GitIntegrationController.prototype.GetConfiguration,
+        ),
+
+        async function GitIntegrationController_GetConfiguration(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GitIntegrationController>(
+                        GitIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.GetConfiguration.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/git-integration/pull-requests/chart/:chartUuid/fields',
+        ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            GitIntegrationController.prototype.CreatePullRequestForChartFields,
+        ),
+
+        async function GitIntegrationController_CreatePullRequestForChartFields(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                chartUuid: {
+                    in: 'path',
+                    name: 'chartUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GitIntegrationController>(
+                        GitIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise =
+                    controller.CreatePullRequestForChartFields.apply(
+                        controller,
+                        validatedArgs as any,
+                    );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/projects/:projectUuid/git-integration/pull-requests/custom-metrics',
+        ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            GitIntegrationController.prototype
+                .CreatePullRequestForCustomMetrics,
+        ),
+
+        async function GitIntegrationController_CreatePullRequestForCustomMetrics(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        quoteChar: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['"'] },
+                                { dataType: 'enum', enums: ["'"] },
+                            ],
+                            required: true,
+                        },
+                        customMetrics: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GitIntegrationController>(
+                        GitIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise =
+                    controller.CreatePullRequestForCustomMetrics.apply(
+                        controller,
+                        validatedArgs as any,
+                    );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/gdrive/get-access-token',
+        ...fetchMiddlewares<RequestHandler>(GoogleDriveController),
+        ...fetchMiddlewares<RequestHandler>(
+            GoogleDriveController.prototype.get,
+        ),
+
+        async function GoogleDriveController_get(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GoogleDriveController>(
+                        GoogleDriveController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.get.apply(
                     controller,
@@ -6135,7 +7237,7 @@ export function RegisterRoutes(app: express.Router) {
             GoogleDriveController.prototype.post,
         ),
 
-        function GoogleDriveController_post(
+        async function GoogleDriveController_post(
             request: any,
             response: any,
             next: any,
@@ -6161,7 +7263,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GoogleDriveController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GoogleDriveController>(
+                        GoogleDriveController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.post.apply(
                     controller,
@@ -6181,7 +7294,7 @@ export function RegisterRoutes(app: express.Router) {
             GroupsController.prototype.getGroup,
         ),
 
-        function GroupsController_getGroup(
+        async function GroupsController_getGroup(
             request: any,
             response: any,
             next: any,
@@ -6213,7 +7326,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GroupsController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<GroupsController>(
+                    GroupsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getGroup.apply(
                     controller,
@@ -6233,7 +7356,7 @@ export function RegisterRoutes(app: express.Router) {
             GroupsController.prototype.deleteGroup,
         ),
 
-        function GroupsController_deleteGroup(
+        async function GroupsController_deleteGroup(
             request: any,
             response: any,
             next: any,
@@ -6259,7 +7382,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GroupsController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<GroupsController>(
+                    GroupsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.deleteGroup.apply(
                     controller,
@@ -6279,7 +7412,7 @@ export function RegisterRoutes(app: express.Router) {
             GroupsController.prototype.addUserToGroup,
         ),
 
-        function GroupsController_addUserToGroup(
+        async function GroupsController_addUserToGroup(
             request: any,
             response: any,
             next: any,
@@ -6311,7 +7444,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GroupsController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<GroupsController>(
+                    GroupsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.addUserToGroup.apply(
                     controller,
@@ -6331,7 +7474,7 @@ export function RegisterRoutes(app: express.Router) {
             GroupsController.prototype.removeUserFromGroup,
         ),
 
-        function GroupsController_removeUserFromGroup(
+        async function GroupsController_removeUserFromGroup(
             request: any,
             response: any,
             next: any,
@@ -6363,7 +7506,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GroupsController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<GroupsController>(
+                    GroupsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.removeUserFromGroup.apply(
                     controller,
@@ -6383,7 +7536,7 @@ export function RegisterRoutes(app: express.Router) {
             GroupsController.prototype.getGroupMembers,
         ),
 
-        function GroupsController_getGroupMembers(
+        async function GroupsController_getGroupMembers(
             request: any,
             response: any,
             next: any,
@@ -6409,7 +7562,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GroupsController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<GroupsController>(
+                    GroupsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getGroupMembers.apply(
                     controller,
@@ -6429,7 +7592,7 @@ export function RegisterRoutes(app: express.Router) {
             GroupsController.prototype.updateGroup,
         ),
 
-        function GroupsController_updateGroup(
+        async function GroupsController_updateGroup(
             request: any,
             response: any,
             next: any,
@@ -6461,7 +7624,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GroupsController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<GroupsController>(
+                    GroupsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateGroup.apply(
                     controller,
@@ -6481,7 +7654,7 @@ export function RegisterRoutes(app: express.Router) {
             GroupsController.prototype.addProjectAccessToGroup,
         ),
 
-        function GroupsController_addProjectAccessToGroup(
+        async function GroupsController_addProjectAccessToGroup(
             request: any,
             response: any,
             next: any,
@@ -6519,7 +7692,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GroupsController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<GroupsController>(
+                    GroupsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.addProjectAccessToGroup.apply(
                     controller,
@@ -6539,7 +7722,7 @@ export function RegisterRoutes(app: express.Router) {
             GroupsController.prototype.updateProjectAccessForGroup,
         ),
 
-        function GroupsController_updateProjectAccessForGroup(
+        async function GroupsController_updateProjectAccessForGroup(
             request: any,
             response: any,
             next: any,
@@ -6577,7 +7760,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GroupsController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<GroupsController>(
+                    GroupsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateProjectAccessForGroup.apply(
                     controller,
@@ -6597,7 +7790,7 @@ export function RegisterRoutes(app: express.Router) {
             GroupsController.prototype.removeProjectAccessFromGroup,
         ),
 
-        function GroupsController_removeProjectAccessFromGroup(
+        async function GroupsController_removeProjectAccessFromGroup(
             request: any,
             response: any,
             next: any,
@@ -6629,7 +7822,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new GroupsController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<GroupsController>(
+                    GroupsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.removeProjectAccessFromGroup.apply(
                     controller,
@@ -6649,7 +7852,7 @@ export function RegisterRoutes(app: express.Router) {
             MetricFlowController.prototype.post,
         ),
 
-        function MetricFlowController_post(
+        async function MetricFlowController_post(
             request: any,
             response: any,
             next: any,
@@ -6695,9 +7898,134 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new MetricFlowController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MetricFlowController>(
+                        MetricFlowController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.post.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/notifications',
+        ...fetchMiddlewares<RequestHandler>(NotificationsController),
+        ...fetchMiddlewares<RequestHandler>(
+            NotificationsController.prototype.getNotifications,
+        ),
+
+        async function NotificationsController_getNotifications(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                type: {
+                    in: 'query',
+                    name: 'type',
+                    required: true,
+                    ref: 'ApiNotificationResourceType',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<NotificationsController>(
+                        NotificationsController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getNotifications.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.patch(
+        '/api/v1/notifications/:notificationId',
+        ...fetchMiddlewares<RequestHandler>(NotificationsController),
+        ...fetchMiddlewares<RequestHandler>(
+            NotificationsController.prototype.updateNotification,
+        ),
+
+        async function NotificationsController_updateNotification(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                notificationId: {
+                    in: 'path',
+                    name: 'notificationId',
+                    required: true,
+                    dataType: 'string',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'ApiNotificationUpdateParams',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<NotificationsController>(
+                        NotificationsController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.updateNotification.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -6715,7 +8043,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.getOrganization,
         ),
 
-        function OrganizationController_getOrganization(
+        async function OrganizationController_getOrganization(
             request: any,
             response: any,
             next: any,
@@ -6735,7 +8063,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getOrganization.apply(
                     controller,
@@ -6755,7 +8094,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.createOrganization,
         ),
 
-        function OrganizationController_createOrganization(
+        async function OrganizationController_createOrganization(
             request: any,
             response: any,
             next: any,
@@ -6781,7 +8120,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.createOrganization.apply(
                     controller,
@@ -6801,7 +8151,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.updateOrganization,
         ),
 
-        function OrganizationController_updateOrganization(
+        async function OrganizationController_updateOrganization(
             request: any,
             response: any,
             next: any,
@@ -6827,7 +8177,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateOrganization.apply(
                     controller,
@@ -6847,7 +8208,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.deleteOrganization,
         ),
 
-        function OrganizationController_deleteOrganization(
+        async function OrganizationController_deleteOrganization(
             request: any,
             response: any,
             next: any,
@@ -6873,7 +8234,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.deleteOrganization.apply(
                     controller,
@@ -6893,7 +8265,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.getProjects,
         ),
 
-        function OrganizationController_getProjects(
+        async function OrganizationController_getProjects(
             request: any,
             response: any,
             next: any,
@@ -6913,7 +8285,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getProjects.apply(
                     controller,
@@ -6933,7 +8316,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.getOrganizationMembers,
         ),
 
-        function OrganizationController_getOrganizationMembers(
+        async function OrganizationController_getOrganizationMembers(
             request: any,
             response: any,
             next: any,
@@ -6958,7 +8341,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getOrganizationMembers.apply(
                     controller,
@@ -6978,7 +8372,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.getOrganizationMemberByUuid,
         ),
 
-        function OrganizationController_getOrganizationMemberByUuid(
+        async function OrganizationController_getOrganizationMemberByUuid(
             request: any,
             response: any,
             next: any,
@@ -7004,7 +8398,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getOrganizationMemberByUuid.apply(
                     controller,
@@ -7024,7 +8429,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.updateOrganizationMember,
         ),
 
-        function OrganizationController_updateOrganizationMember(
+        async function OrganizationController_updateOrganizationMember(
             request: any,
             response: any,
             next: any,
@@ -7056,7 +8461,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateOrganizationMember.apply(
                     controller,
@@ -7076,7 +8492,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.deleteUser,
         ),
 
-        function OrganizationController_deleteUser(
+        async function OrganizationController_deleteUser(
             request: any,
             response: any,
             next: any,
@@ -7102,7 +8518,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.deleteUser.apply(
                     controller,
@@ -7122,7 +8549,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.getOrganizationAllowedEmailDomains,
         ),
 
-        function OrganizationController_getOrganizationAllowedEmailDomains(
+        async function OrganizationController_getOrganizationAllowedEmailDomains(
             request: any,
             response: any,
             next: any,
@@ -7142,7 +8569,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise =
                     controller.getOrganizationAllowedEmailDomains.apply(
@@ -7164,7 +8602,7 @@ export function RegisterRoutes(app: express.Router) {
                 .updateOrganizationAllowedEmailDomains,
         ),
 
-        function OrganizationController_updateOrganizationAllowedEmailDomains(
+        async function OrganizationController_updateOrganizationAllowedEmailDomains(
             request: any,
             response: any,
             next: any,
@@ -7190,7 +8628,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise =
                     controller.updateOrganizationAllowedEmailDomains.apply(
@@ -7211,7 +8660,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.createGroup,
         ),
 
-        function OrganizationController_createGroup(
+        async function OrganizationController_createGroup(
             request: any,
             response: any,
             next: any,
@@ -7237,7 +8686,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.createGroup.apply(
                     controller,
@@ -7257,7 +8717,7 @@ export function RegisterRoutes(app: express.Router) {
             OrganizationController.prototype.listGroupsInOrganization,
         ),
 
-        function OrganizationController_listGroupsInOrganization(
+        async function OrganizationController_listGroupsInOrganization(
             request: any,
             response: any,
             next: any,
@@ -7282,7 +8742,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new OrganizationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.listGroupsInOrganization.apply(
                     controller,
@@ -7300,7 +8771,11 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(PinningController),
         ...fetchMiddlewares<RequestHandler>(PinningController.prototype.get),
 
-        function PinningController_get(request: any, response: any, next: any) {
+        async function PinningController_get(
+            request: any,
+            response: any,
+            next: any,
+        ) {
             const args = {
                 projectUuid: {
                     in: 'path',
@@ -7328,7 +8803,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new PinningController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<PinningController>(
+                    PinningController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.get.apply(
                     controller,
@@ -7346,7 +8831,7 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(PinningController),
         ...fetchMiddlewares<RequestHandler>(PinningController.prototype.post),
 
-        function PinningController_post(
+        async function PinningController_post(
             request: any,
             response: any,
             next: any,
@@ -7388,7 +8873,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new PinningController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<PinningController>(
+                    PinningController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.post.apply(
                     controller,
@@ -7408,7 +8903,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.getProject,
         ),
 
-        function ProjectController_getProject(
+        async function ProjectController_getProject(
             request: any,
             response: any,
             next: any,
@@ -7434,7 +8929,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getProject.apply(
                     controller,
@@ -7454,7 +8959,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.getChartsInProject,
         ),
 
-        function ProjectController_getChartsInProject(
+        async function ProjectController_getChartsInProject(
             request: any,
             response: any,
             next: any,
@@ -7480,7 +8985,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getChartsInProject.apply(
                     controller,
@@ -7500,7 +9015,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.getSpacesInProject,
         ),
 
-        function ProjectController_getSpacesInProject(
+        async function ProjectController_getSpacesInProject(
             request: any,
             response: any,
             next: any,
@@ -7526,7 +9041,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getSpacesInProject.apply(
                     controller,
@@ -7546,7 +9071,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.getProjectAccessList,
         ),
 
-        function ProjectController_getProjectAccessList(
+        async function ProjectController_getProjectAccessList(
             request: any,
             response: any,
             next: any,
@@ -7572,7 +9097,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getProjectAccessList.apply(
                     controller,
@@ -7592,7 +9127,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.getProjectMember,
         ),
 
-        function ProjectController_getProjectMember(
+        async function ProjectController_getProjectMember(
             request: any,
             response: any,
             next: any,
@@ -7624,7 +9159,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getProjectMember.apply(
                     controller,
@@ -7644,7 +9189,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.grantProjectAccessToUser,
         ),
 
-        function ProjectController_grantProjectAccessToUser(
+        async function ProjectController_grantProjectAccessToUser(
             request: any,
             response: any,
             next: any,
@@ -7676,7 +9221,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.grantProjectAccessToUser.apply(
                     controller,
@@ -7696,7 +9251,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.updateProjectAccessForUser,
         ),
 
-        function ProjectController_updateProjectAccessForUser(
+        async function ProjectController_updateProjectAccessForUser(
             request: any,
             response: any,
             next: any,
@@ -7734,7 +9289,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateProjectAccessForUser.apply(
                     controller,
@@ -7754,7 +9319,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.revokeProjectAccessForUser,
         ),
 
-        function ProjectController_revokeProjectAccessForUser(
+        async function ProjectController_revokeProjectAccessForUser(
             request: any,
             response: any,
             next: any,
@@ -7786,7 +9351,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.revokeProjectAccessForUser.apply(
                     controller,
@@ -7806,7 +9381,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.getProjectGroupAccesses,
         ),
 
-        function ProjectController_getProjectGroupAccesses(
+        async function ProjectController_getProjectGroupAccesses(
             request: any,
             response: any,
             next: any,
@@ -7832,7 +9407,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getProjectGroupAccesses.apply(
                     controller,
@@ -7852,7 +9437,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.runSqlQuery,
         ),
 
-        function ProjectController_runSqlQuery(
+        async function ProjectController_runSqlQuery(
             request: any,
             response: any,
             next: any,
@@ -7887,7 +9472,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.runSqlQuery.apply(
                     controller,
@@ -7907,7 +9502,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.CalculateTotalFromQuery,
         ),
 
-        function ProjectController_CalculateTotalFromQuery(
+        async function ProjectController_CalculateTotalFromQuery(
             request: any,
             response: any,
             next: any,
@@ -7939,7 +9534,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.CalculateTotalFromQuery.apply(
                     controller,
@@ -7959,7 +9564,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.GetDbtExposures,
         ),
 
-        function ProjectController_GetDbtExposures(
+        async function ProjectController_GetDbtExposures(
             request: any,
             response: any,
             next: any,
@@ -7985,7 +9590,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.GetDbtExposures.apply(
                     controller,
@@ -8005,7 +9620,7 @@ export function RegisterRoutes(app: express.Router) {
             ProjectController.prototype.getUserWarehouseCredentialsPreference,
         ),
 
-        function ProjectController_getUserWarehouseCredentialsPreference(
+        async function ProjectController_getUserWarehouseCredentialsPreference(
             request: any,
             response: any,
             next: any,
@@ -8031,7 +9646,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise =
                     controller.getUserWarehouseCredentialsPreference.apply(
@@ -8053,7 +9678,7 @@ export function RegisterRoutes(app: express.Router) {
                 .updateUserWarehouseCredentialsPreference,
         ),
 
-        function ProjectController_updateUserWarehouseCredentialsPreference(
+        async function ProjectController_updateUserWarehouseCredentialsPreference(
             request: any,
             response: any,
             next: any,
@@ -8085,13 +9710,79 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ProjectController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise =
                     controller.updateUserWarehouseCredentialsPreference.apply(
                         controller,
                         validatedArgs as any,
                     );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/custom-metrics',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.getCustomMetrics,
+        ),
+
+        async function ProjectController_getCustomMetrics(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getCustomMetrics.apply(
+                    controller,
+                    validatedArgs as any,
+                );
                 promiseHandler(controller, promise, response, 200, next);
             } catch (err) {
                 return next(err);
@@ -8106,7 +9797,7 @@ export function RegisterRoutes(app: express.Router) {
             RunViewChartQueryController.prototype.postUnderlyingData,
         ),
 
-        function RunViewChartQueryController_postUnderlyingData(
+        async function RunViewChartQueryController_postUnderlyingData(
             request: any,
             response: any,
             next: any,
@@ -8144,7 +9835,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new RunViewChartQueryController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<RunViewChartQueryController>(
+                        RunViewChartQueryController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.postUnderlyingData.apply(
                     controller,
@@ -8164,7 +9866,7 @@ export function RegisterRoutes(app: express.Router) {
             RunViewChartQueryController.prototype.runMetricQuery,
         ),
 
-        function RunViewChartQueryController_runMetricQuery(
+        async function RunViewChartQueryController_runMetricQuery(
             request: any,
             response: any,
             next: any,
@@ -8202,7 +9904,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new RunViewChartQueryController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<RunViewChartQueryController>(
+                        RunViewChartQueryController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.runMetricQuery.apply(
                     controller,
@@ -8222,7 +9935,7 @@ export function RegisterRoutes(app: express.Router) {
             SavedChartController.prototype.postChartResults,
         ),
 
-        function SavedChartController_postChartResults(
+        async function SavedChartController_postChartResults(
             request: any,
             response: any,
             next: any,
@@ -8257,7 +9970,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SavedChartController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SavedChartController>(
+                        SavedChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.postChartResults.apply(
                     controller,
@@ -8277,7 +10001,7 @@ export function RegisterRoutes(app: express.Router) {
             SavedChartController.prototype.postDashboardTile,
         ),
 
-        function SavedChartController_postDashboardTile(
+        async function SavedChartController_postDashboardTile(
             request: any,
             response: any,
             next: any,
@@ -8320,7 +10044,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SavedChartController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SavedChartController>(
+                        SavedChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.postDashboardTile.apply(
                     controller,
@@ -8340,7 +10075,7 @@ export function RegisterRoutes(app: express.Router) {
             SavedChartController.prototype.getChartHistory,
         ),
 
-        function SavedChartController_getChartHistory(
+        async function SavedChartController_getChartHistory(
             request: any,
             response: any,
             next: any,
@@ -8366,7 +10101,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SavedChartController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SavedChartController>(
+                        SavedChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getChartHistory.apply(
                     controller,
@@ -8386,7 +10132,7 @@ export function RegisterRoutes(app: express.Router) {
             SavedChartController.prototype.getChartVersion,
         ),
 
-        function SavedChartController_getChartVersion(
+        async function SavedChartController_getChartVersion(
             request: any,
             response: any,
             next: any,
@@ -8418,7 +10164,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SavedChartController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SavedChartController>(
+                        SavedChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getChartVersion.apply(
                     controller,
@@ -8438,7 +10195,7 @@ export function RegisterRoutes(app: express.Router) {
             SavedChartController.prototype.getChartVersionResults,
         ),
 
-        function SavedChartController_getChartVersionResults(
+        async function SavedChartController_getChartVersionResults(
             request: any,
             response: any,
             next: any,
@@ -8470,7 +10227,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SavedChartController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SavedChartController>(
+                        SavedChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getChartVersionResults.apply(
                     controller,
@@ -8490,7 +10258,7 @@ export function RegisterRoutes(app: express.Router) {
             SavedChartController.prototype.postChartVersionRollback,
         ),
 
-        function SavedChartController_postChartVersionRollback(
+        async function SavedChartController_postChartVersionRollback(
             request: any,
             response: any,
             next: any,
@@ -8522,7 +10290,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SavedChartController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SavedChartController>(
+                        SavedChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.postChartVersionRollback.apply(
                     controller,
@@ -8542,7 +10321,7 @@ export function RegisterRoutes(app: express.Router) {
             SavedChartController.prototype.calculateTotalFromSavedChart,
         ),
 
-        function SavedChartController_calculateTotalFromSavedChart(
+        async function SavedChartController_calculateTotalFromSavedChart(
             request: any,
             response: any,
             next: any,
@@ -8578,7 +10357,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SavedChartController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SavedChartController>(
+                        SavedChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.calculateTotalFromSavedChart.apply(
                     controller,
@@ -8598,7 +10388,7 @@ export function RegisterRoutes(app: express.Router) {
             SchedulerController.prototype.getLogs,
         ),
 
-        function SchedulerController_getLogs(
+        async function SchedulerController_getLogs(
             request: any,
             response: any,
             next: any,
@@ -8624,7 +10414,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SchedulerController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerController>(
+                        SchedulerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getLogs.apply(
                     controller,
@@ -8642,7 +10443,7 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
         ...fetchMiddlewares<RequestHandler>(SchedulerController.prototype.get),
 
-        function SchedulerController_get(
+        async function SchedulerController_get(
             request: any,
             response: any,
             next: any,
@@ -8668,7 +10469,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SchedulerController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerController>(
+                        SchedulerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.get.apply(
                     controller,
@@ -8688,7 +10500,7 @@ export function RegisterRoutes(app: express.Router) {
             SchedulerController.prototype.patch,
         ),
 
-        function SchedulerController_patch(
+        async function SchedulerController_patch(
             request: any,
             response: any,
             next: any,
@@ -8720,9 +10532,86 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SchedulerController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerController>(
+                        SchedulerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.patch.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 201, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.patch(
+        '/api/v1/schedulers/:schedulerUuid/enabled',
+        ...fetchMiddlewares<RequestHandler>(SchedulerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SchedulerController.prototype.patchEnabled,
+        ),
+
+        async function SchedulerController_patchEnabled(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                schedulerUuid: {
+                    in: 'path',
+                    name: 'schedulerUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        enabled: { dataType: 'boolean', required: true },
+                    },
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerController>(
+                        SchedulerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.patchEnabled.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -8740,7 +10629,7 @@ export function RegisterRoutes(app: express.Router) {
             SchedulerController.prototype.delete,
         ),
 
-        function SchedulerController_delete(
+        async function SchedulerController_delete(
             request: any,
             response: any,
             next: any,
@@ -8766,7 +10655,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SchedulerController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerController>(
+                        SchedulerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.delete.apply(
                     controller,
@@ -8786,7 +10686,7 @@ export function RegisterRoutes(app: express.Router) {
             SchedulerController.prototype.getJobs,
         ),
 
-        function SchedulerController_getJobs(
+        async function SchedulerController_getJobs(
             request: any,
             response: any,
             next: any,
@@ -8812,7 +10712,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SchedulerController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerController>(
+                        SchedulerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getJobs.apply(
                     controller,
@@ -8832,7 +10743,7 @@ export function RegisterRoutes(app: express.Router) {
             SchedulerController.prototype.getSchedulerStatus,
         ),
 
-        function SchedulerController_getSchedulerStatus(
+        async function SchedulerController_getSchedulerStatus(
             request: any,
             response: any,
             next: any,
@@ -8858,7 +10769,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SchedulerController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerController>(
+                        SchedulerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getSchedulerStatus.apply(
                     controller,
@@ -8876,7 +10798,7 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
         ...fetchMiddlewares<RequestHandler>(SchedulerController.prototype.post),
 
-        function SchedulerController_post(
+        async function SchedulerController_post(
             request: any,
             response: any,
             next: any,
@@ -8902,7 +10824,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SchedulerController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerController>(
+                        SchedulerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.post.apply(
                     controller,
@@ -8920,7 +10853,11 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(ShareController),
         ...fetchMiddlewares<RequestHandler>(ShareController.prototype.get),
 
-        function ShareController_get(request: any, response: any, next: any) {
+        async function ShareController_get(
+            request: any,
+            response: any,
+            next: any,
+        ) {
             const args = {
                 nanoId: {
                     in: 'path',
@@ -8942,7 +10879,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ShareController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ShareController>(
+                    ShareController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.get.apply(
                     controller,
@@ -8960,7 +10907,7 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(ShareController),
         ...fetchMiddlewares<RequestHandler>(ShareController.prototype.create),
 
-        function ShareController_create(
+        async function ShareController_create(
             request: any,
             response: any,
             next: any,
@@ -8986,7 +10933,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ShareController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ShareController>(
+                    ShareController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.create.apply(
                     controller,
@@ -9004,7 +10961,11 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(SlackController),
         ...fetchMiddlewares<RequestHandler>(SlackController.prototype.get),
 
-        function SlackController_get(request: any, response: any, next: any) {
+        async function SlackController_get(
+            request: any,
+            response: any,
+            next: any,
+        ) {
             const args = {
                 req: {
                     in: 'request',
@@ -9020,7 +10981,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SlackController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SlackController>(
+                    SlackController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.get.apply(
                     controller,
@@ -9040,7 +11011,7 @@ export function RegisterRoutes(app: express.Router) {
             SlackController.prototype.updateNotificationChannel,
         ),
 
-        function SlackController_updateNotificationChannel(
+        async function SlackController_updateNotificationChannel(
             request: any,
             response: any,
             next: any,
@@ -9076,7 +11047,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SlackController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SlackController>(
+                    SlackController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateNotificationChannel.apply(
                     controller,
@@ -9094,7 +11075,7 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(SpaceController),
         ...fetchMiddlewares<RequestHandler>(SpaceController.prototype.getSpace),
 
-        function SpaceController_getSpace(
+        async function SpaceController_getSpace(
             request: any,
             response: any,
             next: any,
@@ -9126,7 +11107,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SpaceController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SpaceController>(
+                    SpaceController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getSpace.apply(
                     controller,
@@ -9146,7 +11137,7 @@ export function RegisterRoutes(app: express.Router) {
             SpaceController.prototype.createSpace,
         ),
 
-        function SpaceController_createSpace(
+        async function SpaceController_createSpace(
             request: any,
             response: any,
             next: any,
@@ -9178,7 +11169,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SpaceController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SpaceController>(
+                    SpaceController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.createSpace.apply(
                     controller,
@@ -9198,7 +11199,7 @@ export function RegisterRoutes(app: express.Router) {
             SpaceController.prototype.deleteSpace,
         ),
 
-        function SpaceController_deleteSpace(
+        async function SpaceController_deleteSpace(
             request: any,
             response: any,
             next: any,
@@ -9230,7 +11231,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SpaceController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SpaceController>(
+                    SpaceController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.deleteSpace.apply(
                     controller,
@@ -9250,7 +11261,7 @@ export function RegisterRoutes(app: express.Router) {
             SpaceController.prototype.updateSpace,
         ),
 
-        function SpaceController_updateSpace(
+        async function SpaceController_updateSpace(
             request: any,
             response: any,
             next: any,
@@ -9288,7 +11299,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SpaceController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SpaceController>(
+                    SpaceController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateSpace.apply(
                     controller,
@@ -9308,7 +11329,7 @@ export function RegisterRoutes(app: express.Router) {
             SpaceController.prototype.addSpaceShare,
         ),
 
-        function SpaceController_addSpaceShare(
+        async function SpaceController_addSpaceShare(
             request: any,
             response: any,
             next: any,
@@ -9346,7 +11367,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SpaceController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SpaceController>(
+                    SpaceController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.addSpaceShare.apply(
                     controller,
@@ -9366,7 +11397,7 @@ export function RegisterRoutes(app: express.Router) {
             SpaceController.prototype.revokeSpaceAccessForUser,
         ),
 
-        function SpaceController_revokeSpaceAccessForUser(
+        async function SpaceController_revokeSpaceAccessForUser(
             request: any,
             response: any,
             next: any,
@@ -9404,7 +11435,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SpaceController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SpaceController>(
+                    SpaceController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.revokeSpaceAccessForUser.apply(
                     controller,
@@ -9424,7 +11465,7 @@ export function RegisterRoutes(app: express.Router) {
             SshController.prototype.createSshKeyPair,
         ),
 
-        function SshController_createSshKeyPair(
+        async function SshController_createSshKeyPair(
             request: any,
             response: any,
             next: any,
@@ -9444,7 +11485,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new SshController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SshController>(
+                    SshController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.createSshKeyPair.apply(
                     controller,
@@ -9464,7 +11515,7 @@ export function RegisterRoutes(app: express.Router) {
             UserAttributesController.prototype.getUserAttributes,
         ),
 
-        function UserAttributesController_getUserAttributes(
+        async function UserAttributesController_getUserAttributes(
             request: any,
             response: any,
             next: any,
@@ -9484,7 +11535,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserAttributesController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<UserAttributesController>(
+                        UserAttributesController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getUserAttributes.apply(
                     controller,
@@ -9504,7 +11566,7 @@ export function RegisterRoutes(app: express.Router) {
             UserAttributesController.prototype.createUserAttribute,
         ),
 
-        function UserAttributesController_createUserAttribute(
+        async function UserAttributesController_createUserAttribute(
             request: any,
             response: any,
             next: any,
@@ -9530,7 +11592,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserAttributesController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<UserAttributesController>(
+                        UserAttributesController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.createUserAttribute.apply(
                     controller,
@@ -9550,7 +11623,7 @@ export function RegisterRoutes(app: express.Router) {
             UserAttributesController.prototype.updateUserAttribute,
         ),
 
-        function UserAttributesController_updateUserAttribute(
+        async function UserAttributesController_updateUserAttribute(
             request: any,
             response: any,
             next: any,
@@ -9582,7 +11655,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserAttributesController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<UserAttributesController>(
+                        UserAttributesController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateUserAttribute.apply(
                     controller,
@@ -9602,7 +11686,7 @@ export function RegisterRoutes(app: express.Router) {
             UserAttributesController.prototype.removeUserAttribute,
         ),
 
-        function UserAttributesController_removeUserAttribute(
+        async function UserAttributesController_removeUserAttribute(
             request: any,
             response: any,
             next: any,
@@ -9628,7 +11712,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserAttributesController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<UserAttributesController>(
+                        UserAttributesController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.removeUserAttribute.apply(
                     controller,
@@ -9648,7 +11743,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.getAuthenticatedUser,
         ),
 
-        function UserController_getAuthenticatedUser(
+        async function UserController_getAuthenticatedUser(
             request: any,
             response: any,
             next: any,
@@ -9668,7 +11763,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getAuthenticatedUser.apply(
                     controller,
@@ -9688,7 +11793,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.registerUser,
         ),
 
-        function UserController_registerUser(
+        async function UserController_registerUser(
             request: any,
             response: any,
             next: any,
@@ -9714,7 +11819,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.registerUser.apply(
                     controller,
@@ -9734,7 +11849,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.createEmailOneTimePasscode,
         ),
 
-        function UserController_createEmailOneTimePasscode(
+        async function UserController_createEmailOneTimePasscode(
             request: any,
             response: any,
             next: any,
@@ -9754,7 +11869,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.createEmailOneTimePasscode.apply(
                     controller,
@@ -9774,7 +11899,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.getEmailVerificationStatus,
         ),
 
-        function UserController_getEmailVerificationStatus(
+        async function UserController_getEmailVerificationStatus(
             request: any,
             response: any,
             next: any,
@@ -9795,7 +11920,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getEmailVerificationStatus.apply(
                     controller,
@@ -9815,7 +11950,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.getOrganizationsUserCanJoin,
         ),
 
-        function UserController_getOrganizationsUserCanJoin(
+        async function UserController_getOrganizationsUserCanJoin(
             request: any,
             response: any,
             next: any,
@@ -9835,7 +11970,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getOrganizationsUserCanJoin.apply(
                     controller,
@@ -9855,7 +12000,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.joinOrganization,
         ),
 
-        function UserController_joinOrganization(
+        async function UserController_joinOrganization(
             request: any,
             response: any,
             next: any,
@@ -9881,7 +12026,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.joinOrganization.apply(
                     controller,
@@ -9901,7 +12056,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.deleteUser,
         ),
 
-        function UserController_deleteUser(
+        async function UserController_deleteUser(
             request: any,
             response: any,
             next: any,
@@ -9921,7 +12076,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.deleteUser.apply(
                     controller,
@@ -9941,7 +12106,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.getWarehouseCredentials,
         ),
 
-        function UserController_getWarehouseCredentials(
+        async function UserController_getWarehouseCredentials(
             request: any,
             response: any,
             next: any,
@@ -9961,7 +12126,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.getWarehouseCredentials.apply(
                     controller,
@@ -9981,7 +12156,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.createWarehouseCredentials,
         ),
 
-        function UserController_createWarehouseCredentials(
+        async function UserController_createWarehouseCredentials(
             request: any,
             response: any,
             next: any,
@@ -10007,7 +12182,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.createWarehouseCredentials.apply(
                     controller,
@@ -10027,7 +12212,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.updateWarehouseCredentials,
         ),
 
-        function UserController_updateWarehouseCredentials(
+        async function UserController_updateWarehouseCredentials(
             request: any,
             response: any,
             next: any,
@@ -10059,7 +12244,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.updateWarehouseCredentials.apply(
                     controller,
@@ -10079,7 +12274,7 @@ export function RegisterRoutes(app: express.Router) {
             UserController.prototype.deleteWarehouseCredentials,
         ),
 
-        function UserController_deleteWarehouseCredentials(
+        async function UserController_deleteWarehouseCredentials(
             request: any,
             response: any,
             next: any,
@@ -10105,7 +12300,17 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new UserController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.deleteWarehouseCredentials.apply(
                     controller,
@@ -10125,7 +12330,7 @@ export function RegisterRoutes(app: express.Router) {
             ValidationController.prototype.post,
         ),
 
-        function ValidationController_post(
+        async function ValidationController_post(
             request: any,
             response: any,
             next: any,
@@ -10163,7 +12368,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ValidationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ValidationController>(
+                        ValidationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.post.apply(
                     controller,
@@ -10181,7 +12397,7 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(ValidationController),
         ...fetchMiddlewares<RequestHandler>(ValidationController.prototype.get),
 
-        function ValidationController_get(
+        async function ValidationController_get(
             request: any,
             response: any,
             next: any,
@@ -10213,7 +12429,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ValidationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ValidationController>(
+                        ValidationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.get.apply(
                     controller,
@@ -10233,7 +12460,7 @@ export function RegisterRoutes(app: express.Router) {
             ValidationController.prototype.dismiss,
         ),
 
-        function ValidationController_dismiss(
+        async function ValidationController_dismiss(
             request: any,
             response: any,
             next: any,
@@ -10265,7 +12492,18 @@ export function RegisterRoutes(app: express.Router) {
             try {
                 validatedArgs = getValidatedArgs(args, request, response);
 
-                const controller = new ValidationController();
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ValidationController>(
+                        ValidationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
 
                 const promise = controller.dismiss.apply(
                     controller,
@@ -10368,7 +12606,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         undefined,
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'path':
                     return validationService.ValidateParam(
@@ -10377,7 +12615,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         undefined,
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'header':
                     return validationService.ValidateParam(
@@ -10386,7 +12624,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         undefined,
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'body':
                     return validationService.ValidateParam(
@@ -10395,7 +12633,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         undefined,
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'body-prop':
                     return validationService.ValidateParam(
@@ -10404,7 +12642,7 @@ export function RegisterRoutes(app: express.Router) {
                         name,
                         fieldErrors,
                         'body.',
-                        { noImplicitAdditionalProperties: 'throw-on-extras' },
+                        { noImplicitAdditionalProperties: 'ignore' },
                     );
                 case 'formData':
                     if (args[key].dataType === 'file') {
@@ -10414,10 +12652,7 @@ export function RegisterRoutes(app: express.Router) {
                             name,
                             fieldErrors,
                             undefined,
-                            {
-                                noImplicitAdditionalProperties:
-                                    'throw-on-extras',
-                            },
+                            { noImplicitAdditionalProperties: 'ignore' },
                         );
                     } else if (
                         args[key].dataType === 'array' &&
@@ -10429,10 +12664,7 @@ export function RegisterRoutes(app: express.Router) {
                             name,
                             fieldErrors,
                             undefined,
-                            {
-                                noImplicitAdditionalProperties:
-                                    'throw-on-extras',
-                            },
+                            { noImplicitAdditionalProperties: 'ignore' },
                         );
                     } else {
                         return validationService.ValidateParam(
@@ -10441,10 +12673,7 @@ export function RegisterRoutes(app: express.Router) {
                             name,
                             fieldErrors,
                             undefined,
-                            {
-                                noImplicitAdditionalProperties:
-                                    'throw-on-extras',
-                            },
+                            { noImplicitAdditionalProperties: 'ignore' },
                         );
                     }
                 case 'res':

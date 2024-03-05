@@ -14,7 +14,8 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const useEchartsPieConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap, getGroupColor } =
+        useVisualizationContext();
 
     const chartConfig = useMemo(() => {
         if (!isPieVisualizationConfig(visualizationConfig)) return;
@@ -25,7 +26,6 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
         if (!chartConfig) return;
 
         const {
-            groupColorDefaults,
             selectedMetric,
             data,
             sortedGroupLabels,
@@ -34,8 +34,8 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                 showValue: showValueDefault,
                 showPercentage: showPercentageDefault,
                 groupLabelOverrides,
-                groupColorOverrides,
                 groupValueOptionOverrides,
+                groupColorOverrides,
             },
         } = chartConfig;
 
@@ -58,15 +58,16 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                     groupValueOptionOverrides?.[name]?.showPercentage ??
                     showPercentageDefault;
 
+                const itemColor =
+                    groupColorOverrides?.[name] ?? getGroupColor(name);
+
                 const config: PieSeriesDataPoint = {
                     id: name,
                     groupId: name,
                     name: groupLabelOverrides?.[name] ?? name,
                     value: value,
                     itemStyle: {
-                        color:
-                            groupColorOverrides?.[name] ??
-                            groupColorDefaults?.[name],
+                        color: itemColor,
                     },
                     label: {
                         show: valueLabel !== 'hidden',
@@ -89,7 +90,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
 
                 return config;
             });
-    }, [chartConfig]);
+    }, [chartConfig, getGroupColor]);
 
     const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;

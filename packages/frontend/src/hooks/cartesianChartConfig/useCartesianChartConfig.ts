@@ -13,6 +13,7 @@ import {
     MarkLineData,
     Series,
 } from '@lightdash/common';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getMarkLineAxis,
@@ -43,6 +44,7 @@ type Args = {
     itemsMap: ItemsMap | undefined;
     stacking: boolean | undefined;
     cartesianType: CartesianTypeOptions | undefined;
+    colorPalette: string[];
 };
 
 const applyReferenceLines = (
@@ -129,7 +131,6 @@ const useCartesianChartConfig = ({
     const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
         Partial<CartesianChart['eChartsConfig']> | undefined
     >(initialChartConfig?.eChartsConfig);
-
     const isInitiallyStacked = (dirtyEchartsConfig?.series || []).some(
         (series: Series) => series.stack !== undefined,
     );
@@ -703,7 +704,10 @@ const useCartesianChartConfig = ({
     const validConfig: CartesianChart = useMemo(() => {
         return isCompleteLayout(dirtyLayout) &&
             isCompleteEchartsConfig(dirtyEchartsConfig)
-            ? { layout: dirtyLayout, eChartsConfig: dirtyEchartsConfig }
+            ? {
+                  layout: dirtyLayout,
+                  eChartsConfig: dirtyEchartsConfig,
+              }
             : EMPTY_CARTESIAN_CHART_CONFIG;
     }, [dirtyLayout, dirtyEchartsConfig]);
 

@@ -6,6 +6,7 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    friendlyName,
     getCustomLabelsFromTableConfig,
     getHiddenTableFields,
     getHumanReadableCronExpression,
@@ -24,7 +25,9 @@ import {
     isSchedulerImageOptions,
     isTableChartConfig,
     LightdashPage,
+    NotificationFrequency,
     NotificationPayloadBase,
+    operatorAction,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerFilterRule,
@@ -32,1107 +35,1233 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SlackNotificationPayload,
+    ThresholdOperator,
+    ThresholdOptions,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
-import { analytics } from '../analytics/client';
 import {
     DownloadCsv,
     LightdashAnalytics,
     parseAnalyticsLimit,
     QueryExecutionContext,
 } from '../analytics/LightdashAnalytics';
-import {
-    emailClient,
-    googleDriveClient,
-    s3Client,
-    schedulerClient,
-    slackClient,
-} from '../clients/clients';
+import { S3Client } from '../clients/Aws/s3';
+import EmailClient from '../clients/EmailClient/EmailClient';
+import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
+import { SlackClient } from '../clients/Slack/SlackClient';
 import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
+    getChartThresholdAlertBlocks,
     getDashboardCsvResultsBlocks,
     getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
-import { lightdashConfig } from '../config/lightdashConfig';
+import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
-import {
-    csvService,
-    dashboardService,
-    projectService,
-    schedulerService,
-    unfurlService,
-    userService,
-    validationService,
-} from '../services/services';
+import { CsvService } from '../services/CsvService/CsvService';
+import { DashboardService } from '../services/DashboardService/DashboardService';
+import { ProjectService } from '../services/ProjectService/ProjectService';
+import { SchedulerService } from '../services/SchedulerService/SchedulerService';
+import { UnfurlService } from '../services/UnfurlService/UnfurlService';
+import { UserService } from '../services/UserService';
+import { ValidationService } from '../services/ValidationService/ValidationService';
+import { SchedulerClient } from './SchedulerClient';
 
-const getChartOrDashboard = async (
-    chartUuid: string | null,
-    dashboardUuid: string | null,
-    schedulerUuid: string | undefined,
-    sendNowSchedulerFilters: SchedulerFilterRule[] | undefined,
-) => {
-    if (chartUuid) {
-        const chart = await schedulerService.savedChartModel.getSummary(
-            chartUuid,
-        );
-        return {
-            url: `${lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
-            minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}`,
-            details: {
-                name: chart.name,
-                description: chart.description,
-            },
-            pageType: LightdashPage.CHART,
-            organizationUuid: chart.organizationUuid,
-            projectUuid: chart.projectUuid,
-        };
-    }
-
-    if (dashboardUuid) {
-        const dashboard = await schedulerService.dashboardModel.getById(
-            dashboardUuid,
-        );
-
-        return {
-            url: `${lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
-            minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${
-                dashboard.projectUuid
-            }/dashboards/${dashboardUuid}${
-                schedulerUuid ? `?schedulerUuid=${schedulerUuid}` : ''
-            }${
-                sendNowSchedulerFilters
-                    ? `?sendNowchedulerFilters=${encodeURI(
-                          JSON.stringify(sendNowSchedulerFilters),
-                      )}`
-                    : ''
-            }`,
-            details: {
-                name: dashboard.name,
-                description: dashboard.description,
-            },
-            pageType: LightdashPage.DASHBOARD,
-            organizationUuid: dashboard.organizationUuid,
-            projectUuid: dashboard.projectUuid,
-        };
-    }
-
-    throw new Error("Chart or dashboard can't be both undefined");
+type SchedulerTaskArguments = {
+    lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
+    csvService: CsvService;
+    dashboardService: DashboardService;
+    projectService: ProjectService;
+    schedulerService: SchedulerService;
+    unfurlService: UnfurlService;
+    userService: UserService;
+    validationService: ValidationService;
+    emailClient: EmailClient;
+    googleDriveClient: GoogleDriveClient;
+    s3Client: S3Client;
+    schedulerClient: SchedulerClient;
+    slackClient: SlackClient;
 };
 
-export const getNotificationPageData = async (
-    scheduler: CreateSchedulerAndTargets,
-    jobId: string,
-): Promise<NotificationPayloadBase['page']> => {
-    const {
-        createdBy: userUuid,
-        savedChartUuid,
-        dashboardUuid,
-        format,
-        options,
-    } = scheduler;
+export default class SchedulerTask {
+    protected readonly lightdashConfig: LightdashConfig;
 
-    let imageUrl;
-    let csvUrl;
-    let csvUrls;
-    let pdfFile;
+    protected readonly analytics: LightdashAnalytics;
 
-    const schedulerUuid =
-        'schedulerUuid' in scheduler &&
-        typeof scheduler.schedulerUuid === 'string'
-            ? scheduler.schedulerUuid
-            : undefined;
+    protected readonly csvService: CsvService;
 
-    const sendNowSchedulerFilters =
-        !schedulerUuid && isDashboardScheduler(scheduler)
-            ? scheduler.filters
-            : undefined;
+    protected readonly dashboardService: DashboardService;
 
-    const {
-        url,
-        minimalUrl,
-        pageType,
-        details,
-        organizationUuid,
-        projectUuid,
-    } = await getChartOrDashboard(
-        savedChartUuid,
-        dashboardUuid,
-        schedulerUuid,
-        sendNowSchedulerFilters,
-    );
+    protected readonly projectService: ProjectService;
 
-    switch (format) {
-        case SchedulerFormat.IMAGE:
-            try {
-                const imageId = `slack-image-notification-${nanoid()}`;
-                const imageOptions = isSchedulerImageOptions(scheduler.options)
-                    ? scheduler.options
-                    : undefined;
-                const unfurlImage = await unfurlService.unfurlImage({
-                    url: minimalUrl,
-                    lightdashPage: pageType,
-                    imageId,
-                    authUserUuid: userUuid,
-                    withPdf: imageOptions?.withPdf,
-                    gridWidth:
-                        isDashboardScheduler(scheduler) &&
-                        scheduler.customViewportWidth
-                            ? scheduler.customViewportWidth
-                            : undefined,
-                });
-                if (unfurlImage.imageUrl === undefined) {
-                    throw new Error('Unable to unfurl image');
-                }
-                pdfFile = unfurlImage.pdfPath;
-                imageUrl = unfurlImage.imageUrl;
-            } catch (error) {
-                if (slackClient.isEnabled) {
-                    await slackClient.postMessageToNotificationChannel({
-                        organizationUuid,
-                        text: `Error sending Scheduled Delivery: ${scheduler.name}`,
-                        blocks: getNotificationChannelErrorBlocks(
-                            scheduler.name,
-                            error,
-                        ),
-                    });
-                }
+    protected readonly schedulerService: SchedulerService;
 
-                throw error;
-            }
-            break;
-        case SchedulerFormat.GSHEETS:
-            // We don't generate CSV files for Google sheets on handleNotification task,
-            // instead we directly upload the data from the row results in the uploadGsheets task
-            throw new Error("Don't fetch csv for gsheets");
-        case SchedulerFormat.CSV:
-            const user = await userService.getSessionByUserUuid(userUuid);
-            const csvOptions = isSchedulerCsvOptions(options)
-                ? options
-                : undefined;
+    protected readonly unfurlService: UnfurlService;
 
-            const baseAnalyticsProperties: DownloadCsv['properties'] = {
-                jobId,
-                userId: userUuid,
-                organizationId: user.organizationUuid,
-                projectId: projectUuid,
-                fileType: SchedulerFormat.CSV,
-                values: csvOptions?.formatted ? 'formatted' : 'raw',
-                limit: parseAnalyticsLimit(csvOptions?.limit),
-                storage: s3Client.isEnabled() ? 's3' : 'local',
+    protected readonly userService: UserService;
+
+    protected readonly validationService: ValidationService;
+
+    protected readonly emailClient: EmailClient;
+
+    protected readonly googleDriveClient: GoogleDriveClient;
+
+    protected readonly s3Client: S3Client;
+
+    protected readonly schedulerClient: SchedulerClient;
+
+    protected readonly slackClient: SlackClient;
+
+    constructor(args: SchedulerTaskArguments) {
+        this.lightdashConfig = args.lightdashConfig;
+        this.analytics = args.analytics;
+        this.csvService = args.csvService;
+        this.dashboardService = args.dashboardService;
+        this.projectService = args.projectService;
+        this.schedulerService = args.schedulerService;
+        this.unfurlService = args.unfurlService;
+        this.userService = args.userService;
+        this.validationService = args.validationService;
+        this.emailClient = args.emailClient;
+        this.googleDriveClient = args.googleDriveClient;
+        this.s3Client = args.s3Client;
+        this.schedulerClient = args.schedulerClient;
+        this.slackClient = args.slackClient;
+    }
+
+    protected async getChartOrDashboard(
+        chartUuid: string | null,
+        dashboardUuid: string | null,
+        schedulerUuid: string | undefined,
+        sendNowSchedulerFilters: SchedulerFilterRule[] | undefined,
+    ) {
+        if (chartUuid) {
+            const chart =
+                await this.schedulerService.savedChartModel.getSummary(
+                    chartUuid,
+                );
+            return {
+                url: `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
+                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}`,
+                details: {
+                    name: chart.name,
+                    description: chart.description,
+                },
+                pageType: LightdashPage.CHART,
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
             };
-
-            try {
-                if (savedChartUuid) {
-                    csvUrl = await csvService.getCsvForChart(
-                        user,
-                        savedChartUuid,
-                        csvOptions,
-                        jobId,
-                    );
-                } else if (dashboardUuid) {
-                    analytics.track({
-                        event: 'download_results.started',
-                        userId: userUuid,
-                        properties: {
-                            ...baseAnalyticsProperties,
-                            context: 'scheduled delivery dashboard',
-                        },
-                    });
-
-                    csvUrls = await csvService.getCsvsForDashboard(
-                        user,
-                        dashboardUuid,
-                        csvOptions,
-                        isDashboardScheduler(scheduler)
-                            ? scheduler.filters
-                            : undefined,
-                    );
-
-                    analytics.track({
-                        event: 'download_results.completed',
-                        userId: userUuid,
-                        properties: {
-                            ...baseAnalyticsProperties,
-                            context: 'scheduled delivery dashboard',
-                            numCharts: csvUrls.length,
-                        },
-                    });
-                } else {
-                    throw new Error('Not implemented');
-                }
-            } catch (e) {
-                Logger.error(`Unable to download CSV on scheduled task: ${e}`);
-
-                if (slackClient.isEnabled) {
-                    await slackClient.postMessageToNotificationChannel({
-                        organizationUuid,
-                        text: `Error sending Scheduled Delivery: ${scheduler.name}`,
-                        blocks: getNotificationChannelErrorBlocks(
-                            scheduler.name,
-                            e,
-                        ),
-                    });
-                }
-
-                analytics.track({
-                    event: 'download_results.error',
-                    userId: userUuid,
-                    properties: {
-                        ...baseAnalyticsProperties,
-                        error: `${e}`,
-                    },
-                });
-                throw e; // cascade error
-            }
-            break;
-        default:
-            return assertUnreachable(
-                format,
-                `Format ${format} is not supported for scheduled delivery`,
-            );
-    }
-
-    return {
-        url,
-        pageType,
-        details,
-        organizationUuid,
-        imageUrl,
-        csvUrl,
-        csvUrls,
-        pdfFile,
-    };
-};
-
-export const sendSlackNotification = async (
-    jobId: string,
-    notification: SlackNotificationPayload,
-) => {
-    const {
-        schedulerUuid,
-        schedulerSlackTargetUuid,
-        channel,
-        scheduledTime,
-        scheduler,
-    } = notification;
-    analytics.track({
-        event: 'scheduler_notification_job.started',
-        anonymousId: LightdashAnalytics.anonymousId,
-        properties: {
-            jobId,
-            schedulerId: schedulerUuid,
-            schedulerTargetId: schedulerSlackTargetUuid,
-            type: 'slack',
-            sendNow: schedulerUuid === undefined,
-        },
-    });
-
-    try {
-        if (!slackClient.isEnabled) {
-            throw new Error('Slack app is not configured');
         }
 
-        const { format, savedChartUuid, dashboardUuid, name, cron } = scheduler;
+        if (dashboardUuid) {
+            const dashboard =
+                await this.schedulerService.dashboardModel.getById(
+                    dashboardUuid,
+                );
 
-        await schedulerService.logSchedulerJob({
-            task: 'sendSlackNotification',
-            schedulerUuid,
-            jobId,
-            jobGroup: notification.jobGroup,
+            return {
+                url: `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
+                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${
+                    dashboard.projectUuid
+                }/dashboards/${dashboardUuid}${
+                    schedulerUuid ? `?schedulerUuid=${schedulerUuid}` : ''
+                }${
+                    sendNowSchedulerFilters
+                        ? `?sendNowchedulerFilters=${encodeURI(
+                              JSON.stringify(sendNowSchedulerFilters),
+                          )}`
+                        : ''
+                }`,
+                details: {
+                    name: dashboard.name,
+                    description: dashboard.description,
+                },
+                pageType: LightdashPage.DASHBOARD,
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid: dashboard.projectUuid,
+            };
+        }
 
-            scheduledTime,
-            target: channel,
-            targetType: 'slack',
-            status: SchedulerJobStatus.STARTED,
-        });
+        throw new Error("Chart or dashboard can't be both undefined");
+    }
 
-        // Backwards compatibility for old scheduled deliveries
-        const notificationPageData =
-            notification.page ??
-            (await getNotificationPageData(scheduler, jobId));
+    protected async getNotificationPageData(
+        scheduler: CreateSchedulerAndTargets,
+        jobId: string,
+    ): Promise<NotificationPayloadBase['page']> {
+        const {
+            createdBy: userUuid,
+            savedChartUuid,
+            dashboardUuid,
+            format,
+            options,
+        } = scheduler;
+
+        let imageUrl;
+        let csvUrl;
+        let csvUrls;
+        let pdfFile;
+
+        const schedulerUuid =
+            'schedulerUuid' in scheduler &&
+            typeof scheduler.schedulerUuid === 'string'
+                ? scheduler.schedulerUuid
+                : undefined;
+
+        const sendNowSchedulerFilters =
+            !schedulerUuid && isDashboardScheduler(scheduler)
+                ? scheduler.filters
+                : undefined;
 
         const {
             url,
-            details,
+            minimalUrl,
             pageType,
+            details,
+            organizationUuid,
+            projectUuid,
+        } = await this.getChartOrDashboard(
+            savedChartUuid,
+            dashboardUuid,
+            schedulerUuid,
+            sendNowSchedulerFilters,
+        );
+
+        switch (format) {
+            case SchedulerFormat.IMAGE:
+                try {
+                    const imageId = `slack-image-notification-${nanoid()}`;
+                    const imageOptions = isSchedulerImageOptions(
+                        scheduler.options,
+                    )
+                        ? scheduler.options
+                        : undefined;
+                    const unfurlImage = await this.unfurlService.unfurlImage({
+                        url: minimalUrl,
+                        lightdashPage: pageType,
+                        imageId,
+                        authUserUuid: userUuid,
+                        withPdf: imageOptions?.withPdf,
+                        gridWidth:
+                            isDashboardScheduler(scheduler) &&
+                            scheduler.customViewportWidth
+                                ? scheduler.customViewportWidth
+                                : undefined,
+                    });
+                    if (unfurlImage.imageUrl === undefined) {
+                        throw new Error('Unable to unfurl image');
+                    }
+                    pdfFile = unfurlImage.pdfPath;
+                    imageUrl = unfurlImage.imageUrl;
+                } catch (error) {
+                    if (this.slackClient.isEnabled) {
+                        await this.slackClient.postMessageToNotificationChannel(
+                            {
+                                organizationUuid,
+                                text: `Error sending Scheduled Delivery: ${scheduler.name}`,
+                                blocks: getNotificationChannelErrorBlocks(
+                                    scheduler.name,
+                                    error,
+                                ),
+                            },
+                        );
+                    }
+
+                    throw error;
+                }
+                break;
+            case SchedulerFormat.GSHEETS:
+                // We don't generate CSV files for Google sheets on handleNotification task,
+                // instead we directly upload the data from the row results in the uploadGsheets task
+                throw new Error("Don't fetch csv for gsheets");
+            case SchedulerFormat.CSV:
+                const user = await this.userService.getSessionByUserUuid(
+                    userUuid,
+                );
+                const csvOptions = isSchedulerCsvOptions(options)
+                    ? options
+                    : undefined;
+
+                const baseAnalyticsProperties: DownloadCsv['properties'] = {
+                    jobId,
+                    userId: userUuid,
+                    organizationId: user.organizationUuid,
+                    projectId: projectUuid,
+                    fileType: SchedulerFormat.CSV,
+                    values: csvOptions?.formatted ? 'formatted' : 'raw',
+                    limit: parseAnalyticsLimit(csvOptions?.limit),
+                    storage: this.s3Client.isEnabled() ? 's3' : 'local',
+                };
+
+                try {
+                    if (savedChartUuid) {
+                        csvUrl = await this.csvService.getCsvForChart(
+                            user,
+                            savedChartUuid,
+                            csvOptions,
+                            jobId,
+                        );
+                    } else if (dashboardUuid) {
+                        this.analytics.track({
+                            event: 'download_results.started',
+                            userId: userUuid,
+                            properties: {
+                                ...baseAnalyticsProperties,
+                                context: 'scheduled delivery dashboard',
+                            },
+                        });
+
+                        csvUrls = await this.csvService.getCsvsForDashboard(
+                            user,
+                            dashboardUuid,
+                            csvOptions,
+                            isDashboardScheduler(scheduler)
+                                ? scheduler.filters
+                                : undefined,
+                        );
+
+                        this.analytics.track({
+                            event: 'download_results.completed',
+                            userId: userUuid,
+                            properties: {
+                                ...baseAnalyticsProperties,
+                                context: 'scheduled delivery dashboard',
+                                numCharts: csvUrls.length,
+                            },
+                        });
+                    } else {
+                        throw new Error('Not implemented');
+                    }
+                } catch (e) {
+                    Logger.error(
+                        `Unable to download CSV on scheduled task: ${e}`,
+                    );
+
+                    if (this.slackClient.isEnabled) {
+                        await this.slackClient.postMessageToNotificationChannel(
+                            {
+                                organizationUuid,
+                                text: `Error sending Scheduled Delivery: ${scheduler.name}`,
+                                blocks: getNotificationChannelErrorBlocks(
+                                    scheduler.name,
+                                    e,
+                                ),
+                            },
+                        );
+                    }
+
+                    this.analytics.track({
+                        event: 'download_results.error',
+                        userId: userUuid,
+                        properties: {
+                            ...baseAnalyticsProperties,
+                            error: `${e}`,
+                        },
+                    });
+                    throw e; // cascade error
+                }
+                break;
+            default:
+                return assertUnreachable(
+                    format,
+                    `Format ${format} is not supported for scheduled delivery`,
+                );
+        }
+
+        return {
+            url,
+            pageType,
+            details,
             organizationUuid,
             imageUrl,
             csvUrl,
             csvUrls,
-            // pdfFile, // TODO: add pdf to slack
-        } = notificationPageData;
-
-        const getBlocksArgs = {
-            title: name,
-            name: details.name,
-            description: details.description,
-            message: scheduler.message && slackifyMarkdown(scheduler.message),
-            ctaUrl: url,
-            footerMarkdown: `This is a <${url}?scheduler_uuid=${
-                schedulerUuid || ''
-            }|scheduled delivery> ${getHumanReadableCronExpression(
-                cron,
-            )} from Lightdash\n${s3Client.getExpirationWarning()?.slack || ''}`,
+            pdfFile,
         };
+    }
 
-        if (format === SchedulerFormat.IMAGE) {
-            if (imageUrl === undefined) {
-                throw new Error('Missing image URL');
+    protected async sendSlackNotification(
+        jobId: string,
+        notification: SlackNotificationPayload,
+    ) {
+        const {
+            schedulerUuid,
+            schedulerSlackTargetUuid,
+            channel,
+            scheduledTime,
+            scheduler,
+        } = notification;
+        this.analytics.track({
+            event: 'scheduler_notification_job.started',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerSlackTargetUuid,
+                type: 'slack',
+                sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
+            },
+        });
+
+        try {
+            if (!this.slackClient.isEnabled) {
+                throw new Error('Slack app is not configured');
             }
 
-            const blocks = getChartAndDashboardBlocks({
-                ...getBlocksArgs,
-                imageUrl,
+            const {
+                format,
+                savedChartUuid,
+                dashboardUuid,
+                name,
+                cron,
+                thresholds,
+            } = scheduler;
+
+            await this.schedulerService.logSchedulerJob({
+                task: 'sendSlackNotification',
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                target: channel,
+                targetType: 'slack',
+                status: SchedulerJobStatus.STARTED,
             });
 
-            await slackClient.postMessage({
+            // Backwards compatibility for old scheduled deliveries
+            const notificationPageData =
+                notification.page ??
+                (await this.getNotificationPageData(scheduler, jobId));
+
+            const {
+                url,
+                details,
+                pageType,
                 organizationUuid,
-                text: name,
-                channel,
-                blocks,
+                imageUrl,
+                csvUrl,
+                csvUrls,
+                // pdfFile, // TODO: add pdf to slack
+            } = notificationPageData;
+
+            const getBlocksArgs = {
+                title: name,
+                name: details.name,
+                description: details.description,
+                message:
+                    scheduler.message && slackifyMarkdown(scheduler.message),
+                ctaUrl: url,
+                footerMarkdown: `This is a <${url}?scheduler_uuid=${
+                    schedulerUuid || ''
+                }|scheduled delivery> ${getHumanReadableCronExpression(
+                    cron,
+                )} from Lightdash\n${
+                    this.s3Client.getExpirationWarning()?.slack || ''
+                }`,
+            };
+
+            if (thresholds !== undefined && thresholds.length > 0) {
+                // We assume the threshold is possitive , so we don't need to get results here
+                if (savedChartUuid) {
+                    const blocks = getChartThresholdAlertBlocks({
+                        ...getBlocksArgs,
+                        footerMarkdown: `This is a <${url}?threshold_uuid=${
+                            schedulerUuid || ''
+                        }|data alert> sent by Lightdash. For security reasons, delivered files expire after ${
+                            this.s3Client.getExpirationWarning()?.days || 3
+                        } days`,
+                        imageUrl,
+                        thresholds,
+                    });
+                    await this.slackClient.postMessage({
+                        organizationUuid,
+                        text: name,
+                        channel,
+                        blocks,
+                    });
+                } else {
+                    throw new Error('Not implemented');
+                }
+            } else if (format === SchedulerFormat.IMAGE) {
+                if (imageUrl === undefined) {
+                    throw new Error('Missing image URL');
+                }
+
+                const blocks = getChartAndDashboardBlocks({
+                    ...getBlocksArgs,
+                    imageUrl,
+                });
+
+                await this.slackClient.postMessage({
+                    organizationUuid,
+                    text: name,
+                    channel,
+                    blocks,
+                });
+            } else {
+                let blocks;
+                if (savedChartUuid) {
+                    if (csvUrl === undefined) {
+                        throw new Error('Missing CSV URL');
+                    }
+
+                    blocks = getChartCsvResultsBlocks({
+                        ...getBlocksArgs,
+                        csvUrl:
+                            csvUrl.path !== '#no-results'
+                                ? csvUrl.path
+                                : undefined,
+                    });
+                } else if (dashboardUuid) {
+                    if (csvUrls === undefined) {
+                        throw new Error('Missing CSV URLS');
+                    }
+                    blocks = getDashboardCsvResultsBlocks({
+                        ...getBlocksArgs,
+                        csvUrls,
+                    });
+                } else {
+                    throw new Error('Not implemented');
+                }
+                await this.slackClient.postMessage({
+                    organizationUuid,
+                    text: name,
+                    channel,
+                    blocks,
+                });
+            }
+            this.analytics.track({
+                event: 'scheduler_notification_job.completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerSlackTargetUuid,
+                    type: 'slack',
+                    format,
+                    resourceType:
+                        pageType === LightdashPage.CHART
+                            ? 'chart'
+                            : 'dashboard',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
             });
-        } else {
-            let blocks;
-            if (savedChartUuid) {
+            await this.schedulerService.logSchedulerJob({
+                task: 'sendSlackNotification',
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                target: channel,
+                targetType: 'slack',
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            this.analytics.track({
+                event: 'scheduler_notification_job.failed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    error: `${e}`,
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerSlackTargetUuid,
+                    type: 'slack',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: 'sendSlackNotification',
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                targetType: 'slack',
+                status: SchedulerJobStatus.ERROR,
+                details: { error: e.message },
+            });
+
+            throw e; // Cascade error to it can be retried by graphile
+        }
+    }
+
+    protected async testAndCompileProject(
+        jobId: string,
+        scheduledTime: Date,
+        payload: CompileProjectPayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: 'compileProject',
+                jobId,
+                scheduledTime,
+            };
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                payload.createdByUserUuid,
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { createdByUserUuid: payload.createdByUserUuid },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            await this.projectService.testAndCompileProject(
+                user,
+                payload.projectUuid,
+                getRequestMethod(payload.requestMethod),
+                payload.jobUuid,
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {},
+                status: SchedulerJobStatus.COMPLETED,
+            });
+            if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
+                this.schedulerClient.generateValidation({
+                    userUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    context: 'test_and_compile',
+                    organizationUuid: user.organizationUuid,
+                });
+            }
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    error: e,
+                },
+            });
+            throw e;
+        }
+    }
+
+    protected async compileProject(
+        jobId: string,
+        scheduledTime: Date,
+        payload: CompileProjectPayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: 'compileProject',
+                jobId,
+                scheduledTime,
+            };
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                payload.createdByUserUuid,
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { createdByUserUuid: payload.createdByUserUuid },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            await this.projectService.compileProject(
+                user,
+                payload.projectUuid,
+                getRequestMethod(payload.requestMethod),
+                payload.jobUuid,
+            );
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {},
+                status: SchedulerJobStatus.COMPLETED,
+            });
+            if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
+                this.schedulerClient.generateValidation({
+                    projectUuid: payload.projectUuid,
+                    context: 'dbt_refresh',
+                    userUuid: payload.createdByUserUuid,
+                    organizationUuid: user.organizationUuid,
+                });
+            }
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    error: e,
+                },
+            });
+            throw e;
+        }
+    }
+
+    protected async validateProject(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ValidateProjectPayload,
+    ) {
+        await this.schedulerService.logSchedulerJob({
+            task: 'validateProject',
+            jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.STARTED,
+        });
+
+        this.analytics.track({
+            event: 'validation.run',
+            userId: payload.userUuid,
+            properties: {
+                context: payload.context,
+                organizationId: payload.organizationUuid,
+                projectId: payload.projectUuid,
+            },
+        });
+        try {
+            const errors = await this.validationService.generateValidation(
+                payload.projectUuid,
+                payload.explores,
+            );
+
+            const contentIds = errors.map((validation) => {
+                if (isChartValidationError(validation))
+                    return validation.chartUuid;
+                if (isDashboardValidationError(validation))
+                    return validation.dashboardUuid;
+
+                return validation.name;
+            });
+
+            await this.validationService.storeValidation(
+                payload.projectUuid,
+                errors,
+                payload.explores ? jobId : undefined,
+            );
+
+            this.analytics.track({
+                event: 'validation.completed',
+                userId: payload.userUuid,
+                properties: {
+                    context: payload.context,
+                    organizationId: payload.organizationUuid,
+                    projectId: payload.projectUuid,
+                    numContentAffected: new Set(contentIds).size,
+                    numErrorsDetected: errors.length,
+                },
+            });
+
+            await this.schedulerService.logSchedulerJob({
+                task: 'validateProject',
+                jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            this.analytics.track({
+                event: 'validation.error',
+                userId: payload.userUuid,
+                properties: {
+                    context: payload.context,
+                    organizationId: payload.organizationUuid,
+                    projectId: payload.projectUuid,
+                    error: e.message,
+                },
+            });
+
+            await this.schedulerService.logSchedulerJob({
+                task: 'validateProject',
+                jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.ERROR,
+                details: { error: e.message },
+            });
+        }
+    }
+
+    protected async downloadCsv(
+        jobId: string,
+        scheduledTime: Date,
+        payload: DownloadCsvPayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: 'downloadCsv',
+                jobId,
+                scheduledTime,
+            };
+        try {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { createdByUserUuid: payload.userUuid },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            const { fileUrl, truncated } = await this.csvService.downloadCsv(
+                jobId,
+                payload,
+            );
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    fileUrl,
+                    createdByUserUuid: payload.userUuid,
+                    truncated,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: { createdByUserUuid: payload.userUuid, error: e },
+            });
+            throw e; // Cascade error to it can be retried by graphile
+        }
+    }
+
+    protected async uploadGsheetFromQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: UploadMetricGsheetPayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: 'uploadGsheetFromQuery',
+                jobId,
+                scheduledTime,
+            };
+
+        const analyticsProperties: DownloadCsv['properties'] = {
+            jobId,
+            userId: payload.userUuid,
+            organizationId: payload.organizationUuid,
+            projectId: payload.projectUuid,
+            fileType: SchedulerFormat.GSHEETS,
+        };
+
+        try {
+            if (!this.googleDriveClient.isEnabled) {
+                throw new Error(
+                    'Unable to upload Google Sheet from query, Google Drive is not enabled',
+                );
+            }
+            this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { createdByUserUuid: payload.userUuid },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            this.analytics.track({
+                event: 'download_results.started',
+                userId: payload.userUuid,
+                properties: analyticsProperties,
+            });
+            const user = await this.userService.getSessionByUserUuid(
+                payload.userUuid,
+            );
+
+            const { rows } = await this.projectService.runMetricQuery({
+                user,
+                metricQuery: payload.metricQuery,
+                projectUuid: payload.projectUuid,
+                exploreName: payload.exploreId,
+                csvLimit: undefined,
+                context: QueryExecutionContext.GSHEETS,
+            });
+            const refreshToken = await this.userService.getRefreshToken(
+                payload.userUuid,
+            );
+            const { spreadsheetId, spreadsheetUrl } =
+                await this.googleDriveClient.createNewSheet(
+                    refreshToken,
+                    payload.exploreId,
+                );
+
+            if (!spreadsheetId) {
+                throw new Error('Unable to create new sheet');
+            }
+
+            const explore = await this.projectService.getExplore(
+                user,
+                payload.projectUuid,
+                payload.exploreId,
+            );
+            const itemMap = getItemMap(
+                explore,
+                payload.metricQuery.additionalMetrics,
+                payload.metricQuery.tableCalculations,
+            );
+            await this.googleDriveClient.appendToSheet(
+                refreshToken,
+                spreadsheetId,
+                rows,
+                itemMap,
+                payload.showTableNames,
+                undefined, // tabName
+                payload.columnOrder,
+                payload.customLabels,
+                payload.hiddenFields,
+            );
+            const truncated = this.csvService.couldBeTruncated(rows);
+
+            this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    fileUrl: spreadsheetUrl,
+                    createdByUserUuid: payload.userUuid,
+                    truncated,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+            this.analytics.track({
+                event: 'download_results.completed',
+                userId: payload.userUuid,
+                properties: analyticsProperties,
+            });
+        } catch (e) {
+            this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: { createdByUserUuid: payload.userUuid, error: e },
+            });
+            this.analytics.track({
+                event: 'download_results.error',
+                userId: payload.userUuid,
+                properties: analyticsProperties,
+            });
+            throw e; // Cascade error to it can be retried by graphile
+        }
+    }
+
+    protected async sendEmailNotification(
+        jobId: string,
+        notification: EmailNotificationPayload,
+    ) {
+        const {
+            schedulerUuid,
+            schedulerEmailTargetUuid,
+            recipient,
+            scheduledTime,
+            scheduler,
+        } = notification;
+
+        this.analytics.track({
+            event: 'scheduler_notification_job.started',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerEmailTargetUuid,
+                type: 'email',
+                sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
+            },
+        });
+
+        try {
+            const { format, savedChartUuid, dashboardUuid, name, thresholds } =
+                scheduler;
+
+            await this.schedulerService.logSchedulerJob({
+                task: 'sendEmailNotification',
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                target: recipient,
+                targetType: 'email',
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            // Backwards compatibility for old scheduled deliveries
+            const notificationPageData =
+                notification.page ??
+                (await this.getNotificationPageData(scheduler, jobId));
+
+            const {
+                url,
+                details,
+                pageType,
+                imageUrl,
+                csvUrl,
+                csvUrls,
+                pdfFile,
+            } = notificationPageData;
+
+            const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
+
+            if (thresholds !== undefined && thresholds.length > 0) {
+                // We assume the threshold is possitive , so we don't need to get results here
+                if (imageUrl === undefined) {
+                    throw new Error('Missing image URL');
+                }
+                if (scheduler.message) {
+                    throw new Error(
+                        'Message not supported on threshold alerts',
+                    );
+                }
+                // Reuse message from imageNotification for threshold information
+                const thresholdMessageList = thresholds.map(
+                    (threshold) =>
+                        `- **${friendlyName(
+                            threshold.fieldId,
+                        )}** ${operatorAction(threshold.operator)} **${
+                            threshold.value
+                        }**`,
+                );
+                const thresholdMessage = `Your results for the chart **${
+                    details.name
+                }** triggered the following alerts:\n${thresholdMessageList.join(
+                    '\n',
+                )}`;
+                await this.emailClient.sendImageNotificationEmail(
+                    recipient,
+                    `Lightdash Data Alert`,
+                    name,
+                    details.description || '',
+                    thresholdMessage,
+                    new Date().toLocaleDateString('en-GB'),
+                    `For security reasons, delivered files expire after ${
+                        this.s3Client.getExpirationWarning()?.days || 3
+                    } days`,
+                    imageUrl,
+                    url,
+                    schedulerUrl,
+                    pdfFile,
+                    undefined, // expiration days
+                    'This is a data alert sent by Lightdash',
+                );
+            } else if (format === SchedulerFormat.IMAGE) {
+                if (imageUrl === undefined) {
+                    throw new Error('Missing image URL');
+                }
+                await this.emailClient.sendImageNotificationEmail(
+                    recipient,
+                    name,
+                    details.name,
+                    details.description || '',
+                    scheduler.message,
+                    new Date().toLocaleDateString('en-GB'),
+                    getHumanReadableCronExpression(scheduler.cron),
+                    imageUrl,
+                    url,
+                    schedulerUrl,
+                    pdfFile,
+                    this.s3Client.getExpirationWarning()?.days,
+                );
+            } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
                     throw new Error('Missing CSV URL');
                 }
-
-                blocks = getChartCsvResultsBlocks({
-                    ...getBlocksArgs,
-                    csvUrl:
-                        csvUrl.path !== '#no-results' ? csvUrl.path : undefined,
-                });
+                await this.emailClient.sendChartCsvNotificationEmail(
+                    recipient,
+                    name,
+                    details.name,
+                    details.description || '',
+                    scheduler.message,
+                    new Date().toLocaleDateString('en-GB'),
+                    getHumanReadableCronExpression(scheduler.cron),
+                    csvUrl,
+                    url,
+                    schedulerUrl,
+                    this.s3Client.getExpirationWarning()?.days,
+                );
             } else if (dashboardUuid) {
                 if (csvUrls === undefined) {
                     throw new Error('Missing CSV URLS');
                 }
-                blocks = getDashboardCsvResultsBlocks({
-                    ...getBlocksArgs,
+                await this.emailClient.sendDashboardCsvNotificationEmail(
+                    recipient,
+                    name,
+                    details.name,
+                    details.description || '',
+                    scheduler.message,
+                    new Date().toLocaleDateString('en-GB'),
+                    getHumanReadableCronExpression(scheduler.cron),
                     csvUrls,
-                });
+                    url,
+                    schedulerUrl,
+                    this.s3Client.getExpirationWarning()?.days,
+                );
             } else {
                 throw new Error('Not implemented');
             }
-            await slackClient.postMessage({
-                organizationUuid,
-                text: name,
-                channel,
-                blocks,
-            });
-        }
-        analytics.track({
-            event: 'scheduler_notification_job.completed',
-            anonymousId: LightdashAnalytics.anonymousId,
-            properties: {
-                jobId,
-                schedulerId: schedulerUuid,
-                schedulerTargetId: schedulerSlackTargetUuid,
-                type: 'slack',
-                format,
-                resourceType:
-                    pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
-                sendNow: schedulerUuid === undefined,
-            },
-        });
-        await schedulerService.logSchedulerJob({
-            task: 'sendSlackNotification',
-            schedulerUuid,
-            jobId,
-            jobGroup: notification.jobGroup,
 
-            scheduledTime,
-            target: channel,
-            targetType: 'slack',
-            status: SchedulerJobStatus.COMPLETED,
-        });
-    } catch (e) {
-        analytics.track({
-            event: 'scheduler_notification_job.failed',
-            anonymousId: LightdashAnalytics.anonymousId,
-            properties: {
-                error: `${e}`,
-                jobId,
-                schedulerId: schedulerUuid,
-                schedulerTargetId: schedulerSlackTargetUuid,
-                type: 'slack',
-                sendNow: schedulerUuid === undefined,
-            },
-        });
-        await schedulerService.logSchedulerJob({
-            task: 'sendSlackNotification',
-            schedulerUuid,
-            jobId,
-            jobGroup: notification.jobGroup,
-
-            scheduledTime,
-            targetType: 'slack',
-            status: SchedulerJobStatus.ERROR,
-            details: { error: e.message },
-        });
-
-        throw e; // Cascade error to it can be retried by graphile
-    }
-};
-
-export const testAndCompileProject = async (
-    jobId: string,
-    scheduledTime: Date,
-    payload: CompileProjectPayload,
-) => {
-    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
-        task: 'compileProject',
-        jobId,
-        scheduledTime,
-    };
-    try {
-        const user = await userService.getSessionByUserUuid(
-            payload.createdByUserUuid,
-        );
-
-        await schedulerService.logSchedulerJob({
-            ...baseLog,
-            details: { createdByUserUuid: payload.createdByUserUuid },
-            status: SchedulerJobStatus.STARTED,
-        });
-
-        await projectService.testAndCompileProject(
-            user,
-            payload.projectUuid,
-            getRequestMethod(payload.requestMethod),
-            payload.jobUuid,
-        );
-
-        await schedulerService.logSchedulerJob({
-            ...baseLog,
-            details: {},
-            status: SchedulerJobStatus.COMPLETED,
-        });
-        if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
-            schedulerClient.generateValidation({
-                userUuid: payload.createdByUserUuid,
-                projectUuid: payload.projectUuid,
-                context: 'test_and_compile',
-                organizationUuid: user.organizationUuid,
-            });
-        }
-    } catch (e) {
-        await schedulerService.logSchedulerJob({
-            ...baseLog,
-            status: SchedulerJobStatus.ERROR,
-            details: { createdByUserUuid: payload.createdByUserUuid, error: e },
-        });
-        throw e;
-    }
-};
-
-export const compileProject = async (
-    jobId: string,
-    scheduledTime: Date,
-    payload: CompileProjectPayload,
-) => {
-    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
-        task: 'compileProject',
-        jobId,
-        scheduledTime,
-    };
-    try {
-        const user = await userService.getSessionByUserUuid(
-            payload.createdByUserUuid,
-        );
-
-        await schedulerService.logSchedulerJob({
-            ...baseLog,
-            details: { createdByUserUuid: payload.createdByUserUuid },
-            status: SchedulerJobStatus.STARTED,
-        });
-
-        await projectService.compileProject(
-            user,
-            payload.projectUuid,
-            getRequestMethod(payload.requestMethod),
-            payload.jobUuid,
-        );
-        await schedulerService.logSchedulerJob({
-            ...baseLog,
-            details: {},
-            status: SchedulerJobStatus.COMPLETED,
-        });
-        if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
-            schedulerClient.generateValidation({
-                projectUuid: payload.projectUuid,
-                context: 'dbt_refresh',
-                userUuid: payload.createdByUserUuid,
-                organizationUuid: user.organizationUuid,
-            });
-        }
-    } catch (e) {
-        await schedulerService.logSchedulerJob({
-            ...baseLog,
-            status: SchedulerJobStatus.ERROR,
-            details: { createdByUserUuid: payload.createdByUserUuid, error: e },
-        });
-        throw e;
-    }
-};
-
-export const validateProject = async (
-    jobId: string,
-    scheduledTime: Date,
-    payload: ValidateProjectPayload,
-) => {
-    await schedulerService.logSchedulerJob({
-        task: 'validateProject',
-        jobId,
-        scheduledTime,
-        status: SchedulerJobStatus.STARTED,
-    });
-
-    analytics.track({
-        event: 'validation.run',
-        userId: payload.userUuid,
-        properties: {
-            context: payload.context,
-            organizationId: payload.organizationUuid,
-            projectId: payload.projectUuid,
-        },
-    });
-    try {
-        const errors = await validationService.generateValidation(
-            payload.projectUuid,
-            payload.explores,
-        );
-
-        const contentIds = errors.map((validation) => {
-            if (isChartValidationError(validation)) return validation.chartUuid;
-            if (isDashboardValidationError(validation))
-                return validation.dashboardUuid;
-
-            return validation.name;
-        });
-
-        await validationService.storeValidation(
-            payload.projectUuid,
-            errors,
-            payload.explores ? jobId : undefined,
-        );
-
-        analytics.track({
-            event: 'validation.completed',
-            userId: payload.userUuid,
-            properties: {
-                context: payload.context,
-                organizationId: payload.organizationUuid,
-                projectId: payload.projectUuid,
-                numContentAffected: new Set(contentIds).size,
-                numErrorsDetected: errors.length,
-            },
-        });
-
-        await schedulerService.logSchedulerJob({
-            task: 'validateProject',
-            jobId,
-            scheduledTime,
-            status: SchedulerJobStatus.COMPLETED,
-        });
-    } catch (e) {
-        analytics.track({
-            event: 'validation.error',
-            userId: payload.userUuid,
-            properties: {
-                context: payload.context,
-                organizationId: payload.organizationUuid,
-                projectId: payload.projectUuid,
-                error: e.message,
-            },
-        });
-
-        await schedulerService.logSchedulerJob({
-            task: 'validateProject',
-            jobId,
-            scheduledTime,
-            status: SchedulerJobStatus.ERROR,
-            details: { error: e.message },
-        });
-    }
-};
-
-export const downloadCsv = async (
-    jobId: string,
-    scheduledTime: Date,
-    payload: DownloadCsvPayload,
-) => {
-    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
-        task: 'downloadCsv',
-        jobId,
-        scheduledTime,
-    };
-    try {
-        await schedulerService.logSchedulerJob({
-            ...baseLog,
-            details: { createdByUserUuid: payload.userUuid },
-            status: SchedulerJobStatus.STARTED,
-        });
-
-        const { fileUrl, truncated } = await csvService.downloadCsv(
-            jobId,
-            payload,
-        );
-        await schedulerService.logSchedulerJob({
-            ...baseLog,
-            details: {
-                fileUrl,
-                createdByUserUuid: payload.userUuid,
-                truncated,
-            },
-            status: SchedulerJobStatus.COMPLETED,
-        });
-    } catch (e) {
-        await schedulerService.logSchedulerJob({
-            ...baseLog,
-            status: SchedulerJobStatus.ERROR,
-            details: { createdByUserUuid: payload.userUuid, error: e },
-        });
-        throw e; // Cascade error to it can be retried by graphile
-    }
-};
-
-export const uploadGsheetFromQuery = async (
-    jobId: string,
-    scheduledTime: Date,
-    payload: UploadMetricGsheetPayload,
-) => {
-    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
-        task: 'uploadGsheetFromQuery',
-        jobId,
-        scheduledTime,
-    };
-
-    const analyticsProperties: DownloadCsv['properties'] = {
-        jobId,
-        userId: payload.userUuid,
-        organizationId: payload.organizationUuid,
-        projectId: payload.projectUuid,
-        fileType: SchedulerFormat.GSHEETS,
-    };
-
-    try {
-        if (!googleDriveClient.isEnabled) {
-            throw new Error(
-                'Unable to upload Google Sheet from query, Google Drive is not enabled',
-            );
-        }
-        schedulerService.logSchedulerJob({
-            ...baseLog,
-            details: { createdByUserUuid: payload.userUuid },
-            status: SchedulerJobStatus.STARTED,
-        });
-
-        analytics.track({
-            event: 'download_results.started',
-            userId: payload.userUuid,
-            properties: analyticsProperties,
-        });
-        const user = await userService.getSessionByUserUuid(payload.userUuid);
-
-        const { rows } = await projectService.runMetricQuery({
-            user,
-            metricQuery: payload.metricQuery,
-            projectUuid: payload.projectUuid,
-            exploreName: payload.exploreId,
-            csvLimit: undefined,
-            context: QueryExecutionContext.GSHEETS,
-        });
-        const refreshToken = await userService.getRefreshToken(
-            payload.userUuid,
-        );
-        const { spreadsheetId, spreadsheetUrl } =
-            await googleDriveClient.createNewSheet(
-                refreshToken,
-                payload.exploreId,
-            );
-
-        if (!spreadsheetId) {
-            throw new Error('Unable to create new sheet');
-        }
-
-        const explore = await projectService.getExplore(
-            user,
-            payload.projectUuid,
-            payload.exploreId,
-        );
-        const itemMap = getItemMap(
-            explore,
-            payload.metricQuery.additionalMetrics,
-            payload.metricQuery.tableCalculations,
-        );
-        await googleDriveClient.appendToSheet(
-            refreshToken,
-            spreadsheetId,
-            rows,
-            itemMap,
-            payload.showTableNames,
-            undefined, // tabName
-            payload.columnOrder,
-            payload.customLabels,
-            payload.hiddenFields,
-        );
-        const truncated = csvService.couldBeTruncated(rows);
-
-        schedulerService.logSchedulerJob({
-            ...baseLog,
-            details: {
-                fileUrl: spreadsheetUrl,
-                createdByUserUuid: payload.userUuid,
-                truncated,
-            },
-            status: SchedulerJobStatus.COMPLETED,
-        });
-        analytics.track({
-            event: 'download_results.completed',
-            userId: payload.userUuid,
-            properties: analyticsProperties,
-        });
-    } catch (e) {
-        schedulerService.logSchedulerJob({
-            ...baseLog,
-            status: SchedulerJobStatus.ERROR,
-            details: { createdByUserUuid: payload.userUuid, error: e },
-        });
-        analytics.track({
-            event: 'download_results.error',
-            userId: payload.userUuid,
-            properties: analyticsProperties,
-        });
-        throw e; // Cascade error to it can be retried by graphile
-    }
-};
-
-export const sendEmailNotification = async (
-    jobId: string,
-    notification: EmailNotificationPayload,
-) => {
-    const {
-        schedulerUuid,
-        schedulerEmailTargetUuid,
-        recipient,
-        scheduledTime,
-        scheduler,
-    } = notification;
-
-    analytics.track({
-        event: 'scheduler_notification_job.started',
-        anonymousId: LightdashAnalytics.anonymousId,
-        properties: {
-            jobId,
-            schedulerId: schedulerUuid,
-            schedulerTargetId: schedulerEmailTargetUuid,
-            type: 'email',
-            sendNow: schedulerUuid === undefined,
-        },
-    });
-
-    try {
-        const { format, savedChartUuid, dashboardUuid, name } = scheduler;
-
-        await schedulerService.logSchedulerJob({
-            task: 'sendEmailNotification',
-            schedulerUuid,
-            jobId,
-            jobGroup: notification.jobGroup,
-
-            scheduledTime,
-            target: recipient,
-            targetType: 'email',
-            status: SchedulerJobStatus.STARTED,
-        });
-
-        // Backwards compatibility for old scheduled deliveries
-        const notificationPageData =
-            notification.page ??
-            (await getNotificationPageData(scheduler, jobId));
-
-        const { url, details, pageType, imageUrl, csvUrl, csvUrls, pdfFile } =
-            notificationPageData;
-
-        const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
-
-        if (format === SchedulerFormat.IMAGE) {
-            if (imageUrl === undefined) {
-                throw new Error('Missing image URL');
-            }
-            await emailClient.sendImageNotificationEmail(
-                recipient,
-                name,
-                details.name,
-                details.description || '',
-                scheduler.message,
-                new Date().toLocaleDateString('en-GB'),
-                getHumanReadableCronExpression(scheduler.cron),
-                imageUrl,
-                url,
-                schedulerUrl,
-                pdfFile,
-                s3Client.getExpirationWarning()?.days,
-            );
-        } else if (savedChartUuid) {
-            if (csvUrl === undefined) {
-                throw new Error('Missing CSV URL');
-            }
-            await emailClient.sendChartCsvNotificationEmail(
-                recipient,
-                name,
-                details.name,
-                details.description || '',
-                scheduler.message,
-                new Date().toLocaleDateString('en-GB'),
-                getHumanReadableCronExpression(scheduler.cron),
-                csvUrl,
-                url,
-                schedulerUrl,
-                s3Client.getExpirationWarning()?.days,
-            );
-        } else if (dashboardUuid) {
-            if (csvUrls === undefined) {
-                throw new Error('Missing CSV URLS');
-            }
-            await emailClient.sendDashboardCsvNotificationEmail(
-                recipient,
-                name,
-                details.name,
-                details.description || '',
-                scheduler.message,
-                new Date().toLocaleDateString('en-GB'),
-                getHumanReadableCronExpression(scheduler.cron),
-                csvUrls,
-                url,
-                schedulerUrl,
-                s3Client.getExpirationWarning()?.days,
-            );
-        } else {
-            throw new Error('Not implemented');
-        }
-
-        analytics.track({
-            event: 'scheduler_notification_job.completed',
-            anonymousId: LightdashAnalytics.anonymousId,
-            properties: {
-                jobId,
-                schedulerId: schedulerUuid,
-                schedulerTargetId: schedulerEmailTargetUuid,
-                type: 'email',
-                format,
-                withPdf: pdfFile !== undefined,
-                resourceType:
-                    pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
-                sendNow: schedulerUuid === undefined,
-            },
-        });
-        await schedulerService.logSchedulerJob({
-            task: 'sendEmailNotification',
-            schedulerUuid,
-            jobId,
-            jobGroup: notification.jobGroup,
-
-            scheduledTime,
-            target: recipient,
-            targetType: 'email',
-            status: SchedulerJobStatus.COMPLETED,
-        });
-    } catch (e) {
-        analytics.track({
-            event: 'scheduler_notification_job.failed',
-            anonymousId: LightdashAnalytics.anonymousId,
-            properties: {
-                error: `${e}`,
-                jobId,
-                schedulerId: schedulerUuid,
-                schedulerTargetId: schedulerEmailTargetUuid,
-                type: 'email',
-                sendNow: schedulerUuid === undefined,
-            },
-        });
-        await schedulerService.logSchedulerJob({
-            task: 'sendEmailNotification',
-            schedulerUuid,
-            jobId,
-            jobGroup: notification.jobGroup,
-            scheduledTime,
-            targetType: 'email',
-            status: SchedulerJobStatus.ERROR,
-            details: { error: e.message },
-        });
-
-        throw e; // Cascade error to it can be retried by graphile
-    }
-};
-
-export const uploadGsheets = async (
-    jobId: string,
-    notification: GsheetsNotificationPayload,
-) => {
-    const { schedulerUuid, scheduledTime } = notification;
-
-    analytics.track({
-        event: 'scheduler_notification_job.started',
-        anonymousId: LightdashAnalytics.anonymousId,
-        properties: {
-            jobId,
-            schedulerId: schedulerUuid,
-            schedulerTargetId: undefined,
-            type: 'gsheets',
-            sendNow: schedulerUuid === undefined,
-        },
-    });
-
-    try {
-        if (!googleDriveClient.isEnabled) {
-            throw new Error(
-                'Unable to upload Google Sheet from scheduler, Google Drive is not enabled',
-            );
-        }
-
-        const scheduler =
-            await schedulerService.schedulerModel.getSchedulerAndTargets(
-                schedulerUuid,
-            );
-        const { format, savedChartUuid, dashboardUuid } = scheduler;
-
-        const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
-            ? scheduler.options.gdriveId
-            : undefined;
-        if (gdriveId === undefined) {
-            throw new Error('Missing gdriveId');
-        }
-
-        await schedulerService.logSchedulerJob({
-            task: 'uploadGsheets',
-            schedulerUuid,
-            jobId,
-            jobGroup: notification.jobGroup,
-            scheduledTime,
-            target: gdriveId,
-            targetType: 'gsheets',
-            status: SchedulerJobStatus.STARTED,
-        });
-        const user = await userService.getSessionByUserUuid(
-            scheduler.createdBy,
-        );
-
-        if (format !== SchedulerFormat.GSHEETS) {
-            throw new Error(
-                `Unable to process format ${format} on sendGdriveNotification`,
-            );
-        } else if (savedChartUuid) {
-            const chart = await schedulerService.savedChartModel.get(
-                savedChartUuid,
-            );
-            const { rows } = await projectService.getResultsForChart(
-                user,
-                savedChartUuid,
-            );
-
-            const explore = await projectService.getExplore(
-                user,
-                chart.projectUuid,
-                chart.tableName,
-            );
-            const itemMap = getItemMap(
-                explore,
-                chart.metricQuery.additionalMetrics,
-                chart.metricQuery.tableCalculations,
-            );
-            const showTableNames = isTableChartConfig(chart.chartConfig.config)
-                ? chart.chartConfig.config.showTableNames ?? false
-                : true;
-            const customLabels = getCustomLabelsFromTableConfig(
-                chart.chartConfig.config,
-            );
-
-            const refreshToken = await userService.getRefreshToken(
-                scheduler.createdBy,
-            );
-            await googleDriveClient.uploadMetadata(
-                refreshToken,
-                gdriveId,
-                getHumanReadableCronExpression(scheduler.cron),
-            );
-
-            await googleDriveClient.appendToSheet(
-                refreshToken,
-                gdriveId,
-                rows,
-                itemMap,
-                showTableNames,
-                undefined,
-                chart.tableConfig.columnOrder,
-                customLabels,
-                getHiddenTableFields(chart.chartConfig),
-            );
-        } else if (dashboardUuid) {
-            const dashboard = await dashboardService.getById(
-                user,
-                dashboardUuid,
-            );
-            const chartUuids = dashboard.tiles.reduce<string[]>((acc, tile) => {
-                if (
-                    isDashboardChartTileType(tile) &&
-                    tile.properties.savedChartUuid
-                ) {
-                    return [...acc, tile.properties.savedChartUuid];
-                }
-                return acc;
-            }, []);
-
-            const refreshToken = await userService.getRefreshToken(
-                scheduler.createdBy,
-            );
-
-            const chartNames = chartUuids.reduce<Record<string, string>>(
-                (acc, chartUuid) => {
-                    const tile = dashboard.tiles.find(
-                        (t) =>
-                            isDashboardChartTileType(t) &&
-                            t.properties.savedChartUuid === chartUuid,
-                    );
-                    const chartName =
-                        tile && isDashboardChartTileType(tile)
-                            ? tile.properties.chartName
-                            : undefined;
-                    return {
-                        ...acc,
-                        [chartUuid]:
-                            tile?.properties.title || chartName || chartUuid,
-                    };
+            this.analytics.track({
+                event: 'scheduler_notification_job.completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerEmailTargetUuid,
+                    type: 'email',
+                    format,
+                    withPdf: pdfFile !== undefined,
+                    resourceType:
+                        pageType === LightdashPage.CHART
+                            ? 'chart'
+                            : 'dashboard',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
                 },
-                {},
-            );
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: 'sendEmailNotification',
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
 
-            await googleDriveClient.uploadMetadata(
-                refreshToken,
-                gdriveId,
-                getHumanReadableCronExpression(scheduler.cron),
-                Object.values(chartNames),
-            );
+                scheduledTime,
+                target: recipient,
+                targetType: 'email',
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            this.analytics.track({
+                event: 'scheduler_notification_job.failed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    error: `${e}`,
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerEmailTargetUuid,
+                    type: 'email',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: 'sendEmailNotification',
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                targetType: 'email',
+                status: SchedulerJobStatus.ERROR,
+                details: { error: e.message },
+            });
 
-            Logger.debug(
-                `Uploading dashboard with ${chartUuids.length} charts to Google Sheets`,
+            throw e; // Cascade error to it can be retried by graphile
+        }
+    }
+
+    static isPositiveThresholdAlert(
+        thresholds: ThresholdOptions[],
+        results: Record<string, any>[],
+    ): boolean {
+        const { fieldId, operator, value: thresholdValue } = thresholds[0];
+
+        const firstResult = results[0][fieldId];
+        if (firstResult === undefined) {
+            throw new Error(
+                `Threshold alert error: Field ${fieldId} not found in results`,
             );
-            // We want to process all charts in sequence, so we don't load all chart results in memory
-            chartUuids.reduce(async (promise, chartUuid) => {
-                await promise;
-                const chart = await schedulerService.savedChartModel.get(
-                    chartUuid,
+        }
+        const firstValue = parseFloat(firstResult); // This will throw an error if value is not a valid number
+        switch (operator) {
+            case ThresholdOperator.GREATER_THAN:
+                return firstValue > thresholdValue;
+            case ThresholdOperator.LESS_THAN:
+                return firstValue < thresholdValue;
+            case ThresholdOperator.INCREASED_BY:
+            case ThresholdOperator.DECREASED_BY:
+                const secondValue = parseFloat(results[1][fieldId]);
+                const increase = firstValue - secondValue;
+                if (operator === ThresholdOperator.INCREASED_BY) {
+                    return thresholdValue < increase / (secondValue * 100);
+                }
+                return thresholdValue > increase / (secondValue * 100);
+
+            default:
+                assertUnreachable(
+                    operator,
+                    `Unknown threshold alert operator: ${operator}`,
                 );
-                const { rows } = await projectService.getResultsForChart(
+        }
+        return false;
+    }
+
+    protected async uploadGsheets(
+        jobId: string,
+        notification: GsheetsNotificationPayload,
+    ) {
+        const { schedulerUuid, scheduledTime } = notification;
+
+        this.analytics.track({
+            event: 'scheduler_notification_job.started',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: undefined,
+                type: 'gsheets',
+                sendNow: schedulerUuid === undefined,
+            },
+        });
+
+        try {
+            if (!this.googleDriveClient.isEnabled) {
+                throw new Error(
+                    'Unable to upload Google Sheet from scheduler, Google Drive is not enabled',
+                );
+            }
+
+            const scheduler =
+                await this.schedulerService.schedulerModel.getSchedulerAndTargets(
+                    schedulerUuid,
+                );
+            const { format, savedChartUuid, dashboardUuid, thresholds } =
+                scheduler;
+
+            const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
+                ? scheduler.options.gdriveId
+                : undefined;
+            if (gdriveId === undefined) {
+                throw new Error('Missing gdriveId');
+            }
+
+            await this.schedulerService.logSchedulerJob({
+                task: 'uploadGsheets',
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                target: gdriveId,
+                targetType: 'gsheets',
+                status: SchedulerJobStatus.STARTED,
+            });
+            const user = await this.userService.getSessionByUserUuid(
+                scheduler.createdBy,
+            );
+
+            if (format !== SchedulerFormat.GSHEETS) {
+                throw new Error(
+                    `Unable to process format ${format} on sendGdriveNotification`,
+                );
+            } else if (savedChartUuid) {
+                const chart = await this.schedulerService.savedChartModel.get(
+                    savedChartUuid,
+                );
+                const { rows } = await this.projectService.getResultsForChart(
                     user,
-                    chartUuid,
+                    savedChartUuid,
                 );
-                const explore = await projectService.getExplore(
+
+                if (thresholds !== undefined && thresholds.length > 0) {
+                    throw new Error(
+                        'Thresholds not implemented for google sheets',
+                    );
+                }
+
+                const explore = await this.projectService.getExplore(
                     user,
                     chart.projectUuid,
                     chart.tableName,
@@ -1151,228 +1280,396 @@ export const uploadGsheets = async (
                     chart.chartConfig.config,
                 );
 
-                const tabName = await googleDriveClient.createNewTab(
+                const refreshToken = await this.userService.getRefreshToken(
+                    scheduler.createdBy,
+                );
+                await this.googleDriveClient.uploadMetadata(
                     refreshToken,
                     gdriveId,
-                    chartNames[chartUuid] || chartUuid,
+                    getHumanReadableCronExpression(scheduler.cron),
                 );
 
-                await googleDriveClient.appendToSheet(
+                await this.googleDriveClient.appendToSheet(
                     refreshToken,
                     gdriveId,
                     rows,
                     itemMap,
                     showTableNames,
-                    tabName,
+                    undefined,
                     chart.tableConfig.columnOrder,
                     customLabels,
                     getHiddenTableFields(chart.chartConfig),
                 );
-            }, Promise.resolve());
-        } else {
-            throw new Error('Not implemented');
+            } else if (dashboardUuid) {
+                const dashboard = await this.dashboardService.getById(
+                    user,
+                    dashboardUuid,
+                );
+                const chartUuids = dashboard.tiles.reduce<string[]>(
+                    (acc, tile) => {
+                        if (
+                            isDashboardChartTileType(tile) &&
+                            tile.properties.savedChartUuid
+                        ) {
+                            return [...acc, tile.properties.savedChartUuid];
+                        }
+                        return acc;
+                    },
+                    [],
+                );
+
+                const refreshToken = await this.userService.getRefreshToken(
+                    scheduler.createdBy,
+                );
+
+                const chartNames = chartUuids.reduce<Record<string, string>>(
+                    (acc, chartUuid) => {
+                        const tile = dashboard.tiles.find(
+                            (t) =>
+                                isDashboardChartTileType(t) &&
+                                t.properties.savedChartUuid === chartUuid,
+                        );
+                        const chartName =
+                            tile && isDashboardChartTileType(tile)
+                                ? tile.properties.chartName
+                                : undefined;
+                        return {
+                            ...acc,
+                            [chartUuid]:
+                                tile?.properties.title ||
+                                chartName ||
+                                chartUuid,
+                        };
+                    },
+                    {},
+                );
+
+                await this.googleDriveClient.uploadMetadata(
+                    refreshToken,
+                    gdriveId,
+                    getHumanReadableCronExpression(scheduler.cron),
+                    Object.values(chartNames),
+                );
+
+                Logger.debug(
+                    `Uploading dashboard with ${chartUuids.length} charts to Google Sheets`,
+                );
+                // We want to process all charts in sequence, so we don't load all chart results in memory
+                chartUuids.reduce(async (promise, chartUuid) => {
+                    await promise;
+                    const chart =
+                        await this.schedulerService.savedChartModel.get(
+                            chartUuid,
+                        );
+                    const { rows } =
+                        await this.projectService.getResultsForChart(
+                            user,
+                            chartUuid,
+                        );
+                    const explore = await this.projectService.getExplore(
+                        user,
+                        chart.projectUuid,
+                        chart.tableName,
+                    );
+                    const itemMap = getItemMap(
+                        explore,
+                        chart.metricQuery.additionalMetrics,
+                        chart.metricQuery.tableCalculations,
+                    );
+                    const showTableNames = isTableChartConfig(
+                        chart.chartConfig.config,
+                    )
+                        ? chart.chartConfig.config.showTableNames ?? false
+                        : true;
+                    const customLabels = getCustomLabelsFromTableConfig(
+                        chart.chartConfig.config,
+                    );
+
+                    const tabName = await this.googleDriveClient.createNewTab(
+                        refreshToken,
+                        gdriveId,
+                        chartNames[chartUuid] || chartUuid,
+                    );
+
+                    await this.googleDriveClient.appendToSheet(
+                        refreshToken,
+                        gdriveId,
+                        rows,
+                        itemMap,
+                        showTableNames,
+                        tabName,
+                        chart.tableConfig.columnOrder,
+                        customLabels,
+                        getHiddenTableFields(chart.chartConfig),
+                    );
+                }, Promise.resolve());
+            } else {
+                throw new Error('Not implemented');
+            }
+
+            this.analytics.track({
+                event: 'scheduler_notification_job.completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: undefined,
+                    type: 'gsheets',
+                    format,
+                    resourceType: savedChartUuid ? 'chart' : 'dashboard',
+                    sendNow: schedulerUuid === undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: 'uploadGsheets',
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                target: gdriveId,
+                targetType: 'gsheets',
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            this.analytics.track({
+                event: 'scheduler_notification_job.failed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    error: `${e}`,
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: undefined,
+                    type: 'gsheets',
+                    sendNow: schedulerUuid === undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: 'uploadGsheets',
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                targetType: 'gsheets',
+                status: SchedulerJobStatus.ERROR,
+                details: { error: e.message },
+            });
+
+            throw e; // Cascade error to it can be retried by graphile
         }
-
-        analytics.track({
-            event: 'scheduler_notification_job.completed',
-            anonymousId: LightdashAnalytics.anonymousId,
-            properties: {
-                jobId,
-                schedulerId: schedulerUuid,
-                schedulerTargetId: undefined,
-                type: 'gsheets',
-                format,
-                resourceType: savedChartUuid ? 'chart' : 'dashboard',
-                sendNow: schedulerUuid === undefined,
-            },
-        });
-        await schedulerService.logSchedulerJob({
-            task: 'uploadGsheets',
-            schedulerUuid,
-            jobId,
-            jobGroup: notification.jobGroup,
-            scheduledTime,
-            target: gdriveId,
-            targetType: 'gsheets',
-            status: SchedulerJobStatus.COMPLETED,
-        });
-    } catch (e) {
-        analytics.track({
-            event: 'scheduler_notification_job.failed',
-            anonymousId: LightdashAnalytics.anonymousId,
-            properties: {
-                error: `${e}`,
-                jobId,
-                schedulerId: schedulerUuid,
-                schedulerTargetId: undefined,
-                type: 'gsheets',
-                sendNow: schedulerUuid === undefined,
-            },
-        });
-        await schedulerService.logSchedulerJob({
-            task: 'uploadGsheets',
-            schedulerUuid,
-            jobId,
-            jobGroup: notification.jobGroup,
-            scheduledTime,
-            targetType: 'gsheets',
-            status: SchedulerJobStatus.ERROR,
-            details: { error: e.message },
-        });
-
-        throw e; // Cascade error to it can be retried by graphile
     }
-};
 
-const logScheduledTarget = async (
-    format: SchedulerFormat,
-    target: CreateSchedulerTarget | undefined,
-    targetJobId: string,
-    schedulerUuid: string | undefined,
-    jobId: string,
-    scheduledTime: Date,
-) => {
-    if (format === SchedulerFormat.GSHEETS) {
-        await schedulerService.logSchedulerJob({
-            task: 'uploadGsheets',
-            target: undefined,
-            targetType: 'gsheets',
+    protected async logScheduledTarget(
+        format: SchedulerFormat,
+        target: CreateSchedulerTarget | undefined,
+        targetJobId: string,
+        schedulerUuid: string | undefined,
+        jobId: string,
+        scheduledTime: Date,
+    ) {
+        if (format === SchedulerFormat.GSHEETS) {
+            await this.schedulerService.logSchedulerJob({
+                task: 'uploadGsheets',
+                target: undefined,
+                targetType: 'gsheets',
+                jobId: targetJobId,
+                schedulerUuid,
+                jobGroup: jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.SCHEDULED,
+            });
+            return;
+        }
+        if (target === undefined) {
+            Logger.error(`Missing target for scheduler format ${format}`);
+            return;
+        }
+        const getTargetDetails = (): Pick<
+            CreateSchedulerLog,
+            'task' | 'target' | 'targetType'
+        > => {
+            if (isCreateSchedulerSlackTarget(target)) {
+                return {
+                    task: 'sendSlackNotification',
+                    target: target.channel,
+                    targetType: 'slack',
+                };
+            }
+            return {
+                task: 'sendEmailNotification',
+                target: target.recipient,
+                targetType: 'email',
+            };
+        };
+        const { task, target: jobTarget, targetType } = getTargetDetails();
+
+        await this.schedulerService.logSchedulerJob({
+            task,
+            target: jobTarget,
+            targetType,
             jobId: targetJobId,
             schedulerUuid,
             jobGroup: jobId,
             scheduledTime,
             status: SchedulerJobStatus.SCHEDULED,
         });
-        return;
     }
-    if (target === undefined) {
-        Logger.error(`Missing target for scheduler format ${format}`);
-        return;
-    }
-    const getTargetDetails = (): Pick<
-        CreateSchedulerLog,
-        'task' | 'target' | 'targetType'
-    > => {
-        if (isCreateSchedulerSlackTarget(target)) {
-            return {
-                task: 'sendSlackNotification',
-                target: target.channel,
-                targetType: 'slack',
-            };
-        }
-        return {
-            task: 'sendEmailNotification',
-            target: target.recipient,
-            targetType: 'email',
-        };
-    };
-    const { task, target: jobTarget, targetType } = getTargetDetails();
 
-    await schedulerService.logSchedulerJob({
-        task,
-        target: jobTarget,
-        targetType,
-        jobId: targetJobId,
-        schedulerUuid,
-        jobGroup: jobId,
-        scheduledTime,
-        status: SchedulerJobStatus.SCHEDULED,
-    });
-};
+    protected async handleScheduledDelivery(
+        jobId: string,
+        scheduledTime: Date,
+        schedulerPayload: ScheduledDeliveryPayload,
+    ) {
+        const schedulerUuid = getSchedulerUuid(schedulerPayload);
 
-export const handleScheduledDelivery = async (
-    jobId: string,
-    scheduledTime: Date,
-    schedulerPayload: ScheduledDeliveryPayload,
-) => {
-    const schedulerUuid = getSchedulerUuid(schedulerPayload);
+        try {
+            const scheduler: SchedulerAndTargets | CreateSchedulerAndTargets =
+                isCreateScheduler(schedulerPayload)
+                    ? schedulerPayload
+                    : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
+                          schedulerPayload.schedulerUuid,
+                      );
 
-    try {
-        const scheduler: SchedulerAndTargets | CreateSchedulerAndTargets =
-            isCreateScheduler(schedulerPayload)
-                ? schedulerPayload
-                : await schedulerService.schedulerModel.getSchedulerAndTargets(
-                      schedulerPayload.schedulerUuid,
-                  );
+            if (!scheduler.enabled) {
+                // This should not happen, if schedulers are not enabled, we should remove the scheduled jobs from the queue
+                throw new Error('Scheduler is disabled');
+            }
 
-        analytics.track({
-            event: 'scheduler_job.started',
-            anonymousId: LightdashAnalytics.anonymousId,
-            properties: {
-                jobId,
-                schedulerId: schedulerUuid,
-                sendNow: schedulerUuid === undefined,
-            },
-        });
-        await schedulerService.logSchedulerJob({
-            task: 'handleScheduledDelivery',
-            schedulerUuid,
-            jobId,
-            jobGroup: jobId,
-            scheduledTime,
-            status: SchedulerJobStatus.STARTED,
-        });
-
-        const page =
-            scheduler.format === SchedulerFormat.GSHEETS
-                ? undefined
-                : await getNotificationPageData(scheduler, jobId);
-        const scheduledJobs =
-            await schedulerClient.generateJobsForSchedulerTargets(
-                scheduledTime,
-                scheduler,
-                page,
-                jobId,
-            );
-
-        // Create scheduled jobs for targets
-        scheduledJobs.map(async ({ target, jobId: targetJobId }) => {
-            logScheduledTarget(
-                scheduler.format,
-                target,
-                targetJobId,
+            this.analytics.track({
+                event: 'scheduler_job.started',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: 'handleScheduledDelivery',
                 schedulerUuid,
                 jobId,
+                jobGroup: jobId,
                 scheduledTime,
-            );
-        });
+                status: SchedulerJobStatus.STARTED,
+            });
 
-        await schedulerService.logSchedulerJob({
-            task: 'handleScheduledDelivery',
-            schedulerUuid,
-            jobId,
-            jobGroup: jobId,
-            scheduledTime,
-            status: SchedulerJobStatus.COMPLETED,
-        });
+            const {
+                createdBy: userUuid,
+                savedChartUuid,
+                dashboardUuid,
+                thresholds,
+                notificationFrequency,
+            } = scheduler;
+            if (thresholds !== undefined && thresholds.length > 0) {
+                // TODO add multiple AND conditions
+                if (savedChartUuid) {
+                    // We are fetching here the results before getting image or CSV
+                    const user = await this.userService.getSessionByUserUuid(
+                        userUuid,
+                    );
+                    const { rows } =
+                        await this.projectService.getResultsForChart(
+                            user,
+                            savedChartUuid,
+                        );
 
-        analytics.track({
-            event: 'scheduler_job.completed',
-            anonymousId: LightdashAnalytics.anonymousId,
-            properties: {
+                    if (
+                        SchedulerTask.isPositiveThresholdAlert(thresholds, rows)
+                    ) {
+                        // If the delivery frequency is once, we disable the scheduler.
+                        // It will get sent once this time.
+                        if (
+                            notificationFrequency ===
+                                NotificationFrequency.ONCE &&
+                            schedulerUuid
+                        ) {
+                            console.debug(
+                                'Alert is set to ONCE, disabling scheduler after delivery',
+                            );
+                            await this.schedulerService.setSchedulerEnabled(
+                                user,
+                                schedulerUuid,
+                                false,
+                            );
+                        }
+                        console.debug(
+                            'Positive threshold alert, continue with notification',
+                        );
+                    } else {
+                        console.debug(
+                            'Negative threshold alert, skipping notification',
+                        );
+                        return;
+                    }
+                } else if (dashboardUuid) {
+                    throw new Error(
+                        'Threshold alert not implemented for dashboards',
+                    );
+                }
+            }
+
+            const page =
+                scheduler.format === SchedulerFormat.GSHEETS
+                    ? undefined
+                    : await this.getNotificationPageData(scheduler, jobId);
+            const scheduledJobs =
+                await this.schedulerClient.generateJobsForSchedulerTargets(
+                    scheduledTime,
+                    scheduler,
+                    page,
+                    jobId,
+                );
+
+            // Create scheduled jobs for targets
+            scheduledJobs.map(async ({ target, jobId: targetJobId }) => {
+                this.logScheduledTarget(
+                    scheduler.format,
+                    target,
+                    targetJobId,
+                    schedulerUuid,
+                    jobId,
+                    scheduledTime,
+                );
+            });
+
+            await this.schedulerService.logSchedulerJob({
+                task: 'handleScheduledDelivery',
+                schedulerUuid,
                 jobId,
-                schedulerId: schedulerUuid,
-            },
-        });
-    } catch (e) {
-        analytics.track({
-            event: 'scheduler_job.failed',
-            anonymousId: LightdashAnalytics.anonymousId,
-            properties: {
-                jobId,
-                schedulerId: schedulerUuid,
-            },
-        });
-        await schedulerService.logSchedulerJob({
-            task: 'handleScheduledDelivery',
-            schedulerUuid,
-            jobId,
-            jobGroup: jobId,
-            scheduledTime,
-            status: SchedulerJobStatus.ERROR,
-            details: { error: e.message },
-        });
+                jobGroup: jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.COMPLETED,
+            });
 
-        throw e; // Cascade error to it can be retried by graphile
+            this.analytics.track({
+                event: 'scheduler_job.completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+        } catch (e) {
+            this.analytics.track({
+                event: 'scheduler_job.failed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    jobId,
+                    schedulerId: schedulerUuid,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: 'handleScheduledDelivery',
+                schedulerUuid,
+                jobId,
+                jobGroup: jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.ERROR,
+                details: { error: e.message },
+            });
+
+            throw e; // Cascade error to it can be retried by graphile
+        }
     }
-};
+}

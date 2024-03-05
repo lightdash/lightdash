@@ -22,7 +22,7 @@ import {
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
-import { lightdashConfig } from '../config/lightdashConfig';
+import { LightdashConfig } from '../config/parseConfig';
 import {
     createEmail,
     deleteEmail,
@@ -63,9 +63,6 @@ export type DbUserDetails = {
     is_active: boolean;
 };
 
-const canTrackingBeAnonymized = () =>
-    lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
-
 export const mapDbUserDetailsToLightdashUser = (
     user: DbUserDetails,
 ): LightdashUser => ({
@@ -101,11 +98,23 @@ const userDetailsQueryBuilder = (
             'organizations.organization_id',
         );
 
+type UserModelArguments = {
+    database: Knex;
+    lightdashConfig: LightdashConfig;
+};
+
 export class UserModel {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly database: Knex;
 
-    constructor(database: Knex) {
+    constructor({ database, lightdashConfig }: UserModelArguments) {
         this.database = database;
+        this.lightdashConfig = lightdashConfig;
+    }
+
+    private canTrackingBeAnonymized() {
+        return this.lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
     }
 
     // DB Errors:
@@ -120,7 +129,7 @@ export class UserModel {
             .merge();
     }
 
-    static async createUserTransaction(
+    private async createUserTransaction(
         trx: Transaction,
         createUser: (Omit<CreateUserWithRole, 'role'> | OpenIdUser) & {
             isActive: boolean;
@@ -131,7 +140,7 @@ export class UserModel {
                   first_name: createUser.openId.firstName || '',
                   last_name: createUser.openId.lastName || '',
                   is_marketing_opted_in: false,
-                  is_tracking_anonymized: canTrackingBeAnonymized(),
+                  is_tracking_anonymized: this.canTrackingBeAnonymized(),
                   is_setup_complete: false,
                   is_active: createUser.isActive,
               }
@@ -139,7 +148,7 @@ export class UserModel {
                   first_name: createUser.firstName.trim(),
                   last_name: createUser.lastName.trim(),
                   is_marketing_opted_in: false,
-                  is_tracking_anonymized: canTrackingBeAnonymized(),
+                  is_tracking_anonymized: this.canTrackingBeAnonymized(),
                   is_setup_complete: false,
                   is_active: createUser.isActive,
               };
@@ -291,7 +300,7 @@ export class UserModel {
                     last_name: lastName,
                     is_setup_complete: isSetupComplete,
                     is_marketing_opted_in: isMarketingOptedIn,
-                    is_tracking_anonymized: canTrackingBeAnonymized()
+                    is_tracking_anonymized: this.canTrackingBeAnonymized()
                         ? isTrackingAnonymized
                         : false,
                 })
@@ -428,7 +437,7 @@ export class UserModel {
         }
 
         const user = await this.database.transaction(async (trx) => {
-            const newUser = await UserModel.createUserTransaction(trx, {
+            const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
                 isActive: false,
             });
@@ -510,7 +519,7 @@ export class UserModel {
                 throw new ParameterError('Email already in use');
             }
 
-            const newUser = await UserModel.createUserTransaction(trx, {
+            const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
                 isActive: true,
             });

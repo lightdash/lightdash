@@ -254,10 +254,10 @@ export PUPPETEER_SKIP_DOWNLOAD=true
 yarn dev # http://localhost:3000
 
 # Log in dev mode
-When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
+# When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
 
-Username: demo@lightdash.com
-Password: demo_password!
+# Username: demo@lightdash.com
+# Password: demo_password!
 
 # Or run in production mode
 # yarn build
@@ -289,7 +289,7 @@ To setup Development Environment without Docker you need following pre-requisite
 
 -   node >= v18.x (20 is preferred)
 -   yarn
--   postgres
+-   postgres >= 12
 -   dbt 1.4.x or 1.5.x
 
 eg. on MacOS you can follow this instructions:

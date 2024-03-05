@@ -23,15 +23,13 @@ import {
 import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
 import { v4 as uuidv4 } from 'uuid';
-import { analytics } from '../../analytics/client';
 import {
     CreateDashboardOrVersionEvent,
+    LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
-import database from '../../database/database';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
-import { getFirstAccessibleSpace } from '../../database/entities/spaces';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -41,7 +39,8 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
-type Dependencies = {
+type DashboardServiceArguments = {
+    analytics: LightdashAnalytics;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
@@ -51,6 +50,8 @@ type Dependencies = {
 };
 
 export class DashboardService {
+    analytics: LightdashAnalytics;
+
     dashboardModel: DashboardModel;
 
     spaceModel: SpaceModel;
@@ -64,13 +65,15 @@ export class DashboardService {
     savedChartModel: SavedChartModel;
 
     constructor({
+        analytics,
         dashboardModel,
         spaceModel,
         analyticsModel,
         pinnedListModel,
         schedulerModel,
         savedChartModel,
-    }: Dependencies) {
+    }: DashboardServiceArguments) {
+        this.analytics = analytics;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.analyticsModel = analyticsModel;
@@ -114,7 +117,7 @@ export class DashboardService {
                 const deletedChart = await this.savedChartModel.delete(
                     chart.uuid,
                 );
-                analytics.track({
+                this.analytics.track({
                     event: 'saved_chart.deleted',
                     userId: user.userUuid,
                     properties: {
@@ -196,7 +199,7 @@ export class DashboardService {
             dashboard.uuid,
             user.userUuid,
         );
-        analytics.track({
+        this.analytics.track({
             event: 'dashboard.view',
             userId: user.userUuid,
             properties: {
@@ -230,8 +233,7 @@ export class DashboardService {
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
         const getFirstSpace = async () => {
-            const space = await getFirstAccessibleSpace(
-                database,
+            const space = await this.spaceModel.getFirstAccessibleSpace(
                 projectUuid,
                 user.userUuid,
             );
@@ -266,7 +268,7 @@ export class DashboardService {
             user,
             projectUuid,
         );
-        analytics.track({
+        this.analytics.track({
             event: 'dashboard.created',
             userId: user.userUuid,
             properties: DashboardService.getCreateEventProperties(newDashboard),
@@ -330,7 +332,7 @@ export class DashboardService {
                                     },
                                 },
                             );
-                        analytics.track({
+                        this.analytics.track({
                             event: 'saved_chart.created',
                             userId: user.userUuid,
                             properties: {
@@ -368,13 +370,13 @@ export class DashboardService {
 
         const dashboardProperties =
             DashboardService.getCreateEventProperties(newDashboard);
-        analytics.track({
+        this.analytics.track({
             event: 'dashboard.created',
             userId: user.userUuid,
             properties: { ...dashboardProperties, duplicated: true },
         });
 
-        analytics.track({
+        this.analytics.track({
             event: 'duplicated_dashboard_created',
             userId: user.userUuid,
             properties: {
@@ -425,7 +427,7 @@ export class DashboardService {
                 },
             );
 
-            analytics.track({
+            this.analytics.track({
                 event: 'dashboard.updated',
                 userId: user.userUuid,
                 properties: {
@@ -457,7 +459,7 @@ export class DashboardService {
                 user,
                 existingDashboard.projectUuid,
             );
-            analytics.track({
+            this.analytics.track({
                 event: 'dashboard_version.created',
                 userId: user.userUuid,
                 properties:
@@ -507,7 +509,7 @@ export class DashboardService {
             existingDashboard.projectUuid,
         );
 
-        analytics.track({
+        this.analytics.track({
             event: 'pinned_list.updated',
             userId: user.userUuid,
             properties: {
@@ -527,8 +529,7 @@ export class DashboardService {
         projectUuid: string,
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
-        const space = await getFirstAccessibleSpace(
-            database,
+        const space = await this.spaceModel.getFirstAccessibleSpace(
             projectUuid,
             user.userUuid,
         );
@@ -551,7 +552,7 @@ export class DashboardService {
             );
         }
 
-        analytics.track({
+        this.analytics.track({
             event: 'dashboard.updated_multiple',
             userId: user.userUuid,
             properties: {
@@ -582,7 +583,7 @@ export class DashboardService {
         const deletedDashboard = await this.dashboardModel.delete(
             dashboardUuid,
         );
-        analytics.track({
+        this.analytics.track({
             event: 'dashboard.deleted',
             userId: user.userUuid,
             properties: {
@@ -596,7 +597,7 @@ export class DashboardService {
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        await this.checkUpdateAccess(user, dashboardUuid);
+        await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);
         return this.schedulerModel.getDashboardSchedulers(dashboardUuid);
     }
 
@@ -608,10 +609,8 @@ export class DashboardService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { projectUuid, organizationUuid } = await this.checkUpdateAccess(
-            user,
-            dashboardUuid,
-        );
+        const { projectUuid, organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
@@ -647,7 +646,7 @@ export class DashboardService {
                         : 0,
             },
         };
-        analytics.track(createSchedulerData);
+        this.analytics.track(createSchedulerData);
 
         await slackClient.joinChannels(
             user.organizationUuid,
@@ -657,7 +656,7 @@ export class DashboardService {
         return scheduler;
     }
 
-    private async checkUpdateAccess(
+    private async checkCreateScheduledDeliveryAccess(
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {
@@ -665,8 +664,11 @@ export class DashboardService {
         const { organizationUuid, projectUuid } = dashboard;
         if (
             user.ability.cannot(
-                'update',
-                subject('Dashboard', { organizationUuid, projectUuid }),
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();

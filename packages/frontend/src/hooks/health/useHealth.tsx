@@ -1,5 +1,5 @@
 import { ApiError, ApiHealthResults, HealthState } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
@@ -11,10 +11,13 @@ const getHealthState = async () =>
         body: undefined,
     });
 
-const useHealth = () => {
+const useHealth = (
+    useQueryOptions?: UseQueryOptions<HealthState, ApiError>,
+) => {
     const health = useQuery<HealthState, ApiError>({
         queryKey: ['health'],
         queryFn: getHealthState,
+        ...useQueryOptions,
     });
 
     const { showToastError } = useToaster();

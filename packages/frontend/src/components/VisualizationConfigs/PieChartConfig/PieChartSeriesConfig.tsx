@@ -247,7 +247,8 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
 );
 
 const PieChartSeriesConfig: FC = () => {
-    const { visualizationConfig, colorPalette } = useVisualizationContext();
+    const { visualizationConfig, colorPalette, getGroupColor } =
+        useVisualizationContext();
 
     const isPieChartConfig = isPieVisualizationConfig(visualizationConfig);
 
@@ -368,7 +369,8 @@ const PieChartSeriesConfig: FC = () => {
                                                 color={
                                                     groupColorOverrides[
                                                         groupLabel
-                                                    ]
+                                                    ] ??
+                                                    getGroupColor(groupLabel)
                                                 }
                                                 label={
                                                     groupLabelOverrides[

@@ -20,7 +20,7 @@ export const projectAdapterFromConfig = async (
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersion: SupportedDbtVersions,
-    useDbtLs: boolean,
+    useDbtLs: boolean = true,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -50,9 +50,7 @@ export const projectAdapterFromConfig = async (
         case DbtProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
                 warehouseClient,
-                accountId: `${config.account_id}`,
                 environmentId: `${config.environment_id}`,
-                projectId: `${config.project_id}`,
                 apiKey: config.api_key,
                 cachedWarehouse,
                 dbtVersion,

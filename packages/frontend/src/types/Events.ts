@@ -89,9 +89,11 @@ export enum EventName {
     GO_TO_LINK_CLICKED = 'go_to_link.click',
     ADD_CUSTOM_METRIC_CLICKED = 'add_custom_metric.click',
     REMOVE_CUSTOM_METRIC_CLICKED = 'remove_custom_metric.click',
+    // Headway-related notifications
     NOTIFICATIONS_CLICKED = 'notifications.clicked',
     NOTIFICATIONS_ITEM_CLICKED = 'notifications_item.clicked',
     NOTIFICATIONS_READ_MORE_CLICKED = 'notifications_read_more.clicked',
+
     CUSTOM_AXIS_RANGE_TOGGLE_CLICKED = 'custom_axis_range_toggle_clicked',
     CREATE_PROJECT_ACCESS_BUTTON_CLICKED = 'create_project_access.clicked',
     SEARCH_RESULT_CLICKED = 'search_result.clicked',
@@ -104,4 +106,6 @@ export enum EventName {
     SCHEDULER_SEND_NOW_BUTTON = 'send_now_button.clicked',
     ADD_CUSTOM_DIMENSION_CLICKED = 'add_custom_dimension.clicked',
     DATE_ZOOM_CLICKED = 'date_zoom.clicked',
+    COMMENTS_CLICKED = 'comments.clicked',
+    NOTIFICATIONS_COMMENTS_ITEM_CLICKED = 'notifications_comments_item.clicked',
 }

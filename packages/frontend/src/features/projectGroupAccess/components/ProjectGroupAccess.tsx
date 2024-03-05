@@ -31,7 +31,7 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
     const { showToastSuccess } = useToaster();
 
     const { data: groups, isInitialLoading: isLoadingGroups } =
-        useOrganizationGroups(5);
+        useOrganizationGroups({ includeMembers: 5 });
 
     const { mutateAsync: addProjectGroupAccess, isLoading: isSubmitting } =
         useAddProjectGroupAccessMutation();

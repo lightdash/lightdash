@@ -340,7 +340,7 @@ export const ReferenceLine: FC<Props> = ({
                         withEyeDropper={false}
                         format="hex"
                         swatches={colorPalette}
-                        swatchesPerRow={colorPalette.length}
+                        swatchesPerRow={8}
                         onChange={(color) => {
                             setLineColor(color);
                             if (

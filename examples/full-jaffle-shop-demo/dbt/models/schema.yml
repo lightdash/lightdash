@@ -8,7 +8,9 @@ models:
           sql_on: ${customers.customer_id} = ${membership.customer_id}
         - join: plan
           sql_on: ${membership.plan_id} = ${plan.id}
-    description: >-
+    description: |
+      # Customers
+
       This table has basic information about a customer, as well as some derived
       facts based on a customer's orders
     columns:
@@ -72,9 +74,11 @@ models:
           dimension:
             hidden: true
   - name: orders
-    description: >-
+    description: |
       This table has basic information about orders, as well as some derived
       facts based on payments
+
+      {{ doc("orders_status") }}
     meta:
       joins:
         - join: customers
@@ -154,6 +158,11 @@ models:
               type: sum
               format: usd
               round: 2
+              filters:
+                - is_completed: "true"
+            total_completed_order_amount_eur:
+              type: sum
+              format: eur
               filters:
                 - is_completed: "true"
             total_non_completed_order_amount:

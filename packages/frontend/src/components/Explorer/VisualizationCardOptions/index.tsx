@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     CartesianSeriesType,
     ChartType,
+    FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
@@ -17,8 +18,8 @@ import {
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, memo, useMemo } from 'react';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../../providers/AppProvider';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
@@ -34,9 +35,8 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 
 const VisualizationCardOptions: FC = memo(() => {
     const { health } = useApp();
-    // FEATURE FLAG: custom-visualizations-enabled
     const customVizEnabled = useFeatureFlagEnabled(
-        'custom-visualizations-enabled',
+        FeatureFlags.CustomVisualizationsEnabled,
     );
 
     const {

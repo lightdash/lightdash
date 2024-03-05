@@ -1,5 +1,6 @@
-import { ApiError } from '@lightdash/common';
+import { ApiError, friendlyName } from '@lightdash/common';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { ComponentProps } from 'react';
 import {
     createMetricFlowQuery,
     CreateMetricFlowQueryResponse,
@@ -8,15 +9,18 @@ import {
     QueryStatus,
     TimeGranularity,
 } from '../../../api/MetricFlowAPI';
+import Table from '../../../components/common/Table';
 
 type ApiRequestsState = Pick<
     ReturnType<typeof useQuery<GetMetricFlowQueryResultsResponse, ApiError>>,
-    'isLoading' | 'data' | 'error' | 'status'
+    'isLoading' | 'data' | 'error'
 > &
     Pick<
         ReturnType<typeof useQuery<CreateMetricFlowQueryResponse, ApiError>>,
         'refetch'
-    >;
+    > & {
+        status: ComponentProps<typeof Table>['status'];
+    };
 
 const useMetricFlowQueryResults = (
     projectUuid: string | undefined,
@@ -37,6 +41,8 @@ const useMetricFlowQueryResults = (
         queryKey: ['metric_flow_query', projectUuid, query],
         enabled: !!projectUuid && !!Object.keys(query?.metrics ?? {}).length,
         queryFn: () => createMetricFlowQuery(projectUuid!, query!),
+        staleTime: 0,
+        cacheTime: 0,
         ...useCreateQueryOptions,
     });
     const queryId = metricFlowQuery.data?.createQuery.queryId;
@@ -75,6 +81,18 @@ const useMetricFlowQueryResults = (
     }
 
     if (metricFlowQueryResultsQuery.data?.query.status === QueryStatus.FAILED) {
+        let errorMessage =
+            metricFlowQueryResultsQuery.data.query.error || 'Unknown error';
+
+        const requiredDimension = errorMessage.match(
+            /group-by-items do not include '(.*)'/,
+        );
+        if (requiredDimension && requiredDimension[1]) {
+            errorMessage = `The "${friendlyName(
+                requiredDimension[1],
+            )}" dimension is required to calculate metrics values.`;
+        }
+
         return {
             isLoading: false,
             error: {
@@ -82,14 +100,23 @@ const useMetricFlowQueryResults = (
                 error: {
                     name: 'ApiError',
                     statusCode: 500,
-                    message:
-                        metricFlowQueryResultsQuery.data.query.error ||
-                        'Unknown error',
+                    message: errorMessage,
                     data: {},
                 },
             },
             data: undefined,
             status: 'error',
+            refetch: metricFlowQuery.refetch,
+        };
+    }
+
+    const isIdle = !metricFlowQuery.isFetched && !metricFlowQuery.isFetching;
+    if (isIdle) {
+        return {
+            isLoading: false,
+            error: null,
+            data: undefined,
+            status: 'idle',
             refetch: metricFlowQuery.refetch,
         };
     }

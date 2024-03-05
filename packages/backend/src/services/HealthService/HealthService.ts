@@ -10,7 +10,7 @@ import { getMigrationStatus } from '../../database/database';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { VERSION } from '../../version';
 
-type HealthServiceDependencies = {
+type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationModel: OrganizationModel;
 };
@@ -23,7 +23,7 @@ export class HealthService {
     constructor({
         organizationModel,
         lightdashConfig,
-    }: HealthServiceDependencies) {
+    }: HealthServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
     }
@@ -66,6 +66,7 @@ export class HealthService {
                 this.lightdashConfig.customVisualizations &&
                 this.lightdashConfig.customVisualizations.enabled,
             hasSlack: this.hasSlackConfig(),
+            hasGithub: process.env.GITHUB_PRIVATE_KEY !== undefined,
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,

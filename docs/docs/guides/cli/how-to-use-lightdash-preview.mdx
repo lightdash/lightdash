@@ -76,6 +76,28 @@ You can see the log on `Github actions` page
 When developing in dbt, you typically have a different set of credentials and dataset/schema than when you are running in production.
 Here are two options on how to set them up based on the developer that opened the Pull Request.
 
+:::info
+If you use dbt cloud IDE to create commits and pull requests you need a few extra steps.
+We need to add a step in the GitHub action to fetch the user that created the pull request.
+
+```yaml
+      - uses: actions/github-script@v6
+        id: get_pr_creator
+        with:
+          script: |
+            return (
+              await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                commit_sha: context.sha,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              })
+            ).data[0].user.login;
+          result-encoding: string
+```
+
+When copying the following templates, you should replace `${{ github.actor }}` with `${{steps.get_pr_creator.outputs.result}}`.
+:::
+
 ### Using profile targets
 
 Update your `DBT_PROFILES` to have 1 target per developer. The target name should be their GitHub username.
@@ -121,3 +143,50 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.actor }}
 ```
+
+## How to use the dbt cloud schema in your preview project
+
+If you are using a [continuous integration job in dbt cloud](https://docs.getdbt.com/docs/deploy/ci-jobs), you can use the schema that is created by dbt cloud (`dbt_cloud_pr_<job_id>_<pr_id>`) for your preview project.
+
+First we need to add an environment variable to your profile.yml file that will be used by dbt to connect to the correct schema.
+
+```yaml
+schema: "{{ env_var('DBT_SCHEMA') }}"
+```
+
+If you are using BigQuery, it should be `dataset` instead of `schema`.
+
+Then we need to add a step in the GitHub action to fetch the pull request id.
+
+```yaml
+      - uses: actions/github-script@v6
+        id: pr_id
+        with:
+          script: |
+            if (context.issue.number) {
+              // Return issue number if present
+              return context.issue.number;
+            } else {
+              // Otherwise return issue number from commit
+              return (
+                await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  commit_sha: context.sha,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                })
+              ).data[0].number;
+            }
+          result-encoding: string
+```
+
+After that we need to add a new env variable to the step "Lightdash CLI start preview" which is the schema that dbt cloud will use.
+
+Note that in this example we assume the job id is `1234`. You will need to replace this with the actual job id.
+
+```yaml
+  env:
+    # ... keep existing env variables
+    DBT_SCHEMA: "dbt_cloud_pr_1234_${{steps.pr_id.outputs.result}}"
+```
+
+Now dbt will use the correct schema when running in the preview environment.
