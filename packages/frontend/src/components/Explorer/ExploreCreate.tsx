@@ -6,7 +6,8 @@ import {
 import { Button, Group, Stack } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconHammer, IconLink, IconPlayerPlay } from '@tabler/icons-react';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import isEqual from 'lodash/isEqual';
+import { FC, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectCatalog } from '../../hooks/useProjectCatalog';
@@ -42,6 +43,7 @@ const ExploreCreate: FC<Props> = ({}) => {
         (c) => c.actions.setCustomExplore,
     );
     const customExplore = useExplorerContext((c) => c.state.customExplore);
+    const metricQuery = useExplorerContext((c) => c.state.metricQuery);
     const setMetricQuery = useExplorerContext((c) => c.actions.setMetricQuery);
 
     const { isLoading: isCatalogLoading, data: catalogData } =
@@ -94,22 +96,28 @@ const ExploreCreate: FC<Props> = ({}) => {
         };
     }, [data]);
 
-    useEffect(() => {
-        if (!resultsData) return;
-
-        // TODO: this is a bit hacky, need to refactor
-        setMetricQuery(resultsData.metricQuery);
-    }, [resultsData, setMetricQuery]);
-
     const handleSubmit = useCallback(async () => {
         if (!sql) return;
 
         const result = await mutateAsync(sql);
 
-        // TODO: this is a bit hacky, need to refactor
-        reset();
+        const newMetricQuery = getMetricQueryFromResults(result);
+
+        if (!isEqual(newMetricQuery, metricQuery)) {
+            // TODO: this is a bit hacky, need to refactor
+            reset();
+            setMetricQuery(newMetricQuery);
+        }
+
         setCustomExplore(sql, result);
-    }, [mutateAsync, reset, setCustomExplore, sql]);
+    }, [
+        metricQuery,
+        mutateAsync,
+        reset,
+        setCustomExplore,
+        setMetricQuery,
+        sql,
+    ]);
 
     const handleChartBuild = useCallback(() => {
         // TODO: don't like this approach, need to refactor
