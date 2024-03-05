@@ -45,6 +45,7 @@ import { registerNodeMetrics } from './nodeMetrics';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
+import type { ServiceRepository } from './services/ServiceRepository';
 import * as services from './services/services';
 import { wrapOtelSpan } from './utils';
 import { VERSION } from './version';
@@ -52,6 +53,15 @@ import { VERSION } from './version';
 // We need to override this interface to have our user typing
 declare global {
     namespace Express {
+        /**
+         * There's potentially a good case for NOT including this under the top-level of the Request,
+         * but instead under `locals` - I've yet to see a good reasoning on -why-, so for now I'm
+         * opting for the keystrokes saved through omitting `.locals`.
+         */
+        interface Request {
+            services: ServiceRepository;
+        }
+
         interface User extends SessionUser {}
     }
 }
@@ -168,6 +178,17 @@ export default class App {
                 },
             );
         });
+
+        /**
+         * Service Container
+         *
+         * In a future iteration, the service repository will be aware of the surrounding
+         * request context - for now we simply proxy the existing service repository singleton.
+         */
+        expressApp.use((req) => {
+            req.services = services.serviceRepository;
+        });
+
         // api router
         expressApp.use('/api/v1', apiV1Router);
         RegisterRoutes(expressApp);

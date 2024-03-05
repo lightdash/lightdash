@@ -3,7 +3,6 @@ import {
     allowApiKeyAuthentication,
     isAuthenticated,
 } from '../controllers/authentication';
-import { analyticsService } from '../services/services';
 
 export const analyticsRouter = express.Router({ mergeParams: true });
 
@@ -14,10 +13,9 @@ analyticsRouter.get(
     async (req, res, next) => {
         try {
             const { projectUuid } = req.params;
-            const userActivity = await analyticsService.getUserActivity(
-                projectUuid,
-                req.user!,
-            );
+            const userActivity = await req.services
+                .getAnalyticsService()
+                .getUserActivity(projectUuid, req.user!);
             res.json({
                 status: 'ok',
                 results: userActivity,
