@@ -1,3 +1,10 @@
+## [0.1025.1](https://github.com/lightdash/lightdash/compare/0.1025.0...0.1025.1) (2024-03-05)
+
+
+### Bug Fixes
+
+* only tag users with dashboard access ([#9250](https://github.com/lightdash/lightdash/issues/9250)) ([b18c026](https://github.com/lightdash/lightdash/commit/b18c026d8eaafedd117867b2c76b7e7d7bc29b82))
+
 # [0.1025.0](https://github.com/lightdash/lightdash/compare/0.1024.10...0.1025.0) (2024-03-05)
 
 
