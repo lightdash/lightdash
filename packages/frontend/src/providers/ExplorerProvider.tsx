@@ -39,6 +39,7 @@ import { createContext, useContextSelector } from 'use-context-selector';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { useCustomSqlQueryResults } from '../hooks/useCustomQueryResults';
 import useDefaultSortField from '../hooks/useDefaultSortField';
+import { useExplore } from '../hooks/useExplore';
 import {
     useChartVersionResultsMutation,
     useQueryResults,
@@ -260,6 +261,8 @@ export interface ExplorerState extends ExplorerReduceState {
     isValidQuery: boolean;
     hasUnsavedChanges: boolean;
     savedChart: SavedChart | undefined;
+    explore: Explore | undefined;
+    isExploreLoading: boolean;
 }
 
 export interface ExplorerContext {
@@ -1652,25 +1655,6 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
         });
     }, []);
 
-    const state = useMemo(
-        () => ({
-            ...reducerState,
-            mode,
-            activeFields,
-            isValidQuery,
-            hasUnsavedChanges,
-            savedChart,
-        }),
-        [
-            mode,
-            reducerState,
-            activeFields,
-            isValidQuery,
-            hasUnsavedChanges,
-            savedChart,
-        ],
-    );
-
     // Fetch query results after state update
     const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
         queryResults;
@@ -1766,7 +1750,12 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
         });
     }, [history, resetQueryResults, unsavedChartVersion.tableName]);
 
-    const defaultSort = useDefaultSortField(unsavedChartVersion);
+    const { data: explore, isLoading: isExploreLoading } = useExplore({
+        exploreName: unsavedChartVersion.tableName,
+        customExplore: reducerState.customExplore?.explore,
+    });
+
+    const defaultSort = useDefaultSortField(explore, unsavedChartVersion);
 
     const fetchResults = useCallback(async () => {
         // TODO: I don't like this...
@@ -1788,6 +1777,17 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
         unsavedChartVersion.metricQuery.sorts.length,
     ]);
 
+    const state = {
+        ...reducerState,
+        mode,
+        activeFields,
+        isValidQuery,
+        hasUnsavedChanges,
+        savedChart,
+        explore,
+        isExploreLoading,
+    };
+
     useEffect(() => {
         if (!state.shouldFetchResults) return;
 
@@ -1798,95 +1798,50 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [/*fetchResults, */ state.shouldFetchResults]);
 
-    const actions = useMemo(
-        () => ({
-            clearExplore,
-            clearQuery,
-            reset,
-            setTableName,
-            removeActiveField,
-            toggleActiveField,
-            toggleSortField,
-            setSortFields,
-            addSortField,
-            removeSortField,
-            moveSortFields,
-            setFilters,
-            setRowLimit,
-            setColumnOrder,
-            addAdditionalMetric,
-            editAdditionalMetric,
-            removeAdditionalMetric,
-            toggleAdditionalMetricModal,
-            addTableCalculation,
-            deleteTableCalculation,
-            updateTableCalculation,
-            setPivotFields,
-            setChartType,
-            setChartConfig,
-            fetchResults,
-            toggleExpandedSection,
-            addCustomDimension,
-            editCustomDimension,
-            removeCustomDimension,
-            toggleCustomDimensionModal,
-            setMode,
-            setMetricQuery,
-            setCustomExplore,
-        }),
-        [
-            clearExplore,
-            clearQuery,
-            reset,
-            setTableName,
-            removeActiveField,
-            toggleActiveField,
-            toggleSortField,
-            setSortFields,
-            addSortField,
-            removeSortField,
-            moveSortFields,
-            setFilters,
-            setRowLimit,
-            setColumnOrder,
-            addAdditionalMetric,
-            editAdditionalMetric,
-            removeAdditionalMetric,
-            toggleAdditionalMetricModal,
-            addTableCalculation,
-            deleteTableCalculation,
-            updateTableCalculation,
-            setPivotFields,
-            setChartType,
-            setChartConfig,
-            fetchResults,
-            toggleExpandedSection,
-            addCustomDimension,
-            editCustomDimension,
-            removeCustomDimension,
-            toggleCustomDimensionModal,
-            setMode,
-            setMetricQuery,
-            setCustomExplore,
-        ],
-    );
+    const actions = {
+        clearExplore,
+        clearQuery,
+        reset,
+        setTableName,
+        removeActiveField,
+        toggleActiveField,
+        toggleSortField,
+        setSortFields,
+        addSortField,
+        removeSortField,
+        moveSortFields,
+        setFilters,
+        setRowLimit,
+        setColumnOrder,
+        addAdditionalMetric,
+        editAdditionalMetric,
+        removeAdditionalMetric,
+        toggleAdditionalMetricModal,
+        addTableCalculation,
+        deleteTableCalculation,
+        updateTableCalculation,
+        setPivotFields,
+        setChartType,
+        setChartConfig,
+        fetchResults,
+        toggleExpandedSection,
+        addCustomDimension,
+        editCustomDimension,
+        removeCustomDimension,
+        toggleCustomDimensionModal,
+        setMode,
+        setMetricQuery,
+        setCustomExplore,
+    };
 
-    const value: ExplorerContext = useMemo(
-        () => ({
-            state,
-            queryResults: reducerState.customExplore
-                ? customQueryResults
-                : queryResults,
-            actions,
-        }),
-        [
-            actions,
-            reducerState.customExplore,
-            customQueryResults,
-            queryResults,
-            state,
-        ],
-    );
+    const value: ExplorerContext = {
+        state,
+        actions,
+        queryResults: reducerState.customExplore
+            ? customQueryResults
+            : queryResults,
+    };
+
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 

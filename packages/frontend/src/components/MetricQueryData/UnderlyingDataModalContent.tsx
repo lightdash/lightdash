@@ -58,7 +58,10 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
     const { user } = useApp();
 
-    const { data: explore } = useExplore(tableName, { refetchOnMount: false });
+    const { data: explore } = useExplore({
+        exploreName: tableName,
+        useQueryOptions: { refetchOnMount: false },
+    });
 
     const allFields = useMemo(
         () => (explore ? getFields(explore) : []),

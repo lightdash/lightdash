@@ -1,9 +1,7 @@
 import { getItemMap } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
-
 import { useColumns } from '../../../hooks/useColumns';
-import { useExplore } from '../../../hooks/useExplore';
 import {
     ExploreMode,
     useExplorerContext,
@@ -26,12 +24,9 @@ export const ExplorerResults = memo(() => {
     const isEditMode = useExplorerContext(
         (context) => context.state.mode === ExploreMode.EDIT,
     );
-    // TODO: need a better name
-    const customExplore = useExplorerContext(
-        (c) => c.state.customExplore?.explore,
-    );
-    const activeTableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
+    const explore = useExplorerContext((context) => context.state.explore);
+    const isExploreLoading = useExplorerContext(
+        (context) => context.state.isExploreLoading,
     );
     const dimensions = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
@@ -48,10 +43,6 @@ export const ExplorerResults = memo(() => {
     const status = useExplorerContext((context) => context.queryResults.status);
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
-    );
-    const { isInitialLoading, data: exploreData } = useExplore(
-        activeTableName,
-        { refetchOnMount: false },
     );
     const tableCalculations = useExplorerContext(
         (context) =>
@@ -79,15 +70,11 @@ export const ExplorerResults = memo(() => {
     };
 
     const itemsMap = useMemo(() => {
-        if (exploreData) {
-            return getItemMap(
-                exploreData,
-                additionalMetrics,
-                tableCalculations,
-            );
+        if (explore) {
+            return getItemMap(explore, additionalMetrics, tableCalculations);
         }
         return undefined;
-    }, [exploreData, additionalMetrics, tableCalculations]);
+    }, [explore, additionalMetrics, tableCalculations]);
 
     const cellContextMenu = useCallback(
         (props: any) => (
@@ -142,9 +129,9 @@ export const ExplorerResults = memo(() => {
         [],
     );
 
-    if (!activeTableName && !customExplore) return <NoTableSelected />;
+    if (!explore) return <NoTableSelected />;
 
-    if (isInitialLoading) return <EmptyStateExploreLoading />;
+    if (isExploreLoading) return <EmptyStateExploreLoading />;
 
     if (columns.length === 0) return <EmptyStateNoColumns />;
     return (

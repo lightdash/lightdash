@@ -11,7 +11,6 @@ import {
 import { Badge, Text, Tooltip } from '@mantine/core';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import {
     ExploreMode,
@@ -31,7 +30,6 @@ const FiltersCard: FC = memo(() => {
         (context) => context.state.expandedSections,
     );
     const mode = useExplorerContext((context) => context.state.mode);
-    const customExplore = useExplorerContext((c) => c.state.customExplore);
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -49,13 +47,13 @@ const FiltersCard: FC = memo(() => {
     const queryResults = useExplorerContext(
         (context) => context.queryResults.data,
     );
+    const explore = useExplorerContext((context) => context.state.explore);
     const setFilters = useExplorerContext(
         (context) => context.actions.setFilters,
     );
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );
-    const { data: explore } = useExplore(tableName);
     const filterIsOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.FILTERS),
         [expandedSections],
@@ -65,11 +63,8 @@ const FiltersCard: FC = memo(() => {
         [filters],
     );
 
-    // TODO: better name
-    const finalExplore = customExplore?.explore ?? explore;
-
     const fieldsWithSuggestions = useFieldsWithSuggestions({
-        exploreData: finalExplore,
+        exploreData: explore,
         queryResults,
         additionalMetrics,
         tableCalculations,
@@ -81,9 +76,7 @@ const FiltersCard: FC = memo(() => {
     );
     const renderFilterRule = useCallback(
         (filterRule: FilterRule) => {
-            const fields: Field[] = finalExplore
-                ? getVisibleFields(finalExplore)
-                : [];
+            const fields: Field[] = explore ? getVisibleFields(explore) : [];
             const field = fields.find(
                 (f) => fieldId(f) === filterRule.target.fieldId,
             );
@@ -108,7 +101,7 @@ const FiltersCard: FC = memo(() => {
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
         },
-        [finalExplore],
+        [explore],
     );
 
     return (
@@ -116,7 +109,7 @@ const FiltersCard: FC = memo(() => {
             isOpen={filterIsOpen}
             title="Filters"
             disabled={
-                (!tableName && !finalExplore) ||
+                (!tableName && !explore) ||
                 (totalActiveFilters === 0 && mode !== ExploreMode.EDIT)
             }
             toggleTooltip={

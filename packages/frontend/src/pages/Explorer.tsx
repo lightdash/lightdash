@@ -1,17 +1,15 @@
 import { subject } from '@casl/ability';
-import { memo } from 'react';
-import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
-
 import { ActionIcon, Group, Text } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import { IconCircleXFilled } from '@tabler/icons-react';
+import { memo } from 'react';
+import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
-import { useExplore } from '../hooks/useExplore';
 import {
     useDateZoomGranularitySearch,
     useExplorerRoute,
@@ -30,15 +28,10 @@ const ExplorerWithUrlParams = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     useExplorerRoute();
     const mode = useExplorerContext((context) => context.state.mode);
-    const tableId = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-
+    const explore = useExplorerContext((context) => context.state.explore);
     const reset = useExplorerContext((context) => context.actions.reset);
 
     const history = useHistory();
-
-    const { data } = useExplore(tableId);
 
     const { getIsEditingDashboardChart } = useDashboardStorage();
 
@@ -57,8 +50,8 @@ const ExplorerWithUrlParams = memo(() => {
             title={
                 mode === ExploreMode.CREATE
                     ? 'Untitled Explore'
-                    : data
-                    ? data?.label
+                    : explore
+                    ? explore?.label
                     : 'Tables'
             }
             sidebar={<ExploreSideBar />}

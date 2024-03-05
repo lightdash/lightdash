@@ -26,7 +26,6 @@ import {
 import { columnHelper, TableColumn } from '../components/common/Table/types';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useCalculateTotal } from './useCalculateTotal';
-import { useExplore } from './useExplore';
 
 export const getItemBgColor = (
     item: Field | AdditionalMetric | TableCalculation | CustomDimension,
@@ -43,9 +42,7 @@ export const useColumns = (): TableColumn[] => {
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
     );
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
+    const explore = useExplorerContext((context) => context.state.explore);
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
@@ -64,20 +61,10 @@ export const useColumns = (): TableColumn[] => {
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
-
-    const customExplore = useExplorerContext(
-        (c) => c.state.customExplore?.explore,
-    );
-
-    const { data: exploreData } = useExplore(tableName, {
-        refetchOnMount: false,
-    });
-
     const { activeItemsMap, invalidActiveItems } = useMemo<{
         activeItemsMap: ItemsMap;
         invalidActiveItems: string[];
     }>(() => {
-        const explore = exploreData || customExplore;
         if (!explore) return { activeItemsMap: {}, invalidActiveItems: [] };
 
         const allItemsMap = getItemMap(
@@ -108,9 +95,8 @@ export const useColumns = (): TableColumn[] => {
             { activeItemsMap: {}, invalidActiveItems: [] },
         );
     }, [
+        explore,
         additionalMetrics,
-        exploreData,
-        customExplore,
         tableCalculations,
         activeFields,
         customDimensions,
@@ -118,7 +104,7 @@ export const useColumns = (): TableColumn[] => {
 
     const { data: totals } = useCalculateTotal({
         metricQuery: resultsData?.metricQuery,
-        explore: exploreData?.baseTable,
+        explore: explore?.baseTable,
         fieldIds: resultsData
             ? itemsInMetricQuery(resultsData.metricQuery)
             : undefined,
@@ -129,7 +115,7 @@ export const useColumns = (): TableColumn[] => {
         const validColumns = Object.entries(activeItemsMap).reduce<
             TableColumn[]
         >((acc, [fieldId, item]) => {
-            const hasJoins = (exploreData?.joinedTables || []).length > 0;
+            const hasJoins = (explore?.joinedTables || []).length > 0;
 
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
@@ -222,5 +208,5 @@ export const useColumns = (): TableColumn[] => {
             [],
         );
         return [...validColumns, ...invalidColumns];
-    }, [activeItemsMap, invalidActiveItems, sorts, totals, exploreData]);
+    }, [activeItemsMap, invalidActiveItems, sorts, totals, explore]);
 };

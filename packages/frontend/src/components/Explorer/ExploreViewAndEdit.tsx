@@ -2,7 +2,6 @@ import { ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { useExplore } from '../../hooks/useExplore';
 import { useProjects } from '../../hooks/useProjects';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
@@ -38,7 +37,7 @@ const ExploreViewAndEdit: FC<Props> = ({ hideHeader }) => {
         (context) => context.state.unsavedChartVersion.tableName,
     );
 
-    const { data: explore } = useExplore(unsavedChartVersionTableName);
+    const explore = useExplorerContext((context) => context.state.explore);
 
     return (
         <MetricQueryDataProvider

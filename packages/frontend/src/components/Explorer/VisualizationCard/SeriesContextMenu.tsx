@@ -7,7 +7,6 @@ import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useExplore } from '../../../hooks/useExplore';
 import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -32,10 +31,7 @@ export const SeriesContextMenu: FC<{
     const { track } = useTracking();
     const { user } = useApp();
 
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const { data: explore } = useExplore(tableName);
+    const explore = useExplorerContext((context) => context.state.explore);
     const context = useVisualizationContext();
     const { resultsData: { metricQuery } = {} } = context;
 

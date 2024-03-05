@@ -11,7 +11,6 @@ import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { useExplore } from '../../../hooks/useExplore';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ExploreMode,
@@ -42,7 +41,7 @@ const VisualizationCard: FC<{
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
-    const customExplore = useExplorerContext((c) => c.state.customExplore);
+    const explore = useExplorerContext((c) => c.state.explore);
 
     const isLoadingQueryResults = useExplorerContext(
         (context) => context.queryResults.isLoading,
@@ -71,7 +70,6 @@ const VisualizationCard: FC<{
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
-
     const isOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
         [expandedSections],
@@ -83,8 +81,6 @@ const VisualizationCard: FC<{
     const projectUuid = useExplorerContext(
         (context) => context.state.savedChart?.projectUuid || fallBackUUid,
     );
-
-    const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
@@ -105,7 +101,7 @@ const VisualizationCard: FC<{
         [unsavedChartVersion],
     );
 
-    if (!unsavedChartVersion.tableName && !customExplore) {
+    if (!unsavedChartVersion.tableName && !explore) {
         return <CollapsableCard title="Charts" disabled />;
     }
 

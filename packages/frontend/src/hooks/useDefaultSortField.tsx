@@ -1,67 +1,63 @@
 import {
     CreateSavedChartVersion,
     DimensionType,
+    Explore,
     fieldId as getFieldId,
     getDimensions,
     getMetrics,
     SortField,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import { useExplore } from './useExplore';
 
 const useDefaultSortField = (
+    explore: Explore | undefined,
     savedChart: CreateSavedChartVersion,
 ): SortField | undefined => {
     const {
-        tableName,
         metricQuery: { dimensions, metrics },
         tableConfig: { columnOrder },
     } = savedChart;
-    const { data } = useExplore(tableName);
 
     return useMemo(() => {
-        if (data) {
-            const dimensionFields = getDimensions(data).filter((field) =>
-                dimensions.includes(getFieldId(field)),
-            );
+        if (!explore) return undefined;
 
-            const timeDimension = dimensionFields.find(({ type }) =>
-                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(type),
-            );
+        const dimensionFields = getDimensions(explore).filter((field) =>
+            dimensions.includes(getFieldId(field)),
+        );
 
-            if (timeDimension) {
-                return {
-                    fieldId: getFieldId(timeDimension),
-                    descending: true,
-                };
-            }
+        const timeDimension = dimensionFields.find(({ type }) =>
+            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(type),
+        );
 
-            const firstMetric = columnOrder.find((c) => metrics.includes(c));
-            const firstMetricField = getMetrics(data).find(
-                (field) => firstMetric === getFieldId(field),
-            );
-            if (firstMetricField) {
-                return {
-                    fieldId: getFieldId(firstMetricField),
-                    descending: true,
-                };
-            }
-            const firstDimension = columnOrder.find((c) =>
-                dimensions.includes(c),
-            );
-            const firstDimensionField = dimensionFields.find(
-                (field) => firstDimension === getFieldId(field),
-            );
-
-            if (firstDimensionField) {
-                return {
-                    fieldId: getFieldId(firstDimensionField),
-                    descending: false,
-                };
-            }
+        if (timeDimension) {
+            return {
+                fieldId: getFieldId(timeDimension),
+                descending: true,
+            };
         }
-        return undefined;
-    }, [columnOrder, data, dimensions, metrics]);
+
+        const firstMetric = columnOrder.find((c) => metrics.includes(c));
+        const firstMetricField = getMetrics(explore).find(
+            (field) => firstMetric === getFieldId(field),
+        );
+        if (firstMetricField) {
+            return {
+                fieldId: getFieldId(firstMetricField),
+                descending: true,
+            };
+        }
+        const firstDimension = columnOrder.find((c) => dimensions.includes(c));
+        const firstDimensionField = dimensionFields.find(
+            (field) => firstDimension === getFieldId(field),
+        );
+
+        if (firstDimensionField) {
+            return {
+                fieldId: getFieldId(firstDimensionField),
+                descending: false,
+            };
+        }
+    }, [columnOrder, explore, dimensions, metrics]);
 };
 
 export default useDefaultSortField;

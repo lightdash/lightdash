@@ -63,7 +63,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         data: savedExplore,
         isInitialLoading,
         isError,
-    } = useExplore(activeTableName);
+    } = useExplore({ exploreName: activeTableName });
 
     const missingFields = useMemo(() => {
         if (savedExplore) {
