@@ -167,6 +167,8 @@ export const DashboardTileComments: FC<
             onClose={() => {
                 onClose?.();
             }}
+            closeOnClickOutside
+            onChange={setOpenedComments}
         >
             <Popover.Dropdown p={0} w={400} maw={400}>
                 <Stack
