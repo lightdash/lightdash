@@ -17,7 +17,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Hidden,
@@ -39,11 +38,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
-export class ProjectController extends Controller {
+export class ProjectController extends BaseController {
     /**
      * Get a project of an organiztion
      */

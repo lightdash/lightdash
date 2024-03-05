@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -35,11 +34,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/groups')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('User Groups')
-export class GroupsController extends Controller {
+export class GroupsController extends BaseController {
     /**
      * Get group details
      * @param groupUuid unique id of the group

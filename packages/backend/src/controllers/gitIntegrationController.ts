@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -24,11 +23,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/git-integration')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Git Integration')
-export class GitIntegrationController extends Controller {
+export class GitIntegrationController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')

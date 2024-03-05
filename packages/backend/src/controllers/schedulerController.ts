@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -30,11 +29,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/schedulers')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Schedulers')
-export class SchedulerController extends Controller {
+export class SchedulerController extends BaseController {
     /**
      * Get scheduled logs
      * @param req express request

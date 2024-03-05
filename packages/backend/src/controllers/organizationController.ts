@@ -17,7 +17,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -40,11 +39,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/org')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Organizations')
-export class OrganizationController extends Controller {
+export class OrganizationController extends BaseController {
     /**
      * Get the current user's organization
      * @param req express request

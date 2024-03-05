@@ -8,7 +8,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -25,11 +24,12 @@ import {
 import express from 'express';
 import { validationService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/validate')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
-export class ValidationController extends Controller {
+export class ValidationController extends BaseController {
     /**
      * Validate content inside a project. This will start a validation job and return the job id.
      *

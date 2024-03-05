@@ -4,13 +4,10 @@ import {
     ApiExploreResults,
     ApiExploresResults,
     ApiSuccessEmpty,
-    Explore,
-    ExploreError,
     MetricQuery,
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -31,11 +28,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/explores')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
-export class ExploreController extends Controller {
+export class ExploreController extends BaseController {
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,

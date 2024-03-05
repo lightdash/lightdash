@@ -13,7 +13,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -37,11 +36,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/user')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('My Account')
-export class UserController extends Controller {
+export class UserController extends BaseController {
     /**
      * Get authenticated user
      * @param req express request
@@ -53,6 +53,7 @@ export class UserController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiGetAuthenticatedUserResponse> {
         this.setStatus(200);
+
         return {
             status: 'ok',
             results: UserModel.lightdashUserFromSession(req.user!),

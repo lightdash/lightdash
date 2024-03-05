@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common/src/types/api/comments';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -23,11 +22,12 @@ import {
 import express from 'express';
 import { commentService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/comments')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Comments')
-export class CommentsController extends Controller {
+export class CommentsController extends BaseController {
     /**
      * Creates a comment on a dashboard tile
      * @param req express request

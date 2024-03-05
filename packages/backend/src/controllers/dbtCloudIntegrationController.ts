@@ -4,7 +4,6 @@ import {
     ApiErrorPayload,
 } from '@lightdash/common';
 import {
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -19,11 +18,12 @@ import {
 import express from 'express';
 import { projectService } from '../services/services';
 import { isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/integrations/dbt-cloud')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Integrations')
-export class DbtCloudIntegrationController extends Controller {
+export class DbtCloudIntegrationController extends BaseController {
     /**
      * Get the current dbt Cloud integration settings for a project
      * @param projectUuid the uuid of the project

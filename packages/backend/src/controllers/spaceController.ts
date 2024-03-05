@@ -8,7 +8,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -29,11 +28,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/spaces')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Spaces')
-export class SpaceController extends Controller {
+export class SpaceController extends BaseController {
     /**
      * Get details for a space in a project
      * @param projectUuid The uuid of the space's parent project

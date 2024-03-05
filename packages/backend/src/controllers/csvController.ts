@@ -1,6 +1,5 @@
 import { ApiCsvUrlResponse, ApiErrorPayload } from '@lightdash/common';
 import {
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -14,11 +13,12 @@ import {
 import express from 'express';
 import { schedulerService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/csv')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Exports')
-export class CsvController extends Controller {
+export class CsvController extends BaseController {
     /**
      * Get a Csv
      * @param jobId the jobId for the CSV

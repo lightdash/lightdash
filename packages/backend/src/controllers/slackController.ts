@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -24,11 +23,12 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/slack')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Integrations')
-export class SlackController extends Controller {
+export class SlackController extends BaseController {
     /**
      * Get slack channels
      * @param req express request
