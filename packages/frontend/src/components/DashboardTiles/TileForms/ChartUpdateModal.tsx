@@ -13,7 +13,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChartAreaLine, IconEye, IconEyeOff } from '@tabler/icons-react';
-import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import MantineIcon from '../../common/MantineIcon';
@@ -81,14 +80,7 @@ const ChartUpdateModal = ({
                     <Flex align="flex-end" gap="xs">
                         <TextInput
                             label="Title"
-                            placeholder={
-                                form.values.uuid
-                                    ? savedCharts?.find(
-                                          (chart) =>
-                                              chart.uuid === form.values.uuid,
-                                      )?.name
-                                    : undefined
-                            }
+                            placeholder={tile.properties.chartName || undefined}
                             {...form.getInputProps('title')}
                             style={{ flex: 1 }}
                             disabled={form.values.hideTitle}
@@ -111,36 +103,38 @@ const ChartUpdateModal = ({
                             />
                         </ActionIcon>
                     </Flex>
-                    <Select
-                        styles={(theme) => ({
-                            separator: {
-                                position: 'sticky',
-                                top: 0,
-                                backgroundColor: 'white',
-                            },
-                            separatorLabel: {
-                                color: theme.colors.gray[6],
-                                fontWeight: 500,
-                            },
-                        })}
-                        id="savedChartUuid"
-                        name="savedChartUuid"
-                        label="Select chart"
-                        data={(savedCharts || []).map(
-                            ({ uuid, name, spaceName }) => {
-                                return {
-                                    value: uuid,
-                                    label: name,
-                                    group: spaceName,
-                                };
-                            },
-                        )}
-                        disabled={isInitialLoading}
-                        withinPortal
-                        {...form.getInputProps('uuid')}
-                        searchable
-                        placeholder="Search..."
-                    />
+                    {!tile.properties.belongsToDashboard && (
+                        <Select
+                            styles={(theme) => ({
+                                separator: {
+                                    position: 'sticky',
+                                    top: 0,
+                                    backgroundColor: 'white',
+                                },
+                                separatorLabel: {
+                                    color: theme.colors.gray[6],
+                                    fontWeight: 500,
+                                },
+                            })}
+                            id="savedChartUuid"
+                            name="savedChartUuid"
+                            label="Select chart"
+                            data={(savedCharts || []).map(
+                                ({ uuid, name, spaceName }) => {
+                                    return {
+                                        value: uuid,
+                                        label: name,
+                                        group: spaceName,
+                                    };
+                                },
+                            )}
+                            disabled={isInitialLoading}
+                            withinPortal
+                            {...form.getInputProps('uuid')}
+                            searchable
+                            placeholder="Search..."
+                        />
+                    )}
                     <Group spacing="xs" position="right" mt="md">
                         <Button onClick={() => onClose?.()} variant="outline">
                             Cancel
