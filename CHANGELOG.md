@@ -1,3 +1,10 @@
+## [0.1024.7](https://github.com/lightdash/lightdash/compare/0.1024.6...0.1024.7) (2024-03-05)
+
+
+### Bug Fixes
+
+* validate preview cli ([#9236](https://github.com/lightdash/lightdash/issues/9236)) ([b95344b](https://github.com/lightdash/lightdash/commit/b95344ba2162c250a57315b0ea4ec4073617fd36))
+
 ## [0.1024.6](https://github.com/lightdash/lightdash/compare/0.1024.5...0.1024.6) (2024-03-04)
 
 
