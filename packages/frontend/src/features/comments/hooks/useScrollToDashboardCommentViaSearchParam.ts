@@ -1,3 +1,4 @@
+import { useMantineTheme } from '@mantine/core';
 import { useLayoutEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -19,6 +20,7 @@ export const useScrollToDashboardCommentViaSearchParam = ({
     dashboardTileUuid: string;
     onScrolled: () => void;
 }) => {
+    const theme = useMantineTheme();
     const [isSuccess, setIsSuccess] = useState(false);
     // get search with uselocation param tile uuid
     const { search } = useLocation();
@@ -40,7 +42,36 @@ export const useScrollToDashboardCommentViaSearchParam = ({
                         block: 'start',
                     });
                 setIsSuccess(true);
+                ref.current?.animate(
+                    [
+                        {
+                            backgroundColor: 'transparent',
+                            borderRadius: theme.radius.sm,
+                        },
+                        {
+                            backgroundColor: theme.colors.yellow[1],
+                            borderRadius: theme.radius.sm,
+                        },
+                        {
+                            backgroundColor: 'transparent',
+                            borderRadius: theme.radius.sm,
+                        },
+                    ],
+                    {
+                        duration: 4000,
+                        iterations: 5,
+                    },
+                );
             }, 200);
         }
-    }, [tileUuid, dashboardTileUuid, enabled, ref, onScrolled, isSuccess]);
+    }, [
+        tileUuid,
+        dashboardTileUuid,
+        enabled,
+        ref,
+        onScrolled,
+        isSuccess,
+        theme.radius.sm,
+        theme.colors.yellow,
+    ]);
 };
