@@ -1,6 +1,13 @@
 import { useLayoutEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
+/**
+ * Scroll to dashboard comment via search param `tileUuid`
+ * @param ref - ref to the element to scroll to
+ * @param enabled - if true, scroll to the element
+ * @param dashboardTileUuid - the dashboard tile uuid
+ * @param onScrolled - callback to call when scrolled
+ */
 export const useScrollToDashboardCommentViaSearchParam = ({
     ref,
     enabled,
