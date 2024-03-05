@@ -1329,7 +1329,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/382538?v=4",
       "profile": "https://github.com/filp",
       "contributions": [
-        "doc"
+        "doc",
+        "code"
       ]
     },
     {
@@ -1337,6 +1338,15 @@
       "name": "Joe Milton",
       "avatar_url": "https://avatars.githubusercontent.com/u/64725924?v=4",
       "profile": "https://github.com/joemiltonm",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "la55u",
+      "name": "Andras Lassu",
+      "avatar_url": "https://avatars.githubusercontent.com/u/30611343?v=4",
+      "profile": "https://lassu.dev",
       "contributions": [
         "code"
       ]

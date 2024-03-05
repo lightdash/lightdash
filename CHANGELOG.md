@@ -1,3 +1,54 @@
+## [0.1024.6](https://github.com/lightdash/lightdash/compare/0.1024.5...0.1024.6) (2024-03-04)
+
+
+### Bug Fixes
+
+* app class ([#9204](https://github.com/lightdash/lightdash/issues/9204)) ([865b954](https://github.com/lightdash/lightdash/commit/865b95481bd45df285b4e2e5d4ba35e7d9babbc0))
+
+## [0.1024.5](https://github.com/lightdash/lightdash/compare/0.1024.4...0.1024.5) (2024-03-04)
+
+
+### Bug Fixes
+
+* hide unregistered users ([#9223](https://github.com/lightdash/lightdash/issues/9223)) ([7e9578f](https://github.com/lightdash/lightdash/commit/7e9578f90fb01d281b64cdb12996f3e368557c42))
+
+## [0.1024.4](https://github.com/lightdash/lightdash/compare/0.1024.3...0.1024.4) (2024-03-04)
+
+
+### Bug Fixes
+
+* allow search of tagged people again ([#9220](https://github.com/lightdash/lightdash/issues/9220)) ([b590cbb](https://github.com/lightdash/lightdash/commit/b590cbb494c45b64a2d85eae6e9269dc242ad951))
+
+## [0.1024.3](https://github.com/lightdash/lightdash/compare/0.1024.2...0.1024.3) (2024-03-04)
+
+
+### Bug Fixes
+
+* save chart modal ([#9208](https://github.com/lightdash/lightdash/issues/9208)) ([8957d38](https://github.com/lightdash/lightdash/commit/8957d38e9b0a6ff0de43091449004ec5321ecdce))
+* scheduler dependency injection ([#9195](https://github.com/lightdash/lightdash/issues/9195)) ([02a6c14](https://github.com/lightdash/lightdash/commit/02a6c14e18493a8deeffcc6a48fe78eb669b2caa))
+* wraps components with provider rather than condition ([#9217](https://github.com/lightdash/lightdash/issues/9217)) ([0a91d48](https://github.com/lightdash/lightdash/commit/0a91d48c95d3101c98dbdca1123106e1a0c5cf63))
+
+## [0.1024.2](https://github.com/lightdash/lightdash/compare/0.1024.1...0.1024.2) (2024-03-04)
+
+
+### Bug Fixes
+
+* viewers cant reply to dashboard comments ([#9196](https://github.com/lightdash/lightdash/issues/9196)) ([45f4da7](https://github.com/lightdash/lightdash/commit/45f4da7f6cd45b79344b6617cd2169e6bfb07657))
+
+## [0.1024.1](https://github.com/lightdash/lightdash/compare/0.1024.0...0.1024.1) (2024-03-04)
+
+
+### Bug Fixes
+
+* always show toast on version update ([#9189](https://github.com/lightdash/lightdash/issues/9189)) ([bc73458](https://github.com/lightdash/lightdash/commit/bc734586551ac8f80c6b4482552e45a198daedfe))
+
+# [0.1024.0](https://github.com/lightdash/lightdash/compare/0.1023.0...0.1024.0) (2024-03-04)
+
+
+### Features
+
+* display indicator on dashboard tile comments icon ([#9152](https://github.com/lightdash/lightdash/issues/9152)) ([6ed5e43](https://github.com/lightdash/lightdash/commit/6ed5e43fce21eb271ec87bfffa6013d6d9690ddb))
+
 # [0.1023.0](https://github.com/lightdash/lightdash/compare/0.1022.1...0.1023.0) (2024-03-01)
 
 

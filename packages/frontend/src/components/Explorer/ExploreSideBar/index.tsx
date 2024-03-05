@@ -95,63 +95,71 @@ const BasePanel = () => {
     if (exploresResult.data) {
         return (
             <>
-                <PageBreadcrumbs
-                    size="md"
-                    items={[{ title: 'Tables', active: true }]}
-                />
+                <ItemDetailProvider>
+                    <PageBreadcrumbs
+                        size="md"
+                        items={[{ title: 'Tables', active: true }]}
+                    />
 
-                <TextInput
-                    icon={<MantineIcon icon={IconSearch} />}
-                    rightSection={
-                        search ? (
-                            <ActionIcon onClick={() => setSearch('')}>
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        ) : null
-                    }
-                    placeholder="Search tables"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
+                    <TextInput
+                        icon={<MantineIcon icon={IconSearch} />}
+                        rightSection={
+                            search ? (
+                                <ActionIcon onClick={() => setSearch('')}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search tables"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
 
-                <Stack spacing="xxs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
-                    {Object.keys(exploreGroupMap)
-                        .sort((a, b) => a.localeCompare(b))
-                        .map((groupLabel) => (
-                            <ExploreGroup label={groupLabel} key={groupLabel}>
-                                {exploreGroupMap[groupLabel]
-                                    .sort((a, b) =>
-                                        a.label.localeCompare(b.label),
-                                    )
-                                    .map((explore) => (
-                                        <ExploreNavLink
-                                            key={explore.name}
-                                            explore={explore}
-                                            query={search}
-                                            onClick={() => {
-                                                history.push(
-                                                    `/projects/${projectUuid}/tables/${explore.name}`,
-                                                );
-                                            }}
-                                        />
-                                    ))}
-                            </ExploreGroup>
-                        ))}
-                    {ungroupedExplores
-                        .sort((a, b) => a.label.localeCompare(b.label))
-                        .map((explore) => (
-                            <ExploreNavLink
-                                key={explore.name}
-                                explore={explore}
-                                query={search}
-                                onClick={() => {
-                                    history.push(
-                                        `/projects/${projectUuid}/tables/${explore.name}`,
-                                    );
-                                }}
-                            />
-                        ))}
-                </Stack>
+                    <Stack
+                        spacing="xxs"
+                        sx={{ flexGrow: 1, overflowY: 'auto' }}
+                    >
+                        {Object.keys(exploreGroupMap)
+                            .sort((a, b) => a.localeCompare(b))
+                            .map((groupLabel) => (
+                                <ExploreGroup
+                                    label={groupLabel}
+                                    key={groupLabel}
+                                >
+                                    {exploreGroupMap[groupLabel]
+                                        .sort((a, b) =>
+                                            a.label.localeCompare(b.label),
+                                        )
+                                        .map((explore) => (
+                                            <ExploreNavLink
+                                                key={explore.name}
+                                                explore={explore}
+                                                query={search}
+                                                onClick={() => {
+                                                    history.push(
+                                                        `/projects/${projectUuid}/tables/${explore.name}`,
+                                                    );
+                                                }}
+                                            />
+                                        ))}
+                                </ExploreGroup>
+                            ))}
+                        {ungroupedExplores
+                            .sort((a, b) => a.label.localeCompare(b.label))
+                            .map((explore) => (
+                                <ExploreNavLink
+                                    key={explore.name}
+                                    explore={explore}
+                                    query={search}
+                                    onClick={() => {
+                                        history.push(
+                                            `/projects/${projectUuid}/tables/${explore.name}`,
+                                        );
+                                    }}
+                                />
+                            ))}
+                    </Stack>
+                </ItemDetailProvider>
             </>
         );
     }
@@ -181,17 +189,15 @@ const ExploreSideBar = memo(() => {
     }, [clearExplore, history, projectUuid]);
 
     return (
-        <ItemDetailProvider>
-            <TrackSection name={SectionName.SIDEBAR}>
-                <Stack h="100%" sx={{ flexGrow: 1 }}>
-                    {!tableName ? (
-                        <BasePanel />
-                    ) : (
-                        <ExplorePanel onBack={handleBack} />
-                    )}
-                </Stack>
-            </TrackSection>
-        </ItemDetailProvider>
+        <TrackSection name={SectionName.SIDEBAR}>
+            <Stack h="100%" sx={{ flexGrow: 1 }}>
+                {!tableName ? (
+                    <BasePanel />
+                ) : (
+                    <ExplorePanel onBack={handleBack} />
+                )}
+            </Stack>
+        </TrackSection>
     );
 });
 

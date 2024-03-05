@@ -1,5 +1,4 @@
-import { FeatureFlags, Series } from '@lightdash/common';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { Series } from '@lightdash/common';
 import { createContext, FC, useCallback, useContext, useRef } from 'react';
 import { EChartSeries } from './echarts/useEchartsCartesianConfig';
 
@@ -60,10 +59,6 @@ export const useChartColorConfig = ({
     colorPalette: string[];
 }) => {
     const { colorMappings } = useChartColorMappingContext();
-    const useSharedColors = useFeatureFlagEnabled(
-        FeatureFlags.UseSharedColorAssignment,
-    );
-
     /**
      * Given the org's color palette, and an identifier, return the color palette value
      * for said identifier.
@@ -150,7 +145,6 @@ export const useChartColorConfig = ({
     );
 
     return {
-        useSharedColors,
         calculateKeyColorAssignment,
         calculateSeriesColorAssignment,
     };
