@@ -1,4 +1,4 @@
-import { Card, List, UnstyledButton } from '@mantine/core';
+import { Button, Card, List, Tooltip } from '@mantine/core';
 import { SuggestionProps } from '@tiptap/suggestion';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { SuggestionsItem } from '../../types';
@@ -34,6 +34,7 @@ export const SuggestionList = forwardRef<
     };
 
     const enterHandler = () => {
+        if (props.items[selectedIndex]?.disabled) return;
         selectItem(selectedIndex);
     };
 
@@ -80,23 +81,47 @@ export const SuggestionList = forwardRef<
             >
                 {props.items.map((item, index) => (
                     <List.Item key={index} fz="xs">
-                        <UnstyledButton
-                            onClick={() => {
-                                selectItem(index);
-                            }}
-                            variant="default"
-                            c={index === selectedIndex ? 'blue.6' : 'inherit'}
+                        <Tooltip
                             fz="xs"
-                            w="100%"
-                            p="two"
-                            ta="left"
-                            sx={{
-                                border: 'none',
-                                alignSelf: 'flex-start',
-                            }}
+                            label="User doesn't have access to this Dashboard's space"
+                            disabled={!item.disabled}
+                            withinPortal
+                            position="right"
                         >
-                            {item.label}
-                        </UnstyledButton>
+                            <Button
+                                compact
+                                onClick={() => {
+                                    if (item.disabled) return;
+                                    selectItem(index);
+                                }}
+                                styles={(theme) => ({
+                                    root: {
+                                        width: '100%',
+                                        fontSize: theme.fontSizes.xs,
+                                        fontWeight: 400,
+                                        textAlign: 'left',
+                                        backgroundColor: 'white',
+                                        color:
+                                            index === selectedIndex
+                                                ? theme.colors.blue[6]
+                                                : theme.colors.gray[7],
+                                        opacity: item.disabled ? 0.5 : 1,
+                                        cursor: item.disabled
+                                            ? 'not-allowed'
+                                            : 'pointer',
+                                        '&:hover': {
+                                            backgroundColor:
+                                                theme.colors.blue[1],
+                                        },
+                                    },
+                                    inner: {
+                                        justifyContent: 'flex-start',
+                                    },
+                                })}
+                            >
+                                {item.label}
+                            </Button>
+                        </Tooltip>
                     </List.Item>
                 ))}
             </List>

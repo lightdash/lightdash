@@ -4,6 +4,8 @@ import { useForm } from '@mantine/form';
 import { Editor, JSONContent } from '@tiptap/react';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { useSpace } from '../../../hooks/useSpaces';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
 import { CommentWithMentions } from './CommentWithMentions';
@@ -38,22 +40,29 @@ export const CommentForm: FC<Props> = ({
     onCancel,
     mode = 'new',
 }) => {
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const spaceUuid = useDashboardContext((c) => c.dashboard?.spaceUuid);
     const { data: listUsers, isSuccess } = useOrganizationUsers();
-    let userNames: SuggestionsItem[] = useMemo(
-        () =>
-            listUsers?.reduce<{ label: string; id: string }[]>((acc, user) => {
-                if (!user.isActive) return acc;
-                return [
-                    ...acc,
-                    {
-                        label: `${user.firstName} ${user.lastName}`,
-                        id: user.userUuid,
-                    },
-                ];
-            }, []) || [],
+    const { data: space } = useSpace(projectUuid ?? '', spaceUuid ?? '');
 
-        [listUsers],
-    );
+    const userNames: SuggestionsItem[] = useMemo(() => {
+        if (!listUsers || !space?.access) return [];
+        return listUsers.reduce<SuggestionsItem[]>((acc, user) => {
+            if (!user.isActive) return acc;
+
+            return [
+                ...acc,
+                {
+                    label: `${user.firstName} ${user.lastName}`,
+                    id: user.userUuid,
+                    // TODO: Reduce look-up time by using a dictionary/Map
+                    disabled: !space.access.some(
+                        (access) => access.userUuid === user.userUuid,
+                    ),
+                },
+            ];
+        }, []);
+    }, [listUsers, space?.access]);
 
     const [shouldClearEditor, setShouldClearEditor] = useState(false);
     const [editor, setEditor] = useState<Editor | null>(null);
