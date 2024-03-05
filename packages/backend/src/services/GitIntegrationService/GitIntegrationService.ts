@@ -386,17 +386,6 @@ Affected charts:
         customMetricsIds: string[],
         quoteChar: `"` | `'`,
     ): Promise<PullRequestCreated> {
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('SavedChart', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
         });
@@ -404,6 +393,26 @@ Affected charts:
             this.savedChartModel.get(summary.uuid, undefined),
         );
         const charts = await Promise.all(chartPromises);
+
+        const chartsHasAccess = charts.map(async (chart) => {
+            const space = await this.spaceModel.getSpaceSummary(
+                chart.spaceUuid,
+            );
+            const access = this.spaceModel.getSpaceAccess(chart.spaceUuid);
+            return user.ability.can(
+                'manage',
+                subject('SavedChart', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            );
+        });
+
+        if (chartsHasAccess.some((hasAccess) => !hasAccess))
+            throw new ForbiddenError('User does not have access to all charts');
+
         const allCustomMetrics = charts.reduce<AdditionalMetric[]>(
             (acc, chart) => [
                 ...acc,

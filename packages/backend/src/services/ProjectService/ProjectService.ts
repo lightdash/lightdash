@@ -2860,23 +2860,20 @@ export class ProjectService {
             });
 
             const filterPromises = savedCharts.map(async (savedChart) => {
-                if (
-                    user.ability.cannot(
-                        'view',
-                        subject('SavedChart', savedChart),
-                    )
-                ) {
-                    return { uuid: savedChart.uuid, filters: [] };
-                }
-
                 const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
                 const access = await this.spaceModel.getSpaceAccess(
                     savedChart.spaceUuid,
                 );
 
                 if (
-                    !spaceAccess ||
-                    !hasViewAccessToSpace(user, spaceAccess, access)
+                    user.ability.cannot(
+                        'view',
+                        subject('SavedChart', {
+                            ...savedChart,
+                            isPrivate: spaceAccess?.isPrivate,
+                            access,
+                        }),
+                    )
                 ) {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
@@ -3516,10 +3513,22 @@ export class ProjectService {
               )
             : savedChart.metricQuery;
 
+        const space = await this.spaceModel.getSpaceSummary(
+            savedChart.spaceUuid,
+        );
+        const access = await this.spaceModel.getSpaceAccess(
+            savedChart.spaceUuid,
+        );
+
         if (
             user.ability.cannot(
                 'view',
-                subject('SavedChart', { organizationUuid, projectUuid }),
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
             ) ||
             user.ability.cannot(
                 'view',
