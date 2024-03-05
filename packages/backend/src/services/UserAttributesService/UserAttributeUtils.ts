@@ -1,6 +1,8 @@
 import {
     AuthorizationError,
+    CompiledDimension,
     Explore,
+    getDimensions,
     UserAttributeValueMap,
 } from '@lightdash/common';
 
@@ -68,6 +70,18 @@ export const getFilteredExplore = (
         return acc;
     }, []);
 
+    // Get a list of all dimensions hidden from the user due to lack of required attributes
+    const hiddenDimensions = getDimensions(explore).reduce<CompiledDimension[]>(
+        (acc, dimension) => {
+            if (
+                !hasUserAttributes(dimension.requiredAttributes, userAttributes)
+            )
+                return [...acc, dimension];
+            return acc;
+        },
+        [],
+    );
+
     return {
         ...explore,
         joinedTables: explore.joinedTables.filter((joinedTable) =>
@@ -82,14 +96,24 @@ export const getFilteredExplore = (
                     ...table,
                     metrics: Object.fromEntries(
                         Object.entries(table.metrics).filter(
-                            ([metricName, metric]) =>
-                                !metric.tablesReferences ||
-                                metric.tablesReferences.every(
-                                    (tableReference) =>
-                                        filteredTableNames.includes(
-                                            tableReference,
-                                        ),
-                                ),
+                            ([metricName, metric]) => {
+                                const parentDimensionIsHidden =
+                                    hiddenDimensions.some(
+                                        (dimension) =>
+                                            dimension.sql === metric.sql,
+                                    );
+                                if (parentDimensionIsHidden) return false;
+
+                                return (
+                                    !metric.tablesReferences ||
+                                    metric.tablesReferences.every(
+                                        (tableReference) =>
+                                            filteredTableNames.includes(
+                                                tableReference,
+                                            ),
+                                    )
+                                );
+                            },
                         ),
                     ),
                     dimensions: Object.fromEntries(
