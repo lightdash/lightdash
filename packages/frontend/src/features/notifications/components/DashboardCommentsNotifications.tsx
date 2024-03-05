@@ -63,7 +63,13 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                 },
             });
 
-            history.push(`/projects/${projectUuid}${notification.url}`);
+            history.push(
+                `/projects/${projectUuid}${notification.url}${
+                    notification.metadata?.dashboardTileUuid
+                        ? `?tileUuid=${notification.metadata?.dashboardTileUuid}`
+                        : ''
+                }`,
+            );
         },
         [history, projectUuid, track, updateNotification],
     );
