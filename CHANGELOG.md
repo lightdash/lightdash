@@ -1,3 +1,10 @@
+# [0.1025.0](https://github.com/lightdash/lightdash/compare/0.1024.10...0.1025.0) (2024-03-05)
+
+
+### Features
+
+* enable hiding dashboard chart title ([#9249](https://github.com/lightdash/lightdash/issues/9249)) ([4fc607d](https://github.com/lightdash/lightdash/commit/4fc607da5d93f21a9cdf87dc9e3f1ebd9fe5963a))
+
 ## [0.1024.10](https://github.com/lightdash/lightdash/compare/0.1024.9...0.1024.10) (2024-03-05)
 
 
