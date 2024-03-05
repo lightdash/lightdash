@@ -1,3 +1,10 @@
+## [0.1024.9](https://github.com/lightdash/lightdash/compare/0.1024.8...0.1024.9) (2024-03-05)
+
+
+### Bug Fixes
+
+* dont disable delete on user search ([#9201](https://github.com/lightdash/lightdash/issues/9201)) ([3f1f318](https://github.com/lightdash/lightdash/commit/3f1f3187c32c277819992b7e3203328e3cf8e00c))
+
 ## [0.1024.8](https://github.com/lightdash/lightdash/compare/0.1024.7...0.1024.8) (2024-03-05)
 
 
