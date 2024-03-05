@@ -525,6 +525,7 @@ program
     .option('--vars <vars>')
     .option('--threads <number>')
     .option('--no-version-check')
+    .option('--preview', 'Validate the last preview if available', false)
     .option(
         '-s, --select <models...>',
         'specify models (accepts dbt selection syntax)',
