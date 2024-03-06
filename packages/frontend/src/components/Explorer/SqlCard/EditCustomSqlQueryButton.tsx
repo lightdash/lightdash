@@ -15,7 +15,9 @@ const EditCustomSqlQueryButton: FC<Props> = memo(({ projectUuid }) => {
             {...COLLAPSABLE_CARD_BUTTON_PROPS}
             component={Link}
             to={`/projects/${projectUuid}/explore/new`}
-            leftIcon={<MantineIcon icon={IconEdit} color="gray" />}
+            leftIcon={<MantineIcon icon={IconEdit} />}
+            variant="filled"
+            color="violet"
         >
             Edit custom SQL query
         </Button>

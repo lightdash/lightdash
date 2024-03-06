@@ -1,10 +1,10 @@
+import { Center, Loader } from '@mantine/core';
 import { FC } from 'react';
 import { useProjectCatalog } from '../../../hooks/useProjectCatalog';
 import {
     ProjectCatalogTreeNode,
     useProjectCatalogTree,
 } from '../../../hooks/useProjectCatalogTree';
-import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import CatalogTree from '../../common/SqlRunner/CatalogTree';
 
 type Props = {
@@ -17,22 +17,15 @@ const ExploreProjectCatalog: FC<Props> = ({ onSelect }) => {
 
     const catalogTree = useProjectCatalogTree(catalogData);
 
-    if (isCatalogLoading) {
-        // TODO: Add loading state
-        return null;
-    }
-
-    return (
-        <>
-            <PageBreadcrumbs
-                size="md"
-                items={[{ title: 'Untitled explore', active: true }]}
-            />
-
-            <div style={{ overflowY: 'auto', flex: 1 }}>
-                <CatalogTree nodes={catalogTree} onSelect={onSelect} />
-            </div>
-        </>
+    return isCatalogLoading ? (
+        // TODO: replace with proper loader
+        <Center style={{ flex: 1 }}>
+            <Loader size={28} />
+        </Center>
+    ) : (
+        <div style={{ overflowY: 'auto', flex: 1 }}>
+            <CatalogTree nodes={catalogTree} onSelect={onSelect} />
+        </div>
     );
 };
 

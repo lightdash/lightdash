@@ -215,8 +215,7 @@ const ExploreSideBar = memo(() => {
         <TrackSection name={SectionName.SIDEBAR}>
             <Stack h="100%" sx={{ flexGrow: 1 }}>
                 {/* TODO: I don't like this approach, need to refactor */}
-                {mode === ExploreMode.CREATE &&
-                !(customExplore && metricQuery) ? (
+                {mode === ExploreMode.CREATE ? (
                     <ExploreProjectCatalog onSelect={handleTableSelect} />
                 ) : tableName || (customExplore && metricQuery) ? (
                     <ExplorePanel onBack={handleBack} />

@@ -1,6 +1,6 @@
 import { MetricQuery } from '@lightdash/common';
 import { Button } from '@mantine/core';
-import { IconEdit } from '@tabler/icons-react';
+import { IconWindowMaximize } from '@tabler/icons-react';
 import { FC, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
@@ -70,7 +70,7 @@ const OpenAsCustomSqlQueryButton: FC<Props> = memo(({ projectUuid }) => {
             target="_blank"
             rel="noreferrer noopener"
             to={`/projects/${projectUuid}/explore/new?${searchParams.toString()}`}
-            leftIcon={<MantineIcon icon={IconEdit} color="gray" />}
+            leftIcon={<MantineIcon icon={IconWindowMaximize} />}
             disabled={isLoadingCustomSql || isLoadingSql || !!error}
         >
             Open as custom SQL query

@@ -47,13 +47,7 @@ const ExplorerWithUrlParams = memo(() => {
 
     return (
         <Page
-            title={
-                mode === ExploreMode.CREATE
-                    ? 'Untitled Explore'
-                    : explore
-                    ? explore?.label
-                    : 'Tables'
-            }
+            title={explore ? explore?.label : 'Tables'}
             sidebar={<ExploreSideBar />}
             withFullHeight
             withPaddedContent
