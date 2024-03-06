@@ -3204,14 +3204,20 @@ export class ProjectService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
 
+        const allowedSpacesBooleans = await Promise.all(
+            spaces.map(
+                async (space) =>
+                    space.projectUuid === projectUuid &&
+                    hasViewAccessToSpace(
+                        user,
+                        space,
+                        await this.spaceModel.getSpaceAccess(space.uuid),
+                    ),
+            ),
+        );
+
         const allowedSpaces = spaces.filter(
-            async (space) =>
-                space.projectUuid === projectUuid &&
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    await this.spaceModel.getSpaceAccess(space.uuid),
-                ),
+            (_, index) => allowedSpacesBooleans[index],
         );
 
         const charts = await this.savedChartModel.find({
@@ -3321,13 +3327,21 @@ export class ProjectService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const allowedSpaces = spaces.filter(async (space) =>
-            hasViewAccessToSpace(
-                user,
-                space,
-                await this.spaceModel.getSpaceAccess(space.uuid),
+
+        const allowedSpacesBooleans = await Promise.all(
+            spaces.map(async (space) =>
+                hasViewAccessToSpace(
+                    user,
+                    space,
+                    await this.spaceModel.getSpaceAccess(space.uuid),
+                ),
             ),
         );
+
+        const allowedSpaces = spaces.filter(
+            (_, index) => allowedSpacesBooleans[index],
+        );
+
         return allowedSpaces;
     }
 
