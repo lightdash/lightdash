@@ -202,7 +202,6 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                     eCharts.dispatchAction({
                         type: 'highlight',
                         seriesIndex: params.seriesIndex,
-                        axisValueLabel: 'my label',
                     });
                 }, 100);
             }
