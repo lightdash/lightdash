@@ -45,6 +45,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
                 variant={isExplorer ? 'default' : undefined}
                 color={isExplorer ? 'blue' : 'green.7'}
                 size="xs"
+                loading={update.isLoading}
                 leftIcon={
                     isExplorer ? (
                         <MantineIcon icon={IconDeviceFloppy} />
