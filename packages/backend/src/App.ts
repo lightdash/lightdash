@@ -3,7 +3,6 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
-import bodyParser from 'body-parser';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import cookieParser from 'cookie-parser';
@@ -140,8 +139,8 @@ export default class App {
             express.json({ limit: this.lightdashConfig.maxPayloadSize }),
         );
 
-        expressApp.use(bodyParser.json());
-        expressApp.use(bodyParser.urlencoded({ extended: false }));
+        expressApp.use(express.json());
+        expressApp.use(express.urlencoded({ extended: false }));
         expressApp.use(cookieParser());
 
         expressApp.use(
