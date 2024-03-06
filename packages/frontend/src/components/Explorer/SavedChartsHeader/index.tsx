@@ -312,13 +312,8 @@ const SavedChartsHeader: FC = () => {
         };
     }, [spacesSharedWithMe, spacesAdminsCanSee]);
 
-    const userCanManageCharts = user.data?.ability?.can(
-        'manage',
-        subject('SavedChart', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
+    const userCanManageChart =
+        savedChart && user.data?.ability?.can('manage', savedChart);
 
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
@@ -406,7 +401,7 @@ const SavedChartsHeader: FC = () => {
                                 {isEditMode &&
                                     user.data?.ability?.can(
                                         'manage',
-                                        'SavedChart',
+                                        savedChart,
                                     ) && (
                                         <ActionIcon
                                             color="gray.7"
@@ -471,9 +466,9 @@ const SavedChartsHeader: FC = () => {
                     )}
                 </PageTitleAndDetailsContainer>
 
-                {(userCanManageCharts || userCanCreateDeliveriesAndAlerts) && (
+                {(userCanManageChart || userCanCreateDeliveriesAndAlerts) && (
                     <PageActionsContainer>
-                        {userCanManageCharts && (
+                        {userCanManageChart && (
                             <>
                                 {!isEditMode ? (
                                     <>
@@ -539,7 +534,7 @@ const SavedChartsHeader: FC = () => {
                         >
                             <Menu.Dropdown>
                                 <Menu.Label>Manage</Menu.Label>
-                                {userCanManageCharts && hasUnsavedChanges && (
+                                {userCanManageChart && hasUnsavedChanges && (
                                     <Menu.Item
                                         icon={
                                             <MantineIcon
@@ -553,7 +548,7 @@ const SavedChartsHeader: FC = () => {
                                         Save chart as
                                     </Menu.Item>
                                 )}
-                                {userCanManageCharts &&
+                                {userCanManageChart &&
                                     !hasUnsavedChanges &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
@@ -567,7 +562,7 @@ const SavedChartsHeader: FC = () => {
                                             Duplicate
                                         </Menu.Item>
                                     )}
-                                {userCanManageCharts &&
+                                {userCanManageChart &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
                                             icon={
@@ -584,7 +579,7 @@ const SavedChartsHeader: FC = () => {
                                             Add to dashboard
                                         </Menu.Item>
                                     )}
-                                {userCanManageCharts &&
+                                {userCanManageChart &&
                                     savedChart?.dashboardUuid && (
                                         <Menu.Item
                                             icon={
@@ -600,7 +595,7 @@ const SavedChartsHeader: FC = () => {
                                         </Menu.Item>
                                     )}
 
-                                {userCanManageCharts &&
+                                {userCanManageChart &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
                                             icon={
@@ -734,7 +729,7 @@ const SavedChartsHeader: FC = () => {
                                             </Menu>
                                         </Menu.Item>
                                     )}
-                                {userCanManageCharts && (
+                                {userCanManageChart && (
                                     <Menu.Item
                                         icon={
                                             <MantineIcon icon={IconHistory} />
@@ -770,8 +765,7 @@ const SavedChartsHeader: FC = () => {
                                         Alerts
                                     </Menu.Item>
                                 )}
-                                {userCanManageCharts &&
-                                hasGoogleDriveEnabled ? (
+                                {userCanManageChart && hasGoogleDriveEnabled ? (
                                     <Menu.Item
                                         icon={
                                             <MantineIcon
@@ -799,7 +793,7 @@ const SavedChartsHeader: FC = () => {
                                         Add custom metrics to dbt project
                                     </Menu.Item>
                                 )}
-                                {userCanManageCharts && (
+                                {userCanManageChart && (
                                     <>
                                         <Menu.Divider />
 

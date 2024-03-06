@@ -49,7 +49,7 @@ const Spaces: FC = () => {
         subject('Space', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
-            isPrivate: true,
+            isPrivate: false,
         }),
     );
     const userCanManageSpace = user.data?.ability?.can(

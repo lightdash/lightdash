@@ -58,11 +58,13 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
+    // test if user can managed charts for this project & org when given chart access
     const userCanManageCharts = user.data?.ability?.can(
         'manage',
         subject('SavedChart', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            isPrivate: false,
         }),
     );
 

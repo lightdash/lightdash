@@ -35,11 +35,13 @@ const SavedDashboards = () => {
         useSpaceSummaries(projectUuid);
     const hasNoSpaces = spaces && spaces.length === 0;
 
+    // test if user can managed dashboards for this project & org when given chart access
     const userCanManageDashboards = user.data?.ability?.can(
         'manage',
         subject('Dashboard', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            isPrivate: false,
         }),
     );
 

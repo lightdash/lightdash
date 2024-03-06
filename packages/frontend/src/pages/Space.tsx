@@ -69,19 +69,23 @@ const Space: FC = () => {
     const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
+    // test if user can managed dashbords for this project & org when given chart access
     const userCanManageDashboards = user.data?.ability?.can(
         'manage',
         subject('Dashboard', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            isPrivate: false,
         }),
     );
 
+    // test if user can managed charts for this project & org when given chart access
     const userCanManageCharts = user.data?.ability?.can(
         'manage',
         subject('SavedChart', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            isPrivate: false,
         }),
     );
 
