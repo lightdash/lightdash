@@ -3,7 +3,9 @@ import { IconChartBarOff } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
+import useEchartsCartesianConfig, {
+    isLineSeriesOption,
+} from '../../hooks/echarts/useEchartsCartesianConfig';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
@@ -134,6 +136,62 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
 
     const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
 
+    const handleOnMouseOver = useCallback(
+        (params: any) => {
+            const eCharts = chartRef.current?.getEchartsInstance();
+
+            if (eCharts) {
+                // TODO: move to own util function
+                let setTooltipItemTrigger = true;
+                // Tooltip trigger 'item' does not work when symbol is not shown; reference: https://github.com/apache/echarts/issues/14563
+                const series = eCharts.getOption().series;
+                if (
+                    Array.isArray(series) &&
+                    isLineSeriesOption(series[params.seriesIndex])
+                ) {
+                    setTooltipItemTrigger =
+                        !!series[params.seriesIndex].showSymbol;
+                }
+
+                if (setTooltipItemTrigger) {
+                    eCharts.setOption(
+                        {
+                            tooltip: {
+                                trigger: 'item',
+                                formatter: undefined,
+                            },
+                        },
+                        false,
+                        true, // lazy update
+                    );
+                }
+
+                // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
+                setTimeout(() => {
+                    eCharts.dispatchAction({
+                        type: 'highlight',
+                        seriesIndex: params.seriesIndex,
+                    });
+                }, 100);
+            }
+        },
+        [chartRef],
+    );
+
+    const handleOnMouseOut = useCallback(() => {
+        const eCharts = chartRef.current?.getEchartsInstance();
+
+        if (eCharts) {
+            eCharts.setOption(
+                {
+                    tooltip: eChartsOptions?.tooltip,
+                },
+                false,
+                true, // lazy update
+            );
+        }
+    }, [chartRef, eChartsOptions?.tooltip]);
+
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
 
@@ -161,6 +219,8 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
             onEvents={{
                 contextmenu: onChartContextMenu,
                 click: onChartContextMenu,
+                mouseover: handleOnMouseOver,
+                mouseout: handleOnMouseOut,
                 legendselectchanged: onLegendChange,
             }}
             {...props}
