@@ -1,3 +1,10 @@
+## [0.1025.3](https://github.com/lightdash/lightdash/compare/0.1025.2...0.1025.3) (2024-03-06)
+
+
+### Bug Fixes
+
+* add loading state to edit chart save button ([#9253](https://github.com/lightdash/lightdash/issues/9253)) ([c93980f](https://github.com/lightdash/lightdash/commit/c93980f9184fbaa773f98a7f7869847a1204c1b3))
+
 ## [0.1025.2](https://github.com/lightdash/lightdash/compare/0.1025.1...0.1025.2) (2024-03-06)
 
 
