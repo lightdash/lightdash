@@ -1,3 +1,10 @@
+## [0.1025.6](https://github.com/lightdash/lightdash/compare/0.1025.5...0.1025.6) (2024-03-06)
+
+
+### Bug Fixes
+
+* table infinite loop ([#9272](https://github.com/lightdash/lightdash/issues/9272)) ([12d67c2](https://github.com/lightdash/lightdash/commit/12d67c2ca6afe06b0b96985701d8f2353e736c92))
+
 ## [0.1025.5](https://github.com/lightdash/lightdash/compare/0.1025.4...0.1025.5) (2024-03-06)
 
 
