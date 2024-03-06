@@ -64,13 +64,19 @@ export class NotificationsModel {
             .update(updateData);
     }
 
-    async createDashboardCommentNotification(
-        userUuid: string,
-        commentAuthor: LightdashUser,
-        comment: Comment,
-        dashboard: Dashboard,
-        dashboardTile: DashboardTile | undefined,
-    ) {
+    async createDashboardCommentNotification({
+        userUuid,
+        commentAuthor,
+        comment,
+        dashboard,
+        dashboardTile,
+    }: {
+        userUuid: string;
+        commentAuthor: LightdashUser;
+        comment: Comment;
+        dashboard: Dashboard;
+        dashboardTile: DashboardTile | undefined;
+    }) {
         if (comment.mentions.length > 0 && dashboardTile) {
             await Promise.all(
                 comment.mentions.map(async (mentionUserUuid) => {

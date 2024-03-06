@@ -131,13 +131,13 @@ export class CommentService {
                 user.userUuid,
             );
 
-            await this.notificationsModel.createDashboardCommentNotification(
-                user.userUuid,
+            await this.notificationsModel.createDashboardCommentNotification({
+                userUuid: user.userUuid,
                 commentAuthor,
                 comment,
                 dashboard,
                 dashboardTile,
-            );
+            });
         }
 
         return comment.commentId;
