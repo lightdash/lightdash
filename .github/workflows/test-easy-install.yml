@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Run easy install
       env: 
         RUDDERSTACK_WRITE_KEY: '1vikeGadtB0Y0oRDFNL2Prdhkbp' # dev key
