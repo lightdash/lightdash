@@ -26,7 +26,7 @@ export const getDbtContext = async ({
 
     try {
         file = await fs.readFile(projectFilename, { encoding: 'utf-8' });
-    } catch (e: any) {
+    } catch (e: unknown) {
         if (projectDir !== path.parse(projectDir).root) {
             const parentDir = path.join(projectDir, '..');
             return await getDbtContext({
@@ -35,8 +35,9 @@ export const getDbtContext = async ({
             });
         }
 
+        const msg = e instanceof Error ? e.message : '-';
         throw new ParseError(
-            `Is ${initialProjectDir} a valid dbt project directory? Couldn't find a valid dbt_project.yml on ${initialProjectDir} or any of its parents:\n  ${e.message}`,
+            `Is ${initialProjectDir} a valid dbt project directory? Couldn't find a valid dbt_project.yml on ${initialProjectDir} or any of its parents:\n  ${msg}`,
         );
     }
     const config = yaml.load(file) as any;

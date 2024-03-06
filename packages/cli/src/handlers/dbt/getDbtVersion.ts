@@ -18,8 +18,9 @@ export const getDbtVersion = async () => {
         if (version === null || version.length === 0)
             throw new ParseError(`Can't locate dbt --version: ${logs}`);
         return version[0].split(':')[1].trim();
-    } catch (e: any) {
-        throw new ParseError(`Failed to get dbt --version:\n  ${e.message}`);
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '-';
+        throw new ParseError(`Failed to get dbt --version:\n  ${msg}`);
     }
 };
 

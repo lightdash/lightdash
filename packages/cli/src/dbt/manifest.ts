@@ -30,9 +30,8 @@ export const loadManifest = async ({
             await fs.readFile(filename, { encoding: 'utf-8' }),
         ) as DbtManifest;
         return manifest;
-    } catch (err: any) {
-        throw new Error(
-            `Could not load manifest from ${filename}:\n  ${err.message}`,
-        );
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : '-';
+        throw new Error(`Could not load manifest from ${filename}:\n  ${msg}`);
     }
 };

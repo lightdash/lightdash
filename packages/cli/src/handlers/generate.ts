@@ -136,8 +136,9 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                         : ymlString,
                 );
             } catch (e) {
+                const msg = e instanceof Error ? e.message : '-';
                 throw new ParseError(
-                    `Failed to write file ${outputFilePath}\n ${e}`,
+                    `Failed to write file ${outputFilePath}\n ${msg}`,
                 );
             }
             spinner.succeed(
@@ -145,13 +146,14 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     ` ➡️  ${path.relative(process.cwd(), outputFilePath)}`,
                 )}`,
             );
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : '-';
             await LightdashAnalytics.track({
                 event: 'generate.error',
                 properties: {
                     executionId,
                     trigger: 'generate',
-                    error: `${e.message}`,
+                    error: `${msg}`,
                 },
             });
             spinner.fail(`  Failed to generate ${compiledModel.name}.yml`);

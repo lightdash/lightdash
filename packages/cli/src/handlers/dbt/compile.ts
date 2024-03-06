@@ -63,8 +63,9 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
         const { stdout, stderr } = await execa('dbt', ['compile', ...args]);
         console.error(stdout);
         console.error(stderr);
-    } catch (e: any) {
-        throw new ParseError(`Failed to run dbt compile:\n  ${e.message}`);
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '-';
+        throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
     }
 };
 
@@ -93,9 +94,10 @@ export const dbtList = async (
         GlobalState.debug(`> Models: ${models.join(' ')}`);
         console.error(stderr);
         return models;
-    } catch (e: any) {
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '-';
         throw new ParseError(
-            `Error executing 'dbt ls':\n  ${e.message}\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false`,
+            `Error executing 'dbt ls':\n  ${msg}\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false`,
         );
     }
 };
