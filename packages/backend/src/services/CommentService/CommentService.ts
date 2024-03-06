@@ -1,7 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     Comment,
+    Dashboard,
+    DashboardTile,
     ForbiddenError,
+    LightdashUser,
     SessionUser,
     SpaceSummary,
 } from '@lightdash/common';
@@ -69,6 +72,64 @@ export class CommentService {
         return hasSpaceAccess(user, space);
     }
 
+    private async createCommentNotification({
+        userUuid,
+        comment,
+        dashboard,
+        dashboardTileUuid,
+    }: {
+        userUuid: string;
+        comment: Comment;
+        dashboard: Dashboard;
+        dashboardTileUuid: string;
+    }) {
+        const usersThatCommentedInTile =
+            await this.commentModel.findUsersThatCommentedInDashboardTile(
+                dashboard.uuid,
+                dashboardTileUuid,
+            );
+
+        const taggedUsersToNotify = comment.mentions.map((mention) => ({
+            userUuid: mention,
+            tagged: true,
+        }));
+
+        const usersThatCommentedToNotify = usersThatCommentedInTile
+            .filter((u) =>
+                taggedUsersToNotify.some((t) => t.userUuid === u.userUuid),
+            )
+            .map((user) => ({
+                userUuid: user.userUuid,
+                tagged: false,
+            }));
+
+        if (
+            taggedUsersToNotify.length === 0 &&
+            usersThatCommentedToNotify.length === 0
+        )
+            return;
+
+        const dashboardTile = dashboard.tiles.find(
+            (t) => t.uuid === dashboardTileUuid,
+        );
+
+        const commentAuthor = await this.userModel.getUserDetailsByUuid(
+            userUuid,
+        );
+
+        await this.notificationsModel.createDashboardCommentNotification({
+            userUuid,
+            commentAuthor,
+            comment,
+            usersToNotify: [
+                ...taggedUsersToNotify,
+                ...usersThatCommentedToNotify,
+            ],
+            dashboard,
+            dashboardTile,
+        });
+    }
+
     async createComment(
         user: SessionUser,
         dashboardUuid: string,
@@ -122,23 +183,13 @@ export class CommentService {
             throw new Error('Failed to create comment');
         }
 
-        if (comment.mentions.length > 0) {
-            const dashboardTile = dashboard.tiles.find(
-                (t) => t.uuid === dashboardTileUuid,
-            );
-
-            const commentAuthor = await this.userModel.getUserDetailsByUuid(
-                user.userUuid,
-            );
-
-            await this.notificationsModel.createDashboardCommentNotification({
-                userUuid: user.userUuid,
-                commentAuthor,
-                comment,
-                dashboard,
-                dashboardTile,
-            });
-        }
+        // Intentionally not awaiting this promise to avoid slowing down the response
+        this.createCommentNotification({
+            userUuid: user.userUuid,
+            comment,
+            dashboard,
+            dashboardTileUuid,
+        });
 
         return comment.commentId;
     }
