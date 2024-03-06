@@ -593,26 +593,29 @@ export class DashboardService {
         projectUuid: string,
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
-        const space = await this.spaceModel.getFirstAccessibleSpace(
-            projectUuid,
-            user.userUuid,
-        );
-        const spaceAccess = await this.spaceModel.getSpaceAccess(
-            space.space_uuid,
+        const userHasAccessToDashboards = await Promise.all(
+            dashboards.map(async (dashboard) => {
+                const dashboardSpace = await this.spaceModel.getSpaceSummary(
+                    dashboard.spaceUuid,
+                );
+                const dashboardSpaceAccess =
+                    await this.spaceModel.getSpaceAccess(dashboard.spaceUuid);
+                return user.ability.can(
+                    'update',
+                    subject('Dashboard', {
+                        organizationUuid: dashboardSpace.organizationUuid,
+                        projectUuid,
+                        isPrivate: dashboardSpace.isPrivate,
+                        access: dashboardSpaceAccess,
+                    }),
+                );
+            }),
         );
 
-        if (
-            user.ability.cannot(
-                'update',
-                subject('Dashboard', {
-                    organizationUuid: space.organization_uuid,
-                    projectUuid,
-                    isPrivate: space.is_private,
-                    access: spaceAccess,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (userHasAccessToDashboards.some((hasAccess) => !hasAccess)) {
+            throw new ForbiddenError(
+                "You don't have access to some of the dashboards you are trying to update.",
+            );
         }
 
         this.analytics.track({
