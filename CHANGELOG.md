@@ -1,3 +1,10 @@
+## [0.1025.4](https://github.com/lightdash/lightdash/compare/0.1025.3...0.1025.4) (2024-03-06)
+
+
+### Bug Fixes
+
+* use symbolSize to hide the symbol but display the labels for line and area type charts ([#9258](https://github.com/lightdash/lightdash/issues/9258)) ([19e7db2](https://github.com/lightdash/lightdash/commit/19e7db205b9406bc4745498384ffe33ac0fa3e5d))
+
 ## [0.1025.3](https://github.com/lightdash/lightdash/compare/0.1025.2...0.1025.3) (2024-03-06)
 
 
