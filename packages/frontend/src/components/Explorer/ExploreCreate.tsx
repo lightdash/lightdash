@@ -1,5 +1,6 @@
 import {
-    convertQueryResultsToFields,
+    convertQueryResultsToDimensions,
+    convertQueryResultsToMetrics,
     CUSTOM_EXPLORE_ALIAS_NAME,
     getMetricQueryFromResults,
 } from '@lightdash/common';
@@ -69,7 +70,8 @@ const ExploreCreate: FC<Props> = ({}) => {
     const resultsData = useMemo(() => {
         if (!data) return undefined;
 
-        const dimensions = convertQueryResultsToFields(data.fields);
+        const dimensions = convertQueryResultsToDimensions(data.fields);
+        const metrics = convertQueryResultsToMetrics(data.fields);
 
         return {
             metricQuery: getMetricQueryFromResults(data),
@@ -92,6 +94,7 @@ const ExploreCreate: FC<Props> = ({}) => {
             ),
             fields: {
                 ...dimensions,
+                ...metrics,
             },
         };
     }, [data]);
