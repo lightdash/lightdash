@@ -1,6 +1,6 @@
 import { useMantineTheme } from '@mantine/core';
-import { useLayoutEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLayoutEffect, useMemo, useState } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 
 /**
  * Scroll to dashboard comment via search param `tileUuid`
@@ -23,8 +23,9 @@ export const useScrollToDashboardCommentViaSearchParam = ({
     const theme = useMantineTheme();
     const [isSuccess, setIsSuccess] = useState(false);
     // get search with uselocation param tile uuid
-    const { search } = useLocation();
-    const searchParams = new URLSearchParams(search);
+    const history = useHistory();
+    const { search, pathname } = useLocation();
+    const searchParams = useMemo(() => new URLSearchParams(search), [search]);
     const tileUuid = searchParams.get('tileUuid');
 
     useLayoutEffect(() => {
@@ -36,32 +37,40 @@ export const useScrollToDashboardCommentViaSearchParam = ({
         ) {
             onScrolled();
             setTimeout(() => {
-                if (ref.current)
+                if (ref.current) {
                     ref.current.scrollIntoView({
                         behavior: 'smooth',
                         block: 'start',
                     });
-                setIsSuccess(true);
-                ref.current?.animate(
-                    [
+                    setIsSuccess(true);
+                    ref.current.animate(
+                        [
+                            {
+                                backgroundColor: 'transparent',
+                                borderRadius: theme.radius.sm,
+                            },
+                            {
+                                backgroundColor: theme.colors.yellow[1],
+                                borderRadius: theme.radius.sm,
+                            },
+                            {
+                                backgroundColor: 'transparent',
+                                borderRadius: theme.radius.sm,
+                            },
+                        ],
                         {
-                            backgroundColor: 'transparent',
-                            borderRadius: theme.radius.sm,
+                            duration: 4000,
+                            iterations: 2,
                         },
-                        {
-                            backgroundColor: theme.colors.yellow[1],
-                            borderRadius: theme.radius.sm,
-                        },
-                        {
-                            backgroundColor: 'transparent',
-                            borderRadius: theme.radius.sm,
-                        },
-                    ],
-                    {
-                        duration: 4000,
-                        iterations: 5,
-                    },
-                );
+                    );
+
+                    // Clear the search param after scrolling to the comment
+                    searchParams.delete('tileUuid');
+                    history.replace({
+                        pathname,
+                        search: searchParams.toString(),
+                    });
+                }
             }, 200);
         }
     }, [
@@ -73,5 +82,8 @@ export const useScrollToDashboardCommentViaSearchParam = ({
         isSuccess,
         theme.radius.sm,
         theme.colors.yellow,
+        searchParams,
+        history,
+        pathname,
     ]);
 };
