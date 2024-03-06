@@ -236,15 +236,13 @@ export class CommentModel {
     }
 
     async findUsersThatCommentedInDashboardTile(
-        dashboardUuid: string,
         dashboardTileUuid: string,
     ): Promise<Pick<LightdashUser, 'userUuid'>[]> {
         const usersThatCommentedInDashboardTile = await this.database(
             DashboardTileCommentsTableName,
         )
-            .select('user_uuid')
-            .where('dashboard_tile_uuid', dashboardTileUuid)
-            .andWhere('dashboard_uuid', dashboardUuid);
+            .distinct('user_uuid')
+            .where('dashboard_tile_uuid', dashboardTileUuid);
 
         return usersThatCommentedInDashboardTile.map((comment) => ({
             userUuid: comment.user_uuid,

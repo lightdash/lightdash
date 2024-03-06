@@ -83,35 +83,33 @@ export class CommentService {
         dashboard: Dashboard;
         dashboardTileUuid: string;
     }) {
-        const usersThatCommentedInTile =
+        const commentingUsersInTile =
             await this.commentModel.findUsersThatCommentedInDashboardTile(
-                dashboard.uuid,
                 dashboardTileUuid,
             );
 
-        const taggedUsersToNotify = comment.mentions.map((mention) => ({
+        const taggedUsers = comment.mentions.map((mention) => ({
             userUuid: mention,
             tagged: true,
         }));
 
-        const usersThatCommentedToNotify = usersThatCommentedInTile
-            .filter((u) =>
-                taggedUsersToNotify.some((t) => t.userUuid === u.userUuid),
-            )
+        const commentingUsers = commentingUsersInTile
+            // Filter out users that have just been tagged to avoid duplicate notifications
+            .filter((u) => !taggedUsers.some((t) => t.userUuid === u.userUuid))
             .map((user) => ({
                 userUuid: user.userUuid,
                 tagged: false,
             }));
 
-        if (
-            taggedUsersToNotify.length === 0 &&
-            usersThatCommentedToNotify.length === 0
-        )
-            return;
+        const usersToNotify = [...taggedUsers, ...commentingUsers];
+
+        if (usersToNotify.length === 0) return;
 
         const dashboardTile = dashboard.tiles.find(
             (t) => t.uuid === dashboardTileUuid,
         );
+
+        if (!dashboardTile) return;
 
         const commentAuthor = await this.userModel.getUserDetailsByUuid(
             userUuid,
@@ -121,10 +119,7 @@ export class CommentService {
             userUuid,
             commentAuthor,
             comment,
-            usersToNotify: [
-                ...taggedUsersToNotify,
-                ...usersThatCommentedToNotify,
-            ],
+            usersToNotify,
             dashboard,
             dashboardTile,
         });

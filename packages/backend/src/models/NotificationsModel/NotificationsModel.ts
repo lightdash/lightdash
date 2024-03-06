@@ -95,39 +95,37 @@ export class NotificationsModel {
         comment: Comment;
         usersToNotify: { userUuid: string; tagged: boolean }[];
         dashboard: Dashboard;
-        dashboardTile: DashboardTile | undefined;
+        dashboardTile: DashboardTile;
     }) {
-        if (usersToNotify.length > 0 && dashboardTile) {
-            await Promise.all(
-                usersToNotify.map(async (mentionUserUuid) => {
-                    if (mentionUserUuid.userUuid !== userUuid) {
-                        await this.database(NotificationsTableName).insert({
-                            user_uuid: mentionUserUuid.userUuid,
-                            resource_uuid: comment.commentId,
-                            resource_type:
-                                DbNotificationResourceType.DashboardComments,
-                            message:
-                                NotificationsModel.generateDashboardCommentNotificationMessage(
-                                    {
-                                        commentAuthor,
-                                        dashboardName: dashboard.name,
-                                        dashboardTileTitle:
-                                            dashboardTile.properties.title,
-                                        tagged: mentionUserUuid.tagged,
-                                    },
-                                ),
-                            url: `/dashboards/${dashboard.uuid}`,
-                            metadata: JSON.stringify({
-                                dashboard_uuid: dashboard.uuid,
-                                dashboard_name: dashboard.name,
-                                dashboard_tile_uuid: dashboardTile.uuid,
-                                dashboard_tile_name:
-                                    dashboardTile.properties.title ?? '',
-                            }),
-                        });
-                    }
-                }),
-            );
-        }
+        await Promise.all(
+            usersToNotify.map(async (mentionUserUuid) => {
+                if (mentionUserUuid.userUuid !== userUuid) {
+                    await this.database(NotificationsTableName).insert({
+                        user_uuid: mentionUserUuid.userUuid,
+                        resource_uuid: comment.commentId,
+                        resource_type:
+                            DbNotificationResourceType.DashboardComments,
+                        message:
+                            NotificationsModel.generateDashboardCommentNotificationMessage(
+                                {
+                                    commentAuthor,
+                                    dashboardName: dashboard.name,
+                                    dashboardTileTitle:
+                                        dashboardTile.properties.title,
+                                    tagged: mentionUserUuid.tagged,
+                                },
+                            ),
+                        url: `/dashboards/${dashboard.uuid}`,
+                        metadata: JSON.stringify({
+                            dashboard_uuid: dashboard.uuid,
+                            dashboard_name: dashboard.name,
+                            dashboard_tile_uuid: dashboardTile.uuid,
+                            dashboard_tile_name:
+                                dashboardTile.properties.title ?? '',
+                        }),
+                    });
+                }
+            }),
+        );
     }
 }
