@@ -1,3 +1,10 @@
+## [0.1025.2](https://github.com/lightdash/lightdash/compare/0.1025.1...0.1025.2) (2024-03-06)
+
+
+### Bug Fixes
+
+* delete property of columnProperties object ([#9061](https://github.com/lightdash/lightdash/issues/9061)) ([5ce0133](https://github.com/lightdash/lightdash/commit/5ce013385e168bb00fb1477357c6115471f6deb9))
+
 ## [0.1025.1](https://github.com/lightdash/lightdash/compare/0.1025.0...0.1025.1) (2024-03-05)
 
 
