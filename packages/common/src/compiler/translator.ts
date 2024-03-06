@@ -362,7 +362,6 @@ export const convertTable = (
         },
         [{}, {}],
     );
-
     const modelMetrics = Object.fromEntries(
         Object.entries(model.meta.metrics || {}).map(([name, metric]) => [
             name,

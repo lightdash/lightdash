@@ -100,10 +100,11 @@ export const getFilteredExplore = (
                                 const parentDimensionIsHidden =
                                     hiddenDimensions.some(
                                         (dimension) =>
-                                            dimension.sql === metric.sql,
+                                            dimension.name ===
+                                            metric.dimensionReference,
                                     );
-                                if (parentDimensionIsHidden) return false;
 
+                                if (parentDimensionIsHidden) return false;
                                 return (
                                     !metric.tablesReferences ||
                                     metric.tablesReferences.every(
