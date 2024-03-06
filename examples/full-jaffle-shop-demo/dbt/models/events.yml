@@ -40,10 +40,6 @@ models:
         meta:
           dimension:
             type: timestamp
-      - name: bignumber
-        meta: 
-          dimension:
-            type: string
       - name: date
         description: ""
         meta:
