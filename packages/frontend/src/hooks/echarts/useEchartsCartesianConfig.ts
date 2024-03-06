@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     applyCustomFormat,
+    assertUnreachable,
     CartesianChart,
     CartesianSeriesType,
     DimensionType,
@@ -251,6 +252,7 @@ export type EChartSeries = {
     };
     data?: unknown[];
     showSymbol?: boolean;
+    symbolSize?: number;
 };
 
 const getFormattedValue = (
@@ -624,6 +626,31 @@ const getPivotSeries = ({
     };
 };
 
+/**
+ * Get the series symbol configuration for a simple series
+ * This is used to hide the symbol if showSymbol is false for line and area charts
+ *
+ * Issue reference: https://github.com/apache/echarts/issues/19178
+ */
+const getSimpleSeriesSymbolConfig = (series: Series) => {
+    const { showSymbol, type } = series;
+    switch (type) {
+        case CartesianSeriesType.LINE:
+        case CartesianSeriesType.AREA:
+            return {
+                showSymbol: true,
+                symbolSize: showSymbol ? 4 : 0,
+            };
+        case CartesianSeriesType.BAR:
+        case CartesianSeriesType.SCATTER:
+            return {
+                showSymbol: showSymbol ?? true,
+            };
+        default:
+            return assertUnreachable(type, `unexpected series type: ${type}`);
+    }
+};
+
 type GetSimpleSeriesArg = {
     series: Series;
     itemsMap: ItemsMap;
@@ -666,7 +693,7 @@ const getSimpleSeries = ({
     tooltip: {
         valueFormatter: valueFormatter(yFieldHash, itemsMap),
     },
-    showSymbol: series.showSymbol ?? true,
+    ...getSimpleSeriesSymbolConfig(series),
     ...(series.label?.show && {
         label: {
             ...series.label,
