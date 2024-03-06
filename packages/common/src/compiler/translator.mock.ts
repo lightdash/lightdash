@@ -580,6 +580,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             groupLabel: undefined,
             filters: [],
             index: 0,
+            dimensionReference: 'user_id',
         },
         total_num_participating_athletes: {
             fieldType: FieldType.METRIC,
@@ -601,6 +602,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             groupLabel: undefined,
             filters: [],
             index: 1,
+            dimensionReference: 'num_participating_athletes',
         },
     },
 };
