@@ -107,7 +107,7 @@ Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-s
 
 ## Community Support
 
-📣 If you want something a bit more, then [head on over to our Slack Community](https://join.slack.com/t/lightdash-community/shared_invite/zt-1nvwh36o0-gd3jOUx6DuVLNNeng1pPcw) where you’ll be able to chat directly with all of us at Lightdash and all the other amazing members of our community. We’re happy to talk about anything from feature requests, implementation details or dbt quirks to memes and SQL jokes!
+📣 If you want something a bit more, then [head on over to our Slack Community](https://join.slack.com/t/lightdash-community/shared_invite/zt-1bfmfnyfq-nSeTVj0cT7i2ekAHYbBVdQ) where you’ll be able to chat directly with all of us at Lightdash and all the other amazing members of our community. We’re happy to talk about anything from feature requests, implementation details or dbt quirks to memes and SQL jokes!
 
 You can also keep up to date with Lightdash by following us here:
 
