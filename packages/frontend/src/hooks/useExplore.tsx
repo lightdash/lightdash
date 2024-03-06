@@ -1,4 +1,4 @@
-import { ApiError, ApiExploreResults, Explore } from '@lightdash/common';
+import { ApiError, ApiExploreResults, CustomExplore } from '@lightdash/common';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -17,7 +17,7 @@ export const useExplore = ({
     useQueryOptions,
 }: {
     exploreName: string | undefined;
-    customExplore?: Explore | undefined;
+    customExplore?: CustomExplore;
     useQueryOptions?: UseQueryOptions<ApiExploreResults, ApiError>;
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -26,13 +26,13 @@ export const useExplore = ({
     return useQuery<ApiExploreResults, ApiError>({
         // TODO: fix queryKey
         queryKey: [
-            'tables',
-            customExplore ? customExplore.name : exploreName,
             projectUuid,
+            'explore',
+            customExplore ? customExplore.sql : exploreName,
         ],
         queryFn: () =>
             customExplore
-                ? Promise.resolve(customExplore)
+                ? Promise.resolve(customExplore.explore)
                 : getExplore(projectUuid, exploreName!),
         enabled: !!exploreName || !!customExplore,
         onError: (result) => setErrorResponse(result),

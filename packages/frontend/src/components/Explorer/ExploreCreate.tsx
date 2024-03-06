@@ -1,8 +1,12 @@
 import {
+    ApiQueryResults,
     convertQueryResultsToDimensions,
     convertQueryResultsToMetrics,
     CUSTOM_EXPLORE_ALIAS_NAME,
+    Field,
+    fieldId,
     getMetricQueryFromResults,
+    isField,
 } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
@@ -16,6 +20,7 @@ import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
 import { useCustomExplore } from '../../providers/CustomExploreProvider';
 import {
     ExploreMode,
+    ExplorerSection,
     useExplorerContext,
 } from '../../providers/ExplorerProvider';
 import CollapsableCard from '../common/CollapsableCard';
@@ -32,6 +37,8 @@ const ExploreCreate: FC<Props> = ({}) => {
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
+    const [resultsData, setResultsData] = useState<ApiQueryResults>();
+
     const { sql, setSql } = useCustomExplore();
 
     const setMode = useExplorerContext((c) => c.actions.setMode);
@@ -40,19 +47,29 @@ const ExploreCreate: FC<Props> = ({}) => {
 
     const { showToastSuccess } = useToaster();
 
+    const fetchResults = useExplorerContext(
+        (context) => context.actions.fetchResults,
+    );
+    const isValidQuery = useExplorerContext((c) => c.state.isValidQuery);
     const setCustomExplore = useExplorerContext(
         (c) => c.actions.setCustomExplore,
     );
     const customExplore = useExplorerContext((c) => c.state.customExplore);
     const metricQuery = useExplorerContext((c) => c.state.metricQuery);
     const setMetricQuery = useExplorerContext((c) => c.actions.setMetricQuery);
+    const toggleActiveField = useExplorerContext(
+        (c) => c.actions.toggleActiveField,
+    );
+    const setSectionState = useExplorerContext(
+        (c) => c.actions.setSectionState,
+    );
 
     const { isLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
 
     const sqlQueryMutation = useSqlQueryMutation();
 
-    const { mutateAsync, data, isLoading: isQueryLoading } = sqlQueryMutation;
+    const { mutateAsync, isLoading: isQueryLoading } = sqlQueryMutation;
 
     const isLoading = isCatalogLoading || isQueryLoading;
 
@@ -67,18 +84,21 @@ const ExploreCreate: FC<Props> = ({}) => {
         setExpandedCards((prev) => new Map(prev).set(card, value));
     };
 
-    const resultsData = useMemo(() => {
-        if (!data) return undefined;
+    const handleRunSql = useCallback(async () => {
+        if (!sql) return;
 
-        const dimensions = convertQueryResultsToDimensions(data.fields);
-        const metrics = convertQueryResultsToMetrics(data.fields);
+        const result = await mutateAsync(sql);
 
-        return {
-            metricQuery: getMetricQueryFromResults(data),
+        const dimensions = convertQueryResultsToDimensions(result.fields);
+        const metrics = convertQueryResultsToMetrics(result.fields);
+        const newMetricQuery = getMetricQueryFromResults(result);
+
+        const newResultsData: ApiQueryResults = {
+            metricQuery: newMetricQuery,
             cacheMetadata: {
                 cacheHit: false,
             },
-            rows: data.rows.map((row) =>
+            rows: result.rows.map((row) =>
                 Object.keys(row).reduce((acc, columnName) => {
                     const raw = row[columnName];
                     return {
@@ -97,19 +117,20 @@ const ExploreCreate: FC<Props> = ({}) => {
                 ...metrics,
             },
         };
-    }, [data]);
 
-    const handleSubmit = useCallback(async () => {
-        if (!sql) return;
-
-        const result = await mutateAsync(sql);
-
-        const newMetricQuery = getMetricQueryFromResults(result);
+        setResultsData(newResultsData);
 
         if (!isEqual(newMetricQuery, metricQuery)) {
             // TODO: this is a bit hacky, need to refactor
             reset();
             setMetricQuery(newMetricQuery);
+
+            Object.values(dimensions).forEach((field) =>
+                toggleActiveField(fieldId(field), true),
+            );
+            Object.values(metrics).forEach((field) =>
+                toggleActiveField(fieldId(field), false),
+            );
         }
 
         setCustomExplore(sql, result);
@@ -119,10 +140,20 @@ const ExploreCreate: FC<Props> = ({}) => {
         reset,
         setCustomExplore,
         setMetricQuery,
+        setResultsData,
+        toggleActiveField,
         sql,
     ]);
 
     const handleChartBuild = useCallback(() => {
+        if (isValidQuery) {
+            fetchResults();
+            setSectionState([
+                ExplorerSection.VISUALIZATION,
+                ExplorerSection.SQL,
+            ]);
+        }
+
         // TODO: don't like this approach, need to refactor
         setMode(ExploreMode.EDIT);
         history.push(`/projects/${projectUuid}/explore/build`);
@@ -133,7 +164,15 @@ const ExploreCreate: FC<Props> = ({}) => {
             subtitle:
                 "Your fields came from your custom SQL query. To edit them, go to the SQL tab and hit 'edit query'.",
         });
-    }, [setMode, history, projectUuid, showToastSuccess]);
+    }, [
+        setMode,
+        history,
+        projectUuid,
+        showToastSuccess,
+        isValidQuery,
+        fetchResults,
+        setSectionState,
+    ]);
 
     const handleCopyLink = useCallback(() => {
         // base64 encode the sql
@@ -149,6 +188,16 @@ const ExploreCreate: FC<Props> = ({}) => {
         });
     }, [clipboard, projectUuid, sql, showToastSuccess]);
 
+    const fieldsMap = useMemo(() => {
+        return Object.entries(resultsData?.fields ?? {}).reduce<
+            Record<string, Field>
+        >(
+            (acc, [id, field]) =>
+                isField(field) ? { ...acc, [id]: field } : acc,
+            {},
+        );
+    }, [resultsData]);
+
     // TODO: add proper loading state
     if (isCatalogLoading) {
         return null;
@@ -161,7 +210,7 @@ const ExploreCreate: FC<Props> = ({}) => {
                     loading={isLoading}
                     size="xs"
                     leftIcon={<MantineIcon icon={IconPlayerPlay} />}
-                    onClick={handleSubmit}
+                    onClick={handleRunSql}
                 >
                     Run SQL
                 </Button>
@@ -206,9 +255,9 @@ const ExploreCreate: FC<Props> = ({}) => {
                 onToggle={(value) => handleCardExpand('results', value)}
             >
                 <SqlRunnerResultsTable
-                    onSubmit={handleSubmit}
+                    onSubmit={handleRunSql}
                     resultsData={resultsData}
-                    fieldsMap={resultsData?.fields ?? {}}
+                    fieldsMap={fieldsMap}
                     sqlQueryMutation={sqlQueryMutation}
                 />
             </CollapsableCard>

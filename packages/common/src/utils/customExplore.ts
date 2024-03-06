@@ -73,7 +73,7 @@ export const getCustomExploreFromQueryResultsAndSql = (
     queryResults: ApiSqlQueryResults,
 ): Explore => ({
     name: CUSTOM_EXPLORE_ALIAS_NAME,
-    label: 'Untitled explore',
+    label: 'Custom SQL query',
     tags: [],
     baseTable: CUSTOM_EXPLORE_ALIAS_NAME,
     joinedTables: [],

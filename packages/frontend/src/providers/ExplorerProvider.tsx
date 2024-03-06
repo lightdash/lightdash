@@ -9,6 +9,7 @@ import {
     convertFieldRefToFieldId,
     CreateSavedChartVersion,
     CustomDimension,
+    CustomExplore,
     CustomVisConfig,
     deepEqual,
     Dimension,
@@ -85,6 +86,7 @@ export enum ActionType {
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
     TOGGLE_EXPANDED_SECTION,
+    SET_SECTION_STATE,
     ADD_CUSTOM_DIMENSION,
     EDIT_CUSTOM_DIMENSION,
     REMOVE_CUSTOM_DIMENSION,
@@ -104,6 +106,7 @@ type Action =
       }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
+    | { type: ActionType.SET_SECTION_STATE; payload: ExplorerSection[] }
     | {
           type:
               | ActionType.REMOVE_FIELD
@@ -236,11 +239,7 @@ export interface ExplorerReduceState {
     expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
     metricQuery?: MetricQuery;
-    customExplore?: {
-        sql: string;
-        results: ApiSqlQueryResults;
-        explore: Explore;
-    };
+    customExplore?: CustomExplore;
     modals: {
         additionalMetric: {
             isOpen: boolean;
@@ -316,6 +315,7 @@ export interface ExplorerContext {
         setChartConfig: (chartConfig: ChartConfig) => void;
         fetchResults: () => void;
         toggleExpandedSection: (section: ExplorerSection) => void;
+        setSectionState: (sections: ExplorerSection[]) => void;
         addCustomDimension: (customDimension: CustomDimension) => void;
         editCustomDimension: (
             customDimension: CustomDimension,
@@ -516,6 +516,12 @@ function reducer(
                     state.expandedSections,
                     action.payload,
                 ),
+            };
+        }
+        case ActionType.SET_SECTION_STATE: {
+            return {
+                ...state,
+                expandedSections: action.payload,
             };
         }
         case ActionType.REMOVE_FIELD: {
@@ -1329,6 +1335,13 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
         });
     }, []);
 
+    const setSectionState = useCallback((payload: ExplorerSection[]) => {
+        dispatch({
+            type: ActionType.SET_SECTION_STATE,
+            payload,
+        });
+    }, []);
+
     const toggleActiveField = useCallback(
         (fieldId: FieldId, isDimension: boolean) => {
             dispatch({
@@ -1752,7 +1765,7 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const { data: explore, isLoading: isExploreLoading } = useExplore({
         exploreName: unsavedChartVersion.tableName,
-        customExplore: reducerState.customExplore?.explore,
+        customExplore: reducerState.customExplore,
     });
 
     const defaultSort = useDefaultSortField(explore, unsavedChartVersion);
@@ -1825,6 +1838,7 @@ export const ExplorerProvider: FC<React.PropsWithChildren<Props>> = ({
         setChartConfig,
         fetchResults,
         toggleExpandedSection,
+        setSectionState,
         addCustomDimension,
         editCustomDimension,
         removeCustomDimension,
