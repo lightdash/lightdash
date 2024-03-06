@@ -1,3 +1,10 @@
+## [0.1025.5](https://github.com/lightdash/lightdash/compare/0.1025.4...0.1025.5) (2024-03-06)
+
+
+### Bug Fixes
+
+* scheduler worker health endpoints ([#9267](https://github.com/lightdash/lightdash/issues/9267)) ([81364ff](https://github.com/lightdash/lightdash/commit/81364ff808403e8c22e23588e3dbc9d81d35c5b2))
+
 ## [0.1025.4](https://github.com/lightdash/lightdash/compare/0.1025.3...0.1025.4) (2024-03-06)
 
 
