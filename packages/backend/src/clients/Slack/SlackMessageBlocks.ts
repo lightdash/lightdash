@@ -4,7 +4,11 @@ import {
     operatorAction,
     type ThresholdOptions,
 } from '@lightdash/common';
-import { type KnownBlock, type LinkUnfurls, type SectionBlock } from '@slack/bolt';
+import {
+    type KnownBlock,
+    type LinkUnfurls,
+    type SectionBlock,
+} from '@slack/bolt';
 import { type Unfurl } from '../../services/UnfurlService/UnfurlService';
 import { type AttachmentUrl } from '../EmailClient/EmailClient';
 
@@ -199,7 +203,6 @@ export const getChartThresholdAlertBlocks = ({
     name,
     title,
     message,
-    description,
     imageUrl,
     ctaUrl,
     thresholds,

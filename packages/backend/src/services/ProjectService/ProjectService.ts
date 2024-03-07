@@ -1,45 +1,19 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
-    type AdditionalMetric,
     AlreadyProcessingError,
-    type AndFilterGroup,
-    type ApiChartAndResults,
-    type ApiQueryResults,
-    type ApiSqlQueryResults,
-    type CacheMetadata,
-    type CalculateTotalFromQuery,
-    type ChartSummary,
-    type CompiledDimension,
-    type CompiledMetricQuery,
-    type CompiledTableCalculation,
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    type CreateDbtCloudIntegration,
     createDimensionWithGranularity,
-    type CreateJob,
-    type CreateProject,
-    type CreateProjectMember,
-    type CreateWarehouseCredentials,
     CustomFormatType,
-    type DashboardAvailableFilters,
-    type DashboardBasicDetails,
-    type DashboardFilters,
-    type DateGranularity,
-    type DbtExposure,
     DbtExposureType,
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
     DimensionType,
-    type Explore,
-    type ExploreError,
     FeatureFlags,
     fieldId as getFieldId,
-    type FilterableField,
-    type FilterGroup,
-    type FilterGroupItem,
     FilterOperator,
     findFieldByIdInExplore,
     ForbiddenError,
@@ -56,45 +30,71 @@ import {
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
-    type ItemsMap,
-    type Job,
     JobStatusType,
     JobStepType,
     JobType,
-    type MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
-    type MostPopularAndRecentlyUpdated,
     NotExistsError,
     NotFoundError,
     ParameterError,
-    type Project,
-    type ProjectCatalog,
-    type ProjectGroupAccess,
-    type ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
     renderTableCalculationFilterRuleSql,
     replaceDimensionInExplore,
+    snakeCaseName,
+    TableSelectionType,
+    UnexpectedServerError,
+    WarehouseTypes,
+    type AdditionalMetric,
+    type AndFilterGroup,
+    type ApiChartAndResults,
+    type ApiQueryResults,
+    type ApiSqlQueryResults,
+    type CacheMetadata,
+    type CalculateTotalFromQuery,
+    type ChartSummary,
+    type CompiledDimension,
+    type CompiledMetricQuery,
+    type CompiledTableCalculation,
+    type CreateDbtCloudIntegration,
+    type CreateJob,
+    type CreateProject,
+    type CreateProjectMember,
+    type CreateWarehouseCredentials,
+    type DashboardAvailableFilters,
+    type DashboardBasicDetails,
+    type DashboardFilters,
+    type DateGranularity,
+    type DbtExposure,
+    type Explore,
+    type ExploreError,
+    type FilterableField,
+    type FilterGroup,
+    type FilterGroupItem,
+    type ItemsMap,
+    type Job,
+    type MetricQuery,
+    type MostPopularAndRecentlyUpdated,
+    type Project,
+    type ProjectCatalog,
+    type ProjectGroupAccess,
+    type ProjectMemberProfile,
     type RequestMethod,
     type ResultRow,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SessionUser,
-    snakeCaseName,
     type SortField,
     type SpaceQuery,
     type SpaceSummary,
     type SummaryExplore,
     type TableCalculation,
     type TablesConfiguration,
-    TableSelectionType,
-    UnexpectedServerError,
     type UpdateProject,
     type UpdateProjectMember,
     type UserAttributeValueMap,
     type UserWarehouseCredentials,
     type WarehouseClient,
-    WarehouseTypes,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
@@ -106,8 +106,8 @@ import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import {
-    type LightdashAnalytics,
     QueryExecutionContext,
+    type LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import { type S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { schedulerClient } from '../../clients/clients';
@@ -739,7 +739,7 @@ export class ProjectService {
 
     private static async testProjectAdapter(
         data: UpdateProject,
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        _user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>, // Unused
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -793,7 +793,7 @@ export class ProjectService {
 
     private async buildAdapter(
         projectUuid: string,
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        _user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>, // Unused
     ): Promise<{
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         adapter: ProjectAdapter;
@@ -1622,7 +1622,7 @@ export class ProjectService {
                 ) {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                        .catch(() => undefined); // ignore since error is tracked in s3Client
 
                     if (
                         cacheEntryMetadata?.LastModified &&
@@ -1707,7 +1707,7 @@ export class ProjectService {
                     // fire and forget
                     this.s3CacheClient
                         .uploadResults(queryHash, buffer, queryTags)
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                        .catch(() => undefined); // ignore since error is tracked in s3Client
                 }
 
                 return {

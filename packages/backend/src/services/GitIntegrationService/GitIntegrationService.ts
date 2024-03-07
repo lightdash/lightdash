@@ -1,19 +1,19 @@
 import { subject } from '@casl/ability';
 import {
-    type AdditionalMetric,
-    type DbtModelNode,
     DbtProjectType,
-    type DimensionType,
     findAndUpdateModelNodes,
     ForbiddenError,
-    type GitIntegrationConfiguration,
     isUserWithOrg,
     lightdashDbtYamlSchema,
     ParseError,
+    UnexpectedServerError,
+    type AdditionalMetric,
+    type DbtModelNode,
+    type DimensionType,
+    type GitIntegrationConfiguration,
     type PullRequestCreated,
     type SavedChart,
     type SessionUser,
-    UnexpectedServerError,
 } from '@lightdash/common';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
@@ -79,7 +79,7 @@ export class GitIntegrationService {
 
     async getConfiguration(
         user: SessionUser,
-        projectUuid: string,
+        _projectUuid: string, // Currently unused
     ): Promise<GitIntegrationConfiguration> {
         if (!isUserWithOrg(user)) {
             throw new UnexpectedServerError(
@@ -134,13 +134,14 @@ export class GitIntegrationService {
         });
         // create branch in git
         const branchName = `add-custom-metrics-${Date.now()}`;
-        const newBranch = await createBranch({
+        await createBranch({
             branchName,
             owner,
             repo,
             sha: commitSha,
             token,
         });
+
         return branchName;
     }
 
@@ -195,7 +196,6 @@ Affected charts:
     }
 
     async updateFileForCustomMetrics({
-        user,
         owner,
         repo,
         projectUuid,
@@ -270,7 +270,7 @@ Affected charts:
                 },
             );
 
-            const fileUpdated = await updateFile({
+            await updateFile({
                 owner,
                 repo,
                 fileName,
@@ -280,6 +280,7 @@ Affected charts:
                 token,
                 message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
             });
+
             return acc;
         }, Promise.resolve());
     }

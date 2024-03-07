@@ -330,6 +330,8 @@ export default class App {
     }
 
     private initSlack() {
+        // slackService is unused due to relying on (potential) side-effects
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const slackService = new SlackService({
             slackAuthenticationModel,
             lightdashConfig: this.lightdashConfig,

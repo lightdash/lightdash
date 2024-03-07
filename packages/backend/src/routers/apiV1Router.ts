@@ -22,7 +22,7 @@ import { userRouter } from './userRouter';
 
 export const apiV1Router = express.Router();
 
-apiV1Router.get('/livez', async (req, res, next) => {
+apiV1Router.get('/livez', async (req, res) => {
     res.json({
         status: 'ok',
     });

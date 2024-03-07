@@ -1,15 +1,16 @@
-import { type ApiErrorPayload, type ApiSshKeyPairResponse } from '@lightdash/common';
+import {
+    type ApiErrorPayload,
+    type ApiSshKeyPairResponse,
+} from '@lightdash/common';
 import {
     Middlewares,
     OperationId,
     Post,
-    Request,
     Response,
     Route,
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import type express from 'express';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 
@@ -21,9 +22,7 @@ export class SshController extends BaseController {
     @SuccessResponse('201', 'Success')
     @Post('key-pairs')
     @OperationId('createSshKeyPair')
-    async createSshKeyPair(
-        @Request() req: express.Request,
-    ): Promise<ApiSshKeyPairResponse> {
+    async createSshKeyPair(): Promise<ApiSshKeyPairResponse> {
         const results = await this.services.getSshKeyPairService().create();
         this.setStatus(201);
         return {

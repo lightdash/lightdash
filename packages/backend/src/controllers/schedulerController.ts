@@ -198,7 +198,6 @@ export class SchedulerController extends BaseController {
     @OperationId('getSchedulerJobStatus')
     async getSchedulerStatus(
         @Path() jobId: string,
-        @Request() req: express.Request,
     ): Promise<ApiJobStatusResponse> {
         this.setStatus(200);
         const { status, details } = await this.services

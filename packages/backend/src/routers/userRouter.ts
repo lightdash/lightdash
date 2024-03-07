@@ -80,7 +80,7 @@ userRouter.post('/password/reset', unauthorisedInDemo, async (req, res, next) =>
         .catch(next),
 );
 
-userRouter.get('/identities', isAuthenticated, async (req, res, next) => {
+userRouter.get('/identities', isAuthenticated, async (req, res) => {
     const identities = await req.services
         .getUserService()
         .getLinkedIdentities(req.user!);

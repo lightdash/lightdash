@@ -30,6 +30,8 @@ jest.mock('../services', () => ({
 }));
 
 describe('Csv service', () => {
+    // Ignored - unclear if CsvService instantiation here is important for side-effects
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const csvService = new CsvService({
         lightdashConfig,
         analytics: analyticsMock,

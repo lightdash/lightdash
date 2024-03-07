@@ -1,7 +1,7 @@
 import {
+    DbtProjectType,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
-    DbtProjectType,
     type SupportedDbtVersions,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
@@ -118,7 +118,6 @@ export const projectAdapterFromConfig = async (
                 useDbtLs,
             });
         default:
-            const never: never = config;
             throw new Error(`Adapter not implemented for type: ${configType}`);
     }
 };

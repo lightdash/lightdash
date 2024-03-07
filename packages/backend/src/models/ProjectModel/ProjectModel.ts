@@ -1,5 +1,10 @@
 import {
     AlreadyExistsError,
+    isExploreError,
+    NotExistsError,
+    sensitiveCredentialsFieldNames,
+    sensitiveDbtCredentialsFieldNames,
+    UnexpectedServerError,
     type CreateDbtCloudIntegration,
     type CreateProject,
     type CreateWarehouseCredentials,
@@ -7,8 +12,6 @@ import {
     type DbtProjectConfig,
     type Explore,
     type ExploreError,
-    isExploreError,
-    NotExistsError,
     type OrganizationProject,
     type PreviewContentMapping,
     type Project,
@@ -17,18 +20,15 @@ import {
     type ProjectMemberRole,
     type ProjectSummary,
     type ProjectType,
-    sensitiveCredentialsFieldNames,
-    sensitiveDbtCredentialsFieldNames,
     type SupportedDbtVersions,
     type TablesConfiguration,
-    UnexpectedServerError,
     type UpdateProject,
     type WarehouseCredentials,
     type WarehouseTypes,
 } from '@lightdash/common';
 import {
-    type WarehouseCatalog,
     warehouseClientFromCredentials,
+    type WarehouseCatalog,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import uniqWith from 'lodash/uniqWith';
@@ -40,8 +40,8 @@ import {
 } from '../../database/entities/dashboards';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import {
-    type DbOrganization,
     OrganizationTableName,
+    type DbOrganization,
 } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
@@ -50,10 +50,10 @@ import {
     CachedExploresTableName,
     CachedExploreTableName,
     CachedWarehouseTableName,
+    ProjectTableName,
     type DbCachedExplores,
     type DbCachedWarehouse,
     type DbProject,
-    ProjectTableName,
 } from '../../database/entities/projects';
 import { type DbSavedChart } from '../../database/entities/savedCharts';
 import { type DbUser } from '../../database/entities/users';
@@ -1120,17 +1120,16 @@ export class ProjectModel {
                 spaceIds,
             );
 
-            const newSpaceShare =
-                spaceShares.length > 0
-                    ? await trx('space_share')
-                          .insert(
-                              spaceShares.map((d) => ({
-                                  ...d,
-                                  space_id: getNewSpace(d.space_id),
-                              })),
-                          )
-                          .returning('*')
-                    : [];
+            if (spaceShares.length > 0) {
+                await trx('space_share')
+                    .insert(
+                        spaceShares.map((d) => ({
+                            ...d,
+                            space_id: getNewSpace(d.space_id),
+                        })),
+                    )
+                    .returning('*');
+            }
 
             const charts = await trx('saved_queries')
                 .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')

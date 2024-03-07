@@ -1,60 +1,56 @@
 import {
     assertUnreachable,
+    DashboardTileTypes,
+    NotFoundError,
+    UnexpectedServerError,
     type CreateDashboard,
     type Dashboard,
     type DashboardBasicDetails,
     type DashboardChartTile,
     type DashboardLoomTile,
     type DashboardMarkdownTile,
-    DashboardTileTypes,
     type DashboardUnversionedFields,
     type DashboardVersionedFields,
     type LightdashUser,
-    NotFoundError,
     type SavedChart,
     type SessionUser,
-    UnexpectedServerError,
     type UpdateMultipleDashboards,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
 
-
 import {
     DashboardsTableName,
-    type DashboardTable,
-    type DashboardTileChartTable,
     DashboardTileChartTableName,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
-    type DashboardVersionTable,
     DashboardViewsTableName,
+    type DashboardTable,
+    type DashboardTileChartTable,
+    type DashboardVersionTable,
 } from '../../database/entities/dashboards';
 import {
-    type OrganizationTable,
     OrganizationTableName,
+    type OrganizationTable,
 } from '../../database/entities/organizations';
 import {
-    type PinnedDashboardTable,
     PinnedDashboardTableName,
-    type PinnedListTable,
     PinnedListTableName,
+    type PinnedDashboardTable,
+    type PinnedListTable,
 } from '../../database/entities/pinnedList';
 import {
-    type ProjectTable,
     ProjectTableName,
+    type ProjectTable,
 } from '../../database/entities/projects';
 import {
     SavedChartsTableName,
     type SavedChartTable,
 } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
-import {
-    type UserTable,
-    UserTableName,
-} from '../../database/entities/users';
+import { UserTableName, type UserTable } from '../../database/entities/users';
 import { type DbValidationTable } from '../../database/entities/validation';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
@@ -182,7 +178,6 @@ export class DashboardModel {
                     });
                     break;
                 default: {
-                    const never: never = tile;
                     throw new UnexpectedServerError(
                         `Dashboard tile type "${type}" not recognised`,
                     );
@@ -675,7 +670,7 @@ export class DashboardModel {
         spaceUuid: string,
         dashboard: CreateDashboard,
         user: Pick<SessionUser, 'userUuid'>,
-        projectUuid: string,
+        _projectUuid: string, // Currently unused
     ): Promise<Dashboard> {
         const dashboardId = await this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
@@ -768,7 +763,7 @@ export class DashboardModel {
         dashboardUuid: string,
         version: DashboardVersionedFields,
         user: Pick<SessionUser, 'userUuid'>,
-        projectUuid: string,
+        _projectUuid: string, // Currently unused.
     ): Promise<Dashboard> {
         const [dashboard] = await this.database(DashboardsTableName)
             .select(['dashboard_id'])

@@ -1,4 +1,8 @@
-import { type DbtPackages, type Explore, type ExploreError } from '@lightdash/common';
+import {
+    type DbtPackages,
+    type Explore,
+    type ExploreError,
+} from '@lightdash/common';
 import { type WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
 import { type ProjectAdapter } from '../types';
@@ -26,7 +30,7 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
 
     // eslint-disable-next-line class-methods-use-this
     public async compileAllExplores(
-        loadSources: boolean = false,
+        _loadSources: boolean = false, // Unused
     ): Promise<(Explore | ExploreError)[]> {
         throw new Error('Cannot compile explores with CLI-created projects');
     }

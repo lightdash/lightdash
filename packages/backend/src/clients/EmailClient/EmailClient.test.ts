@@ -32,6 +32,8 @@ describe('EmailClient', () => {
             expect(client.transporter).toBeUndefined();
         });
         test('should create transporter when there is smtp configs', async () => {
+            // Relies on side-effects from instancing EmailClient
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const client = new EmailClient({
                 lightdashConfig: lightdashConfigWithBasicSMTP,
             });
@@ -41,6 +43,8 @@ describe('EmailClient', () => {
             );
         });
         test('should create transported with secure connection when using port 465', async () => {
+            // Relies on side-effects from instancing EmailClient
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const client = new EmailClient({
                 lightdashConfig: lightdashConfigWithSecurePortSMTP,
             });
@@ -50,6 +54,8 @@ describe('EmailClient', () => {
             );
         });
         test('should create transported with Oauth2', async () => {
+            // Relies on side-effects from instancing EmailClient
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const client = new EmailClient({
                 lightdashConfig: lightdashConfigWithOauth2SMTP,
             });

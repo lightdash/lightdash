@@ -92,7 +92,7 @@ export const expressWinstonMiddleware: express.RequestHandler =
         colorize: false,
         meta: true,
         metaField: null, // on root of log
-        dynamicMeta: (req, res) => ({
+        dynamicMeta: (req) => ({
             userUuid: req.user?.userUuid,
             organizationUuid: req.user?.organizationUuid,
         }),

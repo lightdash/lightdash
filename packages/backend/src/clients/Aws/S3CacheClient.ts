@@ -3,8 +3,8 @@ import {
     HeadObjectCommand,
     NotFound,
     PutObjectCommand,
-    type PutObjectCommandInput,
     S3,
+    type PutObjectCommandInput,
 } from '@aws-sdk/client-s3';
 import * as Sentry from '@sentry/node';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -78,7 +78,7 @@ export class S3CacheClient {
                     ContentType: 'application/json',
                     Metadata: metadata,
                 });
-                const response = await this.s3.send(command);
+                await this.s3.send(command);
             } catch (error) {
                 Logger.error(`Failed to upload results to s3. ${error}`);
                 Sentry.captureException(error);
@@ -117,7 +117,7 @@ export class S3CacheClient {
     }
 
     async getResults(key: string) {
-        return wrapOtelSpan('s3.getResults', { key }, async (span) => {
+        return wrapOtelSpan('s3.getResults', { key }, async () => {
             if (
                 this.configuration.bucket === undefined ||
                 this.s3 === undefined

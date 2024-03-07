@@ -42,7 +42,7 @@ if (
     process.env.NODE_ENV === 'development' ||
     process.env.IS_PULL_REQUEST === 'true'
 ) {
-    headlessBrowserRouter.get('/callback/:flag', async (req, res, next) => {
+    headlessBrowserRouter.get('/callback/:flag', async (req, res) => {
         // Returns json with the same argument specified in flag
         // Wait a random number of seconds between 0 an 1, to ensure the response can overlap with other requests.
         const delay = Math.floor(Math.random() * 1000);

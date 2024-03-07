@@ -1,24 +1,24 @@
 import { subject } from '@casl/ability';
 import {
-    type AllowedEmailDomains,
-    type CreateGroup,
-    type CreateOrganization,
     ForbiddenError,
-    type Group,
-    type GroupWithMembers,
     isUserWithOrg,
     LightdashMode,
     NotExistsError,
+    OrganizationMemberRole,
+    ParameterError,
+    validateOrganizationEmailDomains,
+    type AllowedEmailDomains,
+    type CreateGroup,
+    type CreateOrganization,
+    type Group,
+    type GroupWithMembers,
     type OnbordingRecord,
     type Organization,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileUpdate,
-    OrganizationMemberRole,
     type OrganizationProject,
-    ParameterError,
     type SessionUser,
     type UpdateOrganization,
-    validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { type UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -110,7 +110,7 @@ export class OrganizationService {
     }
 
     async updateOrg(
-        { organizationUuid, organizationName, userUuid, ability }: SessionUser,
+        { organizationUuid, userUuid, ability }: SessionUser,
         data: UpdateOrganization,
     ): Promise<void> {
         if (

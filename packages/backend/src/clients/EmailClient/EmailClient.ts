@@ -1,10 +1,10 @@
 import {
+    ProjectMemberRole,
+    SmptError,
     type CreateProjectMember,
     type InviteLink,
     type PasswordResetLink,
-    ProjectMemberRole,
     type SessionUser,
-    SmptError,
 } from '@lightdash/common';
 import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
@@ -165,7 +165,8 @@ export default class EmailClient {
                 roleAction = 'manage';
                 break;
             default:
-                const nope: never = projectMember.role;
+                // NOOP - Intentionally left blank
+                break;
         }
         return this.sendEmail({
             to: projectMember.email,

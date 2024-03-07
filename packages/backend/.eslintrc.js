@@ -36,4 +36,13 @@ module.exports = {
             },
         ],
     },
+    overrides: [
+        {
+            // Ignore unused vars in auto-generated migrations:
+            files: ["src/database/migrations/*.ts"],
+            rules: {
+                '@typescript-eslint/no-unused-vars': "off"
+            }
+        }
+    ]
 };

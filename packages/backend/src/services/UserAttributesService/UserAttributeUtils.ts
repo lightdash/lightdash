@@ -82,7 +82,7 @@ export const getFilteredExplore = (
                     ...table,
                     metrics: Object.fromEntries(
                         Object.entries(table.metrics).filter(
-                            ([metricName, metric]) => {
+                            ([_metricName, metric]) => {
                                 const canAccessMetric = hasUserAttributes(
                                     metric.requiredAttributes,
                                     userAttributes,
@@ -102,7 +102,7 @@ export const getFilteredExplore = (
                     ),
                     dimensions: Object.fromEntries(
                         Object.entries(table.dimensions).filter(
-                            ([dimensionName, dimension]) => {
+                            ([_dimensionName, dimension]) => {
                                 const canAccessAllTableReferences =
                                     !dimension.tablesReferences ||
                                     dimension.tablesReferences.every(
