@@ -12,6 +12,7 @@ type DbtRunHandlerOptions = DbtCompileOptions & {
 
 export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     command: any,
 ) => {
     GlobalState.setVerbose(options.verbose);
