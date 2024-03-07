@@ -460,7 +460,12 @@ const useCartesianChartConfig = ({
             tableCalculations,
             customDimensions,
         ];
-    }, [resultsData, sortedDimensions]);
+    }, [
+        resultsData?.metricQuery.customDimensions,
+        resultsData?.metricQuery.metrics,
+        resultsData?.metricQuery.tableCalculations,
+        sortedDimensions,
+    ]);
 
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
