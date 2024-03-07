@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { DashboardTilesTableName } from '../entities/dashboards';
 
 export async function up(knex: Knex): Promise<void> {

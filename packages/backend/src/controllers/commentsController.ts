@@ -1,8 +1,8 @@
-import { ApiErrorPayload, Comment } from '@lightdash/common';
+import { type ApiErrorPayload, type Comment } from '@lightdash/common';
 import {
-    ApiCreateComment,
-    ApiGetComments,
-    ApiResolveComment,
+    type ApiCreateComment,
+    type ApiGetComments,
+    type ApiResolveComment,
 } from '@lightdash/common/src/types/api/comments';
 import {
     Body,
@@ -19,7 +19,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 

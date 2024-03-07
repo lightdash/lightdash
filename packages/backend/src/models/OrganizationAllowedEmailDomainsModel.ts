@@ -1,14 +1,14 @@
 import {
-    AllowedEmailDomains,
+    type AllowedEmailDomains,
     isAllowedEmailDomainProjectRole,
     isAllowedEmailDomainsRole,
     OrganizationMemberRole,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
-    DbOrganizationAllowedEmailDomainProjects,
-    DbOrganizationAllowedEmailDomains,
+    type DbOrganizationAllowedEmailDomainProjects,
+    type DbOrganizationAllowedEmailDomains,
     OrganizationAllowedEmailDomainProjectsTableName,
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';

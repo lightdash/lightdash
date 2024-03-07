@@ -1,11 +1,11 @@
 import { createTerminus } from '@godaddy/terminus';
-import { NodeSDK } from '@opentelemetry/sdk-node';
+import { type NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import * as clients from './clients/clients';
-import { LightdashConfig } from './config/parseConfig';
+import { type LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { registerWorkerMetrics } from './schedulerMetrics';

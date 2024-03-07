@@ -1,23 +1,23 @@
 import {
-    ChartKind,
+    type ChartKind,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToSpaceRole,
     getHighestProjectRole,
-    GroupRole,
+    type GroupRole,
     NotFoundError,
-    OrganizationMemberRole,
-    OrganizationRole,
-    ProjectMemberRole,
-    ProjectRole,
-    Space,
-    SpaceDashboard,
-    SpaceQuery,
-    SpaceShare,
-    SpaceSummary,
-    UpdateSpace,
+    type OrganizationMemberRole,
+    type OrganizationRole,
+    type ProjectMemberRole,
+    type ProjectRole,
+    type Space,
+    type SpaceDashboard,
+    type SpaceQuery,
+    type SpaceShare,
+    type SpaceSummary,
+    type UpdateSpace,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
     AnalyticsChartViewsTableName,
     AnalyticsDashboardViewsTableName,
@@ -30,12 +30,12 @@ import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
-    DbOrganization,
+    type DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
 import {
-    DbPinnedList,
-    DBPinnedSpace,
+    type DbPinnedList,
+    type DBPinnedSpace,
     PinnedChartTableName,
     PinnedDashboardTableName,
     PinnedListTableName,
@@ -43,15 +43,15 @@ import {
 } from '../database/entities/pinnedList';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
-import { DbProject, ProjectTableName } from '../database/entities/projects';
+import { type DbProject, ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import {
-    DbSpace,
+    type DbSpace,
     SpaceShareTableName,
     SpaceTableName,
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
-import { DbValidationTable } from '../database/entities/validation';
+import { type DbValidationTable } from '../database/entities/validation';
 import { wrapOtelSpan } from '../utils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 

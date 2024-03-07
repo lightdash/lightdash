@@ -1,4 +1,4 @@
-import { FieldType, Format, ItemsMap, MetricQuery } from '@lightdash/common';
+import { FieldType, Format, type ItemsMap, type MetricQuery } from '@lightdash/common';
 
 export const metricQuery: MetricQuery = {
     exploreName: 'test',

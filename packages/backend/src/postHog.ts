@@ -1,4 +1,4 @@
-import { FeatureFlags, SessionUser } from '@lightdash/common';
+import { type FeatureFlags, type SessionUser } from '@lightdash/common';
 import { PostHog } from 'posthog-node';
 import { lightdashConfig } from './config/lightdashConfig';
 

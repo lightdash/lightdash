@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const COMPILE_JOB_STEPS_TABLE_NAME = 'job_steps';
 const COMPILE_JOB_TABLE_NAME = 'jobs';

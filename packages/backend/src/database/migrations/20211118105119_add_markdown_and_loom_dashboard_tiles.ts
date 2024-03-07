@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const TABLE_NAMES = {
     dashboardTileTypes: 'dashboard_tile_types',

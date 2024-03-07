@@ -1,5 +1,5 @@
-import { CompiledField, CompiledTable } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type CompiledField, type CompiledTable } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { compact, escapeRegExp } from 'lodash';
 
 export function getFullTextSearchRankCalcSql(

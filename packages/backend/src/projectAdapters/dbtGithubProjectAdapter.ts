@@ -1,11 +1,11 @@
 import {
-    CreateWarehouseCredentials,
-    DbtProjectEnvironmentVariable,
-    SupportedDbtVersions,
+    type CreateWarehouseCredentials,
+    type DbtProjectEnvironmentVariable,
+    type SupportedDbtVersions,
     validateGithubToken,
 } from '@lightdash/common';
-import { WarehouseClient } from '@lightdash/warehouses';
-import { CachedWarehouse } from '../types';
+import { type WarehouseClient } from '@lightdash/warehouses';
+import { type CachedWarehouse } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
 const DEFAULT_GITHUB_HOST_DOMAIN = 'github.com';

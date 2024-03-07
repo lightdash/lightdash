@@ -1,5 +1,5 @@
-import { SshKeyPair } from '@lightdash/common';
-import { SshKeyPairModel } from '../models/SshKeyPairModel';
+import { type SshKeyPair } from '@lightdash/common';
+import { type SshKeyPairModel } from '../models/SshKeyPairModel';
 
 type SshKeyPairServiceArguments = {
     sshKeyPairModel: SshKeyPairModel;

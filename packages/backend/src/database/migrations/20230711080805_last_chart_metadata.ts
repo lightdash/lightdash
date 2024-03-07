@@ -1,5 +1,5 @@
 import { ChartKind } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const chartTable = 'saved_queries';
 export async function up(knex: Knex): Promise<void> {

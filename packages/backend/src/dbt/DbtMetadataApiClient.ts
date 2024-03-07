@@ -1,12 +1,12 @@
 import {
-    DbtModelNode,
-    DbtNode,
+    type DbtModelNode,
+    type DbtNode,
     isSupportedDbtAdapterType,
     ParseError,
-    SupportedDbtAdapter,
+    type SupportedDbtAdapter,
 } from '@lightdash/common';
 import { gql, GraphQLClient } from 'graphql-request';
-import { DbtClient } from '../types';
+import { type DbtClient } from '../types';
 
 const quoteChars: Record<SupportedDbtAdapter, string> = {
     bigquery: '`',

@@ -1,8 +1,8 @@
-import { SshKeyPair } from '@lightdash/common';
+import { type SshKeyPair } from '@lightdash/common';
 import { generateKeyPair } from 'crypto';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { parseKey } from 'sshpk';
-import { EncryptionService } from '../services/EncryptionService/EncryptionService';
+import { type EncryptionService } from '../services/EncryptionService/EncryptionService';
 
 type SshKeyPairModelArguments = {
     encryptionService: EncryptionService;

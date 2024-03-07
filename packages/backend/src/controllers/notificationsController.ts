@@ -1,9 +1,9 @@
 import {
-    ApiErrorPayload,
-    ApiGetNotifications,
-    ApiNotificationResourceType,
-    ApiNotificationUpdateParams,
-    ApiSuccessEmpty,
+    type ApiErrorPayload,
+    type ApiGetNotifications,
+    type ApiNotificationResourceType,
+    type ApiNotificationUpdateParams,
+    type ApiSuccessEmpty,
 } from '@lightdash/common';
 import {
     Body,
@@ -19,7 +19,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 

@@ -1,17 +1,17 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
-    SessionUser,
-    UploadMetricGsheet,
-    UploadMetricGsheetPayload,
+    type SessionUser,
+    type UploadMetricGsheet,
+    type UploadMetricGsheetPayload,
 } from '@lightdash/common';
 
 import { schedulerClient } from '../../clients/clients';
-import { LightdashConfig } from '../../config/parseConfig';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
-import { UserModel } from '../../models/UserModel';
-import { ProjectService } from '../ProjectService/ProjectService';
+import { type LightdashConfig } from '../../config/parseConfig';
+import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
+import { type UserModel } from '../../models/UserModel';
+import { type ProjectService } from '../ProjectService/ProjectService';
 
 type GdriveServiceArguments = {
     lightdashConfig: LightdashConfig;

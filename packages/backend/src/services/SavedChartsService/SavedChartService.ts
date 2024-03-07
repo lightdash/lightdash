@@ -1,44 +1,44 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    ChartHistory,
-    ChartSummary,
+    type ChartHistory,
+    type ChartSummary,
     ChartType,
-    ChartVersion,
+    type ChartVersion,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    CreateSavedChart,
-    CreateSavedChartVersion,
-    CreateSchedulerAndTargetsWithoutIds,
+    type CreateSavedChart,
+    type CreateSavedChartVersion,
+    type CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isUserWithOrg,
-    SavedChart,
-    SchedulerAndTargets,
+    type SavedChart,
+    type SchedulerAndTargets,
     SchedulerFormat,
-    SessionUser,
-    UpdatedByUser,
-    UpdateMultipleSavedChart,
-    UpdateSavedChart,
-    ViewStatistics,
+    type SessionUser,
+    type UpdatedByUser,
+    type UpdateMultipleSavedChart,
+    type UpdateSavedChart,
+    type ViewStatistics,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
-    ConditionalFormattingRuleSavedEvent,
-    CreateSavedChartVersionEvent,
-    LightdashAnalytics,
-    SchedulerUpsertEvent,
+    type ConditionalFormattingRuleSavedEvent,
+    type CreateSavedChartVersionEvent,
+    type LightdashAnalytics,
+    type SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
-import { AnalyticsModel } from '../../models/AnalyticsModel';
-import { PinnedListModel } from '../../models/PinnedListModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
+import { type AnalyticsModel } from '../../models/AnalyticsModel';
+import { type PinnedListModel } from '../../models/PinnedListModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
-import { SpaceModel } from '../../models/SpaceModel';
+import { type SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type SavedChartServiceArguments = {

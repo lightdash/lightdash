@@ -1,9 +1,9 @@
 import {
-    CreateWarehouseCredentials,
-    DbtProjectEnvironmentVariable,
-    SupportedDbtVersions,
+    type CreateWarehouseCredentials,
+    type DbtProjectEnvironmentVariable,
+    type SupportedDbtVersions,
 } from '@lightdash/common';
-import { WarehouseClient } from '@lightdash/warehouses';
+import { type WarehouseClient } from '@lightdash/warehouses';
 import fs, { writeFileSync } from 'fs';
 import * as fspromises from 'fs/promises';
 import * as path from 'path';
@@ -13,7 +13,7 @@ import {
     profileFromCredentials,
 } from '../dbt/profiles';
 import Logger from '../logging/logger';
-import { CachedWarehouse } from '../types';
+import { type CachedWarehouse } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 
 type DbtLocalCredentialsProjectAdapterArgs = {

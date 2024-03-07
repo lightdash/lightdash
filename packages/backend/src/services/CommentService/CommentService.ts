@@ -1,17 +1,17 @@
 import { subject } from '@casl/ability';
 import {
-    Comment,
+    type Comment,
     ForbiddenError,
-    SessionUser,
-    SpaceSummary,
+    type SessionUser,
+    type SpaceSummary,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { CommentModel } from '../../models/CommentModel/CommentModel';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
-import { SpaceModel } from '../../models/SpaceModel';
-import { UserModel } from '../../models/UserModel';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type CommentModel } from '../../models/CommentModel/CommentModel';
+import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
+import { type SpaceModel } from '../../models/SpaceModel';
+import { type UserModel } from '../../models/UserModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type CommentServiceArguments = {

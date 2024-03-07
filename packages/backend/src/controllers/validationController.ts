@@ -1,8 +1,8 @@
 import {
-    ApiErrorPayload,
-    ApiJobScheduledResponse,
-    ApiValidateResponse,
-    ApiValidationDismissResponse,
+    type ApiErrorPayload,
+    type ApiJobScheduledResponse,
+    type ApiValidateResponse,
+    type ApiValidationDismissResponse,
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
@@ -21,7 +21,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 

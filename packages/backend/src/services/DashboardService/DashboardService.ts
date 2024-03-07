@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
-    CreateDashboard,
-    CreateSchedulerAndTargetsWithoutIds,
-    Dashboard,
-    DashboardBasicDetails,
+    type CreateDashboard,
+    type CreateSchedulerAndTargetsWithoutIds,
+    type Dashboard,
+    type DashboardBasicDetails,
     DashboardTileTypes,
     ForbiddenError,
     hasChartsInDashboard,
@@ -13,29 +13,29 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
-    SchedulerAndTargets,
+    type SchedulerAndTargets,
     SchedulerFormat,
-    SessionUser,
-    SpaceSummary,
-    UpdateDashboard,
-    UpdateMultipleDashboards,
+    type SessionUser,
+    type SpaceSummary,
+    type UpdateDashboard,
+    type UpdateMultipleDashboards,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
 import { v4 as uuidv4 } from 'uuid';
 import {
-    CreateDashboardOrVersionEvent,
-    LightdashAnalytics,
-    SchedulerDashboardUpsertEvent,
+    type CreateDashboardOrVersionEvent,
+    type LightdashAnalytics,
+    type SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
-import { AnalyticsModel } from '../../models/AnalyticsModel';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { PinnedListModel } from '../../models/PinnedListModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
+import { type AnalyticsModel } from '../../models/AnalyticsModel';
+import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type PinnedListModel } from '../../models/PinnedListModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
-import { SpaceModel } from '../../models/SpaceModel';
+import { type SpaceModel } from '../../models/SpaceModel';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 

@@ -1,18 +1,18 @@
 import {
     NotFoundError,
     UnexpectedServerError,
-    UpsertUserWarehouseCredentials,
-    UserWarehouseCredentials,
-    UserWarehouseCredentialsWithSecrets,
+    type UpsertUserWarehouseCredentials,
+    type UserWarehouseCredentials,
+    type UserWarehouseCredentialsWithSecrets,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
-    DbUserWarehouseCredentials,
+    type DbUserWarehouseCredentials,
     ProjectUserWarehouseCredentialPreferenceTableName,
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
-import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { type EncryptionService } from '../../services/EncryptionService/EncryptionService';
 
 type UserWarehouseCredentialsModelArguments = {
     database: Knex;

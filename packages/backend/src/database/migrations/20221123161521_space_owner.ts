@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const SPACE_TABLE_NAME = 'spaces';
 const CREATED_BY_COLUMN_NAME = 'created_by_user_id';

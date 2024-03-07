@@ -4,7 +4,7 @@ import {
     pbkdf2Sync,
     randomBytes,
 } from 'crypto';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 
 type EncryptionServiceArguments = {
     lightdashConfig: Pick<LightdashConfig, 'lightdashSecret'>;

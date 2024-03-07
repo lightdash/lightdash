@@ -1,18 +1,18 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
-    Group,
-    GroupMember,
-    GroupMembership,
-    GroupWithMembers,
-    ProjectGroupAccess,
-    SessionUser,
-    UpdateGroupWithMembers,
+    type Group,
+    type GroupMember,
+    type GroupMembership,
+    type GroupWithMembers,
+    type ProjectGroupAccess,
+    type SessionUser,
+    type UpdateGroupWithMembers,
 } from '@lightdash/common';
-import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
-import { GroupsModel } from '../models/GroupsModel';
-import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { type LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { type UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
+import { type GroupsModel } from '../models/GroupsModel';
+import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 
 type GroupServiceArguments = {
     analytics: LightdashAnalytics;

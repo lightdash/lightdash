@@ -1,11 +1,11 @@
 import {
-    ApiCalculateTotalResponse,
-    ApiErrorPayload,
-    ApiGetChartHistoryResponse,
-    ApiGetChartVersionResponse,
-    ApiSuccessEmpty,
-    DateGranularity,
-    SortField,
+    type ApiCalculateTotalResponse,
+    type ApiErrorPayload,
+    type ApiGetChartHistoryResponse,
+    type ApiGetChartVersionResponse,
+    type ApiSuccessEmpty,
+    type DateGranularity,
+    type SortField,
 } from '@lightdash/common';
 import {
     Body,
@@ -20,14 +20,14 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
-import { ApiRunQueryResponse } from './runQueryController';
+import { type ApiRunQueryResponse } from './runQueryController';
 
 @Route('/api/v1/saved/{chartUuid}')
 @Response<ApiErrorPayload>('default', 'Error')

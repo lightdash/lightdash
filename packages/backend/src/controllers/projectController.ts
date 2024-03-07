@@ -1,19 +1,19 @@
 import {
-    ApiCalculateTotalResponse,
-    ApiChartSummaryListResponse,
-    ApiErrorPayload,
-    ApiGetProjectGroupAccesses,
-    ApiGetProjectMemberResponse,
-    ApiProjectAccessListResponse,
-    ApiProjectResponse,
-    ApiSpaceSummaryListResponse,
-    ApiSqlQueryResults,
-    ApiSuccessEmpty,
-    CalculateTotalFromQuery,
-    CreateProjectMember,
-    DbtExposure,
-    UpdateProjectMember,
-    UserWarehouseCredentials,
+    type ApiCalculateTotalResponse,
+    type ApiChartSummaryListResponse,
+    type ApiErrorPayload,
+    type ApiGetProjectGroupAccesses,
+    type ApiGetProjectMemberResponse,
+    type ApiProjectAccessListResponse,
+    type ApiProjectResponse,
+    type ApiSpaceSummaryListResponse,
+    type ApiSqlQueryResults,
+    type ApiSuccessEmpty,
+    type CalculateTotalFromQuery,
+    type CreateProjectMember,
+    type DbtExposure,
+    type UpdateProjectMember,
+    type UserWarehouseCredentials,
 } from '@lightdash/common';
 import {
     Body,
@@ -31,7 +31,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,

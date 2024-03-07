@@ -1,12 +1,12 @@
-import { NotFoundError, SlackSettings } from '@lightdash/common';
-import { Installation, InstallationQuery } from '@slack/bolt';
-import { Knex } from 'knex';
-import { DbOrganization } from '../database/entities/organizations';
+import { NotFoundError, type SlackSettings } from '@lightdash/common';
+import { type Installation, type InstallationQuery } from '@slack/bolt';
+import { type Knex } from 'knex';
+import { type DbOrganization } from '../database/entities/organizations';
 import {
-    DbSlackAuthTokens,
+    type DbSlackAuthTokens,
     SlackAuthTokensTable,
 } from '../database/entities/slackAuthentication';
-import { DbUser } from '../database/entities/users';
+import { type DbUser } from '../database/entities/users';
 
 type SlackAuthenticationModelArguments = {
     database: Knex;

@@ -1,5 +1,5 @@
-import { ValidationErrorType, ValidationSourceType } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type ValidationErrorType, type ValidationSourceType } from '@lightdash/common';
+import { type Knex } from 'knex';
 
 export type DbValidationTable = {
     validation_id: number;

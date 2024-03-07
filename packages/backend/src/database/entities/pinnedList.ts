@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export const PinnedListTableName = 'pinned_list';
 export const PinnedChartTableName = 'pinned_chart';

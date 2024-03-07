@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const TableCalculationTableName = 'saved_queries_version_table_calculations';
 

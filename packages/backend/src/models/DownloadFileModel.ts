@@ -1,9 +1,9 @@
 import {
-    DownloadFile,
-    DownloadFileType,
+    type DownloadFile,
+    type DownloadFileType,
     NotFoundError,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { DownloadFileTableName } from '../database/entities/downloadFile';
 
 type DownloadFileModelArguments = {

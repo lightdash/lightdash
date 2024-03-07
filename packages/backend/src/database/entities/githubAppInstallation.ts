@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export type DbGithubAppInstallation = {
     github_app_installation_uuid: string;

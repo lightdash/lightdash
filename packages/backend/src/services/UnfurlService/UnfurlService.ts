@@ -7,7 +7,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     LightdashPage,
-    SessionUser,
+    type SessionUser,
     snakeCaseName,
 } from '@lightdash/common';
 import opentelemetry, { SpanStatusCode, ValueType } from '@opentelemetry/api';
@@ -16,20 +16,20 @@ import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
-import puppeteer, { HTTPRequest } from 'puppeteer';
-import { S3Client } from '../../clients/Aws/s3';
-import { LightdashConfig } from '../../config/parseConfig';
+import puppeteer from 'puppeteer';
+import { type S3Client } from '../../clients/Aws/s3';
+import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { DownloadFileModel } from '../../models/DownloadFileModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
-import { ShareModel } from '../../models/ShareModel';
-import { SpaceModel } from '../../models/SpaceModel';
-import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
+import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type DownloadFileModel } from '../../models/DownloadFileModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
+import { type ShareModel } from '../../models/ShareModel';
+import { type SpaceModel } from '../../models/SpaceModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { VERSION } from '../../version';
-import { EncryptionService } from '../EncryptionService/EncryptionService';
+import { type EncryptionService } from '../EncryptionService/EncryptionService';
 
 const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
 const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);

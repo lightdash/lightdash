@@ -1,14 +1,14 @@
 import {
-    CreateDashboardChartTile,
-    CreateDashboardLoomTile,
-    CreateDashboardMarkdownTile,
+    type CreateDashboardChartTile,
+    type CreateDashboardLoomTile,
+    type CreateDashboardMarkdownTile,
     DashboardTileTypes,
     FilterOperator,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-    SpaceQuery,
+    type SpaceQuery,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { SpaceModel } from '../../../models/SpaceModel';

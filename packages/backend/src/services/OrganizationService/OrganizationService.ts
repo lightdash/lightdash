@@ -1,36 +1,36 @@
 import { subject } from '@casl/ability';
 import {
-    AllowedEmailDomains,
-    CreateGroup,
-    CreateOrganization,
+    type AllowedEmailDomains,
+    type CreateGroup,
+    type CreateOrganization,
     ForbiddenError,
-    Group,
-    GroupWithMembers,
+    type Group,
+    type GroupWithMembers,
     isUserWithOrg,
     LightdashMode,
     NotExistsError,
-    OnbordingRecord,
-    Organization,
-    OrganizationMemberProfile,
-    OrganizationMemberProfileUpdate,
+    type OnbordingRecord,
+    type Organization,
+    type OrganizationMemberProfile,
+    type OrganizationMemberProfileUpdate,
     OrganizationMemberRole,
-    OrganizationProject,
+    type OrganizationProject,
     ParameterError,
-    SessionUser,
-    UpdateOrganization,
+    type SessionUser,
+    type UpdateOrganization,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
-import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { LightdashConfig } from '../../config/parseConfig';
-import { GroupsModel } from '../../models/GroupsModel';
-import { InviteLinkModel } from '../../models/InviteLinkModel';
-import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
-import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
-import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
-import { OrganizationModel } from '../../models/OrganizationModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { UserModel } from '../../models/UserModel';
+import { type UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type LightdashConfig } from '../../config/parseConfig';
+import { type GroupsModel } from '../../models/GroupsModel';
+import { type InviteLinkModel } from '../../models/InviteLinkModel';
+import { type OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { type OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
+import { type OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
+import { type OrganizationModel } from '../../models/OrganizationModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type UserModel } from '../../models/UserModel';
 
 type OrganizationServiceArguments = {
     lightdashConfig: LightdashConfig;

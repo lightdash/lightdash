@@ -1,13 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    CompiledField,
-    CreateChartValidation,
-    CreateDashboardValidation,
-    CreateTableValidation,
-    CreateValidation,
-    Explore,
-    ExploreError,
+    type CompiledField,
+    type CreateChartValidation,
+    type CreateDashboardValidation,
+    type CreateTableValidation,
+    type CreateValidation,
+    type Explore,
+    type ExploreError,
     fieldId as getFieldId,
     ForbiddenError,
     getCustomMetricDimensionId,
@@ -15,27 +15,25 @@ import {
     getItemId,
     InlineErrorType,
     isDashboardChartTileType,
-    isDimension,
     isExploreError,
-    isMetric,
     OrganizationMemberRole,
     RequestMethod,
-    SessionUser,
-    TableCalculation,
+    type SessionUser,
+    type TableCalculation,
     TableSelectionType,
     ValidationErrorType,
-    ValidationResponse,
+    type ValidationResponse,
     ValidationSourceType,
 } from '@lightdash/common';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { schedulerClient } from '../../clients/clients';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
-import { SpaceModel } from '../../models/SpaceModel';
-import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
+import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
+import { type SpaceModel } from '../../models/SpaceModel';
+import { type ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {

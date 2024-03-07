@@ -1,16 +1,16 @@
 import {
-    CreateUserAttribute,
-    UserAttribute,
-    UserAttributeValueMap,
+    type CreateUserAttribute,
+    type UserAttribute,
+    type UserAttributeValueMap,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
-    DbGroupUserAttribute,
-    DbOrganizationMemberUserAttribute,
-    DbUserAttribute,
+    type DbGroupUserAttribute,
+    type DbOrganizationMemberUserAttribute,
+    type DbUserAttribute,
     GroupUserAttributesTable,
     OrganizationMemberUserAttributesTable,
     UserAttributesTable,

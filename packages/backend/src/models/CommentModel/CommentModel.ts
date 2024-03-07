@@ -1,15 +1,15 @@
-import { Comment, LightdashUser, NotFoundError } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Comment, type LightdashUser, NotFoundError } from '@lightdash/common';
+import { type Knex } from 'knex';
 import {
     DashboardTileCommentsTableName,
-    DbDashboardTileComments,
+    type DbDashboardTileComments,
 } from '../../database/entities/comments';
 import {
     DashboardsTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
-import { DbUser, UserTableName } from '../../database/entities/users';
+import { type DbUser, UserTableName } from '../../database/entities/users';
 
 type CommentModelArguments = {
     database: Knex;

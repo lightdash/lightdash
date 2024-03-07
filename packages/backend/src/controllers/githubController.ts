@@ -1,4 +1,4 @@
-import { ApiSuccessEmpty, ForbiddenError, GitRepo } from '@lightdash/common';
+import { type ApiSuccessEmpty, ForbiddenError, type GitRepo } from '@lightdash/common';
 import { Octokit as OctokitRest } from '@octokit/rest';
 import {
     Delete,
@@ -10,7 +10,7 @@ import {
     Route,
     SuccessResponse,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { getGithubApp, getOctokitRestForApp } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';

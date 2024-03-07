@@ -1,5 +1,5 @@
-import { NotExistsError, OnbordingRecord } from '@lightdash/common';
-import { Knex } from 'knex';
+import { NotExistsError, type OnbordingRecord } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { OnboardingTableName } from '../../database/entities/onboarding';
 import { OrganizationTableName } from '../../database/entities/organizations';
 

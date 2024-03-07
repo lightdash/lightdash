@@ -1,17 +1,17 @@
 import { subject } from '@casl/ability';
 import {
-    CreateSpace,
+    type CreateSpace,
     ForbiddenError,
-    SessionUser,
-    Space,
-    SpaceShare,
-    SpaceSummary,
-    UpdateSpace,
+    type SessionUser,
+    type Space,
+    type SpaceShare,
+    type SpaceSummary,
+    type UpdateSpace,
 } from '@lightdash/common';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { PinnedListModel } from '../../models/PinnedListModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SpaceModel } from '../../models/SpaceModel';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type PinnedListModel } from '../../models/PinnedListModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type SpaceModel } from '../../models/SpaceModel';
 
 type SpaceServiceArguments = {
     analytics: LightdashAnalytics;

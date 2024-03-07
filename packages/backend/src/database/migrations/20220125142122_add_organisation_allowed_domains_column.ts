@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const OrganizationTableName = 'organizations';
 const AllowedEmailDomainsColumnName = 'allowed_email_domains';

@@ -1,5 +1,5 @@
 import { LightdashMode } from '@lightdash/common';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 
 export const BaseResponse = {
     healthy: true,

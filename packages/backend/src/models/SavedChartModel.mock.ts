@@ -1,24 +1,7 @@
 import {
-    ConditionalOperator,
-    CreateBigqueryCredentials,
-    DbtCloudIDEProjectConfig,
-    DbtProjectType,
-    DefaultSupportedDbtVersion,
-    DimensionType,
-    Explore,
-    FieldType,
     LightdashMode,
-    MetricFilterRule,
-    MetricType,
-    OrderFieldsByStrategy,
-    Project,
-    ProjectType,
-    SupportedDbtAdapter,
-    TablesConfiguration,
-    TableSelectionType,
-    WarehouseTypes,
 } from '@lightdash/common';
-import { LightdashConfig } from '../config/parseConfig';
+import { type LightdashConfig } from '../config/parseConfig';
 
 export const lightdashConfigMock: LightdashConfig = {
     mode: LightdashMode.DEFAULT,

@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const ProjectTableName = 'projects';
 const ProjectTypeTableName = 'project_type';

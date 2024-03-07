@@ -1,19 +1,19 @@
 import {
-    ApiErrorPayload,
-    ApiGroupListResponse,
-    ApiGroupResponse,
-    ApiOrganization,
-    ApiOrganizationAllowedEmailDomains,
-    ApiOrganizationMemberProfile,
-    ApiOrganizationMemberProfiles,
-    ApiOrganizationProjects,
-    ApiSuccessEmpty,
-    CreateGroup,
-    CreateOrganization,
-    OrganizationMemberProfileUpdate,
-    UpdateAllowedEmailDomains,
-    UpdateOrganization,
-    UUID,
+    type ApiErrorPayload,
+    type ApiGroupListResponse,
+    type ApiGroupResponse,
+    type ApiOrganization,
+    type ApiOrganizationAllowedEmailDomains,
+    type ApiOrganizationMemberProfile,
+    type ApiOrganizationMemberProfiles,
+    type ApiOrganizationProjects,
+    type ApiSuccessEmpty,
+    type CreateGroup,
+    type CreateOrganization,
+    type OrganizationMemberProfileUpdate,
+    type UpdateAllowedEmailDomains,
+    type UpdateOrganization,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -31,7 +31,7 @@ import {
     Route,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { userModel } from '../models/models';
 import {
     allowApiKeyAuthentication,

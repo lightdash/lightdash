@@ -1,16 +1,16 @@
 import { subject } from '@casl/ability';
 import {
-    CreateUserAttribute,
+    type CreateUserAttribute,
     ForbiddenError,
     RequestMethod,
-    SessionUser,
-    UserAttribute,
+    type SessionUser,
+    type UserAttribute,
 } from '@lightdash/common';
 import {
-    LightdashAnalytics,
-    UserAttributeCreateAndUpdateEvent,
+    type LightdashAnalytics,
+    type UserAttributeCreateAndUpdateEvent,
 } from '../../analytics/LightdashAnalytics';
-import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { type UserAttributesModel } from '../../models/UserAttributesModel';
 
 type UserAttributesServiceArguments = {
     analytics: LightdashAnalytics;

@@ -1,22 +1,22 @@
 import { subject } from '@casl/ability';
 import {
-    DashboardSearchResult,
-    FieldSearchResult,
+    type DashboardSearchResult,
+    type FieldSearchResult,
     ForbiddenError,
     isTableErrorSearchResult,
-    SavedChartSearchResult,
-    SearchFilters,
-    SearchResults,
-    SessionUser,
-    SpaceSearchResult,
-    TableErrorSearchResult,
-    TableSearchResult,
+    type SavedChartSearchResult,
+    type SearchFilters,
+    type SearchResults,
+    type SessionUser,
+    type SpaceSearchResult,
+    type TableErrorSearchResult,
+    type TableSearchResult,
 } from '@lightdash/common';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SearchModel } from '../../models/SearchModel';
-import { SpaceModel } from '../../models/SpaceModel';
-import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type SearchModel } from '../../models/SearchModel';
+import { type SpaceModel } from '../../models/SpaceModel';
+import { type UserAttributesModel } from '../../models/UserAttributesModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 

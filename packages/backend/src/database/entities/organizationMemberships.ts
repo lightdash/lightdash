@@ -1,5 +1,5 @@
-import { OrganizationMemberRole } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type OrganizationMemberRole } from '@lightdash/common';
+import { type Knex } from 'knex';
 
 export const OrganizationMembershipsTableName = 'organization_memberships';
 

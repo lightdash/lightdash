@@ -1,6 +1,6 @@
 import knex from 'knex';
-import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
-import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
+import { getTracker, MockClient, type RawQuery, type Tracker } from 'knex-mock-client';
+import { type FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import {
     CachedExploresTableName,

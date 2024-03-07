@@ -1,16 +1,16 @@
 import {
     BinType,
-    CompiledDimension,
-    CompiledMetricQuery,
-    CompiledTable,
-    CreateWarehouseCredentials,
+    type CompiledDimension,
+    type CompiledMetricQuery,
+    type CompiledTable,
+    type CreateWarehouseCredentials,
     DimensionType,
-    Explore,
+    type Explore,
     FieldType,
     FilterOperator,
     MetricType,
     SupportedDbtAdapter,
-    WarehouseClient,
+    type WarehouseClient,
     WarehouseTypes,
 } from '@lightdash/common';
 

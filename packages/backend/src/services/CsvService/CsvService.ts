@@ -1,13 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
-    ApiSqlQueryResults,
+    type ApiSqlQueryResults,
     applyDimensionOverrides,
-    DashboardFilters,
+    type DashboardFilters,
     DimensionType,
-    DownloadCsvPayload,
+    type DownloadCsvPayload,
     DownloadFileType,
-    DownloadMetricCsv,
+    type DownloadMetricCsv,
     ForbiddenError,
     formatItemValue,
     friendlyName,
@@ -22,39 +22,39 @@ import {
     isField,
     isMomentInput,
     isTableChartConfig,
-    ItemsMap,
-    MetricQuery,
-    SchedulerCsvOptions,
-    SchedulerFilterRule,
+    type ItemsMap,
+    type MetricQuery,
+    type SchedulerCsvOptions,
+    type SchedulerFilterRule,
     SchedulerFormat,
-    SessionUser,
+    type SessionUser,
 } from '@lightdash/common';
 
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 
-import moment, { MomentInput } from 'moment';
+import moment, { type MomentInput } from 'moment';
 import { nanoid } from 'nanoid';
-import { pipeline, Readable, Transform, TransformCallback } from 'stream';
+import { pipeline, Readable, Transform, type TransformCallback } from 'stream';
 import { Worker } from 'worker_threads';
 import {
-    DownloadCsv,
-    LightdashAnalytics,
+    type DownloadCsv,
+    type LightdashAnalytics,
     parseAnalyticsLimit,
     QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/s3';
+import { type S3Client } from '../../clients/Aws/s3';
 import { schedulerClient } from '../../clients/clients';
-import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type AttachmentUrl } from '../../clients/EmailClient/EmailClient';
+import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { DownloadFileModel } from '../../models/DownloadFileModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
-import { UserModel } from '../../models/UserModel';
+import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type DownloadFileModel } from '../../models/DownloadFileModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
+import { type UserModel } from '../../models/UserModel';
 import { runWorkerThread } from '../../utils';
-import { ProjectService } from '../ProjectService/ProjectService';
+import { type ProjectService } from '../ProjectService/ProjectService';
 
 type CsvServiceArguments = {
     lightdashConfig: LightdashConfig;

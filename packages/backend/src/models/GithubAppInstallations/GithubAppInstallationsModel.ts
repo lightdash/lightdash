@@ -1,11 +1,11 @@
 import {
-    LightdashUserWithOrg,
+    type LightdashUserWithOrg,
     NotFoundError,
     UnexpectedServerError,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { GithubAppInstallationTableName } from '../../database/entities/githubAppInstallation';
-import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { type EncryptionService } from '../../services/EncryptionService/EncryptionService';
 
 type GithubAppInstallationsModelArguments = {
     database: Knex;

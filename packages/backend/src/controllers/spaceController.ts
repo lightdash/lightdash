@@ -1,10 +1,10 @@
 import {
-    AddSpaceShare,
-    ApiErrorPayload,
-    ApiSpaceResponse,
-    ApiSuccessEmpty,
-    CreateSpace,
-    UpdateSpace,
+    type AddSpaceShare,
+    type ApiErrorPayload,
+    type ApiSpaceResponse,
+    type ApiSuccessEmpty,
+    type CreateSpace,
+    type UpdateSpace,
 } from '@lightdash/common';
 import {
     Body,
@@ -21,7 +21,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,

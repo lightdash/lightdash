@@ -1,5 +1,5 @@
 import { SEED_GROUP, SEED_ORG_1 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export async function seed(knex: Knex): Promise<void> {
     const [org] = await knex('organizations')

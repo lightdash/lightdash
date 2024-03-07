@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const ONBOARDING_TABLE_NAME = 'onboarding';
 

@@ -1,6 +1,6 @@
 import {
-    CreatePostgresCredentials,
-    DbtLocalProjectConfig,
+    type CreatePostgresCredentials,
+    type DbtLocalProjectConfig,
     DbtProjectType,
     DefaultSupportedDbtVersion,
     LightdashMode,
@@ -19,16 +19,16 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { projectModel } from '../../../models/models';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
 import { projectService } from '../../../services/services';
-import { DbEmailIn } from '../../entities/emails';
+import { type DbEmailIn } from '../../entities/emails';
 import { OnboardingTableName } from '../../entities/onboarding';
-import { DbOrganizationIn } from '../../entities/organizations';
-import { DbUserIn } from '../../entities/users';
+import { type DbOrganizationIn } from '../../entities/organizations';
+import { type DbUserIn } from '../../entities/users';
 
 export async function seed(knex: Knex): Promise<void> {
     // Deletes ALL existing entries

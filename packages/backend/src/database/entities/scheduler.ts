@@ -2,10 +2,10 @@ import {
     assertUnreachable,
     isEmailTarget,
     isSlackTarget,
-    SchedulerEmailTarget,
-    SchedulerSlackTarget,
+    type SchedulerEmailTarget,
+    type SchedulerSlackTarget,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export const SchedulerTableName = 'scheduler';
 export const SchedulerSlackTargetTableName = 'scheduler_slack_target';

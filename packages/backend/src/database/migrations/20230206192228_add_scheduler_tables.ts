@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const SchedulerTableName = 'scheduler';
 const SchedulerSlackTargetTableName = 'scheduler_slack_target';

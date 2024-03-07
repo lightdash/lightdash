@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const SPACE_SHARE_TABLE = 'space_share';
 const SHARE_TABLE = 'spaces';

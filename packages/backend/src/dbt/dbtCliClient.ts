@@ -1,15 +1,11 @@
 import {
     assertUnreachable,
     DbtError,
-    DbtLog,
-    DbtManifestVersion,
-    DbtPackages,
-    DbtRpcDocsGenerateResults,
-    DbtRpcGetManifestResults,
-    DefaultSupportedDbtVersion,
+    type DbtLog,
+    type DbtPackages,
+    type DbtRpcGetManifestResults,
     isDbtLog,
     isDbtPackages,
-    isDbtRpcDocsGenerateResults,
     isDbtRpcManifestResults,
     ParseError,
     SupportedDbtVersions,
@@ -20,7 +16,7 @@ import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
 import Logger from '../logging/logger';
-import { DbtClient } from '../types';
+import { type DbtClient } from '../types';
 
 type DbtProjectConfig = {
     targetDir: string;

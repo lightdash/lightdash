@@ -1,32 +1,32 @@
 import {
-    AdditionalMetric,
-    ChartConfig,
+    type AdditionalMetric,
+    type ChartConfig,
     ChartKind,
-    ChartSummary,
-    ChartVersionSummary,
-    CreateSavedChart,
-    CreateSavedChartVersion,
+    type ChartSummary,
+    type ChartVersionSummary,
+    type CreateSavedChart,
+    type CreateSavedChartVersion,
     DBFieldTypes,
     ECHARTS_DEFAULT_COLORS,
     getChartKind,
     getChartType,
     getCustomDimensionId,
     isFormat,
-    LightdashUser,
+    type LightdashUser,
     NotFoundError,
-    Organization,
-    Project,
-    SavedChart,
-    SessionUser,
-    SortField,
-    Space,
-    UpdatedByUser,
-    UpdateMultipleSavedChart,
-    UpdateSavedChart,
+    type Organization,
+    type Project,
+    type SavedChart,
+    type SessionUser,
+    type SortField,
+    type Space,
+    type UpdatedByUser,
+    type UpdateMultipleSavedChart,
+    type UpdateSavedChart,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { Knex } from 'knex';
-import { LightdashConfig } from '../config/parseConfig';
+import { type Knex } from 'knex';
+import { type LightdashConfig } from '../config/parseConfig';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
@@ -35,13 +35,13 @@ import {
 } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
 import {
-    CreateDbSavedChartVersionField,
-    CreateDbSavedChartVersionSort,
-    DBFilteredAdditionalMetrics,
-    DbSavedChartAdditionalMetricInsert,
-    DbSavedChartCustomDimensionInsert,
-    DbSavedChartTableCalculationInsert,
-    InsertChart,
+    type CreateDbSavedChartVersionField,
+    type CreateDbSavedChartVersionSort,
+    type DBFilteredAdditionalMetrics,
+    type DbSavedChartAdditionalMetricInsert,
+    type DbSavedChartCustomDimensionInsert,
+    type DbSavedChartTableCalculationInsert,
+    type InsertChart,
     SavedChartAdditionalMetricTableName,
     SavedChartCustomDimensionsTableName,
     SavedChartsTableName,

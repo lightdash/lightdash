@@ -1,5 +1,5 @@
-import { ProjectMemberRole } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type ProjectMemberRole } from '@lightdash/common';
+import { type Knex } from 'knex';
 
 export const ProjectGroupAccessTableName = 'project_group_access';
 

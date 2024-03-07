@@ -1,56 +1,56 @@
 import { subject } from '@casl/ability';
 import {
-    ActivateUser,
-    ArgumentsOf,
+    type ActivateUser,
+    type ArgumentsOf,
     AuthorizationError,
-    CompleteUserArgs,
-    CreateInviteLink,
-    CreatePasswordResetLink,
-    CreateUserArgs,
-    DeleteOpenIdentity,
-    EmailStatusExpiring,
+    type CompleteUserArgs,
+    type CreateInviteLink,
+    type CreatePasswordResetLink,
+    type CreateUserArgs,
+    type DeleteOpenIdentity,
+    type EmailStatusExpiring,
     ExpiredError,
     ForbiddenError,
     getEmailDomain,
     hasInviteCode,
-    InviteLink,
+    type InviteLink,
     isOpenIdUser,
     isUserWithOrg,
     LightdashMode,
-    LightdashUser,
+    type LightdashUser,
     NotExistsError,
     NotFoundError,
-    OpenIdIdentitySummary,
-    OpenIdUser,
+    type OpenIdIdentitySummary,
+    type OpenIdUser,
     OrganizationMemberRole,
     ParameterError,
-    PasswordReset,
-    RegisterOrActivateUser,
-    SessionUser,
-    UpdateUserArgs,
-    UpsertUserWarehouseCredentials,
-    UserAllowedOrganization,
+    type PasswordReset,
+    type RegisterOrActivateUser,
+    type SessionUser,
+    type UpdateUserArgs,
+    type UpsertUserWarehouseCredentials,
+    type UserAllowedOrganization,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
-import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import EmailClient from '../clients/EmailClient/EmailClient';
-import { LightdashConfig } from '../config/parseConfig';
+import { type LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type EmailClient from '../clients/EmailClient/EmailClient';
+import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
-import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
-import { EmailModel } from '../models/EmailModel';
-import { GroupsModel } from '../models/GroupsModel';
-import { InviteLinkModel } from '../models/InviteLinkModel';
-import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
-import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
-import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
-import { OrganizationModel } from '../models/OrganizationModel';
-import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
-import { SessionModel } from '../models/SessionModel';
-import { UserModel } from '../models/UserModel';
-import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { type PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
+import { type EmailModel } from '../models/EmailModel';
+import { type GroupsModel } from '../models/GroupsModel';
+import { type InviteLinkModel } from '../models/InviteLinkModel';
+import { type OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
+import { type OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
+import { type OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
+import { type OrganizationModel } from '../models/OrganizationModel';
+import { type PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
+import { type SessionModel } from '../models/SessionModel';
+import { type UserModel } from '../models/UserModel';
+import { type UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { postHogClient } from '../postHog';
 
 type UserServiceArguments = {

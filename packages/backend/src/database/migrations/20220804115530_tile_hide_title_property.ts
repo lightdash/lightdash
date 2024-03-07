@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const DASHBOARD_TILE_LOOMS_TABLE = 'dashboard_tile_looms';
 const DASHBOARD_TILE_CHARTS_TABLE = 'dashboard_tile_charts';

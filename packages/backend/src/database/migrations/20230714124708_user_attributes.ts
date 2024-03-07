@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const userAttributesTableName = 'user_attributes';
 const organizationMemberUserAttributes = 'organization_member_user_attributes';

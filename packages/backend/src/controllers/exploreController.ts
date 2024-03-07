@@ -1,10 +1,10 @@
 import {
-    ApiCompiledQueryResults,
-    ApiErrorPayload,
-    ApiExploreResults,
-    ApiExploresResults,
-    ApiSuccessEmpty,
-    MetricQuery,
+    type ApiCompiledQueryResults,
+    type ApiErrorPayload,
+    type ApiExploreResults,
+    type ApiExploresResults,
+    type ApiSuccessEmpty,
+    type MetricQuery,
 } from '@lightdash/common';
 import {
     Body,
@@ -20,7 +20,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { CsvService } from '../services/CsvService/CsvService';
 import {
     allowApiKeyAuthentication,

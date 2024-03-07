@@ -1,4 +1,3 @@
-import { Knex } from 'knex';
 
 export type DbUserAttribute = {
     user_attribute_uuid: string;

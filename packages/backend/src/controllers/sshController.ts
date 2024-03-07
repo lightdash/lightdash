@@ -1,4 +1,4 @@
-import { ApiErrorPayload, ApiSshKeyPairResponse } from '@lightdash/common';
+import { type ApiErrorPayload, type ApiSshKeyPairResponse } from '@lightdash/common';
 import {
     Middlewares,
     OperationId,
@@ -9,7 +9,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 

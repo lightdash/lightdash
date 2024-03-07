@@ -1,22 +1,22 @@
 import {
     AuthorizationError,
-    CreateWarehouseCredentials,
-    DbtProjectEnvironmentVariable,
-    SupportedDbtVersions,
+    type CreateWarehouseCredentials,
+    type DbtProjectEnvironmentVariable,
+    type SupportedDbtVersions,
     UnexpectedGitError,
     UnexpectedServerError,
 } from '@lightdash/common';
-import { WarehouseClient } from '@lightdash/warehouses';
+import { type WarehouseClient } from '@lightdash/warehouses';
 import fs from 'fs';
 import * as fspromises from 'fs-extra';
 import * as path from 'path';
 import simpleGit, {
     GitError,
-    SimpleGit,
-    SimpleGitProgressEvent,
+    type SimpleGit,
+    type SimpleGitProgressEvent,
 } from 'simple-git';
 import Logger from '../logging/logger';
-import { CachedWarehouse } from '../types';
+import { type CachedWarehouse } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
 export type DbtGitProjectAdapterArgs = {

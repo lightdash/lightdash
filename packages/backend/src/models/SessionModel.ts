@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { SessionTableName } from '../database/entities/sessions';
 
 export class SessionModel {

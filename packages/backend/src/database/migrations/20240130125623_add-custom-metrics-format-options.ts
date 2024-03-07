@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const customMetricsTableName = 'saved_queries_version_additional_metrics';
 

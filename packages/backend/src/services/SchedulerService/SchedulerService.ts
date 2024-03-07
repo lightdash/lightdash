@@ -1,38 +1,38 @@
 import { subject } from '@casl/ability';
 import {
-    ChartSummary,
-    CreateSchedulerAndTargets,
-    CreateSchedulerLog,
-    Dashboard,
+    type ChartSummary,
+    type CreateSchedulerAndTargets,
+    type CreateSchedulerLog,
+    type Dashboard,
     ForbiddenError,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
     isUserWithOrg,
     ParameterError,
-    ScheduledJobs,
-    Scheduler,
-    SchedulerAndTargets,
+    type ScheduledJobs,
+    type Scheduler,
+    type SchedulerAndTargets,
     SchedulerFormat,
-    SessionUser,
-    UpdateSchedulerAndTargetsWithoutId,
+    type SessionUser,
+    type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
-    LightdashAnalytics,
-    SchedulerDashboardUpsertEvent,
-    SchedulerUpsertEvent,
+    type LightdashAnalytics,
+    type SchedulerDashboardUpsertEvent,
+    type SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 import {
     getSchedulerTargetType,
-    SchedulerLogDb,
+    type SchedulerLogDb,
 } from '../../database/entities/scheduler';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
+import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
-import { SpaceModel } from '../../models/SpaceModel';
+import { type SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type SchedulerServiceArguments = {

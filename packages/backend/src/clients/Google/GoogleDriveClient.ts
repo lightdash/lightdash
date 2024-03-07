@@ -1,10 +1,10 @@
 import {
     getItemLabel,
     getItemLabelWithoutTableName,
-    ItemsMap,
+    type ItemsMap,
 } from '@lightdash/common';
-import { google, sheets_v4 } from 'googleapis';
-import { LightdashConfig } from '../../config/parseConfig';
+import { google, type sheets_v4 } from 'googleapis';
+import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
 type GoogleDriveClientArguments = {

@@ -1,10 +1,9 @@
 import {
-    DbtManifest,
-    DbtPackages,
-    DbtRpcDocsGenerateResults,
-    SupportedDbtVersions,
+    type DbtManifest,
+    type DbtPackages,
+    type DbtRpcDocsGenerateResults,
 } from '@lightdash/common';
-import { ExecaError, ExecaReturnValue } from 'execa';
+import { type ExecaError, type ExecaReturnValue } from 'execa';
 
 export const cliArgs = {
     dbtProjectDirectory: 'dbtProjectDirectory',

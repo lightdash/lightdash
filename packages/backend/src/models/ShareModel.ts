@@ -1,8 +1,8 @@
-import { ShareUrl } from '@lightdash/common';
-import { Knex } from 'knex';
-import { DbOrganization } from '../database/entities/organizations';
-import { DbShareUrl, ShareTableName } from '../database/entities/share';
-import { DbUser } from '../database/entities/users';
+import { type ShareUrl } from '@lightdash/common';
+import { type Knex } from 'knex';
+import { type DbOrganization } from '../database/entities/organizations';
+import { type DbShareUrl, ShareTableName } from '../database/entities/share';
+import { type DbUser } from '../database/entities/users';
 
 type ShareModelArguments = {
     database: Knex;

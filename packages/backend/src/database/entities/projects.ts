@@ -1,9 +1,9 @@
 import {
-    DbtProjectType,
-    ProjectType,
-    TableSelectionType,
+    type DbtProjectType,
+    type ProjectType,
+    type TableSelectionType,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export const ProjectTableName = 'projects';
 export const CachedExploresTableName = 'cached_explores';

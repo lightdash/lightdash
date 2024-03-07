@@ -1,32 +1,32 @@
 import {
-    CompileProjectPayload,
-    CreateSchedulerAndTargets,
-    CreateSchedulerTarget,
-    DownloadCsvPayload,
-    EmailNotificationPayload,
+    type CompileProjectPayload,
+    type CreateSchedulerAndTargets,
+    type CreateSchedulerTarget,
+    type DownloadCsvPayload,
+    type EmailNotificationPayload,
     getSchedulerTargetUuid,
     getSchedulerUuid,
-    GsheetsNotificationPayload,
+    type GsheetsNotificationPayload,
     hasSchedulerUuid,
     isCreateSchedulerSlackTarget,
-    NotificationPayloadBase,
-    ScheduledDeliveryPayload,
-    ScheduledJobs,
-    Scheduler,
-    SchedulerAndTargets,
+    type NotificationPayloadBase,
+    type ScheduledDeliveryPayload,
+    type ScheduledJobs,
+    type Scheduler,
+    type SchedulerAndTargets,
     SchedulerFormat,
     SchedulerJobStatus,
-    SlackNotificationPayload,
-    UploadMetricGsheetPayload,
-    ValidateProjectPayload,
+    type SlackNotificationPayload,
+    type UploadMetricGsheetPayload,
+    type ValidateProjectPayload,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
-import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
+import { makeWorkerUtils, type WorkerUtils } from 'graphile-worker';
 import moment from 'moment';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { LightdashConfig } from '../config/parseConfig';
+import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
-import { SchedulerModel } from '../models/SchedulerModel';
+import { type SchedulerModel } from '../models/SchedulerModel';
 
 type SchedulerClientArguments = {
     lightdashConfig: LightdashConfig;

@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const PreviewContentTableName = 'preview_content';
 const ProjectsTableName = 'projects';

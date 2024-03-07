@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const DashboardViewsTableName = 'dashboard_views';
 const DashboardVersionsTableName = 'dashboard_versions';

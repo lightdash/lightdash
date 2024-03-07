@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const downloadFilesTableName = 'download_files';
 export async function up(knex: Knex): Promise<void> {

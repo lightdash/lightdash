@@ -1,65 +1,65 @@
 import {
     AlreadyExistsError,
-    CreateDbtCloudIntegration,
-    CreateProject,
-    CreateWarehouseCredentials,
-    DbtCloudIntegration,
-    DbtProjectConfig,
-    Explore,
-    ExploreError,
+    type CreateDbtCloudIntegration,
+    type CreateProject,
+    type CreateWarehouseCredentials,
+    type DbtCloudIntegration,
+    type DbtProjectConfig,
+    type Explore,
+    type ExploreError,
     isExploreError,
     NotExistsError,
-    OrganizationProject,
-    PreviewContentMapping,
-    Project,
-    ProjectGroupAccess,
-    ProjectMemberProfile,
-    ProjectMemberRole,
-    ProjectSummary,
-    ProjectType,
+    type OrganizationProject,
+    type PreviewContentMapping,
+    type Project,
+    type ProjectGroupAccess,
+    type ProjectMemberProfile,
+    type ProjectMemberRole,
+    type ProjectSummary,
+    type ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
-    SupportedDbtVersions,
-    TablesConfiguration,
+    type SupportedDbtVersions,
+    type TablesConfiguration,
     UnexpectedServerError,
-    UpdateProject,
-    WarehouseCredentials,
-    WarehouseTypes,
+    type UpdateProject,
+    type WarehouseCredentials,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import {
-    WarehouseCatalog,
+    type WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 import {
     DashboardViewsTableName,
-    DbDashboard,
+    type DbDashboard,
 } from '../../database/entities/dashboards';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import {
-    DbOrganization,
+    type DbOrganization,
     OrganizationTableName,
 } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
-import { DbProjectMembership } from '../../database/entities/projectMemberships';
+import { type DbProjectMembership } from '../../database/entities/projectMemberships';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
     CachedWarehouseTableName,
-    DbCachedExplores,
-    DbCachedWarehouse,
-    DbProject,
+    type DbCachedExplores,
+    type DbCachedWarehouse,
+    type DbProject,
     ProjectTableName,
 } from '../../database/entities/projects';
-import { DbSavedChart } from '../../database/entities/savedCharts';
-import { DbUser } from '../../database/entities/users';
+import { type DbSavedChart } from '../../database/entities/savedCharts';
+import { type DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
-import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { type EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import { wrapOtelSpan } from '../../utils';
 import Transaction = Knex.Transaction;
 

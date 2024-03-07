@@ -1,7 +1,7 @@
-import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
+import { ForbiddenError, isUserWithOrg, type SessionUser } from '@lightdash/common';
 
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type AnalyticsModel } from '../../models/AnalyticsModel';
 
 type AnalyticsServiceArguments = {
     analytics: LightdashAnalytics;

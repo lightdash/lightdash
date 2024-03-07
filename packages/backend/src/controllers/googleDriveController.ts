@@ -1,8 +1,8 @@
 import {
-    ApiErrorPayload,
-    ApiGdriveAccessTokenResponse,
-    ApiJobScheduledResponse,
-    UploadMetricGsheet,
+    type ApiErrorPayload,
+    type ApiGdriveAccessTokenResponse,
+    type ApiJobScheduledResponse,
+    type UploadMetricGsheet,
 } from '@lightdash/common';
 import {
     Body,
@@ -16,7 +16,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { GdriveService } from '../services/GdriveService/GdriveService';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';

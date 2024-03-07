@@ -1,16 +1,15 @@
 import {
-    BinRange,
-    ChartConfig,
-    ChartKind,
-    ChartType,
-    CompactOrAlias,
-    CustomFormat,
-    DBFieldTypes,
-    MetricFilterRule,
-    MetricType,
-    NumberSeparator,
+    type BinRange,
+    type ChartConfig,
+    type ChartKind,
+    type ChartType,
+    type CompactOrAlias,
+    type CustomFormat,
+    type DBFieldTypes,
+    type MetricFilterRule,
+    type MetricType,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export const SavedChartsTableName = 'saved_queries';
 export const SavedChartVersionsTableName = 'saved_queries_versions';

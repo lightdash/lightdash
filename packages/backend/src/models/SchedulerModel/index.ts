@@ -1,6 +1,6 @@
 import {
-    CreateSchedulerAndTargets,
-    CreateSchedulerLog,
+    type CreateSchedulerAndTargets,
+    type CreateSchedulerLog,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
@@ -8,26 +8,26 @@ import {
     isUpdateSchedulerEmailTarget,
     isUpdateSchedulerSlackTarget,
     NotFoundError,
-    Scheduler,
-    SchedulerAndTargets,
-    SchedulerEmailTarget,
+    type Scheduler,
+    type SchedulerAndTargets,
+    type SchedulerEmailTarget,
     SchedulerJobStatus,
-    SchedulerLog,
-    SchedulerSlackTarget,
-    SchedulerWithLogs,
-    UpdateSchedulerAndTargets,
+    type SchedulerLog,
+    type SchedulerSlackTarget,
+    type SchedulerWithLogs,
+    type UpdateSchedulerAndTargets,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import {
-    SchedulerDb,
-    SchedulerEmailTargetDb,
+    type SchedulerDb,
+    type SchedulerEmailTargetDb,
     SchedulerEmailTargetTableName,
-    SchedulerLogDb,
+    type SchedulerLogDb,
     SchedulerLogTableName,
-    SchedulerSlackTargetDb,
+    type SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
     SchedulerTableName,
 } from '../../database/entities/scheduler';

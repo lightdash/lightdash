@@ -1,65 +1,61 @@
 import {
     assertUnreachable,
-    Comment,
-    CreateDashboard,
-    Dashboard,
-    DashboardBasicDetails,
-    DashboardChartTile,
-    DashboardLoomTile,
-    DashboardMarkdownTile,
+    type CreateDashboard,
+    type Dashboard,
+    type DashboardBasicDetails,
+    type DashboardChartTile,
+    type DashboardLoomTile,
+    type DashboardMarkdownTile,
     DashboardTileTypes,
-    DashboardUnversionedFields,
-    DashboardVersionedFields,
-    LightdashUser,
+    type DashboardUnversionedFields,
+    type DashboardVersionedFields,
+    type LightdashUser,
     NotFoundError,
-    SavedChart,
-    SessionUser,
+    type SavedChart,
+    type SessionUser,
     UnexpectedServerError,
-    UpdateMultipleDashboards,
+    type UpdateMultipleDashboards,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
-import {
-    DashboardTileCommentsTableName,
-    DbDashboardTileComments,
-} from '../../database/entities/comments';
+
+
 import {
     DashboardsTableName,
-    DashboardTable,
-    DashboardTileChartTable,
+    type DashboardTable,
+    type DashboardTileChartTable,
     DashboardTileChartTableName,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
-    DashboardVersionTable,
+    type DashboardVersionTable,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
 import {
-    OrganizationTable,
+    type OrganizationTable,
     OrganizationTableName,
 } from '../../database/entities/organizations';
 import {
-    PinnedDashboardTable,
+    type PinnedDashboardTable,
     PinnedDashboardTableName,
-    PinnedListTable,
+    type PinnedListTable,
     PinnedListTableName,
 } from '../../database/entities/pinnedList';
 import {
-    ProjectTable,
+    type ProjectTable,
     ProjectTableName,
 } from '../../database/entities/projects';
 import {
     SavedChartsTableName,
-    SavedChartTable,
+    type SavedChartTable,
 } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
 import {
-    DbUser,
-    UserTable,
+    type UserTable,
     UserTableName,
 } from '../../database/entities/users';
-import { DbValidationTable } from '../../database/entities/validation';
+import { type DbValidationTable } from '../../database/entities/validation';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 

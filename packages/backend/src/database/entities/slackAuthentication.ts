@@ -1,4 +1,4 @@
-import { Installation } from '@slack/bolt';
+import { type Installation } from '@slack/bolt';
 
 export const SlackAuthTokensTable = 'slack_auth_tokens';
 

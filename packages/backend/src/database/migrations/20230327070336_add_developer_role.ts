@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const organizationMembershipRolesTableName = 'organization_membership_roles';
 const projectMembershipRolesTableName = 'project_membership_roles';

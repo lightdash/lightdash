@@ -1,5 +1,5 @@
-import { DashboardFilters, DashboardTileTypes } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type DashboardFilters, type DashboardTileTypes } from '@lightdash/common';
+import { type Knex } from 'knex';
 
 export const DashboardsTableName = 'dashboards';
 export const DashboardVersionsTableName = 'dashboard_versions';

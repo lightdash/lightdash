@@ -1,7 +1,7 @@
 import {
-    ApiErrorPayload,
-    ApiPinnedItems,
-    UpdatePinnedItemOrder,
+    type ApiErrorPayload,
+    type ApiPinnedItems,
+    type UpdatePinnedItemOrder,
 } from '@lightdash/common';
 import {
     Body,
@@ -16,7 +16,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,

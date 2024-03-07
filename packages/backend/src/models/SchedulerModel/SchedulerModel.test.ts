@@ -1,4 +1,4 @@
-import { SchedulerJobStatus, SchedulerLog } from '@lightdash/common';
+import { SchedulerJobStatus, type SchedulerLog } from '@lightdash/common';
 import { SchedulerModel } from './index';
 
 describe('Scheduler model test', () => {

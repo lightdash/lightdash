@@ -3,7 +3,6 @@ import execa from 'execa';
 import * as fs from 'fs/promises';
 import { DbtCliClient } from './dbtCliClient';
 import {
-    catalogMock,
     cliArgs as cliArgsWithoutVersion,
     cliMockImplementation,
     dbtProjectYml,

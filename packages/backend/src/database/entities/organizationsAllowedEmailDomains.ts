@@ -1,5 +1,5 @@
-import { OrganizationMemberRole, ProjectMemberRole } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type OrganizationMemberRole, type ProjectMemberRole } from '@lightdash/common';
+import { type Knex } from 'knex';
 
 export const OrganizationAllowedEmailDomainsTableName =
     'organization_allowed_email_domains';

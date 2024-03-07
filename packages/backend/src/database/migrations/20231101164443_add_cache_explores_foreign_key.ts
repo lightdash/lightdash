@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const CACHED_EXPLORES_TABLE_NAME = 'cached_explores';
 

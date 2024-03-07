@@ -1,11 +1,11 @@
 import {
-    DbtLog,
-    Job,
-    JobStatusType,
-    JobStepStatusType,
-    JobStepType,
+    type DbtLog,
+    type Job,
+    type JobStatusType,
+    type JobStepStatusType,
+    type JobStepType,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export const JobsTableName = 'jobs';
 export const JobStepsTableName = 'job_steps';

@@ -2,28 +2,28 @@ import {
     attachTypesToModels,
     convertExplores,
     DbtManifestVersion,
-    DbtMetric,
-    DbtModelNode,
-    DbtPackages,
-    DbtRawModelNode,
-    Explore,
-    ExploreError,
+    type DbtMetric,
+    type DbtModelNode,
+    type DbtPackages,
+    type DbtRawModelNode,
+    type Explore,
+    type ExploreError,
     friendlyName,
     GetDbtManifestVersion,
     getSchemaStructureFromDbtModels,
-    InlineError,
+    type InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
     ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
     ParseError,
-    SupportedDbtAdapter,
-    SupportedDbtVersions,
+    type SupportedDbtAdapter,
+    type SupportedDbtVersions,
 } from '@lightdash/common';
-import { WarehouseClient } from '@lightdash/warehouses';
+import { type WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
-import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
+import { type CachedWarehouse, type DbtClient, type ProjectAdapter } from '../types';
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtClient: DbtClient;

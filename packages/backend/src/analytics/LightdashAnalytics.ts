@@ -1,25 +1,25 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
 import {
-    CartesianSeriesType,
-    ChartType,
-    DbtProjectType,
+    type CartesianSeriesType,
+    type ChartType,
+    type DbtProjectType,
     LightdashInstallType,
     LightdashMode,
-    LightdashUser,
-    OrganizationMemberRole,
-    PinnedItem,
-    ProjectMemberRole,
-    RequestMethod,
-    SchedulerFormat,
-    TableSelectionType,
-    ValidateProjectPayload,
-    WarehouseTypes,
+    type LightdashUser,
+    type OrganizationMemberRole,
+    type PinnedItem,
+    type ProjectMemberRole,
+    type RequestMethod,
+    type SchedulerFormat,
+    type TableSelectionType,
+    type ValidateProjectPayload,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import Analytics, {
-    Track as AnalyticsTrack,
+    type Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
 import { v4 as uuidv4 } from 'uuid';
-import { LightdashConfig } from '../config/parseConfig';
+import { type LightdashConfig } from '../config/parseConfig';
 import { VERSION } from '../version';
 
 type Identify = {

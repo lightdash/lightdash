@@ -6,7 +6,7 @@ import {
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { savedChartModel } from '../../../models/models';
 
 export async function seed(knex: Knex): Promise<void> {

@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/node';
-import { Job } from 'graphile-worker';
+import { type Job } from 'graphile-worker';
 import Logger from '../logging/logger';
 
 async function timeout(prom: Promise<any>, time: number, exception: Symbol) {

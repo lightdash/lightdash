@@ -1,7 +1,7 @@
 import {
-    ApiErrorPayload,
-    ApiSlackChannelsResponse,
-    ApiSlackNotificationChannelResponse,
+    type ApiErrorPayload,
+    type ApiSlackChannelsResponse,
+    type ApiSlackNotificationChannelResponse,
     ForbiddenError,
 } from '@lightdash/common';
 import {
@@ -16,7 +16,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { slackClient } from '../clients/clients';
 import {
     allowApiKeyAuthentication,

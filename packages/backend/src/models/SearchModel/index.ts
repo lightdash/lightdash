@@ -1,22 +1,22 @@
 import {
-    DashboardSearchResult,
-    Explore,
-    ExploreError,
-    FieldSearchResult,
+    type DashboardSearchResult,
+    type Explore,
+    type ExploreError,
+    type FieldSearchResult,
     hasIntersection,
     isDimension,
     isExploreError,
     NotExistsError,
-    SavedChartSearchResult,
-    SearchFilters,
+    type SavedChartSearchResult,
+    type SearchFilters,
     SearchItemType,
-    SearchResults,
-    SpaceSearchResult,
-    TableErrorSearchResult,
-    TableSearchResult,
+    type SearchResults,
+    type SpaceSearchResult,
+    type TableErrorSearchResult,
+    type TableSearchResult,
     TableSelectionType,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,

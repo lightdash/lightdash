@@ -1,25 +1,25 @@
 import {
     NotFoundError,
-    OrganizationMemberProfile,
-    OrganizationMemberProfileUpdate,
-    OrganizationMemberProfileWithGroups,
-    OrganizationMemberRole,
+    type OrganizationMemberProfile,
+    type OrganizationMemberProfileUpdate,
+    type OrganizationMemberProfileWithGroups,
+    type OrganizationMemberRole,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import {
-    DbOrganizationMembership,
-    DbOrganizationMembershipIn,
+    type DbOrganizationMembership,
+    type DbOrganizationMembershipIn,
     OrganizationMembershipsTableName,
 } from '../database/entities/organizationMemberships';
 import {
-    DbOrganization,
+    type DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
-import { DbUser, UserTableName } from '../database/entities/users';
+import { type DbUser, UserTableName } from '../database/entities/users';
 
 type DbOrganizationMemberProfile = {
     user_uuid: string;

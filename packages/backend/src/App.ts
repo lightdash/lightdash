@@ -1,17 +1,17 @@
-import { LightdashMode, SessionUser } from '@lightdash/common';
-import { NodeSDK } from '@opentelemetry/sdk-node';
+import { LightdashMode, type SessionUser } from '@lightdash/common';
+import { type NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
-import { SamplingContext } from '@sentry/types';
+import { type SamplingContext } from '@sentry/types';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import cookieParser from 'cookie-parser';
 import express, {
-    Express,
-    NextFunction,
-    Request,
-    RequestHandler,
-    Response,
+    type Express,
+    type NextFunction,
+    type Request,
+    type RequestHandler,
+    type Response,
 } from 'express';
 import expressSession from 'express-session';
 import expressStaticGzip from 'express-static-gzip';
@@ -23,7 +23,7 @@ import { URL } from 'url';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import * as clients from './clients/clients';
 import { SlackService } from './clients/Slack/Slackbot';
-import { LightdashConfig } from './config/parseConfig';
+import { type LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,
     azureAdPassportStrategy,

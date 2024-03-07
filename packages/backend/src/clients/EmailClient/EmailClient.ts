@@ -1,18 +1,18 @@
 import {
-    CreateProjectMember,
-    InviteLink,
-    PasswordResetLink,
+    type CreateProjectMember,
+    type InviteLink,
+    type PasswordResetLink,
     ProjectMemberRole,
-    SessionUser,
+    type SessionUser,
     SmptError,
 } from '@lightdash/common';
 import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
 import hbs from 'nodemailer-express-handlebars';
-import Mail from 'nodemailer/lib/mailer';
-import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
+import type Mail from 'nodemailer/lib/mailer';
+import { type AuthenticationType } from 'nodemailer/lib/smtp-connection';
 import path from 'path';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
 export type AttachmentUrl = {

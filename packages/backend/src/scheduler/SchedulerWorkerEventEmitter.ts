@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 import EventEmitter from 'events';
-import { WorkerEvents } from 'graphile-worker';
+import { type WorkerEvents } from 'graphile-worker';
 import Logger from '../logging/logger';
 
 const schedulerWorkerEventEmitter: WorkerEvents = new EventEmitter();

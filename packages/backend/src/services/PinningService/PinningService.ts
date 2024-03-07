@@ -1,16 +1,16 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
-    PinnedItems,
-    SessionUser,
-    UpdatePinnedItemOrder,
+    type PinnedItems,
+    type SessionUser,
+    type UpdatePinnedItemOrder,
 } from '@lightdash/common';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { PinnedListModel } from '../../models/PinnedListModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { ResourceViewItemModel } from '../../models/ResourceViewItemModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
-import { SpaceModel } from '../../models/SpaceModel';
+import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type PinnedListModel } from '../../models/PinnedListModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type ResourceViewItemModel } from '../../models/ResourceViewItemModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
+import { type SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type PinningServiceArguments = {

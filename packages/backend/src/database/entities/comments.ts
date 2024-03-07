@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export const DashboardTileCommentsTableName = 'dashboard_tile_comments';
 

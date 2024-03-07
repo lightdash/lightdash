@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const CACHED_WAREHOUSE_TABLE_NAME = 'cached_warehouse';
 

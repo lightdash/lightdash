@@ -4,7 +4,7 @@ import {
     ForbiddenError,
     OrganizationMemberRole,
     ProjectMemberRole,
-    SessionUser,
+    type SessionUser,
 } from '@lightdash/common';
 import {
     analyticsModel,

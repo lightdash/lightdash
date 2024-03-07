@@ -1,7 +1,7 @@
 import {
-    ApiErrorPayload,
-    GitIntegrationConfiguration,
-    PullRequestCreated,
+    type ApiErrorPayload,
+    type GitIntegrationConfiguration,
+    type PullRequestCreated,
 } from '@lightdash/common';
 import {
     Body,
@@ -16,7 +16,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,

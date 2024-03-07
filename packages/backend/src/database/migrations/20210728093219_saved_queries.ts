@@ -1,5 +1,5 @@
-import { Knex } from 'knex';
-import { DbSpace } from '../entities/spaces';
+import { type Knex } from 'knex';
+import { type DbSpace } from '../entities/spaces';
 
 type DbProject = {
     project_id: number;

@@ -1,25 +1,24 @@
 import { Ability } from '@casl/ability';
 import {
     ChartType,
-    Dashboard,
+    type Dashboard,
     DashboardTileTypes,
     DimensionType,
-    Explore,
-    ExploreError,
+    type Explore,
+    type ExploreError,
     FieldType,
     FilterOperator,
     InlineErrorType,
     LightdashMode,
     MetricType,
     OrganizationMemberRole,
-    SavedChart,
-    SessionUser,
-    ShareUrl,
+    type SavedChart,
+    type SessionUser,
     SupportedDbtAdapter,
-    TablesConfiguration,
+    type TablesConfiguration,
     TableSelectionType,
 } from '@lightdash/common';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 
 export const config = {
     mode: LightdashMode.DEFAULT,

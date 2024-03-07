@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const CHART_VIEWS_TABLE_NAME = 'analytics_chart_views';
 const DASHBOARD_VIEWS_TABLE_NAME = 'analytics_dashboard_views';

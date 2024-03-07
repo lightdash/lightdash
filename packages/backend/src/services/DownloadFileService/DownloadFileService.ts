@@ -1,7 +1,7 @@
-import { DownloadFile, ForbiddenError, NotFoundError } from '@lightdash/common';
+import { type DownloadFile, ForbiddenError, NotFoundError } from '@lightdash/common';
 import fs from 'fs';
-import { LightdashConfig } from '../../config/parseConfig';
-import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { type LightdashConfig } from '../../config/parseConfig';
+import { type DownloadFileModel } from '../../models/DownloadFileModel';
 
 type DownloadFileServiceArguments = {
     downloadFileModel: DownloadFileModel;

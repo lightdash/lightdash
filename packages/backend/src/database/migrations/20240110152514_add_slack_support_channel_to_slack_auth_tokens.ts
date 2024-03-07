@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const SlackAuthTokensTableName = 'slack_auth_tokens';
 

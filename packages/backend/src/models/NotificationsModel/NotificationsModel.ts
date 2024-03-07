@@ -1,13 +1,13 @@
 import {
     ApiNotificationResourceType,
-    ApiNotificationUpdateParams,
-    Comment,
-    Dashboard,
-    DashboardTile,
-    LightdashUser,
-    NotificationDashboardComment,
+    type ApiNotificationUpdateParams,
+    type Comment,
+    type Dashboard,
+    type DashboardTile,
+    type LightdashUser,
+    type NotificationDashboardComment,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
     DbNotificationResourceType,
     NotificationsTableName,

@@ -1,14 +1,14 @@
 import {
-    ApiEmailStatusResponse,
-    ApiErrorPayload,
-    ApiGetAuthenticatedUserResponse,
-    ApiRegisterUserResponse,
-    ApiSuccessEmpty,
-    ApiUserAllowedOrganizationsResponse,
+    type ApiEmailStatusResponse,
+    type ApiErrorPayload,
+    type ApiGetAuthenticatedUserResponse,
+    type ApiRegisterUserResponse,
+    type ApiSuccessEmpty,
+    type ApiUserAllowedOrganizationsResponse,
     ParameterError,
-    RegisterOrActivateUser,
-    UpsertUserWarehouseCredentials,
-    UserWarehouseCredentials,
+    type RegisterOrActivateUser,
+    type UpsertUserWarehouseCredentials,
+    type UserWarehouseCredentials,
     validatePassword,
 } from '@lightdash/common';
 import {
@@ -27,7 +27,7 @@ import {
     Route,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
 import {

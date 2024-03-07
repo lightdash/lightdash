@@ -2,10 +2,10 @@ import { Ability } from '@casl/ability';
 import {
     LightdashMode,
     OrganizationMemberRole,
-    SessionUser,
-    ShareUrl,
+    type SessionUser,
+    type ShareUrl,
 } from '@lightdash/common';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 
 export const Config = {
     mode: LightdashMode.DEFAULT,

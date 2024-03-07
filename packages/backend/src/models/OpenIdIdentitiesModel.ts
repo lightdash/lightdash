@@ -1,16 +1,16 @@
 import {
-    CreateOpenIdIdentity,
+    type CreateOpenIdIdentity,
     NotExistsError,
     NotFoundError,
-    OpenIdIdentity,
+    type OpenIdIdentity,
     OpenIdIdentityIssuerType,
-    OpenIdIdentitySummary,
+    type OpenIdIdentitySummary,
     ParameterError,
-    UpdateOpenIdentity,
+    type UpdateOpenIdentity,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
-    DbOpenIdIdentity,
+    type DbOpenIdIdentity,
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
 import { PasswordLoginTableName } from '../database/entities/passwordLogins';

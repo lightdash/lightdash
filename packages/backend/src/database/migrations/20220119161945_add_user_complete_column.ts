@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const UserTableName = 'users';
 const IsCompleteColumnName = 'is_setup_complete';

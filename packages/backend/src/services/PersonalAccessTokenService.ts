@@ -1,11 +1,11 @@
 import {
-    CreatePersonalAccessToken,
-    PersonalAccessToken,
-    RequestMethod,
-    SessionUser,
+    type CreatePersonalAccessToken,
+    type PersonalAccessToken,
+    type RequestMethod,
+    type SessionUser,
 } from '@lightdash/common';
-import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
+import { type LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { type PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 
 type PersonalAccessTokenServiceArguments = {
     analytics: LightdashAnalytics;

@@ -1,11 +1,11 @@
 import {
     OrganizationMemberRole,
-    UserActivity,
-    UserWithCount,
-    ViewStatistics,
+    type UserActivity,
+    type UserWithCount,
+    type ViewStatistics,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
     AnalyticsChartViewsTableName,
     AnalyticsDashboardViewsTableName,

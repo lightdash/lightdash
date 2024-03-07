@@ -1,7 +1,7 @@
-import { DbtPackages, Explore, ExploreError } from '@lightdash/common';
-import { WarehouseClient } from '@lightdash/warehouses';
+import { type DbtPackages, type Explore, type ExploreError } from '@lightdash/common';
+import { type WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
-import { ProjectAdapter } from '../types';
+import { type ProjectAdapter } from '../types';
 
 type DbtNoneCredentialsProjectAdapterArgs = {
     warehouseClient: WarehouseClient;

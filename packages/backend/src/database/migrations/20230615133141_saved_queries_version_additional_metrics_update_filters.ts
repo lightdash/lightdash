@@ -1,5 +1,4 @@
-import { Knex } from 'knex';
-import { v4 as uuidv4 } from 'uuid';
+import { type Knex } from 'knex';
 
 const SavedChartAdditionalMetricsTableName =
     'saved_queries_version_additional_metrics';

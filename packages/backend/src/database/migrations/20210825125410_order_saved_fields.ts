@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const getGroupedFields = async (knex: Knex): Promise<Record<string, any>> => {
     const results = await knex('saved_queries_version_fields').orderBy([

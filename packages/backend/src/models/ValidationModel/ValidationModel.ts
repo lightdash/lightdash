@@ -1,37 +1,35 @@
 import {
     ChartKind,
-    CreateValidation,
+    type CreateValidation,
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,
     NotFoundError,
-    ValidationErrorChartResponse,
-    ValidationErrorDashboardResponse,
-    ValidationErrorTableResponse,
-    ValidationResponse,
-    ValidationResponseBase,
+    type ValidationErrorChartResponse,
+    type ValidationErrorDashboardResponse,
+    type ValidationErrorTableResponse,
+    type ValidationResponse,
+    type ValidationResponseBase,
     ValidationSourceType,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
     AnalyticsChartViewsTableName,
     AnalyticsDashboardViewsTableName,
 } from '../../database/entities/analytics';
 import {
     DashboardsTableName,
-    DashboardTable,
+    type DashboardTable,
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
 import {
     SavedChartsTableName,
-    SavedChartTable,
-    SavedChartVersionsTable,
-    SavedChartVersionsTableName,
+    type SavedChartTable,
 } from '../../database/entities/savedCharts';
-import { DbSpace, SpaceTableName } from '../../database/entities/spaces';
-import { UserTable, UserTableName } from '../../database/entities/users';
+import { type DbSpace, SpaceTableName } from '../../database/entities/spaces';
+import { type UserTable, UserTableName } from '../../database/entities/users';
 import {
-    DbValidationTable,
+    type DbValidationTable,
     ValidationTableName,
 } from '../../database/entities/validation';
 

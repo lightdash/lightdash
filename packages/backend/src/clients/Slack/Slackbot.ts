@@ -2,13 +2,13 @@ import { LightdashMode } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import { nanoid } from 'nanoid';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { apiV1Router } from '../../routers/apiV1Router';
 import { unfurlService } from '../../services/services';
-import { Unfurl } from '../../services/UnfurlService/UnfurlService';
+import { type Unfurl } from '../../services/UnfurlService/UnfurlService';
 import { getUnfurlBlocks } from './SlackMessageBlocks';
 import { slackOptions } from './SlackOptions';
 

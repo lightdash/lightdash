@@ -3,7 +3,7 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
-    SessionUser,
+    type SessionUser,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { s3CacheClient } from '../../clients/clients';

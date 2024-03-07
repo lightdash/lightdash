@@ -1,5 +1,5 @@
-import { SessionUser } from '@lightdash/common';
-import * as express from 'express';
+import { type SessionUser } from '@lightdash/common';
+import type * as express from 'express';
 import * as expressWinston from 'express-winston';
 import winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';

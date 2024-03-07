@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const OrganizationAllowedEmailDomainProjectsTableName =
     'organization_allowed_email_domain_projects';

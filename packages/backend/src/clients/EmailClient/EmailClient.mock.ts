@@ -1,4 +1,4 @@
-import { LightdashConfig, SmtpConfig } from '../../config/parseConfig';
+import { type LightdashConfig, type SmtpConfig } from '../../config/parseConfig';
 
 export const passwordResetLinkMock = {
     code: 'code',

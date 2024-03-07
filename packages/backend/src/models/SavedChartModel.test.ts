@@ -1,10 +1,10 @@
 import knex from 'knex';
 import {
-    FunctionQueryMatcher,
+    type FunctionQueryMatcher,
     getTracker,
     MockClient,
-    RawQuery,
-    Tracker,
+    type RawQuery,
+    type Tracker,
 } from 'knex-mock-client';
 
 import { deepEqual } from '@lightdash/common';

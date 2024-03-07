@@ -1,7 +1,7 @@
-import { SupportedDbtVersions } from '@lightdash/common';
-import { WarehouseClient } from '@lightdash/warehouses';
+import { type SupportedDbtVersions } from '@lightdash/common';
+import { type WarehouseClient } from '@lightdash/warehouses';
 import { DbtCliClient } from '../dbt/dbtCliClient';
-import { CachedWarehouse } from '../types';
+import { type CachedWarehouse } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
 type DbtLocalProjectAdapterArgs = {

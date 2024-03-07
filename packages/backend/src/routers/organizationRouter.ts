@@ -1,8 +1,7 @@
 import {
-    ForbiddenError,
     getRequestMethod,
     LightdashRequestMethodHeader,
-    OnboardingStatus,
+    type OnboardingStatus,
 } from '@lightdash/common';
 import express from 'express';
 import {

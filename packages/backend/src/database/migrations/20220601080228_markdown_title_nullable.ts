@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const DASHBOARD_TILE_MARKDOWNS_TABLE = 'dashboard_tile_markdowns';
 

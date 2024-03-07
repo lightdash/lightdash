@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { DashboardsTableName } from '../entities/dashboards';
 import { SavedChartsTableName } from '../entities/savedCharts';
 import { SpaceTableName } from '../entities/spaces';

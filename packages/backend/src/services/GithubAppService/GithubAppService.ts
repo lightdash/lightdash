@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
-import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
-import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
-import { UserModel } from '../../models/UserModel';
+import { ForbiddenError, isUserWithOrg, type SessionUser } from '@lightdash/common';
+import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
+import { type UserModel } from '../../models/UserModel';
 
 type GithubAppServiceArguments = {
     githubAppInstallationsModel: GithubAppInstallationsModel;

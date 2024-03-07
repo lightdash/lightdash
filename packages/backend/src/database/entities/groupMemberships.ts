@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 type DbGroupMembership = {
     group_uuid: string;

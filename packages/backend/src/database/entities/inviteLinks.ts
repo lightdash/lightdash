@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export type DbInviteLink = {
     invite_code_hash: string;

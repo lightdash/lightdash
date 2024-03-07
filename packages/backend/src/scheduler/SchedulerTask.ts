@@ -1,11 +1,11 @@
 import {
     assertUnreachable,
-    CompileProjectPayload,
-    CreateSchedulerAndTargets,
-    CreateSchedulerLog,
-    CreateSchedulerTarget,
-    DownloadCsvPayload,
-    EmailNotificationPayload,
+    type CompileProjectPayload,
+    type CreateSchedulerAndTargets,
+    type CreateSchedulerLog,
+    type CreateSchedulerTarget,
+    type DownloadCsvPayload,
+    type EmailNotificationPayload,
     friendlyName,
     getCustomLabelsFromTableConfig,
     getHiddenTableFields,
@@ -13,7 +13,7 @@ import {
     getItemMap,
     getRequestMethod,
     getSchedulerUuid,
-    GsheetsNotificationPayload,
+    type GsheetsNotificationPayload,
     isChartValidationError,
     isCreateScheduler,
     isCreateSchedulerSlackTarget,
@@ -26,32 +26,32 @@ import {
     isTableChartConfig,
     LightdashPage,
     NotificationFrequency,
-    NotificationPayloadBase,
+    type NotificationPayloadBase,
     operatorAction,
-    ScheduledDeliveryPayload,
-    SchedulerAndTargets,
-    SchedulerFilterRule,
+    type ScheduledDeliveryPayload,
+    type SchedulerAndTargets,
+    type SchedulerFilterRule,
     SchedulerFormat,
     SchedulerJobStatus,
-    SchedulerLog,
-    SlackNotificationPayload,
+    type SchedulerLog,
+    type SlackNotificationPayload,
     ThresholdOperator,
-    ThresholdOptions,
-    UploadMetricGsheetPayload,
-    ValidateProjectPayload,
+    type ThresholdOptions,
+    type UploadMetricGsheetPayload,
+    type ValidateProjectPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
 import {
-    DownloadCsv,
+    type DownloadCsv,
     LightdashAnalytics,
     parseAnalyticsLimit,
     QueryExecutionContext,
 } from '../analytics/LightdashAnalytics';
-import { S3Client } from '../clients/Aws/s3';
-import EmailClient from '../clients/EmailClient/EmailClient';
-import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
-import { SlackClient } from '../clients/Slack/SlackClient';
+import { type S3Client } from '../clients/Aws/s3';
+import type EmailClient from '../clients/EmailClient/EmailClient';
+import { type GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
+import { type SlackClient } from '../clients/Slack/SlackClient';
 import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
@@ -59,16 +59,16 @@ import {
     getDashboardCsvResultsBlocks,
     getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
-import { LightdashConfig } from '../config/parseConfig';
+import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
-import { CsvService } from '../services/CsvService/CsvService';
-import { DashboardService } from '../services/DashboardService/DashboardService';
-import { ProjectService } from '../services/ProjectService/ProjectService';
-import { SchedulerService } from '../services/SchedulerService/SchedulerService';
-import { UnfurlService } from '../services/UnfurlService/UnfurlService';
-import { UserService } from '../services/UserService';
-import { ValidationService } from '../services/ValidationService/ValidationService';
-import { SchedulerClient } from './SchedulerClient';
+import { type CsvService } from '../services/CsvService/CsvService';
+import { type DashboardService } from '../services/DashboardService/DashboardService';
+import { type ProjectService } from '../services/ProjectService/ProjectService';
+import { type SchedulerService } from '../services/SchedulerService/SchedulerService';
+import { type UnfurlService } from '../services/UnfurlService/UnfurlService';
+import { type UserService } from '../services/UserService';
+import { type ValidationService } from '../services/ValidationService/ValidationService';
+import { type SchedulerClient } from './SchedulerClient';
 
 type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;

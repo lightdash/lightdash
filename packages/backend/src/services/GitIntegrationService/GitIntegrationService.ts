@@ -1,19 +1,18 @@
 import { subject } from '@casl/ability';
 import {
-    AdditionalMetric,
-    DbtModelNode,
+    type AdditionalMetric,
+    type DbtModelNode,
     DbtProjectType,
-    DimensionType,
+    type DimensionType,
     findAndUpdateModelNodes,
     ForbiddenError,
-    GitIntegrationConfiguration,
+    type GitIntegrationConfiguration,
     isUserWithOrg,
     lightdashDbtYamlSchema,
     ParseError,
-    Project,
-    PullRequestCreated,
-    SavedChart,
-    SessionUser,
+    type PullRequestCreated,
+    type SavedChart,
+    type SessionUser,
     UnexpectedServerError,
 } from '@lightdash/common';
 import Ajv from 'ajv';
@@ -25,11 +24,10 @@ import {
     getOrRefreshToken,
     updateFile,
 } from '../../clients/github/Github';
-import { LightdashConfig, SentryConfig } from '../../config/parseConfig';
-import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
-import { ProjectService } from '../ProjectService/ProjectService';
+import { type LightdashConfig } from '../../config/parseConfig';
+import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
 
 type GitIntegrationServiceArguments = {
     lightdashConfig: LightdashConfig;

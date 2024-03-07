@@ -1,11 +1,11 @@
 import { Ability } from '@casl/ability';
 import {
     LightdashMode,
-    Organization,
+    type Organization,
     OrganizationMemberRole,
-    SessionUser,
+    type SessionUser,
 } from '@lightdash/common';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 
 export const user: SessionUser = {
     userUuid: 'userUuid',

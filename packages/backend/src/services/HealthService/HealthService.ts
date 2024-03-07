@@ -1,13 +1,13 @@
 import {
-    HealthState,
+    type HealthState,
     LightdashInstallType,
     LightdashMode,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { getMigrationStatus } from '../../database/database';
-import { OrganizationModel } from '../../models/OrganizationModel';
+import { type OrganizationModel } from '../../models/OrganizationModel';
 import { VERSION } from '../../version';
 
 type HealthServiceArguments = {

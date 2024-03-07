@@ -1,10 +1,10 @@
 import {
     ApiNotificationResourceType,
-    ApiNotificationUpdateParams,
+    type ApiNotificationUpdateParams,
     assertUnreachable,
-    Notification,
+    type Notification,
 } from '@lightdash/common';
-import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
+import { type NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 
 type NotificationsServiceArguments = {
     notificationsModel: NotificationsModel;

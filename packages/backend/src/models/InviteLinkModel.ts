@@ -1,18 +1,18 @@
-import { InviteLink, NotExistsError } from '@lightdash/common';
+import { type InviteLink, NotExistsError } from '@lightdash/common';
 import * as crypto from 'crypto';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { URL } from 'url';
-import { LightdashConfig } from '../config/parseConfig';
-import { DbEmail, EmailTableName } from '../database/entities/emails';
+import { type LightdashConfig } from '../config/parseConfig';
+import { type DbEmail, EmailTableName } from '../database/entities/emails';
 import {
-    DbInviteLink,
+    type DbInviteLink,
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
 import {
-    DbOrganization,
+    type DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
-import { DbUser, UserTableName } from '../database/entities/users';
+import { type DbUser, UserTableName } from '../database/entities/users';
 
 type InviteLinkModelArguments = {
     database: Knex;

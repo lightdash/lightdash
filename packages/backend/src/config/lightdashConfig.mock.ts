@@ -1,5 +1,5 @@
 import { LightdashMode } from '@lightdash/common';
-import { LightdashConfig } from './parseConfig';
+import { type LightdashConfig } from './parseConfig';
 
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,

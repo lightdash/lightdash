@@ -1,26 +1,26 @@
 import {
     ConditionalOperator,
-    CreateBigqueryCredentials,
-    DbtCloudIDEProjectConfig,
+    type CreateBigqueryCredentials,
+    type DbtCloudIDEProjectConfig,
     DbtProjectType,
     DefaultSupportedDbtVersion,
     DimensionType,
-    Explore,
+    type Explore,
     FieldType,
     LightdashMode,
-    MetricFilterRule,
+    type MetricFilterRule,
     MetricType,
     OrderFieldsByStrategy,
-    Project,
+    type Project,
     ProjectType,
     SupportedDbtAdapter,
-    TablesConfiguration,
+    type TablesConfiguration,
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { LightdashConfig } from '../../config/parseConfig';
-import { ProjectTable } from '../../database/entities/projects';
-import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { type LightdashConfig } from '../../config/parseConfig';
+import { type ProjectTable } from '../../database/entities/projects';
+import { type EncryptionService } from '../../services/EncryptionService/EncryptionService';
 
 export const lightdashConfigMock: LightdashConfig = {
     mode: LightdashMode.DEFAULT,

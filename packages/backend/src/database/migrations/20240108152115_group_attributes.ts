@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const userAttributesTableName = 'user_attributes';
 const groupUserAttributes = 'group_user_attributes';

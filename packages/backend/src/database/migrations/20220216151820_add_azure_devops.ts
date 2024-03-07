@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const DbtConnectionTypesTableName = 'dbt_connection_types';
 const DbtConnectionTypeColumnName = 'dbt_connection_type';

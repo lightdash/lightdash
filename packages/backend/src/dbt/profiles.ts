@@ -1,6 +1,6 @@
 import {
     assertUnreachable,
-    CreateWarehouseCredentials,
+    type CreateWarehouseCredentials,
     WarehouseTypes,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';

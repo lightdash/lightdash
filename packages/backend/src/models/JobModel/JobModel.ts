@@ -1,19 +1,19 @@
 import {
-    BaseJob,
-    CreateJob,
+    type BaseJob,
+    type CreateJob,
     DbtError,
-    DbtLog,
-    Job,
+    type DbtLog,
+    type Job,
     JobLabels,
     JobStatusType,
-    JobStep,
+    type JobStep,
     JobStepStatusType,
-    JobStepType,
+    type JobStepType,
     NotFoundError,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
-    DbJobs,
+    type DbJobs,
     JobsTableName,
     JobStepsTableName,
 } from '../../database/entities/jobs';

@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const projectUserWarehouseCredentialsPreferenceTableName =
     'project_user_warehouse_credentials_preference';

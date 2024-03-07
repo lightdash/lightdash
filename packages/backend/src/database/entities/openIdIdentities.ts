@@ -1,5 +1,5 @@
-import { OpenIdIdentityIssuerType } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type OpenIdIdentityIssuerType } from '@lightdash/common';
+import { type Knex } from 'knex';
 
 export type DbOpenIdIdentity = {
     issuer: string;

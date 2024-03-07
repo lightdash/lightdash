@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 export type DbPersonalAccessToken = {
     personal_access_token_uuid: string;

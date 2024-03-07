@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const CUSTOM_DIMENSIONS_TABLE_NAME = 'saved_queries_version_custom_dimensions';
 

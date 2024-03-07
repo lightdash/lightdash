@@ -1,11 +1,10 @@
 import {
-    DbtPackages,
-    DbtRpcDocsGenerateResults,
-    DbtRpcGetManifestResults,
-    Explore,
-    ExploreError,
+    type DbtPackages,
+    type DbtRpcGetManifestResults,
+    type Explore,
+    type ExploreError,
 } from '@lightdash/common';
-import { WarehouseCatalog } from '@lightdash/warehouses';
+import { type WarehouseCatalog } from '@lightdash/warehouses';
 
 export interface ProjectAdapter {
     compileAllExplores(): Promise<(Explore | ExploreError)[]>;

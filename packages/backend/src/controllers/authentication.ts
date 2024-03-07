@@ -1,31 +1,31 @@
 /// <reference path="../@types/passport-openidconnect.d.ts" />
 /// <reference path="../@types/express-session.d.ts" />
 import {
-    ArgumentsOf,
+    type ArgumentsOf,
     AuthorizationError,
     isOpenIdUser,
     isSessionUser,
     LightdashError,
     LightdashMode,
     OpenIdIdentityIssuerType,
-    OpenIdUser,
-    SessionUser,
+    type OpenIdUser,
+    type SessionUser,
 } from '@lightdash/common';
-import { Request, RequestHandler } from 'express';
-import { generators, Issuer, UserinfoResponse } from 'openid-client';
+import { type Request, type RequestHandler } from 'express';
+import { generators, Issuer, type UserinfoResponse } from 'openid-client';
 import type { Profile as PassportProfile } from 'passport';
 import passport from 'passport';
 import {
-    GoogleCallbackParameters,
-    Profile,
+    type GoogleCallbackParameters,
+    type Profile,
     Strategy as GoogleStrategy,
-    VerifyCallback,
+    type VerifyCallback,
 } from 'passport-google-oauth20';
 import { HeaderAPIKeyStrategy } from 'passport-headerapikey';
 import { Strategy as LocalStrategy } from 'passport-local';
 import {
     Strategy as OpenIDConnectStrategy,
-    VerifyFunctionWithRequest,
+    type VerifyFunctionWithRequest,
 } from 'passport-openidconnect';
 import { Strategy } from 'passport-strategy';
 import { URL } from 'url';

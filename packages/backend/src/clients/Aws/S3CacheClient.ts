@@ -3,11 +3,11 @@ import {
     HeadObjectCommand,
     NotFound,
     PutObjectCommand,
-    PutObjectCommandInput,
+    type PutObjectCommandInput,
     S3,
 } from '@aws-sdk/client-s3';
 import * as Sentry from '@sentry/node';
-import { LightdashConfig } from '../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { wrapOtelSpan } from '../../utils';
 

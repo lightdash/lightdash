@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 const INVITES_TABLE_NAME = 'invite_links';
 

@@ -1,5 +1,5 @@
-import { Knex } from 'knex';
-import { WarehouseType } from './warehouseCredentials';
+import { type Knex } from 'knex';
+import { type WarehouseType } from './warehouseCredentials';
 
 export type DbUserWarehouseCredentials = {
     user_warehouse_credentials_uuid: string;

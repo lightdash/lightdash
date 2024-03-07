@@ -1,5 +1,5 @@
 import knex from 'knex';
-import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import {
     GroupUserAttributesTable,
     OrganizationMemberUserAttributesTable,

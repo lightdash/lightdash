@@ -1,7 +1,7 @@
 /**
  * Switch behaviour of database connector depending on environment
  */
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import path from 'path';
 import { parse } from 'pg-connection-string';
 import { lightdashConfig } from '../config/lightdashConfig';

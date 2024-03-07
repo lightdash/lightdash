@@ -1,10 +1,10 @@
-import { SlackChannel, SlackSettings } from '@lightdash/common';
+import { type SlackChannel, type SlackSettings } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { App, Block, LogLevel } from '@slack/bolt';
-import { ConversationsListResponse, UsersListResponse } from '@slack/web-api';
-import { LightdashConfig } from '../../config/parseConfig';
+import { App, type Block, LogLevel } from '@slack/bolt';
+import { type ConversationsListResponse, type UsersListResponse } from '@slack/web-api';
+import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { slackOptions } from './SlackOptions';
 
 type SlackClientArguments = {

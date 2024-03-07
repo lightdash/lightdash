@@ -1,4 +1,4 @@
-import { Controller, type IocContainerFactory } from '@tsoa/runtime';
+import { type Controller, type IocContainerFactory } from '@tsoa/runtime';
 import { BaseController } from '../controllers/baseController';
 import type { ServiceRepository } from './ServiceRepository';
 import { serviceRepository } from './services';

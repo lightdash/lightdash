@@ -2,8 +2,8 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
     NotFoundError,
-    ProjectCatalog,
-    TablesConfiguration,
+    type ProjectCatalog,
+    type TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
 

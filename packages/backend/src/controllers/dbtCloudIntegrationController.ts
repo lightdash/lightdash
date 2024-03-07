@@ -1,7 +1,7 @@
 import {
-    ApiDbtCloudIntegrationSettings,
-    ApiDbtCloudSettingsDeleteSuccess,
-    ApiErrorPayload,
+    type ApiDbtCloudIntegrationSettings,
+    type ApiDbtCloudSettingsDeleteSuccess,
+    type ApiErrorPayload,
 } from '@lightdash/common';
 import {
     Delete,
@@ -15,7 +15,7 @@ import {
     Route,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 

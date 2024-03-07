@@ -1,7 +1,7 @@
 import {
     ForbiddenError,
     NotFoundError,
-    SlackSettings,
+    type SlackSettings,
 } from '@lightdash/common';
 import { ExpressReceiver } from '@slack/bolt';
 import express from 'express';

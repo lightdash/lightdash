@@ -1,29 +1,29 @@
 import { Ability } from '@casl/ability';
 import {
     ChartKind,
-    CreateDashboard,
-    CreateDashboardChartTile,
-    Dashboard,
-    DashboardBasicDetails,
-    DashboardChartTile,
-    DashboardLoomTile,
-    DashboardMarkdownTile,
+    type CreateDashboard,
+    type CreateDashboardChartTile,
+    type Dashboard,
+    type DashboardBasicDetails,
+    type DashboardChartTile,
+    type DashboardLoomTile,
+    type DashboardMarkdownTile,
     DashboardTileTypes,
-    DashboardUnversionedFields,
-    DashboardVersionedFields,
+    type DashboardUnversionedFields,
+    type DashboardVersionedFields,
     OrganizationMemberRole,
-    SessionUser,
+    type SessionUser,
 } from '@lightdash/common';
 import {
-    DashboardTable,
-    DashboardTileTable,
-    DashboardVersionTable,
-    DashboardViewTable,
+    type DashboardTable,
+    type DashboardTileTable,
+    type DashboardVersionTable,
+    type DashboardViewTable,
 } from '../../database/entities/dashboards';
-import { ProjectTable } from '../../database/entities/projects';
-import { SavedChartTable } from '../../database/entities/savedCharts';
-import { SpaceTable } from '../../database/entities/spaces';
-import { GetChartTileQuery, GetDashboardQuery } from './DashboardModel';
+import { type ProjectTable } from '../../database/entities/projects';
+import { type SavedChartTable } from '../../database/entities/savedCharts';
+import { type SpaceTable } from '../../database/entities/spaces';
+import { type GetChartTileQuery, type GetDashboardQuery } from './DashboardModel';
 
 // Argument mocks
 const tileWithoutId: CreateDashboardChartTile = {

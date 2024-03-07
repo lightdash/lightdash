@@ -1,11 +1,11 @@
 import {
-    ApiCreateProjectGroupAccess,
-    ApiErrorPayload,
-    ApiGroupMembersResponse,
-    ApiGroupResponse,
-    ApiSuccessEmpty,
-    ApiUpdateProjectGroupAccess,
-    UpdateGroupWithMembers,
+    type ApiCreateProjectGroupAccess,
+    type ApiErrorPayload,
+    type ApiGroupMembersResponse,
+    type ApiGroupResponse,
+    type ApiSuccessEmpty,
+    type ApiUpdateProjectGroupAccess,
+    type UpdateGroupWithMembers,
 } from '@lightdash/common';
 import {
     Body,
@@ -23,10 +23,10 @@ import {
     Route,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import {
-    CreateDBProjectGroupAccess,
-    UpdateDBProjectGroupAccess,
+    type CreateDBProjectGroupAccess,
+    type UpdateDBProjectGroupAccess,
 } from '../database/entities/projectGroupAccess';
 import {
     allowApiKeyAuthentication,

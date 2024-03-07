@@ -1,11 +1,10 @@
 import {
-    getChartType,
-    ResourceViewChartItem,
-    ResourceViewDashboardItem,
+    type ResourceViewChartItem,
+    type ResourceViewDashboardItem,
     ResourceViewItemType,
-    ResourceViewSpaceItem,
+    type ResourceViewSpaceItem,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 
 type ResourceViewItemModelArguments = {
     database: Knex;

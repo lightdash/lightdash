@@ -1,9 +1,7 @@
 import {
     AuthorizationError,
-    CompiledDimension,
-    Explore,
-    getDimensions,
-    UserAttributeValueMap,
+    type Explore,
+    type UserAttributeValueMap,
 } from '@lightdash/common';
 
 export const hasUserAttribute = (

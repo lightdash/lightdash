@@ -1,12 +1,12 @@
 import {
-    CreateWarehouseCredentials,
-    DbtProjectConfig,
+    type CreateWarehouseCredentials,
+    type DbtProjectConfig,
     DbtProjectType,
-    SupportedDbtVersions,
+    type SupportedDbtVersions,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
-import { CachedWarehouse, ProjectAdapter } from '../types';
+import { type CachedWarehouse, type ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';

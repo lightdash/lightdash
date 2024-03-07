@@ -1,18 +1,18 @@
 import { Ability } from '@casl/ability';
 import {
     ChartType,
-    CreateDashboard,
-    CreateDashboardChartTile,
-    Dashboard,
-    DashboardBasicDetails,
+    type CreateDashboard,
+    type CreateDashboardChartTile,
+    type Dashboard,
+    type DashboardBasicDetails,
     DashboardTileTypes,
     OrganizationMemberRole,
-    SavedChart,
-    SessionUser,
-    Space,
-    UpdateDashboard,
+    type SavedChart,
+    type SessionUser,
+    type Space,
+    type UpdateDashboard,
 } from '@lightdash/common';
-import { SpaceTable } from '../../database/entities/spaces';
+import { type SpaceTable } from '../../database/entities/spaces';
 
 export const user: SessionUser = {
     userUuid: 'userUuid',

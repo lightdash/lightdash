@@ -1,9 +1,9 @@
 import {
-    ApiCreateUserAttributeResponse,
-    ApiErrorPayload,
-    ApiSuccessEmpty,
-    ApiUserAttributesResponse,
-    CreateUserAttribute,
+    type ApiCreateUserAttributeResponse,
+    type ApiErrorPayload,
+    type ApiSuccessEmpty,
+    type ApiUserAttributesResponse,
+    type CreateUserAttribute,
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
@@ -21,7 +21,7 @@ import {
     Route,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,

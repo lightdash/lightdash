@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { SpaceTableName } from '../entities/spaces';
 
 const customSearchConfigName = `lightdash_english_config`;

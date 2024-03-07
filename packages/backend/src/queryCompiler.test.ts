@@ -1,4 +1,4 @@
-import { CompiledMetricQuery, CompileError } from '@lightdash/common';
+import { type CompiledMetricQuery, CompileError } from '@lightdash/common';
 import { warehouseClientMock } from './queryBuilder.mock';
 import { compileMetricQuery } from './queryCompiler';
 import {

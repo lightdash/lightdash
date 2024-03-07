@@ -1,9 +1,9 @@
 import {
     ParameterError,
-    SearchFilters,
-    SearchItemType,
+    type SearchFilters,
+    type SearchItemType,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import moment from 'moment';
 
 export function shouldSearchForType(

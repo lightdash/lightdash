@@ -1,12 +1,12 @@
 import {
-    AdditionalMetric,
-    ApiErrorPayload,
-    ApiQueryResults,
-    CacheMetadata,
-    Item,
-    MetricQuery,
-    MetricQueryRequest,
-    MetricQueryResponse,
+    type AdditionalMetric,
+    type ApiErrorPayload,
+    type ApiQueryResults,
+    type CacheMetadata,
+    type Item,
+    type MetricQuery,
+    type MetricQueryRequest,
+    type MetricQueryResponse,
 } from '@lightdash/common';
 import {
     Body,
@@ -20,7 +20,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 

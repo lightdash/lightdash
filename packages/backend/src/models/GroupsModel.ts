@@ -1,24 +1,24 @@
 import {
-    CreateGroup,
-    Group,
-    GroupMembership,
-    GroupWithMembers,
+    type CreateGroup,
+    type Group,
+    type GroupMembership,
+    type GroupWithMembers,
     NotExistsError,
     NotFoundError,
-    ProjectGroupAccess,
+    type ProjectGroupAccess,
     UnexpectedDatabaseError,
-    UpdateGroupWithMembers,
+    type UpdateGroupWithMembers,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { uniq } from 'lodash';
 import differenceBy from 'lodash/differenceBy';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
-    DBProjectGroupAccess,
+    type DBProjectGroupAccess,
     ProjectGroupAccessTableName,
-    UpdateDBProjectGroupAccess,
+    type UpdateDBProjectGroupAccess,
 } from '../database/entities/projectGroupAccess';
 import { UserTableName } from '../database/entities/users';
 

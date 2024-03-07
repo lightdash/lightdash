@@ -1,4 +1,4 @@
-import { ApiCsvUrlResponse, ApiErrorPayload } from '@lightdash/common';
+import { type ApiCsvUrlResponse, type ApiErrorPayload } from '@lightdash/common';
 import {
     Get,
     Middlewares,
@@ -10,7 +10,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 

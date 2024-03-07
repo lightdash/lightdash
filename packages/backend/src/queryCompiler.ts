@@ -1,17 +1,17 @@
 import {
-    AdditionalMetric,
-    CompiledMetric,
-    CompiledMetricQuery,
-    CompiledTableCalculation,
+    type AdditionalMetric,
+    type CompiledMetric,
+    type CompiledMetricQuery,
+    type CompiledTableCalculation,
     CompileError,
     convertAdditionalMetric,
     convertFieldRefToFieldId,
-    Explore,
+    type Explore,
     ExploreCompiler,
     lightdashVariablePattern,
-    MetricQuery,
-    TableCalculation,
-    WarehouseClient,
+    type MetricQuery,
+    type TableCalculation,
+    type WarehouseClient,
 } from '@lightdash/common';
 
 const compileTableCalculation = (

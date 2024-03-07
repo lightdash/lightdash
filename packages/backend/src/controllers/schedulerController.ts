@@ -1,11 +1,11 @@
 import {
-    ApiErrorPayload,
-    ApiJobStatusResponse,
-    ApiScheduledJobsResponse,
-    ApiSchedulerAndTargetsResponse,
-    ApiSchedulerLogsResponse,
-    ApiTestSchedulerResponse,
-    SchedulerJobStatus,
+    type ApiErrorPayload,
+    type ApiJobStatusResponse,
+    type ApiScheduledJobsResponse,
+    type ApiSchedulerAndTargetsResponse,
+    type ApiSchedulerLogsResponse,
+    type ApiTestSchedulerResponse,
+    type SchedulerJobStatus,
 } from '@lightdash/common';
 import {
     Body,
@@ -22,7 +22,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,

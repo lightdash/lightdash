@@ -1,8 +1,8 @@
-import { NotExistsError, PasswordResetLink } from '@lightdash/common';
+import { NotExistsError, type PasswordResetLink } from '@lightdash/common';
 import * as crypto from 'crypto';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { URL } from 'url';
-import { LightdashConfig } from '../config/parseConfig';
+import { type LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
 import { PasswordResetTableName } from '../database/entities/passwordResetLinks';
 

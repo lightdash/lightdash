@@ -1,6 +1,6 @@
 import {
     DimensionType,
-    Explore,
+    type Explore,
     FieldType,
     MetricType,
     SupportedDbtAdapter,

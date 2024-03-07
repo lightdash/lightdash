@@ -1,21 +1,21 @@
 import {
-    CreatePinnedItem,
-    DeletePinnedItem,
+    type CreatePinnedItem,
+    type DeletePinnedItem,
     isCreateChartPinnedItem,
     isCreateSpacePinnedItem,
     isDeleteChartPinnedItem,
     isDeleteSpacePinnedItem,
     NotFoundError,
-    PinnedItem,
-    PinnedList,
-    PinnedListAndItems,
+    type PinnedItem,
+    type PinnedList,
+    type PinnedListAndItems,
     ResourceViewItemType,
-    UpdatePinnedItemOrder,
+    type UpdatePinnedItemOrder,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import {
-    DbPinnedItem,
-    DbPinnedList,
+    type DbPinnedItem,
+    type DbPinnedList,
     PinnedChartTableName,
     PinnedDashboardTableName,
     PinnedListTableName,

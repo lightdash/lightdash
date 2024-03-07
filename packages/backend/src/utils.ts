@@ -1,13 +1,13 @@
 import { ParameterError, validateEmail } from '@lightdash/common';
-import { Attributes, Span, SpanStatusCode } from '@opentelemetry/api';
+import { type Attributes, type Span, SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
-import { CustomSamplingContext } from '@sentry/types';
-import { Worker } from 'worker_threads';
+import { type CustomSamplingContext } from '@sentry/types';
+import { type Worker } from 'worker_threads';
 import {
-    DbPinnedChart,
-    DbPinnedDashboard,
-    DbPinnedItem,
-    DBPinnedSpace,
+    type DbPinnedChart,
+    type DbPinnedDashboard,
+    type DbPinnedItem,
+    type DBPinnedSpace,
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
 import { serverTracer } from './otel';

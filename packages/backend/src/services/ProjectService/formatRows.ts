@@ -1,8 +1,6 @@
 import {
-    Field,
     formatRows,
-    ItemsMap,
-    TableCalculation,
+    type ItemsMap,
 } from '@lightdash/common';
 import { parentPort, workerData } from 'worker_threads';
 

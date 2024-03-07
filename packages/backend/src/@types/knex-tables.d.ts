@@ -1,193 +1,193 @@
 import {
-    DashboardsTableName,
-    DashboardTable,
-    DashboardTileChartTable,
-    DashboardTileChartTableName,
-    DashboardTileLoomsTable,
-    DashboardTileLoomsTableName,
-    DashboardTileMarkdownsTable,
-    DashboardTileMarkdownsTableName,
-    DashboardTilesTableName,
-    DashboardTileTable,
-    DashboardTileTypesTableName,
-    DashboardVersionsTableName,
-    DashboardVersionTable,
-    DashboardViewsTableName,
-    DashboardViewTable,
+    type DashboardsTableName,
+    type DashboardTable,
+    type DashboardTileChartTable,
+    type DashboardTileChartTableName,
+    type DashboardTileLoomsTable,
+    type DashboardTileLoomsTableName,
+    type DashboardTileMarkdownsTable,
+    type DashboardTileMarkdownsTableName,
+    type DashboardTilesTableName,
+    type DashboardTileTable,
+    type DashboardTileTypesTableName,
+    type DashboardVersionsTableName,
+    type DashboardVersionTable,
+    type DashboardViewsTableName,
+    type DashboardViewTable,
 } from '../database/entities/dashboards';
 import {
-    DbtCloudIntegrationsTable,
-    DbtCloudIntegrationsTableName,
+    type DbtCloudIntegrationsTable,
+    type DbtCloudIntegrationsTableName,
 } from '../database/entities/dbtCloudIntegrations';
-import { EmailTable, EmailTableName } from '../database/entities/emails';
+import { type EmailTable, type EmailTableName } from '../database/entities/emails';
 import {
-    InviteLinkTable,
-    InviteLinkTableName,
+    type InviteLinkTable,
+    type InviteLinkTableName,
 } from '../database/entities/inviteLinks';
 import {
-    JobsTable,
-    JobsTableName,
-    JobStepsTable,
-    JobStepsTableName,
+    type JobsTable,
+    type JobsTableName,
+    type JobStepsTable,
+    type JobStepsTableName,
 } from '../database/entities/jobs';
 import {
-    OnboardingTable,
-    OnboardingTableName,
+    type OnboardingTable,
+    type OnboardingTableName,
 } from '../database/entities/onboarding';
 import {
-    OpenIdIdentitiesTable,
-    OpenIdIdentitiesTableName,
+    type OpenIdIdentitiesTable,
+    type OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
 import {
-    OrganizationMembershipsTable,
-    OrganizationMembershipsTableName,
+    type OrganizationMembershipsTable,
+    type OrganizationMembershipsTableName,
 } from '../database/entities/organizationMemberships';
 import {
-    OrganizationTable,
-    OrganizationTableName,
+    type OrganizationTable,
+    type OrganizationTableName,
 } from '../database/entities/organizations';
 import {
-    PasswordLoginTable,
-    PasswordLoginTableName,
+    type PasswordLoginTable,
+    type PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
 import {
-    PasswordResetTable,
-    PasswordResetTableName,
+    type PasswordResetTable,
+    type PasswordResetTableName,
 } from '../database/entities/passwordResetLinks';
 import {
-    PersonalAccessTokenTable,
-    PersonalAccessTokenTableName,
+    type PersonalAccessTokenTable,
+    type PersonalAccessTokenTableName,
 } from '../database/entities/personalAccessTokens';
 import {
-    PinnedChartTable,
-    PinnedChartTableName,
-    PinnedDashboardTable,
-    PinnedDashboardTableName,
-    PinnedListTable,
-    PinnedListTableName,
-    PinnedSpaceTable,
-    PinnedSpaceTableName,
+    type PinnedChartTable,
+    type PinnedChartTableName,
+    type PinnedDashboardTable,
+    type PinnedDashboardTableName,
+    type PinnedListTable,
+    type PinnedListTableName,
+    type PinnedSpaceTable,
+    type PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
 import {
-    ProjectMembershipsTable,
-    ProjectMembershipsTableName,
+    type ProjectMembershipsTable,
+    type ProjectMembershipsTableName,
 } from '../database/entities/projectMemberships';
 import {
-    CachedExploresTable,
-    CachedExploresTableName,
-    CachedExploreTable,
-    CachedExploreTableName,
-    CachedWarehouseTable,
-    CachedWarehouseTableName,
-    ProjectTable,
-    ProjectTableName,
+    type CachedExploresTable,
+    type CachedExploresTableName,
+    type CachedExploreTable,
+    type CachedExploreTableName,
+    type CachedWarehouseTable,
+    type CachedWarehouseTableName,
+    type ProjectTable,
+    type ProjectTableName,
 } from '../database/entities/projects';
 import {
-    SavedChartAdditionalMetricTable,
-    SavedChartAdditionalMetricTableName,
-    SavedChartCustomDimensionsTable,
-    SavedChartCustomDimensionsTableName,
-    SavedChartsTableName,
-    SavedChartTable,
-    SavedChartTableCalculationTable,
-    SavedChartTableCalculationTableName,
-    SavedChartVersionFieldsTable,
-    SavedChartVersionFieldsTableName,
-    SavedChartVersionSortsTable,
-    SavedChartVersionSortsTableName,
-    SavedChartVersionsTable,
-    SavedChartVersionsTableName,
+    type SavedChartAdditionalMetricTable,
+    type SavedChartAdditionalMetricTableName,
+    type SavedChartCustomDimensionsTable,
+    type SavedChartCustomDimensionsTableName,
+    type SavedChartsTableName,
+    type SavedChartTable,
+    type SavedChartTableCalculationTable,
+    type SavedChartTableCalculationTableName,
+    type SavedChartVersionFieldsTable,
+    type SavedChartVersionFieldsTableName,
+    type SavedChartVersionSortsTable,
+    type SavedChartVersionSortsTableName,
+    type SavedChartVersionsTable,
+    type SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
-import { SessionTable, SessionTableName } from '../database/entities/sessions';
-import { ShareTable, ShareTableName } from '../database/entities/share';
+import { type SessionTable, type SessionTableName } from '../database/entities/sessions';
+import { type ShareTable, type ShareTableName } from '../database/entities/share';
 import {
-    DbSlackAuthTokens,
-    SlackAuthTokensTable,
+    type DbSlackAuthTokens,
+    type SlackAuthTokensTable,
 } from '../database/entities/slackAuthentication';
 import {
-    SpaceShareTable,
-    SpaceShareTableName,
-    SpaceTable,
-    SpaceTableName,
+    type SpaceShareTable,
+    type SpaceShareTableName,
+    type SpaceTable,
+    type SpaceTableName,
 } from '../database/entities/spaces';
-import { UserTable, UserTableName } from '../database/entities/users';
+import { type UserTable, type UserTableName } from '../database/entities/users';
 import {
-    WarehouseCredentialTable,
-    WarehouseCredentialTableName,
+    type WarehouseCredentialTable,
+    type WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
 
 import {
-    AnalyticsChartViewsTableName,
-    AnalyticsDashboardViewsTableName,
-    DbAnalyticsChartViews,
-    DbAnalyticsDashboardViews,
+    type AnalyticsChartViewsTableName,
+    type AnalyticsDashboardViewsTableName,
+    type DbAnalyticsChartViews,
+    type DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
 import {
-    DashboardTileCommentsTable,
-    DashboardTileCommentsTableName,
+    type DashboardTileCommentsTable,
+    type DashboardTileCommentsTableName,
 } from '../database/entities/comments';
 import {
-    DownloadFileTable,
-    DownloadFileTableName,
+    type DownloadFileTable,
+    type DownloadFileTableName,
 } from '../database/entities/downloadFile';
 import {
-    EmailOneTimePasscodesTableName,
-    EmailOneTimePasscodeTable,
+    type EmailOneTimePasscodesTableName,
+    type EmailOneTimePasscodeTable,
 } from '../database/entities/emailOneTimePasscodes';
 import {
-    GithubAppInstallationTable,
-    GithubAppInstallationTableName,
+    type GithubAppInstallationTable,
+    type GithubAppInstallationTableName,
 } from '../database/entities/githubAppInstallation';
 import {
-    GroupMembershipTable,
-    GroupMembershipTableName,
+    type GroupMembershipTable,
+    type GroupMembershipTableName,
 } from '../database/entities/groupMemberships';
-import { GroupTable, GroupTableName } from '../database/entities/groups';
+import { type GroupTable, type GroupTableName } from '../database/entities/groups';
 import {
-    NotificationsTable,
-    NotificationsTableName,
+    type NotificationsTable,
+    type NotificationsTableName,
 } from '../database/entities/notifications';
 import {
-    OrganizationAllowedEmailDomainProjectsTable,
-    OrganizationAllowedEmailDomainProjectsTableName,
-    OrganizationAllowedEmailDomainsTable,
-    OrganizationAllowedEmailDomainsTableName,
+    type OrganizationAllowedEmailDomainProjectsTable,
+    type OrganizationAllowedEmailDomainProjectsTableName,
+    type OrganizationAllowedEmailDomainsTable,
+    type OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
 import {
-    ProjectGroupAccessTable,
-    ProjectGroupAccessTableName,
+    type ProjectGroupAccessTable,
+    type ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
 import {
-    SchedulerEmailTargetTable,
-    SchedulerEmailTargetTableName,
-    SchedulerLogTable,
-    SchedulerLogTableName,
-    SchedulerSlackTargetTable,
-    SchedulerSlackTargetTableName,
-    SchedulerTable,
-    SchedulerTableName,
+    type SchedulerEmailTargetTable,
+    type SchedulerEmailTargetTableName,
+    type SchedulerLogTable,
+    type SchedulerLogTableName,
+    type SchedulerSlackTargetTable,
+    type SchedulerSlackTargetTableName,
+    type SchedulerTable,
+    type SchedulerTableName,
 } from '../database/entities/scheduler';
 import {
-    SshKeyPairTable,
-    SshKeyPairTableName,
+    type SshKeyPairTable,
+    type SshKeyPairTableName,
 } from '../database/entities/sshKeyPairs';
 import {
-    DbGroupUserAttribute,
-    DbOrganizationMemberUserAttribute,
-    DbUserAttribute,
-    GroupUserAttributesTable,
-    OrganizationMemberUserAttributesTable,
-    UserAttributesTable,
+    type DbGroupUserAttribute,
+    type DbOrganizationMemberUserAttribute,
+    type DbUserAttribute,
+    type GroupUserAttributesTable,
+    type OrganizationMemberUserAttributesTable,
+    type UserAttributesTable,
 } from '../database/entities/userAttributes';
 import {
-    ProjectUserWarehouseCredentialPreferenceTable,
-    ProjectUserWarehouseCredentialPreferenceTableName,
-    UserWarehouseCredentialsTable,
-    UserWarehouseCredentialsTableName,
+    type ProjectUserWarehouseCredentialPreferenceTable,
+    type ProjectUserWarehouseCredentialPreferenceTableName,
+    type UserWarehouseCredentialsTable,
+    type UserWarehouseCredentialsTableName,
 } from '../database/entities/userWarehouseCredentials';
 import {
-    DbValidationTable,
-    ValidationTableName,
+    type DbValidationTable,
+    type ValidationTableName,
 } from '../database/entities/validation';
 
 declare module 'knex/types/tables' {

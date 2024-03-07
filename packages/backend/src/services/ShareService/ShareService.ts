@@ -2,13 +2,13 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     isUserWithOrg,
-    SessionUser,
-    ShareUrl,
+    type SessionUser,
+    type ShareUrl,
 } from '@lightdash/common';
 import { nanoid as nanoidGenerator } from 'nanoid';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { LightdashConfig } from '../../config/parseConfig';
-import { ShareModel } from '../../models/ShareModel';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type LightdashConfig } from '../../config/parseConfig';
+import { type ShareModel } from '../../models/ShareModel';
 
 type ShareServiceArguments = {
     analytics: LightdashAnalytics;

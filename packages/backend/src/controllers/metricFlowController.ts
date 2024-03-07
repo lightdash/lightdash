@@ -1,4 +1,4 @@
-import { ApiErrorPayload } from '@lightdash/common';
+import { type ApiErrorPayload } from '@lightdash/common';
 import {
     Body,
     Middlewares,
@@ -11,7 +11,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
-import express from 'express';
+import type express from 'express';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { dbtCloudGraphqlClient } from '../clients/clients';
 import { lightdashConfig } from '../config/lightdashConfig';

@@ -1,14 +1,14 @@
 import {
-    CreateOrganization,
+    type CreateOrganization,
     NotFoundError,
-    Organization,
-    UpdateOrganization,
-    UserAllowedOrganization,
+    type Organization,
+    type UpdateOrganization,
+    type UserAllowedOrganization,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
-    DbOrganization,
+    type DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
 import { OrganizationAllowedEmailDomainsTableName } from '../database/entities/organizationsAllowedEmailDomains';

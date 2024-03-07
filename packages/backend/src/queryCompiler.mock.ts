@@ -1,13 +1,12 @@
 import {
-    CompiledDimension,
-    CompiledMetricQuery,
+    type CompiledDimension,
+    type CompiledMetricQuery,
     DimensionType,
-    Explore,
+    type Explore,
     FieldType,
-    MetricQuery,
+    type MetricQuery,
     MetricType,
     SupportedDbtAdapter,
-    WarehouseClient,
 } from '@lightdash/common';
 import { emptyTable } from './queryBuilder.mock';
 

@@ -1,28 +1,28 @@
 import {
-    ActivateUser,
-    CreateUserArgs,
-    CreateUserWithRole,
+    type ActivateUser,
+    type CreateUserArgs,
+    type CreateUserWithRole,
     ForbiddenError,
     getUserAbilityBuilder,
     isOpenIdUser,
     LightdashMode,
-    LightdashUser,
-    LightdashUserWithAbilityRules,
+    type LightdashUser,
+    type LightdashUserWithAbilityRules,
     NotExistsError,
     NotFoundError,
-    OpenIdUser,
-    OrganizationMemberRole,
+    type OpenIdUser,
+    type OrganizationMemberRole,
     ParameterError,
-    PersonalAccessToken,
-    ProjectMemberProfile,
-    ProjectMemberRole,
-    SessionUser,
-    UpdateUserArgs,
+    type PersonalAccessToken,
+    type ProjectMemberProfile,
+    type ProjectMemberRole,
+    type SessionUser,
+    type UpdateUserArgs,
     validatePassword,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
-import { LightdashConfig } from '../config/parseConfig';
+import { type LightdashConfig } from '../config/parseConfig';
 import {
     createEmail,
     deleteEmail,
@@ -32,14 +32,14 @@ import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
-    DbPasswordLoginIn,
+    type DbPasswordLoginIn,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
-import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
+import { type DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
 import {
-    DbUser,
-    DbUserIn,
-    DbUserUpdate,
+    type DbUser,
+    type DbUserIn,
+    type DbUserUpdate,
     UserTableName,
 } from '../database/entities/users';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';

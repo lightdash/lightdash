@@ -1,45 +1,45 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
-    AdditionalMetric,
+    type AdditionalMetric,
     AlreadyProcessingError,
-    AndFilterGroup,
-    ApiChartAndResults,
-    ApiQueryResults,
-    ApiSqlQueryResults,
-    CacheMetadata,
-    CalculateTotalFromQuery,
-    ChartSummary,
-    CompiledDimension,
-    CompiledMetricQuery,
-    CompiledTableCalculation,
+    type AndFilterGroup,
+    type ApiChartAndResults,
+    type ApiQueryResults,
+    type ApiSqlQueryResults,
+    type CacheMetadata,
+    type CalculateTotalFromQuery,
+    type ChartSummary,
+    type CompiledDimension,
+    type CompiledMetricQuery,
+    type CompiledTableCalculation,
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    CreateDbtCloudIntegration,
+    type CreateDbtCloudIntegration,
     createDimensionWithGranularity,
-    CreateJob,
-    CreateProject,
-    CreateProjectMember,
-    CreateWarehouseCredentials,
+    type CreateJob,
+    type CreateProject,
+    type CreateProjectMember,
+    type CreateWarehouseCredentials,
     CustomFormatType,
-    DashboardAvailableFilters,
-    DashboardBasicDetails,
-    DashboardFilters,
-    DateGranularity,
-    DbtExposure,
+    type DashboardAvailableFilters,
+    type DashboardBasicDetails,
+    type DashboardFilters,
+    type DateGranularity,
+    type DbtExposure,
     DbtExposureType,
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
     DimensionType,
-    Explore,
-    ExploreError,
+    type Explore,
+    type ExploreError,
     FeatureFlags,
     fieldId as getFieldId,
-    FilterableField,
-    FilterGroup,
-    FilterGroupItem,
+    type FilterableField,
+    type FilterGroup,
+    type FilterGroupItem,
     FilterOperator,
     findFieldByIdInExplore,
     ForbiddenError,
@@ -56,44 +56,44 @@ import {
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
-    ItemsMap,
-    Job,
+    type ItemsMap,
+    type Job,
     JobStatusType,
     JobStepType,
     JobType,
-    MetricQuery,
+    type MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
-    MostPopularAndRecentlyUpdated,
+    type MostPopularAndRecentlyUpdated,
     NotExistsError,
     NotFoundError,
     ParameterError,
-    Project,
-    ProjectCatalog,
-    ProjectGroupAccess,
-    ProjectMemberProfile,
+    type Project,
+    type ProjectCatalog,
+    type ProjectGroupAccess,
+    type ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
     renderTableCalculationFilterRuleSql,
     replaceDimensionInExplore,
-    RequestMethod,
-    ResultRow,
-    SavedChartsInfoForDashboardAvailableFilters,
-    SessionUser,
+    type RequestMethod,
+    type ResultRow,
+    type SavedChartsInfoForDashboardAvailableFilters,
+    type SessionUser,
     snakeCaseName,
-    SortField,
-    SpaceQuery,
-    SpaceSummary,
-    SummaryExplore,
-    TableCalculation,
-    TablesConfiguration,
+    type SortField,
+    type SpaceQuery,
+    type SpaceSummary,
+    type SummaryExplore,
+    type TableCalculation,
+    type TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
-    UpdateProject,
-    UpdateProjectMember,
-    UserAttributeValueMap,
-    UserWarehouseCredentials,
-    WarehouseClient,
+    type UpdateProject,
+    type UpdateProjectMember,
+    type UserAttributeValueMap,
+    type UserWarehouseCredentials,
+    type WarehouseClient,
     WarehouseTypes,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
@@ -106,31 +106,31 @@ import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import {
-    LightdashAnalytics,
+    type LightdashAnalytics,
     QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
-import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
+import { type S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { schedulerClient } from '../../clients/clients';
-import EmailClient from '../../clients/EmailClient/EmailClient';
-import { LightdashConfig } from '../../config/parseConfig';
+import type EmailClient from '../../clients/EmailClient/EmailClient';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { errorHandler } from '../../errors';
 import { runQueryInMemoryDatabaseContext } from '../../inMemoryTableCalculations';
 import Logger from '../../logging/logger';
-import { AnalyticsModel } from '../../models/AnalyticsModel';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { JobModel } from '../../models/JobModel/JobModel';
-import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { type AnalyticsModel } from '../../models/AnalyticsModel';
+import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type JobModel } from '../../models/JobModel/JobModel';
+import { type OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
-import { SpaceModel } from '../../models/SpaceModel';
-import { SshKeyPairModel } from '../../models/SshKeyPairModel';
-import { UserAttributesModel } from '../../models/UserAttributesModel';
-import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { type SavedChartModel } from '../../models/SavedChartModel';
+import { type SpaceModel } from '../../models/SpaceModel';
+import { type SshKeyPairModel } from '../../models/SshKeyPairModel';
+import { type UserAttributesModel } from '../../models/UserAttributesModel';
+import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { isFeatureFlagEnabled } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
-import { buildQuery, CompiledQuery } from '../../queryBuilder';
+import { buildQuery, type CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
-import { ProjectAdapter } from '../../types';
+import { type ProjectAdapter } from '../../types';
 import {
     runWorkerThread,
     wrapOtelSpan,
