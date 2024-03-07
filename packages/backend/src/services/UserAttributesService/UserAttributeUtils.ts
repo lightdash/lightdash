@@ -85,11 +85,11 @@ export const getFilteredExplore = (
                     metrics: Object.fromEntries(
                         Object.entries(table.metrics).filter(
                             ([metricName, metric]) => {
-                                const canAccessDimension = hasUserAttributes(
+                                const canAccessMetric = hasUserAttributes(
                                     metric.requiredAttributes,
                                     userAttributes,
                                 );
-                                if (!canAccessDimension) return false;
+                                if (!canAccessMetric) return false;
                                 return (
                                     !metric.tablesReferences ||
                                     metric.tablesReferences.every(
