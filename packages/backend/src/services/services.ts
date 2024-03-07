@@ -53,7 +53,7 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
-import { ServiceRepository } from './ServiceRepository';
+import { OperationContext, ServiceRepository } from './ServiceRepository';
 import { ShareService } from './ShareService/ShareService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { SshKeyPairService } from './SshKeyPairService';
@@ -288,6 +288,10 @@ export const notificationsService = new NotificationsService({
  * See ./ServiceRepository for how this will work.
  */
 export const serviceRepository = new ServiceRepository({
+    context: new OperationContext({
+        // Placeholder, this will at some point be a request or worker ID
+        operationId: 'services',
+    }),
     services: {
         analyticsService,
         commentService,

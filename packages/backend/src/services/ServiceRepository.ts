@@ -67,6 +67,36 @@ type ServiceFactoryMethod<T extends ServiceManifest> = {
 };
 
 /**
+ * Structure for describing service providers:
+ *
+ *   <serviceName> -> providerMethod
+ */
+type ServiceProviderMap<T extends ServiceManifest> = Partial<{
+    [K in keyof T]: (providerArgs: {
+        repository: ServiceRepository;
+        context: OperationContext;
+    }) => T[keyof T];
+}>;
+
+/**
+ * Placeholder ServiceRepository context.
+ *
+ * The OperationContext object is created alongside the ServiceRepository, and shares
+ * its lifetime with a unit of work/single operation - for example, a single
+ * request thread.
+ *
+ * OperationContext can be subclassed to provide additional functionality for specific
+ * types of operations, if necessary.
+ */
+export class OperationContext {
+    constructor(
+        protected readonly properties: {
+            operationId: string;
+        },
+    ) {}
+}
+
+/**
  * Intermediate abstract class used to enforce service factory methods via the `ServiceFactoryMethod`
  * type. We need this extra thin layer to ensure we are statically aware of all members.
  */
@@ -78,8 +108,43 @@ abstract class ServiceRepositoryBase {
      */
     protected _services: ServiceManifest;
 
-    constructor({ services }: { services: ServiceManifest }) {
+    /**
+     * Container for service provider overrides. Providers can be defined when instancing
+     * the service repository, and take precedence when instancing the given service.
+     *
+     * Providers receive an instance of the current OperationContext, and the parent
+     * ServiceRepository instance.
+     *
+     * new ServiceRepository({
+     *    serviceProviders: {
+     *      encryptionService: ({ repository, context }) => {
+     *          return new EncryptionServiceOverride(...);
+     *      }
+     *    }
+     * })
+     *
+     * NOTE: This exact implementation is temporary, and is likely to be adjusted soon
+     * as part of the dependency injection rollout.
+     */
+    protected _serviceProviders: ServiceProviderMap<ServiceManifest>;
+
+    /**
+     * See @type OperationContext
+     */
+    protected readonly context: OperationContext;
+
+    constructor({
+        services,
+        serviceProviders,
+        context,
+    }: {
+        services: ServiceManifest;
+        serviceProviders?: ServiceProviderMap<ServiceManifest>;
+        context: OperationContext;
+    }) {
         this._services = services;
+        this._serviceProviders = serviceProviders ?? {};
+        this.context = context;
     }
 }
 
@@ -94,111 +159,222 @@ abstract class ServiceRepositoryBase {
  * NOTE: For now, this repository simply exposes services instantiated in `./services.ts`,
  *       and provided to this repository directly. At a later stage, this repository will
  *       handle instantiating all services internally, including cross-service dependencies.
- */ export class ServiceRepository
+ */
+export class ServiceRepository
     extends ServiceRepositoryBase
     implements ServiceFactoryMethod<ServiceManifest>
 {
+    /**
+     * Holds memoized instances of services after their initial instantiation:
+     */
+    protected _serviceCache: Partial<ServiceManifest> = {};
+
     public getAnalyticsService(): AnalyticsService {
-        return this._services.analyticsService;
+        return this.getService(
+            'analyticsService',
+            () => this._services.analyticsService,
+        );
     }
 
     public getCommentService(): CommentService {
-        return this._services.commentService;
+        return this.getService(
+            'commentService',
+            () => this._services.commentService,
+        );
     }
 
     public getCsvService(): CsvService {
-        return this._services.csvService;
+        return this.getService('csvService', () => this._services.csvService);
     }
 
     public getDashboardService(): DashboardService {
-        return this._services.dashboardService;
+        return this.getService(
+            'dashboardService',
+            () => this._services.dashboardService,
+        );
     }
 
     public getDownloadFileService(): DownloadFileService {
-        return this._services.downloadFileService;
+        return this.getService(
+            'downloadFileService',
+            () => this._services.downloadFileService,
+        );
     }
 
     public getEncryptionService(): EncryptionService {
-        return this._services.encryptionService;
+        return this.getService(
+            'encryptionService',
+            () => this._services.encryptionService,
+        );
     }
 
     public getGitIntegrationService(): GitIntegrationService {
-        return this._services.gitIntegrationService;
+        return this.getService(
+            'gitIntegrationService',
+            () => this._services.gitIntegrationService,
+        );
     }
 
     public getGithubAppService(): GithubAppService {
-        return this._services.githubAppService;
+        return this.getService(
+            'githubAppService',
+            () => this._services.githubAppService,
+        );
     }
 
     public getGdriveService(): GdriveService {
-        return this._services.gdriveService;
+        return this.getService(
+            'gdriveService',
+            () => this._services.gdriveService,
+        );
     }
 
     public getGroupService(): GroupsService {
-        return this._services.groupService;
+        return this.getService(
+            'groupService',
+            () => this._services.groupService,
+        );
     }
 
     public getHealthService(): HealthService {
-        return this._services.healthService;
+        return this.getService(
+            'healthService',
+            () => this._services.healthService,
+        );
     }
 
     public getNotificationService(): NotificationsService {
-        return this._services.notificationService;
+        return this.getService(
+            'notificationService',
+            () => this._services.notificationService,
+        );
     }
 
     public getOrganizationService(): OrganizationService {
-        return this._services.organizationService;
+        return this.getService(
+            'organizationService',
+            () => this._services.organizationService,
+        );
     }
 
     public getPersonalAccessTokenService(): PersonalAccessTokenService {
-        return this._services.personalAccessTokenService;
+        return this.getService(
+            'personalAccessTokenService',
+            () => this._services.personalAccessTokenService,
+        );
     }
 
     public getPinningService(): PinningService {
-        return this._services.pinningService;
+        return this.getService(
+            'pinningService',
+            () => this._services.pinningService,
+        );
     }
 
     public getProjectService(): ProjectService {
-        return this._services.projectService;
+        return this.getService(
+            'projectService',
+            () => this._services.projectService,
+        );
     }
 
     public getSavedChartService(): SavedChartService {
-        return this._services.savedChartService;
+        return this.getService(
+            'savedChartService',
+            () => this._services.savedChartService,
+        );
     }
 
     public getSchedulerService(): SchedulerService {
-        return this._services.schedulerService;
+        return this.getService(
+            'schedulerService',
+            () => this._services.schedulerService,
+        );
     }
 
     public getSearchService(): SearchService {
-        return this._services.searchService;
+        return this.getService(
+            'searchService',
+            () => this._services.searchService,
+        );
     }
 
     public getShareService(): ShareService {
-        return this._services.shareService;
+        return this.getService(
+            'shareService',
+            () => this._services.shareService,
+        );
     }
 
     public getSshKeyPairService(): SshKeyPairService {
-        return this._services.sshKeyPairService;
+        return this.getService(
+            'sshKeyPairService',
+            () => this._services.sshKeyPairService,
+        );
     }
 
     public getSpaceService(): SpaceService {
-        return this._services.spaceService;
+        return this.getService(
+            'spaceService',
+            () => this._services.spaceService,
+        );
     }
 
     public getUnfurlService(): UnfurlService {
-        return this._services.unfurlService;
+        return this.getService(
+            'unfurlService',
+            () => this._services.unfurlService,
+        );
     }
 
     public getUserAttributesService(): UserAttributesService {
-        return this._services.userAttributesService;
+        return this.getService(
+            'userAttributesService',
+            () => this._services.userAttributesService,
+        );
     }
 
     public getUserService(): UserService {
-        return this._services.userService;
+        return this.getService('userService', () => this._services.userService);
     }
 
     public getValidationService(): ValidationService {
-        return this._services.validationService;
+        return this.getService(
+            'validationService',
+            () => this._services.validationService,
+        );
+    }
+
+    /**
+     * Handles initializing a service, and taking into account service
+     * providers + memoization.
+     *
+     * If a factory is not provided, and a service provider is not defined,
+     * this method throws an error. This should not happen in normal operation.
+     */
+    private getService<
+        K extends keyof ServiceManifest,
+        T extends ServiceManifest[K],
+    >(serviceName: K, factory?: () => T): T {
+        if (this._serviceCache[serviceName] == null) {
+            let serviceInstance: T;
+
+            if (this._serviceProviders[serviceName] != null) {
+                serviceInstance = this._serviceProviders[serviceName]!({
+                    repository: this,
+                    context: this.context,
+                }) as T;
+            } else if (factory != null) {
+                serviceInstance = factory();
+            } else {
+                throw new Error(
+                    `Unable to initialize service '${serviceName}' - no factory or provider.`,
+                );
+            }
+
+            this._serviceCache[serviceName] = serviceInstance;
+        }
+
+        return this._serviceCache[serviceName] as T;
     }
 }
