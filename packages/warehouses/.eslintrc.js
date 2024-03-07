@@ -11,12 +11,26 @@ module.exports = {
         'prettier',
         'plugin:json/recommended',
     ],
-    plugins: ['@typescript-eslint'],
+    plugins: ['@typescript-eslint', 'unused-imports'],
     rules: {
         'max-classes-per-file': 'off',
-        '@typescript-eslint/no-unused-vars': 'off',
         'no-case-declarations': 'off',
         'import/prefer-default-export': 'off',
         'class-methods-use-this': 'off',
+        'unused-imports/no-unused-imports': 'warn',
+        '@typescript-eslint/consistent-type-imports': [
+            'error',
+            {
+                prefer: 'type-imports',
+                fixStyle: 'inline-type-imports'
+            }
+        ],
+        '@typescript-eslint/no-unused-vars': [
+            'error',
+            {
+                argsIgnorePattern: '^_',
+                ignoreRestSiblings: true
+            },
+        ],
     },
 };
