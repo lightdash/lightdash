@@ -19,7 +19,6 @@ import {
     tableMostCreatedChartsSql,
     tableMostQueriesSql,
     tableNoQueriesSql,
-    userMostViewedDashboardSql,
     usersInProjectSql,
 } from './AnalyticsModelSql';
 
@@ -142,10 +141,6 @@ export class AnalyticsModel {
         const dashboardViews = await this.database.raw(
             dashboardViewsSql(projectUuid),
         );
-
-        const userMostViewedDashboards = await this.database.raw(
-            userMostViewedDashboardSql(projectUuid),
-        );
         const chartViews = await this.database.raw(chartViewsSql(projectUuid));
         const parseUsersWithCount = (
             userData: DbUserWithCount,
@@ -181,15 +176,6 @@ export class AnalyticsModel {
             chartWeeklyQueryingUsers: chartWeeklyQueryingUsers.rows,
             chartWeeklyAverageQueries: chartWeeklyAverageQueries.rows,
             dashboardViews: dashboardViews.rows,
-            userMostViewedDashboards: userMostViewedDashboards.rows.map(
-                (row: any) => ({
-                    userUuid: row.user_uuid,
-                    firstName: row.first_name,
-                    lastName: row.last_name,
-                    count: row.count,
-                    dashboardName: row.dashboard_name,
-                }),
-            ),
             chartViews: chartViews.rows,
         };
     }
