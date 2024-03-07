@@ -1,3 +1,10 @@
+## [0.1026.1](https://github.com/lightdash/lightdash/compare/0.1026.0...0.1026.1) (2024-03-07)
+
+
+### Bug Fixes
+
+* allow viewers setting filter operator to isNull and not null ([#9270](https://github.com/lightdash/lightdash/issues/9270)) ([0e51b68](https://github.com/lightdash/lightdash/commit/0e51b685383723e3392f108ebc386011ec7b0b53))
+
 # [0.1026.0](https://github.com/lightdash/lightdash/compare/0.1025.7...0.1026.0) (2024-03-07)
 
 
