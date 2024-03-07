@@ -40,7 +40,7 @@ export const getDbtContext = async ({
             `Is ${initialProjectDir} a valid dbt project directory? Couldn't find a valid dbt_project.yml on ${initialProjectDir} or any of its parents:\n  ${msg}`,
         );
     }
-    const config = yaml.load(file) as any;
+    const config = yaml.load(file) as Record<string, string>;
 
     const targetSubDir = config['target-path'] || './target';
 
@@ -50,8 +50,8 @@ export const getDbtContext = async ({
     const modelsSubDir = config['models-path'] || './models';
     const modelsDir = path.join(projectDir, modelsSubDir);
     return {
-        projectName: config.name as string,
-        profileName: config.profile as string,
+        projectName: config.name,
+        profileName: config.profile,
         targetDir,
         modelsDir,
     };

@@ -30,8 +30,8 @@ const identifyUser = async (): Promise<Config['user']> => {
 
 export interface AnalyticsTrack {
     event: string;
-    properties?: Record<string, any>;
-    context?: Record<string, any>;
+    properties?: Record<string, unknown>;
+    context?: Record<string, unknown>;
 }
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
