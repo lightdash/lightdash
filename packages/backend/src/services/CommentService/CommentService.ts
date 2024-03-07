@@ -178,8 +178,7 @@ export class CommentService {
             throw new Error('Failed to create comment');
         }
 
-        // Intentionally not awaiting this promise to avoid slowing down the response
-        this.createCommentNotification({
+        await this.createCommentNotification({
             userUuid: user.userUuid,
             comment,
             dashboard,
