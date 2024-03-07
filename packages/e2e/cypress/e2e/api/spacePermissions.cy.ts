@@ -299,7 +299,7 @@ describe('Lightdash API tests for an project admin accessing other private space
         cy.loginWithEmail(email);
     });
 
-    it('Should list charts or dashboards from private spaces', () => {
+    it('Should not list charts or dashboards from private spaces', () => {
         cy.request({
             url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
             failOnStatusCode: false,

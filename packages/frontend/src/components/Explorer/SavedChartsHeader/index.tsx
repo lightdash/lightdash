@@ -313,7 +313,8 @@ const SavedChartsHeader: FC = () => {
     }, [spacesSharedWithMe, spacesAdminsCanSee]);
 
     const userCanManageChart =
-        savedChart && user.data?.ability?.can('manage', savedChart);
+        savedChart &&
+        user.data?.ability?.can('manage', subject('SavedChart', savedChart));
 
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
@@ -398,23 +399,15 @@ const SavedChartsHeader: FC = () => {
                                     withChartData={true}
                                 />
 
-                                {isEditMode &&
-                                    user.data?.ability?.can(
-                                        'manage',
-                                        savedChart,
-                                    ) && (
-                                        <ActionIcon
-                                            color="gray.7"
-                                            disabled={
-                                                updateSavedChart.isLoading
-                                            }
-                                            onClick={() =>
-                                                setIsRenamingChart(true)
-                                            }
-                                        >
-                                            <MantineIcon icon={IconPencil} />
-                                        </ActionIcon>
-                                    )}
+                                {isEditMode && userCanManageChart && (
+                                    <ActionIcon
+                                        color="gray.7"
+                                        disabled={updateSavedChart.isLoading}
+                                        onClick={() => setIsRenamingChart(true)}
+                                    >
+                                        <MantineIcon icon={IconPencil} />
+                                    </ActionIcon>
+                                )}
                                 <ChartUpdateModal
                                     opened={isRenamingChart}
                                     uuid={savedChart.uuid}

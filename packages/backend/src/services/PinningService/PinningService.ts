@@ -64,8 +64,9 @@ export class PinningService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const allowedSpaceUuids = spaces
-            .filter(async (space) =>
+
+        const hasSpaceAccess = await Promise.all(
+            spaces.map(async (space) =>
                 user.ability.can(
                     'view',
                     subject('Space', {
@@ -77,8 +78,12 @@ export class PinningService {
                         ),
                     }),
                 ),
-            )
-            .map((space) => space.uuid);
+            ),
+        );
+
+        const allowedSpaceUuids = spaces
+            .filter((_, index) => hasSpaceAccess[index])
+            .map(({ uuid }) => uuid);
 
         if (allowedSpaceUuids.length === 0) {
             return [];
