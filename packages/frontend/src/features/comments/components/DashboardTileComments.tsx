@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { useScrollIntoView } from '@mantine/hooks';
 import { IconMessage } from '@tabler/icons-react';
-import { FC, useCallback, useMemo } from 'react';
+import { FC, useCallback, useMemo, useRef, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useApp } from '../../../providers/AppProvider';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
@@ -20,6 +20,7 @@ import { EventName } from '../../../types/Events';
 import { useGetNotifications } from '../../notifications';
 import { useUpdateNotification } from '../../notifications/hooks/useNotifications';
 import { useCreateComment } from '../hooks/useComments';
+import { useScrollToDashboardCommentViaSearchParam } from '../hooks/useScrollToDashboardCommentViaSearchParam';
 import { CommentForm } from './CommentForm';
 import { DashboardCommentAndReplies } from './DashboardCommentAndReplies';
 
@@ -35,14 +36,28 @@ export const DashboardTileComments: FC<
     const { user } = useApp();
     const { track } = useTracking();
 
+    const [openedComments, setOpenedComments] = useState(opened);
+
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const canCreateDashboardComments = useDashboardContext(
         (c) => c.dashboardCommentsCheck?.canCreateDashboardComments,
     );
+    const dashboard = useDashboardContext((c) => c.dashboard);
     const comments = useDashboardContext(
         (c) => c.dashboardComments && c.dashboardComments[dashboardTileUuid],
     );
+
+    const targetRefComments = useRef<HTMLDivElement>(null);
+
+    useScrollToDashboardCommentViaSearchParam({
+        ref: targetRefComments,
+        dashboardTileUuid,
+        enabled: !!(dashboard && comments),
+        onScrolled: () => {
+            setOpenedComments(true);
+        },
+    });
 
     // Scroll to the last comment when a new comment is added
     const { scrollIntoView, targetRef, scrollableRef } =
@@ -147,11 +162,13 @@ export const DashboardTileComments: FC<
             position="bottom-end"
             offset={4}
             arrowOffset={10}
-            opened={opened}
+            opened={openedComments}
             onOpen={handleOnOpen}
             onClose={() => {
                 onClose?.();
             }}
+            closeOnClickOutside
+            onChange={setOpenedComments}
         >
             <Popover.Dropdown p={0} w={400} maw={400}>
                 <Stack
@@ -195,7 +212,7 @@ export const DashboardTileComments: FC<
                 </Box>
             </Popover.Dropdown>
 
-            <Popover.Target>
+            <Popover.Target ref={targetRefComments}>
                 <Indicator
                     label={comments && comments.length}
                     size={12}
@@ -211,7 +228,15 @@ export const DashboardTileComments: FC<
                 >
                     <ActionIcon
                         size="sm"
-                        onClick={() => (opened ? onClose?.() : onOpen?.())}
+                        onClick={() => {
+                            if (openedComments) {
+                                onClose?.();
+                            } else {
+                                onOpen?.();
+                            }
+
+                            setOpenedComments((prev) => !prev);
+                        }}
                     >
                         <MantineIcon icon={IconMessage} />
                     </ActionIcon>
