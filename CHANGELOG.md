@@ -1,3 +1,10 @@
+## [0.1025.7](https://github.com/lightdash/lightdash/compare/0.1025.6...0.1025.7) (2024-03-07)
+
+
+### Bug Fixes
+
+* date/number tooltip ([#9260](https://github.com/lightdash/lightdash/issues/9260)) ([9bb39c9](https://github.com/lightdash/lightdash/commit/9bb39c9c0e623813774984c9866e6046274c3422))
+
 ## [0.1025.6](https://github.com/lightdash/lightdash/compare/0.1025.5...0.1025.6) (2024-03-06)
 
 
