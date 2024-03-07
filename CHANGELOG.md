@@ -1,3 +1,10 @@
+## [0.1026.3](https://github.com/lightdash/lightdash/compare/0.1026.2...0.1026.3) (2024-03-07)
+
+
+### Bug Fixes
+
+* fixes title wrapper hover for charts in dashboards ([#9283](https://github.com/lightdash/lightdash/issues/9283)) ([15e716f](https://github.com/lightdash/lightdash/commit/15e716f13df686e02cae85a11d2b002ccacca80e))
+
 ## [0.1026.2](https://github.com/lightdash/lightdash/compare/0.1026.1...0.1026.2) (2024-03-07)
 
 
