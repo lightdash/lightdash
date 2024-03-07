@@ -446,7 +446,7 @@ const updateChartConfigWithTableCalc = (
     oldTableCalculationName: string,
     newTableCalculationName: string,
 ) => {
-    const newConfig = { ...prevChartConfig };
+    const newConfig = cloneDeep(prevChartConfig);
 
     if (newConfig.type !== ChartType.CARTESIAN || !newConfig.config) {
         return newConfig;
