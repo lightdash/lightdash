@@ -1195,6 +1195,7 @@ export class ProjectModel {
                                   }
                                   const createChart = {
                                       ...d,
+                                      search_vector: undefined,
                                       saved_query_id: undefined,
                                       saved_query_uuid: undefined,
                                       space_id: null,
