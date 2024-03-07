@@ -152,6 +152,8 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 format: undefined,
                 groupLabel: undefined,
                 filters: [],
+                requiredAttributes: undefined,
+                dimensionReference: undefined,
             },
         ],
     };
