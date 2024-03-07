@@ -371,6 +371,7 @@ type ConvertModelMetricArgs = {
     source?: Source;
     tableLabel: string;
     dimensionReference?: string;
+    requiredAttributes?: Record<string, string | string[]>;
 };
 export const convertModelMetric = ({
     modelName,
@@ -379,6 +380,7 @@ export const convertModelMetric = ({
     source,
     tableLabel,
     dimensionReference,
+    requiredAttributes,
 }: ConvertModelMetricArgs): Metric => ({
     fieldType: FieldType.METRIC,
     name,
@@ -399,12 +401,14 @@ export const convertModelMetric = ({
     filters: parseFilters(metric.filters),
     percentile: metric.percentile,
     dimensionReference,
+    requiredAttributes,
     ...(metric.urls ? { urls: metric.urls } : {}),
 });
 type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
     metric: DbtColumnLightdashMetric;
     dimensionName?: string;
     dimensionSql: string;
+    requiredAttributes?: Record<string, string | string[]>;
 };
 export const convertColumnMetric = ({
     modelName,
@@ -414,6 +418,7 @@ export const convertColumnMetric = ({
     metric,
     source,
     tableLabel,
+    requiredAttributes,
 }: ConvertColumnMetricArgs): Metric =>
     convertModelMetric({
         modelName,
@@ -432,6 +437,7 @@ export const convertColumnMetric = ({
         source,
         tableLabel,
         dimensionReference: dimensionName,
+        requiredAttributes,
     });
 
 export enum DbtManifestVersion {

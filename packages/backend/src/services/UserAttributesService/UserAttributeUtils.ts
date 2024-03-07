@@ -70,18 +70,6 @@ export const getFilteredExplore = (
         return acc;
     }, []);
 
-    // Get a list of all dimensions hidden from the user due to lack of required attributes
-    const hiddenDimensions = getDimensions(explore).reduce<CompiledDimension[]>(
-        (acc, dimension) => {
-            if (
-                !hasUserAttributes(dimension.requiredAttributes, userAttributes)
-            )
-                return [...acc, dimension];
-            return acc;
-        },
-        [],
-    );
-
     return {
         ...explore,
         joinedTables: explore.joinedTables.filter((joinedTable) =>
@@ -97,14 +85,11 @@ export const getFilteredExplore = (
                     metrics: Object.fromEntries(
                         Object.entries(table.metrics).filter(
                             ([metricName, metric]) => {
-                                const parentDimensionIsHidden =
-                                    hiddenDimensions.some(
-                                        (dimension) =>
-                                            dimension.name ===
-                                            metric.dimensionReference,
-                                    );
-
-                                if (parentDimensionIsHidden) return false;
+                                const canAccessDimension = hasUserAttributes(
+                                    metric.requiredAttributes,
+                                    userAttributes,
+                                );
+                                if (!canAccessDimension) return false;
                                 return (
                                     !metric.tablesReferences ||
                                     metric.tablesReferences.every(

@@ -407,6 +407,7 @@ export interface Metric extends Field {
     percentile?: number;
     formatOptions?: CustomFormat;
     dimensionReference?: string; // Name of the dimension this metric is based on
+    requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
 }
 
 export const defaultSql = (columnName: string): string =>
