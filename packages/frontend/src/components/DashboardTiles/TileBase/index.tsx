@@ -145,25 +145,16 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     withinPortal
                                     maw={400}
                                 >
-                                    {!hideTitle ? (
-                                        belongsToDashboard ? (
-                                            <Text fw={600} size="md">
-                                                {title}
-                                            </Text>
-                                        ) : (
-                                            <TileTitleLink
-                                                ref={titleRef}
-                                                href={titleHref}
-                                                $hovered={titleHovered}
-                                                target="_blank"
-                                                className="non-draggable"
-                                            >
-                                                {title}
-                                            </TileTitleLink>
-                                        )
-                                    ) : (
-                                        <Box />
-                                    )}
+                                    <TileTitleLink
+                                        ref={titleRef}
+                                        href={titleHref}
+                                        $hovered={titleHovered}
+                                        target="_blank"
+                                        className="non-draggable"
+                                        hidden={hideTitle}
+                                    >
+                                        {title}
+                                    </TileTitleLink>
                                 </Tooltip>
                             </Group>
                         </TitleWrapper>
