@@ -1,3 +1,10 @@
+## [0.1026.2](https://github.com/lightdash/lightdash/compare/0.1026.1...0.1026.2) (2024-03-07)
+
+
+### Bug Fixes
+
+* filter metrics from hidden dimension ([#9237](https://github.com/lightdash/lightdash/issues/9237)) ([75b67ad](https://github.com/lightdash/lightdash/commit/75b67ad55c3b9417aa938c4d2c58c05eb48f2123))
+
 ## [0.1026.1](https://github.com/lightdash/lightdash/compare/0.1026.0...0.1026.1) (2024-03-07)
 
 
