@@ -352,7 +352,7 @@ export class ServiceRepository
      * If a factory is not provided, and a service provider is not defined,
      * this method throws an error. This should not happen in normal operation.
      */
-    public getService<
+    private getService<
         K extends keyof ServiceManifest,
         T extends ServiceManifest[K],
     >(serviceName: K, factory?: () => T): T {
