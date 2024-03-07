@@ -19,7 +19,7 @@ payments as (
 
 customer_orders as (
 
-    select
+        select
         customer_id,
 
         min(order_date) as first_order,
@@ -59,7 +59,6 @@ final as (
         customers.customer_id,
         customers.first_name,
         customers.last_name,
-        30 as age, -- fixed age is filtered using required_attributes on schema.yml
         customers.created,
         customer_orders.first_order,
         customer_orders.most_recent_order,

@@ -346,7 +346,6 @@ export const convertTable = (
                             name,
                             metric,
                             tableLabel,
-                            requiredAttributes: dimension.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
                         }),
                     ],
                 ),

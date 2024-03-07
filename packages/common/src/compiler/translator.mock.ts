@@ -556,7 +556,6 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
-
             index: 1,
         },
     },
@@ -581,8 +580,6 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             groupLabel: undefined,
             filters: [],
             index: 0,
-            dimensionReference: 'myTable_user_id',
-            requiredAttributes: undefined,
         },
         total_num_participating_athletes: {
             fieldType: FieldType.METRIC,
@@ -604,8 +601,6 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             groupLabel: undefined,
             filters: [],
             index: 1,
-            dimensionReference: 'myTable_num_participating_athletes',
-            requiredAttributes: undefined,
         },
     },
 };

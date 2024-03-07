@@ -33,17 +33,6 @@ models:
                 url: "https://example.com/company/${row.customer_id.raw | url_encode }"
       - name: last_name
         description: Customer's last name. PII.
-      - name: age 
-        description: Customer's age
-        meta: 
-          dimension:
-            type: number 
-            required_attributes:
-              is_admin: 'true'
-          metrics: 
-            average_age:
-              type: average
-              description: Average age of customers
       - name: created
         description: Timestamp (UTC) when customer was created
         meta:
