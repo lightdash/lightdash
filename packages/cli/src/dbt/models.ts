@@ -372,8 +372,8 @@ export const getCompiledModels = async (
                     (l): l is { resource_type: string; unique_id: string } =>
                         l !== null,
                 )
-                .filter((model: any) => model.resource_type === 'model')
-                .map((model: any) => model.unique_id);
+                .filter((model) => model.resource_type === 'model')
+                .map((model) => model.unique_id);
 
             allModelIds = allModelIds.filter((modelId) =>
                 filteredModelIds.includes(modelId),

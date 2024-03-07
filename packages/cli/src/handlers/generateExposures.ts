@@ -83,13 +83,14 @@ export const generateExposuresHandler = async (
                 countExposures: Object.keys(exposures).length,
             },
         });
-    } catch (e: any) {
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '-';
         await LightdashAnalytics.track({
             event: 'generate_exposures.error',
             properties: {
                 executionId,
                 trigger: 'generate',
-                error: `${e.message}`,
+                error: `${msg}`,
             },
         });
         spinner.fail(`  Failed to generate exposures file'`);

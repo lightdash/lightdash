@@ -108,9 +108,10 @@ export const convertSnowflakeSchema = async (
         if (keyfilePath) {
             try {
                 privateKey = await fs.readFile(keyfilePath, 'utf8');
-            } catch (e: any) {
+            } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : '-';
                 throw new ParseError(
-                    `Cannot read keyfile for snowflake target at: ${keyfilePath}:\n  ${e.message}`,
+                    `Cannot read keyfile for snowflake target at: ${keyfilePath}:\n  ${msg}`,
                 );
             }
         }

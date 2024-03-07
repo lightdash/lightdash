@@ -16,7 +16,7 @@ class GlobalState {
         return this.activeSpinner;
     }
 
-    log(message: any, ...optionalParams: any[]) {
+    log(message: unknown, ...optionalParams: unknown[]) {
         const spinner = this.getActiveSpinner();
         const shouldRestartSpinner = spinner?.isSpinning;
         spinner?.stop();

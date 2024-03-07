@@ -81,9 +81,10 @@ export const getBigqueryCredentialsFromServiceAccount = async (
                 string,
                 string
             >;
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : '-';
             throw new ParseError(
-                `Cannot read keyfile for bigquery target expect at: ${keyfilePath}:\n  ${e.message}`,
+                `Cannot read keyfile for bigquery target expect at: ${keyfilePath}:\n  ${msg}`,
             );
         }
     }
