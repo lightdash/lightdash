@@ -1585,7 +1585,6 @@ const useEchartsCartesianConfig = (
                     .join('');
 
                 const dimensionId = params[0].dimensionNames?.[0];
-
                 if (dimensionId !== undefined) {
                     const field = itemsMap[dimensionId];
                     if (isTableCalculation(field)) {
