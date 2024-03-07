@@ -5,6 +5,7 @@ import { DbtError, ParseError } from './errors';
 import {
     CompactOrAlias,
     DimensionType,
+    fieldId,
     FieldType,
     FieldUrl,
     Format,
@@ -436,7 +437,9 @@ export const convertColumnMetric = ({
         },
         source,
         tableLabel,
-        dimensionReference: dimensionName,
+        dimensionReference: dimensionName
+            ? fieldId({ table: modelName, name: dimensionName })
+            : undefined,
         requiredAttributes,
     });
 

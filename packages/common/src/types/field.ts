@@ -406,7 +406,7 @@ export interface Metric extends Field {
     filters?: MetricFilterRule[];
     percentile?: number;
     formatOptions?: CustomFormat;
-    dimensionReference?: string; // Name of the dimension this metric is based on
+    dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
 }
 
