@@ -1,3 +1,10 @@
+# [0.1026.0](https://github.com/lightdash/lightdash/compare/0.1025.7...0.1026.0) (2024-03-07)
+
+
+### Features
+
+* scroll to comment when notification clicked ([#9255](https://github.com/lightdash/lightdash/issues/9255)) ([22c4961](https://github.com/lightdash/lightdash/commit/22c4961fe5d3ba3a269474dde65fbf1318772215))
+
 ## [0.1025.7](https://github.com/lightdash/lightdash/compare/0.1025.6...0.1025.7) (2024-03-07)
 
 
