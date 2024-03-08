@@ -7,8 +7,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { apiV1Router } from '../../routers/apiV1Router';
-import { unfurlService } from '../../services/services';
-import { Unfurl } from '../../services/UnfurlService/UnfurlService';
+import {
+    Unfurl,
+    type UnfurlService,
+} from '../../services/UnfurlService/UnfurlService';
 import { getUnfurlBlocks } from './SlackMessageBlocks';
 import { slackOptions } from './SlackOptions';
 
@@ -39,6 +41,7 @@ type SlackServiceArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    unfurlService: UnfurlService;
 };
 
 export class SlackService {
@@ -48,14 +51,18 @@ export class SlackService {
 
     analytics: LightdashAnalytics;
 
+    unfurlService: UnfurlService;
+
     constructor({
         slackAuthenticationModel,
         lightdashConfig,
         analytics,
+        unfurlService,
     }: SlackServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
+        this.unfurlService = unfurlService;
         this.start();
     }
 
@@ -143,7 +150,7 @@ export class SlackService {
 
             try {
                 const { teamId } = context;
-                const details = await unfurlService.unfurlDetails(l.url);
+                const details = await this.unfurlService.unfurlDetails(l.url);
 
                 if (details) {
                     this.analytics.track({
@@ -164,7 +171,7 @@ export class SlackService {
                     const authUserUuid =
                         await this.slackAuthenticationModel.getUserUuid(teamId);
 
-                    const { imageUrl } = await unfurlService.unfurlImage({
+                    const { imageUrl } = await this.unfurlService.unfurlImage({
                         url: details.minimalUrl,
                         lightdashPage: details.pageType,
                         imageId,

@@ -9,7 +9,7 @@ import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { registerWorkerMetrics } from './schedulerMetrics';
-import * as services from './services/services';
+import { serviceRepository } from './services/services';
 import { VERSION } from './version';
 
 type SchedulerAppArguments = {
@@ -72,7 +72,16 @@ export default class SchedulerApp {
         const worker = new SchedulerWorker({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-            ...services,
+            // TODO: Do not use serviceRepository singleton:
+            ...{
+                unfurlService: serviceRepository.getUnfurlService(),
+                csvService: serviceRepository.getCsvService(),
+                dashboardService: serviceRepository.getDashboardService(),
+                projectService: serviceRepository.getProjectService(),
+                schedulerService: serviceRepository.getSchedulerService(),
+                validationService: serviceRepository.getValidationService(),
+                userService: serviceRepository.getUserService(),
+            },
             ...clients,
         });
         registerWorkerMetrics();

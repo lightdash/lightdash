@@ -31,7 +31,7 @@ import { Strategy } from 'passport-strategy';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
-import { userService } from '../services/services';
+import { serviceRepository } from '../services/services';
 
 // How a user makes authenticated requests
 // 1. A cookie in the browser contains an encrypted cookie id
@@ -57,6 +57,16 @@ import { userService } from '../services/services';
 // 5. passport.GoogleStrategy compares the google details to data in postgres
 // 6. passport.GoogleStrategy creates a full user object and attaches it to `req.user`
 // 7. Follow steps 4-6 from "How a user is logs in"
+
+/**
+ * For now, we use the serviceRepository singleton to access the UserService instance,
+ * which in turn is also globally shared.
+ *
+ * At some point, we'll have to ensure that we can access a service repository instance
+ * at this stage, OR have an "anonymous context" service repository instance for this
+ * stage of the request.
+ */
+const userService = serviceRepository.getUserService();
 
 export const getSessionUserFromRequest = ({
     user,
@@ -297,7 +307,7 @@ export const apiKeyPassportStrategy = new HeaderAPIKeyStrategy(
     true,
     async (token, done) => {
         try {
-            const user = await userService.loginWithPersonalAccessToken(token);
+            const user = userService.loginWithPersonalAccessToken(token);
             return done(null, user);
         } catch {
             return done(

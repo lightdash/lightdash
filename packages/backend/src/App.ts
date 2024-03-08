@@ -45,7 +45,7 @@ import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import type { ServiceRepository } from './services/ServiceRepository';
-import * as services from './services/services';
+import { serviceRepository } from './services/services';
 import { wrapOtelSpan } from './utils';
 import { VERSION } from './version';
 
@@ -185,8 +185,7 @@ export default class App {
          * request context - for now we simply proxy the existing service repository singleton.
          */
         expressApp.use((req, res, next) => {
-            req.services = services.serviceRepository;
-
+            req.services = serviceRepository;
             next();
         });
 
@@ -334,6 +333,9 @@ export default class App {
             slackAuthenticationModel,
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
+
+            // TODO: Do not use serviceRepository singleton here:
+            unfurlService: serviceRepository.getUnfurlService(),
         });
     }
 
@@ -396,9 +398,19 @@ export default class App {
         this.schedulerWorker = new SchedulerWorker({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-            ...services,
+            // TODO: Do not use serviceRepository singleton:
+            ...{
+                unfurlService: serviceRepository.getUnfurlService(),
+                csvService: serviceRepository.getCsvService(),
+                dashboardService: serviceRepository.getDashboardService(),
+                projectService: serviceRepository.getProjectService(),
+                schedulerService: serviceRepository.getSchedulerService(),
+                validationService: serviceRepository.getValidationService(),
+                userService: serviceRepository.getUserService(),
+            },
             ...clients,
         });
+
         this.schedulerWorker.run().catch((e) => {
             Logger.error('Error starting scheduler worker', e);
         });
