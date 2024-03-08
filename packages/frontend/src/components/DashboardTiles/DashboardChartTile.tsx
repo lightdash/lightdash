@@ -516,9 +516,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
-        (c) =>
-            c.dashboardCommentsCheck?.canViewDashboardComments &&
-            c.dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled,
+        (c) => c.dashboardCommentsCheck?.canViewDashboardComments,
     );
     const tileHasComments = useDashboardContext((c) =>
         c.hasTileComments(tileUuid),
