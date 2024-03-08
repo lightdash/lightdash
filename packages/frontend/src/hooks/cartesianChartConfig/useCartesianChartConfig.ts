@@ -133,11 +133,19 @@ const useCartesianChartConfig = ({
 
     const getValidChartConfig = useCallback(
         (config: CartesianChart): CartesianChart => {
-            const isValid =
-                isCompleteLayout(config.layout) &&
-                isCompleteEchartsConfig(config.eChartsConfig);
+            const isValidLayout = isCompleteLayout(config.layout);
+            const isValidEchartsConfig = isCompleteEchartsConfig(
+                config.eChartsConfig,
+            );
 
-            return isValid ? config : EMPTY_CARTESIAN_CHART_CONFIG;
+            return {
+                layout: isValidLayout
+                    ? config.layout
+                    : EMPTY_CARTESIAN_CHART_CONFIG.layout,
+                eChartsConfig: isValidEchartsConfig
+                    ? config.eChartsConfig
+                    : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
+            };
         },
         [],
     );
