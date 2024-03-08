@@ -44,8 +44,10 @@ import { registerNodeMetrics } from './nodeMetrics';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
-import type { ServiceRepository } from './services/ServiceRepository';
-import { serviceRepository } from './services/services';
+import {
+    OperationContext,
+    ServiceRepository,
+} from './services/ServiceRepository';
 import { wrapOtelSpan } from './utils';
 import { VERSION } from './version';
 
@@ -73,6 +75,8 @@ type AppArguments = {
 };
 
 export default class App {
+    private readonly serviceRepository: ServiceRepository;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -101,6 +105,13 @@ export default class App {
                     this.lightdashConfig.rudder.writeKey &&
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
+        });
+        this.serviceRepository = new ServiceRepository({
+            context: new OperationContext({
+                operationId: 'App#ctor',
+                lightdashAnalytics: this.analytics,
+                lightdashConfig: this.lightdashConfig,
+            }),
         });
     }
 
@@ -185,7 +196,7 @@ export default class App {
          * request context - for now we simply proxy the existing service repository singleton.
          */
         expressApp.use((req, res, next) => {
-            req.services = serviceRepository;
+            req.services = this.serviceRepository;
             next();
         });
 
@@ -335,7 +346,7 @@ export default class App {
             analytics: this.analytics,
 
             // TODO: Do not use serviceRepository singleton here:
-            unfurlService: serviceRepository.getUnfurlService(),
+            unfurlService: this.serviceRepository.getUnfurlService(),
         });
     }
 
@@ -400,13 +411,14 @@ export default class App {
             analytics: this.analytics,
             // TODO: Do not use serviceRepository singleton:
             ...{
-                unfurlService: serviceRepository.getUnfurlService(),
-                csvService: serviceRepository.getCsvService(),
-                dashboardService: serviceRepository.getDashboardService(),
-                projectService: serviceRepository.getProjectService(),
-                schedulerService: serviceRepository.getSchedulerService(),
-                validationService: serviceRepository.getValidationService(),
-                userService: serviceRepository.getUserService(),
+                unfurlService: this.serviceRepository.getUnfurlService(),
+                csvService: this.serviceRepository.getCsvService(),
+                dashboardService: this.serviceRepository.getDashboardService(),
+                projectService: this.serviceRepository.getProjectService(),
+                schedulerService: this.serviceRepository.getSchedulerService(),
+                validationService:
+                    this.serviceRepository.getValidationService(),
+                userService: this.serviceRepository.getUserService(),
             },
             ...clients,
         });

@@ -9,7 +9,10 @@ import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { registerWorkerMetrics } from './schedulerMetrics';
-import { serviceRepository } from './services/services';
+import {
+    OperationContext,
+    ServiceRepository,
+} from './services/ServiceRepository';
 import { VERSION } from './version';
 
 type SchedulerAppArguments = {
@@ -20,6 +23,8 @@ type SchedulerAppArguments = {
 };
 
 export default class SchedulerApp {
+    private readonly serviceRepository: ServiceRepository;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -46,6 +51,13 @@ export default class SchedulerApp {
                     this.lightdashConfig.rudder.writeKey &&
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
+        });
+        this.serviceRepository = new ServiceRepository({
+            context: new OperationContext({
+                lightdashAnalytics: this.analytics,
+                lightdashConfig: this.lightdashConfig,
+                operationId: 'SchedulerApp#ctor',
+            }),
         });
     }
 
@@ -74,13 +86,14 @@ export default class SchedulerApp {
             analytics: this.analytics,
             // TODO: Do not use serviceRepository singleton:
             ...{
-                unfurlService: serviceRepository.getUnfurlService(),
-                csvService: serviceRepository.getCsvService(),
-                dashboardService: serviceRepository.getDashboardService(),
-                projectService: serviceRepository.getProjectService(),
-                schedulerService: serviceRepository.getSchedulerService(),
-                validationService: serviceRepository.getValidationService(),
-                userService: serviceRepository.getUserService(),
+                unfurlService: this.serviceRepository.getUnfurlService(),
+                csvService: this.serviceRepository.getCsvService(),
+                dashboardService: this.serviceRepository.getDashboardService(),
+                projectService: this.serviceRepository.getProjectService(),
+                schedulerService: this.serviceRepository.getSchedulerService(),
+                validationService:
+                    this.serviceRepository.getValidationService(),
+                userService: this.serviceRepository.getUserService(),
             },
             ...clients,
         });
