@@ -216,7 +216,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             : moment();
 
                     const dateValue = valueIsDate
-                        ? formatDate(value, undefined, false)
+                        ? formatDate(value, undefined, true)
                         : formatDate(defaultDate, undefined, false);
                     filterRuleDefaults.values = [dateValue];
                 }
