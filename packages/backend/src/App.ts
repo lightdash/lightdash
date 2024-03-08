@@ -300,8 +300,14 @@ export default class App {
         );
 
         // Authentication
-        passport.use(apiKeyPassportStrategy);
-        passport.use(localPassportStrategy);
+        const userService = this.serviceRepository.getUserService();
+
+        passport.use(apiKeyPassportStrategy({ userService }));
+        passport.use(
+            localPassportStrategy({
+                userService,
+            }),
+        );
         if (googlePassportStrategy) {
             passport.use(googlePassportStrategy);
             refresh.use(googlePassportStrategy);

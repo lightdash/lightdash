@@ -31,7 +31,7 @@ import { Strategy } from 'passport-strategy';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
-import { serviceRepository } from '../services/services';
+import type { UserService } from '../services/UserService';
 
 // How a user makes authenticated requests
 // 1. A cookie in the browser contains an encrypted cookie id
@@ -66,8 +66,6 @@ import { serviceRepository } from '../services/services';
  * at this stage, OR have an "anonymous context" service repository instance for this
  * stage of the request.
  */
-const userService = serviceRepository.getUserService();
-
 export const getSessionUserFromRequest = ({
     user,
 }: Request): SessionUser | undefined => {
@@ -218,11 +216,9 @@ export class OpenIDClientOktaStrategy extends Strategy {
                 );
 
                 if (openIdUser) {
-                    const user = await userService.loginWithOpenId(
-                        openIdUser,
-                        req.user,
-                        inviteCode,
-                    );
+                    const user = await req.services
+                        .getUserService()
+                        .loginWithOpenId(openIdUser, req.user, inviteCode);
                     return this.success(user);
                 }
 
@@ -285,39 +281,52 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
     }
 };
 
-export const localPassportStrategy = new LocalStrategy(
-    { usernameField: 'email', passwordField: 'password' },
-    async (email, password, done) => {
-        try {
-            const user = await userService.loginWithPassword(email, password);
-            return done(null, user);
-        } catch (e) {
-            return done(
-                e instanceof LightdashError
-                    ? e
-                    : new AuthorizationError(
-                          'Unexpected error while logging in',
-                      ),
-            );
-        }
-    },
-);
-export const apiKeyPassportStrategy = new HeaderAPIKeyStrategy(
-    { header: 'Authorization', prefix: 'ApiKey ' },
-    true,
-    async (token, done) => {
-        try {
-            const user = await userService.loginWithPersonalAccessToken(token);
-            return done(null, user);
-        } catch {
-            return done(
-                new AuthorizationError(
-                    'Personal access token is not recognised',
-                ),
-            );
-        }
-    },
-);
+export const localPassportStrategy = ({
+    userService,
+}: {
+    userService: UserService;
+}) =>
+    new LocalStrategy(
+        { usernameField: 'email', passwordField: 'password' },
+        async (email, password, done) => {
+            try {
+                const user = await userService.loginWithPassword(
+                    email,
+                    password,
+                );
+                return done(null, user);
+            } catch (e) {
+                return done(
+                    e instanceof LightdashError
+                        ? e
+                        : new AuthorizationError(
+                              'Unexpected error while logging in',
+                          ),
+                );
+            }
+        },
+    );
+export const apiKeyPassportStrategy = ({
+    userService,
+}: {
+    userService: UserService;
+}) =>
+    new HeaderAPIKeyStrategy(
+        { header: 'Authorization', prefix: 'ApiKey ' },
+        true,
+        async (token, done) => {
+            try {
+                const user = userService.loginWithPersonalAccessToken(token);
+                return done(null, user);
+            } catch {
+                return done(
+                    new AuthorizationError(
+                        'Personal access token is not recognised',
+                    ),
+                );
+            }
+        },
+    );
 
 export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     const { redirect, inviteCode } = req.query;
@@ -416,12 +425,14 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                       },
                   };
 
-                  const user = await userService.loginWithOpenId(
-                      openIdUser,
-                      req.user,
-                      inviteCode,
-                      refreshToken,
-                  );
+                  const user = await req.services
+                      .getUserService()
+                      .loginWithOpenId(
+                          openIdUser,
+                          req.user,
+                          inviteCode,
+                          refreshToken,
+                      );
                   return done(null, user);
               } catch (e) {
                   if (e instanceof LightdashError) {
@@ -452,11 +463,9 @@ const genericOidcHandler =
             );
 
             if (openIdUser) {
-                const user = await userService.loginWithOpenId(
-                    openIdUser,
-                    req.user,
-                    inviteCode,
-                );
+                const user = await req.services
+                    .getUserService()
+                    .loginWithOpenId(openIdUser, req.user, inviteCode);
                 return done(null, user);
             }
             return done(null, false, {
