@@ -88,7 +88,7 @@ export const TableProvider: FC<React.PropsWithChildren<Props>> = ({
     ...rest
 }) => {
     const { data, columns, columnOrder, pagination } = rest;
-    const [grouping, setGrouping] = React.useState<GroupingState>([]);
+    const [grouping, setGrouping] = useState<GroupingState>([]);
     const [columnVisibility, setColumnVisibility] = useState({});
 
     useEffect(() => {
