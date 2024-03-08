@@ -1,3 +1,10 @@
+## [0.1027.1](https://github.com/lightdash/lightdash/compare/0.1027.0...0.1027.1) (2024-03-08)
+
+
+### Bug Fixes
+
+* convert date filter base to UTC on the FE ([#9294](https://github.com/lightdash/lightdash/issues/9294)) ([cb49aaf](https://github.com/lightdash/lightdash/commit/cb49aaf588ce22651e67c01eedb5817fa58cef1a))
+
 # [0.1027.0](https://github.com/lightdash/lightdash/compare/0.1026.4...0.1027.0) (2024-03-08)
 
 
