@@ -1,5 +1,5 @@
 import { Controller, type IocContainerFactory } from '@tsoa/runtime';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { BaseController } from '../controllers/baseController';
 import type { ServiceRepository } from './ServiceRepository';
 
