@@ -1,3 +1,10 @@
+## [0.1027.3](https://github.com/lightdash/lightdash/compare/0.1027.2...0.1027.3) (2024-03-08)
+
+
+### Bug Fixes
+
+* add google sheet link on sync ([#9301](https://github.com/lightdash/lightdash/issues/9301)) ([a524e40](https://github.com/lightdash/lightdash/commit/a524e40b3ac7e39a71a3ec45d2ac4d79928bd1cf))
+
 ## [0.1027.2](https://github.com/lightdash/lightdash/compare/0.1027.1...0.1027.2) (2024-03-08)
 
 
