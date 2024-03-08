@@ -22,7 +22,6 @@ import {
     userWarehouseCredentialsModel,
 } from '../../models/models';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
-import { projectService } from '../services';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -224,7 +223,7 @@ describe('ProjectService', () => {
     });
     describe('getJobStatus', () => {
         test('should get job with projectUuid if user belongs to org ', async () => {
-            const result = await projectService.getJobStatus('jobUuid', user);
+            const result = await service.getJobStatus('jobUuid', user);
             expect(result).toEqual(job);
         });
         test('should get job without projectUuid if user created the job ', async () => {
@@ -233,7 +232,7 @@ describe('ProjectService', () => {
                 async () => jobWithoutProjectUuid,
             );
 
-            const result = await projectService.getJobStatus('jobUuid', user);
+            const result = await service.getJobStatus('jobUuid', user);
             expect(result).toEqual(jobWithoutProjectUuid);
         });
 
@@ -257,7 +256,7 @@ describe('ProjectService', () => {
                 ),
             };
             await expect(
-                projectService.getJobStatus('jobUuid', anotherUser),
+                service.getJobStatus('jobUuid', anotherUser),
             ).rejects.toThrowError(NotFoundError);
         });
 
