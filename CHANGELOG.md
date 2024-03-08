@@ -1,3 +1,10 @@
+# [0.1027.0](https://github.com/lightdash/lightdash/compare/0.1026.4...0.1027.0) (2024-03-08)
+
+
+### Features
+
+* notify people in thread without mentions as well ([#9261](https://github.com/lightdash/lightdash/issues/9261)) ([d74fa14](https://github.com/lightdash/lightdash/commit/d74fa14b1324d74eb306e3576010506290ac5a2f))
+
 ## [0.1026.4](https://github.com/lightdash/lightdash/compare/0.1026.3...0.1026.4) (2024-03-08)
 
 
