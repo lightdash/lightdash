@@ -2,6 +2,7 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    ChartType,
     CompleteCartesianChartLayout,
     EchartsGrid,
     EchartsLegend,
@@ -34,7 +35,11 @@ export type CartesianTypeOptions = {
 };
 
 type Args = {
-    initialChartConfig: CartesianChart | undefined;
+    chartConfig: CartesianChart | undefined;
+    setChartConfig?: (chartConfig: {
+        type: ChartType.CARTESIAN;
+        config: CartesianChart;
+    }) => void;
     pivotKeys: string[] | undefined;
     resultsData: ApiQueryResults | undefined;
     setPivotDimensions: React.Dispatch<
@@ -111,7 +116,8 @@ export const EMPTY_CARTESIAN_CHART_CONFIG: CartesianChart = {
 };
 
 const useCartesianChartConfig = ({
-    initialChartConfig,
+    chartConfig,
+    setChartConfig,
     pivotKeys,
     resultsData,
     setPivotDimensions,
@@ -120,70 +126,109 @@ const useCartesianChartConfig = ({
     stacking,
     cartesianType,
 }: Args) => {
-    // FIXME: this might not be necessary
-    const hasInitialValue =
-        !!initialChartConfig &&
-        isCompleteLayout(initialChartConfig.layout) &&
-        isCompleteEchartsConfig(initialChartConfig.eChartsConfig);
-    const [dirtyLayout, setDirtyLayout] = useState<
-        Partial<CartesianChart['layout']> | undefined
-    >(initialChartConfig?.layout);
-    const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
-        Partial<CartesianChart['eChartsConfig']> | undefined
-    >(initialChartConfig?.eChartsConfig);
-    const isInitiallyStacked = (dirtyEchartsConfig?.series || []).some(
+    const isInitiallyStacked = (chartConfig?.eChartsConfig.series || []).some(
         (series: Series) => series.stack !== undefined,
     );
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
 
-    const setLegend = useCallback((legend: EchartsLegend) => {
-        const removePropertiesWithAuto = Object.entries(
-            legend,
-        ).reduce<EchartsLegend>((acc, [key, value]) => {
-            if (value === 'auto') return acc;
-            return { ...acc, [key]: value };
-        }, {});
+    const setDirtyLayout = useCallback(
+        (
+            callback: (
+                prevLayout: CartesianChart['layout'],
+            ) => CartesianChart['layout'],
+        ) => {
+            if (!chartConfig || !setChartConfig) return;
 
-        setDirtyEchartsConfig((prevState) => {
-            return {
-                ...prevState,
-                legend: removePropertiesWithAuto,
-            };
-        });
-    }, []);
+            setChartConfig({
+                type: ChartType.CARTESIAN,
+                config: {
+                    ...chartConfig,
+                    layout: callback(chartConfig.layout),
+                },
+            });
+        },
+        [chartConfig, setChartConfig],
+    );
 
-    const setGrid = useCallback((grid: EchartsGrid) => {
-        setDirtyEchartsConfig((prevState) => {
-            return {
-                ...prevState,
-                grid,
-            };
-        });
-    }, []);
+    const setDirtyEchartsConfig = useCallback(
+        (
+            callback: (
+                prev: CartesianChart['eChartsConfig'],
+            ) => CartesianChart['eChartsConfig'],
+        ) => {
+            if (!chartConfig || !setChartConfig) return;
 
-    const setXAxisName = useCallback((name: string) => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            return {
-                ...prevState,
-                xAxis: [{ ...firstAxis, name }, ...axes],
-            };
-        });
-    }, []);
+            setChartConfig({
+                type: ChartType.CARTESIAN,
+                config: {
+                    ...chartConfig,
+                    eChartsConfig: callback(chartConfig.eChartsConfig),
+                },
+            });
+        },
+        [chartConfig, setChartConfig],
+    );
 
-    const setYAxisName = useCallback((index: number, name: string) => {
-        setDirtyEchartsConfig((prevState) => {
-            return {
-                ...prevState,
-                yAxis: [
-                    prevState?.yAxis?.[0] || {},
-                    prevState?.yAxis?.[1] || {},
-                ].map((axis, axisIndex) =>
-                    axisIndex === index ? { ...axis, name } : axis,
-                ),
-            };
-        });
-    }, []);
+    const setLegend = useCallback(
+        (legend: EchartsLegend) => {
+            const removePropertiesWithAuto = Object.entries(
+                legend,
+            ).reduce<EchartsLegend>((acc, [key, value]) => {
+                if (value === 'auto') return acc;
+                return { ...acc, [key]: value };
+            }, {});
+
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    legend: removePropertiesWithAuto,
+                };
+            });
+        },
+        [setDirtyEchartsConfig],
+    );
+
+    const setGrid = useCallback(
+        (grid: EchartsGrid) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    grid,
+                };
+            });
+        },
+        [setDirtyEchartsConfig],
+    );
+
+    const setXAxisName = useCallback(
+        (name: string) => {
+            setDirtyEchartsConfig((prevState) => {
+                const [firstAxis, ...axes] = prevState?.xAxis || [];
+                return {
+                    ...prevState,
+                    xAxis: [{ ...firstAxis, name }, ...axes],
+                };
+            });
+        },
+        [setDirtyEchartsConfig],
+    );
+
+    const setYAxisName = useCallback(
+        (index: number, name: string) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    yAxis: [
+                        prevState?.yAxis?.[0] || {},
+                        prevState?.yAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index ? { ...axis, name } : axis,
+                    ),
+                };
+            });
+        },
+        [setDirtyEchartsConfig],
+    );
 
     const setYMinValue = useCallback(
         (index: number, value: string | undefined) => {
@@ -199,7 +244,7 @@ const useCartesianChartConfig = ({
                 };
             });
         },
-        [],
+        [setDirtyEchartsConfig],
     );
 
     const setYMaxValue = useCallback(
@@ -216,7 +261,7 @@ const useCartesianChartConfig = ({
                 };
             });
         },
-        [],
+        [setDirtyEchartsConfig],
     );
 
     const setXMinValue = useCallback(
@@ -233,7 +278,7 @@ const useCartesianChartConfig = ({
                 };
             });
         },
-        [],
+        [setDirtyEchartsConfig],
     );
 
     const setXMaxValue = useCallback(
@@ -250,73 +295,102 @@ const useCartesianChartConfig = ({
                 };
             });
         },
-        [],
+        [setDirtyEchartsConfig],
     );
-    const setXField = useCallback((xField: string | undefined) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            xField,
-        }));
-    }, []);
 
-    const setShowGridX = useCallback((show: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            showGridX: show,
-        }));
-    }, []);
-    const setShowGridY = useCallback((show: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            showGridY: show,
-        }));
-    }, []);
-    const setInverseX = useCallback((inverse: boolean) => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            const x = {
-                ...prevState,
-                xAxis: [{ ...firstAxis, inverse }, ...axes],
-            };
-            return x;
-        });
-    }, []);
-    const setXAxisLabelRotation = useCallback((rotation: number) => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            return {
-                ...prevState,
-                xAxis: [{ ...firstAxis, rotate: rotation }, ...axes],
-            };
-        });
-    }, []);
-    const addSingleSeries = useCallback((yField: string) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            yField: [...(prev?.yField || []), yField],
-        }));
-    }, []);
+    const setXField = useCallback(
+        (xField: string | undefined) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                xField,
+            }));
+        },
+        [setDirtyLayout],
+    );
 
-    const removeSingleSeries = useCallback((index: number) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            yField: prev?.yField
-                ? [
-                      ...prev.yField.slice(0, index),
-                      ...prev.yField.slice(index + 1),
-                  ]
-                : [],
-        }));
-    }, []);
+    const setShowGridX = useCallback(
+        (show: boolean) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                showGridX: show,
+            }));
+        },
+        [setDirtyLayout],
+    );
 
-    const updateYField = useCallback((index: number, fieldId: string) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            yField: prev?.yField?.map((field, i) => {
-                return i === index ? fieldId : field;
-            }),
-        }));
-    }, []);
+    const setShowGridY = useCallback(
+        (show: boolean) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                showGridY: show,
+            }));
+        },
+        [setDirtyLayout],
+    );
+
+    const setInverseX = useCallback(
+        (inverse: boolean) => {
+            setDirtyEchartsConfig((prevState) => {
+                const [firstAxis, ...axes] = prevState?.xAxis || [];
+                const x = {
+                    ...prevState,
+                    xAxis: [{ ...firstAxis, inverse }, ...axes],
+                };
+                return x;
+            });
+        },
+        [setDirtyEchartsConfig],
+    );
+
+    const setXAxisLabelRotation = useCallback(
+        (rotation: number) => {
+            setDirtyEchartsConfig((prevState) => {
+                const [firstAxis, ...axes] = prevState?.xAxis || [];
+                return {
+                    ...prevState,
+                    xAxis: [{ ...firstAxis, rotate: rotation }, ...axes],
+                };
+            });
+        },
+        [setDirtyEchartsConfig],
+    );
+
+    const addSingleSeries = useCallback(
+        (yField: string) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                yField: [...(prev?.yField || []), yField],
+            }));
+        },
+        [setDirtyLayout],
+    );
+
+    const removeSingleSeries = useCallback(
+        (index: number) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                yField: prev?.yField
+                    ? [
+                          ...prev.yField.slice(0, index),
+                          ...prev.yField.slice(index + 1),
+                      ]
+                    : [],
+            }));
+        },
+        [setDirtyLayout],
+    );
+
+    const updateYField = useCallback(
+        (index: number, fieldId: string) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                yField: prev?.yField?.map((field, i) => {
+                    return i === index ? fieldId : field;
+                }),
+            }));
+        },
+        [setDirtyLayout],
+    );
 
     const setType = useCallback(
         (type: Series['type'], flipAxes: boolean, hasAreaStyle: boolean) => {
@@ -336,7 +410,7 @@ const useCartesianChartConfig = ({
                     },
             );
         },
-        [],
+        [setDirtyEchartsConfig, setDirtyLayout],
     );
 
     useEffect(() => {
@@ -349,12 +423,15 @@ const useCartesianChartConfig = ({
         }
     }, [cartesianType, setType]);
 
-    const setFlipAxis = useCallback((flipAxes: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            flipAxes,
-        }));
-    }, []);
+    const setFlipAxis = useCallback(
+        (flipAxes: boolean) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                flipAxes,
+            }));
+        },
+        [setDirtyLayout],
+    );
 
     const updateAllGroupedSeries = useCallback(
         (fieldKey: string, updateSeries: Partial<Series>) =>
@@ -372,37 +449,44 @@ const useCartesianChartConfig = ({
                         ),
                     },
             ),
-        [],
+        [setDirtyEchartsConfig],
     );
 
-    const updateSingleSeries = useCallback((updatedSeries: Series) => {
-        setDirtyEchartsConfig((prev) => {
-            return {
-                ...prev,
-                series: (prev?.series || []).map((currentSeries) =>
-                    getSeriesId(currentSeries) === getSeriesId(updatedSeries)
-                        ? { ...currentSeries, ...updatedSeries }
-                        : currentSeries,
-                ),
-            };
-        });
-    }, []);
-
-    const updateSeries = useCallback((series: Series[]) => {
-        setDirtyEchartsConfig((prev) => {
-            if (prev) {
+    const updateSingleSeries = useCallback(
+        (updatedSeries: Series) => {
+            setDirtyEchartsConfig((prev) => {
                 return {
                     ...prev,
-                    series,
+                    series: (prev?.series || []).map((currentSeries) =>
+                        getSeriesId(currentSeries) ===
+                        getSeriesId(updatedSeries)
+                            ? { ...currentSeries, ...updatedSeries }
+                            : currentSeries,
+                    ),
                 };
-            }
-            return prev;
-        });
-    }, []);
+            });
+        },
+        [setDirtyEchartsConfig],
+    );
+
+    const updateSeries = useCallback(
+        (series: Series[]) => {
+            setDirtyEchartsConfig((prev) => {
+                if (prev) {
+                    return {
+                        ...prev,
+                        series,
+                    };
+                }
+                return prev;
+            });
+        },
+        [setDirtyEchartsConfig],
+    );
 
     const setStacking = useCallback(
         (stack: boolean) => {
-            const yFields = dirtyLayout?.yField || [];
+            const yFields = chartConfig?.layout.yField || [];
             const isPivoted = pivotKeys && pivotKeys.length > 0;
             setIsStacked(stack);
             yFields.forEach((yField) => {
@@ -415,7 +499,7 @@ const useCartesianChartConfig = ({
                 });
             });
         },
-        [dirtyLayout?.yField, updateAllGroupedSeries, pivotKeys],
+        [chartConfig?.layout.yField, pivotKeys, updateAllGroupedSeries],
     );
 
     useEffect(() => {
@@ -432,51 +516,50 @@ const useCartesianChartConfig = ({
         );
     }, [resultsData?.metricQuery.dimensions, itemsMap, columnOrder]);
 
-    const [
-        availableFields,
-        availableDimensions,
-        availableMetrics,
-        availableTableCalculations,
-        availableCustomDimensions,
-    ] = useMemo(() => {
-        const metrics = resultsData?.metricQuery.metrics || [];
-        const tableCalculations =
-            resultsData?.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ) || [];
-        const customDimensions =
-            resultsData?.metricQuery.customDimensions?.map(
-                getCustomDimensionId,
-            ) || [];
-        return [
-            [
-                ...sortedDimensions,
-                ...metrics,
-                ...tableCalculations,
-                ...customDimensions,
-            ],
-            [...sortedDimensions, ...customDimensions],
-            metrics,
-            tableCalculations,
-            customDimensions,
-        ];
-    }, [
-        resultsData?.metricQuery.customDimensions,
-        resultsData?.metricQuery.metrics,
-        resultsData?.metricQuery.tableCalculations,
-        sortedDimensions,
-    ]);
+    const [availableFields, availableDimensions, availableMetrics] =
+        useMemo(() => {
+            const metrics = resultsData?.metricQuery.metrics || [];
+            const tableCalculations =
+                resultsData?.metricQuery.tableCalculations.map(
+                    ({ name }) => name,
+                ) || [];
+            const customDimensions =
+                resultsData?.metricQuery.customDimensions?.map(
+                    getCustomDimensionId,
+                ) || [];
+            return [
+                [
+                    ...sortedDimensions,
+                    ...metrics,
+                    ...tableCalculations,
+                    ...customDimensions,
+                ],
+                [...sortedDimensions, ...customDimensions],
+                metrics,
+            ];
+        }, [
+            resultsData?.metricQuery.customDimensions,
+            resultsData?.metricQuery.metrics,
+            resultsData?.metricQuery.tableCalculations,
+            sortedDimensions,
+        ]);
 
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
-        if (availableFields.length > 0) {
+        if (availableFields.length > 0 || columnOrder.length > 0) {
             setDirtyLayout((prev) => {
                 const isCurrentXFieldValid: boolean =
                     prev?.xField === EMPTY_X_AXIS ||
-                    (!!prev?.xField && availableFields.includes(prev.xField));
+                    (!!prev?.xField &&
+                        (availableFields.includes(prev.xField) ||
+                            columnOrder.includes(prev.xField)));
                 const currentValidYFields = prev?.yField
-                    ? prev.yField.filter((y) => availableFields.includes(y))
+                    ? prev.yField.filter(
+                          (y) =>
+                              availableFields.includes(y) ||
+                              columnOrder.includes(y),
+                      )
                     : [];
                 const isCurrentYFieldsValid: boolean =
                     currentValidYFields.length > 0;
@@ -600,30 +683,28 @@ const useCartesianChartConfig = ({
             });
         }
     }, [
-        availableFields,
         availableDimensions,
+        availableFields,
         availableMetrics,
-        availableTableCalculations,
-        availableCustomDimensions,
-        hasInitialValue,
+        columnOrder,
         itemsMap,
+        setDirtyLayout,
         setPivotDimensions,
-        setType,
     ]);
 
     const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
-        if (dirtyEchartsConfig?.series === undefined) return [];
-        return dirtyEchartsConfig.series.reduce<ReferenceLineField[]>(
+        if (chartConfig?.eChartsConfig.series === undefined) return [];
+        return chartConfig.eChartsConfig.series.reduce<ReferenceLineField[]>(
             (acc, serie) => {
                 const data = serie.markLine?.data;
                 if (data !== undefined) {
                     const referenceLine = data.map((markData) => {
                         const axis =
                             markData.xAxis !== undefined
-                                ? dirtyLayout?.flipAxes
+                                ? chartConfig?.layout?.flipAxes
                                     ? serie.encode.yRef
                                     : serie.encode.xRef
-                                : dirtyLayout?.flipAxes
+                                : chartConfig?.layout?.flipAxes
                                 ? serie.encode.xRef
                                 : serie.encode.yRef;
                         return {
@@ -642,15 +723,21 @@ const useCartesianChartConfig = ({
             },
             [],
         );
-    }, [dirtyEchartsConfig?.series, dirtyLayout?.flipAxes]);
+    }, [chartConfig?.eChartsConfig.series, chartConfig?.layout?.flipAxes]);
 
     const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
         selectedReferenceLines,
     );
     // Generate expected series
     useEffect(() => {
-        if (isCompleteLayout(dirtyLayout) && resultsData) {
+        if (isCompleteLayout(chartConfig?.layout) && resultsData) {
             setDirtyEchartsConfig((prev) => {
+                if (
+                    chartConfig?.layout.xField === undefined ||
+                    chartConfig?.layout.yField === undefined
+                )
+                    return prev;
+
                 const defaultCartesianType =
                     prev?.series?.[0]?.type || CartesianSeriesType.BAR;
                 const defaultAreaStyle =
@@ -670,8 +757,8 @@ const useCartesianChartConfig = ({
                     isStacked,
                     pivotKeys,
                     resultsData,
-                    xField: dirtyLayout.xField,
-                    yFields: dirtyLayout.yField,
+                    xField: chartConfig.layout.xField,
+                    yFields: chartConfig.layout.yField,
                     defaultLabel,
                 });
                 const newSeries = mergeExistingAndExpectedSeries({
@@ -681,7 +768,7 @@ const useCartesianChartConfig = ({
 
                 const seriesWithReferenceLines = applyReferenceLines(
                     newSeries,
-                    dirtyLayout,
+                    chartConfig.layout,
                     referenceLines,
                 );
 
@@ -698,28 +785,31 @@ const useCartesianChartConfig = ({
             });
         }
     }, [
-        dirtyLayout,
         pivotKeys,
         resultsData,
         availableDimensions,
         isStacked,
         referenceLines,
+        chartConfig?.layout,
+        setDirtyEchartsConfig,
     ]);
 
     const validConfig: CartesianChart = useMemo(() => {
-        return isCompleteLayout(dirtyLayout) &&
-            isCompleteEchartsConfig(dirtyEchartsConfig)
+        return isCompleteLayout(chartConfig?.layout) &&
+            isCompleteEchartsConfig(chartConfig.eChartsConfig)
             ? {
-                  layout: dirtyLayout,
-                  eChartsConfig: dirtyEchartsConfig,
+                  layout: chartConfig.layout,
+                  eChartsConfig: chartConfig.eChartsConfig,
               }
             : EMPTY_CARTESIAN_CHART_CONFIG;
-    }, [dirtyLayout, dirtyEchartsConfig]);
+    }, [chartConfig?.eChartsConfig, chartConfig?.layout]);
 
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
-            dirtyEchartsConfig?.series?.[0]?.type || CartesianSeriesType.BAR;
-        const firstSeriesAreaStyle = dirtyEchartsConfig?.series?.[0]?.areaStyle;
+            chartConfig?.eChartsConfig?.series?.[0]?.type ||
+            CartesianSeriesType.BAR;
+        const firstSeriesAreaStyle =
+            chartConfig?.eChartsConfig?.series?.[0]?.areaStyle;
         return {
             dirtyChartType:
                 firstSeriesType === CartesianSeriesType.LINE &&
@@ -727,13 +817,13 @@ const useCartesianChartConfig = ({
                     ? CartesianSeriesType.AREA
                     : firstSeriesType,
         };
-    }, [dirtyEchartsConfig]);
+    }, [chartConfig?.eChartsConfig?.series]);
 
     return {
         validConfig,
         dirtyChartType,
-        dirtyLayout,
-        dirtyEchartsConfig,
+        dirtyLayout: chartConfig?.layout,
+        dirtyEchartsConfig: chartConfig?.eChartsConfig,
         setXField,
         setType,
         setXAxisName,

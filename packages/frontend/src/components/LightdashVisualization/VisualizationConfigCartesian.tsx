@@ -1,5 +1,5 @@
 import { ChartType, ItemsMap } from '@lightdash/common';
-import { FC, useEffect } from 'react';
+import { FC } from 'react';
 import useCartesianChartConfig, {
     CartesianTypeOptions,
 } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -46,7 +46,8 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     children,
 }) => {
     const cartesianConfig = useCartesianChartConfig({
-        initialChartConfig,
+        chartConfig: initialChartConfig,
+        setChartConfig: onChartConfigChange,
         pivotKeys: validPivotDimensions,
         resultsData,
         setPivotDimensions,
@@ -56,15 +57,6 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         cartesianType,
         colorPalette,
     });
-
-    useEffect(() => {
-        if (!onChartConfigChange || !cartesianConfig.validConfig) return;
-
-        onChartConfigChange({
-            type: ChartType.CARTESIAN,
-            config: cartesianConfig.validConfig,
-        });
-    }, [cartesianConfig, onChartConfigChange]);
 
     return children({
         visualizationConfig: {
