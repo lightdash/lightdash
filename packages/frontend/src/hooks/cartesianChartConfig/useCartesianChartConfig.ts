@@ -131,6 +131,17 @@ const useCartesianChartConfig = ({
     );
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
 
+    const getValidChartConfig = useCallback(
+        (config: CartesianChart): CartesianChart => {
+            const isValid =
+                isCompleteLayout(config.layout) &&
+                isCompleteEchartsConfig(config.eChartsConfig);
+
+            return isValid ? config : EMPTY_CARTESIAN_CHART_CONFIG;
+        },
+        [],
+    );
+
     const setDirtyLayout = useCallback(
         (
             callback: (
@@ -138,16 +149,17 @@ const useCartesianChartConfig = ({
             ) => CartesianChart['layout'],
         ) => {
             if (!chartConfig || !setChartConfig) return;
+            const newChartConfig = getValidChartConfig({
+                ...chartConfig,
+                layout: callback(chartConfig.layout),
+            });
 
             setChartConfig({
                 type: ChartType.CARTESIAN,
-                config: {
-                    ...chartConfig,
-                    layout: callback(chartConfig.layout),
-                },
+                config: newChartConfig,
             });
         },
-        [chartConfig, setChartConfig],
+        [chartConfig, getValidChartConfig, setChartConfig],
     );
 
     const setDirtyEchartsConfig = useCallback(
@@ -158,15 +170,17 @@ const useCartesianChartConfig = ({
         ) => {
             if (!chartConfig || !setChartConfig) return;
 
+            const newChartConfig = getValidChartConfig({
+                ...chartConfig,
+                eChartsConfig: callback(chartConfig.eChartsConfig),
+            });
+
             setChartConfig({
                 type: ChartType.CARTESIAN,
-                config: {
-                    ...chartConfig,
-                    eChartsConfig: callback(chartConfig.eChartsConfig),
-                },
+                config: newChartConfig,
             });
         },
-        [chartConfig, setChartConfig],
+        [chartConfig, getValidChartConfig, setChartConfig],
     );
 
     const setLegend = useCallback(
@@ -794,16 +808,6 @@ const useCartesianChartConfig = ({
         setDirtyEchartsConfig,
     ]);
 
-    const validConfig: CartesianChart = useMemo(() => {
-        return isCompleteLayout(chartConfig?.layout) &&
-            isCompleteEchartsConfig(chartConfig.eChartsConfig)
-            ? {
-                  layout: chartConfig.layout,
-                  eChartsConfig: chartConfig.eChartsConfig,
-              }
-            : EMPTY_CARTESIAN_CHART_CONFIG;
-    }, [chartConfig?.eChartsConfig, chartConfig?.layout]);
-
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
             chartConfig?.eChartsConfig?.series?.[0]?.type ||
@@ -820,7 +824,7 @@ const useCartesianChartConfig = ({
     }, [chartConfig?.eChartsConfig?.series]);
 
     return {
-        validConfig,
+        validConfig: chartConfig, // chartConfig should always be valid since we are using getValidChartConfig on every change
         dirtyChartType,
         dirtyLayout: chartConfig?.layout,
         dirtyEchartsConfig: chartConfig?.eChartsConfig,
