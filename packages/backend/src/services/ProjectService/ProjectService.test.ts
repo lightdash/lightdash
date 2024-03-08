@@ -263,25 +263,24 @@ describe('ProjectService', () => {
         test('should limit CSV results', async () => {
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, undefined),
+                service.metricQueryWithLimit(METRIC_QUERY, undefined),
             ).toEqual(METRIC_QUERY); // Returns same metricquery
 
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, 5).limit,
+                service.metricQueryWithLimit(METRIC_QUERY, 5).limit,
             ).toEqual(5);
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, null).limit,
+                service.metricQueryWithLimit(METRIC_QUERY, null).limit,
             ).toEqual(33333);
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
+                service.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
             ).toEqual(9999);
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, 9999999)
-                    .limit,
+                service.metricQueryWithLimit(METRIC_QUERY, 9999999).limit,
             ).toEqual(33333);
 
             const metricWithoutRows = {
@@ -292,14 +291,13 @@ describe('ProjectService', () => {
             };
             expect(() =>
                 // @ts-ignore
-                projectService.metricQueryWithLimit(metricWithoutRows, null),
+                service.metricQueryWithLimit(metricWithoutRows, null),
             ).toThrowError(ParameterError);
 
             const metricWithDimension = { ...METRIC_QUERY, metrics: [] };
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(metricWithDimension, null)
-                    .limit,
+                service.metricQueryWithLimit(metricWithDimension, null).limit,
             ).toEqual(50000);
         });
     });
