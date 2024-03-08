@@ -1,7 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     Comment,
+    Dashboard,
+    DashboardTile,
     ForbiddenError,
+    LightdashUser,
     SessionUser,
     SpaceSummary,
 } from '@lightdash/common';
@@ -69,6 +72,59 @@ export class CommentService {
         return hasSpaceAccess(user, space);
     }
 
+    private async createCommentNotification({
+        userUuid,
+        comment,
+        dashboard,
+        dashboardTileUuid,
+    }: {
+        userUuid: string;
+        comment: Comment;
+        dashboard: Dashboard;
+        dashboardTileUuid: string;
+    }) {
+        const commentingUsersInTile =
+            await this.commentModel.findUsersThatCommentedInDashboardTile(
+                dashboardTileUuid,
+            );
+
+        const taggedUsers = comment.mentions.map((mention) => ({
+            userUuid: mention,
+            tagged: true,
+        }));
+
+        const commentingUsers = commentingUsersInTile
+            // Filter out users that have just been tagged to avoid duplicate notifications
+            .filter((u) => !taggedUsers.some((t) => t.userUuid === u.userUuid))
+            .map((user) => ({
+                userUuid: user.userUuid,
+                tagged: false,
+            }));
+
+        const usersToNotify = [...taggedUsers, ...commentingUsers];
+
+        if (usersToNotify.length === 0) return;
+
+        const dashboardTile = dashboard.tiles.find(
+            (t) => t.uuid === dashboardTileUuid,
+        );
+
+        if (!dashboardTile) return;
+
+        const commentAuthor = await this.userModel.getUserDetailsByUuid(
+            userUuid,
+        );
+
+        await this.notificationsModel.createDashboardCommentNotification({
+            userUuid,
+            commentAuthor,
+            comment,
+            usersToNotify,
+            dashboard,
+            dashboardTile,
+        });
+    }
+
     async createComment(
         user: SessionUser,
         dashboardUuid: string,
@@ -122,23 +178,12 @@ export class CommentService {
             throw new Error('Failed to create comment');
         }
 
-        if (comment.mentions.length > 0) {
-            const dashboardTile = dashboard.tiles.find(
-                (t) => t.uuid === dashboardTileUuid,
-            );
-
-            const commentAuthor = await this.userModel.getUserDetailsByUuid(
-                user.userUuid,
-            );
-
-            await this.notificationsModel.createDashboardCommentNotification(
-                user.userUuid,
-                commentAuthor,
-                comment,
-                dashboard,
-                dashboardTile,
-            );
-        }
+        await this.createCommentNotification({
+            userUuid: user.userUuid,
+            comment,
+            dashboard,
+            dashboardTileUuid,
+        });
 
         return comment.commentId;
     }
