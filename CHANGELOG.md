@@ -1,3 +1,10 @@
+## [0.1026.4](https://github.com/lightdash/lightdash/compare/0.1026.3...0.1026.4) (2024-03-08)
+
+
+### Bug Fixes
+
+* duplicate preview vector issue ([#9275](https://github.com/lightdash/lightdash/issues/9275)) ([e3aeacb](https://github.com/lightdash/lightdash/commit/e3aeacbb3d9e08f8ed97ced2c7c3d817931d8f13))
+
 ## [0.1026.3](https://github.com/lightdash/lightdash/compare/0.1026.2...0.1026.3) (2024-03-07)
 
 
