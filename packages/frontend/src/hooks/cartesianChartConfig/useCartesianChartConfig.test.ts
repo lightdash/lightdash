@@ -224,7 +224,7 @@ describe('useCartesianChartConfig', () => {
             // @ts-expect-error partially mock params for hook
             useCartesianChartConfig({
                 ...useCartesianChartConfigParamsMock,
-                initialChartConfig: {
+                chartConfig: {
                     ...useCartesianChartConfigParamsMock.initialChartConfig,
 
                     eChartsConfig: {
