@@ -1,3 +1,10 @@
+## [0.1027.2](https://github.com/lightdash/lightdash/compare/0.1027.1...0.1027.2) (2024-03-08)
+
+
+### Bug Fixes
+
+* set cookie directly without using headers on puppeteer ([#9295](https://github.com/lightdash/lightdash/issues/9295)) ([d34802a](https://github.com/lightdash/lightdash/commit/d34802a6d25c2aa82ac6debb60f35be3667a0596))
+
 ## [0.1027.1](https://github.com/lightdash/lightdash/compare/0.1027.0...0.1027.1) (2024-03-08)
 
 
