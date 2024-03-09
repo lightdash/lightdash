@@ -60,24 +60,24 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         colorPalette,
     });
 
-    const hasChartConfigChangedExternally = useMemo(() => {
+    const hasChartConfigChangedInHook = useMemo(() => {
         return (
-            !isEqual(initialChartConfig, cartesianConfig.validConfig) &&
-            !isEqual(initialChartConfig, prevChartConfig)
+            isEqual(initialChartConfig, prevChartConfig) &&
+            !isEqual(initialChartConfig, cartesianConfig.validConfig)
         );
     }, [cartesianConfig.validConfig, initialChartConfig, prevChartConfig]);
 
     useEffect(() => {
-        if (hasChartConfigChangedExternally) return;
+        if (!hasChartConfigChangedInHook) return;
 
-        // Update external chart config ONLY when chart config changes from hook
+        // Update external chart config ONLY when the hook has changed the config
         onChartConfigChange?.({
             type: ChartType.CARTESIAN,
             config: cartesianConfig.validConfig,
         });
     }, [
         cartesianConfig.validConfig,
-        hasChartConfigChangedExternally,
+        hasChartConfigChangedInHook,
         onChartConfigChange,
     ]);
 
