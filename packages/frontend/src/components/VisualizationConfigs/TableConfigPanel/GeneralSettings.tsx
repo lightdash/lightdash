@@ -144,6 +144,7 @@ const GeneralSettings: FC = () => {
 
     const {
         canUsePivotTable,
+        canUseSubtotals,
         hideRowNumbers,
         metricsAsRows,
         setHideRowNumbers,
@@ -251,8 +252,10 @@ const GeneralSettings: FC = () => {
                     }}
                 />
                 <Tooltip
-                    disabled={!canUsePivotTable}
-                    label="Subtotals can only be used on tables that aren't pivoted"
+                    disabled={!canUsePivotTable && canUseSubtotals}
+                    label={!canUseSubtotals
+                        ? "Subtotals can only be used on tables with at least two dimensions"
+                        : "Subtotals can only be used on tables that aren't pivoted"}
                     w={300}
                     multiline
                     withinPortal
@@ -265,7 +268,7 @@ const GeneralSettings: FC = () => {
                             onChange={() => {
                                 setShowSubtotals(!showSubtotals);
                             }}
-                            disabled={!!canUsePivotTable}
+                            disabled={!!canUsePivotTable || !canUseSubtotals}
                         />
                     </Box>
                 </Tooltip>
