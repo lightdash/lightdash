@@ -141,6 +141,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 itemsMap={itemsMap}
                             />
                         );
+                    const cell = props.cell;
+                    if (cell.getValue() === undefined || cell.getIsAggregated() || cell.getIsPlaceholder())
+                        return null;
                     return <CellContextMenu {...props} />;
                 }}
                 pagination={{ showResultsTotal }}

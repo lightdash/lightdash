@@ -46,6 +46,16 @@ interface TableRowProps {
 // arbitrary number that is usually smaller than the 300px max width of the cell
 const SMALL_TEXT_LENGTH = 35;
 
+const countSubRows = (rowNode: Row<ResultRow>): number => {
+    if (rowNode.subRows?.length) {
+        return rowNode.subRows.reduce((acc: number, nextRowNode) => {
+            return acc + countSubRows(nextRowNode);
+        }, 0);
+    } else {
+        return 1;
+    }
+};
+
 const TableRow: FC<TableRowProps> = ({
     row,
     index,
@@ -110,20 +120,18 @@ const TableRow: FC<TableRowProps> = ({
                         {cell.getIsGrouped() ? (
                             <>
                                 <button
-                                    {...{
-                                        onClick: (e) => {
-                                            e.stopPropagation();
-                                            e.preventDefault();
-                                            toggleExpander();
-                                        },
-                                        style: {
-                                            cursor: row.getCanExpand()
-                                                ? 'pointer'
-                                                : 'normal',
-                                            border: 'none',
-                                            background: 'none',
-                                            float: 'left',
-                                        },
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        toggleExpander();
+                                    }}
+                                    style={{
+                                        cursor: row.getCanExpand()
+                                            ? 'pointer'
+                                            : 'normal',
+                                        border: 'none',
+                                        background: 'none',
+                                        float: 'left',
                                     }}
                                 >
                                     <MantineIcon
@@ -145,7 +153,7 @@ const TableRow: FC<TableRowProps> = ({
                                             marginLeft: 4,
                                         }}
                                     >
-                                        ({row.subRows.length})
+                                        ({countSubRows(row)})
                                     </span>
                                 </button>
                                 {flexRender(

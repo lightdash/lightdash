@@ -3,6 +3,7 @@ import {
     ColumnProperties,
     ConditionalFormattingConfig,
     DashboardFilters,
+    FieldType,
     getItemLabel,
     isDimension,
     isField,
@@ -164,6 +165,11 @@ const useTableConfig = (
         resultsData.rows.length &&
         pivotDimensions &&
         pivotDimensions.length > 0;
+
+    const numDimensions = itemsMap
+        ? columnOrder.filter((fieldId) => itemsMap[fieldId]?.fieldType === FieldType.DIMENSION).length
+        : 0;
+    const canUseSubtotals = numDimensions > 1;
 
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
@@ -426,6 +432,7 @@ const useTableConfig = (
         metricsAsRows,
         setMetricsAsRows,
         canUsePivotTable,
+        canUseSubtotals,
     };
 };
 
