@@ -203,7 +203,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     </Sidebar>
                 ) : null}
 
-                <Box className={classes.content}>
+                <Box component="main" className={classes.content}>
                     <TrackSection name={SectionName.PAGE_CONTENT}>
                         {children}
                     </TrackSection>

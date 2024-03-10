@@ -133,6 +133,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             <Menu.Target>
                 <Box onClick={isOpen ? onClose : onOpen}>
                     <ActionIcon
+                        aria-label="Menu"
                         sx={(theme) => ({
                             ':hover': {
                                 backgroundColor: theme.colors.gray[1],
