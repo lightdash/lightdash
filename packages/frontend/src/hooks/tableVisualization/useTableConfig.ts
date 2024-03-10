@@ -167,7 +167,9 @@ const useTableConfig = (
         pivotDimensions.length > 0;
 
     const numDimensions = itemsMap
-        ? columnOrder.filter((fieldId) => itemsMap[fieldId]?.fieldType === FieldType.DIMENSION).length
+        ? columnOrder.filter(
+              (fieldId) => itemsMap[fieldId]?.fieldType === FieldType.DIMENSION,
+          ).length
         : 0;
     const canUseSubtotals = numDimensions > 1;
 

@@ -142,7 +142,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             />
                         );
                     const cell = props.cell;
-                    if (cell.getValue() === undefined || cell.getIsAggregated() || cell.getIsPlaceholder())
+                    if (
+                        cell.getValue() === undefined ||
+                        cell.getIsAggregated() ||
+                        cell.getIsPlaceholder()
+                    )
                         return null;
                     return <CellContextMenu {...props} />;
                 }}
