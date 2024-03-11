@@ -36,8 +36,8 @@ const getRawConfig = async (): Promise<Config> => {
     try {
         const raw = yaml.load(await fs.readFile(configFilePath, 'utf8'));
         return raw as Config;
-    } catch (e: any) {
-        if (e.code === 'ENOENT') {
+    } catch (e: unknown) {
+        if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
             return {} as Config;
         }
         throw e;

@@ -3,12 +3,10 @@ import { createHmac } from 'crypto';
 import express from 'express';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { userModel } from '../models/models';
-import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 
 const puppeteer = require('puppeteer');
 
 export const headlessBrowserRouter = express.Router({ mergeParams: true });
-export const encryptionService = new EncryptionService({ lightdashConfig });
 
 export const getAuthenticationToken = (value: string) =>
     createHmac('sha512', lightdashConfig.lightdashSecret)

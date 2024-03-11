@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -18,17 +17,17 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { gitIntegrationService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/git-integration')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Git Integration')
-export class GitIntegrationController extends Controller {
+export class GitIntegrationController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
@@ -40,10 +39,9 @@ export class GitIntegrationController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await gitIntegrationService.getConfiguration(
-                req.user!,
-                projectUuid,
-            ),
+            results: await this.services
+                .getGitIntegrationService()
+                .getConfiguration(req.user!, projectUuid),
         };
     }
 
@@ -63,8 +61,9 @@ export class GitIntegrationController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results:
-                await gitIntegrationService.createPullRequestForChartFields(
+            results: await this.services
+                .getGitIntegrationService()
+                .createPullRequestForChartFields(
                     req.user!,
                     projectUuid,
                     chartUuid,
@@ -92,8 +91,9 @@ export class GitIntegrationController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results:
-                await gitIntegrationService.createPullRequestForCustomMetrics(
+            results: await this.services
+                .getGitIntegrationService()
+                .createPullRequestForCustomMetrics(
                     req.user!,
                     projectUuid,
                     body.customMetrics,

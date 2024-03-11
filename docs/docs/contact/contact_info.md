@@ -22,7 +22,7 @@ Well, that's nice 😊.
 
 There are four things you can do to keep up with all things Lightdash:
 
-1. Check out the [action in our Lightdash Community in Slack](https://join.slack.com/t/lightdash-community/shared_invite/zt-1nvwh36o0-gd3jOUx6DuVLNNeng1pPcw).
+1. Join the [Lightdash Community Slack](https://join.slack.com/t/lightdash-community/shared_invite/zt-1bfmfnyfq-nSeTVj0cT7i2ekAHYbBVdQ).
 
 2. Star our [GitHub repo](https://github.com/lightdash/lightdash)
 

@@ -145,6 +145,12 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                 let setTooltipItemTrigger = true;
                 // Tooltip trigger 'item' does not work when symbol is not shown; reference: https://github.com/apache/echarts/issues/14563
                 const series = eCharts.getOption().series;
+
+                const isGrouped = (series as any[]).some(
+                    (serie) => serie.pivotReference !== undefined,
+                );
+                if (Array.isArray(series) && !isGrouped) return null;
+
                 if (
                     Array.isArray(series) &&
                     isLineSeriesOption(series[params.seriesIndex])
@@ -153,19 +159,44 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                         !!series[params.seriesIndex].showSymbol;
                 }
 
-                if (setTooltipItemTrigger) {
+                if (
+                    setTooltipItemTrigger &&
+                    eChartsOptions?.tooltip.formatter
+                ) {
                     eCharts.setOption(
                         {
                             tooltip: {
                                 trigger: 'item',
-                                formatter: undefined,
+                                formatter: (param: any) => {
+                                    // item param are slightly different to axis params, and they don't contain the axisValueLabel
+                                    // so we need to generate it here (and wrap it in an array) and then reuse the formatter used
+                                    // on `useEchartsCartesianConfig` to generate the tooltip
+                                    if (eChartsOptions.tooltip.formatter) {
+                                        const dim =
+                                            param.encode?.x[0] !== undefined
+                                                ? param.dimensionNames[
+                                                      param.encode?.x[0]
+                                                  ]
+                                                : '';
+
+                                        const axisValue = param.value[dim];
+                                        return (
+                                            eChartsOptions.tooltip
+                                                .formatter as any
+                                        )([
+                                            {
+                                                ...param,
+                                                axisValueLabel: axisValue,
+                                            },
+                                        ]);
+                                    }
+                                },
                             },
                         },
                         false,
                         true, // lazy update
                     );
                 }
-
                 // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
                 setTimeout(() => {
                     eCharts.dispatchAction({
@@ -175,7 +206,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                 }, 100);
             }
         },
-        [chartRef],
+        [chartRef, eChartsOptions?.tooltip.formatter],
     );
 
     const handleOnMouseOut = useCallback(() => {

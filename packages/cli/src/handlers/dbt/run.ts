@@ -22,10 +22,13 @@ export const dbtRunHandler = async (
         },
     });
 
-    const commands = command.parent.args.reduce((acc: any, arg: any) => {
-        if (arg === '--verbose') return acc;
-        return [...acc, arg];
-    }, []);
+    const commands = command.parent.args.reduce(
+        (acc: unknown[], arg: unknown) => {
+            if (arg === '--verbose') return acc;
+            return [...acc, arg];
+        },
+        [],
+    );
 
     GlobalState.debug(`> Running dbt command: ${commands}`);
 
@@ -34,15 +37,16 @@ export const dbtRunHandler = async (
             stdio: 'inherit',
         });
         await subprocess;
-    } catch (e: any) {
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '-';
         await LightdashAnalytics.track({
             event: 'dbt_command.error',
             properties: {
                 command: `${commands}`,
-                error: `${e.message}`,
+                error: `${msg}`,
             },
         });
-        throw new ParseError(`Failed to run dbt:\n  ${e.message}`);
+        throw new ParseError(`Failed to run dbt:\n  ${msg}`);
     }
     await generateHandler({
         ...options,

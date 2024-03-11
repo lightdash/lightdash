@@ -13,15 +13,6 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import {
-    csvService,
-    dashboardService,
-    downloadFileService,
-    projectService,
-    savedChartsService,
-    searchService,
-    spaceService,
-} from '../services/services';
 
 export const projectRouter = express.Router({ mergeParams: true });
 
@@ -31,7 +22,8 @@ projectRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        projectService
+        req.services
+            .getProjectService()
             .updateAndScheduleAsyncWork(
                 req.params.projectUuid,
                 req.user!,
@@ -55,17 +47,19 @@ projectRouter.get(
     async (req, res, next) => {
         try {
             const { type, fromDate, toDate, createdByUuid } = req.query;
-            const results = await searchService.getSearchResults(
-                req.user!,
-                req.params.projectUuid,
-                req.params.query,
-                {
-                    type: type?.toString(),
-                    fromDate: fromDate?.toString(),
-                    toDate: toDate?.toString(),
-                    createdByUuid: createdByUuid?.toString(),
-                },
-            );
+            const results = await req.services
+                .getSearchService()
+                .getSearchResults(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.params.query,
+                    {
+                        type: type?.toString(),
+                        fromDate: fromDate?.toString(),
+                        toDate: toDate?.toString(),
+                        createdByUuid: createdByUuid?.toString(),
+                    },
+                );
             res.json({ status: 'ok', results });
         } catch (e) {
             next(e);
@@ -79,8 +73,9 @@ projectRouter.get(
     async (req, res, next) => {
         try {
             const { nanoId } = req.params;
-            const { path: filePath } =
-                await downloadFileService.getDownloadFile(nanoId);
+            const { path: filePath } = await req.services
+                .getDownloadFileService()
+                .getDownloadFile(nanoId);
             const filename = path.basename(filePath);
             res.set('Content-Type', 'text/csv');
             res.set('Content-Disposition', `attachment; filename=${filename}`);
@@ -103,15 +98,17 @@ projectRouter.post(
         try {
             const results = {
                 search: req.body.search,
-                results: await projectService.searchFieldUniqueValues(
-                    req.user!,
-                    req.params.projectUuid,
-                    req.body.table,
-                    req.params.fieldId,
-                    req.body.search,
-                    req.body.limit,
-                    req.body.filters,
-                ),
+                results: await req.services
+                    .getProjectService()
+                    .searchFieldUniqueValues(
+                        req.user!,
+                        req.params.projectUuid,
+                        req.body.table,
+                        req.params.fieldId,
+                        req.body.search,
+                        req.body.limit,
+                        req.body.filters,
+                    ),
             };
 
             res.json({
@@ -131,11 +128,13 @@ projectRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            const results = await projectService.scheduleCompileProject(
-                req.user!,
-                req.params.projectUuid,
-                getRequestMethod(req.header(LightdashRequestMethodHeader)),
-            );
+            const results = await req.services
+                .getProjectService()
+                .scheduleCompileProject(
+                    req.user!,
+                    req.params.projectUuid,
+                    getRequestMethod(req.header(LightdashRequestMethodHeader)),
+                );
             res.json({
                 status: 'ok',
                 results,
@@ -152,6 +151,8 @@ projectRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
+        const savedChartsService = req.services.getSavedChartService();
+
         if (req.query.duplicateFrom) {
             savedChartsService
                 .duplicate(
@@ -186,7 +187,8 @@ projectRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        savedChartsService
+        req.services
+            .getSavedChartService()
             .updateMultiple(req.user!, req.params.projectUuid, req.body)
             .then((results) => {
                 res.json({
@@ -203,7 +205,8 @@ projectRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        spaceService
+        req.services
+            .getSpaceService()
             .getAllSpaces(req.params.projectUuid, req.user!)
             .then((results) => {
                 res.json({
@@ -220,7 +223,8 @@ projectRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        projectService
+        req.services
+            .getProjectService()
             .getMostPopularAndRecentlyUpdated(req.user!, req.params.projectUuid)
             .then((results) => {
                 res.json({
@@ -238,7 +242,8 @@ projectRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        spaceService
+        req.services
+            .getSpaceService()
             .togglePinning(req.user!, req.params.spaceUuid)
             .then((results) => {
                 res.json({
@@ -262,7 +267,8 @@ projectRouter.get(
 
         const includePrivate = req.query.includePrivate !== 'false';
 
-        dashboardService
+        req.services
+            .getDashboardService()
             .getAllByProject(
                 req.user!,
                 req.params.projectUuid,
@@ -285,6 +291,8 @@ projectRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
+        const dashboardService = req.services.getDashboardService();
+
         if (req.query.duplicateFrom) {
             dashboardService
                 .duplicate(
@@ -319,7 +327,8 @@ projectRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        dashboardService
+        req.services
+            .getDashboardService()
             .updateMultiple(req.user!, req.params.projectUuid, req.body)
             .then((results) => {
                 res.json({
@@ -340,7 +349,7 @@ projectRouter.post(
             const { customLabels, sql } = req.body;
             const { projectUuid } = req.params;
 
-            const fileUrl = await csvService.downloadSqlCsv({
+            const fileUrl = await req.services.getCsvService().downloadSqlCsv({
                 user: req.user!,
                 projectUuid,
                 sql,
@@ -364,10 +373,9 @@ projectRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const results: ProjectCatalog = await projectService.getCatalog(
-                req.user!,
-                req.params.projectUuid,
-            );
+            const results: ProjectCatalog = await req.services
+                .getProjectService()
+                .getCatalog(req.user!, req.params.projectUuid);
             res.json({
                 status: 'ok',
                 results,
@@ -384,11 +392,9 @@ projectRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const results: TablesConfiguration =
-                await projectService.getTablesConfiguration(
-                    req.user!,
-                    req.params.projectUuid,
-                );
+            const results: TablesConfiguration = await req.services
+                .getProjectService()
+                .getTablesConfiguration(req.user!, req.params.projectUuid);
             res.json({
                 status: 'ok',
                 results,
@@ -406,8 +412,9 @@ projectRouter.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            const results: TablesConfiguration =
-                await projectService.updateTablesConfiguration(
+            const results: TablesConfiguration = await req.services
+                .getProjectService()
+                .updateTablesConfiguration(
                     req.user!,
                     req.params.projectUuid,
                     req.body,
@@ -428,10 +435,9 @@ projectRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const results = await projectService.hasSavedCharts(
-                req.user!,
-                req.params.projectUuid,
-            );
+            const results = await req.services
+                .getProjectService()
+                .hasSavedCharts(req.user!, req.params.projectUuid);
             res.json({
                 status: 'ok',
                 results,

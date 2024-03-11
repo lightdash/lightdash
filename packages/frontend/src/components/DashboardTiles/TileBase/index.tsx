@@ -145,25 +145,16 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     withinPortal
                                     maw={400}
                                 >
-                                    {!hideTitle ? (
-                                        belongsToDashboard ? (
-                                            <Text fw={600} size="md">
-                                                {title}
-                                            </Text>
-                                        ) : (
-                                            <TileTitleLink
-                                                ref={titleRef}
-                                                href={titleHref}
-                                                $hovered={titleHovered}
-                                                target="_blank"
-                                                className="non-draggable"
-                                            >
-                                                {title}
-                                            </TileTitleLink>
-                                        )
-                                    ) : (
-                                        <Box />
-                                    )}
+                                    <TileTitleLink
+                                        ref={titleRef}
+                                        href={titleHref}
+                                        $hovered={titleHovered}
+                                        target="_blank"
+                                        className="non-draggable"
+                                        hidden={hideTitle}
+                                    >
+                                        {title}
+                                    </TileTitleLink>
                                 </Tooltip>
                             </Group>
                         </TitleWrapper>
@@ -202,34 +193,22 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         )}
                                         {isEditMode && (
                                             <>
-                                                <Tooltip
-                                                    disabled={
-                                                        !belongsToDashboard
-                                                    }
-                                                    label="Tile content in charts from dashboards is not editable"
-                                                >
-                                                    <Box>
-                                                        <Menu.Item
-                                                            icon={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconEdit
-                                                                    }
-                                                                />
-                                                            }
-                                                            onClick={() =>
-                                                                setIsEditingTileContent(
-                                                                    true,
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                belongsToDashboard
-                                                            }
-                                                        >
-                                                            Edit tile content
-                                                        </Menu.Item>
-                                                    </Box>
-                                                </Tooltip>
+                                                <Box>
+                                                    <Menu.Item
+                                                        icon={
+                                                            <MantineIcon
+                                                                icon={IconEdit}
+                                                            />
+                                                        }
+                                                        onClick={() =>
+                                                            setIsEditingTileContent(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        Edit tile content
+                                                    </Menu.Item>
+                                                </Box>
                                                 {belongsToDashboard ? (
                                                     <Menu.Item
                                                         color="red"

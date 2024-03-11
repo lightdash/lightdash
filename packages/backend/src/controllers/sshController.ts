@@ -1,6 +1,5 @@
 import { ApiErrorPayload, ApiSshKeyPairResponse } from '@lightdash/common';
 import {
-    Controller,
     Middlewares,
     OperationId,
     Post,
@@ -11,13 +10,13 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { sshKeyPairService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/ssh')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('SSH Keypairs')
-export class SshController extends Controller {
+export class SshController extends BaseController {
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('201', 'Success')
     @Post('key-pairs')
@@ -25,7 +24,7 @@ export class SshController extends Controller {
     async createSshKeyPair(
         @Request() req: express.Request,
     ): Promise<ApiSshKeyPairResponse> {
-        const results = await sshKeyPairService.create();
+        const results = await this.services.getSshKeyPairService().create();
         this.setStatus(201);
         return {
             status: 'ok',

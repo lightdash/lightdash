@@ -4,12 +4,6 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import {
-    analyticsService,
-    dashboardService,
-    projectService,
-    unfurlService,
-} from '../services/services';
 
 export const dashboardRouter = express.Router({ mergeParams: true });
 
@@ -21,10 +15,9 @@ dashboardRouter.get(
         try {
             res.json({
                 status: 'ok',
-                results: await dashboardService.getById(
-                    req.user!,
-                    req.params.dashboardUuid,
-                ),
+                results: await req.services
+                    .getDashboardService()
+                    .getById(req.user!, req.params.dashboardUuid),
             });
         } catch (e) {
             next(e);
@@ -37,7 +30,8 @@ dashboardRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        analyticsService
+        req.services
+            .getAnalyticsService()
             .getDashboardViews(req.params.dashboardUuid)
             .then((results) => {
                 res.json({
@@ -58,11 +52,9 @@ dashboardRouter.patch(
         try {
             res.json({
                 status: 'ok',
-                results: await dashboardService.update(
-                    req.user!,
-                    req.params.dashboardUuid,
-                    req.body,
-                ),
+                results: await req.services
+                    .getDashboardService()
+                    .update(req.user!, req.params.dashboardUuid, req.body),
             });
         } catch (e) {
             next(e);
@@ -79,10 +71,9 @@ dashboardRouter.patch(
         try {
             res.json({
                 status: 'ok',
-                results: await dashboardService.togglePinning(
-                    req.user!,
-                    req.params.dashboardUuid,
-                ),
+                results: await req.services
+                    .getDashboardService()
+                    .togglePinning(req.user!, req.params.dashboardUuid),
             });
         } catch (e) {
             next(e);
@@ -97,7 +88,9 @@ dashboardRouter.delete(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            await dashboardService.delete(req.user!, req.params.dashboardUuid);
+            await req.services
+                .getDashboardService()
+                .delete(req.user!, req.params.dashboardUuid);
             res.json({
                 status: 'ok',
                 results: undefined,
@@ -116,10 +109,9 @@ dashboardRouter.get(
         try {
             res.json({
                 status: 'ok',
-                results: await dashboardService.getSchedulers(
-                    req.user!,
-                    req.params.dashboardUuid,
-                ),
+                results: await req.services
+                    .getDashboardService()
+                    .getSchedulers(req.user!, req.params.dashboardUuid),
             });
         } catch (e) {
             next(e);
@@ -136,11 +128,13 @@ dashboardRouter.post(
         try {
             res.json({
                 status: 'ok',
-                results: await dashboardService.createScheduler(
-                    req.user!,
-                    req.params.dashboardUuid,
-                    req.body,
-                ),
+                results: await req.services
+                    .getDashboardService()
+                    .createScheduler(
+                        req.user!,
+                        req.params.dashboardUuid,
+                        req.body,
+                    ),
             });
         } catch (e) {
             next(e);
@@ -154,11 +148,9 @@ dashboardRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const results =
-                await projectService.getAvailableFiltersForSavedQueries(
-                    req.user!,
-                    req.body,
-                );
+            const results = await req.services
+                .getProjectService()
+                .getAvailableFiltersForSavedQueries(req.user!, req.body);
 
             res.json({
                 status: 'ok',
@@ -176,12 +168,14 @@ dashboardRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const results = await unfurlService.exportDashboard(
-                req.params.dashboardUuid,
-                req.body.queryFilters,
-                req.body.gridWidth,
-                req.user!,
-            );
+            const results = await req.services
+                .getUnfurlService()
+                .exportDashboard(
+                    req.params.dashboardUuid,
+                    req.body.queryFilters,
+                    req.body.gridWidth,
+                    req.user!,
+                );
 
             res.json({
                 status: 'ok',

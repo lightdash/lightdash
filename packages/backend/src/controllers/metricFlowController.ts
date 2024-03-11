@@ -1,7 +1,6 @@
 import { ApiErrorPayload } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Middlewares,
     OperationId,
     Path,
@@ -17,11 +16,12 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { dbtCloudGraphqlClient } from '../clients/clients';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/dbtsemanticlayer')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('DbtSemanticLayer')
-export class MetricFlowController extends Controller {
+export class MetricFlowController extends BaseController {
     /**
      * Get DbtSemanticLayer data
      * @param projectUuid the projectId

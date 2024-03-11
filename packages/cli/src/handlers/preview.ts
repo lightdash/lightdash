@@ -3,11 +3,7 @@ import { Project, ProjectType } from '@lightdash/common';
 import chokidar from 'chokidar';
 import inquirer from 'inquirer';
 import path from 'path';
-import {
-    adjectives,
-    animals,
-    uniqueNamesGenerator,
-} from 'unique-names-generator';
+import { animals, colors, uniqueNamesGenerator } from 'unique-names-generator';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -98,7 +94,7 @@ export const previewHandler = async (
         name = uniqueNamesGenerator({
             length: 2,
             separator: ' ',
-            dictionaries: [adjectives, animals],
+            dictionaries: [colors, animals],
         });
     }
 

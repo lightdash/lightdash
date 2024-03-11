@@ -1,15 +1,23 @@
 import * as fs from 'fs/promises';
 import moment from 'moment';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { s3Client } from '../../clients/clients';
+import { emailClient, s3CacheClient, s3Client } from '../../clients/clients';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import {
+    analyticsModel,
     dashboardModel,
     downloadFileModel,
+    jobModel,
+    onboardingModel,
+    projectModel,
     savedChartModel,
+    spaceModel,
+    sshKeyPairModel,
+    userAttributesModel,
     userModel,
+    userWarehouseCredentialsModel,
 } from '../../models/models';
-import { projectService } from '../services';
+import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
@@ -34,7 +42,22 @@ describe('Csv service', () => {
         lightdashConfig,
         analytics: analyticsMock,
         userModel,
-        projectService,
+        projectService: new ProjectService({
+            lightdashConfig,
+            analytics: analyticsMock,
+            analyticsModel,
+            dashboardModel,
+            emailClient,
+            jobModel,
+            onboardingModel,
+            projectModel,
+            s3CacheClient,
+            savedChartModel,
+            spaceModel,
+            sshKeyPairModel,
+            userAttributesModel,
+            userWarehouseCredentialsModel,
+        }),
         s3Client,
         savedChartModel,
         dashboardModel,

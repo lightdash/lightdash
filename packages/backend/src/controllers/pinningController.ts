@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Get,
     Middlewares,
     OperationId,
@@ -18,17 +17,17 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { pinningService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/pinned-lists')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Content')
-export class PinningController extends Controller {
+export class PinningController extends BaseController {
     /**
      * Get pinned items
      * @param projectUuid project uuid
@@ -44,11 +43,9 @@ export class PinningController extends Controller {
         @Path() pinnedListUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiPinnedItems> {
-        const pinnedItems = await pinningService.getPinnedItems(
-            req.user!,
-            projectUuid,
-            pinnedListUuid,
-        );
+        const pinnedItems = await this.services
+            .getPinningService()
+            .getPinnedItems(req.user!, projectUuid, pinnedListUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -78,12 +75,14 @@ export class PinningController extends Controller {
         @Body()
         body: Array<UpdatePinnedItemOrder>,
     ): Promise<ApiPinnedItems> {
-        const pinnedItems = await pinningService.updatePinnedItemsOrder(
-            req.user!,
-            projectUuid,
-            pinnedListUuid,
-            body,
-        );
+        const pinnedItems = await this.services
+            .getPinningService()
+            .updatePinnedItemsOrder(
+                req.user!,
+                projectUuid,
+                pinnedListUuid,
+                body,
+            );
         this.setStatus(200);
         return {
             status: 'ok',

@@ -1094,6 +1094,7 @@ export class ProjectModel {
                               spaces.map((d) => {
                                   const createSpace = {
                                       ...d,
+                                      search_vector: undefined,
                                       space_id: undefined,
                                       space_uuid: undefined,
                                       project_id: previewProject.project_id,
@@ -1153,6 +1154,7 @@ export class ProjectModel {
                                   }
                                   const createChart = {
                                       ...d,
+                                      search_vector: undefined,
                                       saved_query_id: undefined,
                                       saved_query_uuid: undefined,
                                       space_id: getNewSpace(d.space_id),
@@ -1193,6 +1195,7 @@ export class ProjectModel {
                                   }
                                   const createChart = {
                                       ...d,
+                                      search_vector: undefined,
                                       saved_query_id: undefined,
                                       saved_query_uuid: undefined,
                                       space_id: null,
@@ -1349,6 +1352,7 @@ export class ProjectModel {
                               dashboards.map((d) => {
                                   const createDashboard = {
                                       ...d,
+                                      search_vector: undefined,
                                       dashboard_id: undefined,
                                       dashboard_uuid: undefined,
                                       space_id: getNewSpace(d.space_id),

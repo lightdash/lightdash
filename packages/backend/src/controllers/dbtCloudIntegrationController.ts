@@ -4,7 +4,6 @@ import {
     ApiErrorPayload,
 } from '@lightdash/common';
 import {
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -17,13 +16,13 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { projectService } from '../services/services';
 import { isAuthenticated } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/integrations/dbt-cloud')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Integrations')
-export class DbtCloudIntegrationController extends Controller {
+export class DbtCloudIntegrationController extends BaseController {
     /**
      * Get the current dbt Cloud integration settings for a project
      * @param projectUuid the uuid of the project
@@ -39,10 +38,9 @@ export class DbtCloudIntegrationController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.findDbtCloudIntegration(
-                req.user!,
-                projectUuid,
-            ),
+            results: await this.services
+                .getProjectService()
+                .findDbtCloudIntegration(req.user!, projectUuid),
         };
     }
 
@@ -61,11 +59,9 @@ export class DbtCloudIntegrationController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.upsertDbtCloudIntegration(
-                req.user!,
-                projectUuid,
-                req.body,
-            ),
+            results: await this.services
+                .getProjectService()
+                .upsertDbtCloudIntegration(req.user!, projectUuid, req.body),
         };
     }
 
@@ -79,7 +75,9 @@ export class DbtCloudIntegrationController extends Controller {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiDbtCloudSettingsDeleteSuccess> {
-        await projectService.deleteDbtCloudIntegration(req.user!, projectUuid);
+        await this.services
+            .getProjectService()
+            .deleteDbtCloudIntegration(req.user!, projectUuid);
         this.setStatus(200);
         return {
             status: 'ok',

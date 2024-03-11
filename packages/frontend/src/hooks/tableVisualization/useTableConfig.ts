@@ -332,12 +332,24 @@ const useTableConfig = (
     // Remove columnProperties from map if the column has been removed from results
     useEffect(() => {
         if (Object.keys(columnProperties).length > 0 && selectedItemIds) {
-            const columnsRemoved = Object.keys(columnProperties).filter(
-                (field) => !selectedItemIds.includes(field),
-            );
-            columnsRemoved.forEach((field) => delete columnProperties[field]);
-
-            setColumnProperties(columnProperties);
+            const newColumnProperties: Record<string, ColumnProperties> =
+                Object.keys(columnProperties).reduce(
+                    (acc, field) =>
+                        selectedItemIds.includes(field)
+                            ? {
+                                  ...acc,
+                                  [field]: columnProperties[field],
+                              }
+                            : acc,
+                    {},
+                );
+            // only update if something changed, otherwise we get into an infinite loop
+            if (
+                Object.keys(columnProperties).length !==
+                Object.keys(newColumnProperties).length
+            ) {
+                setColumnProperties(newColumnProperties);
+            }
         }
     }, [selectedItemIds, columnProperties]);
 

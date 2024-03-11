@@ -1,6 +1,8 @@
 import {
     AuthorizationError,
+    CompiledDimension,
     Explore,
+    getDimensions,
     UserAttributeValueMap,
 } from '@lightdash/common';
 
@@ -82,14 +84,22 @@ export const getFilteredExplore = (
                     ...table,
                     metrics: Object.fromEntries(
                         Object.entries(table.metrics).filter(
-                            ([metricName, metric]) =>
-                                !metric.tablesReferences ||
-                                metric.tablesReferences.every(
-                                    (tableReference) =>
-                                        filteredTableNames.includes(
-                                            tableReference,
-                                        ),
-                                ),
+                            ([metricName, metric]) => {
+                                const canAccessMetric = hasUserAttributes(
+                                    metric.requiredAttributes,
+                                    userAttributes,
+                                );
+                                if (!canAccessMetric) return false;
+                                return (
+                                    !metric.tablesReferences ||
+                                    metric.tablesReferences.every(
+                                        (tableReference) =>
+                                            filteredTableNames.includes(
+                                                tableReference,
+                                            ),
+                                    )
+                                );
+                            },
                         ),
                     ),
                     dimensions: Object.fromEntries(

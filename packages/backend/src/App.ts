@@ -3,7 +3,6 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
-import bodyParser from 'body-parser';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import cookieParser from 'cookie-parser';
@@ -45,13 +44,23 @@ import { registerNodeMetrics } from './nodeMetrics';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
-import * as services from './services/services';
+import type { ServiceRepository } from './services/ServiceRepository';
+import { serviceRepository } from './services/services';
 import { wrapOtelSpan } from './utils';
 import { VERSION } from './version';
 
 // We need to override this interface to have our user typing
 declare global {
     namespace Express {
+        /**
+         * There's potentially a good case for NOT including this under the top-level of the Request,
+         * but instead under `locals` - I've yet to see a good reasoning on -why-, so for now I'm
+         * opting for the keystrokes saved through omitting `.locals`.
+         */
+        interface Request {
+            services: ServiceRepository;
+        }
+
         interface User extends SessionUser {}
     }
 }
@@ -130,8 +139,8 @@ export default class App {
             express.json({ limit: this.lightdashConfig.maxPayloadSize }),
         );
 
-        expressApp.use(bodyParser.json());
-        expressApp.use(bodyParser.urlencoded({ extended: false }));
+        expressApp.use(express.json());
+        expressApp.use(express.urlencoded({ extended: false }));
         expressApp.use(cookieParser());
 
         expressApp.use(
@@ -168,6 +177,18 @@ export default class App {
                 },
             );
         });
+
+        /**
+         * Service Container
+         *
+         * In a future iteration, the service repository will be aware of the surrounding
+         * request context - for now we simply proxy the existing service repository singleton.
+         */
+        expressApp.use((req, res, next) => {
+            req.services = serviceRepository;
+            next();
+        });
+
         // api router
         expressApp.use('/api/v1', apiV1Router);
         RegisterRoutes(expressApp);
@@ -312,6 +333,9 @@ export default class App {
             slackAuthenticationModel,
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
+
+            // TODO: Do not use serviceRepository singleton here:
+            unfurlService: serviceRepository.getUnfurlService(),
         });
     }
 
@@ -374,9 +398,19 @@ export default class App {
         this.schedulerWorker = new SchedulerWorker({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-            ...services,
+            // TODO: Do not use serviceRepository singleton:
+            ...{
+                unfurlService: serviceRepository.getUnfurlService(),
+                csvService: serviceRepository.getCsvService(),
+                dashboardService: serviceRepository.getDashboardService(),
+                projectService: serviceRepository.getProjectService(),
+                schedulerService: serviceRepository.getSchedulerService(),
+                validationService: serviceRepository.getValidationService(),
+                userService: serviceRepository.getUserService(),
+            },
             ...clients,
         });
+
         this.schedulerWorker.run().catch((e) => {
             Logger.error('Error starting scheduler worker', e);
         });

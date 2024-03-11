@@ -13,7 +13,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Controller,
     Delete,
     Get,
     Middlewares,
@@ -31,17 +30,17 @@ import {
 import express from 'express';
 import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
-import { userService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/user')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('My Account')
-export class UserController extends Controller {
+export class UserController extends BaseController {
     /**
      * Get authenticated user
      * @param req express request
@@ -53,6 +52,7 @@ export class UserController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiGetAuthenticatedUserResponse> {
         this.setStatus(200);
+
         return {
             status: 'ok',
             results: UserModel.lightdashUserFromSession(req.user!),
@@ -77,7 +77,9 @@ export class UserController extends Controller {
                 'Password must contain at least 8 characters, 1 letter and 1 number or 1 special character',
             );
         }
-        const sessionUser = await userService.registerOrActivateUser(body);
+        const sessionUser = await this.services
+            .getUserService()
+            .registerOrActivateUser(body);
         return new Promise((resolve, reject) => {
             req.login(sessionUser, (err) => {
                 if (err) {
@@ -103,9 +105,9 @@ export class UserController extends Controller {
     async createEmailOneTimePasscode(
         @Request() req: express.Request,
     ): Promise<ApiEmailStatusResponse> {
-        const status = await userService.sendOneTimePasscodeToPrimaryEmail(
-            req.user!,
-        );
+        const status = await this.services
+            .getUserService()
+            .sendOneTimePasscodeToPrimaryEmail(req.user!);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -126,10 +128,9 @@ export class UserController extends Controller {
         @Query() passcode?: string,
     ): Promise<ApiEmailStatusResponse> {
         // Throws 404 error if not found
-        const status = await userService.getPrimaryEmailStatus(
-            req.user!,
-            passcode,
-        );
+        const status = await this.services
+            .getUserService()
+            .getPrimaryEmailStatus(req.user!, passcode);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -148,7 +149,9 @@ export class UserController extends Controller {
     async getOrganizationsUserCanJoin(
         @Request() req: express.Request,
     ): Promise<ApiUserAllowedOrganizationsResponse> {
-        const status = await userService.getAllowedOrganizations(req.user!);
+        const status = await this.services
+            .getUserService()
+            .getAllowedOrganizations(req.user!);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -173,7 +176,9 @@ export class UserController extends Controller {
         @Request() req: express.Request,
         @Path() organizationUuid: string,
     ): Promise<ApiSuccessEmpty> {
-        await userService.joinOrg(req.user!, organizationUuid);
+        await this.services
+            .getUserService()
+            .joinOrg(req.user!, organizationUuid);
         const sessionUser = await userModel.findSessionUserByUUID(
             req.user!.userUuid,
         );
@@ -202,7 +207,9 @@ export class UserController extends Controller {
     async deleteUser(
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        await userService.delete(req.user!, req.user!.userUuid);
+        await this.services
+            .getUserService()
+            .delete(req.user!, req.user!.userUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -223,7 +230,9 @@ export class UserController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await userService.getWarehouseCredentials(req.user!),
+            results: await this.services
+                .getUserService()
+                .getWarehouseCredentials(req.user!),
         };
     }
 
@@ -243,10 +252,9 @@ export class UserController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await userService.createWarehouseCredentials(
-                req.user!,
-                body,
-            ),
+            results: await this.services
+                .getUserService()
+                .createWarehouseCredentials(req.user!, body),
         };
     }
 
@@ -267,11 +275,9 @@ export class UserController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await userService.updateWarehouseCredentials(
-                req.user!,
-                uuid,
-                body,
-            ),
+            results: await this.services
+                .getUserService()
+                .updateWarehouseCredentials(req.user!, uuid, body),
         };
     }
 
@@ -285,7 +291,9 @@ export class UserController extends Controller {
         @Request() req: express.Request,
         @Path() uuid: string,
     ): Promise<ApiSuccessEmpty> {
-        await userService.deleteWarehouseCredentials(req.user!, uuid);
+        await this.services
+            .getUserService()
+            .deleteWarehouseCredentials(req.user!, uuid);
         this.setStatus(200);
         return {
             status: 'ok',

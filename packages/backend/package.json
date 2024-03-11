@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1024.6",
+    "version": "0.1028.0",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -33,8 +33,8 @@
         "@aws-sdk/s3-request-presigner": "^3.272.0",
         "@casl/ability": "^5.4.3",
         "@godaddy/terminus": "^4.12.0",
-        "@lightdash/common": "^0.1024.6",
-        "@lightdash/warehouses": "^0.1024.6",
+        "@lightdash/common": "^0.1028.0",
+        "@lightdash/warehouses": "^0.1028.0",
         "@octokit/app": "^14.0.2",
         "@octokit/auth-app": "^6.0.3",
         "@octokit/auth-token": "^4.0.0",
@@ -65,7 +65,6 @@
         "ajv-formats": "^2.1.0",
         "apache-arrow": "^15.0.0",
         "bcrypt": "^5.1.1",
-        "body-parser": "^1.19.0",
         "connect-flash": "^0.1.1",
         "connect-session-knex": "^3.0.0",
         "cookie-parser": "^1.4.5",

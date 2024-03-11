@@ -1,3 +1,164 @@
+# [0.1028.0](https://github.com/lightdash/lightdash/compare/0.1027.4...0.1028.0) (2024-03-11)
+
+
+### Features
+
+* most viewed dashboard analytics ([#9281](https://github.com/lightdash/lightdash/issues/9281)) ([5480bcd](https://github.com/lightdash/lightdash/commit/5480bcdde2b323fe1ee9548a5290a5d1cf2bcde7))
+
+## [0.1027.4](https://github.com/lightdash/lightdash/compare/0.1027.3...0.1027.4) (2024-03-11)
+
+
+### Bug Fixes
+
+* databricks catalog queries to run in batches ([#9306](https://github.com/lightdash/lightdash/issues/9306)) ([145609b](https://github.com/lightdash/lightdash/commit/145609b2f21d66a44bd33bf089c0cd78b1ecd277))
+
+## [0.1027.3](https://github.com/lightdash/lightdash/compare/0.1027.2...0.1027.3) (2024-03-08)
+
+
+### Bug Fixes
+
+* add google sheet link on sync ([#9301](https://github.com/lightdash/lightdash/issues/9301)) ([a524e40](https://github.com/lightdash/lightdash/commit/a524e40b3ac7e39a71a3ec45d2ac4d79928bd1cf))
+
+## [0.1027.2](https://github.com/lightdash/lightdash/compare/0.1027.1...0.1027.2) (2024-03-08)
+
+
+### Bug Fixes
+
+* set cookie directly without using headers on puppeteer ([#9295](https://github.com/lightdash/lightdash/issues/9295)) ([d34802a](https://github.com/lightdash/lightdash/commit/d34802a6d25c2aa82ac6debb60f35be3667a0596))
+
+## [0.1027.1](https://github.com/lightdash/lightdash/compare/0.1027.0...0.1027.1) (2024-03-08)
+
+
+### Bug Fixes
+
+* convert date filter base to UTC on the FE ([#9294](https://github.com/lightdash/lightdash/issues/9294)) ([cb49aaf](https://github.com/lightdash/lightdash/commit/cb49aaf588ce22651e67c01eedb5817fa58cef1a))
+
+# [0.1027.0](https://github.com/lightdash/lightdash/compare/0.1026.4...0.1027.0) (2024-03-08)
+
+
+### Features
+
+* notify people in thread without mentions as well ([#9261](https://github.com/lightdash/lightdash/issues/9261)) ([d74fa14](https://github.com/lightdash/lightdash/commit/d74fa14b1324d74eb306e3576010506290ac5a2f))
+
+## [0.1026.4](https://github.com/lightdash/lightdash/compare/0.1026.3...0.1026.4) (2024-03-08)
+
+
+### Bug Fixes
+
+* duplicate preview vector issue ([#9275](https://github.com/lightdash/lightdash/issues/9275)) ([e3aeacb](https://github.com/lightdash/lightdash/commit/e3aeacbb3d9e08f8ed97ced2c7c3d817931d8f13))
+
+## [0.1026.3](https://github.com/lightdash/lightdash/compare/0.1026.2...0.1026.3) (2024-03-07)
+
+
+### Bug Fixes
+
+* fixes title wrapper hover for charts in dashboards ([#9283](https://github.com/lightdash/lightdash/issues/9283)) ([15e716f](https://github.com/lightdash/lightdash/commit/15e716f13df686e02cae85a11d2b002ccacca80e))
+
+## [0.1026.2](https://github.com/lightdash/lightdash/compare/0.1026.1...0.1026.2) (2024-03-07)
+
+
+### Bug Fixes
+
+* filter metrics from hidden dimension ([#9237](https://github.com/lightdash/lightdash/issues/9237)) ([75b67ad](https://github.com/lightdash/lightdash/commit/75b67ad55c3b9417aa938c4d2c58c05eb48f2123))
+
+## [0.1026.1](https://github.com/lightdash/lightdash/compare/0.1026.0...0.1026.1) (2024-03-07)
+
+
+### Bug Fixes
+
+* allow viewers setting filter operator to isNull and not null ([#9270](https://github.com/lightdash/lightdash/issues/9270)) ([0e51b68](https://github.com/lightdash/lightdash/commit/0e51b685383723e3392f108ebc386011ec7b0b53))
+
+# [0.1026.0](https://github.com/lightdash/lightdash/compare/0.1025.7...0.1026.0) (2024-03-07)
+
+
+### Features
+
+* scroll to comment when notification clicked ([#9255](https://github.com/lightdash/lightdash/issues/9255)) ([22c4961](https://github.com/lightdash/lightdash/commit/22c4961fe5d3ba3a269474dde65fbf1318772215))
+
+## [0.1025.7](https://github.com/lightdash/lightdash/compare/0.1025.6...0.1025.7) (2024-03-07)
+
+
+### Bug Fixes
+
+* date/number tooltip ([#9260](https://github.com/lightdash/lightdash/issues/9260)) ([9bb39c9](https://github.com/lightdash/lightdash/commit/9bb39c9c0e623813774984c9866e6046274c3422))
+
+## [0.1025.6](https://github.com/lightdash/lightdash/compare/0.1025.5...0.1025.6) (2024-03-06)
+
+
+### Bug Fixes
+
+* table infinite loop ([#9272](https://github.com/lightdash/lightdash/issues/9272)) ([12d67c2](https://github.com/lightdash/lightdash/commit/12d67c2ca6afe06b0b96985701d8f2353e736c92))
+
+## [0.1025.5](https://github.com/lightdash/lightdash/compare/0.1025.4...0.1025.5) (2024-03-06)
+
+
+### Bug Fixes
+
+* scheduler worker health endpoints ([#9267](https://github.com/lightdash/lightdash/issues/9267)) ([81364ff](https://github.com/lightdash/lightdash/commit/81364ff808403e8c22e23588e3dbc9d81d35c5b2))
+
+## [0.1025.4](https://github.com/lightdash/lightdash/compare/0.1025.3...0.1025.4) (2024-03-06)
+
+
+### Bug Fixes
+
+* use symbolSize to hide the symbol but display the labels for line and area type charts ([#9258](https://github.com/lightdash/lightdash/issues/9258)) ([19e7db2](https://github.com/lightdash/lightdash/commit/19e7db205b9406bc4745498384ffe33ac0fa3e5d))
+
+## [0.1025.3](https://github.com/lightdash/lightdash/compare/0.1025.2...0.1025.3) (2024-03-06)
+
+
+### Bug Fixes
+
+* add loading state to edit chart save button ([#9253](https://github.com/lightdash/lightdash/issues/9253)) ([c93980f](https://github.com/lightdash/lightdash/commit/c93980f9184fbaa773f98a7f7869847a1204c1b3))
+
+## [0.1025.2](https://github.com/lightdash/lightdash/compare/0.1025.1...0.1025.2) (2024-03-06)
+
+
+### Bug Fixes
+
+* delete property of columnProperties object ([#9061](https://github.com/lightdash/lightdash/issues/9061)) ([5ce0133](https://github.com/lightdash/lightdash/commit/5ce013385e168bb00fb1477357c6115471f6deb9))
+
+## [0.1025.1](https://github.com/lightdash/lightdash/compare/0.1025.0...0.1025.1) (2024-03-05)
+
+
+### Bug Fixes
+
+* only tag users with dashboard access ([#9250](https://github.com/lightdash/lightdash/issues/9250)) ([b18c026](https://github.com/lightdash/lightdash/commit/b18c026d8eaafedd117867b2c76b7e7d7bc29b82))
+
+# [0.1025.0](https://github.com/lightdash/lightdash/compare/0.1024.10...0.1025.0) (2024-03-05)
+
+
+### Features
+
+* enable hiding dashboard chart title ([#9249](https://github.com/lightdash/lightdash/issues/9249)) ([4fc607d](https://github.com/lightdash/lightdash/commit/4fc607da5d93f21a9cdf87dc9e3f1ebd9fe5963a))
+
+## [0.1024.10](https://github.com/lightdash/lightdash/compare/0.1024.9...0.1024.10) (2024-03-05)
+
+
+### Bug Fixes
+
+* add missing next() call ([#9251](https://github.com/lightdash/lightdash/issues/9251)) ([9e10b22](https://github.com/lightdash/lightdash/commit/9e10b225932d6aee3e6820e8201e6d80d3672ce4))
+
+## [0.1024.9](https://github.com/lightdash/lightdash/compare/0.1024.8...0.1024.9) (2024-03-05)
+
+
+### Bug Fixes
+
+* dont disable delete on user search ([#9201](https://github.com/lightdash/lightdash/issues/9201)) ([3f1f318](https://github.com/lightdash/lightdash/commit/3f1f3187c32c277819992b7e3203328e3cf8e00c))
+
+## [0.1024.8](https://github.com/lightdash/lightdash/compare/0.1024.7...0.1024.8) (2024-03-05)
+
+
+### Bug Fixes
+
+* scheduler app class ([#9228](https://github.com/lightdash/lightdash/issues/9228)) ([56213b7](https://github.com/lightdash/lightdash/commit/56213b7867820769c343050fbdcf51ade22ac30f))
+
+## [0.1024.7](https://github.com/lightdash/lightdash/compare/0.1024.6...0.1024.7) (2024-03-05)
+
+
+### Bug Fixes
+
+* validate preview cli ([#9236](https://github.com/lightdash/lightdash/issues/9236)) ([b95344b](https://github.com/lightdash/lightdash/commit/b95344ba2162c250a57315b0ea4ec4073617fd36))
+
 ## [0.1024.6](https://github.com/lightdash/lightdash/compare/0.1024.5...0.1024.6) (2024-03-04)
 
 
