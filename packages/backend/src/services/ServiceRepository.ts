@@ -93,6 +93,9 @@ interface ServiceManifest {
     userAttributesService: UserAttributesService;
     userService: UserService;
     validationService: ValidationService;
+
+    /** An implementation for embedService is not provided. */
+    embedService: unknown;
 }
 
 /**
@@ -575,6 +578,12 @@ export class ServiceRepository
                     spaceModel,
                 }),
         );
+    }
+
+    public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {
+        return this.getService('embedService', () => {
+            throw new Error('EmbedService is not implemented');
+        });
     }
 
     /**
