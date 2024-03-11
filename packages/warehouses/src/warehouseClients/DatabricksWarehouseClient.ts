@@ -121,6 +121,27 @@ const normaliseDatabricksType = (type: string): DatabricksTypes => {
     return match[0] as DatabricksTypes;
 };
 
+const DATABRICKS_QUERIES_BATCH_SIZE = 100;
+
+async function processPromisesInBatches<T, R>(
+    items: Array<T>,
+    batchSize: number,
+    fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+    let results: R[] = [];
+    /* eslint-disable no-await-in-loop */
+    for (let start = 0; start < items.length; start += batchSize) {
+        const end =
+            start + batchSize > items.length ? items.length : start + batchSize;
+        const slicedResults = await Promise.all(
+            items.slice(start, end).map(fn),
+        );
+        results = [...results, ...slicedResults];
+    }
+    /* eslint-enable no-await-in-loop */
+    return results;
+}
+
 const mapFieldType = (type: string): DimensionType => {
     const normalizedType = normaliseDatabricksType(type);
 
@@ -257,27 +278,34 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         let results: SchemaResult[][];
 
         try {
-            const promises = requests.map(async (request) => {
-                let query: IOperation | null = null;
-                try {
-                    query = await session.getColumns({
-                        catalogName: request.database,
-                        schemaName: request.schema,
-                        tableName: request.table,
-                    });
-
-                    const result = (await query.fetchAll()) as SchemaResult[];
-
-                    return result;
-                } catch (e: any) {
-                    throw new WarehouseQueryError(e.message);
-                } finally {
-                    if (query) query.close();
-                }
-            });
-            results = await Promise.all(promises);
+            results = await processPromisesInBatches(
+                requests,
+                DATABRICKS_QUERIES_BATCH_SIZE,
+                async (request) => {
+                    let query: IOperation | null = null;
+                    try {
+                        query = await session.getColumns({
+                            catalogName: request.database,
+                            schemaName: request.schema,
+                            tableName: request.table,
+                        });
+                        return (await query.fetchAll()) as SchemaResult[];
+                    } catch (e: any) {
+                        throw new WarehouseQueryError(e.message);
+                    } finally {
+                        if (query) await query.close();
+                    }
+                },
+            );
+        } catch (e: any) {
+            throw new WarehouseQueryError(e.message);
         } finally {
-            await close();
+            try {
+                await close();
+            } catch (e: any) {
+                // Only console error. Don't allow close errors to override the original error
+                console.error('Error closing Databricks session', e);
+            }
         }
 
         const catalog = this.catalog || 'DEFAULT';
