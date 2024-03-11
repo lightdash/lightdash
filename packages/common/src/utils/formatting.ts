@@ -108,7 +108,12 @@ export function formatDate(
     timeInterval: TimeFrames = TimeFrames.DAY,
     convertToUTC: boolean = false,
 ): string {
-    const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+    const momentDate = moment(date);
+    if (convertToUTC) {
+        // Calculate the offset and add it to the date to prevent the day from changing
+        const offset = momentDate.utcOffset();
+        momentDate.add(offset, 'minutes').utc();
+    }
     return momentDate.format(getDateFormat(timeInterval));
 }
 
