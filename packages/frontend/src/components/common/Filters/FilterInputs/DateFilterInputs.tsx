@@ -13,7 +13,7 @@ import {
     TimeFrames,
 } from '@lightdash/common';
 import { Flex, NumberInput, Text } from '@mantine/core';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { FilterInputsProps } from '.';
 import { useFiltersContext } from '../FiltersProvider';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
@@ -170,6 +170,25 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             }
 
             if (isTimestamp) {
+                const parsedTimestampToUtc = rule.values
+                    ? dayjs(
+                          parseTimestamp(
+                              formatTimestamp(
+                                  rule.values[0],
+                                  TimeFrames.MILLISECOND,
+                              ),
+                              TimeFrames.MILLISECOND,
+                          ),
+                      ).utc()
+                    : null;
+
+                const valueFormat =
+                    parsedTimestampToUtc?.format('YYYY-MM-DD HH:mm:ss') ??
+                    undefined;
+
+                // NOTE: This ensures that valueFormat and value are always in sync with each other and that there's no mismatch between the input value and the calendar + time input values set
+                const value = dayjs(valueFormat).toDate() ?? null;
+
                 return (
                     <FilterDateTimePicker
                         disabled={disabled}
@@ -177,37 +196,22 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         // @ts-ignore
                         placeholder={placeholder}
                         withSeconds
-                        valueFormat={
-                            rule.values &&
-                            moment(rule.values[0])
-                                .utc()
-                                .format('DD/MM/YYYY HH:mm:ss')
-                        }
+                        valueFormat={valueFormat}
                         // FIXME: mantine v7
                         // mantine does not set the first day of the week based on the locale
                         // so we need to do it manually and always pass it as a prop
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                         popoverProps={popoverProps}
-                        value={
-                            rule.values
-                                ? parseTimestamp(
-                                      formatTimestamp(
-                                          rule.values[0],
-                                          TimeFrames.MILLISECOND,
-                                      ),
-                                      TimeFrames.MILLISECOND,
-                                  )
-                                : null
-                        }
-                        onChange={(value: Date | null) => {
+                        value={value}
+                        onChange={(v: Date | null) => {
                             onChange({
                                 ...rule,
                                 values:
-                                    value === null
+                                    v === null
                                         ? []
                                         : [
                                               formatTimestamp(
-                                                  value,
+                                                  v,
                                                   TimeFrames.SECOND,
                                               ),
                                           ],
