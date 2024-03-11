@@ -105,17 +105,20 @@ type ServiceFactoryMethod<T extends ServiceManifest> = {
     [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
 };
 
+export type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
+    repository: ServiceRepository;
+    context: OperationContext;
+}) => T[keyof T];
+
 /**
  * Structure for describing service providers:
  *
  *   <serviceName> -> providerMethod
  */
-type ServiceProviderMap<T extends ServiceManifest> = Partial<{
-    [K in keyof T]: (providerArgs: {
-        repository: ServiceRepository;
-        context: OperationContext;
-    }) => T[keyof T];
-}>;
+export type ServiceProviderMap<T extends ServiceManifest = ServiceManifest> =
+    Partial<{
+        [K in keyof T]: ServiceProvider<T>;
+    }>;
 
 /**
  * Placeholder ServiceRepository context.
@@ -172,7 +175,7 @@ abstract class ServiceRepositoryBase {
      * NOTE: This exact implementation is temporary, and is likely to be adjusted soon
      * as part of the dependency injection rollout.
      */
-    protected providers: ServiceProviderMap<ServiceManifest>;
+    protected providers: ServiceProviderMap;
 
     /**
      * See @type OperationContext

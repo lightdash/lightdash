@@ -11,6 +11,7 @@ import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { registerWorkerMetrics } from './schedulerMetrics';
 import {
     OperationContext,
+    ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
 import { VERSION } from './version';
@@ -20,6 +21,7 @@ type SchedulerAppArguments = {
     port: string | number;
     environment?: 'production' | 'development';
     otelSdk: NodeSDK;
+    serviceProviders?: ServiceProviderMap;
 };
 
 export default class SchedulerApp {
@@ -53,6 +55,7 @@ export default class SchedulerApp {
             },
         });
         this.serviceRepository = new ServiceRepository({
+            serviceProviders: args.serviceProviders,
             context: new OperationContext({
                 lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
