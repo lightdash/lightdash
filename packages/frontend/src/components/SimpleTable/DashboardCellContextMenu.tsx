@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     createDashboardFilterRuleFromField,
-    DashboardFilterRule,
+    FilterDashboardToRule,
     hasCustomDimension,
     isDimension,
     isField,
@@ -69,7 +69,7 @@ const DashboardCellContextMenu: FC<
 
     const possiblePivotFilters = (
         meta?.pivotReference?.pivotValues || []
-    ).reduce<DashboardFilterRule[]>((acc, pivot) => {
+    ).reduce<FilterDashboardToRule[]>((acc, pivot) => {
         const pivotField = itemsMap?.[pivot?.field];
         if (
             !pivotField ||
@@ -88,11 +88,8 @@ const DashboardCellContextMenu: FC<
             }),
         ];
     }, []);
-    const filters: DashboardFilterRule[] = [
-        ...filterField,
-        ...possiblePivotFilters,
-    ];
 
+    const filters = [...filterField, ...possiblePivotFilters];
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();

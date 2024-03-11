@@ -20,6 +20,7 @@ import {
     DashboardFilterRule,
     DashboardFilters,
     DateFilterRule,
+    FilterDashboardToRule,
     FilterGroup,
     FilterGroupItem,
     FilterOperator,
@@ -320,7 +321,7 @@ export const createDashboardFilterRuleFromField = ({
     availableTileFilters: Record<string, FilterableField[] | undefined>;
     isTemporary: boolean;
     value?: unknown;
-}): DashboardFilterRule =>
+}): FilterDashboardToRule =>
     getFilterRuleWithDefaultValue(
         field,
         {
@@ -330,6 +331,7 @@ export const createDashboardFilterRuleFromField = ({
             target: {
                 fieldId: fieldId(field),
                 tableName: field.table,
+                fieldName: field.name,
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
             disabled: !isTemporary,

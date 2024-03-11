@@ -8,6 +8,7 @@ import {
     DashboardFilterRule,
     Field,
     fieldId,
+    FilterDashboardToRule,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -416,7 +417,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     );
 
     const [dashboardTileFilterOptions, setDashboardTileFilterOptions] =
-        useState<DashboardFilterRule[]>([]);
+        useState<FilterDashboardToRule[]>([]);
 
     const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
 

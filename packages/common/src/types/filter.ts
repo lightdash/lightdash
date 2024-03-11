@@ -68,6 +68,12 @@ export type DashboardFilterRule<
     label: undefined | string;
 };
 
+export type FilterDashboardToRule = DashboardFilterRule & {
+    target: {
+        fieldName: string;
+    };
+};
+
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
     'tileTargets'
