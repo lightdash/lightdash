@@ -105,7 +105,7 @@ type ServiceFactoryMethod<T extends ServiceManifest> = {
     [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
 };
 
-export type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
+type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
     repository: ServiceRepository;
     context: OperationContext;
 }) => T[keyof T];
