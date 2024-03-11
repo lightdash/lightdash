@@ -180,12 +180,10 @@ export class SearchService {
             dashboards: results.dashboards.filter(
                 (_, index) => hasDashboardAccess[index],
             ),
-            savedCharts: results.dashboards.filter(
+            savedCharts: results.savedCharts.filter(
                 (_, index) => hasSavedChartAccess[index],
             ),
-            spaces: results.dashboards.filter(
-                (_, index) => hasSpaceAccess[index],
-            ),
+            spaces: results.spaces.filter((_, index) => hasSpaceAccess[index]),
             pages: user.ability.can(
                 'view',
                 subject('Analytics', {
