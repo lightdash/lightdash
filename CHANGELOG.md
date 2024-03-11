@@ -1,3 +1,10 @@
+# [0.1030.0](https://github.com/lightdash/lightdash/compare/0.1029.1...0.1030.0) (2024-03-11)
+
+
+### Features
+
+* add space access to charts and dashboards + move space access to casl ([#9226](https://github.com/lightdash/lightdash/issues/9226)) ([01e8e7f](https://github.com/lightdash/lightdash/commit/01e8e7f5adb8e0fab62d74b446e8ea9825dd08e0))
+
 ## [0.1029.1](https://github.com/lightdash/lightdash/compare/0.1029.0...0.1029.1) (2024-03-11)
 
 
