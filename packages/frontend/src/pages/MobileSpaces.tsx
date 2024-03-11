@@ -32,6 +32,7 @@ const MobileSpaces: FC = () => {
         subject('Space', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            isPrivate: false,
         }),
     );
     const [search, setSearch] = useState<string>('');

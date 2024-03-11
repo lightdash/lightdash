@@ -449,7 +449,7 @@ describe('Organization member permissions', () => {
                         ],
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'view',
@@ -549,7 +549,7 @@ describe('Organization member permissions', () => {
                         ],
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'view',
@@ -1060,15 +1060,22 @@ describe('Organization member permissions', () => {
                         ],
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
         });
         it('can view member profiles', () => {
-            expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
-                true,
-            );
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(true);
         });
         it('can create invitations', () => {
-            expect(ability.can('create', 'InviteLink')).toEqual(false);
+            expect(ability.can('create', subject('InviteLink', {}))).toEqual(
+                false,
+            );
         });
         it('cannot create Project', () => {
             const org = { organizationUuid: '456' };
@@ -1078,29 +1085,143 @@ describe('Organization member permissions', () => {
             );
         });
         it('cannot create any resource, except space when have editor space role', () => {
-            expect(ability.can('create', 'Space')).toEqual(true);
-            expect(ability.can('create', 'Dashboard')).toEqual(false);
-            expect(ability.can('create', 'SavedChart')).toEqual(false);
-            expect(ability.can('create', 'Organization')).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Organization', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
         });
         it('cannot run SQL queries', () => {
-            expect(ability.can('manage', 'SqlRunner')).toEqual(false);
+            expect(ability.can('manage', subject('SqlRunner', {}))).toEqual(
+                false,
+            );
         });
         it('cannot update any resource, except space when have editor space role', () => {
-            expect(ability.can('update', 'Space')).toEqual(true);
-            expect(ability.can('update', 'Dashboard')).toEqual(false);
-            expect(ability.can('update', 'SavedChart')).toEqual(false);
-            expect(ability.can('update', 'Project')).toEqual(false);
-            expect(ability.can('update', 'Organization')).toEqual(false);
-            expect(ability.can('update', 'InviteLink')).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('Project', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('Organization', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('InviteLink', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
         });
         it('cannot delete any resource, except space when have editor space role', () => {
-            expect(ability.can('delete', 'Space')).toEqual(true);
-            expect(ability.can('delete', 'Dashboard')).toEqual(false);
-            expect(ability.can('delete', 'SavedChart')).toEqual(false);
-            expect(ability.can('delete', 'Project')).toEqual(false);
-            expect(ability.can('delete', 'Organization')).toEqual(false);
-            expect(ability.can('delete', 'InviteLink')).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('Dashboard', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('SavedChart', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('Project', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('Organization', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('InviteLink', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
         });
         it('can view their own organization', () => {
             const org = { organizationUuid: '456' };
@@ -1191,15 +1312,23 @@ describe('Organization member permissions', () => {
             );
         });
         it('can view member profiles', () => {
-            expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
-                true,
-            );
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(true);
         });
         it('can create invitations', () => {
-            expect(ability.can('create', 'InviteLink')).toEqual(false);
+            expect(ability.can('create', subject('InviteLink', {}))).toEqual(
+                false,
+            );
         });
         it('can create Project', () => {
-            expect(ability.can('create', 'Job')).toEqual(true);
+            expect(ability.can('create', subject('Job', {}))).toEqual(true);
             const org = { organizationUuid: '456' };
             expect(ability.can('create', subject('Project', org))).toEqual(
                 true,
@@ -1207,29 +1336,165 @@ describe('Organization member permissions', () => {
         });
 
         it('cannot create any resource, except space when have editor space role', () => {
-            expect(ability.can('create', 'Space')).toEqual(true);
-            expect(ability.can('create', 'Dashboard')).toEqual(false);
-            expect(ability.can('create', 'SavedChart')).toEqual(false);
-            expect(ability.can('create', 'Organization')).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Space', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Dashboard', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('SavedChart', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Organization', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
         });
         it('cannot run SQL queries', () => {
-            expect(ability.can('manage', 'SqlRunner')).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SqlRunner', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
         });
         it('cannot update any resource, except space when have editor space role', () => {
-            expect(ability.can('update', 'Space')).toEqual(true);
-            expect(ability.can('update', 'Dashboard')).toEqual(false);
-            expect(ability.can('update', 'SavedChart')).toEqual(false);
-            expect(ability.can('update', 'Project')).toEqual(false);
-            expect(ability.can('update', 'Organization')).toEqual(false);
-            expect(ability.can('update', 'InviteLink')).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('Space', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('Dashboard', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('SavedChart', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('Project', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('Organization', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'update',
+                    subject('InviteLink', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
         });
         it('cannot delete any resource, except space when have editor space role', () => {
-            expect(ability.can('delete', 'Space')).toEqual(true);
-            expect(ability.can('delete', 'Dashboard')).toEqual(false);
-            expect(ability.can('delete', 'SavedChart')).toEqual(false);
-            expect(ability.can('delete', 'Project')).toEqual(false);
-            expect(ability.can('delete', 'Organization')).toEqual(false);
-            expect(ability.can('delete', 'InviteLink')).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('Space', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('Dashboard', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('SavedChart', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('Project', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('Organization', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('InviteLink', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
         });
         it('can view their own organization', () => {
             const org = { organizationUuid: '456' };

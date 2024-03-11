@@ -50,7 +50,6 @@ export const organizationMemberAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
-
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
@@ -61,16 +60,6 @@ export const organizationMemberAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
-        can('manage', 'Space', {
-            organizationUuid: member.organizationUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-
         can('view', 'Project', {
             organizationUuid: member.organizationUuid,
         });
@@ -106,9 +95,31 @@ export const organizationMemberAbilities: Record<
         can('create', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
     },
     editor(member, { can }) {
         organizationMemberAbilities.interactive_viewer(member, { can });
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        });
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
@@ -121,20 +132,13 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
             isPrivate: false,
         });
-        can('manage', 'SavedChart', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
-        });
-        can('manage', 'Dashboard', {
+        can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             access: {
-                $elemMatch: { userUuid: member.userUuid },
-            },
-        });
-        can('manage', 'SavedChart', {
-            organizationUuid: member.organizationUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
             },
         });
         can('manage', 'Job');
@@ -162,15 +166,6 @@ export const organizationMemberAbilities: Record<
     },
     admin(member, { can }) {
         organizationMemberAbilities.developer(member, { can });
-        can('view', 'Dashboard', {
-            organizationUuid: member.organizationUuid,
-        });
-        can('view', 'Space', {
-            organizationUuid: member.organizationUuid,
-        });
-        can('view', 'SavedChart', {
-            organizationUuid: member.organizationUuid,
-        });
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
         });

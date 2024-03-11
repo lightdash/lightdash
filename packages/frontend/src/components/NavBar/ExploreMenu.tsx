@@ -96,10 +96,11 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                         </Can>
 
                         <Can
-                            I="manage"
+                            I="create"
                             this={subject('Dashboard', {
                                 organizationUuid: user.data?.organizationUuid,
                                 projectUuid,
+                                isPrivate: false,
                             })}
                         >
                             <LargeMenuItem
@@ -112,7 +113,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                         </Can>
 
                         <Can
-                            I="manage"
+                            I="create"
                             this={subject('Space', {
                                 organizationUuid: user.data?.organizationUuid,
                                 projectUuid,

@@ -381,7 +381,7 @@ describe('Project member permissions', () => {
             ability = defineAbilityForProjectMember(PROJECT_EDITOR);
         });
 
-        it('can view and manage public & accessable dashboards', () => {
+        it('can view and manage public & accessible dashboards', () => {
             expect(
                 ability.can(
                     'view',
@@ -449,7 +449,7 @@ describe('Project member permissions', () => {
                         ],
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'view',
@@ -549,7 +549,7 @@ describe('Project member permissions', () => {
                         ],
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'view',
@@ -1042,7 +1042,7 @@ describe('Project member permissions', () => {
                         ],
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
         });
 
         it('can view other public resources', () => {

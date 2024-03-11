@@ -59,8 +59,8 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
     // test if user can managed charts for this project & org when given chart access
-    const userCanManageCharts = user.data?.ability?.can(
-        'manage',
+    const userCanCreateCharts = user.data?.ability?.can(
+        'create',
         subject('SavedChart', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
@@ -112,14 +112,14 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
             }
             emptyStateProps={{
                 icon: <MantineIcon icon={IconChartBar} size={30} />,
-                title: userCanManageCharts
+                title: userCanCreateCharts
                     ? 'Feels a little bit empty over here'
                     : 'No items added yet',
-                description: userCanManageCharts
+                description: userCanCreateCharts
                     ? 'get started by creating some charts'
                     : undefined,
                 action:
-                    !isDemo && userCanManageCharts ? (
+                    !isDemo && userCanCreateCharts ? (
                         <Button
                             leftIcon={<MantineIcon icon={IconPlus} size={18} />}
                             onClick={handleCreateChart}

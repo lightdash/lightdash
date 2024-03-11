@@ -43,15 +43,6 @@ export const projectMemberAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
         can('view', 'Project', {
             projectUuid: member.projectUuid,
         });
@@ -82,9 +73,31 @@ export const projectMemberAbilities: Record<
         can('create', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
+        });
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
             isPrivate: false,
@@ -97,20 +110,13 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             isPrivate: false,
         });
-        can('manage', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
-        can('manage', 'Dashboard', {
+        can('manage', 'Space', {
             projectUuid: member.projectUuid,
             access: {
-                $elemMatch: { userUuid: member.userUuid },
-            },
-        });
-        can('manage', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
             },
         });
         can('manage', 'Job');
@@ -139,15 +145,6 @@ export const projectMemberAbilities: Record<
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
         can('manage', 'Project', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'Space', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'Dashboard', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'Space', {
