@@ -122,9 +122,13 @@ const useCartesianChartConfig = ({
     stacking,
     cartesianType,
 }: Args) => {
-    const isInitiallyStacked = (
-        initialChartConfig?.eChartsConfig.series || []
-    ).some((series: Series) => series.stack !== undefined);
+    const isInitiallyStacked = useMemo(
+        () =>
+            (initialChartConfig?.eChartsConfig.series || []).some(
+                (series: Series) => series.stack !== undefined,
+            ),
+        [initialChartConfig?.eChartsConfig.series],
+    );
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
     const prevInitialChartConfig = usePrevious(initialChartConfig);
     const [dirtyLayout, setDirtyLayout] = useState(initialChartConfig?.layout);
