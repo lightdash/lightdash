@@ -70,7 +70,7 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     useEffect(() => {
         if (!hasChartConfigChangedInHook) return;
 
-        // Update external chart config ONLY when the hook has changed the config
+        // Update chart config state ONLY when the hook has changed it
         onChartConfigChange?.({
             type: ChartType.CARTESIAN,
             config: cartesianConfig.validConfig,

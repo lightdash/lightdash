@@ -156,7 +156,7 @@ const useCartesianChartConfig = ({
     useEffect(() => {
         if (!hasChartConfigChangedExternally) return;
 
-        // Update dirty chart config ONLY when chart config changes externally and this hook has not changed it
+        // Update dirty chart config ONLY initial chart config props changes and this hook wasn't the source of the change
         setDirtyLayout(initialChartConfig?.layout);
         setDirtyEchartsConfig(initialChartConfig?.eChartsConfig);
     }, [initialChartConfig, hasChartConfigChangedExternally]);
