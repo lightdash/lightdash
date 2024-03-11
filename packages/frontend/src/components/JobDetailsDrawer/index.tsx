@@ -20,7 +20,9 @@ import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
 } from '@tabler/icons-react';
-import moment from 'moment';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+import utc from 'dayjs/plugin/utc';
 import { type FC } from 'react';
 import {
     jobStatusLabel,
@@ -29,6 +31,9 @@ import {
 } from '../../hooks/useRefreshServer';
 import { useActiveJob } from '../../providers/ActiveJobProvider';
 import MantineIcon from '../common/MantineIcon';
+
+dayjs.extend(duration);
+dayjs.extend(utc);
 
 const statusInfo = (status: string, theme: MantineTheme) => {
     switch (status) {
@@ -54,10 +59,10 @@ const durationSince = (
     startTime: Date,
     endTime: Date | undefined = undefined,
 ) => {
-    return moment
+    return dayjs
         .utc(
-            moment
-                .duration(moment(endTime).diff(moment(startTime)))
+            dayjs
+                .duration(dayjs(endTime).diff(dayjs(startTime)))
                 .asMilliseconds(),
         )
         .format('HH:mm:ss');

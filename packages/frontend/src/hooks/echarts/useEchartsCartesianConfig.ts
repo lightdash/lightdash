@@ -28,6 +28,7 @@ import {
     type ResultRow,
     type Series,
 } from '@lightdash/common';
+import dayjs from 'dayjs';
 import {
     type DefaultLabelFormatterCallbackParams,
     type LineSeriesOption,
@@ -36,7 +37,6 @@ import {
 } from 'echarts';
 import groupBy from 'lodash/groupBy';
 import toNumber from 'lodash/toNumber';
-import moment from 'moment';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
@@ -327,7 +327,7 @@ export const getMinAndMaxValues = (
             (acc, value) => {
                 if (
                     typeof value === 'string' &&
-                    moment(value, 'YYYY-MM-DD', false).isValid()
+                    dayjs(value, 'YYYY-MM-DD', false).isValid()
                 ) {
                     // is date
                     const min = minDate(acc[0], value);

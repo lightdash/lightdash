@@ -1,6 +1,6 @@
 import { YearPickerInput, type YearPickerInputProps } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { type FC } from 'react';
 
 type Props = Omit<YearPickerInputProps, 'value' | 'onChange'> & {
@@ -10,14 +10,14 @@ type Props = Omit<YearPickerInputProps, 'value' | 'onChange'> & {
 const FilterYearPicker: FC<Props> = ({ value, onChange, ...props }) => {
     const [isPopoverOpen, { open, close, toggle }] = useDisclosure();
 
-    const yearValue = value ? moment(value).toDate() : null;
+    const yearValue = value ? dayjs(value).toDate() : null;
 
     return (
         <YearPickerInput
             w="100%"
             size="xs"
-            minDate={moment().year(1000).toDate()}
-            maxDate={moment().year(9999).toDate()}
+            minDate={dayjs().year(1000).toDate()}
+            maxDate={dayjs().year(9999).toDate()}
             onClick={toggle}
             {...props}
             popoverProps={{

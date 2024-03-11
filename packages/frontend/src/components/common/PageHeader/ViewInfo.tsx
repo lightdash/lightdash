@@ -1,6 +1,6 @@
 import { Tooltip } from '@mantine/core';
 import { IconEye } from '@tabler/icons-react';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { InfoContainer } from '.';
 
@@ -11,7 +11,7 @@ interface ViewInfoProps {
 
 const ViewInfo: FC<ViewInfoProps> = ({ views, firstViewedAt }) => {
     const label = firstViewedAt
-        ? `${views} views since ${moment(firstViewedAt).format(
+        ? `${views} views since ${dayjs(firstViewedAt).format(
               'MMM D, YYYY h:mm A',
           )}`
         : undefined;
