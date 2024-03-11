@@ -216,8 +216,14 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             : moment();
 
                     const dateValue = valueIsDate
-                        ? formatDate(value, undefined, true)
+                        ? formatDate(
+                              // Treat the date as UTC, then remove its timezone information before formatting
+                              moment.utc(value).format('YYYY-MM-DD'),
+                              undefined,
+                              false,
+                          )
                         : formatDate(defaultDate, undefined, false);
+
                     filterRuleDefaults.values = [dateValue];
                 }
                 break;
