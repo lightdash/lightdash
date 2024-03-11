@@ -2,7 +2,7 @@ import {
     ApiNotificationResourceType,
     ApiNotificationUpdateParams,
     Comment,
-    Dashboard,
+    DashboardDAO,
     DashboardTile,
     LightdashUser,
     NotificationDashboardComment,
@@ -94,7 +94,7 @@ export class NotificationsModel {
         commentAuthor: LightdashUser;
         comment: Comment;
         usersToNotify: { userUuid: string; tagged: boolean }[];
-        dashboard: Dashboard;
+        dashboard: DashboardDAO;
         dashboardTile: DashboardTile;
     }) {
         await Promise.all(

@@ -157,6 +157,8 @@ export const chart: SavedChart = {
     pinnedListUuid: null,
     pinnedListOrder: null,
     colorPalette: [],
+    isPrivate: false,
+    access: [],
 };
 
 export const chartWithJoinedField: SavedChart = {
@@ -207,6 +209,8 @@ export const dashboard: Dashboard = {
     firstViewedAt: null,
     pinnedListUuid: null,
     pinnedListOrder: null,
+    isPrivate: false,
+    access: [],
 };
 
 export const explore: Explore = {

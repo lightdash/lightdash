@@ -7,7 +7,10 @@ import { MemberAbility } from './types';
 
 export const getUserAbilityBuilder = (
     user: Pick<LightdashUser, 'role' | 'organizationUuid' | 'userUuid'>,
-    projectProfiles: Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[],
+    projectProfiles: Pick<
+        ProjectMemberProfile,
+        'projectUuid' | 'role' | 'userUuid'
+    >[],
 ) => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (user.role && user.organizationUuid) {
@@ -30,7 +33,10 @@ export const getUserAbilityBuilder = (
 
 export const defineUserAbility = (
     user: Pick<LightdashUser, 'role' | 'organizationUuid' | 'userUuid'>,
-    projectProfiles: Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[],
+    projectProfiles: Pick<
+        ProjectMemberProfile,
+        'projectUuid' | 'role' | 'userUuid'
+    >[],
 ): MemberAbility => {
     const builder = getUserAbilityBuilder(user, projectProfiles);
     return builder.build();

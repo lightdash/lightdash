@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { ProjectMemberProfile } from '../types/projectMemberProfile';
+import { SpaceMemberRole } from '../types/space';
 import { projectMemberAbilities } from './projectMemberAbility';
 import {
     PROJECT_ADMIN,
@@ -13,7 +14,9 @@ import { MemberAbility } from './types';
 const { projectUuid } = PROJECT_VIEWER;
 
 const defineAbilityForProjectMember = (
-    member: Pick<ProjectMemberProfile, 'role' | 'projectUuid'> | undefined,
+    member:
+        | Pick<ProjectMemberProfile, 'role' | 'projectUuid' | 'userUuid'>
+        | undefined,
 ): MemberAbility => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (member) {
@@ -29,30 +32,308 @@ describe('Project member permissions', () => {
             ability = defineAbilityForProjectMember(PROJECT_ADMIN);
         });
 
-        it('can view resources', () => {
+        it('can view and manage all kinds of dashboards', () => {
             expect(
-                ability.can('view', subject('SavedChart', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('view', subject('Dashboard', { projectUuid })),
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('view', subject('Space', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('view', subject('Project', { projectUuid })),
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
             ).toEqual(true);
         });
-        it('can manage resources', () => {
+        it('can view and manage all kinds of saved charts', () => {
             expect(
-                ability.can('manage', subject('SavedChart', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('manage', subject('Dashboard', { projectUuid })),
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('manage', subject('Space', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
             ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+        });
+        it('can view and manage all kinds of space', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_ADMIN.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+        });
+
+        it('can manage other types of public resources', () => {
             expect(
                 ability.can('manage', subject('Project', { projectUuid })),
             ).toEqual(true);
@@ -60,21 +341,31 @@ describe('Project member permissions', () => {
                 ability.can('manage', subject('Job', { projectUuid })),
             ).toEqual(true);
         });
+
         it('cannot view resources from another projectUuid', () => {
             expect(
                 ability.can(
                     'view',
-                    subject('SavedChart', { projectUuid: '5678' }),
+                    subject('SavedChart', {
+                        projectUuid: '5678',
+                        isPrivate: false,
+                    }),
                 ),
             ).toEqual(false);
             expect(
                 ability.can(
                     'view',
-                    subject('Dashboard', { projectUuid: '5678' }),
+                    subject('Dashboard', {
+                        projectUuid: '5678',
+                        isPrivate: false,
+                    }),
                 ),
             ).toEqual(false);
             expect(
-                ability.can('view', subject('Space', { projectUuid: '5678' })),
+                ability.can(
+                    'view',
+                    subject('Space', { projectUuid: '5678', isPrivate: false }),
+                ),
             ).toEqual(false);
             expect(
                 ability.can(
@@ -90,30 +381,323 @@ describe('Project member permissions', () => {
             ability = defineAbilityForProjectMember(PROJECT_EDITOR);
         });
 
-        it('can view resources', () => {
+        it('can view and manage public & accessible dashboards', () => {
             expect(
-                ability.can('view', subject('SavedChart', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('view', subject('Dashboard', { projectUuid })),
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('view', subject('Space', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
             ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+        });
+        it('can view and manage public & accessable saved charts', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+        });
+        it('can create a space', () => {
+            expect(
+                ability.can(
+                    'create',
+                    subject('Space', {
+                        projectUuid: PROJECT_EDITOR.projectUuid,
+                    }),
+                ),
+            ).toEqual(true);
+        });
+        it('can view and manage public & accessable space', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_EDITOR.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+        });
+
+        it('can view other public resources', () => {
             expect(
                 ability.can('view', subject('Project', { projectUuid })),
             ).toEqual(true);
         });
-        it('can manage resources', () => {
-            expect(
-                ability.can('manage', subject('SavedChart', { projectUuid })),
-            ).toEqual(true);
-            expect(
-                ability.can('manage', subject('Dashboard', { projectUuid })),
-            ).toEqual(true);
-            expect(
-                ability.can('manage', subject('Space', { projectUuid })),
-            ).toEqual(true);
+        it('can manage other public resources', () => {
             expect(
                 ability.can('manage', subject('Job', { projectUuid })),
             ).toEqual(true);
@@ -144,7 +728,7 @@ describe('Project member permissions', () => {
         });
     });
 
-    describe('when user is an editor', () => {
+    describe('when user is an developer', () => {
         beforeEach(() => {
             ability = defineAbilityForProjectMember(PROJECT_DEVELOPER);
         });
@@ -160,16 +744,308 @@ describe('Project member permissions', () => {
             ability = defineAbilityForProjectMember(PROJECT_VIEWER);
         });
 
-        it('can view resources', () => {
+        it('can only view public & accessable dashboards', () => {
             expect(
-                ability.can('view', subject('SavedChart', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('view', subject('Dashboard', { projectUuid })),
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('view', subject('Space', { projectUuid })),
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
             ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+        });
+        it('can view and manage public & accessable saved charts', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+        });
+        it('can view and manage public & accessable space', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        projectUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: PROJECT_VIEWER.userUuid,
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+        });
+
+        it('can view other public resources', () => {
             expect(
                 ability.can('view', subject('Project', { projectUuid })),
             ).toEqual(true);
@@ -178,17 +1054,26 @@ describe('Project member permissions', () => {
             expect(
                 ability.can(
                     'view',
-                    subject('SavedChart', { projectUuid: '5678' }),
+                    subject('SavedChart', {
+                        projectUuid: '5678',
+                        isPrivate: false,
+                    }),
                 ),
             ).toEqual(false);
             expect(
                 ability.can(
                     'view',
-                    subject('Dashboard', { projectUuid: '5678' }),
+                    subject('Dashboard', {
+                        projectUuid: '5678',
+                        isPrivate: false,
+                    }),
                 ),
             ).toEqual(false);
             expect(
-                ability.can('view', subject('Space', { projectUuid: '5678' })),
+                ability.can(
+                    'view',
+                    subject('Space', { projectUuid: '5678', isPrivate: false }),
+                ),
             ).toEqual(false);
             expect(
                 ability.can(
@@ -198,15 +1083,6 @@ describe('Project member permissions', () => {
             ).toEqual(false);
         });
         it('cannot manage resources', () => {
-            expect(
-                ability.can('manage', subject('SavedChart', { projectUuid })),
-            ).toEqual(false);
-            expect(
-                ability.can('manage', subject('Dashboard', { projectUuid })),
-            ).toEqual(false);
-            expect(
-                ability.can('manage', subject('Space', { projectUuid })),
-            ).toEqual(false);
             expect(
                 ability.can('manage', subject('Project', { projectUuid })),
             ).toEqual(false);
@@ -247,35 +1123,73 @@ describe('Project member permissions', () => {
             ability = defineAbilityForProjectMember(PROJECT_INTERACTIVE_VIEWER);
         });
 
-        it('can view resources', () => {
+        it('can view public resources', () => {
             expect(
-                ability.can('view', subject('SavedChart', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('SavedChart', { projectUuid, isPrivate: false }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('view', subject('Dashboard', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('Dashboard', { projectUuid, isPrivate: false }),
+                ),
             ).toEqual(true);
             expect(
-                ability.can('view', subject('Space', { projectUuid })),
+                ability.can(
+                    'view',
+                    subject('Space', { projectUuid, isPrivate: false }),
+                ),
             ).toEqual(true);
             expect(
                 ability.can('view', subject('Project', { projectUuid })),
             ).toEqual(true);
         });
+        it('can not view private resources', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', { projectUuid, isPrivate: true }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', { projectUuid, isPrivate: true }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', { projectUuid, isPrivate: true }),
+                ),
+            ).toEqual(false);
+        });
         it('cannot view resources from another project', () => {
             expect(
                 ability.can(
                     'view',
-                    subject('SavedChart', { projectUuid: '5678' }),
+                    subject('SavedChart', {
+                        projectUuid: '5678',
+                        isPrivate: false,
+                    }),
                 ),
             ).toEqual(false);
             expect(
                 ability.can(
                     'view',
-                    subject('Dashboard', { projectUuid: '5678' }),
+                    subject('Dashboard', {
+                        projectUuid: '5678',
+                        isPrivate: false,
+                    }),
                 ),
             ).toEqual(false);
             expect(
-                ability.can('view', subject('Space', { projectUuid: '5678' })),
+                ability.can(
+                    'view',
+                    subject('Space', { projectUuid: '5678', isPrivate: false }),
+                ),
             ).toEqual(false);
             expect(
                 ability.can(
@@ -286,13 +1200,40 @@ describe('Project member permissions', () => {
         });
         it('cannot manage resources', () => {
             expect(
-                ability.can('manage', subject('SavedChart', { projectUuid })),
+                ability.can(
+                    'manage',
+                    subject('SavedChart', { projectUuid, isPrivate: false }),
+                ),
             ).toEqual(false);
             expect(
-                ability.can('manage', subject('Dashboard', { projectUuid })),
+                ability.can(
+                    'manage',
+                    subject('Dashboard', { projectUuid, isPrivate: false }),
+                ),
             ).toEqual(false);
             expect(
-                ability.can('manage', subject('Space', { projectUuid })),
+                ability.can(
+                    'manage',
+                    subject('Space', { projectUuid, isPrivate: false }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', { projectUuid, isPrivate: true }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', { projectUuid, isPrivate: true }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', { projectUuid, isPrivate: true }),
+                ),
             ).toEqual(false);
             expect(
                 ability.can('manage', subject('Project', { projectUuid })),

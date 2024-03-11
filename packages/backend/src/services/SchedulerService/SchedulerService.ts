@@ -4,6 +4,7 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     Dashboard,
+    DashboardScheduler,
     ForbiddenError,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
@@ -33,7 +34,6 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -81,7 +81,26 @@ export class SchedulerService {
     ): Promise<ChartSummary | Dashboard> {
         return isChartScheduler(scheduler)
             ? this.savedChartModel.getSummary(scheduler.savedChartUuid)
-            : this.dashboardModel.getById(scheduler.dashboardUuid);
+            : this.getSchedulerDashboard(scheduler);
+    }
+
+    private async getSchedulerDashboard(
+        scheduler: DashboardScheduler,
+    ): Promise<Dashboard> {
+        const dashboardDao = await this.dashboardModel.getById(
+            scheduler.dashboardUuid,
+        );
+        const space = await this.spaceModel.getSpaceSummary(
+            dashboardDao.spaceUuid,
+        );
+        const spaceAccess = await this.spaceModel.getSpaceAccess(
+            dashboardDao.spaceUuid,
+        );
+        return {
+            ...dashboardDao,
+            isPrivate: space.isPrivate,
+            access: spaceAccess,
+        };
     }
 
     private async checkUserCanUpdateSchedulerResource(
@@ -128,25 +147,35 @@ export class SchedulerService {
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
             const [space] = await this.spaceModel.find({ spaceUuid });
+            const access = await this.spaceModel.getSpaceAccess(spaceUuid);
             if (
                 user.ability.cannot(
                     'view',
-                    subject('SavedChart', { organizationUuid, projectUuid }),
-                ) ||
-                !hasSpaceAccess(user, space)
+                    subject('SavedChart', {
+                        organizationUuid,
+                        projectUuid,
+                        isPrivate: space.isPrivate,
+                        access,
+                    }),
+                )
             )
                 throw new ForbiddenError();
         } else if (scheduler.dashboardUuid) {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.dashboardModel.getById(scheduler.dashboardUuid);
             const [space] = await this.spaceModel.find({ spaceUuid });
+            const spaceAccess = this.spaceModel.getSpaceAccess(spaceUuid);
 
             if (
                 user.ability.cannot(
                     'view',
-                    subject('Dashboard', { organizationUuid, projectUuid }),
-                ) ||
-                !hasSpaceAccess(user, space)
+                    subject('Dashboard', {
+                        organizationUuid,
+                        projectUuid,
+                        isPrivate: space.isPrivate,
+                        access: spaceAccess,
+                    }),
+                )
             )
                 throw new ForbiddenError();
         } else {

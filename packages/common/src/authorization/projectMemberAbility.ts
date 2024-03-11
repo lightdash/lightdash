@@ -1,25 +1,47 @@
 import { AbilityBuilder } from '@casl/ability';
 import { ProjectMemberProfile } from '../types/projectMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
+import { SpaceMemberRole } from '../types/space';
 import { MemberAbility } from './types';
 
 // eslint-disable-next-line import/prefer-default-export
 export const projectMemberAbilities: Record<
     ProjectMemberRole,
     (
-        member: Pick<ProjectMemberProfile, 'role' | 'projectUuid'>,
+        member: Pick<ProjectMemberProfile, 'role' | 'projectUuid' | 'userUuid'>,
         builder: Pick<AbilityBuilder<MemberAbility>, 'can'>,
     ) => void
 > = {
     viewer(member, { can }) {
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
-        });
-        can('view', 'Space', {
-            projectUuid: member.projectUuid,
+            isPrivate: false,
         });
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
+            isPrivate: false,
+        });
+        can('view', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('view', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
+        });
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
         });
         can('view', 'Project', {
             projectUuid: member.projectUuid,
@@ -51,17 +73,51 @@ export const projectMemberAbilities: Record<
         can('create', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
+        });
         can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
+        });
+        // should not check space access when creating a space
+        can('create', 'Space', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
+            isPrivate: false,
         });
-        can('manage', 'SavedChart', {
+        can('manage', 'Space', {
             projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
@@ -89,6 +145,15 @@ export const projectMemberAbilities: Record<
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
         can('manage', 'Project', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
         });
     },

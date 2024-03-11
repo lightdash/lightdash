@@ -315,10 +315,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const userCanManageChart = user.data?.ability?.can(
         'manage',
-        subject('SavedChart', {
-            organizationUuid: chart.organizationUuid,
-            projectUuid: chart.projectUuid,
-        }),
+        subject('SavedChart', chart),
     );
     const userCanManageExplore = user.data?.ability?.can(
         'manage',

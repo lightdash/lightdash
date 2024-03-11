@@ -303,6 +303,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     savedChartModel,
                     projectModel,
+                    spaceModel,
                     githubAppInstallationsModel,
                 }),
         );

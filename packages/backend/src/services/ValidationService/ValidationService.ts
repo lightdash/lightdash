@@ -36,7 +36,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -630,18 +630,28 @@ export class ValidationService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
         // Filter private content to developers
-        return validations.map((validation) => {
-            const space = spaces.find((s) => s.uuid === validation.spaceUuid);
-            const hasAccess = space && hasSpaceAccess(user, space);
-            if (hasAccess) return validation;
+        return Promise.all(
+            validations.map(async (validation) => {
+                const space = spaces.find(
+                    (s) => s.uuid === validation.spaceUuid,
+                );
+                const hasAccess =
+                    space &&
+                    hasViewAccessToSpace(
+                        user,
+                        space,
+                        await this.spaceModel.getSpaceAccess(space.uuid),
+                    );
+                if (hasAccess) return validation;
 
-            return {
-                ...validation,
-                chartUuid: undefined,
-                dashboardUuid: undefined,
-                name: 'Private content',
-            };
-        });
+                return {
+                    ...validation,
+                    chartUuid: undefined,
+                    dashboardUuid: undefined,
+                    name: 'Private content',
+                };
+            }),
+        );
     }
 
     async get(

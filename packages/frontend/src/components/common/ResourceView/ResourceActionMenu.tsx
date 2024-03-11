@@ -107,6 +107,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     subject('Space', {
                         organizationUuid: item.data.organizationUuid,
                         projectUuid,
+                        isPrivate: false,
                     }),
                 )
             ) {

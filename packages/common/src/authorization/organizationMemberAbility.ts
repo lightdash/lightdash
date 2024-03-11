@@ -3,6 +3,7 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
+import { SpaceMemberRole } from '../types/space';
 import { MemberAbility } from './types';
 
 // eslint-disable-next-line import/prefer-default-export
@@ -31,12 +32,33 @@ export const organizationMemberAbilities: Record<
         organizationMemberAbilities.member(member, { can });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
-        });
-        can('view', 'Space', {
-            organizationUuid: member.organizationUuid,
+            isPrivate: false,
         });
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        });
+        can('view', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('view', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+        can('view', 'Space', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        });
+        can('view', 'Space', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
         });
         can('view', 'Project', {
             organizationUuid: member.organizationUuid,
@@ -73,17 +95,51 @@ export const organizationMemberAbilities: Record<
         can('create', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
     },
     editor(member, { can }) {
         organizationMemberAbilities.interactive_viewer(member, { can });
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        });
         can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        });
+        // should not check space access when creating a space
+        can('create', 'Space', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
+            isPrivate: false,
         });
-        can('manage', 'SavedChart', {
+        can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
@@ -110,6 +166,15 @@ export const organizationMemberAbilities: Record<
     },
     admin(member, { can }) {
         organizationMemberAbilities.developer(member, { can });
+        can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'Space', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'Project', {
             organizationUuid: member.organizationUuid,
         });

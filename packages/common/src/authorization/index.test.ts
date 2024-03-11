@@ -50,6 +50,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 projectUuid: 'another-project',
                 organizationUuid: 'another-org',
+                isPrivate: false,
             };
             expect(
                 ability.can('view', subject('SavedChart', { ...conditions })),
@@ -114,6 +115,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: adminOrgProfile.organizationUuid,
                 projectUuid: projectProfile.projectUuid,
+                isPrivate: false,
             };
         });
 
@@ -133,6 +135,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: 'another-org',
                 projectUuid: 'another-project',
+                isPrivate: false,
             };
             expect(
                 ability.can('view', subject('SavedChart', { ...conditions })),
@@ -163,6 +166,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: orgProfile.organizationUuid,
                 projectUuid: adminProjectProfile.projectUuid,
+                isPrivate: false,
             };
         });
 
@@ -182,6 +186,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: 'another-org',
                 projectUuid: 'another-project',
+                isPrivate: false,
             };
             expect(
                 ability.can('view', subject('SavedChart', { ...conditions })),
@@ -228,6 +233,7 @@ describe('Lightdash member permissions', () => {
             // Project specific
             const projectConditions = {
                 projectUuid: conditions.projectUuid,
+                isPrivate: false,
             };
             expect(
                 ability.can(
@@ -259,12 +265,14 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: orgProfile.organizationUuid,
                 projectUuid: projectProfile.projectUuid,
+                isPrivate: false,
             };
         });
 
         it('can view org and project', async () => {
             const conditionsProjectView = {
                 projectUuid: projectProfile.projectUuid,
+                isPrivate: false,
             };
 
             expect(
@@ -288,6 +296,7 @@ describe('Lightdash member permissions', () => {
 
             const conditionsProjectAdmin = {
                 projectUuid: adminProjectProfile.projectUuid,
+                isPrivate: false,
             };
             expect(
                 ability.can(
@@ -312,6 +321,7 @@ describe('Lightdash member permissions', () => {
         it('cannot view another project', async () => {
             const projectConditions = {
                 projectUuid: 'another-project',
+                isPrivate: false,
             };
             expect(
                 ability.can(
@@ -336,6 +346,7 @@ describe('Lightdash member permissions', () => {
         it('can manage admin project but cannot manage view project', async () => {
             const conditionsProjectView = {
                 projectUuid: projectProfile.projectUuid,
+                isPrivate: false,
             };
 
             expect(
@@ -359,6 +370,7 @@ describe('Lightdash member permissions', () => {
 
             const conditionsProjectAdmin = {
                 projectUuid: adminProjectProfile.projectUuid,
+                isPrivate: false,
             };
             expect(
                 ability.can(

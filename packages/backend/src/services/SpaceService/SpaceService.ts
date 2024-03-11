@@ -20,21 +20,10 @@ type SpaceServiceArguments = {
     pinnedListModel: PinnedListModel;
 };
 
-export const hasSpaceAccess = (
+export const hasDirectAccessToSpace = (
     user: SessionUser,
-    space: Pick<
-        SpaceSummary | Space,
-        'isPrivate' | 'access' | 'organizationUuid' | 'projectUuid'
-    >,
-    checkAdminAccess: boolean = true,
+    space: Pick<SpaceSummary | Space, 'isPrivate' | 'access'>,
 ): boolean => {
-    const hasAdminAccess = user.ability.can(
-        'manage',
-        subject('Project', {
-            organizationUuid: space.organizationUuid,
-            projectUuid: space.projectUuid,
-        }),
-    );
     const userUuidsWithDirectAccess = (
         space.access as Array<string | SpaceShare>
     ).reduce<string[]>((acc, access) => {
@@ -50,9 +39,26 @@ export const hasSpaceAccess = (
     const hasAccess =
         !space.isPrivate || userUuidsWithDirectAccess?.includes(user.userUuid);
 
-    return checkAdminAccess ? hasAdminAccess || hasAccess : hasAccess;
+    return hasAccess;
 };
 
+export const hasViewAccessToSpace = async (
+    user: SessionUser,
+    space: Pick<
+        Space | SpaceSummary,
+        'projectUuid' | 'organizationUuid' | 'isPrivate'
+    >,
+    access: SpaceShare[],
+): Promise<boolean> =>
+    user.ability.can(
+        'view',
+        subject('Space', {
+            organizationUuid: space.organizationUuid,
+            projectUuid: space.projectUuid,
+            isPrivate: space.isPrivate,
+            access,
+        }),
+    );
 export class SpaceService {
     private readonly analytics: LightdashAnalytics;
 
@@ -81,8 +87,9 @@ export class SpaceService {
                     subject('SavedChart', {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
+                        isPrivate: false,
                     }),
-                ) && hasSpaceAccess(user, space, false),
+                ) && hasDirectAccessToSpace(user, space),
         );
     }
 
@@ -99,9 +106,10 @@ export class SpaceService {
                 subject('Space', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
+                    isPrivate: space.isPrivate,
+                    access: space.access,
                 }),
-            ) ||
-            !hasSpaceAccess(user, space, true) // admins can also view private spaces
+            ) // admins can also view private spaces
         ) {
             throw new ForbiddenError();
         }
@@ -162,15 +170,15 @@ export class SpaceService {
         updateSpace: UpdateSpace,
     ): Promise<Space> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
                 subject('Space', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid: space.projectUuid,
+                    ...space,
+                    access: spaceAccess,
                 }),
-            ) ||
-            !hasSpaceAccess(user, space, true)
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -202,15 +210,15 @@ export class SpaceService {
 
     async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
         if (
             user.ability.cannot(
                 'delete',
                 subject('Space', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid: space.projectUuid,
+                    ...space,
+                    access: spaceAccess,
                 }),
-            ) ||
-            !hasSpaceAccess(user, space, true)
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -233,15 +241,15 @@ export class SpaceService {
         shareWithUserUuid: string,
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
                 subject('Space', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid: space.projectUuid,
+                    ...space,
+                    access: spaceAccess,
                 }),
-            ) ||
-            !hasSpaceAccess(user, space, true)
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -255,15 +263,15 @@ export class SpaceService {
         shareWithUserUuid: string,
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
                 subject('Space', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid: space.projectUuid,
+                    ...space,
+                    access: spaceAccess,
                 }),
-            ) ||
-            !hasSpaceAccess(user, space, true)
+            )
         ) {
             throw new ForbiddenError();
         }
