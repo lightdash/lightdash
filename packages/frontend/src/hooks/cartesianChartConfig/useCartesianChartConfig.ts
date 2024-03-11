@@ -495,6 +495,11 @@ const useCartesianChartConfig = ({
     useEffect(() => {
         if (availableFields.length > 0 || columnOrder.length > 0) {
             setDirtyLayout((prev) => {
+                // field is valid when
+                // 1. is EMPTY_X_AXIS
+                // 2. is in the available fields - fields that come from results query
+                // 3. is in the column order - corresponds to the current order of columns, independently of the available fields
+                // when TC updates, column order updates but available fields don't until we get the results
                 const isCurrentXFieldValid: boolean =
                     prev?.xField === EMPTY_X_AXIS ||
                     (!!prev?.xField &&
