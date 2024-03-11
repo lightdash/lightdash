@@ -46,6 +46,7 @@ import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import {
     OperationContext,
+    ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
 import { wrapOtelSpan } from './utils';
@@ -72,6 +73,7 @@ type AppArguments = {
     port: string | number;
     otelSdk: NodeSDK;
     environment?: 'production' | 'development';
+    serviceProviders?: ServiceProviderMap;
 };
 
 export default class App {
@@ -107,6 +109,7 @@ export default class App {
             },
         });
         this.serviceRepository = new ServiceRepository({
+            serviceProviders: args.serviceProviders,
             context: new OperationContext({
                 operationId: 'App#ctor',
                 lightdashAnalytics: this.analytics,
