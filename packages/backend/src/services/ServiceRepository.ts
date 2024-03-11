@@ -1,29 +1,65 @@
-import type { AnalyticsService } from './AnalyticsService/AnalyticsService';
-import type { CommentService } from './CommentService/CommentService';
-import type { CsvService } from './CsvService/CsvService';
-import type { DashboardService } from './DashboardService/DashboardService';
-import type { DownloadFileService } from './DownloadFileService/DownloadFileService';
-import type { EncryptionService } from './EncryptionService/EncryptionService';
-import type { GdriveService } from './GdriveService/GdriveService';
-import type { GithubAppService } from './GithubAppService/GithubAppService';
-import type { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
-import type { GroupsService } from './GroupService';
-import type { HealthService } from './HealthService/HealthService';
-import type { NotificationsService } from './NotificationsService/NotificationsService';
-import type { OrganizationService } from './OrganizationService/OrganizationService';
-import type { PersonalAccessTokenService } from './PersonalAccessTokenService';
-import type { PinningService } from './PinningService/PinningService';
-import type { ProjectService } from './ProjectService/ProjectService';
-import type { SavedChartService } from './SavedChartsService/SavedChartService';
-import type { SchedulerService } from './SchedulerService/SchedulerService';
-import type { SearchService } from './SearchService/SearchService';
-import type { ShareService } from './ShareService/ShareService';
-import type { SpaceService } from './SpaceService/SpaceService';
-import type { SshKeyPairService } from './SshKeyPairService';
-import type { UnfurlService } from './UnfurlService/UnfurlService';
-import type { UserAttributesService } from './UserAttributesService/UserAttributesService';
-import type { UserService } from './UserService';
-import type { ValidationService } from './ValidationService/ValidationService';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { emailClient, s3CacheClient, s3Client } from '../clients/clients';
+import { LightdashConfig } from '../config/parseConfig';
+import {
+    analyticsModel,
+    commentModel,
+    dashboardModel,
+    downloadFileModel,
+    emailModel,
+    githubAppInstallationsModel,
+    groupsModel,
+    inviteLinkModel,
+    jobModel,
+    notificationsModel,
+    onboardingModel,
+    openIdIdentityModel,
+    organizationAllowedEmailDomainsModel,
+    organizationMemberProfileModel,
+    organizationModel,
+    passwordResetLinkModel,
+    personalAccessTokenModel,
+    pinnedListModel,
+    projectModel,
+    resourceViewItemModel,
+    savedChartModel,
+    schedulerModel,
+    searchModel,
+    sessionModel,
+    shareModel,
+    spaceModel,
+    sshKeyPairModel,
+    userAttributesModel,
+    userModel,
+    userWarehouseCredentialsModel,
+    validationModel,
+} from '../models/models';
+import { AnalyticsService } from './AnalyticsService/AnalyticsService';
+import { CommentService } from './CommentService/CommentService';
+import { CsvService } from './CsvService/CsvService';
+import { DashboardService } from './DashboardService/DashboardService';
+import { DownloadFileService } from './DownloadFileService/DownloadFileService';
+import { EncryptionService } from './EncryptionService/EncryptionService';
+import { GdriveService } from './GdriveService/GdriveService';
+import { GithubAppService } from './GithubAppService/GithubAppService';
+import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
+import { GroupsService } from './GroupService';
+import { HealthService } from './HealthService/HealthService';
+import { NotificationsService } from './NotificationsService/NotificationsService';
+import { OrganizationService } from './OrganizationService/OrganizationService';
+import { PersonalAccessTokenService } from './PersonalAccessTokenService';
+import { PinningService } from './PinningService/PinningService';
+import { ProjectService } from './ProjectService/ProjectService';
+import { SavedChartService } from './SavedChartsService/SavedChartService';
+import { SchedulerService } from './SchedulerService/SchedulerService';
+import { SearchService } from './SearchService/SearchService';
+import { ShareService } from './ShareService/ShareService';
+import { SpaceService } from './SpaceService/SpaceService';
+import { SshKeyPairService } from './SshKeyPairService';
+import { UnfurlService } from './UnfurlService/UnfurlService';
+import { UserAttributesService } from './UserAttributesService/UserAttributesService';
+import { UserService } from './UserService';
+import { ValidationService } from './ValidationService/ValidationService';
 
 /**
  * Interface outlining all services available under the `ServiceRepository`. Add new services to
@@ -89,11 +125,25 @@ type ServiceProviderMap<T extends ServiceManifest> = Partial<{
  * types of operations, if necessary.
  */
 export class OperationContext {
-    constructor(
-        protected readonly properties: {
-            operationId: string;
-        },
-    ) {}
+    public readonly operationId: string;
+
+    public readonly lightdashAnalytics: LightdashAnalytics;
+
+    public readonly lightdashConfig: LightdashConfig;
+
+    constructor({
+        operationId,
+        lightdashAnalytics,
+        lightdashConfig,
+    }: {
+        operationId: string;
+        lightdashAnalytics: LightdashAnalytics;
+        lightdashConfig: LightdashConfig;
+    }) {
+        this.operationId = operationId;
+        this.lightdashAnalytics = lightdashAnalytics;
+        this.lightdashConfig = lightdashConfig;
+    }
 }
 
 /**
@@ -101,13 +151,6 @@ export class OperationContext {
  * type. We need this extra thin layer to ensure we are statically aware of all members.
  */
 abstract class ServiceRepositoryBase {
-    /**
-     * Container for service instances. Can be replaced with bare class members once
-     * this class is handling service instantiation directly, and not just behaving as
-     * a dumb proxy.
-     */
-    protected _services: ServiceManifest;
-
     /**
      * Container for service provider overrides. Providers can be defined when instancing
      * the service repository, and take precedence when instancing the given service.
@@ -126,7 +169,7 @@ abstract class ServiceRepositoryBase {
      * NOTE: This exact implementation is temporary, and is likely to be adjusted soon
      * as part of the dependency injection rollout.
      */
-    protected _serviceProviders: ServiceProviderMap<ServiceManifest>;
+    protected providers: ServiceProviderMap<ServiceManifest>;
 
     /**
      * See @type OperationContext
@@ -134,16 +177,13 @@ abstract class ServiceRepositoryBase {
     protected readonly context: OperationContext;
 
     constructor({
-        services,
         serviceProviders,
         context,
     }: {
-        services: ServiceManifest;
         serviceProviders?: ServiceProviderMap<ServiceManifest>;
         context: OperationContext;
     }) {
-        this._services = services;
-        this._serviceProviders = serviceProviders ?? {};
+        this.providers = serviceProviders ?? {};
         this.context = context;
     }
 }
@@ -167,181 +207,373 @@ export class ServiceRepository
     /**
      * Holds memoized instances of services after their initial instantiation:
      */
-    protected _serviceCache: Partial<ServiceManifest> = {};
+    protected serviceInstances: Partial<ServiceManifest> = {};
 
     public getAnalyticsService(): AnalyticsService {
         return this.getService(
             'analyticsService',
-            () => this._services.analyticsService,
+            () =>
+                new AnalyticsService({
+                    analytics: this.context.lightdashAnalytics,
+                    analyticsModel,
+                }),
         );
     }
 
     public getCommentService(): CommentService {
         return this.getService(
             'commentService',
-            () => this._services.commentService,
+            () =>
+                new CommentService({
+                    analytics: this.context.lightdashAnalytics,
+                    dashboardModel,
+                    spaceModel,
+                    commentModel,
+                    notificationsModel,
+                    userModel,
+                }),
         );
     }
 
     public getCsvService(): CsvService {
-        return this.getService('csvService', () => this._services.csvService);
+        return this.getService(
+            'csvService',
+            () =>
+                new CsvService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectService: this.getProjectService(),
+                    userModel,
+                    s3Client,
+                    dashboardModel,
+                    savedChartModel,
+                    downloadFileModel,
+                }),
+        );
     }
 
     public getDashboardService(): DashboardService {
         return this.getService(
             'dashboardService',
-            () => this._services.dashboardService,
+            () =>
+                new DashboardService({
+                    analytics: this.context.lightdashAnalytics,
+                    dashboardModel,
+                    spaceModel,
+                    analyticsModel,
+                    pinnedListModel,
+                    schedulerModel,
+                    savedChartModel,
+                }),
         );
     }
 
     public getDownloadFileService(): DownloadFileService {
         return this.getService(
             'downloadFileService',
-            () => this._services.downloadFileService,
+            () =>
+                new DownloadFileService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    downloadFileModel,
+                }),
         );
     }
 
     public getEncryptionService(): EncryptionService {
         return this.getService(
             'encryptionService',
-            () => this._services.encryptionService,
+            () =>
+                new EncryptionService({
+                    lightdashConfig: this.context.lightdashConfig,
+                }),
         );
     }
 
     public getGitIntegrationService(): GitIntegrationService {
         return this.getService(
             'gitIntegrationService',
-            () => this._services.gitIntegrationService,
+            () =>
+                new GitIntegrationService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    savedChartModel,
+                    projectModel,
+                    githubAppInstallationsModel,
+                }),
         );
     }
 
     public getGithubAppService(): GithubAppService {
         return this.getService(
             'githubAppService',
-            () => this._services.githubAppService,
+            () =>
+                new GithubAppService({
+                    githubAppInstallationsModel,
+                    userModel,
+                }),
         );
     }
 
     public getGdriveService(): GdriveService {
         return this.getService(
             'gdriveService',
-            () => this._services.gdriveService,
+            () =>
+                new GdriveService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    projectService: this.getProjectService(),
+                    userModel,
+                    dashboardModel,
+                    savedChartModel,
+                }),
         );
     }
 
     public getGroupService(): GroupsService {
         return this.getService(
             'groupService',
-            () => this._services.groupService,
+            () =>
+                new GroupsService({
+                    analytics: this.context.lightdashAnalytics,
+                    groupsModel,
+                    projectModel,
+                }),
         );
     }
 
     public getHealthService(): HealthService {
         return this.getService(
             'healthService',
-            () => this._services.healthService,
+            () =>
+                new HealthService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationModel,
+                }),
         );
     }
 
     public getNotificationService(): NotificationsService {
         return this.getService(
             'notificationService',
-            () => this._services.notificationService,
+            () =>
+                new NotificationsService({
+                    notificationsModel,
+                }),
         );
     }
 
     public getOrganizationService(): OrganizationService {
         return this.getService(
             'organizationService',
-            () => this._services.organizationService,
+            () =>
+                new OrganizationService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    organizationModel,
+                    projectModel,
+                    onboardingModel,
+                    inviteLinkModel,
+                    organizationMemberProfileModel,
+                    userModel,
+                    organizationAllowedEmailDomainsModel,
+                    groupsModel,
+                }),
         );
     }
 
     public getPersonalAccessTokenService(): PersonalAccessTokenService {
         return this.getService(
             'personalAccessTokenService',
-            () => this._services.personalAccessTokenService,
+            () =>
+                new PersonalAccessTokenService({
+                    analytics: this.context.lightdashAnalytics,
+                    personalAccessTokenModel,
+                }),
         );
     }
 
     public getPinningService(): PinningService {
         return this.getService(
             'pinningService',
-            () => this._services.pinningService,
+            () =>
+                new PinningService({
+                    dashboardModel,
+                    savedChartModel,
+                    spaceModel,
+                    pinnedListModel,
+                    resourceViewItemModel,
+                    projectModel,
+                }),
         );
     }
 
     public getProjectService(): ProjectService {
         return this.getService(
             'projectService',
-            () => this._services.projectService,
+            () =>
+                new ProjectService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel,
+                    onboardingModel,
+                    savedChartModel,
+                    jobModel,
+                    emailClient,
+                    spaceModel,
+                    sshKeyPairModel,
+                    userAttributesModel,
+                    s3CacheClient,
+                    analyticsModel,
+                    dashboardModel,
+                    userWarehouseCredentialsModel,
+                }),
         );
     }
 
     public getSavedChartService(): SavedChartService {
         return this.getService(
             'savedChartService',
-            () => this._services.savedChartService,
+            () =>
+                new SavedChartService({
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel,
+                    savedChartModel,
+                    spaceModel,
+                    analyticsModel,
+                    pinnedListModel,
+                    schedulerModel,
+                }),
         );
     }
 
     public getSchedulerService(): SchedulerService {
         return this.getService(
             'schedulerService',
-            () => this._services.schedulerService,
+            () =>
+                new SchedulerService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    schedulerModel,
+                    savedChartModel,
+                    dashboardModel,
+                    spaceModel,
+                }),
         );
     }
 
     public getSearchService(): SearchService {
         return this.getService(
             'searchService',
-            () => this._services.searchService,
+            () =>
+                new SearchService({
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel,
+                    searchModel,
+                    spaceModel,
+                    userAttributesModel,
+                }),
         );
     }
 
     public getShareService(): ShareService {
         return this.getService(
             'shareService',
-            () => this._services.shareService,
+            () =>
+                new ShareService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    shareModel,
+                }),
         );
     }
 
     public getSshKeyPairService(): SshKeyPairService {
         return this.getService(
             'sshKeyPairService',
-            () => this._services.sshKeyPairService,
+            () =>
+                new SshKeyPairService({
+                    sshKeyPairModel,
+                }),
         );
     }
 
     public getSpaceService(): SpaceService {
         return this.getService(
             'spaceService',
-            () => this._services.spaceService,
+            () =>
+                new SpaceService({
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel,
+                    spaceModel,
+                    pinnedListModel,
+                }),
         );
     }
 
     public getUnfurlService(): UnfurlService {
         return this.getService(
             'unfurlService',
-            () => this._services.unfurlService,
+            () =>
+                new UnfurlService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    encryptionService: this.getEncryptionService(),
+                    dashboardModel,
+                    savedChartModel,
+                    spaceModel,
+                    shareModel,
+                    s3Client,
+                    projectModel,
+                    downloadFileModel,
+                }),
         );
     }
 
     public getUserAttributesService(): UserAttributesService {
         return this.getService(
             'userAttributesService',
-            () => this._services.userAttributesService,
+            () =>
+                new UserAttributesService({
+                    analytics: this.context.lightdashAnalytics,
+                    userAttributesModel,
+                }),
         );
     }
 
     public getUserService(): UserService {
-        return this.getService('userService', () => this._services.userService);
+        return this.getService(
+            'userService',
+            () =>
+                new UserService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    inviteLinkModel,
+                    userModel,
+                    groupsModel,
+                    sessionModel,
+                    emailModel,
+                    openIdIdentityModel,
+                    passwordResetLinkModel,
+                    emailClient,
+                    organizationMemberProfileModel,
+                    organizationModel,
+                    personalAccessTokenModel,
+                    organizationAllowedEmailDomainsModel,
+                    userWarehouseCredentialsModel,
+                }),
+        );
     }
 
     public getValidationService(): ValidationService {
         return this.getService(
             'validationService',
-            () => this._services.validationService,
+            () =>
+                new ValidationService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel,
+                    savedChartModel,
+                    validationModel,
+                    dashboardModel,
+                    spaceModel,
+                }),
         );
     }
 
@@ -356,11 +588,11 @@ export class ServiceRepository
         K extends keyof ServiceManifest,
         T extends ServiceManifest[K],
     >(serviceName: K, factory?: () => T): T {
-        if (this._serviceCache[serviceName] == null) {
+        if (this.serviceInstances[serviceName] == null) {
             let serviceInstance: T;
 
-            if (this._serviceProviders[serviceName] != null) {
-                serviceInstance = this._serviceProviders[serviceName]!({
+            if (this.providers[serviceName] != null) {
+                serviceInstance = this.providers[serviceName]!({
                     repository: this,
                     context: this.context,
                 }) as T;
@@ -372,9 +604,9 @@ export class ServiceRepository
                 );
             }
 
-            this._serviceCache[serviceName] = serviceInstance;
+            this.serviceInstances[serviceName] = serviceInstance;
         }
 
-        return this._serviceCache[serviceName] as T;
+        return this.serviceInstances[serviceName] as T;
     }
 }

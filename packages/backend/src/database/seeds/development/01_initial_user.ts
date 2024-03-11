@@ -24,7 +24,11 @@ import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { projectModel } from '../../../models/models';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
-import { projectService } from '../../../services/services';
+import {
+    OperationContext,
+    ServiceRepository,
+} from '../../../services/ServiceRepository';
+import { serviceRepository } from '../../../services/services';
 import { DbEmailIn } from '../../entities/emails';
 import { OnboardingTableName } from '../../entities/onboarding';
 import { DbOrganizationIn } from '../../entities/organizations';
@@ -194,11 +198,19 @@ export async function seed(knex: Knex): Promise<void> {
     });
 
     try {
-        const explores = await projectService.refreshAllTables(
-            { userUuid: SEED_ORG_1_ADMIN.user_uuid },
-            SEED_PROJECT.project_uuid,
-            RequestMethod.UNKNOWN,
-        );
+        /**
+         * Once service injection is fully rolled out, we must create a new service
+         * repository instance here, that is scoped to `SEED_ORG_1_ADMIN`.
+         *
+         * For now we reuse the ServiceRepository singleton.
+         */
+        const explores = await serviceRepository
+            .getProjectService()
+            .refreshAllTables(
+                { userUuid: SEED_ORG_1_ADMIN.user_uuid },
+                SEED_PROJECT.project_uuid,
+                RequestMethod.UNKNOWN,
+            );
         await projectModel.saveExploresToCache(
             SEED_PROJECT.project_uuid,
             explores,
