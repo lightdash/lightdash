@@ -224,3 +224,31 @@ group by dv.dashboard_uuid, d.name
 order by count(dv.dashboard_uuid) desc
 limit 20
 `;
+
+export const userMostViewedDashboardSql = (projectUuid: string) => `
+WITH RankedResults AS (
+  SELECT
+      u.user_uuid,
+      u.first_name,
+      u.last_name,
+      d."name" AS dashboard_name,
+      COUNT(dv.dashboard_uuid) AS dashboard_count,
+      ROW_NUMBER() OVER (PARTITION BY u.first_name ORDER BY COUNT(dv.dashboard_uuid) DESC) AS rank
+  FROM public.analytics_dashboard_views dv
+  LEFT JOIN users u ON u.user_uuid = dv.user_uuid
+  LEFT JOIN dashboards d ON dv.dashboard_uuid = d.dashboard_uuid
+  left join spaces s on s.space_id  = d.space_id 
+  left join projects on projects.project_id = s.project_id
+  WHERE projects.project_uuid = '${projectUuid}' 
+    AND u.user_uuid IS NOT NULL
+  GROUP BY u.user_uuid, u.first_name, u.last_name, d."name"
+)
+SELECT
+  user_uuid, 
+  first_name,
+  last_name,
+  dashboard_name,
+  dashboard_count as count
+FROM RankedResults
+WHERE rank = 1;
+`;
