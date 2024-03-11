@@ -307,7 +307,7 @@ export const apiKeyPassportStrategy = new HeaderAPIKeyStrategy(
     true,
     async (token, done) => {
         try {
-            const user = userService.loginWithPersonalAccessToken(token);
+            const user = await userService.loginWithPersonalAccessToken(token);
             return done(null, user);
         } catch {
             return done(
