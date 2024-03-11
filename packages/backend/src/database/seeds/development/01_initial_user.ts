@@ -24,10 +24,6 @@ import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { projectModel } from '../../../models/models';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
-import {
-    OperationContext,
-    ServiceRepository,
-} from '../../../services/ServiceRepository';
 import { serviceRepository } from '../../../services/services';
 import { DbEmailIn } from '../../entities/emails';
 import { OnboardingTableName } from '../../entities/onboarding';

@@ -17,6 +17,8 @@ const analytics = new LightdashAnalytics({
 
 /**
  * See ./ServiceRepository for how this will work.
+ *
+ * @deprecated Avoid using this singleton instance, it will not be here for long.
  */
 export const serviceRepository = new ServiceRepository({
     context: new OperationContext({
