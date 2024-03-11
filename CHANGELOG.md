@@ -1,3 +1,10 @@
+## [0.1029.1](https://github.com/lightdash/lightdash/compare/0.1029.0...0.1029.1) (2024-03-11)
+
+
+### Bug Fixes
+
+* add type FilterDashboardToRule with fieldName, specific to frontend ([#9202](https://github.com/lightdash/lightdash/issues/9202)) ([f1737bd](https://github.com/lightdash/lightdash/commit/f1737bd49b816a2b3c207e827e04840690b2b0c8))
+
 # [0.1029.0](https://github.com/lightdash/lightdash/compare/0.1028.2...0.1029.0) (2024-03-11)
 
 
