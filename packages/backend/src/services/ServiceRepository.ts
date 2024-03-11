@@ -93,6 +93,9 @@ interface ServiceManifest {
     userAttributesService: UserAttributesService;
     userService: UserService;
     validationService: ValidationService;
+
+    /** An implementation signature for embedService is not available at this stage */
+    embedService: unknown;
 }
 
 /**
@@ -575,6 +578,10 @@ export class ServiceRepository
                     spaceModel,
                 }),
         );
+    }
+
+    public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {
+        return this.getService('embedService');
     }
 
     /**
