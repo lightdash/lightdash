@@ -94,7 +94,7 @@ interface ServiceManifest {
     userService: UserService;
     validationService: ValidationService;
 
-    /** An implementation for embedService is not provided. */
+    /** An implementation signature for embedService is not available at this stage */
     embedService: unknown;
 }
 
