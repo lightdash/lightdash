@@ -1,3 +1,10 @@
+## [0.1028.1](https://github.com/lightdash/lightdash/compare/0.1028.0...0.1028.1) (2024-03-11)
+
+
+### Bug Fixes
+
+* docs/package.json & docs/yarn.lock to reduce vulnerabilities ([#9307](https://github.com/lightdash/lightdash/issues/9307)) ([f0d3c3d](https://github.com/lightdash/lightdash/commit/f0d3c3df3d94f7bc445fe7105c6156a04c3b0df7))
+
 # [0.1028.0](https://github.com/lightdash/lightdash/compare/0.1027.4...0.1028.0) (2024-03-11)
 
 
