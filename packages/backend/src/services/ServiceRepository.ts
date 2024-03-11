@@ -581,9 +581,7 @@ export class ServiceRepository
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {
-        return this.getService('embedService', () => {
-            throw new Error('EmbedService is not implemented');
-        });
+        return this.getService('embedService');
     }
 
     /**
