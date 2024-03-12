@@ -1,3 +1,10 @@
+## [0.1030.2](https://github.com/lightdash/lightdash/compare/0.1030.1...0.1030.2) (2024-03-12)
+
+
+### Bug Fixes
+
+* update x and y field in chartConfig when tc updates ([#9269](https://github.com/lightdash/lightdash/issues/9269)) ([6397c6d](https://github.com/lightdash/lightdash/commit/6397c6dcbe1f1136626889b08a65bce34f73557e))
+
 ## [0.1030.1](https://github.com/lightdash/lightdash/compare/0.1030.0...0.1030.1) (2024-03-12)
 
 
