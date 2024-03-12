@@ -1,3 +1,10 @@
+## [0.1030.1](https://github.com/lightdash/lightdash/compare/0.1030.0...0.1030.1) (2024-03-12)
+
+
+### Bug Fixes
+
+* AzureDevOpsForm when creating new projects ([#9290](https://github.com/lightdash/lightdash/issues/9290)) ([c3b1d1d](https://github.com/lightdash/lightdash/commit/c3b1d1df5818439e593844aab7cf5c8b1123d539)), closes [#9133](https://github.com/lightdash/lightdash/issues/9133)
+
 # [0.1030.0](https://github.com/lightdash/lightdash/compare/0.1029.1...0.1030.0) (2024-03-11)
 
 
