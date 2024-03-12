@@ -552,10 +552,15 @@ export class SpaceModel {
                 `${ProjectTableName}.organization_id`,
             )
             .leftJoin(
+                UserTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .leftJoin(
                 ProjectMembershipsTableName,
                 function joinProjectMembershipTable() {
                     this.on(
-                        `${OrganizationMembershipsTableName}.user_id`,
+                        `${UserTableName}.user_id`,
                         '=',
                         `${ProjectMembershipsTableName}.user_id`,
                     ).andOn(
@@ -567,7 +572,7 @@ export class SpaceModel {
             )
             .leftJoin(SpaceShareTableName, function joinSpaceShareTable() {
                 this.on(
-                    `${OrganizationMembershipsTableName}.user_id`,
+                    `${UserTableName}.user_id`,
                     '=',
                     `${SpaceShareTableName}.user_id`,
                 ).andOn(
@@ -594,11 +599,6 @@ export class SpaceModel {
                         `${ProjectGroupAccessTableName}.project_uuid`,
                     );
                 },
-            )
-            .leftJoin(
-                UserTableName,
-                `${OrganizationMembershipsTableName}.user_id`,
-                `${UserTableName}.user_id`,
             )
             .innerJoin(
                 EmailTableName,
