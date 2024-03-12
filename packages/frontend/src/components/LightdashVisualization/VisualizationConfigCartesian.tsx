@@ -1,5 +1,7 @@
 import { ChartType, ItemsMap } from '@lightdash/common';
-import { FC, useEffect } from 'react';
+import { isEqual } from 'lodash';
+import { FC, useEffect, useMemo } from 'react';
+import { usePrevious } from 'react-use';
 import useCartesianChartConfig, {
     CartesianTypeOptions,
 } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -45,6 +47,7 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     colorPalette,
     children,
 }) => {
+    const prevChartConfig = usePrevious(initialChartConfig);
     const cartesianConfig = useCartesianChartConfig({
         initialChartConfig,
         pivotKeys: validPivotDimensions,
@@ -57,14 +60,26 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         colorPalette,
     });
 
-    useEffect(() => {
-        if (!onChartConfigChange || !cartesianConfig.validConfig) return;
+    const hasChartConfigChangedInHook = useMemo(() => {
+        return (
+            isEqual(initialChartConfig, prevChartConfig) &&
+            !isEqual(initialChartConfig, cartesianConfig.validConfig)
+        );
+    }, [cartesianConfig.validConfig, initialChartConfig, prevChartConfig]);
 
-        onChartConfigChange({
+    useEffect(() => {
+        if (!hasChartConfigChangedInHook) return;
+
+        // Update chart config state ONLY when the hook has changed it
+        onChartConfigChange?.({
             type: ChartType.CARTESIAN,
             config: cartesianConfig.validConfig,
         });
-    }, [cartesianConfig, onChartConfigChange]);
+    }, [
+        cartesianConfig.validConfig,
+        hasChartConfigChangedInHook,
+        onChartConfigChange,
+    ]);
 
     return children({
         visualizationConfig: {
