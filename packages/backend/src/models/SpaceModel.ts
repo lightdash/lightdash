@@ -537,7 +537,7 @@ export class SpaceModel {
 
     private async _getSpaceAccess(
         spaceUuid: string,
-        filters: { userUuid?: string } | undefined,
+        filters?: { userUuid?: string },
     ): Promise<SpaceShare[]> {
         const access = await this.database
             .table(SpaceTableName)
@@ -711,12 +711,8 @@ export class SpaceModel {
                     ...inheritedGroupRoles,
                 ]);
 
-                // exclude all users that were converted to organization members and have no space access
+                // exclude users with no space role
                 if (!highestRole) {
-                    // revoke direct access from the space
-                    if (user_with_direct_access) {
-                        this.removeSpaceAccess(spaceUuid, user_uuid);
-                    }
                     return acc;
                 }
                 return [
@@ -742,10 +738,6 @@ export class SpaceModel {
         spaceUuid: string,
     ): Promise<SpaceShare[]> {
         return this._getSpaceAccess(spaceUuid, { userUuid });
-    }
-
-    async getSpaceAccess(spaceUuid: string): Promise<SpaceShare[]> {
-        return this._getSpaceAccess(spaceUuid, {});
     }
 
     async getSpaceQueries(
@@ -921,7 +913,7 @@ export class SpaceModel {
                 pinnedListOrder: row.order,
                 queries: await this.getSpaceQueries([row.space_uuid]),
                 dashboards: await this.getSpaceDashboards([row.space_uuid]),
-                access: await this.getSpaceAccess(row.space_uuid),
+                access: await this._getSpaceAccess(row.space_uuid),
             })),
         );
     }
@@ -1002,7 +994,7 @@ export class SpaceModel {
             pinnedListOrder: space.pinnedListOrder,
             queries: await this.getSpaceQueries([space.uuid]),
             dashboards: await this.getSpaceDashboards([space.uuid]),
-            access: await this.getSpaceAccess(space.uuid),
+            access: await this._getSpaceAccess(space.uuid),
         };
     }
 
