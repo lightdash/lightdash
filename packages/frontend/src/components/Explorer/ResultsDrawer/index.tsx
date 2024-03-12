@@ -1,22 +1,25 @@
 import { subject } from '@casl/ability';
 import {
     ActionIcon,
+    Box,
     Button,
     Card,
-    Divider,
     Drawer,
     DrawerProps,
+    getDefaultZIndex,
     Group,
     Popover,
     px,
-    rem,
-    Stack,
     Text,
-    UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure, useElementSize } from '@mantine/hooks';
-import { IconArrowDown, IconMaximize, IconShare2 } from '@tabler/icons-react';
+import {
+    IconArrowDown,
+    IconArrowsVertical,
+    IconMaximize,
+    IconShare2,
+} from '@tabler/icons-react';
 import { FC, memo, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../api/csv';
@@ -154,6 +157,7 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
         () => headerHeight + px(theme.spacing.sm) * 2,
         [headerHeight, theme.spacing.sm],
     );
+    const MAX_DRAWER_HEIGHT = 600;
     const drawerWidth = useMemo(
         () => (w ? +w + px(PAGE_CONTENT_PADDING) * 2 + 'px' : '100%'),
         [w, PAGE_CONTENT_PADDING],
@@ -190,7 +194,7 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
             let offsetBottom = window.innerHeight - e.clientY;
 
             const minHeight = MIN_DRAWER_HEIGHT; // Minimum drawer height.
-            const maxHeight = 600; // Maximum drawer height.
+            const maxHeight = MAX_DRAWER_HEIGHT; // Maximum drawer height.
 
             // Check if the new height is within bounds and update the height if it is.
             if (offsetBottom > minHeight && offsetBottom < maxHeight) {
@@ -237,74 +241,82 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
                             marginRight: px(PAGE_CONTENT_PADDING),
                             left: 0,
                             boxShadow: 'none',
+                            overflowY: 'visible',
                         },
                     },
                     body: {
                         borderTop: `1px solid ${theme.colors.gray['1']}`,
-                        paddingTop: theme.spacing.xs,
+                        paddingTop: 0,
+                        position: 'relative',
                     },
                 }}
             >
-                <Group ref={ref} p="xs" pos="relative" position="apart">
-                    <Group>
-                        <Text fw={500}>Results</Text>
-                        {hasSorts && (
-                            <SortButton isEditMode={isEditMode} sorts={sorts} />
-                        )}
-                    </Group>
-                    <Group>
-                        <UnstyledButton
-                            onMouseDown={onMouseDown}
-                            h={14}
-                            pos="absolute"
-                            top={-8}
-                            left="50%"
-                            right="50%"
-                            w="xl"
-                            sx={{
-                                cursor: 'n-resize',
-                            }}
-                        >
-                            <Stack spacing="two">
-                                <Divider
-                                    sx={{
-                                        borderTopWidth: '2px',
-                                        borderTopColor: theme.colors.gray['5'],
-                                    }}
-                                />
-                                <Divider
-                                    sx={{
-                                        borderTopWidth: rem(2),
-                                        borderTopColor: theme.colors.gray['5'],
-                                    }}
-                                />
-                            </Stack>
-                        </UnstyledButton>
+                <ActionIcon
+                    variant="default"
+                    top={-10}
+                    left="50%"
+                    right="50%"
+                    pos="absolute"
+                    onMouseDown={onMouseDown}
+                    h={24}
+                    w="xl"
+                    px="one"
+                    size="xs"
+                    sx={{
+                        cursor: 'n-resize',
+                        border: `1px solid ${theme.colors.gray[2]}`,
+                        borderRadius: theme.radius.xs,
+                        zIndex: getDefaultZIndex('overlay') + 1,
+                    }}
+                >
+                    <MantineIcon icon={IconArrowsVertical} color="gray" />
+                </ActionIcon>
 
+                <Box
+                    mah="100%"
+                    h={height}
+                    sx={{
+                        overflowY: 'auto',
+                    }}
+                >
+                    <Group ref={ref} p="xs" pos="relative" position="apart">
                         <Group>
-                            {tableName && (
-                                <Group position="right" spacing="xs">
-                                    {isEditMode && <AddColumnButton />}
-                                    <Export />
-                                </Group>
-                            )}
-                            <ActionIcon
-                                variant="default"
-                                onClick={() => {
-                                    close();
-                                    setHeight(INITIAL_RESULTS_DRAWER_HEIGHT_PX);
-                                }}
-                            >
-                                <MantineIcon
-                                    icon={IconArrowDown}
-                                    color="gray"
+                            <Text fw={500}>Results</Text>
+                            {hasSorts && (
+                                <SortButton
+                                    isEditMode={isEditMode}
+                                    sorts={sorts}
                                 />
-                            </ActionIcon>
+                            )}
+                        </Group>
+                        <Group>
+                            <Group>
+                                {tableName && (
+                                    <Group position="right" spacing="xs">
+                                        {isEditMode && <AddColumnButton />}
+                                        <Export />
+                                    </Group>
+                                )}
+                                <ActionIcon
+                                    variant="default"
+                                    onClick={() => {
+                                        close();
+                                        setHeight(
+                                            INITIAL_RESULTS_DRAWER_HEIGHT_PX,
+                                        );
+                                    }}
+                                >
+                                    <MantineIcon
+                                        icon={IconArrowDown}
+                                        color="gray"
+                                    />
+                                </ActionIcon>
+                            </Group>
                         </Group>
                     </Group>
-                </Group>
 
-                <ExplorerResults />
+                    <ExplorerResults />
+                </Box>
             </Drawer>
             <Card
                 p="sm"
