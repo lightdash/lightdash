@@ -147,7 +147,10 @@ export class SchedulerService {
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
             const [space] = await this.spaceModel.find({ spaceUuid });
-            const access = await this.spaceModel.getSpaceAccess(spaceUuid);
+            const access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                spaceUuid,
+            );
             if (
                 user.ability.cannot(
                     'view',
@@ -164,7 +167,10 @@ export class SchedulerService {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.dashboardModel.getById(scheduler.dashboardUuid);
             const [space] = await this.spaceModel.find({ spaceUuid });
-            const spaceAccess = this.spaceModel.getSpaceAccess(spaceUuid);
+            const spaceAccess = this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                spaceUuid,
+            );
 
             if (
                 user.ability.cannot(

@@ -535,7 +535,10 @@ export class SpaceModel {
         );
     }
 
-    async getSpaceAccess(spaceUuid: string): Promise<SpaceShare[]> {
+    private async _getSpaceAccess(
+        spaceUuid: string,
+        filters: { userUuid?: string } | undefined,
+    ): Promise<SpaceShare[]> {
         const access = await this.database
             .table(SpaceTableName)
             .leftJoin(
@@ -604,6 +607,11 @@ export class SpaceModel {
             )
             .where(`${EmailTableName}.is_primary`, true)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+            .modify((query) => {
+                if (filters?.userUuid) {
+                    query.where(`${UserTableName}.user_uuid`, filters.userUuid);
+                }
+            })
             .where((query) => {
                 query
                     .where((query1) => {
@@ -705,7 +713,10 @@ export class SpaceModel {
 
                 // exclude all users that were converted to organization members and have no space access
                 if (!highestRole) {
-                    this.removeSpaceAccess(spaceUuid, user_uuid); // remove access from the space if it exists
+                    // revoke direct access from the space
+                    if (user_with_direct_access) {
+                        this.removeSpaceAccess(spaceUuid, user_uuid);
+                    }
                     return acc;
                 }
                 return [
@@ -724,6 +735,17 @@ export class SpaceModel {
             },
             [],
         );
+    }
+
+    async getUserSpaceAccess(
+        userUuid: string,
+        spaceUuid: string,
+    ): Promise<SpaceShare[]> {
+        return this._getSpaceAccess(spaceUuid, { userUuid });
+    }
+
+    async getSpaceAccess(spaceUuid: string): Promise<SpaceShare[]> {
+        return this._getSpaceAccess(spaceUuid, {});
     }
 
     async getSpaceQueries(
