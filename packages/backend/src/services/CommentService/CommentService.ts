@@ -63,7 +63,10 @@ export class CommentService {
 
         try {
             space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
+            spaceAccess = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                spaceUuid,
+            );
         } catch (e) {
             Sentry.captureException(e);
             console.error(e);

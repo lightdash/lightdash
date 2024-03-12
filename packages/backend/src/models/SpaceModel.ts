@@ -535,7 +535,10 @@ export class SpaceModel {
         );
     }
 
-    async getSpaceAccess(spaceUuid: string): Promise<SpaceShare[]> {
+    private async _getSpaceAccess(
+        spaceUuid: string,
+        filters?: { userUuid?: string },
+    ): Promise<SpaceShare[]> {
         const access = await this.database
             .table(SpaceTableName)
             .leftJoin(
@@ -549,10 +552,15 @@ export class SpaceModel {
                 `${ProjectTableName}.organization_id`,
             )
             .leftJoin(
+                UserTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .leftJoin(
                 ProjectMembershipsTableName,
                 function joinProjectMembershipTable() {
                     this.on(
-                        `${OrganizationMembershipsTableName}.user_id`,
+                        `${UserTableName}.user_id`,
                         '=',
                         `${ProjectMembershipsTableName}.user_id`,
                     ).andOn(
@@ -564,7 +572,7 @@ export class SpaceModel {
             )
             .leftJoin(SpaceShareTableName, function joinSpaceShareTable() {
                 this.on(
-                    `${OrganizationMembershipsTableName}.user_id`,
+                    `${UserTableName}.user_id`,
                     '=',
                     `${SpaceShareTableName}.user_id`,
                 ).andOn(
@@ -592,11 +600,6 @@ export class SpaceModel {
                     );
                 },
             )
-            .leftJoin(
-                UserTableName,
-                `${OrganizationMembershipsTableName}.user_id`,
-                `${UserTableName}.user_id`,
-            )
             .innerJoin(
                 EmailTableName,
                 `${UserTableName}.user_id`,
@@ -604,6 +607,11 @@ export class SpaceModel {
             )
             .where(`${EmailTableName}.is_primary`, true)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+            .modify((query) => {
+                if (filters?.userUuid) {
+                    query.where(`${UserTableName}.user_uuid`, filters.userUuid);
+                }
+            })
             .where((query) => {
                 query
                     .where((query1) => {
@@ -703,9 +711,8 @@ export class SpaceModel {
                     ...inheritedGroupRoles,
                 ]);
 
-                // exclude all users that were converted to organization members and have no space access
+                // exclude users with no space role
                 if (!highestRole) {
-                    this.removeSpaceAccess(spaceUuid, user_uuid); // remove access from the space if it exists
                     return acc;
                 }
                 return [
@@ -724,6 +731,13 @@ export class SpaceModel {
             },
             [],
         );
+    }
+
+    async getUserSpaceAccess(
+        userUuid: string,
+        spaceUuid: string,
+    ): Promise<SpaceShare[]> {
+        return this._getSpaceAccess(spaceUuid, { userUuid });
     }
 
     async getSpaceQueries(
@@ -899,7 +913,7 @@ export class SpaceModel {
                 pinnedListOrder: row.order,
                 queries: await this.getSpaceQueries([row.space_uuid]),
                 dashboards: await this.getSpaceDashboards([row.space_uuid]),
-                access: await this.getSpaceAccess(row.space_uuid),
+                access: await this._getSpaceAccess(row.space_uuid),
             })),
         );
     }
@@ -980,7 +994,7 @@ export class SpaceModel {
             pinnedListOrder: space.pinnedListOrder,
             queries: await this.getSpaceQueries([space.uuid]),
             dashboards: await this.getSpaceDashboards([space.uuid]),
-            access: await this.getSpaceAccess(space.uuid),
+            access: await this._getSpaceAccess(space.uuid),
         };
     }
 

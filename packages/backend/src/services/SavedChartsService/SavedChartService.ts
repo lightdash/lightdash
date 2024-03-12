@@ -87,7 +87,8 @@ export class SavedChartService {
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
-        const access = await this.spaceModel.getSpaceAccess(
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
             savedChart.spaceUuid,
         );
         if (
@@ -139,7 +140,10 @@ export class SavedChartService {
     ): Promise<boolean> {
         try {
             const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            const access = await this.spaceModel.getSpaceAccess(space.uuid);
+            const access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                space.uuid,
+            );
             return await hasViewAccessToSpace(user, space, access);
         } catch (e) {
             return false;
@@ -280,7 +284,10 @@ export class SavedChartService {
             await this.savedChartModel.getSummary(savedChartUuid);
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getSpaceAccess(spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -334,7 +341,10 @@ export class SavedChartService {
             await this.savedChartModel.getSummary(savedChartUuid);
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getSpaceAccess(spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -445,7 +455,8 @@ export class SavedChartService {
             const space = await this.spaceModel.getSpaceSummary(
                 chart.spaceUuid,
             );
-            const access = await this.spaceModel.getSpaceAccess(
+            const access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
                 chart.spaceUuid,
             );
             return user.ability.can(
@@ -470,7 +481,8 @@ export class SavedChartService {
                 const space = await this.spaceModel.getSpaceSummary(
                     savedChart.spaceUuid,
                 );
-                const access = await this.spaceModel.getSpaceAccess(
+                const access = await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
                     savedChart.spaceUuid,
                 );
                 return {
@@ -495,7 +507,10 @@ export class SavedChartService {
         const { organizationUuid, projectUuid, spaceUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getSpaceAccess(spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -532,7 +547,8 @@ export class SavedChartService {
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
-        const access = await this.spaceModel.getSpaceAccess(
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
             savedChart.spaceUuid,
         );
         if (
@@ -557,7 +573,8 @@ export class SavedChartService {
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
-        const access = await this.spaceModel.getSpaceAccess(
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
             savedChart.spaceUuid,
         );
 
@@ -613,7 +630,10 @@ export class SavedChartService {
                 savedChart.spaceUuid,
             );
             isPrivate = space.isPrivate;
-            access = await this.spaceModel.getSpaceAccess(savedChart.spaceUuid);
+            access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                savedChart.spaceUuid,
+            );
         }
 
         if (
@@ -667,7 +687,10 @@ export class SavedChartService {
     ): Promise<SavedChart> {
         const chart = await this.savedChartModel.get(chartUuid);
         const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
-        const access = await this.spaceModel.getSpaceAccess(chart.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            chart.spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'create',
@@ -800,7 +823,10 @@ export class SavedChartService {
     ): Promise<ChartHistory> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
         const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
-        const access = await this.spaceModel.getSpaceAccess(chart.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            chart.spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -839,7 +865,10 @@ export class SavedChartService {
     ): Promise<ChartVersion> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
         const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
-        const access = await this.spaceModel.getSpaceAccess(chart.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            chart.spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'view',

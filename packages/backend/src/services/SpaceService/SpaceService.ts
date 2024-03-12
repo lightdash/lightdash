@@ -170,7 +170,10 @@ export class SpaceService {
         updateSpace: UpdateSpace,
     ): Promise<Space> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -210,7 +213,10 @@ export class SpaceService {
 
     async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'delete',
@@ -241,7 +247,10 @@ export class SpaceService {
         shareWithUserUuid: string,
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -263,7 +272,10 @@ export class SpaceService {
         shareWithUserUuid: string,
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',

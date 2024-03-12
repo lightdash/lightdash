@@ -1220,7 +1220,10 @@ export class ProjectService {
             ),
         ]);
 
-        const access = await this.spaceModel.getSpaceAccess(space.uuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            space.uuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1307,7 +1310,10 @@ export class ProjectService {
             ),
         ]);
 
-        const access = await this.spaceModel.getSpaceAccess(space.uuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            space.uuid,
+        );
 
         if (
             user.ability.cannot(
@@ -2774,7 +2780,10 @@ export class ProjectService {
                 savedChart.spaceUuid,
             );
 
-            const access = await this.spaceModel.getSpaceAccess(space.uuid);
+            const access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                space.uuid,
+            );
 
             if (
                 user.ability.cannot(
@@ -2861,7 +2870,8 @@ export class ProjectService {
 
             const filterPromises = savedCharts.map(async (savedChart) => {
                 const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
-                const access = await this.spaceModel.getSpaceAccess(
+                const access = await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
                     savedChart.spaceUuid,
                 );
 
@@ -3211,7 +3221,10 @@ export class ProjectService {
                     hasViewAccessToSpace(
                         user,
                         space,
-                        await this.spaceModel.getSpaceAccess(space.uuid),
+                        await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            space.uuid,
+                        ),
                     ),
             ),
         );
@@ -3333,7 +3346,10 @@ export class ProjectService {
                 hasViewAccessToSpace(
                     user,
                     space,
-                    await this.spaceModel.getSpaceAccess(space.uuid),
+                    await this.spaceModel.getUserSpaceAccess(
+                        user.userUuid,
+                        space.uuid,
+                    ),
                 ),
             ),
         );
@@ -3530,7 +3546,8 @@ export class ProjectService {
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
-        const access = await this.spaceModel.getSpaceAccess(
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
             savedChart.spaceUuid,
         );
 
