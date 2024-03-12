@@ -106,8 +106,8 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
     const PAGE_CONTENT_PADDING = theme.spacing.lg;
     const INTIAL_RESULTS_DRAWER_HEIGHT_PX = 500;
     const MIN_DRAWER_HEIGHT = useMemo(
-        () => headerHeight + px(theme.spacing.xs) * 2,
-        [headerHeight, theme.spacing.xs],
+        () => headerHeight + px(theme.spacing.sm) * 2,
+        [headerHeight, theme.spacing.sm],
     );
     const drawerWidth = useMemo(
         () => (w ? +w + px(PAGE_CONTENT_PADDING) * 2 + 'px' : '100%'),
