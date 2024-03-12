@@ -37,18 +37,10 @@ import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from '../ResultsCard/ExplorerResults';
 
-export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
-    const theme = useMantineTheme();
-
+const Export = () => {
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
-    );
     const metricQuery = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
@@ -58,18 +50,25 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
     const rows = useExplorerContext(
         (context) => context.queryResults.data?.rows,
     );
-    const sorts = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
-    );
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
-    const toggleExpandedSection = useExplorerContext(
-        (context) => context.actions.toggleExpandedSection,
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
 
-    const hasSorts = tableName && sorts.length > 0;
     const isExportAsCsvDisabled = !resultsData || resultsData.rows.length <= 0;
+
+    const getGsheetLink = async () => {
+        const gsheetResponse = await uploadGsheet({
+            projectUuid,
+            exploreId: tableName,
+            metricQuery,
+            columnOrder,
+            showTableNames: true,
+        });
+        return gsheetResponse;
+    };
 
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
         const csvResponse = await downloadCsv({
@@ -83,28 +82,74 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
         });
         return csvResponse;
     };
+    return (
+        <Can
+            I="manage"
+            this={subject('ExportCsv', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: projectUuid,
+            })}
+        >
+            <Popover
+                {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                disabled={isExportAsCsvDisabled}
+                position="bottom-end"
+            >
+                <Popover.Target>
+                    <Button
+                        data-testid="export-csv-button"
+                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                        disabled={isExportAsCsvDisabled}
+                        px="xs"
+                    >
+                        <MantineIcon icon={IconShare2} color="gray" />
+                    </Button>
+                </Popover.Target>
 
-    const getGsheetLink = async () => {
-        const gsheetResponse = await uploadGsheet({
-            projectUuid,
-            exploreId: tableName,
-            metricQuery,
-            columnOrder,
-            showTableNames: true,
-        });
-        return gsheetResponse;
-    };
+                <Popover.Dropdown>
+                    <ExportSelector
+                        projectUuid={projectUuid}
+                        rows={rows}
+                        getCsvLink={getCsvLink}
+                        getGsheetLink={getGsheetLink}
+                    />
+                </Popover.Dropdown>
+            </Popover>
+        </Can>
+    );
+};
+
+export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
+    const theme = useMantineTheme();
+
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const sorts = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
+    );
+    const resultsData = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
+    );
+
+    const hasSorts = tableName && sorts.length > 0;
 
     // Open by default when querying from tables and no query has been run.
-    const [isInitiallyOpen, setIsInitiallyOpen] = useState(
+    const [isDrawerInitiallyOpen, setDrawerIsInitiallyOpen] = useState(
         !tableName && isEditMode && !resultsData,
     );
 
     const { ref, height: headerHeight } = useElementSize<HTMLDivElement>();
-    const [opened, { open, close }] = useDisclosure(isInitiallyOpen);
+    const [opened, { open, close }] = useDisclosure(isDrawerInitiallyOpen);
     const [isResizing, setIsResizing] = useState(false);
     const PAGE_CONTENT_PADDING = theme.spacing.lg;
-    const INTIAL_RESULTS_DRAWER_HEIGHT_PX = 500;
+    const INITIAL_RESULTS_DRAWER_HEIGHT_PX = 500;
     const MIN_DRAWER_HEIGHT = useMemo(
         () => headerHeight + px(theme.spacing.sm) * 2,
         [headerHeight, theme.spacing.sm],
@@ -113,16 +158,16 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
         () => (w ? +w + px(PAGE_CONTENT_PADDING) * 2 + 'px' : '100%'),
         [w, PAGE_CONTENT_PADDING],
     );
-    const [height, setHeight] = useState(INTIAL_RESULTS_DRAWER_HEIGHT_PX);
+    const [height, setHeight] = useState(INITIAL_RESULTS_DRAWER_HEIGHT_PX);
 
     useEffect(() => {
-        if (isInitiallyOpen && isEditMode && resultsData) {
+        if (isDrawerInitiallyOpen && isEditMode && resultsData) {
             setHeight(MIN_DRAWER_HEIGHT);
-            setIsInitiallyOpen(false);
+            setDrawerIsInitiallyOpen(false);
             toggleExpandedSection(ExplorerSection.VISUALIZATION);
         }
     }, [
-        isInitiallyOpen,
+        isDrawerInitiallyOpen,
         isEditMode,
         open,
         resultsData,
@@ -240,55 +285,14 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
                             {tableName && (
                                 <Group position="right" spacing="xs">
                                     {isEditMode && <AddColumnButton />}
-
-                                    <Can
-                                        I="manage"
-                                        this={subject('ExportCsv', {
-                                            organizationUuid:
-                                                user.data?.organizationUuid,
-                                            projectUuid: projectUuid,
-                                        })}
-                                    >
-                                        <Popover
-                                            {...COLLAPSABLE_CARD_POPOVER_PROPS}
-                                            disabled={isExportAsCsvDisabled}
-                                            position="bottom-end"
-                                        >
-                                            <Popover.Target>
-                                                <Button
-                                                    data-testid="export-csv-button"
-                                                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                                                    disabled={
-                                                        isExportAsCsvDisabled
-                                                    }
-                                                    px="xs"
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconShare2}
-                                                        color="gray"
-                                                    />
-                                                </Button>
-                                            </Popover.Target>
-
-                                            <Popover.Dropdown>
-                                                <ExportSelector
-                                                    projectUuid={projectUuid}
-                                                    rows={rows}
-                                                    getCsvLink={getCsvLink}
-                                                    getGsheetLink={
-                                                        getGsheetLink
-                                                    }
-                                                />
-                                            </Popover.Dropdown>
-                                        </Popover>
-                                    </Can>
+                                    <Export />
                                 </Group>
                             )}
                             <ActionIcon
                                 variant="default"
                                 onClick={() => {
                                     close();
-                                    setHeight(INTIAL_RESULTS_DRAWER_HEIGHT_PX);
+                                    setHeight(INITIAL_RESULTS_DRAWER_HEIGHT_PX);
                                 }}
                             >
                                 <MantineIcon
@@ -308,7 +312,7 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
                 w={drawerWidth}
                 radius="none"
                 pos="absolute"
-                bottom={px(PAGE_CONTENT_PADDING)}
+                bottom={PAGE_CONTENT_PADDING}
                 m={-px(PAGE_CONTENT_PADDING)}
                 sx={{
                     borderTop: `1px solid ${theme.colors.gray['1']}`,
