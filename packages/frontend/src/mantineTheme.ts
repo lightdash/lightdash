@@ -115,5 +115,9 @@ export const getMantineThemeOverride = (overrides?: {
         '.ace_editor.ace_autocomplete': {
             width: '500px',
         },
+        '.ace_editor *': {
+            fontFamily:
+                "Menlo, 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace",
+        },
     }),
 });
