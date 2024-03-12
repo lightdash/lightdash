@@ -117,8 +117,6 @@ export const useChartColorConfig = ({
             // Keep track of the color idx used for this identifier, within this group:
             groupMappings.set(identifier, nextIdx);
 
-            console.log(`A ${group}->${identifier} ${nextIdx} ${colorHex}`);
-
             return colorHex;
         },
         [colorPalette, colorMappings],

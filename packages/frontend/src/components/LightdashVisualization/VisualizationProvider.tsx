@@ -75,7 +75,7 @@ type VisualizationContext = {
     setPivotDimensions: (value: string[] | undefined) => void;
 
     getSeriesColor: (seriesLike: SeriesLike, seriesIndex: number) => string;
-    getGroupColor: (groupNameOrId: string) => string;
+    getGroupColor: (groupPrefix: string, groupName: string) => string;
 
     colorPalette: string[];
 };
@@ -215,13 +215,10 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
 
     /**
      * Gets a shared color for a given group name.
-     *
-     * NOTE: The feature flag is handled by the caller; until the flag is removed,
-     * it's the easiest way to access the necessary context to get a fallback color.
      */
     const getGroupColor = useCallback(
-        (groupNameOrId: string) => {
-            return calculateKeyColorAssignment(groupNameOrId);
+        (groupPrefix: string, identifier: string) => {
+            return calculateKeyColorAssignment(groupPrefix, identifier);
         },
         [calculateKeyColorAssignment],
     );
