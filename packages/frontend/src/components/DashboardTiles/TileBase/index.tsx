@@ -108,13 +108,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             <HeaderContainer
                 $isEditMode={isEditMode}
                 $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
-                style={
-                    isLoading
-                        ? {
-                              zIndex: getDefaultZIndex('overlay') + 1,
-                          }
-                        : {}
-                }
+                style={{
+                    backgroundColor: 'white',
+                    zIndex: isLoading ? getDefaultZIndex('overlay') + 1 : 3,
+                    borderRadius: '5px',
+                }}
             >
                 {minimal ? (
                     !hideTitle ? (
