@@ -87,10 +87,16 @@ export const useChartColorConfig = ({
         (group: string, identifier: string) => {
             let groupMappings = colorMappings.get(group);
 
+            /**
+             * If we already picked a color for this group/identifier pair, return it:
+             */
             if (groupMappings && groupMappings.has(identifier)) {
                 return colorPalette[groupMappings.get(identifier)!];
             }
 
+            /**
+             * If this is the first time we're seeing this group, create a sub-map for it:
+             */
             if (!groupMappings) {
                 groupMappings = new Map<string, number>();
                 colorMappings.set(group, groupMappings);
