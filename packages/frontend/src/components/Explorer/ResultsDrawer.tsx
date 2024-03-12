@@ -11,12 +11,15 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconArrowDown } from '@tabler/icons-react';
 import { FC, memo, useEffect, useState } from 'react';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import MantineIcon from '../common/MantineIcon';
 import { ExplorerResults } from './ResultsCard/ExplorerResults';
 
 export const ResultsDrawer: FC = memo(() => {
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
     const [opened, { open, close }] = useDisclosure(false);
-
     const [isResizing, setIsResizing] = useState(false);
     const [height, setHeight] = useState(500);
 
@@ -107,7 +110,12 @@ export const ResultsDrawer: FC = memo(() => {
                 <ExplorerResults />
             </Drawer>
             <Group position="center">
-                <Button compact variant="default" onClick={open}>
+                <Button
+                    compact
+                    variant="default"
+                    onClick={open}
+                    disabled={!tableName}
+                >
                     Results
                 </Button>
             </Group>
