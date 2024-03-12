@@ -4148,11 +4148,57 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceMemberRole: {
+        dataType: 'refEnum',
+        enums: ['viewer', 'editor'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceShare: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                inheritedFrom: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['organization'] },
+                        { dataType: 'enum', enums: ['project'] },
+                        { dataType: 'enum', enums: ['group'] },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                inheritedRole: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OrganizationMemberRole' },
+                        { ref: 'ProjectMemberRole' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                hasDirectAccess: { dataType: 'boolean', required: true },
+                role: { ref: 'SpaceMemberRole', required: true },
+                email: { dataType: 'string', required: true },
+                lastName: { dataType: 'string', required: true },
+                firstName: { dataType: 'string', required: true },
+                userUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SavedChart: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                access: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SpaceShare' },
+                    required: true,
+                },
+                isPrivate: { dataType: 'boolean', required: true },
                 colorPalette: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -5057,46 +5103,6 @@ const models: TsoaRoute.Models = {
         type: { ref: 'DashboardBasicDetails', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SpaceMemberRole: {
-        dataType: 'refEnum',
-        enums: ['viewer', 'editor'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SpaceShare: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                inheritedFrom: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['organization'] },
-                        { dataType: 'enum', enums: ['project'] },
-                        { dataType: 'enum', enums: ['group'] },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                inheritedRole: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'OrganizationMemberRole' },
-                        { ref: 'ProjectMemberRole' },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                hasDirectAccess: { dataType: 'boolean', required: true },
-                role: { ref: 'SpaceMemberRole', required: true },
-                email: { dataType: 'string', required: true },
-                lastName: { dataType: 'string', required: true },
-                firstName: { dataType: 'string', required: true },
-                userUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Space: {
         dataType: 'refAlias',
         type: {
@@ -5730,6 +5736,39 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OpenIdIdentityIssuerType: {
+        dataType: 'refEnum',
+        enums: ['google', 'okta', 'oneLogin', 'azuread'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmailIssuerType: {
+        dataType: 'refEnum',
+        enums: ['email'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LoginOptions: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                redirectUri: { dataType: 'string' },
+                forceRedirect: { dataType: 'boolean' },
+                showOptions: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'OpenIdIdentityIssuerType' },
+                            { ref: 'EmailIssuerType' },
+                        ],
+                    },
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -12313,6 +12352,62 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.deleteWarehouseCredentials.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/user/login_options',
+        ...fetchMiddlewares<RequestHandler>(UserController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserController.prototype.getLoginOptions,
+        ),
+
+        async function UserController_getLoginOptions(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                email: {
+                    in: 'query',
+                    name: 'email',
+                    required: true,
+                    dataType: 'string',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<UserController>(
+                    UserController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getLoginOptions.apply(
                     controller,
                     validatedArgs as any,
                 );

@@ -96,3 +96,13 @@ export type ApiRegisterUserResponse = {
     status: 'ok';
     results: LightdashUser;
 };
+
+export enum EmailIssuerType {
+    EMAIL = 'email',
+}
+
+export type LoginOptions = {
+    showOptions: (OpenIdIdentityIssuerType | EmailIssuerType)[];
+    forceRedirect?: boolean;
+    redirectUri?: string;
+};

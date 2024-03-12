@@ -784,4 +784,27 @@ export class UserModel {
 
         return row.refresh_token;
     }
+
+    async getOpenIdIssuer(email: string) {
+        const row = await this.database('openid_identities')
+            .where('email', email)
+            .select('issuer_type')
+            .first();
+
+        return row?.issuer_type;
+    }
+
+    async hasUserPassword(email: string): Promise<boolean> {
+        const user = await userDetailsQueryBuilder(this.database)
+            .leftJoin(
+                'password_logins',
+                'users.user_id',
+                'password_logins.user_id',
+            )
+            .where('email', email)
+            .select('password_hash')
+            .first();
+
+        return user?.password_hash !== undefined;
+    }
 }

@@ -2,12 +2,14 @@ import { subject } from '@casl/ability';
 import {
     ActivateUser,
     ArgumentsOf,
+    assertUnreachable,
     AuthorizationError,
     CompleteUserArgs,
     CreateInviteLink,
     CreatePasswordResetLink,
     CreateUserArgs,
     DeleteOpenIdentity,
+    EmailIssuerType,
     EmailStatusExpiring,
     ExpiredError,
     ForbiddenError,
@@ -18,8 +20,10 @@ import {
     isUserWithOrg,
     LightdashMode,
     LightdashUser,
+    LoginOptions,
     NotExistsError,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     OpenIdIdentitySummary,
     OpenIdUser,
     OrganizationMemberRole,
@@ -1149,5 +1153,56 @@ export class UserService {
                 credentialsId: userWarehouseCredentialsUuid,
             },
         });
+    }
+
+    async getLoginOptions(email: string): Promise<LoginOptions> {
+        const openIdIssuer = await this.userModel.getOpenIdIssuer(email);
+        if (openIdIssuer !== undefined) {
+            const getRedirectUri = (issuer: OpenIdIdentityIssuerType) => {
+                switch (issuer) {
+                    case OpenIdIdentityIssuerType.AZUREAD:
+                        return this.lightdashConfig.auth.azuread.loginPath;
+                    case OpenIdIdentityIssuerType.GOOGLE:
+                        return this.lightdashConfig.auth.google.loginPath;
+                    case OpenIdIdentityIssuerType.OKTA:
+                        return this.lightdashConfig.auth.okta.loginPath;
+                    case OpenIdIdentityIssuerType.ONELOGIN:
+                        return this.lightdashConfig.auth.oneLogin.loginPath;
+                    default:
+                        assertUnreachable(
+                            issuer,
+                            `Invalid login option for issuer ${issuer}`,
+                        );
+                }
+                return undefined;
+            };
+
+            return {
+                showOptions: [openIdIssuer],
+                forceRedirect: true,
+                redirectUri: getRedirectUri(openIdIssuer),
+            };
+        }
+
+        const isPasswordDisabled =
+            this.lightdashConfig.auth.disablePasswordAuthentication;
+        // Passwords disabled and no existing SSO/Google, then show SSO/Google options.
+        if (isPasswordDisabled)
+            return {
+                showOptions: [OpenIdIdentityIssuerType.GOOGLE],
+                forceRedirect: true,
+                redirectUri: this.lightdashConfig.auth.google.loginPath,
+            };
+
+        // We don't need to check if the user has a password or not, the outcome is the same
+        // No existing account / existing password -> show password field + sign in with google
+        return {
+            showOptions: [
+                EmailIssuerType.EMAIL,
+                OpenIdIdentityIssuerType.GOOGLE,
+            ],
+            forceRedirect: false,
+            redirectUri: this.lightdashConfig.auth.google.loginPath,
+        };
     }
 }
