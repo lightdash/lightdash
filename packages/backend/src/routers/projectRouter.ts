@@ -159,6 +159,7 @@ projectRouter.post(
                     req.user!,
                     req.params.projectUuid,
                     req.query.duplicateFrom.toString(),
+                    req.body,
                 )
                 .then((results) => {
                     res.json({

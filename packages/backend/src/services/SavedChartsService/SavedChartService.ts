@@ -693,6 +693,7 @@ export class SavedChartService {
         user: SessionUser,
         projectUuid: string,
         chartUuid: string,
+        data: { chartName: string; chartDesc: string },
     ): Promise<SavedChart> {
         const chart = await this.savedChartModel.get(chartUuid);
         const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
@@ -719,7 +720,11 @@ export class SavedChartService {
         };
         const base = {
             ...chart,
-            name: `Copy of ${chart.name}`,
+            name:
+                chart.name === data.chartName
+                    ? `Copy - ${chart.name}`
+                    : data.chartName, // avoid duplicate names
+            description: data.chartDesc,
             updatedByUser: user,
         };
         if (chart.dashboardUuid) {
