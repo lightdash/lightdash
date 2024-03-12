@@ -2,11 +2,20 @@ import { type Series } from '@lightdash/common';
 import { createContext, useCallback, useContext, useRef, type FC } from 'react';
 import { type EChartSeries } from './echarts/useEchartsCartesianConfig';
 
-export type SeriesLike = EChartSeries | Series;
+/**
+ * A unique key used to track the latest index assigned within a group,
+ * within the color mappings Map.
+ */
+const ASSIGNMENT_IDX_KEY = '$___idx';
 
 interface ChartColorMappingContextProps {
-    colorMappings: Map<string, string>;
+    colorMappings: Map<string, Map<string, number>>;
 }
+
+/**
+ * There's some variation in what Series object we may be working with.
+ */
+export type SeriesLike = EChartSeries | Series;
 
 const ChartColorMappingContext =
     createContext<ChartColorMappingContextProps | null>(null);
@@ -23,11 +32,13 @@ export const ChartColorMappingContextProvider: FC<
      * we don't want to trigger re-renders for every mapping assignment, and we're
      * creating assignments during the render process anyway.
      */
-    const colorMappings = useRef(new Map<string, string>());
+    const colorMappings = useRef(new Map<string, Map<string, number>>());
 
     return (
         <ChartColorMappingContext.Provider
-            value={{ colorMappings: colorMappings.current }}
+            value={{
+                colorMappings: colorMappings.current,
+            }}
         >
             {children}
         </ChartColorMappingContext.Provider>
@@ -63,39 +74,44 @@ export const useChartColorConfig = ({
      * Given the org's color palette, and an identifier, return the color palette value
      * for said identifier.
      *
-     * This works by hashing the identifier into an integer value, and then projecting
-     * that value into the org's color space - effectivelly getting a number from 0 to
-     * <number of colors in palette>.
+     * This works by taking a group and identifier, and cycling through the color palette
+     * colors on a first-come first-serve basis, scoped to a particular group of identifiers.
      *
-     * This is a straight-forward way to handle hashing dimensions into colors, with
-     * two major caveats:
+     * 'Group' will generally be something like a table or model name, e.g 'customer',
+     * 'Identifier' will generally be something like a field name, or a group value.
      *
-     * - We're no longer cycling over colors in the palette, potentially not following
-     *   an intentionally-designed best-neighbor-color approach.
-     * - We have no guarantee different dimensions won't be assigned the same color due
-     *   to the narrow color space - we can fix this by shifting colors aside when
-     *   compiling the chart config.
+     * Because this color cycling is done per group, it allows unrelated charts/series
+     * to cycle through colors in the palette in parallel.
      */
     const calculateKeyColorAssignment = useCallback(
-        (identifier: string) => {
-            if (colorMappings.has(identifier)) {
-                return colorMappings.get(identifier)!;
+        (group: string, identifier: string) => {
+            let groupMappings = colorMappings.get(group);
+
+            if (groupMappings && groupMappings.has(identifier)) {
+                return colorPalette[groupMappings.get(identifier)!];
             }
 
-            const hashedValue = Math.abs(
-                identifier.split('').reduce(function (a, b) {
-                    a = (a << 5) - a + b.charCodeAt(0);
-                    return a & a;
-                }, 0),
-            );
+            if (!groupMappings) {
+                groupMappings = new Map<string, number>();
+                colorMappings.set(group, groupMappings);
+            }
 
-            // Project the hashed value into the available color space:
-            const colorIdx = hashedValue % colorPalette.length;
-            const colorHex = colorPalette[colorIdx];
+            /**
+             * Figure out the last color assigned in this group, and either pick the
+             * next color in the palette, or start over from 0.
+             */
+            const currentIdx = groupMappings.get(ASSIGNMENT_IDX_KEY) ?? -1;
+            const nextIdx =
+                currentIdx === colorPalette.length - 1 ? 0 : currentIdx + 1;
+            const colorHex = colorPalette[nextIdx];
 
-            // Keep track of this identifier->color pairing so we can bypass the
-            // hashing later.
-            colorMappings.set(identifier, colorHex);
+            // Keep track of the current value of the color idx for this group:
+            groupMappings.set(ASSIGNMENT_IDX_KEY, nextIdx);
+
+            // Keep track of the color idx used for this identifier, within this group:
+            groupMappings.set(identifier, nextIdx);
+
+            console.log(`A ${group}->${identifier} ${nextIdx} ${colorHex}`);
 
             return colorHex;
         },
@@ -123,7 +139,20 @@ export const useChartColorConfig = ({
                 ? pivotValuesSubPath
                 : baseField;
 
-            return calculateKeyColorAssignment(completeIdentifier);
+            /**
+             * Always include the first portion of the base field as the group identifier. This
+             * will in turn give us a group/identifier pair that looks like, e.g:
+             *
+             * ['customer', 'customer_first_name']
+             *
+             * or
+             *
+             * ['customer', 'Bob'] (if Bob is a)
+             */
+            return calculateKeyColorAssignment(
+                baseField.split('_')[0],
+                completeIdentifier,
+            );
         },
         [calculateKeyColorAssignment],
     );
