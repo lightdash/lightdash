@@ -48,7 +48,12 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 tableName={unsavedChartVersionTableName}
                 explore={explore}
             >
-                <Stack sx={{ flexGrow: 1 }} ref={ref}>
+                <Stack
+                    spacing={isResultsTableDrawerFeatureEnabled ? 'xs' : 'md'}
+                    sx={{ flexGrow: 1 }}
+                    mb={isResultsTableDrawerFeatureEnabled ? 'lg' : 0}
+                    ref={ref}
+                >
                     {!hideHeader && <ExplorerHeader />}
 
                     <FiltersCard />
@@ -61,10 +66,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                     {!isResultsTableDrawerFeatureEnabled && <ResultsCard />}
 
                     <SqlCard projectUuid={projectUuid} />
+                    {isResultsTableDrawerFeatureEnabled && (
+                        <ResultsDrawer w={width} />
+                    )}
                 </Stack>
-                {isResultsTableDrawerFeatureEnabled && (
-                    <ResultsDrawer w={width} />
-                )}
 
                 <UnderlyingDataModal />
                 <DrillDownModal />
