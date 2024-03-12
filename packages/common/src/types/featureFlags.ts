@@ -27,4 +27,9 @@ export enum FeatureFlags {
     /**/
     PuppeteerScrollElementIntoView = 'puppeteer-scroll-element-into-view',
     PuppeteerSetViewportDynamically = 'puppeteer-set-viewport-dynamically',
+
+    /**
+     * Enables the new results table drawer
+     */
+    ResultsTableDrawer = 'results-table-drawer',
 }
