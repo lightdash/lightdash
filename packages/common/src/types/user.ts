@@ -106,3 +106,8 @@ export type LoginOptions = {
     forceRedirect?: boolean;
     redirectUri?: string;
 };
+
+export type ApiGetLoginOptionsResponse = {
+    status: 'ok';
+    results: LoginOptions;
+};

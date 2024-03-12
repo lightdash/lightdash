@@ -314,10 +314,10 @@ export class UserController extends BaseController {
         status: 'ok';
         results: LoginOptions;
     }> {
-        this.setStatus(200);
         const loginOptions = await this.services
             .getUserService()
             .getLoginOptions(email);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: loginOptions,

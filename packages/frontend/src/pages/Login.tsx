@@ -29,6 +29,7 @@ import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
+import LoginLanding from '../features/users/components/LoginLanding';
 import useToaster from '../hooks/toaster/useToaster';
 import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useApp } from '../providers/AppProvider';
@@ -221,6 +222,9 @@ const LoginContent: FC = () => {
 };
 
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
+    // TODO: this should be a feature flag but posthog login was totally broken today
+    const useNewLogin = false;
+
     return minimal ? (
         <Stack m="xl">
             <LoginContent />
@@ -228,7 +232,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     ) : (
         <Page title="Login" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
-                <LoginContent />
+                {useNewLogin ? <LoginLanding /> : <LoginContent />}
             </Stack>
         </Page>
     );
