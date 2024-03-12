@@ -134,7 +134,7 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </>
                 }
                 required
-                {...register('dbt.branch', {
+                {...register('dbt.project_sub_path', {
                     validate: {
                         hasNoWhiteSpaces: hasNoWhiteSpaces(
                             'Project directory path',
