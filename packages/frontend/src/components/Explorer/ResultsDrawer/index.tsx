@@ -19,23 +19,23 @@ import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { IconArrowDown, IconMaximize, IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { downloadCsv } from '../../api/csv';
-import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
-import { useApp } from '../../providers/AppProvider';
+import { downloadCsv } from '../../../api/csv';
+import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
+import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,
     useExplorerContext,
-} from '../../providers/ExplorerProvider';
-import AddColumnButton from '../AddColumnButton';
-import { Can } from '../common/Authorization';
+} from '../../../providers/ExplorerProvider';
+import AddColumnButton from '../../AddColumnButton';
+import { Can } from '../../common/Authorization';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../common/CollapsableCard';
-import MantineIcon from '../common/MantineIcon';
-import ExportSelector from '../ExportSelector';
-import SortButton from '../SortButton';
-import { ExplorerResults } from './ResultsCard/ExplorerResults';
+} from '../../common/CollapsableCard';
+import MantineIcon from '../../common/MantineIcon';
+import ExportSelector from '../../ExportSelector';
+import SortButton from '../../SortButton';
+import { ExplorerResults } from '../ResultsCard/ExplorerResults';
 
 export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
     const theme = useMantineTheme();
