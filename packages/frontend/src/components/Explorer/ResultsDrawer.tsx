@@ -22,7 +22,10 @@ import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../api/csv';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useApp } from '../../providers/AppProvider';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
+import {
+    ExplorerSection,
+    useExplorerContext,
+} from '../../providers/ExplorerProvider';
 import AddColumnButton from '../AddColumnButton';
 import { Can } from '../common/Authorization';
 import {
@@ -34,18 +37,8 @@ import ExportSelector from '../ExportSelector';
 import SortButton from '../SortButton';
 import { ExplorerResults } from './ResultsCard/ExplorerResults';
 
-const INTIAL_RESULTS_DRAWER_HEIGHT_PX = 500;
-
-// always say results
-// button as close to the drawer line - resize
-// query from tables - nothing selected, no query run:
-// results open by default in empty state
-// once run query is run, charts open, and results go lower
-// sorted by should be next to results card
-
 export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
     const theme = useMantineTheme();
-    const pageContentPadding = theme.spacing.lg;
 
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -68,11 +61,14 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
     const sorts = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
-    const hasSorts = tableName && sorts.length > 0;
-
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
+    );
+
+    const hasSorts = tableName && sorts.length > 0;
     const isExportAsCsvDisabled = !resultsData || resultsData.rows.length <= 0;
 
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
@@ -99,10 +95,41 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
         return gsheetResponse;
     };
 
+    // Open by default when querying from tables and no query has been run.
+    const [isInitiallyOpen, setIsInitiallyOpen] = useState(
+        !tableName && isEditMode && !resultsData,
+    );
+
     const { ref, height: headerHeight } = useElementSize<HTMLDivElement>();
-    const [opened, { open, close }] = useDisclosure(false);
+    const [opened, { open, close }] = useDisclosure(isInitiallyOpen);
     const [isResizing, setIsResizing] = useState(false);
+    const PAGE_CONTENT_PADDING = theme.spacing.lg;
+    const INTIAL_RESULTS_DRAWER_HEIGHT_PX = 500;
+    const MIN_DRAWER_HEIGHT = useMemo(
+        () => headerHeight + px(theme.spacing.xs) * 2,
+        [headerHeight, theme.spacing.xs],
+    );
+    const drawerWidth = useMemo(
+        () => (w ? +w + px(PAGE_CONTENT_PADDING) * 2 + 'px' : '100%'),
+        [w, PAGE_CONTENT_PADDING],
+    );
     const [height, setHeight] = useState(INTIAL_RESULTS_DRAWER_HEIGHT_PX);
+
+    useEffect(() => {
+        if (isInitiallyOpen && isEditMode && resultsData) {
+            setHeight(MIN_DRAWER_HEIGHT);
+            setIsInitiallyOpen(false);
+            toggleExpandedSection(ExplorerSection.VISUALIZATION);
+        }
+    }, [
+        isInitiallyOpen,
+        isEditMode,
+        open,
+        resultsData,
+        close,
+        toggleExpandedSection,
+        MIN_DRAWER_HEIGHT,
+    ]);
 
     const onMouseDown = () => {
         setIsResizing(true);
@@ -116,12 +143,8 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
         if (isResizing) {
             // Calculate the distance from the bottom of the screen to the mouse cursor.
             let offsetBottom = window.innerHeight - e.clientY;
-            console.log(px(theme.spacing.xs));
 
-            const minHeight = headerHeight + px(theme.spacing.xs) * 2; // Minimum drawer height.
-
-            console.log(ref.current.style);
-
+            const minHeight = MIN_DRAWER_HEIGHT; // Minimum drawer height.
             const maxHeight = 600; // Maximum drawer height.
 
             // Check if the new height is within bounds and update the height if it is.
@@ -141,11 +164,6 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
         };
     });
 
-    const drawerWidth = useMemo(
-        () => (w ? +w + px(pageContentPadding) * 2 + 'px' : '100%'),
-        [w, pageContentPadding],
-    );
-
     return (
         <>
             <Drawer
@@ -163,15 +181,15 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
                 styles={{
                     inner: {
                         width: 'fill-available',
-                        bottom: px(pageContentPadding),
-                        margin: -px(pageContentPadding),
+                        bottom: px(PAGE_CONTENT_PADDING),
+                        margin: -px(PAGE_CONTENT_PADDING),
 
                         // Can't target Drawer's Paper directly
                         '& > section': {
                             width: 'fill-available',
                             position: 'absolute',
-                            bottom: -px(pageContentPadding),
-                            marginRight: px(pageContentPadding),
+                            bottom: -px(PAGE_CONTENT_PADDING),
+                            marginRight: px(PAGE_CONTENT_PADDING),
                             left: 0,
                             boxShadow: 'none',
                         },
@@ -290,8 +308,8 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
                 w={drawerWidth}
                 radius="none"
                 pos="absolute"
-                bottom={px(pageContentPadding)}
-                m={-px(pageContentPadding)}
+                bottom={px(PAGE_CONTENT_PADDING)}
+                m={-px(PAGE_CONTENT_PADDING)}
                 sx={{
                     borderTop: `1px solid ${theme.colors.gray['1']}`,
                 }}
@@ -304,12 +322,7 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
                         )}
                     </Group>
 
-                    <ActionIcon
-                        size="xs"
-                        onClick={open}
-                        disabled={!tableName}
-                        variant="default"
-                    >
+                    <ActionIcon size="xs" onClick={open} variant="default">
                         <MantineIcon icon={IconMaximize} />
                     </ActionIcon>
                 </Group>
