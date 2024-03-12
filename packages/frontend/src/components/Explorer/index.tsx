@@ -1,5 +1,6 @@
 import { FeatureFlags, ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import { FC, memo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../hooks/useExplore';
@@ -20,6 +21,8 @@ import VisualizationCard from './VisualizationCard/VisualizationCard';
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
+        const { ref, width } = useElementSize();
+
         const isResultsTableDrawerFeatureEnabled = !useFeatureFlagEnabled(
             FeatureFlags.ResultsTableDrawer,
         );
@@ -45,7 +48,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 tableName={unsavedChartVersionTableName}
                 explore={explore}
             >
-                <Stack sx={{ flexGrow: 1 }}>
+                <Stack sx={{ flexGrow: 1 }} ref={ref}>
                     {!hideHeader && <ExplorerHeader />}
 
                     <FiltersCard />
@@ -55,14 +58,13 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                         isProjectPreview={isProjectPreview}
                     />
 
-                    {isResultsTableDrawerFeatureEnabled ? (
-                        <ResultsDrawer />
-                    ) : (
-                        <ResultsCard />
-                    )}
+                    {!isResultsTableDrawerFeatureEnabled && <ResultsCard />}
 
                     <SqlCard projectUuid={projectUuid} />
                 </Stack>
+                {isResultsTableDrawerFeatureEnabled && (
+                    <ResultsDrawer w={width} />
+                )}
 
                 <UnderlyingDataModal />
                 <DrillDownModal />

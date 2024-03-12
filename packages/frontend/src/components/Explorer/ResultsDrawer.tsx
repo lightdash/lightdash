@@ -2,17 +2,24 @@ import { subject } from '@casl/ability';
 import {
     ActionIcon,
     Affix,
+    Box,
     Button,
+    Card,
     Divider,
     Drawer,
+    DrawerProps,
     Group,
     Popover,
+    px,
     rem,
+    Stack,
+    Text,
     UnstyledButton,
+    useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconArrowDown, IconShare2 } from '@tabler/icons-react';
-import { FC, memo, useEffect, useState } from 'react';
+import { IconArrowDown, IconMaximize, IconShare2 } from '@tabler/icons-react';
+import { FC, memo, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../api/csv';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
@@ -29,7 +36,13 @@ import ExportSelector from '../ExportSelector';
 import SortButton from '../SortButton';
 import { ExplorerResults } from './ResultsCard/ExplorerResults';
 
-export const ResultsDrawer: FC = memo(() => {
+const INTIAL_RESULTS_DRAWER_HEIGHT_PX = 500;
+
+export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
+    const theme = useMantineTheme();
+    const pageContentPadding = theme.spacing.lg;
+    console.log(pageContentPadding);
+
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -84,7 +97,7 @@ export const ResultsDrawer: FC = memo(() => {
 
     const [opened, { open, close }] = useDisclosure(false);
     const [isResizing, setIsResizing] = useState(false);
-    const [height, setHeight] = useState(500);
+    const [height, setHeight] = useState(INTIAL_RESULTS_DRAWER_HEIGHT_PX);
 
     const onMouseDown = () => {
         setIsResizing(true);
@@ -98,7 +111,7 @@ export const ResultsDrawer: FC = memo(() => {
         if (isResizing) {
             // Calculate the distance from the bottom of the screen to the mouse cursor.
             let offsetBottom = window.innerHeight - e.clientY;
-            const minHeight = 50; // Minimum drawer height.
+            const minHeight = 16; // Minimum drawer height.
             const maxHeight = 600; // Maximum drawer height.
 
             // Check if the new height is within bounds and update the height if it is.
@@ -118,113 +131,144 @@ export const ResultsDrawer: FC = memo(() => {
         };
     });
 
+    const drawerWidth = useMemo(
+        () => (w ? +w + px(pageContentPadding) * 2 + 'px' : '100%'),
+        [w, pageContentPadding],
+    );
+
     return (
-        <Affix position={{ bottom: rem(10), right: rem(20) }}>
+        <Affix position={{ bottom: rem(0), right: rem(0) }} hidden={opened}>
             <Drawer
                 pos="relative"
-                p="xs"
-                withOverlay={false}
                 position="bottom"
+                size={height}
                 opened={opened}
                 onClose={close}
+                withOverlay={false}
                 lockScroll={false}
-                size={height}
                 withCloseButton={false}
-                shadow="md"
+                styles={{
+                    root: {
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                    },
+                    inner: {
+                        width: drawerWidth,
+                    },
+                }}
             >
-                {hasSorts && (
-                    <SortButton isEditMode={isEditMode} sorts={sorts} />
-                )}
-                <UnstyledButton onMouseDown={onMouseDown}>
-                    <Divider
+                <Box p="xs">
+                    {hasSorts && (
+                        <SortButton isEditMode={isEditMode} sorts={sorts} />
+                    )}
+                    <UnstyledButton
+                        onMouseDown={onMouseDown}
+                        h={14}
                         pos="absolute"
-                        top="1px"
+                        top="px"
                         left="50%"
                         right="50%"
                         w="50px"
                         sx={{
                             cursor: 'n-resize',
-                            borderTopWidth: rem(2),
-                            borderTopColor: 'gray.5',
                         }}
-                    />
-                    <Divider
+                    >
+                        <Stack spacing="two">
+                            <Divider
+                                sx={{
+                                    borderTopWidth: rem(2),
+                                    borderTopColor: 'gray.5',
+                                }}
+                            />
+                            <Divider
+                                sx={{
+                                    borderTopWidth: rem(2),
+                                    borderTopColor: 'gray.5',
+                                }}
+                            />
+                        </Stack>
+                    </UnstyledButton>
+                    <ActionIcon
+                        size="xs"
+                        variant="default"
                         pos="absolute"
                         top="5px"
-                        left="50%"
-                        right="50%"
-                        w="50px"
-                        sx={{
-                            cursor: 'n-resize',
-                            borderTopColor: 'gray.5',
-                            borderTopWidth: rem(2),
+                        right="16px"
+                        onClick={() => {
+                            close();
+                            setHeight(INTIAL_RESULTS_DRAWER_HEIGHT_PX);
                         }}
-                    />
-                </UnstyledButton>
-                <ActionIcon
-                    size="xs"
-                    variant="default"
-                    pos="absolute"
-                    top="5px"
-                    right="16px"
-                    onClick={close}
-                >
-                    <MantineIcon icon={IconArrowDown} color="gray" />
-                </ActionIcon>
-                {tableName && (
-                    <Group position="right" spacing="xs">
-                        {isEditMode && <AddColumnButton />}
+                    >
+                        <MantineIcon icon={IconArrowDown} color="gray" />
+                    </ActionIcon>
+                    {tableName && (
+                        <Group position="right" spacing="xs">
+                            {isEditMode && <AddColumnButton />}
 
-                        <Can
-                            I="manage"
-                            this={subject('ExportCsv', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid: projectUuid,
-                            })}
-                        >
-                            <Popover
-                                {...COLLAPSABLE_CARD_POPOVER_PROPS}
-                                disabled={isExportAsCsvDisabled}
-                                position="bottom-end"
+                            <Can
+                                I="manage"
+                                this={subject('ExportCsv', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid: projectUuid,
+                                })}
                             >
-                                <Popover.Target>
-                                    <Button
-                                        data-testid="export-csv-button"
-                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                                        disabled={isExportAsCsvDisabled}
-                                        px="xs"
-                                    >
-                                        <MantineIcon
-                                            icon={IconShare2}
-                                            color="gray"
-                                        />
-                                    </Button>
-                                </Popover.Target>
+                                <Popover
+                                    {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                                    disabled={isExportAsCsvDisabled}
+                                    position="bottom-end"
+                                >
+                                    <Popover.Target>
+                                        <Button
+                                            data-testid="export-csv-button"
+                                            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                            disabled={isExportAsCsvDisabled}
+                                            px="xs"
+                                        >
+                                            <MantineIcon
+                                                icon={IconShare2}
+                                                color="gray"
+                                            />
+                                        </Button>
+                                    </Popover.Target>
 
-                                <Popover.Dropdown>
-                                    <ExportSelector
-                                        projectUuid={projectUuid}
-                                        rows={rows}
-                                        getCsvLink={getCsvLink}
-                                        getGsheetLink={getGsheetLink}
-                                    />
-                                </Popover.Dropdown>
-                            </Popover>
-                        </Can>
-                    </Group>
-                )}
-                <ExplorerResults />
+                                    <Popover.Dropdown>
+                                        <ExportSelector
+                                            projectUuid={projectUuid}
+                                            rows={rows}
+                                            getCsvLink={getCsvLink}
+                                            getGsheetLink={getGsheetLink}
+                                        />
+                                    </Popover.Dropdown>
+                                </Popover>
+                            </Can>
+                        </Group>
+                    )}
+                    <ExplorerResults />
+                </Box>
             </Drawer>
-            <Group position="center">
-                <Button
-                    compact
-                    variant="default"
-                    onClick={open}
-                    disabled={!tableName}
-                >
-                    Results
-                </Button>
-            </Group>
+            <Card
+                p="xs"
+                pl="md"
+                w={drawerWidth}
+                radius="none"
+                sx={{
+                    borderTop: `1px solid ${theme.colors.gray['1']}`,
+                }}
+            >
+                <Group position="apart">
+                    <Text fw={500}>Results</Text>
+
+                    <ActionIcon
+                        size="xs"
+                        onClick={open}
+                        disabled={!tableName}
+                        variant="default"
+                    >
+                        <MantineIcon icon={IconMaximize} />
+                    </ActionIcon>
+                </Group>
+            </Card>
         </Affix>
     );
 });
