@@ -1,8 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     ActionIcon,
-    Affix,
-    Box,
     Button,
     Card,
     Divider,
@@ -17,7 +15,7 @@ import {
     UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { IconArrowDown, IconMaximize, IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -38,10 +36,16 @@ import { ExplorerResults } from './ResultsCard/ExplorerResults';
 
 const INTIAL_RESULTS_DRAWER_HEIGHT_PX = 500;
 
+// always say results
+// button as close to the drawer line - resize
+// query from tables - nothing selected, no query run:
+// results open by default in empty state
+// once run query is run, charts open, and results go lower
+// sorted by should be next to results card
+
 export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
     const theme = useMantineTheme();
     const pageContentPadding = theme.spacing.lg;
-    console.log(pageContentPadding);
 
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -95,6 +99,7 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
         return gsheetResponse;
     };
 
+    const { ref, height: headerHeight } = useElementSize<HTMLDivElement>();
     const [opened, { open, close }] = useDisclosure(false);
     const [isResizing, setIsResizing] = useState(false);
     const [height, setHeight] = useState(INTIAL_RESULTS_DRAWER_HEIGHT_PX);
@@ -111,7 +116,12 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
         if (isResizing) {
             // Calculate the distance from the bottom of the screen to the mouse cursor.
             let offsetBottom = window.innerHeight - e.clientY;
-            const minHeight = 16; // Minimum drawer height.
+            console.log(px(theme.spacing.xs));
+
+            const minHeight = headerHeight + px(theme.spacing.xs) * 2; // Minimum drawer height.
+
+            console.log(ref.current.style);
+
             const maxHeight = 600; // Maximum drawer height.
 
             // Check if the new height is within bounds and update the height if it is.
@@ -137,9 +147,9 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
     );
 
     return (
-        <Affix position={{ bottom: rem(0), right: rem(0) }} hidden={opened}>
+        <>
             <Drawer
-                pos="relative"
+                withinPortal={false}
                 position="bottom"
                 size={height}
                 opened={opened}
@@ -147,126 +157,152 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
                 withOverlay={false}
                 lockScroll={false}
                 withCloseButton={false}
+                transitionProps={{
+                    duration: 0,
+                }}
                 styles={{
-                    root: {
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                    },
                     inner: {
-                        width: drawerWidth,
+                        width: 'fill-available',
+                        bottom: px(pageContentPadding),
+                        margin: -px(pageContentPadding),
 
-                        // Remove the box shadow of the `Paper` component in Drawer that can't be targeted directly
+                        // Can't target Drawer's Paper directly
                         '& > section': {
+                            width: 'fill-available',
+                            position: 'absolute',
+                            bottom: -px(pageContentPadding),
+                            marginRight: px(pageContentPadding),
+                            left: 0,
                             boxShadow: 'none',
                         },
                     },
                     body: {
                         borderTop: `1px solid ${theme.colors.gray['1']}`,
-                        paddingTop: 0,
+                        paddingTop: theme.spacing.xs,
                     },
                 }}
             >
-                <Box p="xs">
-                    {hasSorts && (
-                        <SortButton isEditMode={isEditMode} sorts={sorts} />
-                    )}
-                    <UnstyledButton
-                        onMouseDown={onMouseDown}
-                        h={14}
-                        pos="absolute"
-                        top="px"
-                        left="50%"
-                        right="50%"
-                        w="50px"
-                        sx={{
-                            cursor: 'n-resize',
-                        }}
-                    >
-                        <Stack spacing="two">
-                            <Divider
-                                sx={{
-                                    borderTopWidth: rem(2),
-                                    borderTopColor: 'gray.5',
-                                }}
-                            />
-                            <Divider
-                                sx={{
-                                    borderTopWidth: rem(2),
-                                    borderTopColor: 'gray.5',
-                                }}
-                            />
-                        </Stack>
-                    </UnstyledButton>
-                    <ActionIcon
-                        size="xs"
-                        variant="default"
-                        pos="absolute"
-                        top="5px"
-                        right="16px"
-                        onClick={() => {
-                            close();
-                            setHeight(INTIAL_RESULTS_DRAWER_HEIGHT_PX);
-                        }}
-                    >
-                        <MantineIcon icon={IconArrowDown} color="gray" />
-                    </ActionIcon>
-                    {tableName && (
-                        <Group position="right" spacing="xs">
-                            {isEditMode && <AddColumnButton />}
+                <Group ref={ref} p="xs" pos="relative" position="apart">
+                    <Group>
+                        <Text fw={500}>Results</Text>
+                        {hasSorts && (
+                            <SortButton isEditMode={isEditMode} sorts={sorts} />
+                        )}
+                    </Group>
+                    <Group>
+                        <UnstyledButton
+                            onMouseDown={onMouseDown}
+                            h={14}
+                            pos="absolute"
+                            top={-8}
+                            left="50%"
+                            right="50%"
+                            w="xl"
+                            sx={{
+                                cursor: 'n-resize',
+                            }}
+                        >
+                            <Stack spacing="two">
+                                <Divider
+                                    sx={{
+                                        borderTopWidth: '2px',
+                                        borderTopColor: theme.colors.gray['5'],
+                                    }}
+                                />
+                                <Divider
+                                    sx={{
+                                        borderTopWidth: rem(2),
+                                        borderTopColor: theme.colors.gray['5'],
+                                    }}
+                                />
+                            </Stack>
+                        </UnstyledButton>
 
-                            <Can
-                                I="manage"
-                                this={subject('ExportCsv', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid: projectUuid,
-                                })}
-                            >
-                                <Popover
-                                    {...COLLAPSABLE_CARD_POPOVER_PROPS}
-                                    disabled={isExportAsCsvDisabled}
-                                    position="bottom-end"
-                                >
-                                    <Popover.Target>
-                                        <Button
-                                            data-testid="export-csv-button"
-                                            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                        <Group>
+                            {tableName && (
+                                <Group position="right" spacing="xs">
+                                    {isEditMode && <AddColumnButton />}
+
+                                    <Can
+                                        I="manage"
+                                        this={subject('ExportCsv', {
+                                            organizationUuid:
+                                                user.data?.organizationUuid,
+                                            projectUuid: projectUuid,
+                                        })}
+                                    >
+                                        <Popover
+                                            {...COLLAPSABLE_CARD_POPOVER_PROPS}
                                             disabled={isExportAsCsvDisabled}
-                                            px="xs"
+                                            position="bottom-end"
                                         >
-                                            <MantineIcon
-                                                icon={IconShare2}
-                                                color="gray"
-                                            />
-                                        </Button>
-                                    </Popover.Target>
+                                            <Popover.Target>
+                                                <Button
+                                                    data-testid="export-csv-button"
+                                                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                                    disabled={
+                                                        isExportAsCsvDisabled
+                                                    }
+                                                    px="xs"
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconShare2}
+                                                        color="gray"
+                                                    />
+                                                </Button>
+                                            </Popover.Target>
 
-                                    <Popover.Dropdown>
-                                        <ExportSelector
-                                            projectUuid={projectUuid}
-                                            rows={rows}
-                                            getCsvLink={getCsvLink}
-                                            getGsheetLink={getGsheetLink}
-                                        />
-                                    </Popover.Dropdown>
-                                </Popover>
-                            </Can>
+                                            <Popover.Dropdown>
+                                                <ExportSelector
+                                                    projectUuid={projectUuid}
+                                                    rows={rows}
+                                                    getCsvLink={getCsvLink}
+                                                    getGsheetLink={
+                                                        getGsheetLink
+                                                    }
+                                                />
+                                            </Popover.Dropdown>
+                                        </Popover>
+                                    </Can>
+                                </Group>
+                            )}
+                            <ActionIcon
+                                variant="default"
+                                onClick={() => {
+                                    close();
+                                    setHeight(INTIAL_RESULTS_DRAWER_HEIGHT_PX);
+                                }}
+                            >
+                                <MantineIcon
+                                    icon={IconArrowDown}
+                                    color="gray"
+                                />
+                            </ActionIcon>
                         </Group>
-                    )}
-                    <ExplorerResults />
-                </Box>
+                    </Group>
+                </Group>
+
+                <ExplorerResults />
             </Drawer>
             <Card
-                p="xs"
+                p="sm"
                 pl="md"
                 w={drawerWidth}
                 radius="none"
+                pos="absolute"
+                bottom={px(pageContentPadding)}
+                m={-px(pageContentPadding)}
                 sx={{
                     borderTop: `1px solid ${theme.colors.gray['1']}`,
                 }}
             >
                 <Group position="apart">
-                    <Text fw={500}>Results</Text>
+                    <Group>
+                        <Text fw={500}>Results</Text>
+                        {hasSorts && (
+                            <SortButton isEditMode={isEditMode} sorts={sorts} />
+                        )}
+                    </Group>
 
                     <ActionIcon
                         size="xs"
@@ -278,6 +314,6 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
                     </ActionIcon>
                 </Group>
             </Card>
-        </Affix>
+        </>
     );
 });
