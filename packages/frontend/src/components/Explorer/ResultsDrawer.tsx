@@ -13,12 +13,21 @@ import { IconArrowDown } from '@tabler/icons-react';
 import { FC, memo, useEffect, useState } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import MantineIcon from '../common/MantineIcon';
+import SortButton from '../SortButton';
 import { ExplorerResults } from './ResultsCard/ExplorerResults';
 
 export const ResultsDrawer: FC = memo(() => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const sorts = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
+    );
+
+    const hasSorts = tableName && sorts.length > 0;
     const [opened, { open, close }] = useDisclosure(false);
     const [isResizing, setIsResizing] = useState(false);
     const [height, setHeight] = useState(500);
@@ -69,6 +78,9 @@ export const ResultsDrawer: FC = memo(() => {
                 withCloseButton={false}
                 shadow="md"
             >
+                {hasSorts && (
+                    <SortButton isEditMode={isEditMode} sorts={sorts} />
+                )}
                 <UnstyledButton onMouseDown={onMouseDown}>
                     <Divider
                         pos="absolute"
