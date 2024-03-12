@@ -1,5 +1,6 @@
 import {
     ApiError,
+    FeatureFlags,
     getEmailSchema,
     LightdashMode,
     LightdashUser,
@@ -31,6 +32,7 @@ import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInBut
 import PageSpinner from '../components/PageSpinner';
 import LoginLanding from '../features/users/components/LoginLanding';
 import useToaster from '../hooks/toaster/useToaster';
+import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -222,8 +224,8 @@ const LoginContent: FC = () => {
 };
 
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
-    // TODO: this should be a feature flag but posthog login was totally broken today
-    const useNewLogin = false;
+    // FEATURE FLAG
+    const useNewLogin = useFeatureFlagEnabled(FeatureFlags.newLoginEnabled);
 
     return minimal ? (
         <Stack m="xl">
