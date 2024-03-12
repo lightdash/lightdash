@@ -1,3 +1,10 @@
+## [0.1030.5](https://github.com/lightdash/lightdash/compare/0.1030.4...0.1030.5) (2024-03-12)
+
+
+### Bug Fixes
+
+* await for loginWithPersonalAccessToken promise ([#9337](https://github.com/lightdash/lightdash/issues/9337)) ([4fff3c9](https://github.com/lightdash/lightdash/commit/4fff3c905b6f8c07b855c5bcfa534782f0570ac9))
+
 ## [0.1030.4](https://github.com/lightdash/lightdash/compare/0.1030.3...0.1030.4) (2024-03-12)
 
 
