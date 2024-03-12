@@ -15,24 +15,6 @@ import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useUser from './user/useUser';
 
-const getSpaces = async (projectUuid: string) =>
-    lightdashApi<Space[]>({
-        url: `/projects/${projectUuid}/spaces-and-content`,
-        method: 'GET',
-        body: undefined,
-    });
-
-const useSpaces = (
-    projectUuid: string,
-    queryOptions?: UseQueryOptions<Space[], ApiError>,
-) => {
-    return useQuery<Space[], ApiError>(
-        ['spaces', projectUuid],
-        () => getSpaces(projectUuid),
-        { ...queryOptions },
-    );
-};
-
 const getSpaceSummaries = async (projectUuid: string) => {
     return lightdashApi<SpaceSummary[]>({
         url: `/projects/${projectUuid}/spaces`,
@@ -63,14 +45,6 @@ export const useSpaceSummaries = (
             ...queryOptions,
         },
     );
-};
-
-// DEPRECATED: masks usage of `/spaces-and-content` endpoint
-// Use `useSpaceSummaries` where possible
-export const useSavedCharts = (projectUuid: string) => {
-    const spaces = useSpaces(projectUuid);
-    const allCharts = spaces.data?.flatMap((space) => space.queries);
-    return { ...spaces, data: allCharts };
 };
 
 const getSpace = async (projectUuid: string, spaceUuid: string) =>

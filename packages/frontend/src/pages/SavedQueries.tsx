@@ -14,13 +14,13 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
-import { useSavedCharts } from '../hooks/useSpaces';
+import { useChartSummaries } from '../hooks/useChartSummaries';
 import { useApp } from '../providers/AppProvider';
 
 const SavedQueries: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isInitialLoading, data: savedQueries = [] } =
-        useSavedCharts(projectUuid);
+        useChartSummaries(projectUuid);
 
     const { user, health } = useApp();
     const cannotView = user.data?.ability?.cannot('view', 'SavedChart');

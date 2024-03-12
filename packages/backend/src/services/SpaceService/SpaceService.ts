@@ -75,24 +75,6 @@ export class SpaceService {
         this.pinnedListModel = args.pinnedListModel;
     }
 
-    async getAllSpaces(
-        projectUuid: string,
-        user: SessionUser,
-    ): Promise<Space[]> {
-        const spaces = await this.spaceModel.getAllSpaces(projectUuid);
-        return spaces.filter(
-            (space) =>
-                user.ability.can(
-                    'view',
-                    subject('SavedChart', {
-                        organizationUuid: space.organizationUuid,
-                        projectUuid,
-                        isPrivate: false,
-                    }),
-                ) && hasDirectAccessToSpace(user, space),
-        );
-    }
-
     async getSpace(
         projectUuid: string,
         user: SessionUser,

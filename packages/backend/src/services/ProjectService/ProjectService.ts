@@ -3199,7 +3199,7 @@ export class ProjectService {
     async getCharts(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<ChartSummary[]> {
+    ): Promise<SpaceQuery[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -3233,11 +3233,9 @@ export class ProjectService {
             (_, index) => allowedSpacesBooleans[index],
         );
 
-        const charts = await this.savedChartModel.find({
-            projectUuid,
-            spaceUuids: allowedSpaces.map((s) => s.uuid),
-        });
-        return charts;
+        return this.spaceModel.getSpaceQueries(
+            allowedSpaces.map((s) => s.uuid),
+        );
     }
 
     async getMostPopularAndRecentlyUpdated(

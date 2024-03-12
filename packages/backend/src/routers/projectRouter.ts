@@ -201,24 +201,6 @@ projectRouter.patch(
 );
 
 projectRouter.get(
-    '/spaces-and-content',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        req.services
-            .getSpaceService()
-            .getAllSpaces(req.params.projectUuid, req.user!)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
-    },
-);
-
-projectRouter.get(
     '/most-popular-and-recently-updated',
     allowApiKeyAuthentication,
     isAuthenticated,

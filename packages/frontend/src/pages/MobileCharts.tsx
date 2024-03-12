@@ -13,13 +13,13 @@ import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
-import { useSavedCharts } from '../hooks/useSpaces';
+import { useChartSummaries } from '../hooks/useChartSummaries';
 import { useApp } from '../providers/AppProvider';
 
 const MobileCharts: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isInitialLoading, data: savedQueries = [] } =
-        useSavedCharts(projectUuid);
+        useChartSummaries(projectUuid);
     const { user } = useApp();
     const cannotView = user.data?.ability?.cannot('view', 'SavedChart');
     const [search, setSearch] = useState<string>('');
