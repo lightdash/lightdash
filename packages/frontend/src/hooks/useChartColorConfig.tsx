@@ -1,4 +1,5 @@
 import { type Series } from '@lightdash/common';
+import { useMantineTheme } from '@mantine/core';
 import { createContext, useCallback, useContext, useRef, type FC } from 'react';
 import { type EChartSeries } from './echarts/useEchartsCartesianConfig';
 
@@ -69,6 +70,7 @@ export const useChartColorConfig = ({
 }: {
     colorPalette: string[];
 }) => {
+    const theme = useMantineTheme();
     const { colorMappings } = useChartColorMappingContext();
     /**
      * Given the org's color palette, and an identifier, return the color palette value
@@ -85,6 +87,11 @@ export const useChartColorConfig = ({
      */
     const calculateKeyColorAssignment = useCallback(
         (group: string, identifier: string) => {
+            // Ensure we always color null the same:
+            if (!identifier || identifier === 'null') {
+                return theme.colors.gray[6];
+            }
+
             let groupMappings = colorMappings.get(group);
 
             /**
@@ -119,7 +126,7 @@ export const useChartColorConfig = ({
 
             return colorHex;
         },
-        [colorPalette, colorMappings],
+        [colorPalette, colorMappings, theme],
     );
 
     const calculateSeriesColorAssignment = useCallback(
@@ -144,19 +151,11 @@ export const useChartColorConfig = ({
                 : baseField;
 
             /**
-             * Always include the first portion of the base field as the group identifier. This
-             * will in turn give us a group/identifier pair that looks like, e.g:
-             *
-             * ['customer', 'customer_first_name']
-             *
-             * or
-             *
-             * ['customer', 'Bob'] (if Bob is a)
+             * Always includes the base field + the pivot sub path. This can be tweaked
+             * to allow 'reuse' across different fields, but is also more likely to lead
+             * to collision issues.
              */
-            return calculateKeyColorAssignment(
-                baseField.split('_')[0],
-                completeIdentifier,
-            );
+            return calculateKeyColorAssignment(baseField, completeIdentifier);
         },
         [calculateKeyColorAssignment],
     );
