@@ -437,7 +437,12 @@ const Dashboard: FC = () => {
 
     const handleDuplicateDashboard = () => {
         if (!dashboard) return;
-        duplicateDashboard(dashboard.uuid);
+        // FIXME: show a Duplicate Dashboard modal here like when duplicating from the resource list menu
+        duplicateDashboard({
+            uuid: dashboard.uuid,
+            name: dashboard.name,
+            description: dashboard.description,
+        });
     };
 
     const handleDeleteDashboard = () => {
