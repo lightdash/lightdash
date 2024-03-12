@@ -91,26 +91,10 @@ export const useChartColorConfig = ({
 
             // Project the hashed value into the available color space:
             const colorIdx = hashedValue % colorPalette.length;
+            const colorHex = colorPalette[colorIdx];
 
-            // Look at our existing color mappings so we can figure out if we need
-            // to try and avoid any of the current colors:
-            const colorsToAvoid = [...colorMappings.values()];
-            let colorHex = colorPalette[colorIdx];
-
-            // Intersect colors we've already used with our color palette, and try to find the
-            // next available color on the list.
-            if (colorsToAvoid.includes(colorHex)) {
-                const intersection = colorPalette.filter(
-                    (v) => !colorsToAvoid.includes(v),
-                );
-
-                if (intersection.length > 0) {
-                    colorHex = intersection[0];
-                }
-            }
-
-            // Keep track of this identifier->color pairing so we can reuse it without
-            // treating it as a collision:
+            // Keep track of this identifier->color pairing so we can bypass the
+            // hashing later.
             colorMappings.set(identifier, colorHex);
 
             return colorHex;
