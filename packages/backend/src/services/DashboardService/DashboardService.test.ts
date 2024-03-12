@@ -57,7 +57,7 @@ jest.mock('../../models/models', () => ({
         getFullSpace: jest.fn(async () => publicSpace),
         getSpaceSummary: jest.fn(async () => publicSpace),
         getFirstAccessibleSpace: jest.fn(async () => space),
-        getSpaceAccess: jest.fn(async () => []),
+        getUserSpaceAccess: jest.fn(async () => []),
     },
     analyticsModel: {
         addDashboardViewEvent: jest.fn(async () => null),
