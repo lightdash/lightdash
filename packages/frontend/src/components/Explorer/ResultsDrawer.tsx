@@ -154,6 +154,15 @@ export const ResultsDrawer: FC<Pick<DrawerProps, 'w'>> = memo(({ w }) => {
                     },
                     inner: {
                         width: drawerWidth,
+
+                        // Remove the box shadow of the `Paper` component in Drawer that can't be targeted directly
+                        '& > section': {
+                            boxShadow: 'none',
+                        },
+                    },
+                    body: {
+                        borderTop: `1px solid ${theme.colors.gray['1']}`,
+                        paddingTop: 0,
                     },
                 }}
             >
