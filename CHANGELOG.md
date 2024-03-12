@@ -1,3 +1,10 @@
+## [0.1030.3](https://github.com/lightdash/lightdash/compare/0.1030.2...0.1030.3) (2024-03-12)
+
+
+### Bug Fixes
+
+* remove Monaco from font-family for ace-editor ([#9322](https://github.com/lightdash/lightdash/issues/9322)) ([6508274](https://github.com/lightdash/lightdash/commit/650827410a493e8ba14f7f5bf93955505a02d36c))
+
 ## [0.1030.2](https://github.com/lightdash/lightdash/compare/0.1030.1...0.1030.2) (2024-03-12)
 
 
