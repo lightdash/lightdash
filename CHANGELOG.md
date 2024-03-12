@@ -1,3 +1,10 @@
+## [0.1030.8](https://github.com/lightdash/lightdash/compare/0.1030.7...0.1030.8) (2024-03-12)
+
+
+### Bug Fixes
+
+* clear search on option select ([#9309](https://github.com/lightdash/lightdash/issues/9309)) ([28b2262](https://github.com/lightdash/lightdash/commit/28b2262793c3d8dab1f4e52db0b5a68955120a1c))
+
 ## [0.1030.7](https://github.com/lightdash/lightdash/compare/0.1030.6...0.1030.7) (2024-03-12)
 
 
