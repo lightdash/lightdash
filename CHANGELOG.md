@@ -1,3 +1,10 @@
+## [0.1030.6](https://github.com/lightdash/lightdash/compare/0.1030.5...0.1030.6) (2024-03-12)
+
+
+### Bug Fixes
+
+* user space access query ([#9338](https://github.com/lightdash/lightdash/issues/9338)) ([7740939](https://github.com/lightdash/lightdash/commit/774093959fe41826c96adbf39e5161603f7479a2))
+
 ## [0.1030.5](https://github.com/lightdash/lightdash/compare/0.1030.4...0.1030.5) (2024-03-12)
 
 
