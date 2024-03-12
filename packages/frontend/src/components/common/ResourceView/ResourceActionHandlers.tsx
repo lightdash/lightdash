@@ -13,17 +13,11 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-    useDuplicateDashboardMutation,
-    useMoveDashboardMutation,
-} from '../../../hooks/dashboard/useDashboard';
+import { useMoveDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
-import {
-    useDuplicateChartMutation,
-    useMoveChartMutation,
-} from '../../../hooks/useSavedQuery';
+import { useMoveChartMutation } from '../../../hooks/useSavedQuery';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartDuplicateModal from '../modal/ChartDuplicateModal';
