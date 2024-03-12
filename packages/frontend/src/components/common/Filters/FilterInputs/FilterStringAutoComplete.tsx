@@ -171,7 +171,6 @@ const FilterStringAutoComplete: FC<Props> = ({
                 </Group>
             )}
             styles={{
-                itemsWrapper: { gap: 2 },
                 item: {
                     // makes add new item button sticky to bottom
                     '&:last-child:not([value])': {
@@ -187,7 +186,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             }}
             disableSelectedItemFiltering
             searchable
-            clearSearchOnChange={true}
+            clearSearchOnChange
             {...rest}
             searchValue={search}
             onSearchChange={setSearch}
