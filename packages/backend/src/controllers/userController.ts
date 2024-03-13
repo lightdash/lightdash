@@ -37,6 +37,7 @@ import {
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
+import { rateLimiter } from './rateLimiter';
 
 @Route('/api/v1/user')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -305,6 +306,7 @@ export class UserController extends BaseController {
     /**
      * Get login options for email
      */
+    @Middlewares([rateLimiter])
     @Get('/login_options')
     @OperationId('getLoginOptions')
     async getLoginOptions(
