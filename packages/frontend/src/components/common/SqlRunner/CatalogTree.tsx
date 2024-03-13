@@ -12,7 +12,7 @@ type Props = {
 
 const CatalogTreeNode: FC<{
     node: ProjectCatalogTreeNode;
-    onSelect: () => void;
+    onSelect: Props['onSelect'];
 }> = ({ node, onSelect }) => {
     const [isHover, setIsHover] = useToggle();
     const isLeafNode = !node.childNodes || node.childNodes.length === 0;
@@ -41,7 +41,7 @@ const CatalogTreeNode: FC<{
                 )
             }
             icon={node.icon}
-            onClick={node.sqlTable ? () => onSelect() : undefined}
+            onClick={node.sqlTable ? () => onSelect(node) : undefined}
         >
             {node.childNodes ? (
                 // CataLogTree is defined via function and hoisted to the top, so it's safe to use it here.
@@ -63,7 +63,7 @@ function CatalogTree({ nodes, onSelect }: Props) {
                 <CatalogTreeNode
                     key={node.id}
                     node={node}
-                    onSelect={() => onSelect(node)}
+                    onSelect={onSelect}
                 />
             ))}
         </>
