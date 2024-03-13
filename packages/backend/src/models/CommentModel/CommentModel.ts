@@ -1,4 +1,9 @@
-import { Comment, LightdashUser, NotFoundError } from '@lightdash/common';
+import {
+    Comment,
+    LightdashUser,
+    NotFoundError,
+    sanitizeHtml,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DashboardTileCommentsTableName,
@@ -159,7 +164,7 @@ export class CommentModel {
         const [comment] = await this.database(DashboardTileCommentsTableName)
             .insert({
                 text,
-                text_html: textHtml,
+                text_html: sanitizeHtml(textHtml),
                 dashboard_tile_uuid: dashboardTileUuid,
                 reply_to: replyTo ?? null,
                 user_uuid: user.userUuid,
