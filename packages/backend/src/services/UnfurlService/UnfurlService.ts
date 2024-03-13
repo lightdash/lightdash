@@ -311,6 +311,7 @@ export class UnfurlService {
         user: SessionUser,
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
         const { organizationUuid, projectUuid, name, minimalUrl, pageType } = {
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
@@ -321,10 +322,15 @@ export class UnfurlService {
             ).href,
             pageType: LightdashPage.DASHBOARD,
         };
+
         if (
             user.ability.cannot(
                 'view',
-                subject('Dashboard', { organizationUuid, projectUuid }),
+                subject('Dashboard', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate,
+                }),
             )
         ) {
             throw new ForbiddenError();
