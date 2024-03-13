@@ -169,12 +169,18 @@ const useTableConfig = (
         pivotDimensions &&
         pivotDimensions.length > 0;
 
-    const numDimensions = itemsMap
-        ? columnOrder.filter(
-              (fieldId) => itemsMap[fieldId]?.fieldType === FieldType.DIMENSION,
-          ).length
-        : 0;
-    const canUseSubtotals = numDimensions > 1;
+    const dimensions = useMemo(() => {
+        if (!itemsMap) return [];
+
+        return columnOrder.filter((fieldId) => {
+            const item = itemsMap[fieldId];
+            return item && isField(item)
+                ? item.fieldType === FieldType.DIMENSION
+                : false;
+        });
+    }, [columnOrder, itemsMap]);
+
+    const canUseSubtotals = dimensions.length > 1;
 
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
