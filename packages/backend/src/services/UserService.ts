@@ -1180,9 +1180,16 @@ export class UserService {
             return {
                 showOptions: [openIdIssuer],
                 forceRedirect: true,
-                redirectUri: getRedirectUri(openIdIssuer),
+                redirectUri: new URL(
+                    `/api/v1${getRedirectUri(openIdIssuer)}`,
+                    this.lightdashConfig.siteUrl,
+                ).href,
             };
         }
+        const googleRedirectUri = new URL(
+            `/api/v1${this.lightdashConfig.auth.google.loginPath}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
 
         const isPasswordDisabled =
             this.lightdashConfig.auth.disablePasswordAuthentication;
@@ -1191,7 +1198,7 @@ export class UserService {
             return {
                 showOptions: [OpenIdIdentityIssuerType.GOOGLE],
                 forceRedirect: true,
-                redirectUri: this.lightdashConfig.auth.google.loginPath,
+                redirectUri: googleRedirectUri,
             };
 
         // We don't need to check if the user has a password or not, the outcome is the same
@@ -1202,7 +1209,7 @@ export class UserService {
                 OpenIdIdentityIssuerType.GOOGLE,
             ],
             forceRedirect: false,
-            redirectUri: this.lightdashConfig.auth.google.loginPath,
+            redirectUri: googleRedirectUri,
         };
     }
 }
