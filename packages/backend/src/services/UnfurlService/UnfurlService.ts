@@ -340,6 +340,7 @@ export class UnfurlService {
         ) {
             throw new ForbiddenError();
         }
+
         const unfurlImage = await this.unfurlImage({
             url: minimalUrl,
             lightdashPage: pageType,
