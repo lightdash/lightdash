@@ -150,7 +150,16 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             connection = createConnection(this.connectionOptions);
             await Util.promisify(connection.connect)();
         } catch (e) {
-            throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
+            const { database, schema, warehouse } = this.connectionOptions;
+            throw new WarehouseConnectionError(
+                `Snowflake connect error: ${
+                    e.message
+                }.\n\nAttempted connection using options: ${JSON.stringify(
+                    { database, schema, warehouse },
+                    null,
+                    2,
+                )}`,
+            );
         }
         try {
             if (this.connectionOptions.warehouse) {
@@ -312,7 +321,16 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             });
             await Util.promisify(connection.connect)();
         } catch (e) {
-            throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
+            const { warehouse } = this.connectionOptions;
+            throw new WarehouseConnectionError(
+                `Snowflake connect error: ${
+                    e.message
+                }.\n\nAttempted connection using options: ${JSON.stringify(
+                    { database, schema, warehouse },
+                    null,
+                    2,
+                )}`,
+            );
         }
         try {
             return await this.executeStatement(connection, sqlText);
