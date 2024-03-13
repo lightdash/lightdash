@@ -374,7 +374,6 @@ export type SpaceQuery = Pick<
     | 'updatedByUser'
     | 'description'
     | 'spaceUuid'
-    | 'spaceName'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
 > &
@@ -554,6 +553,11 @@ export type ChartSummary = Pick<
 > & { chartType?: ChartType | undefined };
 
 export type ApiChartSummaryListResponse = {
+    status: 'ok';
+    results: ChartSummary[];
+};
+
+export type ApiChartListResponse = {
     status: 'ok';
     results: SpaceQuery[];
 };

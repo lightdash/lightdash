@@ -1,10 +1,10 @@
-import { type ApiError, type SpaceQuery } from '@lightdash/common';
+import { type ApiError, type ChartSummary } from '@lightdash/common';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
 const getChartSummariesInProject = async (projectUuid: string) => {
-    return lightdashApi<SpaceQuery[]>({
-        url: `/projects/${projectUuid}/charts`,
+    return lightdashApi<ChartSummary[]>({
+        url: `/projects/${projectUuid}/chart-summaries`,
         method: 'GET',
         body: undefined,
     });
@@ -12,10 +12,10 @@ const getChartSummariesInProject = async (projectUuid: string) => {
 
 export const useChartSummaries = (
     projectUuid: string,
-    useQueryFetchOptions?: UseQueryOptions<SpaceQuery[], ApiError>,
+    useQueryFetchOptions?: UseQueryOptions<ChartSummary[], ApiError>,
 ) => {
-    return useQuery<SpaceQuery[], ApiError>({
-        queryKey: ['project', projectUuid, 'charts'],
+    return useQuery<ChartSummary[], ApiError>({
+        queryKey: ['project', projectUuid, 'chart-summaries'],
         queryFn: () => getChartSummariesInProject(projectUuid),
         ...useQueryFetchOptions,
     });

@@ -3238,6 +3238,49 @@ export class ProjectService {
         );
     }
 
+    async getChartSummaries(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ChartSummary[]> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+
+        const allowedSpacesBooleans = await Promise.all(
+            spaces.map(
+                async (space) =>
+                    space.projectUuid === projectUuid &&
+                    hasViewAccessToSpace(
+                        user,
+                        space,
+                        await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            space.uuid,
+                        ),
+                    ),
+            ),
+        );
+
+        const allowedSpaces = spaces.filter(
+            (_, index) => allowedSpacesBooleans[index],
+        );
+
+        return this.savedChartModel.find({
+            projectUuid,
+            spaceUuids: allowedSpaces.map((s) => s.uuid),
+        });
+    }
+
     async getMostPopularAndRecentlyUpdated(
         user: SessionUser,
         projectUuid: string,

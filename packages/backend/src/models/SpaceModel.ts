@@ -230,7 +230,6 @@ export class SpaceModel {
                     lastName: savedQuery.last_name,
                 },
                 spaceUuid: space.space_uuid,
-                spaceName: space.name,
                 pinnedListUuid: savedQuery.pinned_list_uuid,
                 pinnedListOrder: savedQuery.order,
                 chartType: savedQuery.chart_kind,
@@ -786,7 +785,6 @@ export class SpaceModel {
                     order: number;
                     validation_errors: DbValidationTable[];
                     space_uuid: string;
-                    space_name: string;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -815,7 +813,6 @@ export class SpaceModel {
                     ) as validation_errors
                 `),
                 `${SpaceTableName}.space_uuid`,
-                `${SpaceTableName}.name as space_name`,
             ]);
 
         if (filters?.recentlyUpdated || filters?.mostPopular) {
@@ -858,7 +855,6 @@ export class SpaceModel {
                 lastName: savedQuery.last_name,
             },
             spaceUuid: savedQuery.space_uuid,
-            spaceName: savedQuery.space_name,
             views: parseInt(savedQuery.views, 10),
             firstViewedAt: savedQuery.first_viewed_at,
             chartType: savedQuery.chart_kind,
