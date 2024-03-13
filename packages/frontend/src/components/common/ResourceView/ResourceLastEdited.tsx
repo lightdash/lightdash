@@ -4,7 +4,7 @@ import {
 } from '@lightdash/common';
 import { Text, Tooltip } from '@mantine/core';
 import dayjs from 'dayjs';
-import { FC } from 'react';
+import type { FC } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
 interface ResourceLastEditedProps {
