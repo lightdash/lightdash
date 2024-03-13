@@ -1,3 +1,4 @@
+import { Box } from '@mantine/core';
 import { FC, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
@@ -6,7 +7,6 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
-import { VisualizationSidebarRight } from '../components/Explorer/VisualizationCard/VisualizationSidebarRight';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
@@ -31,7 +31,7 @@ const SavedExplorerPage: FC<{
             isSidebarOpen={isEditMode}
             withFullHeight
             withPaddedContent
-            rightSidebar={<VisualizationSidebarRight />}
+            rightSidebar={<Box id="right-sidebar"></Box>}
             isRightSidebarOpen={expandedSections.includes(
                 ExplorerSection.VISUALIZATION_RIGHT_SIDEBAR,
             )}

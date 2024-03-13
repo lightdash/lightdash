@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { memo } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { Box } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
@@ -18,6 +19,7 @@ import { useQueryResults } from '../hooks/useQueryResults';
 import { useApp } from '../providers/AppProvider';
 import {
     ExplorerProvider,
+    ExplorerSection,
     useExplorerContext,
 } from '../providers/ExplorerProvider';
 
@@ -33,6 +35,10 @@ const ExplorerWithUrlParams = memo(() => {
     const clearQuery = useExplorerContext(
         (context) => context.actions.clearQuery,
     );
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
+    );
+
     useHotkeys([['mod + alt + k', clearQuery]]);
 
     return (
@@ -42,6 +48,10 @@ const ExplorerWithUrlParams = memo(() => {
             withFullHeight
             withPaddedContent
             hasBanner={getIsEditingDashboardChart()}
+            rightSidebar={<Box id="right-sidebar"></Box>}
+            isRightSidebarOpen={expandedSections.includes(
+                ExplorerSection.VISUALIZATION_RIGHT_SIDEBAR,
+            )}
         >
             <Explorer />
         </Page>

@@ -34,6 +34,7 @@ import VisualizationProvider from '../../LightdashVisualization/VisualizationPro
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import VisualizationSidebar from './VisualizationSidebar';
+import { VisualizationSidebarRight } from './VisualizationSidebarRight';
 
 export type EchartsClickEvent = {
     event: EchartSeriesClickEvent;
@@ -220,24 +221,36 @@ const VisualizationCard: FC<{
                             ) : null}
 
                             {isEditMode && isChartConfigRightSideEnabled ? (
-                                <Button
-                                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                                    onClick={toggleVisualizationRightSidebar}
-                                    rightIcon={
-                                        <MantineIcon
-                                            color="gray"
-                                            icon={
-                                                isVisualizationRightSidebarOpen
-                                                    ? IconLayoutSidebarLeftCollapse
-                                                    : IconLayoutSidebarLeftExpand
+                                <>
+                                    <Button
+                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                        onClick={
+                                            toggleVisualizationRightSidebar
+                                        }
+                                        rightIcon={
+                                            <MantineIcon
+                                                color="gray"
+                                                icon={
+                                                    isVisualizationRightSidebarOpen
+                                                        ? IconLayoutSidebarLeftCollapse
+                                                        : IconLayoutSidebarLeftExpand
+                                                }
+                                            />
+                                        }
+                                    >
+                                        {isVisualizationRightSidebarOpen
+                                            ? 'Close configure'
+                                            : 'Configure'}
+                                    </Button>
+                                    {isVisualizationRightSidebarOpen ? (
+                                        <VisualizationSidebarRight
+                                            chartType={
+                                                unsavedChartVersion.chartConfig
+                                                    .type
                                             }
                                         />
-                                    }
-                                >
-                                    {isVisualizationRightSidebarOpen
-                                        ? 'Close configure'
-                                        : 'Configure'}
-                                </Button>
+                                    ) : null}
+                                </>
                             ) : null}
 
                             <ChartDownloadMenu
