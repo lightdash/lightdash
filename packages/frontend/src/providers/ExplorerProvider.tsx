@@ -46,6 +46,7 @@ export enum ExplorerSection {
     CUSTOMVISUALIZATION = 'CUSTOMVISUALIZATION',
     RESULTS = 'RESULTS',
     SQL = 'SQL',
+    VISUALIZATION_RIGHT_SIDEBAR = 'VISUALIZATION_RIGHT_SIDEBAR',
 }
 
 interface SwapSortFieldsPayload {
