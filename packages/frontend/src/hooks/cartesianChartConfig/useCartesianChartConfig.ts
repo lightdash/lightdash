@@ -130,7 +130,6 @@ const useCartesianChartConfig = ({
         [initialChartConfig?.eChartsConfig.series],
     );
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
-    const prevInitialChartConfig = usePrevious(initialChartConfig);
     const [dirtyLayout, setDirtyLayout] = useState(initialChartConfig?.layout);
     const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState(
         initialChartConfig?.eChartsConfig,
@@ -146,20 +145,21 @@ const useCartesianChartConfig = ({
             : EMPTY_CARTESIAN_CHART_CONFIG;
     }, [dirtyLayout, dirtyEchartsConfig]);
 
-    const hasChartConfigPropChanged = useMemo(() => {
+    const prevValidConfig = usePrevious(validConfig);
+    const hasInitialChartConfigPropChanged = useMemo(() => {
         return (
             !isEqual(initialChartConfig, validConfig) &&
-            !isEqual(initialChartConfig, prevInitialChartConfig)
+            isEqual(validConfig, prevValidConfig)
         );
-    }, [initialChartConfig, prevInitialChartConfig, validConfig]);
+    }, [initialChartConfig, prevValidConfig, validConfig]);
 
     useEffect(() => {
-        if (!hasChartConfigPropChanged) return;
+        if (!hasInitialChartConfigPropChanged) return;
 
-        // Update dirty chart config ONLY initial chart config props changes and this hook wasn't the source of the change
+        // Update dirty chart config ONLY when initial chart config props changes and this hook wasn't the source of the change
         setDirtyLayout(initialChartConfig?.layout);
         setDirtyEchartsConfig(initialChartConfig?.eChartsConfig);
-    }, [initialChartConfig, hasChartConfigPropChanged]);
+    }, [initialChartConfig, hasInitialChartConfigPropChanged]);
 
     const setLegend = useCallback((legend: EchartsLegend) => {
         const removePropertiesWithAuto = Object.entries(

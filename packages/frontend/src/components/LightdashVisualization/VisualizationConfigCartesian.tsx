@@ -60,8 +60,8 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
 
     const hasChartConfigChangedInHook = useMemo(() => {
         return (
-            isEqual(initialChartConfig, prevChartConfig) &&
-            !isEqual(initialChartConfig, cartesianConfig.validConfig)
+            !isEqual(initialChartConfig, cartesianConfig.validConfig) &&
+            isEqual(prevChartConfig, initialChartConfig)
         );
     }, [cartesianConfig.validConfig, initialChartConfig, prevChartConfig]);
 
@@ -76,7 +76,9 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     }, [
         cartesianConfig.validConfig,
         hasChartConfigChangedInHook,
+        initialChartConfig,
         onChartConfigChange,
+        prevChartConfig,
     ]);
 
     return children({
