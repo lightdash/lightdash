@@ -192,6 +192,7 @@ export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
 export * from './utils/projectMemberRole';
+export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/time';
 export * from './utils/timeFrames';
