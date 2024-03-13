@@ -1001,9 +1001,7 @@ export class LightdashAnalytics extends Analytics {
         });
     }
 
-    track<T extends BaseTrack = BaseTrack>(
-        payload: TypedEvent | UntypedEvent<T>,
-    ) {
+    track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
         if (isUserUpdatedEvent(payload)) {
             const basicEventProperties = {
                 is_tracking_anonymized: payload.properties.isTrackingAnonymized,
