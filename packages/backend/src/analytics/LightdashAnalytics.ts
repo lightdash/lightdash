@@ -109,6 +109,10 @@ type UpdateUserEvent = BaseTrack & {
     properties: LightdashUser & { jobTitle?: string };
 };
 
+function isUserUpdatedEvent(event: BaseTrack): event is UpdateUserEvent {
+    return event.event === 'user.updated';
+}
+
 type VerifiedUserEvent = BaseTrack & {
     event: 'user.verified';
     properties: {
@@ -117,6 +121,10 @@ type VerifiedUserEvent = BaseTrack & {
         location: 'onboarding' | 'settings';
     };
 };
+
+function isUserVerifiedEvent(event: BaseTrack): event is VerifiedUserEvent {
+    return event.event === 'user.verified';
+}
 
 type UserWarehouseCredentialsEvent = BaseTrack & {
     event:
@@ -873,7 +881,7 @@ export type GroupDeleteEvent = BaseTrack & {
     };
 };
 
-type Track =
+type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
     | UpdateUserEvent
@@ -942,6 +950,11 @@ type Track =
     | ConditionalFormattingRuleSavedEvent
     | CommentsEvent;
 
+type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
+    T & {
+        event: Exclude<T['event'], TypedEvent['event']>;
+    };
+
 type LightdashAnalyticsArguments = {
     lightdashConfig: LightdashConfig;
     writeKey: string;
@@ -988,8 +1001,10 @@ export class LightdashAnalytics extends Analytics {
         });
     }
 
-    track(payload: Track) {
-        if (payload.event === 'user.updated') {
+    track<T extends BaseTrack = BaseTrack>(
+        payload: TypedEvent | UntypedEvent<T>,
+    ) {
+        if (isUserUpdatedEvent(payload)) {
             const basicEventProperties = {
                 is_tracking_anonymized: payload.properties.isTrackingAnonymized,
                 is_marketing_opted_in: payload.properties.isMarketingOptedIn,
@@ -1012,7 +1027,7 @@ export class LightdashAnalytics extends Analytics {
             });
             return;
         }
-        if (payload.event === 'user.verified') {
+        if (isUserVerifiedEvent(payload)) {
             super.track({
                 ...payload,
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
