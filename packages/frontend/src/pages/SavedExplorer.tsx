@@ -31,7 +31,7 @@ const SavedExplorerPage: FC<{
             isSidebarOpen={isEditMode}
             withFullHeight
             withPaddedContent
-            rightSidebar={<Box id="right-sidebar"></Box>}
+            rightSidebar={<Box id="right-sidebar" />}
             isRightSidebarOpen={expandedSections.includes(
                 ExplorerSection.VISUALIZATION_RIGHT_SIDEBAR,
             )}

@@ -35,20 +35,33 @@ export const VisualizationSidebarRight: FC<{
     }, [chartType]);
 
     // TODO: this is a hack to wait for the right sidebar to be rendered and then append the visualization sidebar.
-    const [elementExists, setElementExists] = useState(false);
+    const [elementExists, setElementExists] = useState<boolean | undefined>(
+        undefined,
+    );
 
     useEffect(() => {
-        if (elementExists) return;
+        if (elementExists !== undefined) return;
+
         const interval = setInterval(() => {
             const el = document.getElementById('right-sidebar');
-            console.log(el);
             if (el) {
                 setElementExists(true);
                 clearInterval(interval);
             }
         }, 50);
 
-        return () => clearInterval(interval);
+        // Stop checking after 5 seconds
+        const timeout = setTimeout(() => {
+            clearInterval(interval);
+            if (elementExists === undefined) {
+                setElementExists(false);
+            }
+        }, 5000);
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
     }, [elementExists]);
 
     if (health.isInitialLoading || !health.data) {
