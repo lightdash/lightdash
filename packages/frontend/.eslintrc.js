@@ -27,7 +27,6 @@ module.exports = {
         'plugin:testing-library/react'
     ],
     plugins: [
-        '@typescript-eslint',
         'css-modules',
         'import',
         'json',

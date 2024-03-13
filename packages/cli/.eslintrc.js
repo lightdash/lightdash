@@ -11,7 +11,6 @@ module.exports = {
         'prettier',
         'plugin:json/recommended',
     ],
-    plugins: ['@typescript-eslint'],
     rules: {
         'no-console': 'off',
         'import/prefer-default-export': 'off',

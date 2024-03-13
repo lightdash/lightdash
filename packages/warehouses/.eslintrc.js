@@ -11,7 +11,6 @@ module.exports = {
         'prettier',
         'plugin:json/recommended',
     ],
-    plugins: ['@typescript-eslint'],
     rules: {
         'max-classes-per-file': 'off',
         '@typescript-eslint/no-unused-vars': 'off',
