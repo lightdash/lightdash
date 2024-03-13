@@ -1181,13 +1181,15 @@ export class UserService {
                 showOptions: [openIdIssuer],
                 forceRedirect: true,
                 redirectUri: new URL(
-                    `/api/v1${getRedirectUri(openIdIssuer)}`,
+                    `/api/v1${getRedirectUri(
+                        openIdIssuer,
+                    )}?login_hint=${email}`,
                     this.lightdashConfig.siteUrl,
                 ).href,
             };
         }
         const googleRedirectUri = new URL(
-            `/api/v1${this.lightdashConfig.auth.google.loginPath}`,
+            `/api/v1${this.lightdashConfig.auth.google.loginPath}?login_hint=${email}`,
             this.lightdashConfig.siteUrl,
         ).href;
 

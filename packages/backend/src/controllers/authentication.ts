@@ -84,6 +84,11 @@ export const getOpenIdUserFromRequest = ({
     return undefined;
 };
 
+export const getLoginHint = (req: Request) =>
+    req.query?.login_hint && typeof req.query.login_hint === 'string'
+        ? req.query.login_hint
+        : undefined;
+
 const createOpenIdUserFromUserInfo = (
     userInfo: UserinfoResponse,
     issuer: string,
@@ -266,6 +271,7 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
             ),
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
+            login_hint: getLoginHint(req),
             state,
         });
 
