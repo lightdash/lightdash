@@ -1,8 +1,6 @@
 import {
-    ApiQueryResults,
     applyCustomFormat,
     assertUnreachable,
-    CartesianChart,
     CartesianSeriesType,
     DimensionType,
     formatItemValue,
@@ -20,19 +18,21 @@ import {
     isPivotReferenceWithValues,
     isTableCalculation,
     isTimeInterval,
-    ItemsMap,
     MetricType,
-    PivotReference,
-    ResultRow,
-    Series,
     timeFrameConfigs,
     TimeFrames,
+    type ApiQueryResults,
+    type CartesianChart,
+    type ItemsMap,
+    type PivotReference,
+    type ResultRow,
+    type Series,
 } from '@lightdash/common';
 import {
-    DefaultLabelFormatterCallbackParams,
-    LineSeriesOption,
-    TooltipComponentFormatterCallback,
-    TooltipComponentOption,
+    type DefaultLabelFormatterCallbackParams,
+    type LineSeriesOption,
+    type TooltipComponentFormatterCallback,
+    type TooltipComponentOption,
 } from 'echarts';
 import groupBy from 'lodash/groupBy';
 import toNumber from 'lodash/toNumber';

@@ -1,10 +1,10 @@
 import {
-    ApiQueryResults,
-    Explore,
     getItemId,
-    ItemsMap,
+    type ApiQueryResults,
+    type Explore,
+    type ItemsMap,
 } from '@lightdash/common';
-import { MetricFlowJsonResults } from '../../../api/MetricFlowAPI';
+import { type MetricFlowJsonResults } from '../../../api/MetricFlowAPI';
 
 export default function convertMetricFlowQueryResultsToResultsData(
     explore: Explore,

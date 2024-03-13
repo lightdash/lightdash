@@ -1,6 +1,6 @@
-import { DashboardMarkdownTile } from '@lightdash/common';
+import { type DashboardMarkdownTile } from '@lightdash/common';
 import MDEditor from '@uiw/react-md-editor';
-import React, { FC, useMemo, useState } from 'react';
+import React, { useMemo, useState, type FC } from 'react';
 import { DashboardTileComments } from '../../features/comments';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { MarkdownWrapper } from './DashboardMarkdownTile.styles';

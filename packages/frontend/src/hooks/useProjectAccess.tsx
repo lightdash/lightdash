@@ -1,8 +1,8 @@
 import {
-    ApiError,
-    CreateProjectMember,
-    ProjectMemberProfile,
-    UpdateProjectMember,
+    type ApiError,
+    type CreateProjectMember,
+    type ProjectMemberProfile,
+    type UpdateProjectMember,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';

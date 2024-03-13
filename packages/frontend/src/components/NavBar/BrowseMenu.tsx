@@ -6,7 +6,7 @@ import {
     IconFolders,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useSpaceSummaries } from '../../hooks/useSpaces';

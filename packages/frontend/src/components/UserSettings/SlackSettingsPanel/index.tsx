@@ -1,4 +1,4 @@
-import { slackRequiredScopes, SlackSettings } from '@lightdash/common';
+import { slackRequiredScopes, type SlackSettings } from '@lightdash/common';
 import {
     Alert,
     Anchor,
@@ -23,7 +23,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import intersection from 'lodash/intersection';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import {
     useDeleteSlack,
     useGetSlack,

@@ -1,14 +1,14 @@
 import {
     getDateFormat,
-    OrganizationProject,
     TimeFrames,
+    type OrganizationProject,
 } from '@lightdash/common';
 import { Avatar, Button, LoadingOverlay, Stack, Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import moment from 'moment';
-import { FC, useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';

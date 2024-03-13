@@ -3,10 +3,10 @@ import {
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,
-    ValidationResponse,
+    type ValidationResponse,
 } from '@lightdash/common';
 import { Mark, Stack, Text } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 const CustomMark: FC<React.PropsWithChildren<{}>> = ({ children }) => (
     <Mark

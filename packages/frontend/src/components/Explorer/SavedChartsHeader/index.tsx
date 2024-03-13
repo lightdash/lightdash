@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    ApiError,
-    GitIntegrationConfiguration,
-    PullRequestCreated,
+    type ApiError,
+    type GitIntegrationConfiguration,
+    type PullRequestCreated,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -38,7 +38,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { FC, Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { lightdashApi } from '../../../api';

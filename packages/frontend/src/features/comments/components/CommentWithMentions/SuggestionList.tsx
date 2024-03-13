@@ -1,7 +1,7 @@
 import { Button, Card, List, Tooltip } from '@mantine/core';
-import { SuggestionProps } from '@tiptap/suggestion';
+import { type SuggestionProps } from '@tiptap/suggestion';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { SuggestionsItem } from '../../types';
+import { type SuggestionsItem } from '../../types';
 
 export type SuggestionListRef = {
     onKeyDown: (props: { event: KeyboardEvent }) => boolean;

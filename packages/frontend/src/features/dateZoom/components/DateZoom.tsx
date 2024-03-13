@@ -5,7 +5,7 @@ import {
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';

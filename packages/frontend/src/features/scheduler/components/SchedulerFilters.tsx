@@ -1,10 +1,10 @@
 import {
-    ConditionalOperator,
-    Dashboard,
-    DashboardFilterRule,
     FilterType,
     getFilterTypeFromItem,
-    SchedulerFilterRule,
+    type ConditionalOperator,
+    type Dashboard,
+    type DashboardFilterRule,
+    type SchedulerFilterRule,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -23,7 +23,7 @@ import {
     IconPencil,
     IconRotate2,
 } from '@tabler/icons-react';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import {
@@ -32,9 +32,9 @@ import {
     getFilterOperatorOptions,
 } from '../../../components/common/Filters/FilterInputs';
 import {
-    FieldWithSuggestions,
     FiltersProvider,
     useFiltersContext,
+    type FieldWithSuggestions,
 } from '../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {

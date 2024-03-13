@@ -1,13 +1,13 @@
 import {
-    ApiError,
-    DashboardBasicDetails,
-    UpdateMultipleDashboards,
+    type ApiError,
+    type DashboardBasicDetails,
+    type UpdateMultipleDashboards,
 } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';

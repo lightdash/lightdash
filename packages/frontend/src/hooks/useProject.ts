@@ -1,10 +1,10 @@
 import {
-    ApiError,
-    ApiJobStartedResults,
-    CreateProject,
-    MostPopularAndRecentlyUpdated,
-    Project,
-    UpdateProject,
+    type ApiError,
+    type ApiJobStartedResults,
+    type CreateProject,
+    type MostPopularAndRecentlyUpdated,
+    type Project,
+    type UpdateProject,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';

@@ -1,16 +1,16 @@
 import {
     Box,
     Button,
-    ButtonProps,
     Card,
     Flex,
     Group,
-    PopoverProps,
     Title,
     Tooltip,
+    type ButtonProps,
+    type PopoverProps,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { FC, useCallback } from 'react';
+import { useCallback, type FC } from 'react';
 import MantineIcon from './MantineIcon';
 
 export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {

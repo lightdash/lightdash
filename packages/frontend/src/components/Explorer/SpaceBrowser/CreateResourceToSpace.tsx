@@ -1,5 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';

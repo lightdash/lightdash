@@ -1,11 +1,11 @@
 import {
     Draggable,
-    DraggableStateSnapshot,
     Droppable,
+    type DraggableStateSnapshot,
 } from '@hello-pangea/dnd';
 import { Box, Group, Text } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../common/MantineIcon';
 import ColumnConfiguration from './ColumnConfiguration';

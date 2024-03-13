@@ -1,5 +1,5 @@
-import { Portal, Tooltip, TooltipProps } from '@mantine/core';
-import { FC } from 'react';
+import { Portal, Tooltip, type TooltipProps } from '@mantine/core';
+import { type FC } from 'react';
 
 type CellTooltipProps = Omit<TooltipProps, 'children'> & {
     elementBounds: DOMRect;

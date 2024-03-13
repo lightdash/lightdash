@@ -2,7 +2,7 @@ import { Draggable } from '@hello-pangea/dnd';
 import { isField } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import {
     TABLE_HEADER_BG,
     Th,

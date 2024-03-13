@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { Anchor, Button, Group, Stack, Tabs, Text } from '@mantine/core';
 import { IconPlus, IconUser, IconUsersGroup } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { ProjectGroupAccess } from '../../features/projectGroupAccess';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';

@@ -1,4 +1,4 @@
-import { ApiError, ProjectCatalog } from '@lightdash/common';
+import { type ApiError, type ProjectCatalog } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';

@@ -1,16 +1,21 @@
-import { ApiError, Job, JobStatusType, JobType } from '@lightdash/common';
+import {
+    JobStatusType,
+    JobType,
+    type ApiError,
+    type Job,
+} from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     createContext,
-    Dispatch,
-    FC,
-    SetStateAction,
     useCallback,
     useContext,
     useEffect,
     useState,
+    type Dispatch,
+    type FC,
+    type SetStateAction,
 } from 'react';
 import useToaster from '../hooks/toaster/useToaster';
 import {

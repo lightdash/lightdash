@@ -1,20 +1,20 @@
 import {
-    UpsertUserWarehouseCredentials,
-    UserWarehouseCredentials,
     WarehouseTypes,
+    type UpsertUserWarehouseCredentials,
+    type UserWarehouseCredentials,
 } from '@lightdash/common';
 import {
     Button,
     Group,
     Modal,
-    ModalProps,
     Select,
     Stack,
     TextInput,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/SelectWarehouse';
 import { WarehouseFormInputs } from './WarehouseFormInputs';

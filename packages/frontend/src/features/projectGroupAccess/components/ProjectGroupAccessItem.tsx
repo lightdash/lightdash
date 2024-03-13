@@ -1,11 +1,11 @@
 import {
-    GroupWithMembers,
-    ProjectGroupAccess,
-    UpdateProjectGroupAccess,
+    type GroupWithMembers,
+    type ProjectGroupAccess,
+    type UpdateProjectGroupAccess,
 } from '@lightdash/common';
 import { ActionIcon, Group, Text } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {

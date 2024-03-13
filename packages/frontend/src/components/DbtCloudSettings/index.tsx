@@ -1,4 +1,4 @@
-import { CreateDbtCloudIntegration } from '@lightdash/common/dist/types/dbtCloud';
+import { type CreateDbtCloudIntegration } from '@lightdash/common/dist/types/dbtCloud';
 import {
     Anchor,
     Button,
@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconAlertCircle, IconHelp } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { z } from 'zod';
 import {
     useProjectDbtCloud,

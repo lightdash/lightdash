@@ -1,5 +1,9 @@
-import { ApiError, ApiHealthResults, HealthState } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import {
+    type ApiError,
+    type ApiHealthResults,
+    type HealthState,
+} from '@lightdash/common';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';

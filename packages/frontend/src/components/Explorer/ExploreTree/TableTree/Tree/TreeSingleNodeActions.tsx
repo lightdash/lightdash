@@ -1,7 +1,4 @@
 import {
-    AdditionalMetric,
-    CustomDimension,
-    Dimension,
     DimensionType,
     fieldId,
     friendlyName,
@@ -11,10 +8,13 @@ import {
     isDimension,
     isField,
     isFilterableField,
-    Metric,
     MetricType,
+    type AdditionalMetric,
+    type CustomDimension,
+    type Dimension,
+    type Metric,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, MenuProps, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Menu, Tooltip, type MenuProps } from '@mantine/core';
 import {
     IconDots,
     IconEdit,
@@ -22,7 +22,7 @@ import {
     IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
-import { FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';

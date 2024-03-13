@@ -1,7 +1,4 @@
 import {
-    AdditionalMetric,
-    CustomDimension,
-    Field,
     formatItemValue,
     friendlyName,
     getItemMap,
@@ -11,8 +8,11 @@ import {
     isField,
     isNumericItem,
     itemsInMetricQuery,
-    ItemsMap,
-    TableCalculation,
+    type AdditionalMetric,
+    type CustomDimension,
+    type Field,
+    type ItemsMap,
+    type TableCalculation,
 } from '@lightdash/common';
 import { Group, Tooltip } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
@@ -23,7 +23,10 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
-import { columnHelper, TableColumn } from '../components/common/Table/types';
+import {
+    columnHelper,
+    type TableColumn,
+} from '../components/common/Table/types';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';

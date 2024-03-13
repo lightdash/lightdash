@@ -1,19 +1,19 @@
 import {
-    DraggableProvidedDraggableProps,
-    DraggableProvidedDragHandleProps,
+    type DraggableProvidedDraggableProps,
+    type DraggableProvidedDragHandleProps,
 } from '@hello-pangea/dnd';
-import { isField, SortField } from '@lightdash/common';
+import { isField, type SortField } from '@lightdash/common';
 import { ActionIcon, Box, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { forwardRef } from 'react';
-import { ExplorerContext } from '../../providers/ExplorerProvider';
+import { type ExplorerContext } from '../../providers/ExplorerProvider';
 import {
     getSortDirectionOrder,
     getSortLabel,
     SortDirection,
 } from '../../utils/sortUtils';
 import MantineIcon from '../common/MantineIcon';
-import { TableColumn } from '../common/Table/types';
+import { type TableColumn } from '../common/Table/types';
 
 interface SortItemProps {
     isFirstItem: boolean;

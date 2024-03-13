@@ -1,4 +1,4 @@
-import { snakeCaseName, TableCalculation } from '@lightdash/common';
+import { snakeCaseName, type TableCalculation } from '@lightdash/common';
 
 export const getUniqueTableCalculationName = (
     name: string,

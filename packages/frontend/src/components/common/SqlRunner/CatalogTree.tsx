@@ -1,7 +1,7 @@
 import { NavLink } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 
-import { ProjectCatalogTreeNode } from '../../../hooks/useProjectCatalogTree';
+import { type ProjectCatalogTreeNode } from '../../../hooks/useProjectCatalogTree';
 
 type Props = {
     nodes: ProjectCatalogTreeNode[];

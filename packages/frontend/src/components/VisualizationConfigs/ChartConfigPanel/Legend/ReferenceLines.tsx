@@ -1,20 +1,20 @@
 import {
-    CompiledDimension,
-    CustomDimension,
-    Field,
     fieldId as getFieldId,
     isField,
-    Series,
-    TableCalculation,
+    type CompiledDimension,
+    type CustomDimension,
+    type Field,
+    type Series,
+    type TableCalculation,
 } from '@lightdash/common';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Button, Stack, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useProject } from '../../../../hooks/useProject';
 import MantineIcon from '../../../common/MantineIcon';
-import { ReferenceLineField } from '../../../common/ReferenceLine';
+import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { ReferenceLine } from './ReferenceLine';

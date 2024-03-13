@@ -1,7 +1,7 @@
 import { assertUnreachable, WarehouseTypes } from '@lightdash/common';
 import { Avatar, SimpleGrid, Stack, Text } from '@mantine/core';
-import { Icon, IconDots } from '@tabler/icons-react';
-import { FC } from 'react';
+import { IconDots, type Icon } from '@tabler/icons-react';
+import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import BigQuery from './Assets/bigquery.svg';

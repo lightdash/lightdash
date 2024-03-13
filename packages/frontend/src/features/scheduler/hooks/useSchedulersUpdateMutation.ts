@@ -1,7 +1,7 @@
 import {
-    ApiError,
-    SchedulerAndTargets,
-    UpdateSchedulerAndTargetsWithoutId,
+    type ApiError,
+    type SchedulerAndTargets,
+    type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';

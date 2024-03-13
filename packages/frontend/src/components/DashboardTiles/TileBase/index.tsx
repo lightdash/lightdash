@@ -1,4 +1,8 @@
-import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    isChartTile,
+    type Dashboard,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -13,7 +17,7 @@ import {
 } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
-import { ReactNode, useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';

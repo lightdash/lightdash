@@ -1,7 +1,4 @@
 import {
-    CompiledDimension,
-    CustomDimension,
-    Field,
     fieldId as getFieldId,
     formatDate,
     isCustomDimension,
@@ -9,12 +6,15 @@ import {
     isDimension,
     isField,
     isNumericItem,
-    TableCalculation,
     TimeFrames,
-    WeekDay,
+    type CompiledDimension,
+    type CustomDimension,
+    type Field,
+    type TableCalculation,
+    type WeekDay,
 } from '@lightdash/common';
 import moment from 'moment';
-import { FC, useMemo, useState } from 'react';
+import { useMemo, useState, type FC } from 'react';
 
 import {
     ActionIcon,
@@ -35,7 +35,7 @@ import FilterWeekPicker from '../../../common/Filters/FilterInputs/FilterWeekPic
 import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPicker';
 import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils';
 import MantineIcon from '../../../common/MantineIcon';
-import { ReferenceLineField } from '../../../common/ReferenceLine';
+import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 

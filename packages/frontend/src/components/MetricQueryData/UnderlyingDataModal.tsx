@@ -1,5 +1,5 @@
 import { Modal } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 import UnderlyingDataModalContent from './UnderlyingDataModalContent';
 

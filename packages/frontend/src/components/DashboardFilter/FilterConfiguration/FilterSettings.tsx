@@ -1,22 +1,22 @@
 import {
-    DashboardFilterRule,
-    FilterableField,
     FilterOperator,
-    FilterRule,
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
+    type DashboardFilterRule,
+    type FilterableField,
+    type FilterRule,
 } from '@lightdash/common';
 import {
-    PopoverProps,
     Select,
     Stack,
     Switch,
     Text,
     TextInput,
     Tooltip,
+    type PopoverProps,
 } from '@mantine/core';
-import { FC, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import {
     FilterInputComponent,
     getFilterOperatorOptions,

@@ -1,4 +1,4 @@
-import { ApiError, UserAllowedOrganization } from '@lightdash/common';
+import { type ApiError, type UserAllowedOrganization } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 

@@ -1,7 +1,7 @@
-import { SearchItemType } from '@lightdash/common';
+import { type SearchItemType } from '@lightdash/common';
 import { Accordion, Text } from '@mantine/core';
-import { FC, MutableRefObject, useEffect } from 'react';
-import { FocusedItemIndex, SearchItem } from '../types/searchItem';
+import { useEffect, type FC, type MutableRefObject } from 'react';
+import { type FocusedItemIndex, type SearchItem } from '../types/searchItem';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import OmnibarItem from './OmnibarItem';
 

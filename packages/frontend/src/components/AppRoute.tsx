@@ -1,4 +1,4 @@
-import { ComponentProps, FC } from 'react';
+import { type ComponentProps, type FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useApp } from '../providers/AppProvider';

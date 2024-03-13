@@ -3,9 +3,16 @@ import {
     getItemLabel,
     getItemLabelWithoutTableName,
     isField,
-    Item,
+    type Item,
 } from '@lightdash/common';
-import { Box, Group, Select, SelectProps, Text, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Group,
+    Select,
+    Text,
+    Tooltip,
+    type SelectProps,
+} from '@mantine/core';
 import { forwardRef, useCallback, useMemo } from 'react';
 import FieldIcon from '../Filters/FieldIcon';
 

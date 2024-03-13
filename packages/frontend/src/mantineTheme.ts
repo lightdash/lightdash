@@ -1,4 +1,8 @@
-import { ColorScheme, MantineThemeOverride, rem } from '@mantine/core';
+import {
+    rem,
+    type ColorScheme,
+    type MantineThemeOverride,
+} from '@mantine/core';
 
 export const getMantineThemeOverride = (overrides?: {
     colorScheme?: ColorScheme;

@@ -1,7 +1,7 @@
-import { YearPickerInput, YearPickerInputProps } from '@mantine/dates';
+import { YearPickerInput, type YearPickerInputProps } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import moment from 'moment';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 type Props = Omit<YearPickerInputProps, 'value' | 'onChange'> & {
     value: Date | null;

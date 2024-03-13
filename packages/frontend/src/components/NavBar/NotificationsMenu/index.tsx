@@ -1,7 +1,7 @@
 import { NotificationResourceType } from '@lightdash/common';
 import { Button, Indicator, Menu } from '@mantine/core';
 import { IconBell } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useDashboardCommentsCheck } from '../../../features/comments';
 import {
     DashboardCommentsNotifications,

@@ -1,18 +1,18 @@
-import { ApiError, PullRequestCreated } from '@lightdash/common';
+import { type ApiError, type PullRequestCreated } from '@lightdash/common';
 import {
     Button,
     Group,
     Modal,
-    ModalProps,
     Select,
     Stack,
     Text,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { lightdashApi } from '../../api';
 import useToaster from '../../hooks/toaster/useToaster';
 

@@ -1,8 +1,8 @@
 import {
-    QueryClient,
     useMutation,
     useQuery,
     useQueryClient,
+    type QueryClient,
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';

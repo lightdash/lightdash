@@ -1,8 +1,8 @@
 import {
-    ApiError,
-    OrganizationMemberProfile,
-    OrganizationMemberProfileUpdate,
-    OrganizationMemberProfileWithGroups,
+    type ApiError,
+    type OrganizationMemberProfile,
+    type OrganizationMemberProfileUpdate,
+    type OrganizationMemberProfileWithGroups,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';

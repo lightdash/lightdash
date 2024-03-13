@@ -1,12 +1,12 @@
-import { Comment } from '@lightdash/common';
+import { type Comment } from '@lightdash/common';
 import { Avatar, Button, Grid, Group, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { Editor, JSONContent } from '@tiptap/react';
-import { FC, useMemo, useState } from 'react';
+import { type Editor, type JSONContent } from '@tiptap/react';
+import { useMemo, useState, type FC } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useSpace } from '../../../hooks/useSpaces';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-import { SuggestionsItem } from '../types';
+import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
 import { CommentWithMentions } from './CommentWithMentions';
 

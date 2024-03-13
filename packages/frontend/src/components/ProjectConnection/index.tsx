@@ -1,12 +1,12 @@
 import { subject } from '@casl/ability';
 import {
-    CreateWarehouseCredentials,
-    DbtProjectConfig,
     DbtProjectType,
     friendlyName,
     ProjectType,
-    SupportedDbtVersions,
-    WarehouseTypes,
+    type CreateWarehouseCredentials,
+    type DbtProjectConfig,
+    type SupportedDbtVersions,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import {
     Alert,
@@ -21,9 +21,9 @@ import {
     Title,
 } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
-import { FC, useEffect, useMemo, useState } from 'react';
-import { FieldErrors, useForm, useFormContext } from 'react-hook-form';
-import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
+import { useEffect, useMemo, useState, type FC } from 'react';
+import { useForm, useFormContext, type FieldErrors } from 'react-hook-form';
+import { type SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import {

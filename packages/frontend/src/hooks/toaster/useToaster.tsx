@@ -1,11 +1,11 @@
-import { Button, ButtonProps, Stack } from '@mantine/core';
-import { NotificationProps, notifications } from '@mantine/notifications';
-import { PolymorphicComponentProps } from '@mantine/utils';
+import { Button, Stack, type ButtonProps } from '@mantine/core';
+import { notifications, type NotificationProps } from '@mantine/notifications';
+import { type PolymorphicComponentProps } from '@mantine/utils';
 import {
-    Icon,
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
     IconInfoCircleFilled,
+    type Icon,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useCallback, useRef } from 'react';

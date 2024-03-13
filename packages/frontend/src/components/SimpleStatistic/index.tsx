@@ -2,7 +2,7 @@ import { ComparisonDiffTypes } from '@lightdash/common';
 import { Tooltip, useMantineTheme } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
-import { FC, HTMLAttributes, useMemo } from 'react';
+import { useMemo, type FC, type HTMLAttributes } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import MantineIcon from '../common/MantineIcon';
 import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/TileBase.styles';

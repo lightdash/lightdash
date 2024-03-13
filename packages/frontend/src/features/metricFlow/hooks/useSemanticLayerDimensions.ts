@@ -1,9 +1,9 @@
-import { ApiError } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { type ApiError } from '@lightdash/common';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import uniqWith from 'lodash/uniqWith';
 import {
-    GetMetricFlowFieldsResponse,
     getSemanticLayerDimensions,
+    type GetMetricFlowFieldsResponse,
 } from '../../../api/MetricFlowAPI';
 
 const useSemanticLayerDimensions = (

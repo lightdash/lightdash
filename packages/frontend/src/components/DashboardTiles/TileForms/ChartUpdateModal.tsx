@@ -1,15 +1,15 @@
-import { DashboardChartTile } from '@lightdash/common';
+import { type DashboardChartTile } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
     Flex,
     Group,
     Modal,
-    ModalProps,
     Select,
     Stack,
     TextInput,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChartAreaLine, IconEye, IconEyeOff } from '@tabler/icons-react';

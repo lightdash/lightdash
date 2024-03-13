@@ -1,5 +1,5 @@
 import { IconReload } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 

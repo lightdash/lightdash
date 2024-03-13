@@ -1,4 +1,4 @@
-import { CreateSavedChartVersion } from '@lightdash/common';
+import { type CreateSavedChartVersion } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import useToaster from './toaster/useToaster';

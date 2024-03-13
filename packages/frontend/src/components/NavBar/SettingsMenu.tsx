@@ -4,7 +4,7 @@ import {
     IconDatabase,
     IconSettings,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 import { Button, Menu } from '@mantine/core';
 import { Link } from 'react-router-dom';

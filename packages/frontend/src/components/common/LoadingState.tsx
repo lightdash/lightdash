@@ -1,5 +1,5 @@
-import { Loader, LoaderProps, Stack, Title } from '@mantine/core';
-import React, { FC } from 'react';
+import { Loader, Stack, Title, type LoaderProps } from '@mantine/core';
+import React, { type FC } from 'react';
 
 export interface LoadingStateProps extends LoaderProps {
     title: string;

@@ -1,32 +1,32 @@
 import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
-    DashboardFilterRule,
-    DashboardTile,
-    Field,
     fieldId,
-    FilterableField,
     FilterOperator,
     isField,
     isFilterableField,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
+    type DashboardFilterRule,
+    type DashboardTile,
+    type Field,
+    type FilterableField,
 } from '@lightdash/common';
 import {
     Box,
     Button,
     Flex,
     Group,
-    PopoverProps,
     Stack,
     Tabs,
     Text,
     Tooltip,
+    type PopoverProps,
 } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';

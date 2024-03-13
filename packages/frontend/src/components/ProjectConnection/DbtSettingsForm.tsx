@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { Select, Stack, TextInput } from '@mantine/core';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { FC, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
 import FormSection from '../ReactHookForm/FormSection';
@@ -22,7 +22,7 @@ import DbtNoneForm from './DbtForms/DbtNoneForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
 import FormCollapseButton from './FormCollapseButton';
-import { SelectedWarehouse } from './ProjectConnectFlow/SelectWarehouse';
+import { type SelectedWarehouse } from './ProjectConnectFlow/SelectWarehouse';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';

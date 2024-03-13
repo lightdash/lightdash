@@ -1,23 +1,23 @@
 import {
-    ApiQueryResults,
-    CartesianChart,
     CartesianSeriesType,
-    CompleteCartesianChartLayout,
-    EchartsGrid,
-    EchartsLegend,
     getCustomDimensionId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
-    ItemsMap,
-    MarkLineData,
-    Series,
+    type ApiQueryResults,
+    type CartesianChart,
+    type CompleteCartesianChartLayout,
+    type EchartsGrid,
+    type EchartsLegend,
+    type ItemsMap,
+    type MarkLineData,
+    type Series,
 } from '@lightdash/common';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getMarkLineAxis,
-    ReferenceLineField,
+    type ReferenceLineField,
 } from '../../components/common/ReferenceLine';
 import {
     getExpectedSeriesMap,

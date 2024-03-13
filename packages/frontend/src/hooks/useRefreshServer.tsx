@@ -1,10 +1,10 @@
 import {
-    ApiError,
-    ApiRefreshResults,
-    Job,
     JobStatusType,
-    JobStep,
     JobStepStatusType,
+    type ApiError,
+    type ApiRefreshResults,
+    type Job,
+    type JobStep,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';

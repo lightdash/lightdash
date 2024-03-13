@@ -1,6 +1,6 @@
 import { UnitOfTime } from '@lightdash/common';
-import { Select, SelectProps } from '@mantine/core';
-import { FC } from 'react';
+import { Select, type SelectProps } from '@mantine/core';
+import { type FC } from 'react';
 
 const getUnitOfTimeLabel = (
     unitOfTime: UnitOfTime,

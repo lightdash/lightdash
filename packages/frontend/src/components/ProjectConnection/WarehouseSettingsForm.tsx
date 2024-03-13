@@ -1,6 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { Select } from '@mantine/core';
-import React, { FC, useEffect } from 'react';
+import React, { useEffect, type FC } from 'react';
 import { Controller, useWatch } from 'react-hook-form';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';

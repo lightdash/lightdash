@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
-import { OrganizationProject, ProjectType } from '@lightdash/common';
+import { ProjectType, type OrganizationProject } from '@lightdash/common';
 import { Badge, Button, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { IconSettings, IconTrash } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { Link, Redirect } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {

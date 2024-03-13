@@ -1,14 +1,14 @@
-import { OrganizationMemberRole, Space } from '@lightdash/common';
+import { OrganizationMemberRole, type Space } from '@lightdash/common';
 import {
     Avatar,
     Button,
     Group,
     MultiSelect,
-    SelectItem,
     Stack,
     Text,
+    type SelectItem,
 } from '@mantine/core';
-import { FC, forwardRef, useMemo, useState } from 'react';
+import { forwardRef, useMemo, useState, type FC } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';

@@ -5,13 +5,13 @@ import {
     Group,
     List,
     Modal,
-    ModalProps,
     Stack,
     Text,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import {

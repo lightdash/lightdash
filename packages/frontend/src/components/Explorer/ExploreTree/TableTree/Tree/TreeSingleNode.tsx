@@ -1,5 +1,4 @@
 import {
-    AdditionalMetric,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
@@ -7,8 +6,9 @@ import {
     isMetric,
     isTableCalculation,
     isTimeInterval,
-    Item,
     timeFrameConfigs,
+    type AdditionalMetric,
+    type Item,
 } from '@lightdash/common';
 import {
     Group,
@@ -20,7 +20,7 @@ import {
 } from '@mantine/core';
 import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
 import { darken, lighten } from 'polished';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import { useFilters } from '../../../../../hooks/useFilters';
@@ -28,7 +28,7 @@ import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useItemDetail } from '../ItemDetailContext';
 import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
-import { Node, useTableTreeContext } from './TreeProvider';
+import { useTableTreeContext, type Node } from './TreeProvider';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 
 type Props = {

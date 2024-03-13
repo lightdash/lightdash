@@ -1,4 +1,4 @@
-import { ApiError, GitRepo } from '@lightdash/common';
+import { type ApiError, type GitRepo } from '@lightdash/common';
 import {
     Alert,
     Avatar,
@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import githubIcon from '../../../svgs/github-icon.svg';

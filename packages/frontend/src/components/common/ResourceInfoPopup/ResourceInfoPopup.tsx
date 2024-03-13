@@ -1,6 +1,6 @@
 import { HoverCard, Space, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
 import { DashboardList } from './DashboardList';
 

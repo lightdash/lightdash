@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { type FeatureFlags } from '@lightdash/common';
 import { useFeatureFlagEnabled as useFeatureFlagEnabledPosthog } from 'posthog-js/react';
 
 /**

@@ -1,13 +1,18 @@
 import {
-    ConditionalOperator,
     createFilterRuleFromField,
-    FieldTarget,
-    FilterRule,
     getFieldRef,
     isDimension,
+    type ConditionalOperator,
+    type FieldTarget,
+    type FilterRule,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
-import { Dispatch, FC, SetStateAction, useCallback } from 'react';
+import {
+    useCallback,
+    type Dispatch,
+    type FC,
+    type SetStateAction,
+} from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import FilterRuleForm from '../../common/Filters/FilterRuleForm';
 import { useFiltersContext } from '../../common/Filters/FiltersProvider';

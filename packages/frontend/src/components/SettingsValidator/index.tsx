@@ -7,7 +7,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import {
     useValidation,
     useValidationMutation,

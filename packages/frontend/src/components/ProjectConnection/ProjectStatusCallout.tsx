@@ -1,11 +1,14 @@
-import { Alert, AlertProps, Loader } from '@mantine/core';
+import { Alert, Loader, type AlertProps } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import { FC } from 'react';
-import { useCreateMutation, useUpdateMutation } from '../../hooks/useProject';
+import { type FC } from 'react';
+import {
+    type useCreateMutation,
+    type useUpdateMutation,
+} from '../../hooks/useProject';
 import MantineIcon from '../common/MantineIcon';
 
 type ProjectStatusCalloutProps = Omit<AlertProps, 'children'> & {

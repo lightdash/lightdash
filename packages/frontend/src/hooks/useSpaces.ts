@@ -1,15 +1,15 @@
 import {
-    ApiError,
-    CreateSpace,
-    Space,
-    SpaceSummary,
-    UpdateSpace,
+    type ApiError,
+    type CreateSpace,
+    type Space,
+    type SpaceSummary,
+    type UpdateSpace,
 } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';

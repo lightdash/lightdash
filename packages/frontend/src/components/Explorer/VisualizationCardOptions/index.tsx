@@ -18,7 +18,7 @@ import {
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
-import { FC, memo, useMemo } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../../providers/AppProvider';
 import {

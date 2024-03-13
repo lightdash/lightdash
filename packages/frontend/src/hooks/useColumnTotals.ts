@@ -1,17 +1,17 @@
 import {
-    ApiQueryResults,
     DimensionType,
-    Field,
-    FieldId,
     getItemId,
     isCustomDimension,
     isDimension,
     isTableCalculation,
-    Item,
-    ItemsMap,
     MetricType,
-    ResultRow,
-    TableCalculation,
+    type ApiQueryResults,
+    type Field,
+    type FieldId,
+    type Item,
+    type ItemsMap,
+    type ResultRow,
+    type TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 

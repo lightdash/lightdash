@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCheck, IconCopy } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import MantineIcon from '../../common/MantineIcon';

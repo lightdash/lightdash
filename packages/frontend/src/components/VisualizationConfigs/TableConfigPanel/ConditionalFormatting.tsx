@@ -1,19 +1,19 @@
 import {
     assertUnreachable,
-    ConditionalFormattingConfig,
     ConditionalFormattingConfigType,
-    ConditionalFormattingConfigWithColorRange,
-    ConditionalFormattingWithConditionalOperator,
-    ConditionalOperator,
     createConditionalFormatingRule,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,
-    FilterableItem,
     getConditionalFormattingConfigType,
     getItemId,
     hasPercentageFormat,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    type ConditionalFormattingConfig,
+    type ConditionalFormattingConfigWithColorRange,
+    type ConditionalFormattingWithConditionalOperator,
+    type ConditionalOperator,
+    type FilterableItem,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -35,7 +35,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import produce from 'immer';
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';

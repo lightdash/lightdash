@@ -1,19 +1,19 @@
 import {
-    AdditionalMetric,
-    CustomFormat,
-    Dimension,
     DimensionType,
-    Explore,
-    Field,
-    FilterRule,
     friendlyName,
     isAdditionalMetric,
     isDimension,
-    MetricFilterRule,
     MetricType,
     snakeCaseName,
+    type AdditionalMetric,
+    type CustomFormat,
+    type Dimension,
+    type Explore,
+    type Field,
+    type FilterRule,
+    type MetricFilterRule,
 } from '@lightdash/common';
-import { MetricFilterRuleWithFieldId } from '../FilterForm';
+import { type MetricFilterRuleWithFieldId } from '../FilterForm';
 
 export const addFieldRefToFilterRule = (
     filterRule: FilterRule,

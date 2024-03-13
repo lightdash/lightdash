@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    ResourceViewItem,
     ResourceViewItemType,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu } from '@mantine/core';
 import {
@@ -18,14 +18,14 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { FC, Fragment, useMemo } from 'react';
+import { Fragment, useMemo, type FC } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../MantineIcon';
 import {
     ResourceViewItemAction,
-    ResourceViewItemActionState,
+    type ResourceViewItemActionState,
 } from './ResourceActionHandlers';
 
 export interface ResourceViewActionMenuCommonProps {

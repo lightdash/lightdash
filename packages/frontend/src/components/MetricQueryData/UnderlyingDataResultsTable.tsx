@@ -1,6 +1,6 @@
-import { ApiQueryResults, Field } from '@lightdash/common';
+import { type ApiQueryResults, type Field } from '@lightdash/common';
 import { Box, Center } from '@mantine/core';
-import { FC, useCallback } from 'react';
+import { useCallback, type FC } from 'react';
 import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
@@ -11,7 +11,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../common/Table/Table.styles';
-import { TableColumn } from '../common/Table/types';
+import { type TableColumn } from '../common/Table/types';
 import CellContextMenu from './CellContextMenu';
 
 const UnderlyingDataResultsTable: FC<{

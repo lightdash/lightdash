@@ -1,18 +1,18 @@
 import {
-    ApiError,
-    CreateDashboard,
-    Dashboard,
-    DashboardAvailableFilters,
-    DashboardTile,
-    SavedChartsInfoForDashboardAvailableFilters,
-    UpdateDashboard,
+    type ApiError,
+    type CreateDashboard,
+    type Dashboard,
+    type DashboardAvailableFilters,
+    type DashboardTile,
+    type SavedChartsInfoForDashboardAvailableFilters,
+    type UpdateDashboard,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';

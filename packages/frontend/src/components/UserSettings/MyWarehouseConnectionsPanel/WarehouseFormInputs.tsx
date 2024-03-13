@@ -1,10 +1,10 @@
 import {
-    UpsertUserWarehouseCredentials,
     WarehouseTypes,
+    type UpsertUserWarehouseCredentials,
 } from '@lightdash/common';
 import { PasswordInput, TextInput } from '@mantine/core';
-import { UseFormReturnType } from '@mantine/form';
-import { FC } from 'react';
+import { type UseFormReturnType } from '@mantine/form';
+import { type FC } from 'react';
 
 export const WarehouseFormInputs: FC<{
     disabled: boolean;

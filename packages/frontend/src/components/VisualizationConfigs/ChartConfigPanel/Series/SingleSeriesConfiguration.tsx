@@ -1,8 +1,8 @@
-import { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
+import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
-    CartesianChartLayout,
     CartesianSeriesType,
-    Series,
+    type CartesianChartLayout,
+    type Series,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -21,7 +21,7 @@ import {
     IconEyeOff,
     IconGripVertical,
 } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';

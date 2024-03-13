@@ -1,7 +1,7 @@
-import { Anchor, Button, ButtonProps } from '@mantine/core';
-import React, { FC } from 'react';
+import { Anchor, Button, type ButtonProps } from '@mantine/core';
+import React, { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import { EventData, useTracking } from '../../providers/TrackingProvider';
+import { useTracking, type EventData } from '../../providers/TrackingProvider';
 
 export interface MantineLinkButtonProps extends ButtonProps {
     href: string;

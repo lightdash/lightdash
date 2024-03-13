@@ -1,7 +1,7 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { type WarehouseTypes } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { CreateProjectConnection } from '../..';
 import MantineIcon from '../../../common/MantineIcon';
 import { OnboardingTitle } from '../common/OnboardingTitle';

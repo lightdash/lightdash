@@ -1,4 +1,8 @@
-import { ApiQueryResults, CustomVis, ResultRow } from '@lightdash/common';
+import {
+    type ApiQueryResults,
+    type CustomVis,
+    type ResultRow,
+} from '@lightdash/common';
 import { useEffect, useMemo, useState } from 'react';
 
 const convertRowsToSeries = (rows: ResultRow[]) => {

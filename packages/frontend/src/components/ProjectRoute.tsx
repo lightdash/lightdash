@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import React, { ComponentProps, FC } from 'react';
+import React, { type ComponentProps, type FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import { useProjects } from '../hooks/useProjects';

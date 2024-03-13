@@ -1,5 +1,8 @@
 import { Ability } from '@casl/ability';
-import { ApiError, LightdashUserWithAbilityRules } from '@lightdash/common';
+import {
+    type ApiError,
+    type LightdashUserWithAbilityRules,
+} from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 

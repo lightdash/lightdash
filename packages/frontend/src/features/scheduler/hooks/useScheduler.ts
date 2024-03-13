@@ -1,18 +1,18 @@
 import {
-    ApiError,
-    ApiJobStatusResponse,
-    ApiTestSchedulerResponse,
-    CreateSchedulerAndTargets,
-    SchedulerAndTargets,
     SchedulerJobStatus,
-    SchedulerWithLogs,
+    type ApiError,
+    type ApiJobStatusResponse,
+    type ApiTestSchedulerResponse,
+    type CreateSchedulerAndTargets,
+    type SchedulerAndTargets,
+    type SchedulerWithLogs,
 } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';

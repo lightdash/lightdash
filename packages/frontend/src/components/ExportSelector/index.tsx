@@ -1,17 +1,17 @@
 import {
-    ApiDownloadCsv,
-    ApiError,
-    ApiScheduledDownloadCsv,
     SchedulerJobStatus,
+    type ApiDownloadCsv,
+    type ApiError,
+    type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { FC, memo, useState } from 'react';
+import { memo, useState, type FC } from 'react';
 import { ExportToGoogleSheet } from '../../features/export';
 import useHealth from '../../hooks/health/useHealth';
 import MantineIcon from '../common/MantineIcon';
-import ExportCSV, { ExportCSVProps } from '../ExportCSV';
+import ExportCSV, { type ExportCSVProps } from '../ExportCSV';
 
 const ExportSelector: FC<
     ExportCSVProps & {

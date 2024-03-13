@@ -1,20 +1,20 @@
 import {
     ChartType,
-    CustomDimension,
-    Dimension,
     getDimensionsFromItemsMap,
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
     isNumericItem,
-    ItemsMap,
-    Metric,
-    TableCalculation,
+    type CustomDimension,
+    type Dimension,
+    type ItemsMap,
+    type Metric,
+    type TableCalculation,
 } from '@lightdash/common';
-import { FC, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import usePieChartConfig from '../../hooks/usePieChartConfig';
 import {
-    VisualizationConfig,
-    VisualizationConfigCommon,
+    type VisualizationConfig,
+    type VisualizationConfigCommon,
 } from './VisualizationProvider';
 
 export type VisualizationConfigPie = {

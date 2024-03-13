@@ -1,10 +1,14 @@
-import { assertUnreachable, ChartType, SavedChart } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ChartType,
+    type SavedChart,
+} from '@lightdash/common';
 import { Button, Drawer, Group, Text } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
-import { FC, memo, useMemo } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import BigNumberConfigTabs from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';

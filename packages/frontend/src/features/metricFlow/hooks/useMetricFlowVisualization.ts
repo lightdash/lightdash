@@ -1,4 +1,8 @@
-import { ApiQueryResults, ChartConfig, ChartType } from '@lightdash/common';
+import {
+    ChartType,
+    type ApiQueryResults,
+    type ChartConfig,
+} from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
 import { getValidChartConfig } from '../../../providers/ExplorerProvider';
 

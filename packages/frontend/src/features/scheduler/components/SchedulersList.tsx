@@ -1,11 +1,11 @@
 import {
-    ApiError,
-    SchedulerAndTargets,
     SchedulerFormat,
+    type ApiError,
+    type SchedulerAndTargets,
 } from '@lightdash/common';
 import { Loader, Stack, Text, Title } from '@mantine/core';
-import { UseQueryResult } from '@tanstack/react-query';
-import React, { FC, useState } from 'react';
+import { type UseQueryResult } from '@tanstack/react-query';
+import React, { useState, type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import { SchedulerDeleteModal } from './SchedulerDeleteModal';
 import SchedulersListItem from './SchedulersListItem';

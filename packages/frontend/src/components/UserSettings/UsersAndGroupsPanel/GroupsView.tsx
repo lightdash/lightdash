@@ -1,17 +1,17 @@
-import { GroupWithMembers } from '@lightdash/common';
+import { type GroupWithMembers } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
     Button,
     Group,
     Modal,
-    ModalProps,
     Paper,
     Stack,
     Table,
     Text,
     TextInput,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -20,7 +20,7 @@ import {
     IconTrash,
     IconX,
 } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
     useGroupDeleteMutation,

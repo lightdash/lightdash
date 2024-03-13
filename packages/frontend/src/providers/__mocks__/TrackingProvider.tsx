@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { type FC } from 'react';
 import { vi } from 'vitest';
 
 export const TrackingProvider: FC<React.PropsWithChildren<{}>> = ({
