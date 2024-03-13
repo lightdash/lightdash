@@ -1,4 +1,4 @@
-import { MetricQueryResponse } from './metricQuery';
+import { type MetricQueryResponse } from './metricQuery';
 
 export type ApiGdriveAccessTokenResponse = {
     status: 'ok';

@@ -1,5 +1,5 @@
 import { Liquid, TokenKind } from 'liquidjs';
-import { ResultValue } from '../types/results';
+import { type ResultValue } from '../types/results';
 
 const templateEngine = new Liquid({
     cache: true,

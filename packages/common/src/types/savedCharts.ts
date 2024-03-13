@@ -1,12 +1,12 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { ViewStatistics } from './analytics';
-import { ConditionalFormattingConfig } from './conditionalFormatting';
-import { CompactOrAlias } from './field';
-import { MetricQuery, MetricQueryRequest } from './metricQuery';
+import { type ViewStatistics } from './analytics';
+import { type ConditionalFormattingConfig } from './conditionalFormatting';
+import { type CompactOrAlias } from './field';
+import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 // eslint-disable-next-line import/no-cycle
-import { SpaceShare } from './space';
-import { LightdashUser, UpdatedByUser } from './user';
-import { ValidationSummary } from './validation';
+import { type SpaceShare } from './space';
+import { type LightdashUser, type UpdatedByUser } from './user';
+import { type ValidationSummary } from './validation';
 
 export enum ChartKind {
     LINE = 'line',

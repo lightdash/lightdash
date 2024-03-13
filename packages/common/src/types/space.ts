@@ -1,9 +1,9 @@
 // eslint-disable-next-line import/no-cycle
-import { SpaceDashboard } from './dashboard';
-import { OrganizationMemberRole } from './organizationMemberProfile';
-import { ProjectMemberRole } from './projectMemberRole';
+import { type SpaceDashboard } from './dashboard';
+import { type OrganizationMemberRole } from './organizationMemberProfile';
+import { type ProjectMemberRole } from './projectMemberRole';
 // eslint-disable-next-line import/no-cycle
-import { SpaceQuery } from './savedCharts';
+import { type SpaceQuery } from './savedCharts';
 
 export type Space = {
     organizationUuid: string;

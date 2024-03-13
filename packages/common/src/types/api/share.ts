@@ -1,4 +1,4 @@
-import { ShareUrl } from '../share';
+import { type ShareUrl } from '../share';
 
 export type ApiShareResponse = {
     status: 'ok';

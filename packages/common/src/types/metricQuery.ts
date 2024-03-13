@@ -1,19 +1,19 @@
 import {
     BinType,
-    CompactOrAlias,
-    CompiledDimension,
-    CompiledMetric,
-    CompiledTableCalculation,
-    CustomDimension,
-    CustomFormat,
-    FieldId,
-    Format,
     friendlyName,
-    MetricType,
-    TableCalculation,
+    type CompactOrAlias,
+    type CompiledDimension,
+    type CompiledMetric,
+    type CompiledTableCalculation,
+    type CustomDimension,
+    type CustomFormat,
+    type FieldId,
+    type Format,
+    type MetricType,
+    type TableCalculation,
 } from './field';
-import { Filters, MetricFilterRule } from './filter';
-import { DateGranularity } from './timeFrames';
+import { type Filters, type MetricFilterRule } from './filter';
+import { type DateGranularity } from './timeFrames';
 
 export interface AdditionalMetric {
     label?: string;

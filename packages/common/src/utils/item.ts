@@ -1,22 +1,22 @@
-import { Explore } from '../types/explore';
+import { type Explore } from '../types/explore';
 import {
-    CompiledDimension,
-    CustomDimension,
-    Dimension,
     DimensionType,
-    Field,
     fieldId,
     isDimension,
     isField,
-    Item,
     MetricType,
-    TableCalculation,
+    type CompiledDimension,
+    type CustomDimension,
+    type Dimension,
+    type Field,
+    type Item,
+    type TableCalculation,
 } from '../types/field';
 import {
-    AdditionalMetric,
     getCustomDimensionId,
     isAdditionalMetric,
     isCustomDimension,
+    type AdditionalMetric,
 } from '../types/metricQuery';
 
 export const isNumericType = (type: DimensionType | MetricType) => {

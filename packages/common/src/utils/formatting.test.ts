@@ -1,11 +1,11 @@
 import {
     Compact,
-    CustomFormat,
     CustomFormatType,
     DimensionType,
     Format,
     MetricType,
     NumberSeparator,
+    type CustomFormat,
 } from '../types/field';
 import {
     applyCustomFormat,
