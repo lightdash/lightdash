@@ -1,11 +1,11 @@
-import { FilterableField } from './field';
-import { DashboardFilters } from './filter';
+import { type FilterableField } from './field';
+import { type DashboardFilters } from './filter';
 // eslint-disable-next-line import/no-cycle
-import { ChartKind, SavedChartType } from './savedCharts';
+import { type ChartKind, type SavedChartType } from './savedCharts';
 // eslint-disable-next-line import/no-cycle
-import { SpaceShare } from './space';
-import { UpdatedByUser } from './user';
-import { ValidationSummary } from './validation';
+import { type SpaceShare } from './space';
+import { type UpdatedByUser } from './user';
+import { type ValidationSummary } from './validation';
 
 export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',

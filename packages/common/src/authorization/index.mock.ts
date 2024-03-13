@@ -1,8 +1,8 @@
 import {
-    OrganizationMemberProfile,
     OrganizationMemberRole,
+    type OrganizationMemberProfile,
 } from '../types/organizationMemberProfile';
-import { ProjectMemberProfile } from '../types/projectMemberProfile';
+import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 
 export const userWithoutOrg = {

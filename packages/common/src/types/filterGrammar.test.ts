@@ -1,5 +1,5 @@
 import peg from 'pegjs';
-import { FilterOperator, MetricFilterRule } from './filter';
+import { FilterOperator, type MetricFilterRule } from './filter';
 import filterGrammar, { parseFilters } from './filterGrammar';
 
 describe('Parse grammar', () => {

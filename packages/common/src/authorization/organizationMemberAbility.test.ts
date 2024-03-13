@@ -1,5 +1,5 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
-import { OrganizationMemberProfile } from '../types/organizationMemberProfile';
+import { type OrganizationMemberProfile } from '../types/organizationMemberProfile';
 import { SpaceMemberRole } from '../types/space';
 import { organizationMemberAbilities } from './organizationMemberAbility';
 import {
@@ -10,7 +10,7 @@ import {
     ORGANIZATION_MEMBER,
     ORGANIZATION_VIEWER,
 } from './organizationMemberAbility.mock';
-import { MemberAbility } from './types';
+import { type MemberAbility } from './types';
 
 const defineAbilityForOrganizationMember = (
     member:

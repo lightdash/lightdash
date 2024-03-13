@@ -1,4 +1,4 @@
-import { Group } from './groups';
+import { type Group } from './groups';
 
 export enum OrganizationMemberRole {
     MEMBER = 'member',

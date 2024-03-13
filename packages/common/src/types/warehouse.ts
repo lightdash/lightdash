@@ -1,7 +1,7 @@
-import { WeekDay } from '../utils/timeFrames';
-import { SupportedDbtAdapter } from './dbt';
-import { DimensionType, Metric } from './field';
-import { CreateWarehouseCredentials } from './projects';
+import { type WeekDay } from '../utils/timeFrames';
+import { type SupportedDbtAdapter } from './dbt';
+import { type DimensionType, type Metric } from './field';
+import { type CreateWarehouseCredentials } from './projects';
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;

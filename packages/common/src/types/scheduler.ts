@@ -1,7 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { Explore, ExploreError } from './explore';
-import { DashboardFilterRule } from './filter';
-import { MetricQuery } from './metricQuery';
+import { type Explore, type ExploreError } from './explore';
+import { type DashboardFilterRule } from './filter';
+import { type MetricQuery } from './metricQuery';
 
 export type SchedulerCsvOptions = {
     formatted: boolean;

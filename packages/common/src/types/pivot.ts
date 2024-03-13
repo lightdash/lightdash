@@ -1,5 +1,5 @@
-import { FieldType } from './field';
-import { ResultValue } from './results';
+import { type FieldType } from './field';
+import { type ResultValue } from './results';
 
 export type PivotConfig = {
     pivotDimensions: string[];

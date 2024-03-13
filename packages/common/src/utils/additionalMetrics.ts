@@ -1,7 +1,7 @@
 import { convertColumnMetric } from '../types/dbt';
-import { CompiledTable } from '../types/explore';
-import { Metric } from '../types/field';
-import { AdditionalMetric } from '../types/metricQuery';
+import { type CompiledTable } from '../types/explore';
+import { type Metric } from '../types/field';
+import { type AdditionalMetric } from '../types/metricQuery';
 
 type ConvertAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;

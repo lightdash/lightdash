@@ -1,10 +1,10 @@
-import { AbilityBuilder } from '@casl/ability';
+import { type AbilityBuilder } from '@casl/ability';
 import {
-    OrganizationMemberProfile,
-    OrganizationMemberRole,
+    type OrganizationMemberProfile,
+    type OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
 import { SpaceMemberRole } from '../types/space';
-import { MemberAbility } from './types';
+import { type MemberAbility } from './types';
 
 // eslint-disable-next-line import/prefer-default-export
 export const organizationMemberAbilities: Record<

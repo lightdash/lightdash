@@ -1,4 +1,4 @@
-import { MetricQuery } from './metricQuery';
+import { type MetricQuery } from './metricQuery';
 
 export type DownloadMetricCsv = {
     userUuid: string;
