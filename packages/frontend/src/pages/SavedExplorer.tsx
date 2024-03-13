@@ -1,18 +1,45 @@
+import { FC, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-
-import { useEffect } from 'react';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
+import { VisualizationSidebarRight } from '../components/Explorer/VisualizationCard/VisualizationSidebarRight';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
     ExplorerSection,
+    useExplorerContext,
 } from '../providers/ExplorerProvider';
+
+const SavedExplorerPage: FC<{
+    name: string | undefined;
+    isEditMode: boolean;
+}> = ({ name, isEditMode }) => {
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
+    );
+
+    return (
+        <Page
+            title={name}
+            header={<SavedChartsHeader />}
+            sidebar={<ExplorePanel />}
+            isSidebarOpen={isEditMode}
+            withFullHeight
+            withPaddedContent
+            rightSidebar={<VisualizationSidebarRight />}
+            isRightSidebarOpen={expandedSections.includes(
+                ExplorerSection.VISUALIZATION_RIGHT_SIDEBAR,
+            )}
+        >
+            <Explorer />
+        </Page>
+    );
+};
 
 const SavedExplorer = () => {
     const { savedQueryUuid, mode } = useParams<{
@@ -79,16 +106,7 @@ const SavedExplorer = () => {
             }
             savedChart={data}
         >
-            <Page
-                title={data?.name}
-                header={<SavedChartsHeader />}
-                sidebar={<ExplorePanel />}
-                isSidebarOpen={isEditMode}
-                withFullHeight
-                withPaddedContent
-            >
-                <Explorer />
-            </Page>
+            <SavedExplorerPage name={data?.name} isEditMode={isEditMode} />
         </ExplorerProvider>
     );
 };

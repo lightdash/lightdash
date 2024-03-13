@@ -1,24 +1,34 @@
 import {
     ECHARTS_DEFAULT_COLORS,
+    FeatureFlags,
     getHiddenTableFields,
     NotFoundError,
 } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
+import { Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import {
+    IconLayoutSidebarLeftCollapse,
+    IconLayoutSidebarLeftExpand,
+} from '@tabler/icons-react';
 import { downloadCsv } from '../../../api/csv';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
 import { ChartDownloadMenu } from '../../ChartDownload';
-import CollapsableCard from '../../common/CollapsableCard';
+import CollapsableCard, {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+} from '../../common/CollapsableCard';
+import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
@@ -35,6 +45,9 @@ const VisualizationCard: FC<{
     projectUuid?: string;
     isProjectPreview?: boolean;
 }> = memo(({ projectUuid: fallBackUUid, isProjectPreview }) => {
+    const isChartConfigRightSideEnabled = !useFeatureFlagEnabled(
+        FeatureFlags.ChartConfigRightSide,
+    );
     const { health } = useApp();
     const { data: org } = useOrganization();
 
@@ -83,6 +96,17 @@ const VisualizationCard: FC<{
     );
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
+
+    const toggleVisualizationRightSidebar = useCallback(() => {
+        toggleExpandedSection(ExplorerSection.VISUALIZATION_RIGHT_SIDEBAR);
+    }, [toggleExpandedSection]);
+    const isVisualizationRightSidebarOpen = useMemo(
+        () =>
+            expandedSections.includes(
+                ExplorerSection.VISUALIZATION_RIGHT_SIDEBAR,
+            ),
+        [expandedSections],
+    );
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
@@ -181,7 +205,7 @@ const VisualizationCard: FC<{
                 rightHeaderElement={
                     isOpen && (
                         <>
-                            {isEditMode ? (
+                            {isEditMode && !isChartConfigRightSideEnabled ? (
                                 <VisualizationSidebar
                                     chartType={
                                         unsavedChartVersion.chartConfig.type
@@ -193,6 +217,27 @@ const VisualizationCard: FC<{
                                     onOpen={openSidebar}
                                     onClose={closeSidebar}
                                 />
+                            ) : null}
+
+                            {isEditMode && isChartConfigRightSideEnabled ? (
+                                <Button
+                                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                    onClick={toggleVisualizationRightSidebar}
+                                    rightIcon={
+                                        <MantineIcon
+                                            color="gray"
+                                            icon={
+                                                isVisualizationRightSidebarOpen
+                                                    ? IconLayoutSidebarLeftCollapse
+                                                    : IconLayoutSidebarLeftExpand
+                                            }
+                                        />
+                                    }
+                                >
+                                    {isVisualizationRightSidebarOpen
+                                        ? 'Close configure'
+                                        : 'Configure'}
+                                </Button>
                             ) : null}
 
                             <ChartDownloadMenu

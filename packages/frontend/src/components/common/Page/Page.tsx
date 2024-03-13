@@ -134,6 +134,8 @@ type Props = {
     title?: string;
     sidebar?: React.ReactNode;
     isSidebarOpen?: boolean;
+    rightSidebar?: React.ReactNode;
+    isRightSidebarOpen?: boolean;
     header?: React.ReactNode;
     hasBanner?: boolean;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
@@ -143,6 +145,8 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     header,
     sidebar,
     isSidebarOpen = true,
+    rightSidebar,
+    isRightSidebarOpen = true,
 
     withCenteredContent = false,
     withFitContent = false,
@@ -185,6 +189,8 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
         { name: 'Page' },
     );
 
+    console.log({ rightSidebar });
+
     return (
         <>
             {title ? (
@@ -208,6 +214,12 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         {children}
                     </TrackSection>
                 </Box>
+
+                {rightSidebar ? (
+                    <Sidebar isOpen={isRightSidebarOpen}>
+                        {rightSidebar}
+                    </Sidebar>
+                ) : null}
 
                 {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
             </Box>

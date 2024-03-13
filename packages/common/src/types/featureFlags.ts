@@ -32,4 +32,9 @@ export enum FeatureFlags {
      * Enables the new results table drawer
      */
     ResultsTableDrawer = 'results-table-drawer',
+
+    /**
+     * Enables the new visualization sidebar on the right
+     */
+    ChartConfigRightSide = 'chart-config-right-side',
 }
