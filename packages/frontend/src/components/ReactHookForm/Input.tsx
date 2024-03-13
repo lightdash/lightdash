@@ -1,6 +1,6 @@
 import { TextInput } from '@mantine/core';
-import React, { FC } from 'react';
-import InputWrapper, { InputWrapperProps } from './InputWrapper';
+import React, { type FC } from 'react';
+import InputWrapper, { type InputWrapperProps } from './InputWrapper';
 
 type FieldProps = {
     rightElement?: React.ReactNode;

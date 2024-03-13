@@ -1,23 +1,26 @@
 import {
-    ApiQueryResults,
-    ColumnProperties,
-    ConditionalFormattingConfig,
-    DashboardFilters,
     getItemLabel,
     isDimension,
     isField,
     isMetric,
     isTableCalculation,
     itemsInMetricQuery,
-    ItemsMap,
-    PivotData,
-    ResultRow,
-    TableChart,
+    type ApiQueryResults,
+    type ColumnProperties,
+    type ConditionalFormattingConfig,
+    type DashboardFilters,
+    type ItemsMap,
+    type PivotData,
+    type ResultRow,
+    type TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TableColumn, TableHeader } from '../../components/common/Table/types';
+import {
+    type TableColumn,
+    type TableHeader,
+} from '../../components/common/Table/types';
 import { useCalculateTotal } from '../useCalculateTotal';
 import { isSummable } from '../useColumnTotals';
 import getDataAndColumns from './getDataAndColumns';

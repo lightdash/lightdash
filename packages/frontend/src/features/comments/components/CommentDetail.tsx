@@ -1,4 +1,4 @@
-import { Comment } from '@lightdash/common';
+import { type Comment } from '@lightdash/common';
 import {
     ActionIcon,
     Avatar,
@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconDotsVertical, IconMessage, IconTrash } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
 import { CommentTimestamp } from './CommentTimestamp';

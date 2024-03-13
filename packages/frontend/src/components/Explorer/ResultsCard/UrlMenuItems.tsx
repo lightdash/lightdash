@@ -1,20 +1,20 @@
 import {
-    Field,
-    FieldUrl,
     friendlyName,
     getItemId,
     getItemLabel,
     getTemplatedUrlRowDependencies,
     isField,
     renderTemplatedUrl,
-    ResultRow,
-    ResultValue,
-    TableCalculation,
+    type Field,
+    type FieldUrl,
+    type ResultRow,
+    type ResultValue,
+    type TableCalculation,
 } from '@lightdash/common';
 import { Box, Menu, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconLink } from '@tabler/icons-react';
-import { Cell } from '@tanstack/react-table';
-import { FC, useMemo } from 'react';
+import { type Cell } from '@tanstack/react-table';
+import { useMemo, type FC } from 'react';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';

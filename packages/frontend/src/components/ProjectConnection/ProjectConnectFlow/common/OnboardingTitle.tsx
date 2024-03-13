@@ -1,5 +1,5 @@
-import { Title, TitleProps } from '@mantine/core';
-import { FC } from 'react';
+import { Title, type TitleProps } from '@mantine/core';
+import { type FC } from 'react';
 
 export const OnboardingTitle: FC<React.PropsWithChildren<TitleProps>> = ({
     children,

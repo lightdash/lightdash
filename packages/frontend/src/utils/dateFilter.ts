@@ -1,12 +1,12 @@
 import {
-    DashboardFilters,
-    FilterGroup,
-    FilterGroupItem,
-    FilterRule,
-    Filters,
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
     isFilterGroup,
+    type DashboardFilters,
+    type FilterGroup,
+    type FilterGroupItem,
+    type FilterRule,
+    type Filters,
 } from '@lightdash/common';
 import moment from 'moment';
 

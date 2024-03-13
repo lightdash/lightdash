@@ -1,7 +1,7 @@
 import { Flex, Text } from '@mantine/core';
-import { DateTimePickerProps, DayOfWeek } from '@mantine/dates';
+import { type DateTimePickerProps, type DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import FilterDateTimePicker from './FilterDateTimePicker';
 
 interface Props

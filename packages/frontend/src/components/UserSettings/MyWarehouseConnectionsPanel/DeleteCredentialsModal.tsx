@@ -1,15 +1,15 @@
-import { UserWarehouseCredentials } from '@lightdash/common';
+import { type UserWarehouseCredentials } from '@lightdash/common';
 import {
     Button,
     Group,
     Modal,
-    ModalProps,
     Stack,
     Text,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useUserWarehouseCredentialsDeleteMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import MantineIcon from '../../common/MantineIcon';
 

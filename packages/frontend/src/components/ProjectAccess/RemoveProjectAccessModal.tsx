@@ -1,7 +1,7 @@
-import { OrganizationMemberProfile } from '@lightdash/common';
+import { type OrganizationMemberProfile } from '@lightdash/common';
 import { Button, Group, Modal, Text, Title } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {

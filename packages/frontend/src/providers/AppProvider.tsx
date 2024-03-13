@@ -1,10 +1,10 @@
-import { ApiError, HealthState } from '@lightdash/common';
-import { UseQueryResult } from '@tanstack/react-query';
-import { createContext, FC, useContext, useEffect } from 'react';
+import { type ApiError, type HealthState } from '@lightdash/common';
+import { type UseQueryResult } from '@tanstack/react-query';
+import { createContext, useContext, useEffect, type FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import useHealth from '../hooks/health/useHealth';
-import useUser, { UserWithAbility } from '../hooks/user/useUser';
+import useUser, { type UserWithAbility } from '../hooks/user/useUser';
 
 interface AppContext {
     health: UseQueryResult<HealthState, ApiError>;

@@ -1,5 +1,5 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { FC, memo } from 'react';
+import { memo, type FC } from 'react';
 import CustomVisualization from '../CustomVisualization';
 import SimpleChart from '../SimpleChart';
 import SimplePieChart from '../SimplePieChart';

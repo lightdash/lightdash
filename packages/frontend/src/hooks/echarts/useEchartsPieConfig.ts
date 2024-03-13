@@ -1,5 +1,9 @@
-import { formatItemValue, ResultRow, ResultValue } from '@lightdash/common';
-import { EChartsOption, PieSeriesOption } from 'echarts';
+import {
+    formatItemValue,
+    type ResultRow,
+    type ResultValue,
+} from '@lightdash/common';
+import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';

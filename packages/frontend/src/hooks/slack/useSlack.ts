@@ -1,9 +1,13 @@
-import { ApiError, SlackChannel, SlackSettings } from '@lightdash/common';
+import {
+    type ApiError,
+    type SlackChannel,
+    type SlackSettings,
+} from '@lightdash/common';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';

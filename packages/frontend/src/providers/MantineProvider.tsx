@@ -1,6 +1,6 @@
 import { MantineProvider as MantineProviderBase } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 import { getMantineThemeOverride } from '../mantineTheme';
 

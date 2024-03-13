@@ -1,7 +1,7 @@
 import { Group, Skeleton } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-import { FieldWithSuggestions } from '../../common/Filters/FiltersProvider';
+import { type FieldWithSuggestions } from '../../common/Filters/FiltersProvider';
 import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
 

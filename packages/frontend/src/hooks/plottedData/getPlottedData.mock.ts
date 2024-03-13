@@ -1,5 +1,5 @@
-import { ResultRow } from '@lightdash/common';
-import { PivotValueMap, RowKeyMap } from './getPlottedData';
+import { type ResultRow } from '@lightdash/common';
+import { type PivotValueMap, type RowKeyMap } from './getPlottedData';
 
 export const RESULTS_FOR_SIMPLE_PIVOT: ResultRow[] = [
     {

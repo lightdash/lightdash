@@ -1,13 +1,13 @@
 import {
-    CustomDimension,
-    Field,
     getItemId,
-    SortField,
-    TableCalculation,
+    type CustomDimension,
+    type Field,
+    type SortField,
+    type TableCalculation,
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import {
     getSortDirectionOrder,

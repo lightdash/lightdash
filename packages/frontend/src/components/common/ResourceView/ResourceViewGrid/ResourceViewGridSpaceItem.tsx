@@ -1,4 +1,7 @@
-import { assertUnreachable, ResourceViewSpaceItem } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type ResourceViewSpaceItem,
+} from '@lightdash/common';
 import {
     Box,
     Flex,
@@ -11,18 +14,18 @@ import {
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import {
-    Icon as IconType,
     IconChartBar,
     IconLayoutDashboard,
     IconLock,
     IconUser,
     IconUsers,
+    type Icon as IconType,
 } from '@tabler/icons-react';
-import { FC, ReactNode, useMemo } from 'react';
+import { useMemo, type FC, type ReactNode } from 'react';
 
 import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
-    ResourceViewActionMenuCommonProps,
+    type ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
 
 interface ResourceViewGridSpaceItemProps

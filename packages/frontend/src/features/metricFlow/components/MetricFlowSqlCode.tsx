@@ -1,11 +1,11 @@
-import { ApiError } from '@lightdash/common';
+import { type ApiError } from '@lightdash/common';
 import { Loader } from '@mantine/core';
 import { Prism } from '@mantine/prism';
-import { useQuery } from '@tanstack/react-query';
-import React, { ComponentProps, FC } from 'react';
+import { type useQuery } from '@tanstack/react-query';
+import React, { type ComponentProps, type FC } from 'react';
 import { EmptyState } from '../../../components/common/EmptyState';
 import ErrorState from '../../../components/common/ErrorState';
-import Table from '../../../components/common/Table';
+import type Table from '../../../components/common/Table';
 
 interface Props {
     status: ComponentProps<typeof Table>['status'];

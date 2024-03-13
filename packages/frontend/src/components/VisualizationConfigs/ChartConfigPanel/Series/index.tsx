@@ -1,21 +1,21 @@
 import {
     DragDropContext,
     Draggable,
-    DraggableStateSnapshot,
     Droppable,
-    DropResult,
+    type DraggableStateSnapshot,
+    type DropResult,
 } from '@hello-pangea/dnd';
 import {
-    CustomDimension,
-    Field,
     getItemId,
     getSeriesId,
-    Series,
-    TableCalculation,
+    type CustomDimension,
+    type Field,
+    type Series,
+    type TableCalculation,
 } from '@lightdash/common';
 import { Divider } from '@mantine/core';
 import produce from 'immer';
-import React, { FC, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';

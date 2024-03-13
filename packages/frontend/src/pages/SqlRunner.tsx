@@ -32,8 +32,8 @@ import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import {
-    ProjectCatalogTreeNode,
     useProjectCatalogTree,
+    type ProjectCatalogTreeNode,
 } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';

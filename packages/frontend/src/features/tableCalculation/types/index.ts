@@ -1,5 +1,5 @@
-import { CustomFormat } from '@lightdash/common';
-import { UseFormReturnType } from '@mantine/form';
+import { type CustomFormat } from '@lightdash/common';
+import { type UseFormReturnType } from '@mantine/form';
 
 type TableCalculationFormInputs = {
     name: string;

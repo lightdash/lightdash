@@ -1,14 +1,14 @@
 import {
-    ApiCreateUserTokenResults,
-    ApiError,
-    ApiPersonalAccessTokenResponse,
-    CreatePersonalAccessToken,
+    type ApiCreateUserTokenResults,
+    type ApiError,
+    type ApiPersonalAccessTokenResponse,
+    type CreatePersonalAccessToken,
 } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';

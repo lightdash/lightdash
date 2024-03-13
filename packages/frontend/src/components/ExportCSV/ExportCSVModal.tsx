@@ -1,7 +1,7 @@
-import { Button, Group, Modal, ModalProps, Text } from '@mantine/core';
+import { Button, Group, Modal, Text, type ModalProps } from '@mantine/core';
 import { IconTableExport } from '@tabler/icons-react';
-import { FC } from 'react';
-import ExportCSV, { ExportCSVProps } from '.';
+import { type FC } from 'react';
+import ExportCSV, { type ExportCSVProps } from '.';
 import MantineIcon from '../common/MantineIcon';
 
 type ExportCSVModalProps = ModalProps &

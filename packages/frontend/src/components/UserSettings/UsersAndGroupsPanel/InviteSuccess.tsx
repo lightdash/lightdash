@@ -1,4 +1,4 @@
-import { InviteLink } from '@lightdash/common';
+import { type InviteLink } from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -9,7 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import React, { FC, useMemo } from 'react';
+import React, { useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';

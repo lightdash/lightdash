@@ -1,12 +1,19 @@
 import {
     assertUnreachable,
-    Dashboard,
-    DashboardLoomTileProperties,
-    DashboardMarkdownTileProperties,
     DashboardTileTypes,
+    type Dashboard,
+    type DashboardLoomTileProperties,
+    type DashboardMarkdownTileProperties,
 } from '@lightdash/common';
-import { Button, Group, Modal, ModalProps, Stack, Title } from '@mantine/core';
-import { useForm, UseFormReturnType } from '@mantine/form';
+import {
+    Button,
+    Group,
+    Modal,
+    Stack,
+    Title,
+    type ModalProps,
+} from '@mantine/core';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import produce from 'immer';
 import MantineIcon from '../../common/MantineIcon';

@@ -1,6 +1,6 @@
-import { ApiError } from '@lightdash/common';
+import { type ApiError } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import useToaster from './toaster/useToaster';
 
 const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {

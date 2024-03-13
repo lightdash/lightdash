@@ -10,7 +10,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 
 import { IconAlertCircle } from '@tabler/icons-react';

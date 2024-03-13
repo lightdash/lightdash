@@ -1,7 +1,7 @@
-import { Comment } from '@lightdash/common';
+import { type Comment } from '@lightdash/common';
 import { Text, Tooltip } from '@mantine/core';
 import moment from 'moment';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
 type Props = {

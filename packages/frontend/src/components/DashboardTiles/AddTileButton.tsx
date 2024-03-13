@@ -1,5 +1,12 @@
-import { Dashboard, DashboardTileTypes } from '@lightdash/common';
-import { Button, ButtonProps, Group, Menu, Text, Tooltip } from '@mantine/core';
+import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
+import {
+    Button,
+    Group,
+    Menu,
+    Text,
+    Tooltip,
+    type ButtonProps,
+} from '@mantine/core';
 import {
     IconChartBar,
     IconInfoCircle,
@@ -7,7 +14,7 @@ import {
     IconPlus,
     IconVideo,
 } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useDashboardContext } from '../../providers/DashboardProvider';

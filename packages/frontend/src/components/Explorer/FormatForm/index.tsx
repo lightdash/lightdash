@@ -3,9 +3,9 @@ import {
     Compact,
     CompactConfigMap,
     currencies,
-    CustomFormat,
     CustomFormatType,
     NumberSeparator,
+    type CustomFormat,
 } from '@lightdash/common';
 import {
     Flex,
@@ -15,9 +15,9 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import { GetInputProps } from '@mantine/form/lib/types';
-import { FC } from 'react';
-import { ValueOf } from 'type-fest';
+import { type GetInputProps } from '@mantine/form/lib/types';
+import { type FC } from 'react';
+import { type ValueOf } from 'type-fest';
 
 type Props = {
     formatInputProps: (

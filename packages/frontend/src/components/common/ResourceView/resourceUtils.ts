@@ -1,8 +1,8 @@
 import {
     assertUnreachable,
     ChartKind,
-    ResourceViewItem,
     ResourceViewItemType,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import moment from 'moment';
 

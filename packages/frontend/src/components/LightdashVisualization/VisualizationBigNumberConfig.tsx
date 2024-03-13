@@ -1,9 +1,9 @@
-import { ChartType, ItemsMap } from '@lightdash/common';
-import { FC, useEffect } from 'react';
+import { ChartType, type ItemsMap } from '@lightdash/common';
+import { useEffect, type FC } from 'react';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import {
-    VisualizationConfig,
-    VisualizationConfigCommon,
+    type VisualizationConfig,
+    type VisualizationConfigCommon,
 } from './VisualizationProvider';
 
 export type VisualizationConfigBigNumber = {

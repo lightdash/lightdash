@@ -18,7 +18,7 @@ import {
     IconLogout,
 } from '@tabler/icons-react';
 import posthog from 'posthog-js';
-import React, { FC, useCallback, useState } from 'react';
+import React, { useCallback, useState, type FC } from 'react';
 import { Link, Redirect, Route, Switch } from 'react-router-dom';
 import AppRoute from './components/AppRoute';
 import MantineIcon from './components/common/MantineIcon';

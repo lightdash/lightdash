@@ -1,5 +1,5 @@
 import { Flex } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 const OnboardingWrapper: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     return (

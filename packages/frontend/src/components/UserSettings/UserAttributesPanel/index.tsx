@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { UserAttribute } from '@lightdash/common';
+import { type UserAttribute } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -20,7 +20,7 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {

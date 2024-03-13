@@ -1,7 +1,7 @@
-import { getItemId, getItemLabel, ItemsMap } from '@lightdash/common';
+import { getItemId, getItemLabel, type ItemsMap } from '@lightdash/common';
 import {
     columnHelper,
-    TableColumn,
+    type TableColumn,
 } from '../../../components/common/Table/types';
 
 export default function convertFieldMapToTableColumns(itemsMap: ItemsMap) {

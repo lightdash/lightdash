@@ -3,7 +3,7 @@ import {
     getDateGroupLabel,
     getItemLabelWithoutTableName,
     isNumericItem,
-    ItemsMap,
+    type ItemsMap,
 } from '@lightdash/common';
 import {
     Checkbox,
@@ -15,7 +15,7 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import { FC, useCallback } from 'react';
+import { useCallback, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';

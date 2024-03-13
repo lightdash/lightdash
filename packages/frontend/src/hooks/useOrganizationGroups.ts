@@ -1,15 +1,15 @@
 import {
-    ApiError,
-    CreateGroup,
-    Group,
-    GroupWithMembers,
-    UpdateGroupWithMembers,
+    type ApiError,
+    type CreateGroup,
+    type Group,
+    type GroupWithMembers,
+    type UpdateGroupWithMembers,
 } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../api';

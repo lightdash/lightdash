@@ -1,20 +1,20 @@
 import {
-    ApiError,
-    ChartHistory,
-    ChartVersion,
-    CreateSavedChart,
-    CreateSavedChartVersion,
-    SavedChart,
-    UpdateMultipleSavedChart,
-    UpdateSavedChart,
+    type ApiError,
+    type ChartHistory,
+    type ChartVersion,
+    type CreateSavedChart,
+    type CreateSavedChartVersion,
+    type SavedChart,
+    type UpdateMultipleSavedChart,
+    type UpdateSavedChart,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
-    UseMutationOptions,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseMutationOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';

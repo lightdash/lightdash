@@ -1,14 +1,14 @@
 import {
     DragDropContext,
     Draggable,
-    DraggableProvidedDragHandleProps,
     Droppable,
-    DropResult,
+    type DraggableProvidedDragHandleProps,
+    type DropResult,
 } from '@hello-pangea/dnd';
 import {
-    PieChartValueLabel,
     PieChartValueLabels,
-    PieChartValueOptions,
+    type PieChartValueLabel,
+    type PieChartValueOptions,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -18,9 +18,9 @@ import {
     Group,
     Select,
     Stack,
-    StackProps,
     TextInput,
     Tooltip,
+    type StackProps,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -28,7 +28,7 @@ import {
     IconChevronUp,
     IconGripVertical,
 } from '@tabler/icons-react';
-import { FC, forwardRef, useCallback } from 'react';
+import { forwardRef, useCallback, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';

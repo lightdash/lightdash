@@ -1,5 +1,5 @@
 import { Card, Image, Stack } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Redirect } from 'react-router-dom';
 
 import Page from '../components/common/Page/Page';

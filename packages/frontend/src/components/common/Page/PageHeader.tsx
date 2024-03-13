@@ -1,5 +1,5 @@
-import { Card, CardProps, Flex } from '@mantine/core';
-import { FC } from 'react';
+import { Card, Flex, type CardProps } from '@mantine/core';
+import { type FC } from 'react';
 
 export const PAGE_HEADER_HEIGHT = 80;
 

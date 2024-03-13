@@ -1,4 +1,4 @@
-import { SearchFilters, SearchResults } from '@lightdash/common';
+import { type SearchFilters, type SearchResults } from '@lightdash/common';
 import { isNil, omitBy } from 'lodash';
 import { lightdashApi } from '../../../api';
 

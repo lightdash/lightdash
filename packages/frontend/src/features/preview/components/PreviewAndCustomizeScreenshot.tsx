@@ -1,4 +1,4 @@
-import { ApiError, Dashboard } from '@lightdash/common';
+import { type ApiError, type Dashboard } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -12,8 +12,8 @@ import {
     Text,
 } from '@mantine/core';
 import { IconEye, IconEyeClosed } from '@tabler/icons-react';
-import { UseMutationResult } from '@tanstack/react-query';
-import { Dispatch, FC, SetStateAction, useState } from 'react';
+import { type UseMutationResult } from '@tanstack/react-query';
+import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { CUSTOM_WIDTH_OPTIONS } from '../../scheduler/constants';
 

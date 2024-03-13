@@ -1,19 +1,18 @@
 import {
     assertUnreachable,
     ChartKind,
-    ResourceViewItem,
     ResourceViewItemType,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import {
     Center,
     Indicator,
-    IndicatorProps,
     Paper,
     Tooltip,
-    TooltipProps,
+    type IndicatorProps,
+    type TooltipProps,
 } from '@mantine/core';
 import {
-    Icon as TablerIconType,
     IconChartArea,
     IconChartAreaLine,
     IconChartBar,
@@ -25,10 +24,11 @@ import {
     IconLayoutDashboard,
     IconSquareNumber1,
     IconTable,
+    type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { FC, ReactNode, useRef, useState } from 'react';
-import { StyledComponent } from 'styled-components';
-import MantineIcon, { MantineIconProps } from '../MantineIcon';
+import { useRef, useState, type FC, type ReactNode } from 'react';
+import { type StyledComponent } from 'styled-components';
+import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 
 interface ResourceIconProps {
     item: ResourceViewItem;

@@ -1,14 +1,14 @@
 import {
-    ApiCalculateTotalResponse,
-    ApiError,
-    CalculateTotalFromQuery,
-    DashboardFilters,
     fieldId as getFieldId,
     isField,
     isMetric,
-    ItemsMap,
-    MetricQuery,
-    MetricQueryRequest,
+    type ApiCalculateTotalResponse,
+    type ApiError,
+    type CalculateTotalFromQuery,
+    type DashboardFilters,
+    type ItemsMap,
+    type MetricQuery,
+    type MetricQueryRequest,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';

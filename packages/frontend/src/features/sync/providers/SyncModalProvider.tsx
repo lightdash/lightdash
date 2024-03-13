@@ -1,10 +1,10 @@
 import {
     createContext,
-    Dispatch,
-    FC,
-    SetStateAction,
     useContext,
     useState,
+    type Dispatch,
+    type FC,
+    type SetStateAction,
 } from 'react';
 
 export enum SyncModalAction {

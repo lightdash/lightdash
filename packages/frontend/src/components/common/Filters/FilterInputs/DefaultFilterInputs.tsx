@@ -1,13 +1,13 @@
 import {
     assertUnreachable,
-    ConditionalRule,
     FilterOperator,
     FilterType,
     isFilterRule,
     isTableCalculationField,
+    type ConditionalRule,
 } from '@lightdash/common';
 import isString from 'lodash/isString';
-import { FilterInputsProps } from '.';
+import { type FilterInputsProps } from '.';
 import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';

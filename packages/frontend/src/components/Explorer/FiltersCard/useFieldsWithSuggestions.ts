@@ -1,21 +1,21 @@
 import {
-    AdditionalMetric,
-    ApiQueryResults,
     convertAdditionalMetric,
     CustomFormatType,
     DimensionType,
-    Explore,
     fieldId,
     FieldType,
     getResultValueArray,
     getVisibleFields,
     isFilterableField,
-    Metric,
-    TableCalculation,
-    TableCalculationField,
+    type AdditionalMetric,
+    type ApiQueryResults,
+    type Explore,
+    type Metric,
+    type TableCalculation,
+    type TableCalculationField,
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
-import { FieldsWithSuggestions } from '../../common/Filters/FiltersProvider';
+import { type FieldsWithSuggestions } from '../../common/Filters/FiltersProvider';
 
 interface FieldsWithSuggestionsHookParams {
     exploreData: Explore | undefined;

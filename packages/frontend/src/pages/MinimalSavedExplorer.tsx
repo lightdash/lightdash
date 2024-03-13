@@ -1,5 +1,5 @@
-import { MantineProvider, MantineThemeOverride } from '@mantine/core';
-import { FC } from 'react';
+import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import LightdashVisualization from '../components/LightdashVisualization';

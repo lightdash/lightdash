@@ -1,24 +1,24 @@
 import {
-    DashboardFilterRule,
-    DashboardTile,
-    Field,
     fieldId as getFieldId,
     isDashboardChartTileType,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
+    type DashboardFilterRule,
+    type DashboardTile,
+    type Field,
 } from '@lightdash/common';
 import {
     Box,
     Checkbox,
     Flex,
-    PopoverProps,
     Stack,
     Text,
     Tooltip,
     useMantineTheme,
+    type PopoverProps,
 } from '@mantine/core';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { FilterActions } from '.';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';

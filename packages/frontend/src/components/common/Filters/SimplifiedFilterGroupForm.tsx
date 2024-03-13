@@ -1,6 +1,6 @@
-import { FilterableField, FilterRule } from '@lightdash/common';
+import { type FilterableField, type FilterRule } from '@lightdash/common';
 import { Stack, Text, Tooltip } from '@mantine/core';
-import { FC, useCallback } from 'react';
+import { useCallback, type FC } from 'react';
 import FilterRuleForm from './FilterRuleForm';
 
 type Props = {

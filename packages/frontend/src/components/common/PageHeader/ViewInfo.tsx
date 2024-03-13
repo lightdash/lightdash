@@ -1,7 +1,7 @@
 import { Tooltip } from '@mantine/core';
 import { IconEye } from '@tabler/icons-react';
 import moment from 'moment';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { InfoContainer } from '.';
 
 interface ViewInfoProps {

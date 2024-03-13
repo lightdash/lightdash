@@ -1,10 +1,10 @@
 import {
-    ApiQueryResults,
     formatItemValue,
     friendlyName,
     isField,
-    ItemsMap,
-    ResultRow,
+    type ApiQueryResults,
+    type ItemsMap,
+    type ResultRow,
 } from '@lightdash/common';
 import {
     TableHeaderBoldLabel,
@@ -13,8 +13,8 @@ import {
 } from '../../components/common/Table/Table.styles';
 import {
     columnHelper,
-    TableColumn,
-    TableHeader,
+    type TableColumn,
+    type TableHeader,
 } from '../../components/common/Table/types';
 
 type Args = {

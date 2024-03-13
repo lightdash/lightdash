@@ -1,10 +1,10 @@
 import { Text, Tooltip } from '@mantine/core';
 import moment from 'moment';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 import {
-    ResourceViewChartItem,
-    ResourceViewDashboardItem,
+    type ResourceViewChartItem,
+    type ResourceViewDashboardItem,
 } from '@lightdash/common';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 

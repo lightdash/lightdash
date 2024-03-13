@@ -1,9 +1,13 @@
 import { subject } from '@casl/ability';
-import { hasCustomDimension, ResultRow, ResultValue } from '@lightdash/common';
-import { Box, Menu, MenuProps, Portal, Text } from '@mantine/core';
+import {
+    hasCustomDimension,
+    type ResultRow,
+    type ResultValue,
+} from '@lightdash/common';
+import { Box, Menu, Portal, Text, type MenuProps } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';

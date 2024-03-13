@@ -1,8 +1,8 @@
-import { ApiError } from '@lightdash/common';
+import { type ApiError } from '@lightdash/common';
 import {
     useMutation,
-    UseMutationOptions,
     useQuery,
+    type UseMutationOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 

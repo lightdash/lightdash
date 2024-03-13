@@ -1,7 +1,7 @@
 import {
     assertUnreachable,
-    SavedChartSearchResult,
     SearchItemType,
+    type SavedChartSearchResult,
 } from '@lightdash/common';
 import { Anchor } from '@mantine/core';
 import {
@@ -13,14 +13,14 @@ import {
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 import {
     getChartIcon,
     IconBox,
     ResourceIndicator,
 } from '../../../components/common/ResourceIcon';
-import { SearchItem } from '../types/searchItem';
+import { type SearchItem } from '../types/searchItem';
 import { getSearchItemErrorLabel } from '../utils/getSearchItemLabel';
 
 type Props = {

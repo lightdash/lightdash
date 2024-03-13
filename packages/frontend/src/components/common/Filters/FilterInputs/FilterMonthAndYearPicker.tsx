@@ -1,7 +1,7 @@
-import { MonthPickerInput, MonthPickerInputProps } from '@mantine/dates';
+import { MonthPickerInput, type MonthPickerInputProps } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import moment from 'moment';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 type Props = Omit<MonthPickerInputProps, 'value' | 'onChange'> & {
     value: Date | null;

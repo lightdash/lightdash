@@ -1,14 +1,16 @@
-import { ApiError, FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type ApiError } from '@lightdash/common';
 import { Button, Group, Title, Tooltip } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { lightdashApi } from '../../api';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import LoadingState from '../common/LoadingState';
 import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { CreateCustomMetricsPullRequestModal } from './CreateCustomMetricsPullRequestModal';
-import CustomMetricsTable, { CustomMetricData } from './CustomMetricsTable';
+import CustomMetricsTable, {
+    type CustomMetricData,
+} from './CustomMetricsTable';
 
 const getCustomMetrics = async (projectUuid: string) => {
     return lightdashApi<CustomMetricData[]>({

@@ -1,7 +1,7 @@
 import { ActionIcon, Group, Tabs, Title, Tooltip } from '@mantine/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { useSchedulerLogs } from '../../features/scheduler/hooks/useScheduler';
 import { useTableTabStyles } from '../../hooks/styles/useTableTabStyles';
 import useToaster from '../../hooks/toaster/useToaster';

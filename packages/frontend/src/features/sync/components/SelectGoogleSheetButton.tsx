@@ -7,7 +7,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import useDrivePicker from 'react-google-drive-picker';
 import { useFormContext } from 'react-hook-form';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';

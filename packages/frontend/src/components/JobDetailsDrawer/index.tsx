@@ -1,19 +1,19 @@
 import {
-    Job,
     JobStatusType,
-    JobStep,
     JobStepStatusType,
+    type Job,
+    type JobStep,
 } from '@lightdash/common';
 import {
     Box,
     Drawer,
     Group,
     Loader,
-    MantineTheme,
     Stack,
     Text,
     Title,
     useMantineTheme,
+    type MantineTheme,
 } from '@mantine/core';
 import {
     IconAlertTriangle,
@@ -21,7 +21,7 @@ import {
     IconCircleCheckFilled,
 } from '@tabler/icons-react';
 import moment from 'moment';
-import { FC } from 'react';
+import { type FC } from 'react';
 import {
     jobStatusLabel,
     jobStepStatusLabel,

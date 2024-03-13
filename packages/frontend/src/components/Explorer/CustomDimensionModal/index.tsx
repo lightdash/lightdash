@@ -1,10 +1,10 @@
 import {
-    BinRange,
     BinType,
     fieldId,
     isCustomDimension,
     isDimension,
     snakeCaseName,
+    type BinRange,
 } from '@lightdash/common';
 import {
     ActionIcon,

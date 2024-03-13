@@ -2,11 +2,11 @@ import {
     DragDropContext,
     Draggable,
     Droppable,
-    DropResult,
+    type DropResult,
 } from '@hello-pangea/dnd';
 import { mergeRefs } from '@mantine/hooks';
 import { forwardRef } from 'react';
-import { Props } from '.';
+import { type Props } from '.';
 import { useColumns } from '../../hooks/useColumns';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import SortItem from './SortItem';

@@ -1,8 +1,5 @@
 import {
-    AdditionalMetric,
-    CustomDimension,
     DimensionType,
-    Field,
     getItemColor,
     getItemIcon,
     isCustomDimension,
@@ -10,7 +7,10 @@ import {
     isField,
     isMetric,
     MetricType,
-    TableCalculation,
+    type AdditionalMetric,
+    type CustomDimension,
+    type Field,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     Icon123,
@@ -22,7 +22,7 @@ import {
     IconToggleLeft,
 } from '@tabler/icons-react';
 import { forwardRef } from 'react';
-import MantineIcon, { MantineIconProps } from '../MantineIcon';
+import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 
 const getItemIconName = (type: DimensionType | MetricType) => {
     switch (type) {

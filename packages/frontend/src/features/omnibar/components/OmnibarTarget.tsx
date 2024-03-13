@@ -1,7 +1,7 @@
 import { Badge, em, getBreakpointValue, Group, Text } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import { CSSProperties, FC, MouseEvent } from 'react';
+import { type CSSProperties, type FC, type MouseEvent } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {

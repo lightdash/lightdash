@@ -1,10 +1,10 @@
 import {
     getHighestProjectRole,
-    InheritedRoles,
-    OrganizationMemberProfile,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
-    ProjectRole,
+    type InheritedRoles,
+    type OrganizationMemberProfile,
+    type ProjectRole,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -17,7 +17,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     useCreateProjectAccessMutation,
     useRevokeProjectAccessMutation,

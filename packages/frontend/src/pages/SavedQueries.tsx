@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 
 import LoadingState from '../components/common/LoadingState';

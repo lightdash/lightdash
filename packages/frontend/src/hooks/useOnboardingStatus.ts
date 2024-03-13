@@ -1,7 +1,7 @@
 import {
-    ApiError,
-    OnboardingStatus,
-    ProjectSavedChartStatus,
+    type ApiError,
+    type OnboardingStatus,
+    type ProjectSavedChartStatus,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';

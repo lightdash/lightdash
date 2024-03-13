@@ -1,7 +1,7 @@
 import {
     assertUnreachable,
-    DashboardFilterRule,
     FilterOperator,
+    type DashboardFilterRule,
 } from '@lightdash/common';
 import produce from 'immer';
 import isEqual from 'lodash/isEqual';

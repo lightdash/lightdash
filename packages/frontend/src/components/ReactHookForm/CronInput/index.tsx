@@ -1,12 +1,12 @@
 import { Group } from '@mantine/core';
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, type FC } from 'react';
 import {
     Controller,
-    ControllerRenderProps,
-    FieldValues,
     useFormContext,
+    type ControllerRenderProps,
+    type FieldValues,
 } from 'react-hook-form';
-import { InputWrapperProps } from '../InputWrapper';
+import { type InputWrapperProps } from '../InputWrapper';
 import {
     Frequency,
     getFrequencyCronExpression,

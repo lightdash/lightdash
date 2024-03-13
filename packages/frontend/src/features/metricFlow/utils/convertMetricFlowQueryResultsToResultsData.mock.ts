@@ -1,11 +1,11 @@
 import {
     DimensionType,
-    Explore,
     FieldType,
     MetricType,
     SupportedDbtAdapter,
+    type Explore,
 } from '@lightdash/common';
-import { MetricFlowJsonResults } from '../../../api/MetricFlowAPI';
+import { type MetricFlowJsonResults } from '../../../api/MetricFlowAPI';
 
 export const MOCK_EXPLORE: Explore = {
     name: 'metricflow',

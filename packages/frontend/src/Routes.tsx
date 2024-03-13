@@ -1,5 +1,5 @@
 import { Stack } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 
 import { TrackPage } from './providers/TrackingProvider';

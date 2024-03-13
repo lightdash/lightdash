@@ -1,6 +1,6 @@
 import { fieldId as getFieldId, getVisibleFields } from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine/core';
-import { FC, memo, useMemo } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';

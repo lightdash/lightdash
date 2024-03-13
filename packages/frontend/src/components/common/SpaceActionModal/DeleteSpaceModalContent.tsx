@@ -1,5 +1,5 @@
-import { FC } from 'react';
-import { SpaceModalBody } from '.';
+import { type FC } from 'react';
+import { type SpaceModalBody } from '.';
 
 const DeleteSpaceModalContent: FC<SpaceModalBody> = ({ data }) => (
     <>

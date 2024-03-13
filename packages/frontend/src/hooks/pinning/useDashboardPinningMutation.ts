@@ -1,4 +1,4 @@
-import { ApiError, Dashboard } from '@lightdash/common';
+import { type ApiError, type Dashboard } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
