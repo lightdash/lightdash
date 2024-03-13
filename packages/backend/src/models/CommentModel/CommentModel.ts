@@ -151,7 +151,7 @@ export class CommentModel {
         dashboardUuid: string,
         dashboardTileUuid: string,
         text: string,
-        textHtml: string,
+        unsafeTextHtml: string,
         replyTo: string | null,
         user: LightdashUser,
         mentions: string[],
@@ -161,10 +161,16 @@ export class CommentModel {
                 dashboardUuid,
                 dashboardTileUuid,
             );
+        console.log(
+            'INPUT HTML',
+            unsafeTextHtml,
+            'OUTPUT',
+            sanitizeHtml(unsafeTextHtml),
+        );
         const [comment] = await this.database(DashboardTileCommentsTableName)
             .insert({
                 text,
-                text_html: sanitizeHtml(textHtml),
+                text_html: sanitizeHtml(unsafeTextHtml),
                 dashboard_tile_uuid: dashboardTileUuid,
                 reply_to: replyTo ?? null,
                 user_uuid: user.userUuid,
