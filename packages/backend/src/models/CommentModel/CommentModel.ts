@@ -161,12 +161,6 @@ export class CommentModel {
                 dashboardUuid,
                 dashboardTileUuid,
             );
-        console.log(
-            'INPUT HTML',
-            unsafeTextHtml,
-            'OUTPUT',
-            sanitizeHtml(unsafeTextHtml),
-        );
         const [comment] = await this.database(DashboardTileCommentsTableName)
             .insert({
                 text,
