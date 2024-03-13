@@ -46,4 +46,20 @@ describe('sanitizeHtml', () => {
             sanitizeHtml('Here is some text <p>And a paragraph.</p><br />'),
         ).toEqual('Here is some text <p>And a paragraph.</p><br />');
     });
+
+    test('double sanitization (with invalid tags)', () => {
+        expect(
+            sanitizeHtml(
+                sanitizeHtml(
+                    '<script>console.log("boo");</script><p><span style="color: red">@Foo</span></p>',
+                ),
+            ),
+        ).toEqual('<p><span style="color:red">@Foo</span></p>');
+    });
+
+    test('malformed tag', () => {
+        expect(sanitizeHtml('<span style="color:red">@Foo')).toEqual(
+            '<span style="color:red">@Foo</span>',
+        );
+    });
 });
