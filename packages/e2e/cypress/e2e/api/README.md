@@ -61,7 +61,7 @@ POST /projects/:projectUuid/explores/:exploreId/compileQuery AUTH
 POST /projects/:projectUuid/explores/:exploreId/runQuery AUTH
 POST /projects/:projectUuid/refresh AUTH
 POST /projects/:projectUuid/saved AUTH
-GET /projects/:projectUuid/spaces-and-content AUTH
+GET /projects/:projectUuid/spaces AUTH
 GET /projects/:projectUuid/dashboards AUTH
 POST /projects/:projectUuid/dashboards AUTH
 POST /projects/:projectUuid/sqlQuery AUTH
