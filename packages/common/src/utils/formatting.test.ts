@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+import moment from 'moment';
 import {
     Compact,
     CustomFormatType,
@@ -13,6 +15,7 @@ import {
     formatItemValue,
     formatNumberValue,
     getCustomFormatFromLegacy,
+    isMomentInput,
 } from './formatting';
 import { dimension, metric, tableCalculation } from './formatting.mock';
 
@@ -1145,6 +1148,29 @@ describe('Formatting', () => {
                     }),
                 ).toEqual(expectedValue[i]),
             );
+        });
+    });
+
+    describe('isMomentInput', () => {
+        test('should return true for moment object', () => {
+            expect(isMomentInput(moment())).toBe(true);
+        });
+
+        test('should return true for dayjs object', () => {
+            expect(isMomentInput(dayjs())).toBe(true);
+        });
+
+        test('should return true for dates', () => {
+            expect(isMomentInput(new Date())).toBe(true);
+        });
+
+        test('should return true for strings', () => {
+            expect(isMomentInput('2021-03-10')).toBe(true);
+        });
+
+        test('should return false for non-dates-strings-moment-dayjs types', () => {
+            expect(isMomentInput(undefined)).toBe(false);
+            expect(isMomentInput(null)).toBe(false);
         });
     });
 });
