@@ -1,4 +1,5 @@
 import {
+    ActionIcon,
     Box,
     Card,
     CardProps,
@@ -8,11 +9,12 @@ import {
     Stack,
     Transition,
 } from '@mantine/core';
-import { FC } from 'react';
-
+import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import MantineIcon from '../MantineIcon';
 
 const SIDEBAR_DEFAULT_WIDTH = 400;
 const SIDEBAR_MIN_WIDTH = 300;
@@ -24,14 +26,23 @@ type Props = {
     isOpen?: boolean;
     containerProps?: FlexProps;
     cardProps?: CardProps;
+    collapsable?: boolean;
+    inverted?: boolean;
 };
 
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     isOpen = true,
+    collapsable = false,
+    inverted = false,
     containerProps,
     cardProps,
     children,
 }) => {
+    const [opened, setOpened] = useState(isOpen);
+
+    useEffect(() => {
+        setOpened(isOpen);
+    }, [isOpen]);
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
             defaultWidth: SIDEBAR_DEFAULT_WIDTH,
@@ -51,6 +62,24 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
         transitionProperty: 'opacity, margin',
     };
 
+    const getPropertiesForCollapseButton = useCallback(() => {
+        if (inverted) {
+            return {
+                left: opened ? -10 : 'default',
+                right: opened ? 'default' : 1,
+                icon: opened ? IconArrowRight : IconArrowLeft,
+            };
+        }
+
+        return {
+            right: opened ? -10 : 'default',
+            left: opened ? 'default' : 1,
+            icon: opened ? IconArrowLeft : IconArrowRight,
+        };
+    }, [inverted, opened]);
+
+    const { left, right, icon } = getPropertiesForCollapseButton();
+
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <Flex
@@ -62,7 +91,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                 {...containerProps}
             >
                 <Transition
-                    mounted={isOpen}
+                    mounted={opened}
                     duration={500}
                     transition={transition}
                 >
@@ -117,6 +146,24 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                         </>
                     )}
                 </Transition>
+
+                {collapsable && (
+                    <ActionIcon
+                        radius="xl"
+                        variant="default"
+                        pos="absolute"
+                        top="5%"
+                        right={right}
+                        left={left}
+                        w={16}
+                        h={16}
+                        miw={16}
+                        mih={16}
+                        onClick={() => setOpened((o) => !o)}
+                    >
+                        <MantineIcon color="gray.5" icon={icon} />
+                    </ActionIcon>
+                )}
             </Flex>
         </TrackSection>
     );

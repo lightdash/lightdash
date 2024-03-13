@@ -189,8 +189,6 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
         { name: 'Page' },
     );
 
-    console.log({ rightSidebar });
-
     return (
         <>
             {title ? (
@@ -203,7 +201,8 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
             <Box className={classes.root}>
                 {sidebar ? (
-                    <Sidebar isOpen={isSidebarOpen}>
+                    // NOTE: This collapsable will be applied to all sidebars. Fix this
+                    <Sidebar isOpen={isSidebarOpen} collapsable>
                         {sidebar}
                         {withSidebarFooter ? <AboutFooter minimal /> : null}
                     </Sidebar>
