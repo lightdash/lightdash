@@ -312,6 +312,10 @@ export class UnfurlService {
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            dashboard.spaceUuid,
+        );
         const { organizationUuid, projectUuid, name, minimalUrl, pageType } = {
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
@@ -330,6 +334,7 @@ export class UnfurlService {
                     organizationUuid,
                     projectUuid,
                     isPrivate,
+                    access,
                 }),
             )
         ) {
