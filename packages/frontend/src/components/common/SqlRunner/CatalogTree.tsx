@@ -52,6 +52,10 @@ const CatalogTreeNode: FC<{
     );
 };
 
+/**
+ * Defined as named function so that it's hoisted correctly, due to the dependency
+ * between CatalogTree<>CatalogTreeNode
+ */
 function CatalogTree({ nodes, onSelect }: Props) {
     return (
         <>
