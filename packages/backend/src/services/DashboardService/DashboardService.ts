@@ -343,10 +343,7 @@ export class DashboardService {
         const duplicatedDashboard = {
             ...dashboard,
             description: data.dashboardDesc,
-            name:
-                dashboard.name === data.dashboardName
-                    ? `Copy - ${dashboard.name}`
-                    : data.dashboardName,
+            name: data.dashboardName,
         };
 
         const newDashboard = await this.dashboardModel.create(

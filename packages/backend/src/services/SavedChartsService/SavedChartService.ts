@@ -720,10 +720,7 @@ export class SavedChartService {
         };
         const base = {
             ...chart,
-            name:
-                chart.name === data.chartName
-                    ? `Copy - ${chart.name}`
-                    : data.chartName, // avoid duplicate names
+            name: data.chartName,
             description: data.chartDesc,
             updatedByUser: user,
         };
