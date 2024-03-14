@@ -880,6 +880,9 @@ export class UserService {
             throw new AuthorizationError();
         }
         const { user, personalAccessToken } = results;
+        const organization = this.loginToOrganization(user.userUuid, 'token'); // TODO add this method to the enum
+        const userWithOrganization: SessionUser = { ...user, ...organization };
+
         const now = new Date();
         if (
             personalAccessToken.expiresAt &&
@@ -892,7 +895,7 @@ export class UserService {
             }
             throw new AuthorizationError();
         }
-        return user;
+        return userWithOrganization;
     }
 
     async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
