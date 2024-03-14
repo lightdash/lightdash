@@ -52,6 +52,7 @@ import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { postHogClient } from '../postHog';
+import { wrapOtelSpan } from '../utils';
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1070,6 +1071,21 @@ export class UserService {
         // TODO check valid login methods allowed in org
         // const organization = await this.organizationModel.get(organizations[0].organization_uuid)
         return organizations[0];
+    }
+
+    async findSessionUser(
+        passportUser: string | { id: string; organization: string },
+    ) {
+        // backwards compatible support user as strings (just the id, without the organization)
+        const user = await wrapOtelSpan('Passport.deserializeUser', {}, () =>
+            typeof passportUser === 'string'
+                ? this.userModel.findSessionUserByUUID(passportUser)
+                : this.userModel.findSessionUserAndOrgByUuid(
+                      passportUser.id,
+                      passportUser.organization,
+                  ),
+        );
+        return user;
     }
 
     private static async generateGoogleAccessToken(

@@ -577,10 +577,50 @@ export class UserModel {
         return this.getUserDetailsByUuid(user.user_uuid);
     }
 
+    /**
+     * Returns the user with the default organization
+     * Used in old deserialization method, for backwards compatibility
+     * You should use findSessionUserAndOrgByUuid instead
+     * @deprecated
+     */
     async findSessionUserByUUID(userUuid: string): Promise<SessionUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
             .select('*', 'organizations.created_at as organization_created_at');
+        if (user === undefined) {
+            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
+        }
+        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const projectRoles = await this.getUserProjectRoles(
+            user.user_id,
+            user.user_uuid,
+        );
+        const groupProjectRoles = await this.getUserGroupProjectRoles(
+            user.user_id,
+            user.organization_id,
+            user.user_uuid,
+        );
+        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
+            ...projectRoles,
+            ...groupProjectRoles,
+        ]);
+        return {
+            ...lightdashUser,
+            userId: user.user_id,
+            abilityRules: abilityBuilder.rules,
+            ability: abilityBuilder.build(),
+        };
+    }
+
+    async findSessionUserAndOrgByUuid(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<SessionUser> {
+        const [user] = await userDetailsQueryBuilder(this.database)
+            .where('user_uuid', userUuid)
+            .andWhere('organizations.organization_uuid', organizationUuid) // We filter organizationUuid here
+            .select('*', 'organizations.created_at as organization_created_at');
+
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
