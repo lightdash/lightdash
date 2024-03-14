@@ -4590,66 +4590,8 @@
                     }
                 ]
             },
-            "SpaceMemberRole": {
-                "enum": ["viewer", "editor"],
-                "type": "string"
-            },
-            "SpaceShare": {
-                "properties": {
-                    "inheritedFrom": {
-                        "type": "string",
-                        "enum": ["organization", "project", "group"]
-                    },
-                    "inheritedRole": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/OrganizationMemberRole"
-                            },
-                            {
-                                "$ref": "#/components/schemas/ProjectMemberRole"
-                            }
-                        ]
-                    },
-                    "hasDirectAccess": {
-                        "type": "boolean"
-                    },
-                    "role": {
-                        "$ref": "#/components/schemas/SpaceMemberRole"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "hasDirectAccess",
-                    "role",
-                    "email",
-                    "lastName",
-                    "firstName",
-                    "userUuid"
-                ],
-                "type": "object"
-            },
             "SavedChart": {
                 "properties": {
-                    "access": {
-                        "items": {
-                            "$ref": "#/components/schemas/SpaceShare"
-                        },
-                        "type": "array"
-                    },
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
                     "colorPalette": {
                         "items": {
                             "type": "string"
@@ -4736,8 +4678,6 @@
                     }
                 },
                 "required": [
-                    "access",
-                    "isPrivate",
                     "colorPalette",
                     "dashboardName",
                     "dashboardUuid",
@@ -5715,6 +5655,55 @@
             "SpaceDashboard": {
                 "$ref": "#/components/schemas/DashboardBasicDetails"
             },
+            "SpaceMemberRole": {
+                "enum": ["viewer", "editor"],
+                "type": "string"
+            },
+            "SpaceShare": {
+                "properties": {
+                    "inheritedFrom": {
+                        "type": "string",
+                        "enum": ["organization", "project", "group"]
+                    },
+                    "inheritedRole": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ]
+                    },
+                    "hasDirectAccess": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hasDirectAccess",
+                    "role",
+                    "email",
+                    "lastName",
+                    "firstName",
+                    "userUuid"
+                ],
+                "type": "object"
+            },
             "Space": {
                 "properties": {
                     "pinnedListOrder": {
@@ -6415,39 +6404,6 @@
                 "required": ["credentials", "name"],
                 "type": "object"
             },
-            "OpenIdIdentityIssuerType": {
-                "enum": ["google", "okta", "oneLogin", "azuread"],
-                "type": "string"
-            },
-            "EmailIssuerType": {
-                "enum": ["email"],
-                "type": "string"
-            },
-            "LoginOptions": {
-                "properties": {
-                    "redirectUri": {
-                        "type": "string"
-                    },
-                    "forceRedirect": {
-                        "type": "boolean"
-                    },
-                    "showOptions": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/OpenIdIdentityIssuerType"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/EmailIssuerType"
-                                }
-                            ]
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["showOptions"],
-                "type": "object"
-            },
             "ValidationErrorType": {
                 "enum": [
                     "chart",
@@ -6685,7 +6641,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1030.3",
+        "version": "0.1024.8",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -11675,57 +11631,6 @@
                     {
                         "in": "path",
                         "name": "uuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/user/login_options": {
-            "get": {
-                "operationId": "getLoginOptions",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "results": {
-                                            "$ref": "#/components/schemas/LoginOptions"
-                                        },
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get login options for email",
-                "tags": ["My Account"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "email",
                         "required": true,
                         "schema": {
                             "type": "string"
