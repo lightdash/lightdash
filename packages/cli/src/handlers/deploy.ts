@@ -116,11 +116,14 @@ const createNewProject = async (
         },
     });
     try {
-        const project = await createProject({
+        const results = await createProject({
             ...options,
             name: projectName,
             type: ProjectType.DEFAULT,
         });
+
+        const project = results?.project;
+
         if (!project) {
             spinner.fail('Cancel preview environment');
             return undefined;
