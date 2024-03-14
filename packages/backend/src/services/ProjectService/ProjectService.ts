@@ -3199,6 +3199,48 @@ export class ProjectService {
     async getCharts(
         user: SessionUser,
         projectUuid: string,
+    ): Promise<SpaceQuery[]> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+
+        const allowedSpacesBooleans = await Promise.all(
+            spaces.map(
+                async (space) =>
+                    space.projectUuid === projectUuid &&
+                    hasViewAccessToSpace(
+                        user,
+                        space,
+                        await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            space.uuid,
+                        ),
+                    ),
+            ),
+        );
+
+        const allowedSpaces = spaces.filter(
+            (_, index) => allowedSpacesBooleans[index],
+        );
+
+        return this.spaceModel.getSpaceQueries(
+            allowedSpaces.map((s) => s.uuid),
+        );
+    }
+
+    async getChartSummaries(
+        user: SessionUser,
+        projectUuid: string,
     ): Promise<ChartSummary[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3233,11 +3275,10 @@ export class ProjectService {
             (_, index) => allowedSpacesBooleans[index],
         );
 
-        const charts = await this.savedChartModel.find({
+        return this.savedChartModel.find({
             projectUuid,
             spaceUuids: allowedSpaces.map((s) => s.uuid),
         });
-        return charts;
     }
 
     async getMostPopularAndRecentlyUpdated(

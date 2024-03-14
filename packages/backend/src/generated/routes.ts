@@ -2914,6 +2914,109 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    description: { dataType: 'string' },
+                    uuid: { dataType: 'string', required: true },
+                    updatedAt: { dataType: 'datetime', required: true },
+                    updatedByUser: { ref: 'UpdatedByUser' },
+                    spaceUuid: { dataType: 'string', required: true },
+                    pinnedListUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    pinnedListOrder: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ViewStatistics: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                firstViewedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                views: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_',
+                },
+                { ref: 'ViewStatistics' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        validationErrors: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'ValidationSummary',
+                            },
+                        },
+                        chartType: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'ChartKind' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiChartListResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SpaceQuery' },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName_':
         {
             dataType: 'refAlias',
@@ -4148,11 +4251,57 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceMemberRole: {
+        dataType: 'refEnum',
+        enums: ['viewer', 'editor'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceShare: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                inheritedFrom: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['organization'] },
+                        { dataType: 'enum', enums: ['project'] },
+                        { dataType: 'enum', enums: ['group'] },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                inheritedRole: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OrganizationMemberRole' },
+                        { ref: 'ProjectMemberRole' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                hasDirectAccess: { dataType: 'boolean', required: true },
+                role: { ref: 'SpaceMemberRole', required: true },
+                email: { dataType: 'string', required: true },
+                lastName: { dataType: 'string', required: true },
+                firstName: { dataType: 'string', required: true },
+                userUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SavedChart: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                access: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SpaceShare' },
+                    required: true,
+                },
+                isPrivate: { dataType: 'boolean', required: true },
                 colorPalette: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -4895,93 +5044,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    description: { dataType: 'string' },
-                    uuid: { dataType: 'string', required: true },
-                    updatedAt: { dataType: 'datetime', required: true },
-                    updatedByUser: { ref: 'UpdatedByUser' },
-                    spaceUuid: { dataType: 'string', required: true },
-                    pinnedListUuid: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    pinnedListOrder: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ViewStatistics: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                firstViewedAt: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'datetime' },
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                views: { dataType: 'double', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SpaceQuery: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                {
-                    ref: 'Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_',
-                },
-                { ref: 'ViewStatistics' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        validationErrors: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'ValidationSummary',
-                            },
-                        },
-                        chartType: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'ChartKind' },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_':
         {
             dataType: 'refAlias',
@@ -5055,46 +5117,6 @@ const models: TsoaRoute.Models = {
     SpaceDashboard: {
         dataType: 'refAlias',
         type: { ref: 'DashboardBasicDetails', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SpaceMemberRole: {
-        dataType: 'refEnum',
-        enums: ['viewer', 'editor'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SpaceShare: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                inheritedFrom: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['organization'] },
-                        { dataType: 'enum', enums: ['project'] },
-                        { dataType: 'enum', enums: ['group'] },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                inheritedRole: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'OrganizationMemberRole' },
-                        { ref: 'ProjectMemberRole' },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                hasDirectAccess: { dataType: 'boolean', required: true },
-                role: { ref: 'SpaceMemberRole', required: true },
-                email: { dataType: 'string', required: true },
-                lastName: { dataType: 'string', required: true },
-                firstName: { dataType: 'string', required: true },
-                userUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Space: {
@@ -8998,6 +9020,62 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.getChartsInProject.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/chart-summaries',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.getChartSummariesInProject,
+        ),
+
+        async function ProjectController_getChartSummariesInProject(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getChartSummariesInProject.apply(
                     controller,
                     validatedArgs as any,
                 );

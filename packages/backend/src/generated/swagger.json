@@ -3253,6 +3253,111 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "uuid",
+                    "updatedAt",
+                    "spaceUuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ViewStatistics": {
+                "properties": {
+                    "firstViewedAt": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["firstViewedAt", "views"],
+                "type": "object"
+            },
+            "SpaceQuery": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ViewStatistics"
+                    },
+                    {
+                        "properties": {
+                            "validationErrors": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ValidationSummary"
+                                },
+                                "type": "array"
+                            },
+                            "chartType": {
+                                "$ref": "#/components/schemas/ChartKind"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiChartListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceQuery"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName_": {
                 "properties": {
                     "name": {
@@ -4590,8 +4695,66 @@
                     }
                 ]
             },
+            "SpaceMemberRole": {
+                "enum": ["viewer", "editor"],
+                "type": "string"
+            },
+            "SpaceShare": {
+                "properties": {
+                    "inheritedFrom": {
+                        "type": "string",
+                        "enum": ["organization", "project", "group"]
+                    },
+                    "inheritedRole": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ]
+                    },
+                    "hasDirectAccess": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hasDirectAccess",
+                    "role",
+                    "email",
+                    "lastName",
+                    "firstName",
+                    "userUuid"
+                ],
+                "type": "object"
+            },
             "SavedChart": {
                 "properties": {
+                    "access": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceShare"
+                        },
+                        "type": "array"
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
                     "colorPalette": {
                         "items": {
                             "type": "string"
@@ -4678,6 +4841,8 @@
                     }
                 },
                 "required": [
+                    "access",
+                    "isPrivate",
                     "colorPalette",
                     "dashboardName",
                     "dashboardUuid",
@@ -5478,94 +5643,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "name",
-                    "uuid",
-                    "updatedAt",
-                    "spaceUuid",
-                    "pinnedListUuid",
-                    "pinnedListOrder"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "ViewStatistics": {
-                "properties": {
-                    "firstViewedAt": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["firstViewedAt", "views"],
-                "type": "object"
-            },
-            "SpaceQuery": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-updatedAt-or-updatedByUser-or-description-or-spaceUuid-or-pinnedListUuid-or-pinnedListOrder_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ViewStatistics"
-                    },
-                    {
-                        "properties": {
-                            "validationErrors": {
-                                "items": {
-                                    "$ref": "#/components/schemas/ValidationSummary"
-                                },
-                                "type": "array"
-                            },
-                            "chartType": {
-                                "$ref": "#/components/schemas/ChartKind"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
             "Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {
                 "properties": {
                     "name": {
@@ -5654,55 +5731,6 @@
             },
             "SpaceDashboard": {
                 "$ref": "#/components/schemas/DashboardBasicDetails"
-            },
-            "SpaceMemberRole": {
-                "enum": ["viewer", "editor"],
-                "type": "string"
-            },
-            "SpaceShare": {
-                "properties": {
-                    "inheritedFrom": {
-                        "type": "string",
-                        "enum": ["organization", "project", "group"]
-                    },
-                    "inheritedRole": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/OrganizationMemberRole"
-                            },
-                            {
-                                "$ref": "#/components/schemas/ProjectMemberRole"
-                            }
-                        ]
-                    },
-                    "hasDirectAccess": {
-                        "type": "boolean"
-                    },
-                    "role": {
-                        "$ref": "#/components/schemas/SpaceMemberRole"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "hasDirectAccess",
-                    "role",
-                    "email",
-                    "lastName",
-                    "firstName",
-                    "userUuid"
-                ],
-                "type": "object"
             },
             "Space": {
                 "properties": {
@@ -6641,7 +6669,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1024.8",
+        "version": "0.1030.8",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -9004,7 +9032,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiChartSummaryListResponse"
+                                    "$ref": "#/components/schemas/ApiChartListResponse"
                                 }
                             }
                         }
@@ -9021,6 +9049,47 @@
                     }
                 },
                 "description": "List all charts in a project",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project to get charts for",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/chart-summaries": {
+            "get": {
+                "operationId": "ListChartSummariesInProject",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiChartSummaryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List all charts summaries in a project",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [

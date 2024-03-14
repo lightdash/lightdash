@@ -37,15 +37,13 @@ describe('Lightdash scheduler endpoints', () => {
     });
     it('Should create/update/delete chart scheduler', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
+        cy.request(`${apiUrl}/projects/${projectUuid}/charts`).then(
             (projectResponse) => {
-                const savedChart = projectResponse.body.results
-                    .find((s) => s.name === SEED_PROJECT.name)
-                    .queries.find(
-                        (s) =>
-                            s.name ===
-                            'How much revenue do we have per payment method?',
-                    );
+                const savedChart = projectResponse.body.results.find(
+                    (s) =>
+                        s.name ===
+                        'How much revenue do we have per payment method?',
+                );
 
                 // Create
                 cy.request<{ results: SchedulerAndTargets }>({

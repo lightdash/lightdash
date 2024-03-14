@@ -1,5 +1,6 @@
 import {
     ApiCalculateTotalResponse,
+    ApiChartListResponse,
     ApiChartSummaryListResponse,
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
@@ -75,13 +76,35 @@ export class ProjectController extends BaseController {
     async getChartsInProject(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiChartSummaryListResponse> {
+    ): Promise<ApiChartListResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getProjectService()
                 .getCharts(req.user!, projectUuid),
+        };
+    }
+
+    /**
+     * List all charts summaries in a project
+     * @param projectUuid The uuid of the project to get charts for
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/chart-summaries')
+    @OperationId('ListChartSummariesInProject')
+    async getChartSummariesInProject(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiChartSummaryListResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getChartSummaries(req.user!, projectUuid),
         };
     }
 
