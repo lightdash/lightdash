@@ -18,5 +18,6 @@ module.exports = {
         'no-restricted-syntax': 'off',
         'no-throw-literal': 'off',
         '@typescript-eslint/no-throw-literal': 'off',
+        '@typescript-eslint/no-explicit-any': 'error',
     },
 };
