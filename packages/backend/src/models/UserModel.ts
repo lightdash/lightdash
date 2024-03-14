@@ -11,6 +11,7 @@ import {
     NotExistsError,
     NotFoundError,
     OpenIdUser,
+    Organization,
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
@@ -30,7 +31,10 @@ import {
 } from '../database/entities/emails';
 import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import { OrganizationTableName } from '../database/entities/organizations';
+import {
+    DbOrganization,
+    OrganizationTableName,
+} from '../database/entities/organizations';
 import {
     DbPasswordLoginIn,
     PasswordLoginTableName,
@@ -192,6 +196,39 @@ export class UserModel {
             }
         }
         return newUser;
+    }
+
+    async getOrganizationsForUser(
+        userUuid: string,
+    ): Promise<
+        Pick<
+            LightdashUser,
+            'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
+        >[]
+    > {
+        const organizations = await this.database('organization_memberships')
+            .leftJoin(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .where(
+                'user_id',
+                this.database('users')
+                    .where('user_uuid', userUuid)
+                    .select('user_id'),
+            )
+            .select<DbOrganization[]>(
+                'organizations.organization_uuid',
+                'organizations.created_at',
+                'organizations.organization_name',
+            );
+
+        return organizations.map((organization) => ({
+            organizationUuid: organization.organization_uuid,
+            organizationCreatedAt: organization.created_at,
+            organizationName: organization.organization_name,
+        }));
     }
 
     async hasUsers(): Promise<boolean> {

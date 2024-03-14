@@ -682,11 +682,20 @@ export class UserService {
                 );
             }
             // TODO: move to authorization service layer
+            // TODO we should probably remove the organization from the model
             const user = await this.userModel.getUserByPrimaryEmailAndPassword(
                 email,
                 password,
             );
-            this.identifyUser(user);
+            const userOrganization = this.loginToOrganization(
+                user.userUuid,
+                'password',
+            );
+            const userWithOrganization = {
+                ...user,
+                ...userOrganization,
+            };
+            this.identifyUser(userWithOrganization);
             this.analytics.track({
                 userId: user.userUuid,
                 event: 'user.logged_in',
@@ -1039,6 +1048,28 @@ export class UserService {
                 ),
             },
         });
+    }
+
+    async loginToOrganization(
+        userUuid: string,
+        loginMethod: string /* TODO make enum */,
+    ): Promise<
+        Pick<
+            LightdashUser,
+            'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
+        >
+    > {
+        const organizations = await this.userModel.getOrganizationsForUser(
+            userUuid,
+        );
+        if (organizations.length === 0) {
+            throw new NotExistsError('User not part of any organization');
+        } else if (organizations.length > 1) {
+            throw new ForbiddenError('User is part of multiple organizations');
+        }
+        // TODO check valid login methods allowed in org
+        // const organization = await this.organizationModel.get(organizations[0].organization_uuid)
+        return organizations[0];
     }
 
     private static async generateGoogleAccessToken(
