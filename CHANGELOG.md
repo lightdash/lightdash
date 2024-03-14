@@ -1,3 +1,23 @@
+# [0.1031.0](https://github.com/lightdash/lightdash/compare/0.1030.8...0.1031.0) (2024-03-14)
+
+
+### Bug Fixes
+
+* bump snowflake connector package ([#9369](https://github.com/lightdash/lightdash/issues/9369)) ([521ea1e](https://github.com/lightdash/lightdash/commit/521ea1efad4987bf164ea214ad94047aac9d1054))
+* home page a11y issues ([#9310](https://github.com/lightdash/lightdash/issues/9310)) ([f3d249f](https://github.com/lightdash/lightdash/commit/f3d249f067512086455ec67ee3f59d767150a80d))
+* include eslint-plugin-unused-imports as dev dep in frontend, common ([#9371](https://github.com/lightdash/lightdash/issues/9371)) ([e1d5fed](https://github.com/lightdash/lightdash/commit/e1d5fed54a3ced28a45077fdd1aed7bfaa037f48))
+* pass space isPrivate to ability check ([#9355](https://github.com/lightdash/lightdash/issues/9355)) ([b6c87bc](https://github.com/lightdash/lightdash/commit/b6c87bce5bca00f7bf44311004c4099e9cf4b5d2))
+* pre/post-process comment content in backend and frontend ([#9359](https://github.com/lightdash/lightdash/issues/9359)) ([3b37c25](https://github.com/lightdash/lightdash/commit/3b37c25096158eb1e069fc5263b776ba23c12c61))
+* remove /spaces-and-content endpoint ([#9343](https://github.com/lightdash/lightdash/issues/9343)) ([3e592d6](https://github.com/lightdash/lightdash/commit/3e592d6d7f680b1bec9dd459dd288dabbc3f0d1e))
+* revert changes related to semantic-release + unused-imports ([#9375](https://github.com/lightdash/lightdash/issues/9375)) ([8e17fc0](https://github.com/lightdash/lightdash/commit/8e17fc02811e16311f9e956e304f178de4dc32c5)), closes [#9374](https://github.com/lightdash/lightdash/issues/9374) [#9371](https://github.com/lightdash/lightdash/issues/9371)
+* upgrade `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser` to ^6.21 ([#9374](https://github.com/lightdash/lightdash/issues/9374)) ([aae9f88](https://github.com/lightdash/lightdash/commit/aae9f88d1a710a40c1b188f7948e000df92b97be))
+
+
+### Features
+
+* add sanitizeHtml utility ([#9358](https://github.com/lightdash/lightdash/issues/9358)) ([51eabec](https://github.com/lightdash/lightdash/commit/51eabecbc48ed6fbcd27802c23f7c9dce77795bc))
+* **frontend:** replace moment with dayjs ([#9323](https://github.com/lightdash/lightdash/issues/9323)) ([7ec9804](https://github.com/lightdash/lightdash/commit/7ec980490ca60994834b2d354611a5b116f89469))
+
 ## [0.1030.8](https://github.com/lightdash/lightdash/compare/0.1030.7...0.1030.8) (2024-03-12)
 
 
