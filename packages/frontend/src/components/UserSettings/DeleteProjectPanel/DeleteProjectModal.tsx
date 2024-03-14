@@ -2,14 +2,14 @@ import {
     Button,
     Group,
     Modal,
-    ModalProps,
     Stack,
     Text,
     TextInput,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { useDeleteActiveProjectMutation } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import { useDeleteProjectMutation } from '../../../hooks/useProjects';

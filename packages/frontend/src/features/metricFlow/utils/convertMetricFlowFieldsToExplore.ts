@@ -1,18 +1,18 @@
 import {
-    CompiledDimension,
-    CompiledMetric,
     DimensionType,
-    Explore,
     fieldId,
     FieldType,
     friendlyName,
     MetricType,
     SupportedDbtAdapter,
+    type CompiledDimension,
+    type CompiledMetric,
+    type Explore,
 } from '@lightdash/common';
 import {
-    GetMetricFlowFieldsResponse,
-    GetSemanticLayerMetricsResponse,
     MetricFlowDimensionType,
+    type GetMetricFlowFieldsResponse,
+    type GetSemanticLayerMetricsResponse,
 } from '../../../api/MetricFlowAPI';
 import { convertDimensionNameToLabels } from './convertDimensionNameToLabels';
 

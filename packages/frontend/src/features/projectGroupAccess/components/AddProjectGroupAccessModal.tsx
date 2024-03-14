@@ -1,12 +1,12 @@
 import {
-    CreateProjectGroupAccess,
-    GroupWithMembers,
     ProjectMemberRole,
+    type CreateProjectGroupAccess,
+    type GroupWithMembers,
 } from '@lightdash/common';
 import { Box, Button, Group, Modal, Select, Text, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { TrackPage } from '../../../providers/TrackingProvider';

@@ -3,8 +3,7 @@ import {
     ChartSummary,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
-    Dashboard,
-    DashboardScheduler,
+    DashboardDAO,
     ForbiddenError,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
@@ -78,35 +77,19 @@ export class SchedulerService {
 
     private async getSchedulerResource(
         scheduler: Scheduler,
-    ): Promise<ChartSummary | Dashboard> {
+    ): Promise<ChartSummary | DashboardDAO> {
         return isChartScheduler(scheduler)
             ? this.savedChartModel.getSummary(scheduler.savedChartUuid)
-            : this.getSchedulerDashboard(scheduler);
-    }
-
-    private async getSchedulerDashboard(
-        scheduler: DashboardScheduler,
-    ): Promise<Dashboard> {
-        const dashboardDao = await this.dashboardModel.getById(
-            scheduler.dashboardUuid,
-        );
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboardDao.spaceUuid,
-        );
-        const spaceAccess = await this.spaceModel.getSpaceAccess(
-            dashboardDao.spaceUuid,
-        );
-        return {
-            ...dashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
-        };
+            : this.dashboardModel.getById(scheduler.dashboardUuid);
     }
 
     private async checkUserCanUpdateSchedulerResource(
         user: SessionUser,
         schedulerUuid: string,
-    ): Promise<{ scheduler: Scheduler; resource: ChartSummary | Dashboard }> {
+    ): Promise<{
+        scheduler: Scheduler;
+        resource: ChartSummary | DashboardDAO;
+    }> {
         // editors can "manage" scheduled deliveries,
         // which means they can edit scheduled deliveries created from other users, even admins
         // however, interactive users can only "create" scheduled deliveries,
@@ -147,7 +130,10 @@ export class SchedulerService {
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
             const [space] = await this.spaceModel.find({ spaceUuid });
-            const access = await this.spaceModel.getSpaceAccess(spaceUuid);
+            const access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                spaceUuid,
+            );
             if (
                 user.ability.cannot(
                     'view',
@@ -164,7 +150,10 @@ export class SchedulerService {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.dashboardModel.getById(scheduler.dashboardUuid);
             const [space] = await this.spaceModel.find({ spaceUuid });
-            const spaceAccess = this.spaceModel.getSpaceAccess(spaceUuid);
+            const spaceAccess = this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                spaceUuid,
+            );
 
             if (
                 user.ability.cannot(

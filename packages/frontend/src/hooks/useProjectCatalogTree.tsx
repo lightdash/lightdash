@@ -1,4 +1,4 @@
-import { ProjectCatalog } from '@lightdash/common';
+import { type ProjectCatalog } from '@lightdash/common';
 import { IconBinaryTree2, IconDatabase, IconTable } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import MantineIcon from '../components/common/MantineIcon';

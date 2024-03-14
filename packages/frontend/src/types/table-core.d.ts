@@ -1,6 +1,6 @@
-import { ItemsMap, PivotReference } from '@lightdash/common';
-import { MouseEventHandler } from 'react';
-import { Sort } from '../components/common/Table/types';
+import { type ItemsMap, type PivotReference } from '@lightdash/common';
+import { type MouseEventHandler } from 'react';
+import { type Sort } from '../components/common/Table/types';
 
 declare module '@tanstack/table-core' {
     interface ColumnMeta {

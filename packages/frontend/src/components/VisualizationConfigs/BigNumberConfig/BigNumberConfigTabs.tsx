@@ -1,8 +1,8 @@
 import {
     CompactConfigMap,
-    CompactOrAlias,
     ComparisonFormatTypes,
     getItemId,
+    type CompactOrAlias,
 } from '@lightdash/common';
 import {
     ActionIcon,

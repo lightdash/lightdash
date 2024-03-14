@@ -1,10 +1,13 @@
 import { subject } from '@casl/ability';
-import { ApiScheduledDownloadCsv, ResultRow } from '@lightdash/common';
+import {
+    type ApiScheduledDownloadCsv,
+    type ResultRow,
+} from '@lightdash/common';
 import { Alert, Box, Button, NumberInput, Radio, Stack } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconTableExport } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { FC, memo, useState } from 'react';
+import { memo, useState, type FC } from 'react';
 import { pollCsvFileUrl } from '../../api/csv';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';

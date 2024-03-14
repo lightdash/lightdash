@@ -1,8 +1,5 @@
 import {
     addFilterRule,
-    FilterableDimension,
-    FilterRule,
-    Filters,
     getFilterRulesByFieldType,
     getTotalFilterRules,
     hasNestedGroups,
@@ -11,7 +8,10 @@ import {
     isFilterableField,
     isMetric,
     isTableCalculationField,
-    Metric,
+    type FilterableDimension,
+    type FilterRule,
+    type Filters,
+    type Metric,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -23,13 +23,16 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPlus, IconX } from '@tabler/icons-react';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import FilterGroupForm from './FilterGroupForm';
-import { FieldWithSuggestions, useFiltersContext } from './FiltersProvider';
+import {
+    useFiltersContext,
+    type FieldWithSuggestions,
+} from './FiltersProvider';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 
 type Props = {

@@ -1,6 +1,6 @@
 import {
-    DashboardFilters,
     getDashboardFilterRulesForTile,
+    type DashboardFilters,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';

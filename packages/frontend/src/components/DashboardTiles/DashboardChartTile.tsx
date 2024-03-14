@@ -1,14 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    ApiChartAndResults,
-    ApiError,
     ChartType,
     createDashboardFilterRuleFromField,
-    DashboardChartTile as IDashboardChartTile,
-    DashboardFilterRule,
-    Field,
     fieldId,
-    FilterDashboardToRule,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -19,10 +13,16 @@ import {
     isChartTile,
     isFilterableField,
     isTableChartConfig,
-    ItemsMap,
-    PivotReference,
-    ResultValue,
-    SavedChart,
+    type ApiChartAndResults,
+    type ApiError,
+    type DashboardChartTile as IDashboardChartTile,
+    type DashboardFilterRule,
+    type Field,
+    type FilterDashboardToRule,
+    type ItemsMap,
+    type PivotReference,
+    type ResultValue,
+    type SavedChart,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -45,7 +45,13 @@ import {
     IconTableExport,
     IconTelescope,
 } from '@tabler/icons-react';
-import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../api/csv';
 import { DashboardTileComments } from '../../features/comments';
@@ -53,7 +59,7 @@ import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
-import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
+import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
@@ -78,7 +84,7 @@ import MetricQueryDataProvider, {
     useMetricQueryDataContext,
 } from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
-import { EchartSeriesClickEvent } from '../SimpleChart';
+import { type EchartSeriesClickEvent } from '../SimpleChart';
 import EditChartMenuItem from './EditChartMenuItem';
 import TileBase from './TileBase/index';
 

@@ -1,5 +1,5 @@
 import { Stack } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';

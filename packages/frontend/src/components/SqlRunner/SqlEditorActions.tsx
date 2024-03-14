@@ -5,7 +5,7 @@ import {
     IconTextWrap,
     IconTextWrapDisabled,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
 export const SqlEditorActions: FC<{

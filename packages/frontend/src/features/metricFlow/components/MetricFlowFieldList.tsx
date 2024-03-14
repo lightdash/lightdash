@@ -1,11 +1,11 @@
 import { friendlyName } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, NavLink, Text } from '@mantine/core';
 import { IconAdjustments, IconCheck } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import {
-    GetMetricFlowFieldsResponse,
     MetricFlowDimensionType,
     TimeGranularity,
+    type GetMetricFlowFieldsResponse,
 } from '../../../api/MetricFlowAPI';
 import { convertDimensionNameToLabels } from '../utils/convertDimensionNameToLabels';
 import MetricFlowFieldIcon from './MetricFlowFieldIcon';

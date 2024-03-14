@@ -1,24 +1,24 @@
 import {
     assertUnreachable,
-    Dashboard as IDashboard,
-    DashboardTile,
     DashboardTileTypes,
     isDashboardChartTileType,
+    type Dashboard as IDashboard,
+    type DashboardTile,
 } from '@lightdash/common';
 import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, {
-    FC,
     memo,
     useCallback,
     useEffect,
     useMemo,
     useRef,
     useState,
+    type FC,
 } from 'react';
-import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
+import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
 import { useIntersection } from 'react-use';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';

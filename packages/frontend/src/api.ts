@@ -1,8 +1,8 @@
 import {
-    ApiError,
-    ApiResponse,
     LightdashRequestMethodHeader,
     RequestMethod,
+    type ApiError,
+    type ApiResponse,
 } from '@lightdash/common';
 import fetch from 'isomorphic-fetch';
 

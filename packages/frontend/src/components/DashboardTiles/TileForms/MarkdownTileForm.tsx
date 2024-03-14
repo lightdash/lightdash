@@ -1,6 +1,6 @@
-import { DashboardMarkdownTileProperties } from '@lightdash/common';
+import { type DashboardMarkdownTileProperties } from '@lightdash/common';
 import { Stack, TextInput } from '@mantine/core';
-import { UseFormReturnType } from '@mantine/form';
+import { type UseFormReturnType } from '@mantine/form';
 import MDEditor from '@uiw/react-md-editor';
 
 interface MarkdownTileFormProps {

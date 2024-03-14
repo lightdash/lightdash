@@ -1,8 +1,8 @@
 import {
-    ConditionalFormattingWithConditionalOperator,
-    ConditionalOperator,
-    FilterableItem,
     FilterType,
+    type ConditionalFormattingWithConditionalOperator,
+    type ConditionalOperator,
+    type FilterableItem,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -14,7 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import {
     FilterInputComponent,
     getFilterOperatorOptions,

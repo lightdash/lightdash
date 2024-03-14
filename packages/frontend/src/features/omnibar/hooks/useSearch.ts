@@ -1,7 +1,11 @@
-import { ApiError, SearchFilters, SearchResults } from '@lightdash/common';
+import {
+    type ApiError,
+    type SearchFilters,
+    type SearchResults,
+} from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { getSearchResults } from '../api/search';
-import { SearchResultMap } from '../types/searchResultMap';
+import { type SearchResultMap } from '../types/searchResultMap';
 import { getSearchItemMap } from '../utils/getSearchItemMap';
 
 export const OMNIBAR_MIN_QUERY_LENGTH = 3;

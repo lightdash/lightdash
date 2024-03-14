@@ -1,4 +1,7 @@
-import { ApiPersonalAccessTokenResponse, formatDate } from '@lightdash/common';
+import {
+    formatDate,
+    type ApiPersonalAccessTokenResponse,
+} from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -10,7 +13,13 @@ import {
     Title,
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
+import {
+    useEffect,
+    useState,
+    type Dispatch,
+    type FC,
+    type SetStateAction,
+} from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
     useAccessToken,

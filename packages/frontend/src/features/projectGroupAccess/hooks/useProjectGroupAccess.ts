@@ -1,15 +1,15 @@
 import {
-    CreateProjectGroupAccess,
-    DeleteProjectGroupAccess,
-    LightdashError,
-    ProjectGroupAccess,
-    UpdateProjectGroupAccess,
+    type CreateProjectGroupAccess,
+    type DeleteProjectGroupAccess,
+    type LightdashError,
+    type ProjectGroupAccess,
+    type UpdateProjectGroupAccess,
 } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import {
     addProjectGroupAccess,

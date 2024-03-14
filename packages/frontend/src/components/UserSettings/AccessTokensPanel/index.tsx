@@ -1,6 +1,6 @@
 import { Button, Group, Stack, Title } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { useAccessToken } from '../../../hooks/useAccessToken';
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';

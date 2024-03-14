@@ -1,6 +1,6 @@
-import { isField, ResultRow } from '@lightdash/common';
-import { Cell } from '@tanstack/react-table';
-import { FC } from 'react';
+import { isField, type ResultRow } from '@lightdash/common';
+import { type Cell } from '@tanstack/react-table';
+import { type FC } from 'react';
 import styled from 'styled-components';
 
 interface RichBodyCellProps {

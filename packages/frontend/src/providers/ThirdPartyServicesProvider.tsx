@@ -1,5 +1,5 @@
 import { PostHogProvider, usePostHog } from 'posthog-js/react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { IntercomProvider } from 'react-use-intercom';
 import { Intercom } from '../components/Intercom';
 import useSentry from '../hooks/thirdPartyServices/useSentry';

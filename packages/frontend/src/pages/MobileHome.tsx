@@ -1,5 +1,5 @@
 import { Stack, Title } from '@mantine/core';
-import { FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import ForbiddenPanel from '../components/ForbiddenPanel';

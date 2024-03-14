@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Redirect } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import PageSpinner from '../components/PageSpinner';

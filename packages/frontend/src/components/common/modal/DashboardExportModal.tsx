@@ -1,15 +1,15 @@
-import { Dashboard } from '@lightdash/common';
+import { type Dashboard } from '@lightdash/common';
 import {
     Box,
     Button,
     Group,
     Modal,
-    ModalProps,
     Stack,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { IconEyeCog, IconFileExport } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../features/scheduler/constants';

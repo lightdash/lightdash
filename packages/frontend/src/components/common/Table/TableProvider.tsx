@@ -1,27 +1,30 @@
-import { ConditionalFormattingConfig, ResultRow } from '@lightdash/common';
 import {
-    ColumnOrderState,
+    type ConditionalFormattingConfig,
+    type ResultRow,
+} from '@lightdash/common';
+import {
     getCoreRowModel,
     getPaginationRowModel,
-    Table,
     useReactTable,
+    type ColumnOrderState,
+    type Table,
 } from '@tanstack/react-table';
 import React, {
     createContext,
-    FC,
     useContext,
     useEffect,
     useMemo,
     useState,
+    type FC,
 } from 'react';
 import {
-    CellContextMenuProps,
     DEFAULT_PAGE_SIZE,
-    HeaderProps,
     MAX_PAGE_SIZE,
     ROW_NUMBER_COLUMN_ID,
-    TableColumn,
-    TableHeader,
+    type CellContextMenuProps,
+    type HeaderProps,
+    type TableColumn,
+    type TableHeader,
 } from './types';
 
 type Props = {

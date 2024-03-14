@@ -1,9 +1,13 @@
-import { ChartType, DashboardFilters, ItemsMap } from '@lightdash/common';
-import { FC, useEffect } from 'react';
+import {
+    ChartType,
+    type DashboardFilters,
+    type ItemsMap,
+} from '@lightdash/common';
+import { useEffect, type FC } from 'react';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import {
-    VisualizationConfig,
-    VisualizationConfigCommon,
+    type VisualizationConfig,
+    type VisualizationConfigCommon,
 } from './VisualizationProvider';
 
 export type VisualizationConfigTable = {

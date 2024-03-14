@@ -1,4 +1,4 @@
-import { HealthState, LightdashMode } from '@lightdash/common';
+import { LightdashMode, type HealthState } from '@lightdash/common';
 
 export default function mockHealthResponse(
     overrides: Partial<HealthState> = {},

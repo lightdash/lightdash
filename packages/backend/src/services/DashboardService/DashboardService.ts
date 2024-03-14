@@ -148,7 +148,8 @@ export class DashboardService {
         );
         const dashboardAccesses = await Promise.all(
             dashboards.map(async (dashboard) => {
-                const spaceAccess = await this.spaceModel.getSpaceAccess(
+                const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
                     dashboard.spaceUuid,
                 );
                 return {
@@ -190,7 +191,8 @@ export class DashboardService {
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
         );
-        const spaceAccess = await this.spaceModel.getSpaceAccess(
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
             dashboardDao.spaceUuid,
         );
         const dashboard = {
@@ -257,7 +259,10 @@ export class DashboardService {
             ? await this.spaceModel.get(dashboard.spaceUuid)
             : await getFirstSpace();
 
-        const spaceAccess = await this.spaceModel.getSpaceAccess(space.uuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            space.uuid,
+        );
 
         if (
             user.ability.cannot(
@@ -307,7 +312,8 @@ export class DashboardService {
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
         );
-        const spaceAccess = await this.spaceModel.getSpaceAccess(
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
             dashboardDao.spaceUuid,
         );
         const dashboard = {
@@ -437,7 +443,8 @@ export class DashboardService {
         const space = await this.spaceModel.getSpaceSummary(
             existingDashboardDao.spaceUuid,
         );
-        const spaceAccess = await this.spaceModel.getSpaceAccess(
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
             existingDashboardDao.spaceUuid,
         );
         const existingDashboard = {
@@ -529,7 +536,8 @@ export class DashboardService {
         const space = await this.spaceModel.getSpaceSummary(
             existingDashboardDao.spaceUuid,
         );
-        const spaceAccess = await this.spaceModel.getSpaceAccess(
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
             existingDashboardDao.spaceUuid,
         );
         const existingDashboard = {
@@ -599,7 +607,10 @@ export class DashboardService {
                     dashboard.spaceUuid,
                 );
                 const dashboardSpaceAccess =
-                    await this.spaceModel.getSpaceAccess(dashboard.spaceUuid);
+                    await this.spaceModel.getUserSpaceAccess(
+                        user.userUuid,
+                        dashboard.spaceUuid,
+                    );
                 return user.ability.can(
                     'update',
                     subject('Dashboard', {
@@ -638,7 +649,10 @@ export class DashboardService {
                     dashboard.spaceUuid,
                 );
                 const dashboardSpaceAccess =
-                    await this.spaceModel.getSpaceAccess(dashboard.spaceUuid);
+                    await this.spaceModel.getUserSpaceAccess(
+                        user.userUuid,
+                        dashboard.spaceUuid,
+                    );
                 return {
                     ...dashboard,
                     isPrivate: dashboardSpace.isPrivate,
@@ -654,7 +668,10 @@ export class DashboardService {
         const { organizationUuid, projectUuid, spaceUuid } =
             await this.dashboardModel.getById(dashboardUuid);
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'delete',
@@ -755,7 +772,8 @@ export class DashboardService {
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
         );
-        const spaceAccess = await this.spaceModel.getSpaceAccess(
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
             dashboardDao.spaceUuid,
         );
         const dashboard = {

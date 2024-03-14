@@ -1,5 +1,5 @@
-import { Paper, PaperProps, SimpleGrid } from '@mantine/core';
-import { FC } from 'react';
+import { Paper, SimpleGrid, type PaperProps } from '@mantine/core';
+import { type FC } from 'react';
 
 const SettingsCard: FC<React.PropsWithChildren<PaperProps>> = ({
     children,

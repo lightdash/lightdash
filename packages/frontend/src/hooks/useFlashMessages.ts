@@ -1,4 +1,4 @@
-import { ApiError, ApiFlashResults } from '@lightdash/common';
+import { type ApiError, type ApiFlashResults } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 

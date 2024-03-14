@@ -1,5 +1,5 @@
-import { WeekDay } from '@lightdash/common';
-import { DayOfWeek } from '@mantine/dates';
+import { type WeekDay } from '@lightdash/common';
+import { type DayOfWeek } from '@mantine/dates';
 
 import dayjs from 'dayjs';
 import getLocaleData from 'dayjs/plugin/localeData';

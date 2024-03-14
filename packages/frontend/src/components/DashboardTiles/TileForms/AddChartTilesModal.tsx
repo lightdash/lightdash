@@ -1,7 +1,7 @@
 import {
-    Dashboard,
     DashboardTileTypes,
     defaultTileSize,
+    type Dashboard,
 } from '@lightdash/common';
 import {
     Button,
@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChartAreaLine } from '@tabler/icons-react';
-import React, { FC, forwardRef, useMemo } from 'react';
+import React, { forwardRef, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';

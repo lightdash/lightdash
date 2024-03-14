@@ -1,4 +1,4 @@
-import { ApiQueryResults, getCustomDimensionId } from '@lightdash/common';
+import { getCustomDimensionId, type ApiQueryResults } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 
 const usePivotDimensions = (

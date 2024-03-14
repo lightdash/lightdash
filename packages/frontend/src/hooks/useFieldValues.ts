@@ -1,13 +1,13 @@
 import {
-    AndFilterGroup,
-    ApiError,
-    FieldValueSearchResult,
-    FilterableItem,
     getFilterRulesFromGroup,
     getItemId,
     isField,
+    type AndFilterGroup,
+    type ApiError,
+    type FieldValueSearchResult,
+    type FilterableItem,
 } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';

@@ -6,7 +6,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { isHexCodeColor } from '../../utils/colorUtils';
 import MantineIcon from '../common/MantineIcon';
 

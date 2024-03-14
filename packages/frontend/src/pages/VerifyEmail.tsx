@@ -11,7 +11,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
 import Page from '../components/common/Page/Page';

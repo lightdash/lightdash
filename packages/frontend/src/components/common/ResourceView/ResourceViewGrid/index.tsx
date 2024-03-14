@@ -2,24 +2,24 @@ import {
     DragDropContext,
     Draggable,
     Droppable,
-    DropResult,
+    type DropResult,
 } from '@hello-pangea/dnd';
 import {
     assertUnreachable,
-    ResourceViewItem,
     ResourceViewItemType,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { Anchor, Box, SimpleGrid, Stack, Text } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
 import produce from 'immer';
 import orderBy from 'lodash/orderBy';
-import { FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ResourceViewCommonProps } from '..';
+import { type ResourceViewCommonProps } from '..';
 import { usePinnedItemsContext } from '../../../../providers/PinnedItemsProvider';
 import MantineIcon from '../../MantineIcon';
-import { ResourceViewItemActionState } from '../ResourceActionHandlers';
+import { type ResourceViewItemActionState } from '../ResourceActionHandlers';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
 import ResourceViewGridDashboardItem from './ResourceViewGridDashboardItem';

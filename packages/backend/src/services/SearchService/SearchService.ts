@@ -98,7 +98,10 @@ export class SearchService {
             const spaceUuid: string =
                 'spaceUuid' in item ? item.spaceUuid : item.uuid;
             const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
-            const access = await this.spaceModel.getSpaceAccess(spaceUuid);
+            const access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                spaceUuid,
+            );
             return itemSpace && hasViewAccessToSpace(user, itemSpace, access);
         };
 

@@ -6,14 +6,14 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { Link } from 'react-router-dom';
 import { SchedulerDeleteModal } from '../../features/scheduler';
 import MantineIcon from '../common/MantineIcon';
 import {
     getItemLink,
     getSchedulerLink,
-    SchedulerItem,
+    type SchedulerItem,
 } from './SchedulersViewUtils';
 
 interface SchedulersViewActionMenuProps {

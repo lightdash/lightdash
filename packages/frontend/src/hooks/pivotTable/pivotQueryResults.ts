@@ -1,14 +1,14 @@
 import {
     FieldType,
     getCustomDimensionId,
-    MetricQuery,
-    PivotConfig,
-    PivotData,
-    ResultRow,
-    ResultValue,
+    type MetricQuery,
+    type PivotConfig,
+    type PivotData,
+    type ResultRow,
+    type ResultValue,
 } from '@lightdash/common';
 import isNumber from 'lodash/isNumber';
-import { Entries } from 'type-fest';
+import { type Entries } from 'type-fest';
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;

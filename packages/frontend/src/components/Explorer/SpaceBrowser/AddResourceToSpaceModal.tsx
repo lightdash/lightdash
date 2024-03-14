@@ -3,15 +3,15 @@ import {
     Button,
     Group,
     Modal,
-    ModalProps,
     MultiSelect,
     Stack,
     Text,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconFolder } from '@tabler/icons-react';
-import { FC, forwardRef, useCallback } from 'react';
+import { forwardRef, useCallback, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     useDashboards,

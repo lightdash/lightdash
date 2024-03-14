@@ -3,9 +3,9 @@ import {
     Stack,
     Text,
     UnstyledButton,
-    UnstyledButtonProps,
+    type UnstyledButtonProps,
 } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 type OnboardingButtonProps = UnstyledButtonProps &
     React.ComponentPropsWithRef<'div'> & {

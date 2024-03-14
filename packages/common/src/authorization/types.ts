@@ -1,5 +1,5 @@
-import { Ability, ForcedSubject } from '@casl/ability';
-import { OrganizationMemberProfile } from '../types/organizationMemberProfile';
+import { type Ability, type ForcedSubject } from '@casl/ability';
+import { type OrganizationMemberProfile } from '../types/organizationMemberProfile';
 
 type Action = 'manage' | 'update' | 'view' | 'create' | 'delete';
 

@@ -1,8 +1,8 @@
-import { MentionOptions } from '@tiptap/extension-mention';
+import { type MentionOptions } from '@tiptap/extension-mention';
 import { ReactRenderer } from '@tiptap/react';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
-import { SuggestionsItem } from '../../types';
-import { SuggestionList, SuggestionListRef } from './SuggestionList';
+import { type SuggestionsItem } from '../../types';
+import { SuggestionList, type SuggestionListRef } from './SuggestionList';
 
 /**
  * Workaround for the current typing incompatibility between Tippy.js and Tiptap

@@ -4,7 +4,7 @@ import {
     IconDatabase,
     IconSettings,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 import { Button, Menu } from '@mantine/core';
 import { Link } from 'react-router-dom';
@@ -47,7 +47,12 @@ const SettingsMenu: FC = () => {
             offset={-2}
         >
             <Menu.Target>
-                <Button variant="default" size="xs" data-testid="settings-menu">
+                <Button
+                    aria-label="Settings"
+                    variant="default"
+                    size="xs"
+                    data-testid="settings-menu"
+                >
                     <MantineIcon icon={IconSettings} />
                 </Button>
             </Menu.Target>

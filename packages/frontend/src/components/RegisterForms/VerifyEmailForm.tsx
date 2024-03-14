@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { isNotEmpty, useForm } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import {
     useEmailStatus,

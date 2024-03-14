@@ -1,6 +1,6 @@
 import { ActionIcon, Group, Stack, Tabs, Title, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 
 import MantineIcon from '../../common/MantineIcon';

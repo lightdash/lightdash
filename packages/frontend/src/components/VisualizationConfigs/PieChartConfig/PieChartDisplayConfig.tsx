@@ -1,6 +1,6 @@
 import {
-    PieChartLegendPosition,
     PieChartLegendPositions,
+    type PieChartLegendPosition,
 } from '@lightdash/common';
 import { Collapse, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import React from 'react';

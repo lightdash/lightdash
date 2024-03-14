@@ -1,9 +1,9 @@
 import {
     OpenIdIdentityIssuerType,
-    OpenIdIdentitySummary,
+    type OpenIdIdentitySummary,
 } from '@lightdash/common';
-import { Button, ButtonProps, Image } from '@mantine/core';
-import { FC } from 'react';
+import { Button, Image, type ButtonProps } from '@mantine/core';
+import { type FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 
 type ThirdPartySignInButtonProps = {

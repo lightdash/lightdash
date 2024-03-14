@@ -1,9 +1,9 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
-import { ProjectMemberProfile } from '../types/projectMemberProfile';
-import { LightdashUser } from '../types/user';
+import { type ProjectMemberProfile } from '../types/projectMemberProfile';
+import { type LightdashUser } from '../types/user';
 import { organizationMemberAbilities } from './organizationMemberAbility';
 import { projectMemberAbilities } from './projectMemberAbility';
-import { MemberAbility } from './types';
+import { type MemberAbility } from './types';
 
 export const getUserAbilityBuilder = (
     user: Pick<LightdashUser, 'role' | 'organizationUuid' | 'userUuid'>,

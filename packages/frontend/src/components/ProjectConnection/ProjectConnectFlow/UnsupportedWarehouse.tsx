@@ -1,6 +1,6 @@
 import { Anchor, Avatar, Button } from '@mantine/core';
 import { IconChevronLeft, IconExclamationCircle } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';

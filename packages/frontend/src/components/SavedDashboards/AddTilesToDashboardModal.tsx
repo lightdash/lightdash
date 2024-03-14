@@ -1,7 +1,7 @@
 import {
-    DashboardChartTile,
     DashboardTileTypes,
     getDefaultChartTileSize,
+    type DashboardChartTile,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -20,7 +20,7 @@ import {
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import {
     appendNewTilesToBottom,

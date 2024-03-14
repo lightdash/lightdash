@@ -1,6 +1,6 @@
 import { Box, Button, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';

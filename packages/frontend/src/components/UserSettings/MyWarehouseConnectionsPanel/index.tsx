@@ -1,4 +1,4 @@
-import { UserWarehouseCredentials } from '@lightdash/common/src/types/userWarehouseCredentials';
+import { type UserWarehouseCredentials } from '@lightdash/common/src/types/userWarehouseCredentials';
 import { Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';

@@ -1,9 +1,9 @@
 import {
-    ActivateUserWithInviteCode,
-    ApiError,
-    CreateUserArgs,
-    LightdashUser,
     OpenIdIdentityIssuerType,
+    type ActivateUserWithInviteCode,
+    type ApiError,
+    type CreateUserArgs,
+    type LightdashUser,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -16,7 +16,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
-import { FC, useEffect, useState } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { Redirect, useLocation, useParams } from 'react-router-dom';
 
 import { lightdashApi } from '../api';

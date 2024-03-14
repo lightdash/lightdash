@@ -1,4 +1,4 @@
-import { SearchItemType, SearchResult } from '@lightdash/common';
+import { SearchItemType, type SearchResult } from '@lightdash/common';
 
 export const allSearchItemTypes = Object.values(SearchItemType);
 

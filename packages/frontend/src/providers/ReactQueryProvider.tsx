@@ -1,9 +1,9 @@
 import {
-    DefaultOptions,
     QueryClient,
     QueryClientProvider,
+    type DefaultOptions,
 } from '@tanstack/react-query';
-import { FC, PropsWithChildren } from 'react';
+import { type FC, type PropsWithChildren } from 'react';
 
 // used in test mocks
 // ts-unused-exports:disable-next-line

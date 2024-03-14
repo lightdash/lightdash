@@ -1,22 +1,26 @@
 import { DepGraph } from 'dependency-graph';
 import assertUnreachable from '../utils/assertUnreachable';
-import { ColumnInfo, CompiledModelNode, ParsedMetric } from './dbtFromSchema';
+import {
+    type ColumnInfo,
+    type CompiledModelNode,
+    type ParsedMetric,
+} from './dbtFromSchema';
 import { DbtError, ParseError } from './errors';
 import {
-    CompactOrAlias,
-    DimensionType,
     fieldId,
     FieldType,
-    FieldUrl,
-    Format,
     friendlyName,
-    Metric,
-    MetricType,
-    Source,
+    type CompactOrAlias,
+    type DimensionType,
+    type FieldUrl,
+    type Format,
+    type Metric,
+    type MetricType,
+    type Source,
 } from './field';
 import { parseFilters } from './filterGrammar';
-import { OrderFieldsByStrategy } from './table';
-import { TimeFrames } from './timeFrames';
+import { type OrderFieldsByStrategy } from './table';
+import { type TimeFrames } from './timeFrames';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',

@@ -2,10 +2,10 @@ import { useMantineTheme } from '@mantine/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Editor, useEditor } from '@tiptap/react';
+import { useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { FC, useEffect } from 'react';
-import { SuggestionsItem } from '../../types';
+import { useEffect, type FC } from 'react';
+import { type SuggestionsItem } from '../../types';
 import { generateSuggestionWrapper } from './generateSuggestionWrapper';
 
 type Props = {

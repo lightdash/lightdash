@@ -1,4 +1,4 @@
-import { UserWithAbility } from '../../../hooks/user/useUser';
+import { type UserWithAbility } from '../../../hooks/user/useUser';
 
 export const useDashboardCommentsCheck = (
     user: UserWithAbility | undefined,

@@ -1,7 +1,7 @@
 import { Box, Button, createStyles, keyframes, Stack } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';

@@ -1,3 +1,38 @@
+## [0.1030.8](https://github.com/lightdash/lightdash/compare/0.1030.7...0.1030.8) (2024-03-12)
+
+
+### Bug Fixes
+
+* clear search on option select ([#9309](https://github.com/lightdash/lightdash/issues/9309)) ([28b2262](https://github.com/lightdash/lightdash/commit/28b2262793c3d8dab1f4e52db0b5a68955120a1c))
+
+## [0.1030.7](https://github.com/lightdash/lightdash/compare/0.1030.6...0.1030.7) (2024-03-12)
+
+
+### Bug Fixes
+
+* revert "fix: update x and y field in chartConfig when tc updates ([#9269](https://github.com/lightdash/lightdash/issues/9269))" ([#9344](https://github.com/lightdash/lightdash/issues/9344)) ([4d2ad50](https://github.com/lightdash/lightdash/commit/4d2ad5030afa58949d12b577278d20d07026803e))
+
+## [0.1030.6](https://github.com/lightdash/lightdash/compare/0.1030.5...0.1030.6) (2024-03-12)
+
+
+### Bug Fixes
+
+* user space access query ([#9338](https://github.com/lightdash/lightdash/issues/9338)) ([7740939](https://github.com/lightdash/lightdash/commit/774093959fe41826c96adbf39e5161603f7479a2))
+
+## [0.1030.5](https://github.com/lightdash/lightdash/compare/0.1030.4...0.1030.5) (2024-03-12)
+
+
+### Bug Fixes
+
+* await for loginWithPersonalAccessToken promise ([#9337](https://github.com/lightdash/lightdash/issues/9337)) ([4fff3c9](https://github.com/lightdash/lightdash/commit/4fff3c905b6f8c07b855c5bcfa534782f0570ac9))
+
+## [0.1030.4](https://github.com/lightdash/lightdash/compare/0.1030.3...0.1030.4) (2024-03-12)
+
+
+### Bug Fixes
+
+* hidden menu table chart ([#9330](https://github.com/lightdash/lightdash/issues/9330)) ([c4c3fed](https://github.com/lightdash/lightdash/commit/c4c3fed371bd4944bc246d7822c7d36f98db1768))
+
 ## [0.1030.3](https://github.com/lightdash/lightdash/compare/0.1030.2...0.1030.3) (2024-03-12)
 
 

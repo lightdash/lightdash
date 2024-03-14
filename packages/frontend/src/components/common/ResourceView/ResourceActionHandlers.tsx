@@ -1,17 +1,17 @@
 import {
     assertUnreachable,
-    ResourceViewChartItem,
-    ResourceViewDashboardItem,
-    ResourceViewItem,
     ResourceViewItemType,
-    Space,
+    type ResourceViewChartItem,
+    type ResourceViewDashboardItem,
+    type ResourceViewItem,
+    type Space,
 } from '@lightdash/common';
 import {
     IconFolderCog,
     IconFolderPlus,
     IconFolderX,
 } from '@tabler/icons-react';
-import { FC, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     useDuplicateDashboardMutation,

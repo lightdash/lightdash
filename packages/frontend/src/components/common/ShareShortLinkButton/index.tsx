@@ -1,7 +1,7 @@
 import { ActionIcon } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCheck, IconLink } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateShareMutation } from '../../../hooks/useShare';

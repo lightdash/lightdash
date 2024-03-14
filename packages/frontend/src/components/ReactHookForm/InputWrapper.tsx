@@ -1,8 +1,8 @@
 import { ErrorMessage } from '@hookform/error-message';
-import { ArgumentsOf } from '@lightdash/common';
+import { type ArgumentsOf } from '@lightdash/common';
 import { ActionIcon, Group, Stack, Text } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
-import React, { FC, ReactElement, useState } from 'react';
+import React, { useState, type FC, type ReactElement } from 'react';
 import { Controller, get, useFormContext } from 'react-hook-form';
 import MantineIcon from '../common/MantineIcon';
 import DocumentationHelpButton from '../DocumentationHelpButton';

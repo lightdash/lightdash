@@ -1,43 +1,50 @@
 import {
-    AdditionalMetric,
     assertUnreachable,
-    BigNumberConfig,
-    CartesianChartConfig,
-    ChartConfig,
     ChartType,
     convertFieldRefToFieldId,
-    CreateSavedChartVersion,
-    CustomDimension,
-    CustomVisConfig,
     deepEqual,
-    Dimension,
-    FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
     getFieldRef,
     lightdashVariablePattern,
-    MetricQuery,
-    MetricType,
-    PieChartConfig,
     removeEmptyProperties,
     removeFieldFromFilterGroup,
-    SavedChart,
-    SortField,
-    TableCalculation,
-    TableChartConfig,
     toggleArrayValue,
     updateFieldIdInFilters,
+    type AdditionalMetric,
+    type BigNumberConfig,
+    type CartesianChartConfig,
+    type ChartConfig,
+    type CreateSavedChartVersion,
+    type CustomDimension,
+    type CustomVisConfig,
+    type Dimension,
+    type FieldId,
+    type MetricQuery,
+    type MetricType,
+    type PieChartConfig,
+    type SavedChart,
+    type SortField,
+    type TableCalculation,
+    type TableChartConfig,
 } from '@lightdash/common';
 import produce from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
-import { FC, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    type FC,
+} from 'react';
 import { useHistory } from 'react-router-dom';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import {
-    useChartVersionResultsMutation,
-    useQueryResults,
+    type useChartVersionResultsMutation,
+    type useQueryResults,
 } from '../hooks/useQueryResults';
 
 export enum ExplorerSection {
@@ -439,33 +446,6 @@ const calcColumnOrder = (
     } else {
         return [...cleanColumnOrder, ...missingColumns];
     }
-};
-
-const updateChartConfigWithTableCalc = (
-    prevChartConfig: ChartConfig,
-    oldTableCalculationName: string,
-    newTableCalculationName: string,
-) => {
-    const newConfig = cloneDeep(prevChartConfig);
-
-    if (newConfig.type !== ChartType.CARTESIAN || !newConfig.config) {
-        return newConfig;
-    }
-
-    if (newConfig.config.layout.xField === oldTableCalculationName) {
-        newConfig.config.layout.xField = newTableCalculationName;
-    }
-
-    if (newConfig.config.layout.yField) {
-        const index = newConfig.config.layout.yField.indexOf(
-            oldTableCalculationName,
-        );
-
-        if (index > -1)
-            newConfig.config.layout.yField[index] = newTableCalculationName;
-    }
-
-    return newConfig;
 };
 
 function reducer(
@@ -1124,11 +1104,6 @@ function reducer(
                                     : field,
                         ),
                     },
-                    chartConfig: updateChartConfigWithTableCalc(
-                        state.unsavedChartVersion.chartConfig,
-                        action.payload.oldName,
-                        action.payload.tableCalculation.name,
-                    ),
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
                         columnOrder:

@@ -1,5 +1,5 @@
 // eslint-disable-next-line max-classes-per-file
-import { DbtLog } from './job';
+import { type DbtLog } from './job';
 
 type LightdashErrorParams = {
     message: string;

@@ -73,7 +73,8 @@ export class PinningService {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
                         isPrivate: space.isPrivate,
-                        access: await this.spaceModel.getSpaceAccess(
+                        access: await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
                             space.uuid,
                         ),
                     }),

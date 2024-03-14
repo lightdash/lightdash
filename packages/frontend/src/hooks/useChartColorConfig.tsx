@@ -1,6 +1,6 @@
-import { Series } from '@lightdash/common';
-import { createContext, FC, useCallback, useContext, useRef } from 'react';
-import { EChartSeries } from './echarts/useEchartsCartesianConfig';
+import { type Series } from '@lightdash/common';
+import { createContext, useCallback, useContext, useRef, type FC } from 'react';
+import { type EChartSeries } from './echarts/useEchartsCartesianConfig';
 
 export type SeriesLike = EChartSeries | Series;
 

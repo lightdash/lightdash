@@ -1,4 +1,4 @@
-import { DbtRawModelNode } from '../types/dbt';
+import { type DbtRawModelNode } from '../types/dbt';
 import { MetricType } from '../types/field';
 
 const baseModel: DbtRawModelNode = {

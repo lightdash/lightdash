@@ -1,7 +1,7 @@
 import {
-    AdditionalMetric,
-    CompiledTable,
-    CustomDimension,
+    type AdditionalMetric,
+    type CompiledTable,
+    type CustomDimension,
 } from '@lightdash/common';
 import { MantineProvider, NavLink, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';

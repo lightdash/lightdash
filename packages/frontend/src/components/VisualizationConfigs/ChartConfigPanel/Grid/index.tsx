@@ -1,6 +1,6 @@
 import { SimpleGrid } from '@mantine/core';
 import startCase from 'lodash/startCase';
-import { FC } from 'react';
+import { type FC } from 'react';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';

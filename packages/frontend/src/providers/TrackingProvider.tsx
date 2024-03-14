@@ -1,22 +1,22 @@
 import { LightdashMode } from '@lightdash/common';
 import {
     createContext,
-    FC,
     memo,
     useCallback,
     useContext,
     useEffect,
     useMemo,
     useState,
+    type FC,
 } from 'react';
-import { FormState } from 'react-hook-form';
+import { type FormState } from 'react-hook-form';
 import * as rudderSDK from 'rudder-sdk-js';
 import {
-    CategoryName,
-    EventName,
-    PageName,
     PageType,
-    SectionName,
+    type CategoryName,
+    type EventName,
+    type PageName,
+    type SectionName,
 } from '../types/Events';
 import { useApp } from './AppProvider';
 

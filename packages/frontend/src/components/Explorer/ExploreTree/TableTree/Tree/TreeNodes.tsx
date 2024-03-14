@@ -1,19 +1,19 @@
 import {
-    AdditionalMetric,
-    CustomDimension,
-    Dimension,
     isDimension,
-    Metric,
     OrderFieldsByStrategy,
     sortTimeFrames,
+    type AdditionalMetric,
+    type CustomDimension,
+    type Dimension,
+    type Metric,
 } from '@lightdash/common';
-import { FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import TreeGroupNode from './TreeGroupNode';
 import {
     isGroupNode,
-    Node,
-    NodeMap,
     useTableTreeContext,
+    type Node,
+    type NodeMap,
 } from './TreeProvider';
 import TreeSingleNode from './TreeSingleNode';
 

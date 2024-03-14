@@ -1,9 +1,9 @@
-import { NavLink, NavLinkProps } from '@mantine/core';
-import { FC } from 'react';
+import { NavLink, type NavLinkProps } from '@mantine/core';
+import { type FC } from 'react';
 import {
     NavLink as ReactRouterNavLink,
-    NavLinkProps as ReactRouterNavLinkProps,
     useRouteMatch,
+    type NavLinkProps as ReactRouterNavLinkProps,
 } from 'react-router-dom';
 
 type RouterNavLinkProps = Omit<NavLinkProps, 'component' | 'active'> &

@@ -1,6 +1,6 @@
-import { Flex, Modal, ModalProps, Title } from '@mantine/core';
+import { Flex, Modal, Title, type ModalProps } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';

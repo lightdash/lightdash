@@ -1,13 +1,13 @@
 import {
-    ApiError,
-    CreateDbtCloudIntegration,
-    DbtCloudIntegration,
+    type ApiError,
+    type CreateDbtCloudIntegration,
+    type DbtCloudIntegration,
 } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 
 import { lightdashApi } from '../../api';

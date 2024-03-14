@@ -2,11 +2,11 @@ import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     createContext,
-    FC,
-    PropsWithChildren,
     useCallback,
     useContext,
     useState,
+    type FC,
+    type PropsWithChildren,
 } from 'react';
 
 /**

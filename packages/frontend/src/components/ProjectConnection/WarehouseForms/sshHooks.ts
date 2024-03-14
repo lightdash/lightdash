@@ -1,5 +1,5 @@
-import { ApiError, ApiSshKeyPairResponse } from '@lightdash/common';
-import { useMutation, UseMutationOptions } from '@tanstack/react-query';
+import { type ApiError, type ApiSshKeyPairResponse } from '@lightdash/common';
+import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 

@@ -1,6 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
 import { Anchor, PasswordInput, TextInput } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
     hasNoWhiteSpaces,

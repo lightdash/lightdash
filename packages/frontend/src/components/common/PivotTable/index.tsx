@@ -1,5 +1,4 @@
 import {
-    ConditionalFormattingConfig,
     fieldId,
     formatItemValue,
     getConditionalFormattingColor,
@@ -7,15 +6,16 @@ import {
     getConditionalFormattingDescription,
     isField,
     isNumericItem,
-    ItemsMap,
-    PivotData,
-    ResultValue,
+    type ConditionalFormattingConfig,
+    type ItemsMap,
+    type PivotData,
+    type ResultValue,
 } from '@lightdash/common';
-import { BoxProps } from '@mantine/core';
+import { type BoxProps } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import last from 'lodash/last';
 import { readableColor } from 'polished';
-import React, { FC, useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, type FC } from 'react';
 import { isSummable } from '../../../hooks/useColumnTotals';
 import { getColorFromRange } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/FilterInputs';

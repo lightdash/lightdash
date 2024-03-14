@@ -1,19 +1,19 @@
 import {
     OrganizationMemberRole,
     ProjectMemberRole,
-    Space,
     SpaceMemberRole,
+    type Space,
 } from '@lightdash/common';
 import {
     Avatar,
     Group,
     MultiSelect,
-    SelectItem,
     Stack,
     Text,
+    type SelectItem,
 } from '@mantine/core';
-import { UseFormReturnType } from '@mantine/form';
-import { FC, forwardRef, useMemo } from 'react';
+import { type UseFormReturnType } from '@mantine/form';
+import { forwardRef, useMemo, type FC } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';

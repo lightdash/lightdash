@@ -1,16 +1,16 @@
-import { Explore } from '../types/explore';
+import { type Explore } from '../types/explore';
 import {
-    CompiledDimension,
-    CompiledField,
-    CompiledMetric,
-    CustomDimension,
-    Dimension,
     fieldId,
-    ItemsMap,
-    Metric,
-    TableCalculation,
+    type CompiledDimension,
+    type CompiledField,
+    type CompiledMetric,
+    type CustomDimension,
+    type Dimension,
+    type ItemsMap,
+    type Metric,
+    type TableCalculation,
 } from '../types/field';
-import { getCustomDimensionId, MetricQuery } from '../types/metricQuery';
+import { getCustomDimensionId, type MetricQuery } from '../types/metricQuery';
 import { convertAdditionalMetric } from './additionalMetrics';
 import { getItemId } from './item';
 

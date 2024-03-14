@@ -1,9 +1,9 @@
 import {
     addFilterRule,
-    Field,
     fieldId,
-    FilterableField,
     getTotalFilterRules,
+    type Field,
+    type FilterableField,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import {

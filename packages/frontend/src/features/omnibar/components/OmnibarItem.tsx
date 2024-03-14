@@ -1,13 +1,13 @@
 import {
     Box,
     createStyles,
-    CSSObject,
     Group,
     Stack,
     Text,
+    type CSSObject,
 } from '@mantine/core';
-import { FC, MutableRefObject } from 'react';
-import { SearchItem } from '../types/searchItem';
+import { type FC, type MutableRefObject } from 'react';
+import { type SearchItem } from '../types/searchItem';
 import {
     OmnibarItemIcon,
     OmnibarItemIconWithIndicator,

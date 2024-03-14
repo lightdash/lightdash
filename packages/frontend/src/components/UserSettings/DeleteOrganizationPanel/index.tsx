@@ -1,6 +1,6 @@
 import { Button, Group } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
 import { OrganizationDeleteModal } from './DeleteOrganizationModal';

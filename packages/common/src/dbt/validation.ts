@@ -1,11 +1,11 @@
-import Ajv, { ValidateFunction } from 'ajv';
+import Ajv, { type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
-import { AnyValidateFunction } from 'ajv/dist/types';
+import { type AnyValidateFunction } from 'ajv/dist/types';
 import {
-    DbtManifestVersion,
-    DbtMetric,
-    DbtModelNode,
-    DbtRawModelNode,
+    type DbtManifestVersion,
+    type DbtMetric,
+    type DbtModelNode,
+    type DbtRawModelNode,
 } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import lightdashMetadataSchema from './schemas/lightdashMetadata.json';

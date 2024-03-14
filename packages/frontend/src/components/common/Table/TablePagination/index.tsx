@@ -1,6 +1,6 @@
 import { Button, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../MantineIcon';
 import { TableFooter } from '../Table.styles';
 import { useTableContext } from '../TableProvider';

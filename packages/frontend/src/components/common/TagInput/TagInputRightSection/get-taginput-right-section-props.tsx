@@ -1,8 +1,8 @@
-import { MantineTheme } from '@mantine/styles';
+import { type MantineTheme } from '@mantine/styles';
 import React from 'react';
 import {
     TagInputRightSection,
-    TagInputRightSectionProps,
+    type TagInputRightSectionProps,
 } from './TagInputRightSection';
 
 interface GetRightSectionProps extends TagInputRightSectionProps {

@@ -1,11 +1,11 @@
-import { ApiError, ApiQueryResults } from '@lightdash/common';
+import { type ApiError, type ApiQueryResults } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
-import React, { ComponentProps, FC } from 'react';
+import { type useQuery } from '@tanstack/react-query';
+import React, { type ComponentProps, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import Table from '../../../components/common/Table';
-import { TableColumn } from '../../../components/common/Table/types';
+import { type TableColumn } from '../../../components/common/Table/types';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 
