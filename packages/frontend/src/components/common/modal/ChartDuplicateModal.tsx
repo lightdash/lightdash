@@ -16,14 +16,14 @@ import {
     useSavedQuery,
 } from '../../../hooks/useSavedQuery';
 
-interface ChartUpdateModalProps extends ModalProps {
+interface ChartDuplicateModalProps extends ModalProps {
     uuid: string;
     onConfirm?: () => void;
 }
 
 type FormState = Pick<SavedChart, 'name' | 'description'>;
 
-const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
+const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
     uuid,
     onConfirm,
     ...modalProps
@@ -104,4 +104,4 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     );
 };
 
-export default ChartUpdateModal;
+export default ChartDuplicateModal;
