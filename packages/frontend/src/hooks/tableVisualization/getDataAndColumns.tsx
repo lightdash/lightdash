@@ -1,13 +1,14 @@
 import {
+    FieldType,
     formatItemValue,
     friendlyName,
     isField,
+    MetricType,
     type ApiQueryResults,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
-import { Row } from '@tanstack/react-table';
-import React from 'react';
+import { type Row } from '@tanstack/react-table';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -66,10 +67,14 @@ const getDataAndColumns = ({
             }
             const headerOverride = getFieldLabelOverride(itemId);
 
-            const anyItem = item as any;
             const shouldAggregate =
-                anyItem?.fieldType === 'metric' &&
-                ['sum', 'count'].includes(anyItem.type);
+                item &&
+                isField(item) &&
+                item.fieldType === FieldType.METRIC &&
+                [
+                    MetricType.SUM.toString(),
+                    MetricType.COUNT.toString(),
+                ].includes(item.type);
             const aggregationFunction = shouldAggregate
                 ? (
                       columnId: string,
@@ -77,9 +82,18 @@ const getDataAndColumns = ({
                       childRows: Row<ResultRow>[],
                   ) => {
                       const aggregatedValue = childRows.reduce((sum, next) => {
-                          const nextValue =
-                              next.getValue<any>(columnId).value.raw;
-                          const numVal = Number(nextValue);
+                          const valueObj = next.getValue(columnId);
+                          const val =
+                              typeof valueObj === 'object' &&
+                              valueObj &&
+                              'value' in valueObj
+                                  ? valueObj.value
+                                  : null;
+                          const raw =
+                              typeof val === 'object' && val && 'raw' in val
+                                  ? val.raw
+                                  : null;
+                          const numVal = Number(raw);
                           const adder = isNaN(numVal) ? 0 : numVal;
                           const precision = getDecimalPrecision(numVal, sum);
                           const result =
@@ -149,7 +163,7 @@ const getDataAndColumns = ({
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
 
                     aggregationFn: aggregationFunction,
-                    aggregatedCell: (info: any) => {
+                    aggregatedCell: (info) => {
                         const value = info.getValue();
                         const ret = value ?? info.cell.getValue();
                         const numVal = Number(ret);

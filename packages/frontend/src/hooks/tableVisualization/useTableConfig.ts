@@ -162,7 +162,7 @@ const useTableConfig = (
         [columnProperties],
     );
 
-    const canUsePivotTable =
+    const isPivotTableEnabled =
         resultsData?.metricQuery &&
         resultsData.metricQuery.metrics.length > 0 &&
         resultsData.rows.length &&
@@ -454,7 +454,7 @@ const useTableConfig = (
         pivotTableData,
         metricsAsRows,
         setMetricsAsRows,
-        canUsePivotTable,
+        isPivotTableEnabled,
         canUseSubtotals,
     };
 };

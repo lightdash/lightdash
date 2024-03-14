@@ -5,6 +5,7 @@ import {
     isNumericItem,
     type ResultRow,
 } from '@lightdash/common';
+import { Button } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -119,43 +120,37 @@ const TableRow: FC<TableRowProps> = ({
                     >
                         {cell.getIsGrouped() ? (
                             <>
-                                <button
+                                <Button
+                                    compact
+                                    size="xs"
+                                    variant="subtle"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
                                         toggleExpander();
                                     }}
+                                    leftIcon={
+                                        <MantineIcon
+                                            size="lg"
+                                            icon={
+                                                row.getIsExpanded()
+                                                    ? IconChevronDown
+                                                    : IconChevronRight
+                                            }
+                                            style={{
+                                                margin: -6,
+                                            }}
+                                        />
+                                    }
                                     style={{
-                                        cursor: row.getCanExpand()
-                                            ? 'pointer'
-                                            : 'normal',
-                                        border: 'none',
-                                        background: 'none',
+                                        color: fontColor || 'inherit',
                                         float: 'left',
+                                        marginBottom: -2,
+                                        marginTop: -2,
                                     }}
                                 >
-                                    <MantineIcon
-                                        icon={
-                                            row.getIsExpanded()
-                                                ? IconChevronDown
-                                                : IconChevronRight
-                                        }
-                                        color={fontColor}
-                                        size="xl"
-                                        style={{
-                                            float: 'left',
-                                            margin: -4,
-                                        }}
-                                    />
-                                    <span
-                                        style={{
-                                            color: fontColor,
-                                            marginLeft: 4,
-                                        }}
-                                    >
-                                        ({countSubRows(row)})
-                                    </span>
-                                </button>
+                                    ({countSubRows(row)})
+                                </Button>
                                 {flexRender(
                                     cell.column.columnDef.cell,
                                     cell.getContext(),

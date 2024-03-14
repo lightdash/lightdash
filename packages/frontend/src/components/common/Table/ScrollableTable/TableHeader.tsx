@@ -29,15 +29,17 @@ const TableHeader: FC<TableHeaderProps> = ({
 
     useEffect(() => {
         if (showSubtotals) {
-            const groupedColumns: any = columns
-                .filter(
-                    (col: any) =>
-                        col.meta?.item?.fieldType === FieldType.DIMENSION,
-                )
-                .map((col: any) => col.id);
-            const sortedColumns: any = table
+            const groupedColumns = columns
+                .filter((col) => {
+                    const item = col.meta?.item;
+                    return item && isField(item)
+                        ? item.fieldType === FieldType.DIMENSION
+                        : false;
+                })
+                .map((col) => col.id);
+            const sortedColumns = table
                 .getState()
-                .columnOrder.reduce((acc: any[], sortedId) => {
+                .columnOrder.reduce((acc: string[], sortedId) => {
                     if (groupedColumns.includes(sortedId)) acc.push(sortedId);
                     return acc;
                 }, []);
