@@ -98,7 +98,8 @@ describe('DashboardService', () => {
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
             forceRedirect: true,
-            redirectUri: 'https://test.lightdash.cloud/api/v1/login/okta',
+            redirectUri:
+                'https://test.lightdash.cloud/api/v1/login/okta?login_hint=test%40lightdash.com',
             showOptions: ['okta'],
         });
     });
@@ -118,7 +119,8 @@ describe('DashboardService', () => {
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
             forceRedirect: true,
-            redirectUri: 'https://test.lightdash.cloud/api/v1/login/google',
+            redirectUri:
+                'https://test.lightdash.cloud/api/v1/login/google?login_hint=test%40lightdash.com',
             showOptions: ['google'],
         });
     });
@@ -153,7 +155,8 @@ describe('DashboardService', () => {
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
             forceRedirect: false,
-            redirectUri: 'https://test.lightdash.cloud/api/v1/login/azuread',
+            redirectUri:
+                'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=test%40lightdash.com',
             showOptions: ['azuread', 'google', 'okta', 'oneLogin', 'email'],
         });
     });
@@ -189,7 +192,8 @@ describe('DashboardService', () => {
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
             forceRedirect: false,
-            redirectUri: 'https://test.lightdash.cloud/api/v1/login/azuread',
+            redirectUri:
+                'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=test%40lightdash.com',
             showOptions: ['azuread', 'google', 'okta', 'oneLogin'],
         });
     });

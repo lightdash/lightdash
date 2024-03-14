@@ -2,6 +2,7 @@ import express from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
+    getLoginHint,
     getSuccessURLWithReturnTo,
     initiateOktaOpenIdLogin,
     redirectOIDC,
@@ -110,9 +111,12 @@ apiV1Router.get(lightdashConfig.auth.oneLogin.callbackPath, (req, res, next) =>
 apiV1Router.get(
     lightdashConfig.auth.google.loginPath,
     storeOIDCRedirect,
-    passport.authenticate('google', {
-        scope: ['profile', 'email'],
-    }),
+    (req, res, next) => {
+        passport.authenticate('google', {
+            scope: ['profile', 'email'],
+            loginHint: getLoginHint(req),
+        })(req, res, next);
+    },
 );
 apiV1Router.get(
     '/login/gdrive',

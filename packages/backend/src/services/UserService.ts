@@ -1193,7 +1193,9 @@ export class UserService {
                 showOptions: [openIdIssuer],
                 forceRedirect: true,
                 redirectUri: new URL(
-                    `/api/v1${getRedirectUri(openIdIssuer)}`,
+                    `/api/v1${getRedirectUri(
+                        openIdIssuer,
+                    )}?login_hint=${encodeURIComponent(email)}`,
                     this.lightdashConfig.siteUrl,
                 ).href,
             };
@@ -1212,7 +1214,9 @@ export class UserService {
             redirectUri:
                 enabledOpenIdIssuers.length > 0
                     ? new URL(
-                          `/api/v1${getRedirectUri(enabledOpenIdIssuers[0])}`,
+                          `/api/v1${getRedirectUri(
+                              enabledOpenIdIssuers[0],
+                          )}?login_hint=${encodeURIComponent(email)}`,
                           this.lightdashConfig.siteUrl,
                       ).href
                     : undefined,
