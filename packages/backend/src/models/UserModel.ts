@@ -91,6 +91,7 @@ const userDetailsQueryBuilder = (
         .joinRaw(
             'LEFT JOIN emails ON users.user_id = emails.user_id AND emails.is_primary',
         )
+        // TODO remove this org join, we should do this in the service
         .leftJoin(
             'organization_memberships',
             'users.user_id',

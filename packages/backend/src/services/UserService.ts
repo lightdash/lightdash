@@ -423,13 +423,22 @@ export class UserService {
         inviteCode: string | undefined,
         refreshToken?: string,
     ): Promise<SessionUser> {
-        const loginUser = await this.userModel.findSessionUserByOpenId(
+        const openIdSession = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
         );
 
         // Identity already exists. Update the identity attributes and login the user
-        if (loginUser) {
+        if (openIdSession) {
+            const organization = this.loginToOrganization(
+                openIdSession?.userUuid,
+                openIdUser.openId.issuer,
+            );
+            const loginUser: SessionUser = {
+                ...openIdSession,
+                ...organization,
+            };
+
             if (inviteCode) {
                 const inviteLink = await this.inviteLinkModel.getByCode(
                     inviteCode,
