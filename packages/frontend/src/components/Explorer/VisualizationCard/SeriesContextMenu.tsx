@@ -3,9 +3,16 @@ import { getItemMap, hasCustomDimension } from '@lightdash/common';
 import { Menu, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { useParams } from 'react-router-dom';
-import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
+import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
 import { useApp } from '../../../providers/AppProvider';
@@ -20,7 +27,7 @@ import {
     getDataFromChartClick,
     useMetricQueryDataContext,
 } from '../../MetricQueryData/MetricQueryDataProvider';
-import { EchartSeriesClickEvent } from '../../SimpleChart';
+import { type EchartSeriesClickEvent } from '../../SimpleChart';
 
 export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;

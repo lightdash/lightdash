@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
 const RunSqlQueryButton: FC<{

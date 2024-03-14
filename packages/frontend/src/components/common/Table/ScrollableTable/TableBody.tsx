@@ -3,15 +3,15 @@ import {
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
     isNumericItem,
-    ResultRow,
+    type ResultRow,
 } from '@lightdash/common';
-import { flexRender, Row } from '@tanstack/react-table';
+import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/FilterInputs';
 import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
-import { TableContext, useTableContext } from '../TableProvider';
+import { useTableContext, type TableContext } from '../TableProvider';
 import BodyCell from './BodyCell';
 
 const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({

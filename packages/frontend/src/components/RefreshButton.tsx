@@ -3,13 +3,13 @@ import {
     Group,
     Kbd,
     MantineProvider,
-    MantineSize,
     Text,
     Tooltip,
+    type MantineSize,
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { FC, memo, useCallback } from 'react';
+import { memo, useCallback, type FC } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';

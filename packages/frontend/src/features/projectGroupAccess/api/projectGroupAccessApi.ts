@@ -1,8 +1,8 @@
 import {
-    CreateProjectGroupAccess,
-    DeleteProjectGroupAccess,
-    ProjectGroupAccess,
-    UpdateProjectGroupAccess,
+    type CreateProjectGroupAccess,
+    type DeleteProjectGroupAccess,
+    type ProjectGroupAccess,
+    type UpdateProjectGroupAccess,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 

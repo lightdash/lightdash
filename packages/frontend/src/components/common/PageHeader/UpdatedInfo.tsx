@@ -1,5 +1,5 @@
-import { SessionUser } from '@lightdash/common';
-import { FC } from 'react';
+import { type SessionUser } from '@lightdash/common';
+import { type FC } from 'react';
 import { UpdatedInfoLabel } from '.';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 

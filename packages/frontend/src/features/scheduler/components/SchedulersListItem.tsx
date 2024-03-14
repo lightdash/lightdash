@@ -1,6 +1,6 @@
 import {
     getHumanReadableCronExpression,
-    SchedulerAndTargets,
+    type SchedulerAndTargets,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -13,7 +13,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCircleFilled, IconPencil, IconTrash } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useSchedulersEnabledUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 

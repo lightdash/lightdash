@@ -1,16 +1,16 @@
-import { FilterableItem } from '@lightdash/common';
+import { type FilterableItem } from '@lightdash/common';
 import {
     Group,
     Highlight,
     Loader,
     MultiSelect,
-    MultiSelectProps,
     ScrollArea,
     Text,
+    type MultiSelectProps,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
-import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
@@ -186,7 +186,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             }}
             disableSelectedItemFiltering
             searchable
-            clearSearchOnChange={false}
+            clearSearchOnChange
             {...rest}
             searchValue={search}
             onSearchChange={setSearch}

@@ -4,13 +4,13 @@ import {
     isCustomDimension,
     isDimension,
     isField,
-    ResultValue,
+    type ResultValue,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
@@ -18,7 +18,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
-import { CellContextMenuProps } from '../common/Table/types';
+import { type CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';

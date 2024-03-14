@@ -1,4 +1,8 @@
-import { ColorScheme, MantineThemeOverride, rem } from '@mantine/core';
+import {
+    rem,
+    type ColorScheme,
+    type MantineThemeOverride,
+} from '@mantine/core';
 
 export const getMantineThemeOverride = (overrides?: {
     colorScheme?: ColorScheme;
@@ -114,6 +118,10 @@ export const getMantineThemeOverride = (overrides?: {
 
         '.ace_editor.ace_autocomplete': {
             width: '500px',
+        },
+        '.ace_editor *': {
+            fontFamily:
+                "Menlo, 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace",
         },
     }),
 });

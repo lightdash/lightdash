@@ -1,37 +1,37 @@
 import {
-    ApiError,
     applyDimensionOverrides,
-    CacheMetadata,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
-    Dashboard,
-    DashboardFilterRule,
-    DashboardFilters,
     DateGranularity,
     fieldId,
-    FilterableField,
     isDashboardChartTileType,
-    SavedChartsInfoForDashboardAvailableFilters,
-    SchedulerFilterRule,
-    SortField,
+    type ApiError,
+    type CacheMetadata,
+    type Dashboard,
+    type DashboardFilterRule,
+    type DashboardFilters,
+    type FilterableField,
+    type SavedChartsInfoForDashboardAvailableFilters,
+    type SchedulerFilterRule,
+    type SortField,
 } from '@lightdash/common';
 import min from 'lodash/min';
 import React, {
-    Dispatch,
-    SetStateAction,
     useCallback,
     useEffect,
     useMemo,
     useState,
+    type Dispatch,
+    type SetStateAction,
 } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
-import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
+import { type FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import { hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
 import {
-    useDashboardCommentsCheck,
     useGetComments,
+    type useDashboardCommentsCheck,
 } from '../features/comments';
 import {
     useDashboardQuery,
@@ -157,7 +157,6 @@ export const DashboardProvider: React.FC<
     const { data: dashboardComments } = useGetComments(
         dashboardUuid,
         !!dashboardCommentsCheck &&
-            !!dashboardCommentsCheck.isDashboardTileCommentsFeatureEnabled &&
             !!dashboardCommentsCheck.canViewDashboardComments,
     );
     const hasTileComments = useCallback(

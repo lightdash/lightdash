@@ -1,7 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { WeekDay } from '../utils/timeFrames';
+import { type WeekDay } from '../utils/timeFrames';
 import { DbtManifestVersion } from './dbt';
-import { ProjectGroupAccess } from './projectGroupAccess';
+import { type ProjectGroupAccess } from './projectGroupAccess';
 
 export enum ProjectType {
     DEFAULT = 'DEFAULT',

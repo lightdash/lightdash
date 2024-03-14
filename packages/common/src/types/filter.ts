@@ -1,4 +1,4 @@
-import { ConditionalOperator, ConditionalRule } from './conditionalRule';
+import { ConditionalOperator, type ConditionalRule } from './conditionalRule';
 import type { SchedulerFilterRule } from './scheduler';
 
 export enum FilterType {
@@ -66,6 +66,12 @@ export type DashboardFilterRule<
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
+};
+
+export type FilterDashboardToRule = DashboardFilterRule & {
+    target: {
+        fieldName: string;
+    };
 };
 
 export type DashboardFilterRuleOverride = Omit<

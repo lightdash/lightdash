@@ -1,7 +1,7 @@
 import { NotificationResourceType } from '@lightdash/common';
 import { Button, Indicator, Menu } from '@mantine/core';
 import { IconBell } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useDashboardCommentsCheck } from '../../../features/comments';
 import {
     DashboardCommentsNotifications,
@@ -30,12 +30,10 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
         validationData && validationData.length > 0;
 
     // Dashboard comments notifications
-    const { isDashboardTileCommentsFeatureEnabled } = useDashboardCommentsCheck(
-        user?.data,
-    );
+    const { canViewDashboardComments } = useDashboardCommentsCheck(user?.data);
     const { data: dashboardCommentsNotifications } = useGetNotifications(
         NotificationResourceType.DashboardComments,
-        isDashboardTileCommentsFeatureEnabled,
+        canViewDashboardComments,
     );
     const hasDashboardCommentsNotifications =
         dashboardCommentsNotifications &&
@@ -51,7 +49,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
             return !hasReadValidationNotification;
         }
 
-        if (isDashboardTileCommentsFeatureEnabled) {
+        if (canViewDashboardComments) {
             const hasUnreadComments = dashboardCommentsNotifications?.some(
                 (n) => !n.viewed,
             );
@@ -62,7 +60,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     };
 
     const shouldDisplayMenu =
-        isDashboardTileCommentsFeatureEnabled || canUserManageValidations;
+        canViewDashboardComments || canUserManageValidations;
 
     return shouldDisplayMenu ? (
         <Menu

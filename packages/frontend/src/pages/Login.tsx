@@ -1,11 +1,11 @@
 import {
-    ApiError,
     getEmailSchema,
     LightdashMode,
-    LightdashUser,
     OpenIdIdentityIssuerType,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
+    type ApiError,
+    type LightdashUser,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useMutation } from '@tanstack/react-query';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { Redirect, useLocation } from 'react-router-dom';
 
 import { z } from 'zod';

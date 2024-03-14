@@ -1,13 +1,16 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
-import { ProjectMemberProfile } from '../types/projectMemberProfile';
-import { LightdashUser } from '../types/user';
+import { type ProjectMemberProfile } from '../types/projectMemberProfile';
+import { type LightdashUser } from '../types/user';
 import { organizationMemberAbilities } from './organizationMemberAbility';
 import { projectMemberAbilities } from './projectMemberAbility';
-import { MemberAbility } from './types';
+import { type MemberAbility } from './types';
 
 export const getUserAbilityBuilder = (
     user: Pick<LightdashUser, 'role' | 'organizationUuid' | 'userUuid'>,
-    projectProfiles: Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[],
+    projectProfiles: Pick<
+        ProjectMemberProfile,
+        'projectUuid' | 'role' | 'userUuid'
+    >[],
 ) => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (user.role && user.organizationUuid) {
@@ -30,7 +33,10 @@ export const getUserAbilityBuilder = (
 
 export const defineUserAbility = (
     user: Pick<LightdashUser, 'role' | 'organizationUuid' | 'userUuid'>,
-    projectProfiles: Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[],
+    projectProfiles: Pick<
+        ProjectMemberProfile,
+        'projectUuid' | 'role' | 'userUuid'
+    >[],
 ): MemberAbility => {
     const builder = getUserAbilityBuilder(user, projectProfiles);
     return builder.build();

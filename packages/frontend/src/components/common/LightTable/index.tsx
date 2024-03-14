@@ -1,17 +1,22 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Box, BoxProps as BoxPropsBase, Text, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Text,
+    Tooltip,
+    type BoxProps as BoxPropsBase,
+} from '@mantine/core';
 import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
-import { PolymorphicComponentProps } from '@mantine/utils';
+import { type PolymorphicComponentProps } from '@mantine/utils';
 import debounce from 'lodash/debounce';
 import {
     createContext,
-    FC,
     forwardRef,
     useCallback,
     useContext,
     useEffect,
     useMemo,
     useState,
+    type FC,
 } from 'react';
 import { useScroll } from 'react-use';
 import {

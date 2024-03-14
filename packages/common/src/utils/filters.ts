@@ -2,35 +2,36 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
     CustomFormatType,
-    Dimension,
     DimensionType,
-    Field,
     fieldId,
-    FilterableDimension,
-    FilterableField,
-    FilterableItem,
     isDimension,
     isFilterableDimension,
     isTableCalculation,
     isTableCalculationField,
     MetricType,
+    type Dimension,
+    type Field,
+    type FilterableDimension,
+    type FilterableField,
+    type FilterableItem,
 } from '../types/field';
 import {
-    DashboardFieldTarget,
-    DashboardFilterRule,
-    DashboardFilters,
-    DateFilterRule,
-    FilterGroup,
-    FilterGroupItem,
     FilterOperator,
-    FilterRule,
-    Filters,
     FilterType,
     isAndFilterGroup,
     isFilterGroup,
     UnitOfTime,
+    type DashboardFieldTarget,
+    type DashboardFilterRule,
+    type DashboardFilters,
+    type DateFilterRule,
+    type FilterDashboardToRule,
+    type FilterGroup,
+    type FilterGroupItem,
+    type FilterRule,
+    type Filters,
 } from '../types/filter';
-import { MetricQuery } from '../types/metricQuery';
+import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
@@ -216,8 +217,14 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             : moment();
 
                     const dateValue = valueIsDate
-                        ? formatDate(value, undefined, false)
+                        ? formatDate(
+                              // Treat the date as UTC, then remove its timezone information before formatting
+                              moment.utc(value).format('YYYY-MM-DD'),
+                              undefined,
+                              false,
+                          )
                         : formatDate(defaultDate, undefined, false);
+
                     filterRuleDefaults.values = [dateValue];
                 }
                 break;
@@ -314,7 +321,7 @@ export const createDashboardFilterRuleFromField = ({
     availableTileFilters: Record<string, FilterableField[] | undefined>;
     isTemporary: boolean;
     value?: unknown;
-}): DashboardFilterRule =>
+}): FilterDashboardToRule =>
     getFilterRuleWithDefaultValue(
         field,
         {
@@ -324,6 +331,7 @@ export const createDashboardFilterRuleFromField = ({
             target: {
                 fieldId: fieldId(field),
                 tableName: field.table,
+                fieldName: field.name,
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
             disabled: !isTemporary,

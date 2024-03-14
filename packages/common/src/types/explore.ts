@@ -1,12 +1,16 @@
-import { DbtModelJoinType, LineageGraph, SupportedDbtAdapter } from './dbt';
 import {
-    CompiledDimension,
-    CompiledMetric,
-    Dimension,
-    Metric,
-    Source,
+    type DbtModelJoinType,
+    type LineageGraph,
+    type SupportedDbtAdapter,
+} from './dbt';
+import {
+    type CompiledDimension,
+    type CompiledMetric,
+    type Dimension,
+    type Metric,
+    type Source,
 } from './field';
-import { TableBase } from './table';
+import { type TableBase } from './table';
 
 export type ExploreJoin = {
     table: string; // Must match a tableName in containing Explore

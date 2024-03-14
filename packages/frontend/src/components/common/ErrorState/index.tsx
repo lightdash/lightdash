@@ -1,6 +1,6 @@
-import { LightdashError } from '@lightdash/common';
+import { type LightdashError } from '@lightdash/common';
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
-import { ComponentProps, FC, useMemo } from 'react';
+import { useMemo, type ComponentProps, type FC } from 'react';
 import styled from 'styled-components';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
 

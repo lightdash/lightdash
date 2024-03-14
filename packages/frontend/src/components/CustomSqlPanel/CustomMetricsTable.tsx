@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import MantineIcon from '../common/MantineIcon';
 

@@ -1,8 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     Comment,
+    DashboardDAO,
     ForbiddenError,
     SessionUser,
+    SpaceShare,
     SpaceSummary,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -12,7 +14,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type CommentServiceArguments = {
     analytics: LightdashAnalytics;
@@ -57,16 +59,74 @@ export class CommentService {
         spaceUuid: string,
     ): Promise<boolean> {
         let space: SpaceSummary;
+        let spaceAccess: SpaceShare[];
 
         try {
             space = await this.spaceModel.getSpaceSummary(spaceUuid);
+            spaceAccess = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                spaceUuid,
+            );
         } catch (e) {
             Sentry.captureException(e);
             console.error(e);
             return false;
         }
 
-        return hasSpaceAccess(user, space);
+        return hasViewAccessToSpace(user, space, spaceAccess);
+    }
+
+    private async createCommentNotification({
+        userUuid,
+        comment,
+        dashboard,
+        dashboardTileUuid,
+    }: {
+        userUuid: string;
+        comment: Comment;
+        dashboard: DashboardDAO;
+        dashboardTileUuid: string;
+    }) {
+        const commentingUsersInTile =
+            await this.commentModel.findUsersThatCommentedInDashboardTile(
+                dashboardTileUuid,
+            );
+
+        const taggedUsers = comment.mentions.map((mention) => ({
+            userUuid: mention,
+            tagged: true,
+        }));
+
+        const commentingUsers = commentingUsersInTile
+            // Filter out users that have just been tagged to avoid duplicate notifications
+            .filter((u) => !taggedUsers.some((t) => t.userUuid === u.userUuid))
+            .map((user) => ({
+                userUuid: user.userUuid,
+                tagged: false,
+            }));
+
+        const usersToNotify = [...taggedUsers, ...commentingUsers];
+
+        if (usersToNotify.length === 0) return;
+
+        const dashboardTile = dashboard.tiles.find(
+            (t) => t.uuid === dashboardTileUuid,
+        );
+
+        if (!dashboardTile) return;
+
+        const commentAuthor = await this.userModel.getUserDetailsByUuid(
+            userUuid,
+        );
+
+        await this.notificationsModel.createDashboardCommentNotification({
+            userUuid,
+            commentAuthor,
+            comment,
+            usersToNotify,
+            dashboard,
+            dashboardTile,
+        });
     }
 
     async createComment(
@@ -122,23 +182,12 @@ export class CommentService {
             throw new Error('Failed to create comment');
         }
 
-        if (comment.mentions.length > 0) {
-            const dashboardTile = dashboard.tiles.find(
-                (t) => t.uuid === dashboardTileUuid,
-            );
-
-            const commentAuthor = await this.userModel.getUserDetailsByUuid(
-                user.userUuid,
-            );
-
-            await this.notificationsModel.createDashboardCommentNotification(
-                user.userUuid,
-                commentAuthor,
-                comment,
-                dashboard,
-                dashboardTile,
-            );
-        }
+        await this.createCommentNotification({
+            userUuid: user.userUuid,
+            comment,
+            dashboard,
+            dashboardTileUuid,
+        });
 
         return comment.commentId;
     }

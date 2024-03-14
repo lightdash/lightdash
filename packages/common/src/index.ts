@@ -1,113 +1,113 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
-import { UserActivity, ViewStatistics } from './types/analytics';
+import { type UserActivity, type ViewStatistics } from './types/analytics';
 import {
-    Dashboard,
-    DashboardAvailableFilters,
-    DashboardBasicDetails,
+    type Dashboard,
+    type DashboardAvailableFilters,
+    type DashboardBasicDetails,
 } from './types/dashboard';
-import { DbtCloudIntegration } from './types/dbtCloud';
-import { Explore, SummaryExplore } from './types/explore';
+import { type DbtCloudIntegration } from './types/dbtCloud';
+import { type Explore, type SummaryExplore } from './types/explore';
 import {
-    CompiledField,
-    CustomDimension,
-    Dimension,
     DimensionType,
-    Field,
-    FieldId,
     fieldId,
-    FilterableField,
     friendlyName,
     isDimension,
     isField,
     isMetric,
     isTableCalculation,
-    ItemsMap,
-    Metric,
-    TableCalculation,
+    type CompiledField,
+    type CustomDimension,
+    type Dimension,
+    type Field,
+    type FieldId,
+    type FilterableField,
+    type ItemsMap,
+    type Metric,
+    type TableCalculation,
 } from './types/field';
 import {
-    AdditionalMetric,
     getCustomDimensionId,
     isAdditionalMetric,
     isCustomDimension,
-    MetricQuery,
+    type AdditionalMetric,
+    type MetricQuery,
 } from './types/metricQuery';
 import {
-    OrganizationMemberProfile,
-    OrganizationMemberRole,
+    type OrganizationMemberProfile,
+    type OrganizationMemberRole,
 } from './types/organizationMemberProfile';
 import {
-    CreatePersonalAccessToken,
-    PersonalAccessToken,
+    type CreatePersonalAccessToken,
+    type PersonalAccessToken,
 } from './types/personalAccessToken';
-import { ProjectMemberProfile } from './types/projectMemberProfile';
+import { type ProjectMemberProfile } from './types/projectMemberProfile';
 import {
-    ApiCalculateTotalResponse,
-    ChartHistory,
-    ChartVersion,
-    SavedChart,
-    Series,
+    type ApiCalculateTotalResponse,
+    type ChartHistory,
+    type ChartVersion,
+    type SavedChart,
+    type Series,
 } from './types/savedCharts';
-import { SearchResults } from './types/search';
-import { ShareUrl } from './types/share';
-import { SlackSettings } from './types/slackSettings';
+import { type SearchResults } from './types/search';
+import { type ShareUrl } from './types/share';
+import { type SlackSettings } from './types/slackSettings';
 
 import {
-    ApiCreateComment,
-    ApiDeleteComment,
-    ApiGetComments,
+    type ApiCreateComment,
+    type ApiDeleteComment,
+    type ApiGetComments,
 } from './types/api/comments';
-import { Email } from './types/api/email';
-import { ApiSuccessEmpty } from './types/api/success';
-import { DbtExposure } from './types/dbt';
-import { EmailStatusExpiring } from './types/email';
-import { FieldValueSearchResult } from './types/fieldMatch';
-import { DashboardFilters } from './types/filter';
+import { type Email } from './types/api/email';
+import { type ApiSuccessEmpty } from './types/api/success';
+import { type DbtExposure } from './types/dbt';
+import { type EmailStatusExpiring } from './types/email';
+import { type FieldValueSearchResult } from './types/fieldMatch';
+import { type DashboardFilters } from './types/filter';
 import {
-    GitIntegrationConfiguration,
-    GitRepo,
-    PullRequestCreated,
+    type GitIntegrationConfiguration,
+    type GitRepo,
+    type PullRequestCreated,
 } from './types/gitIntegration';
 import {
-    DeleteOpenIdentity,
-    OpenIdIdentitySummary,
+    type DeleteOpenIdentity,
+    type OpenIdIdentitySummary,
 } from './types/openIdIdentity';
 import {
-    AllowedEmailDomains,
-    OnboardingStatus,
-    Organization,
-    OrganizationProject,
-    UpdateAllowedEmailDomains,
+    type AllowedEmailDomains,
+    type OnboardingStatus,
+    type Organization,
+    type OrganizationProject,
+    type UpdateAllowedEmailDomains,
 } from './types/organization';
-import { PinnedItems } from './types/pinning';
-import { ProjectGroupAccess } from './types/projectGroupAccess';
-import { ProjectMemberRole } from './types/projectMemberRole';
+import { type PinnedItems } from './types/pinning';
+import { type ProjectGroupAccess } from './types/projectGroupAccess';
+import { type ProjectMemberRole } from './types/projectMemberRole';
 import {
-    CreateWarehouseCredentials,
-    DbtProjectConfig,
     DbtProjectType,
-    Project,
     ProjectType,
-    WarehouseCredentials,
+    type CreateWarehouseCredentials,
+    type DbtProjectConfig,
+    type Project,
+    type WarehouseCredentials,
 } from './types/projects';
-import { MostPopularAndRecentlyUpdated } from './types/resourceViewItem';
-import { ResultRow } from './types/results';
+import { type MostPopularAndRecentlyUpdated } from './types/resourceViewItem';
+import { type ResultRow } from './types/results';
 import {
-    ApiJobScheduledResponse,
-    ApiJobStatusResponse,
-    SchedulerAndTargets,
-    SchedulerJobStatus,
-    SchedulerWithLogs,
+    type ApiJobScheduledResponse,
+    type ApiJobStatusResponse,
+    type SchedulerAndTargets,
+    type SchedulerJobStatus,
+    type SchedulerWithLogs,
 } from './types/scheduler';
-import { SlackChannel } from './types/slack';
-import { Space } from './types/space';
-import { ApiSshKeyPairResponse } from './types/SshKeyPair';
-import { TableBase } from './types/table';
-import { LightdashUser, UserAllowedOrganization } from './types/user';
-import { UserWarehouseCredentials } from './types/userWarehouseCredentials';
-import { ValidationResponse } from './types/validation';
+import { type SlackChannel } from './types/slack';
+import { type Space } from './types/space';
+import { type ApiSshKeyPairResponse } from './types/SshKeyPair';
+import { type TableBase } from './types/table';
+import { type LightdashUser, type UserAllowedOrganization } from './types/user';
+import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
+import { type ValidationResponse } from './types/validation';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';

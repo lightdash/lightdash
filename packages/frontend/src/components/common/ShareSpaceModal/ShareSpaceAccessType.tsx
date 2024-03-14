@@ -1,14 +1,14 @@
-import { Space } from '@lightdash/common';
+import { type Space } from '@lightdash/common';
 import { Avatar, Flex, Group, Select, Stack, Text } from '@mantine/core';
 import { IconLock, IconUsers } from '@tabler/icons-react';
-import { FC, forwardRef } from 'react';
+import { forwardRef, type FC } from 'react';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
 import {
-    AccessOption,
     SpaceAccessOptions,
     SpaceAccessType,
+    type AccessOption,
 } from './ShareSpaceSelect';
 
 interface ShareSpaceAccessTypeProps {

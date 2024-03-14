@@ -1,21 +1,21 @@
 import {
-    DashboardFilters,
-    FilterGroup,
-    FilterGroupItem,
-    FilterRule,
-    Filters,
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
     isFilterGroup,
+    type DashboardFilters,
+    type FilterGroup,
+    type FilterGroupItem,
+    type FilterRule,
+    type Filters,
 } from '@lightdash/common';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 const convertFilterRule = <T extends FilterRule>(filterRule: T): T => {
     return {
         ...filterRule,
         values: filterRule.values?.map((value) => {
             if (value instanceof Date) {
-                return moment(value).format('YYYY-MM-DDTHH:mm:ss') + 'Z';
+                return dayjs(value).format('YYYY-MM-DDTHH:mm:ss') + 'Z';
             }
             return value;
         }),

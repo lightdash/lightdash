@@ -1,7 +1,7 @@
 import {
-    CreateSchedulerAndTargetsWithoutIds,
     SchedulerFormat,
-    UpdateSchedulerAndTargetsWithoutId,
+    type CreateSchedulerAndTargetsWithoutIds,
+    type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import {
     Box,
@@ -13,7 +13,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { IconCirclesRelation } from '@tabler/icons-react';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';

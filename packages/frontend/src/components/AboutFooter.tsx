@@ -8,14 +8,14 @@ import {
     Button,
     Divider,
     Group,
-    MantineSize,
     Modal,
     Stack,
     Text,
     Title,
+    type MantineSize,
 } from '@mantine/core';
 import { IconBook, IconInfoCircle } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 
 import { useApp } from '../providers/AppProvider';
 import { TrackPage, TrackSection } from '../providers/TrackingProvider';

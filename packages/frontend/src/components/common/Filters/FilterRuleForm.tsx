@@ -1,15 +1,15 @@
 import {
     createFilterRuleFromField,
     fieldId as getFieldId,
-    FilterableField,
-    FilterRule,
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
+    type FilterableField,
+    type FilterRule,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Select, Text } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FilterInputComponent, getFilterOperatorOptions } from './FilterInputs';

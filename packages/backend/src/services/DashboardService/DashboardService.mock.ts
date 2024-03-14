@@ -10,6 +10,7 @@ import {
     SavedChart,
     SessionUser,
     Space,
+    SpaceMemberRole,
     UpdateDashboard,
 } from '@lightdash/common';
 import { SpaceTable } from '../../database/entities/spaces';
@@ -101,6 +102,8 @@ export const dashboard: Dashboard = {
     pinnedListOrder: null,
     views: 1,
     firstViewedAt: new Date(1),
+    isPrivate: false,
+    access: [],
 };
 
 export const chart: SavedChart = {
@@ -132,6 +135,8 @@ export const chart: SavedChart = {
     dashboardUuid: dashboard.uuid,
     dashboardName: dashboard.name,
     colorPalette: [],
+    isPrivate: false,
+    access: [],
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [

@@ -1,4 +1,4 @@
-import { HealthState, LightdashUser } from '@lightdash/common';
+import { type HealthState, type LightdashUser } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
 import { useEffect, useState } from 'react';

@@ -9,7 +9,7 @@ import {
     IconTable,
     IconTerminal2,
 } from '@tabler/icons-react';
-import { FC, memo, useState } from 'react';
+import { memo, useState, type FC } from 'react';
 import { Link, useHistory } from 'react-router-dom';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
@@ -96,10 +96,11 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                         </Can>
 
                         <Can
-                            I="manage"
+                            I="create"
                             this={subject('Dashboard', {
                                 organizationUuid: user.data?.organizationUuid,
                                 projectUuid,
+                                isPrivate: false,
                             })}
                         >
                             <LargeMenuItem
@@ -112,7 +113,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                         </Can>
 
                         <Can
-                            I="manage"
+                            I="create"
                             this={subject('Space', {
                                 organizationUuid: user.data?.organizationUuid,
                                 projectUuid,

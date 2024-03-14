@@ -1,12 +1,12 @@
 import {
-    ActivityViews,
-    UserActivity as UserActivityResponse,
-    UserWithCount,
+    type ActivityViews,
+    type UserActivity as UserActivityResponse,
+    type UserWithCount,
 } from '@lightdash/common';
 import { Box, Card, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 
 import MantineIcon from '../components/common/MantineIcon';
@@ -230,7 +230,7 @@ const UserActivity: FC = () => {
                      'viewers interactive-viewers editors admins '
                      'chart-active-users chart-active-users queries-per-user queries-per-user'
                      'table-most-queries table-most-queries table-most-charts table-most-charts'
-                     'table-not-logged-in table-not-logged-in . .'
+                     'table-not-logged-in table-not-logged-in table-most-viewed table-most-viewed'
                      'table-dashboard-views table-dashboard-views table-chart-views table-chart-views'`,
                 }}
             >
@@ -362,6 +362,36 @@ const UserActivity: FC = () => {
                     </Table>
                 </VisualizationCard>
 
+                <VisualizationCard
+                    grid="table-most-viewed"
+                    description="User's most viewed dashboard"
+                >
+                    <Table withColumnBorders ta="left">
+                        <thead>
+                            <tr>
+                                <th>First Name</th>
+                                <th>Last Name</th>
+                                <th>Dashboard name</th>
+                                <th>Number of views</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.userMostViewedDashboards.map((user) => {
+                                return (
+                                    <tr
+                                        key={`user-most-viewed-${user.userUuid}`}
+                                    >
+                                        <td>{user.firstName} </td>
+                                        <td>{user.lastName}</td>
+                                        <td>{user.dashboardName}</td>
+
+                                        <td>{user.count}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </Table>
+                </VisualizationCard>
                 {health?.hasExtendedUsageAnalytics ? (
                     <>
                         <VisualizationCard

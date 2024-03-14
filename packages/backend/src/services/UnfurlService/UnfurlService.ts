@@ -401,8 +401,19 @@ export class UnfurlService {
                     });
 
                     const page = await browser.newPage();
+                    const parsedUrl = new URL(url);
 
-                    await page.setExtraHTTPHeaders({ cookie });
+                    const cookieMatch = cookie.match(/connect\.sid=([^;]+)/); // Extract cookie value
+                    if (!cookieMatch)
+                        throw new Error('Invalid cookie provided');
+                    const cookieValue = cookieMatch[1];
+                    // Set cookie using `setCookie` instead of `setExtraHTTPHeaders` , otherwise this cookie will be leaked into other domains
+                    await page.setCookie({
+                        name: 'connect.sid',
+                        value: cookieValue,
+                        domain: parsedUrl.hostname, // Don't use ports here, cookies do not provide isolation by port
+                        sameSite: 'Strict',
+                    });
 
                     if (chartType === ChartType.BIG_NUMBER) {
                         await page.setViewport(bigNumberViewport);
@@ -435,15 +446,16 @@ export class UnfurlService {
                     await page.setRequestInterception(true);
                     await page.on('request', (request: HTTPRequest) => {
                         const requestUrl = request.url();
+                        const cookie = request.headers()['cookie']
                         const parsedUrl = new URL(url);
                         // Only allow request to the same host
-                        if (!requestUrl.includes(parsedUrl.hostname)) {
+                        if (!requestUrl.includes(parsedUrl.origin)) {
                             request.abort();
                             return;
                         }
                         request.continue();
                     });
-*/
+                    */
                     let chartRequests = 0;
                     let chartRequestErrors = 0;
 
@@ -571,7 +583,6 @@ export class UnfurlService {
                             );
                         });
                     }
-
                     const imageBuffer = await element.screenshot({
                         path,
                         ...(isPuppeteerScrollElementIntoViewEnabled &&
@@ -581,7 +592,6 @@ export class UnfurlService {
                               }
                             : {}),
                     });
-
                     return imageBuffer;
                 } catch (e) {
                     Sentry.captureException(e);

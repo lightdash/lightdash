@@ -1,20 +1,20 @@
 import {
-    Queries,
-    queries,
     render,
     renderHook,
-    RenderHookOptions,
-    RenderHookResult,
-    RenderOptions,
-    RenderResult,
+    type Queries,
+    type queries,
+    type RenderHookOptions,
+    type RenderHookResult,
+    type RenderOptions,
+    type RenderResult,
 } from '@testing-library/react';
-import { FC, PropsWithChildren, ReactElement } from 'react';
+import { type FC, type PropsWithChildren, type ReactElement } from 'react';
 import { vi } from 'vitest';
 import MantineProvider from '../providers/MantineProvider';
 import ReactQueryProvider from '../providers/ReactQueryProvider';
 import { TrackingProvider } from '../providers/TrackingProvider';
 import AppProviderMock, {
-    AppProviderMockProps,
+    type AppProviderMockProps,
 } from './__mocks__/providers/AppProvider.mock';
 
 vi.mock('src/providers/ReactQueryProvider');

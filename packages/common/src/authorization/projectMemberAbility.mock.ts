@@ -1,4 +1,4 @@
-import { ProjectMemberProfile } from '../types/projectMemberProfile';
+import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 
 export const PROJECT_VIEWER: ProjectMemberProfile = {

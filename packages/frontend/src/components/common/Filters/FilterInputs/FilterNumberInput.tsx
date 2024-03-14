@@ -1,5 +1,5 @@
-import { TextInput, TextInputProps } from '@mantine/core';
-import { ChangeEvent, FC, useEffect, useState } from 'react';
+import { TextInput, type TextInputProps } from '@mantine/core';
+import { useEffect, useState, type ChangeEvent, type FC } from 'react';
 
 interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
     value: unknown;

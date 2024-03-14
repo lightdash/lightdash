@@ -1,10 +1,12 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { ViewStatistics } from './analytics';
-import { ConditionalFormattingConfig } from './conditionalFormatting';
-import { CompactOrAlias } from './field';
-import { MetricQuery, MetricQueryRequest } from './metricQuery';
-import { LightdashUser, UpdatedByUser } from './user';
-import { ValidationSummary } from './validation';
+import { type ViewStatistics } from './analytics';
+import { type ConditionalFormattingConfig } from './conditionalFormatting';
+import { type CompactOrAlias } from './field';
+import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
+// eslint-disable-next-line import/no-cycle
+import { type SpaceShare } from './space';
+import { type LightdashUser, type UpdatedByUser } from './user';
+import { type ValidationSummary } from './validation';
 
 export enum ChartKind {
     LINE = 'line',
@@ -282,6 +284,8 @@ export type ChartConfig =
 
 export type SavedChartType = ChartType;
 
+export type SavedChartDAO = Omit<SavedChart, 'isPrivate' | 'access'>;
+
 export type SavedChart = {
     uuid: string;
     projectUuid: string;
@@ -306,6 +310,8 @@ export type SavedChart = {
     dashboardUuid: string | null;
     dashboardName: string | null;
     colorPalette: string[];
+    isPrivate: boolean;
+    access: SpaceShare[];
 };
 
 type CreateChartBase = Pick<
@@ -347,6 +353,8 @@ export type CreateSavedChartVersion = Omit<
     | 'dashboardUuid'
     | 'dashboardName'
     | 'colorPalette'
+    | 'isPrivate'
+    | 'access'
 >;
 
 export type UpdateSavedChart = Partial<

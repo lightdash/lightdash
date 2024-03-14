@@ -31,7 +31,7 @@ import { Strategy } from 'passport-strategy';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
-import { userService } from '../services/services';
+import type { UserService } from '../services/UserService';
 
 // How a user makes authenticated requests
 // 1. A cookie in the browser contains an encrypted cookie id
@@ -58,6 +58,14 @@ import { userService } from '../services/services';
 // 6. passport.GoogleStrategy creates a full user object and attaches it to `req.user`
 // 7. Follow steps 4-6 from "How a user is logs in"
 
+/**
+ * For now, we use the serviceRepository singleton to access the UserService instance,
+ * which in turn is also globally shared.
+ *
+ * At some point, we'll have to ensure that we can access a service repository instance
+ * at this stage, OR have an "anonymous context" service repository instance for this
+ * stage of the request.
+ */
 export const getSessionUserFromRequest = ({
     user,
 }: Request): SessionUser | undefined => {
@@ -208,11 +216,9 @@ export class OpenIDClientOktaStrategy extends Strategy {
                 );
 
                 if (openIdUser) {
-                    const user = await userService.loginWithOpenId(
-                        openIdUser,
-                        req.user,
-                        inviteCode,
-                    );
+                    const user = await req.services
+                        .getUserService()
+                        .loginWithOpenId(openIdUser, req.user, inviteCode);
                     return this.success(user);
                 }
 
@@ -275,39 +281,54 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
     }
 };
 
-export const localPassportStrategy = new LocalStrategy(
-    { usernameField: 'email', passwordField: 'password' },
-    async (email, password, done) => {
-        try {
-            const user = await userService.loginWithPassword(email, password);
-            return done(null, user);
-        } catch (e) {
-            return done(
-                e instanceof LightdashError
-                    ? e
-                    : new AuthorizationError(
-                          'Unexpected error while logging in',
-                      ),
-            );
-        }
-    },
-);
-export const apiKeyPassportStrategy = new HeaderAPIKeyStrategy(
-    { header: 'Authorization', prefix: 'ApiKey ' },
-    true,
-    async (token, done) => {
-        try {
-            const user = await userService.loginWithPersonalAccessToken(token);
-            return done(null, user);
-        } catch {
-            return done(
-                new AuthorizationError(
-                    'Personal access token is not recognised',
-                ),
-            );
-        }
-    },
-);
+export const localPassportStrategy = ({
+    userService,
+}: {
+    userService: UserService;
+}) =>
+    new LocalStrategy(
+        { usernameField: 'email', passwordField: 'password' },
+        async (email, password, done) => {
+            try {
+                const user = await userService.loginWithPassword(
+                    email,
+                    password,
+                );
+                return done(null, user);
+            } catch (e) {
+                return done(
+                    e instanceof LightdashError
+                        ? e
+                        : new AuthorizationError(
+                              'Unexpected error while logging in',
+                          ),
+                );
+            }
+        },
+    );
+export const apiKeyPassportStrategy = ({
+    userService,
+}: {
+    userService: UserService;
+}) =>
+    new HeaderAPIKeyStrategy(
+        { header: 'Authorization', prefix: 'ApiKey ' },
+        true,
+        async (token, done) => {
+            try {
+                const user = await userService.loginWithPersonalAccessToken(
+                    token,
+                );
+                return done(null, user);
+            } catch {
+                return done(
+                    new AuthorizationError(
+                        'Personal access token is not recognised',
+                    ),
+                );
+            }
+        },
+    );
 
 export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     const { redirect, inviteCode } = req.query;
@@ -406,12 +427,14 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                       },
                   };
 
-                  const user = await userService.loginWithOpenId(
-                      openIdUser,
-                      req.user,
-                      inviteCode,
-                      refreshToken,
-                  );
+                  const user = await req.services
+                      .getUserService()
+                      .loginWithOpenId(
+                          openIdUser,
+                          req.user,
+                          inviteCode,
+                          refreshToken,
+                      );
                   return done(null, user);
               } catch (e) {
                   if (e instanceof LightdashError) {
@@ -442,11 +465,9 @@ const genericOidcHandler =
             );
 
             if (openIdUser) {
-                const user = await userService.loginWithOpenId(
-                    openIdUser,
-                    req.user,
-                    inviteCode,
-                );
+                const user = await req.services
+                    .getUserService()
+                    .loginWithOpenId(openIdUser, req.user, inviteCode);
                 return done(null, user);
             }
             return done(null, false, {

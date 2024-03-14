@@ -1,6 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
 import { Anchor, PasswordInput, TextInput } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
     hasNoWhiteSpaces,
@@ -134,7 +134,7 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </>
                 }
                 required
-                {...register('dbt.branch', {
+                {...register('dbt.project_sub_path', {
                     validate: {
                         hasNoWhiteSpaces: hasNoWhiteSpaces(
                             'Project directory path',

@@ -1,7 +1,7 @@
 import {
-    ApiCompiledQueryResults,
-    ApiError,
-    MetricQuery,
+    type ApiCompiledQueryResults,
+    type ApiError,
+    type MetricQuery,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';

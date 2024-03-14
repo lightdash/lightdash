@@ -1,5 +1,13 @@
-import { Badge, Button, CloseButton, Tooltip } from '@mantine/core';
-import { FC, useCallback, useState } from 'react';
+import {
+    Anchor,
+    Badge,
+    Button,
+    CloseButton,
+    Flex,
+    Tooltip,
+} from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
+import { useCallback, useState, type FC } from 'react';
 import useDrivePicker from 'react-google-drive-picker';
 import { useFormContext } from 'react-hook-form';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
@@ -17,6 +25,7 @@ export const SelectGoogleSheetButton: FC = () => {
 
     const googleDriveId = methods.watch('options.gdriveId');
     const googleDriveName = methods.watch('options.gdriveName');
+    const googleDriveUrl = methods.watch('options.url');
 
     const onGooglePickerSelect = useCallback(
         (data: any) => {
@@ -84,17 +93,27 @@ export const SelectGoogleSheetButton: FC = () => {
                 size="md"
                 color="green.4"
                 rightSection={
-                    <CloseButton
-                        onClick={() => {
-                            methods.setValue('options.gdriveId', '');
-                            methods.setValue('options.gdriveName', '');
-                            methods.setValue('options.url', '');
-                            methods.setValue(
-                                'options.gdriveOrganizationName',
-                                '',
-                            );
-                        }}
-                    />
+                    <Flex>
+                        <Anchor
+                            href={googleDriveUrl}
+                            target="_blank"
+                            m={1}
+                            mr={10}
+                        >
+                            <IconExternalLink size={20} />
+                        </Anchor>
+                        <CloseButton
+                            onClick={() => {
+                                methods.setValue('options.gdriveId', '');
+                                methods.setValue('options.gdriveName', '');
+                                methods.setValue('options.url', '');
+                                methods.setValue(
+                                    'options.gdriveOrganizationName',
+                                    '',
+                                );
+                            }}
+                        />
+                    </Flex>
                 }
             >
                 {googleDriveName} ({googleDriveId})

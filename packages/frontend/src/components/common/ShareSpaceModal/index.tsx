@@ -1,4 +1,4 @@
-import { Space } from '@lightdash/common';
+import { type Space } from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -11,16 +11,16 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconFolderShare, IconLock, IconUsers } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../MantineIcon';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
 import {
-    AccessOption,
     SpaceAccessOptions,
     SpaceAccessType,
+    type AccessOption,
 } from './ShareSpaceSelect';
 import { ShareSpaceUserList } from './ShareSpaceUserList';
 

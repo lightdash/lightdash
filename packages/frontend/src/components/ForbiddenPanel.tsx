@@ -1,6 +1,6 @@
 import { Anchor } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { Can } from './common/Authorization';

@@ -30,6 +30,7 @@ export type UserActivity = {
         average_number_of_weekly_queries_per_user: string;
     }[];
     dashboardViews: ActivityViews[];
+    userMostViewedDashboards: (UserWithCount & { dashboardName: string })[];
     chartViews: ActivityViews[];
 };
 

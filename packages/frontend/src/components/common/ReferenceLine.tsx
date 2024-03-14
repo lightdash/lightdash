@@ -1,4 +1,4 @@
-import { MarkLineData } from '@lightdash/common';
+import { type MarkLineData } from '@lightdash/common';
 
 export type ReferenceLineField = {
     fieldId?: string;

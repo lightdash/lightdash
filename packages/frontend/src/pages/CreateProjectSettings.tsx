@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 
 import { Stack, Text, Title } from '@mantine/core';

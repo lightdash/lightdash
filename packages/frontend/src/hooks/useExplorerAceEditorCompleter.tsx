@@ -1,15 +1,15 @@
 // organize-imports-ignore
-import { Ace } from 'ace-builds';
+import { type Ace } from 'ace-builds';
 import 'react-ace'; // Note: we need this import before the langTools import
 import langTools from 'ace-builds/src-noconflict/ext-language_tools';
 import {
     convertAdditionalMetric,
-    Field,
+    type Field,
     fieldId,
     getFieldRef,
-    Metric,
+    type Metric,
 } from '@lightdash/common';
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';
 

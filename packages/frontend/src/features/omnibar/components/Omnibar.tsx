@@ -1,9 +1,9 @@
 import {
     getSearchItemTypeFromResultKey,
     getSearchResultId,
-    SearchFilters,
-    SearchItemType,
-    SearchResults,
+    type SearchFilters,
+    type SearchItemType,
+    type SearchResults,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -23,7 +23,13 @@ import {
     useScrollIntoView,
 } from '@mantine/hooks';
 import { IconCircleXFilled, IconSearch } from '@tabler/icons-react';
-import { FC, MouseEventHandler, useEffect, useMemo, useState } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type MouseEventHandler,
+} from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/Page';
@@ -34,8 +40,8 @@ import { EventName } from '../../../types/Events';
 import useSearch, { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
 import {
     allSearchItemTypes,
-    FocusedItemIndex,
-    SearchItem,
+    type FocusedItemIndex,
+    type SearchItem,
 } from '../types/searchItem';
 import { isSearchResultEmpty } from '../utils/isSearchResultEmpty';
 import OmnibarEmptyState from './OmnibarEmptyState';

@@ -1,5 +1,5 @@
-import { WarehouseTypes } from '@lightdash/common';
-import { FC, useState } from 'react';
+import { type WarehouseTypes } from '@lightdash/common';
+import { useState, type FC } from 'react';
 import ConnectManuallyStep1 from './ConnectManuallyStep1';
 import ConnectManuallyStep2 from './ConnectManuallyStep2';
 

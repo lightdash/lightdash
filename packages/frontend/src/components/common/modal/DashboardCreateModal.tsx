@@ -1,4 +1,4 @@
-import { Dashboard, Space } from '@lightdash/common';
+import { type Dashboard, type Space } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -6,17 +6,17 @@ import {
     Group,
     MantineProvider,
     Modal,
-    ModalProps,
     Select,
     Stack,
     Text,
     Textarea,
     TextInput,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconFolder, IconX } from '@tabler/icons-react';
-import { FC, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
     useCreateMutation as useSpaceCreateMutation,

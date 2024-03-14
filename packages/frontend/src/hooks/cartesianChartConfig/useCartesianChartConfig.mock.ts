@@ -1,15 +1,15 @@
 import {
     CartesianSeriesType,
     ChartType,
-    CompiledDimension,
-    CompiledTable,
     DimensionType,
-    Explore,
     FieldType,
-    Series,
     SupportedDbtAdapter,
+    type CompiledDimension,
+    type CompiledTable,
+    type Explore,
+    type Series,
 } from '@lightdash/common';
-import { GetExpectedSeriesMapArgs } from './utils';
+import { type GetExpectedSeriesMapArgs } from './utils';
 
 const generateCompiledDimension = (
     name: string,

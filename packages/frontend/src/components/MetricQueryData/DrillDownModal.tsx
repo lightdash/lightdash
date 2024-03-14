@@ -1,25 +1,25 @@
 import {
     ChartType,
-    CompiledDimension,
-    CreateSavedChartVersion,
-    DashboardFilters,
-    FieldId,
     fieldId as getFieldId,
-    FilterGroupItem,
     FilterOperator,
-    FilterRule,
-    Filters,
     getDimensions,
     getItemId,
     hashFieldReference,
     isField,
-    MetricQuery,
-    PivotReference,
-    ResultValue,
+    type CompiledDimension,
+    type CreateSavedChartVersion,
+    type DashboardFilters,
+    type FieldId,
+    type FilterGroupItem,
+    type FilterRule,
+    type Filters,
+    type MetricQuery,
+    type PivotReference,
+    type ResultValue,
 } from '@lightdash/common';
 import { Button, Group, Modal, Stack, Title } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';

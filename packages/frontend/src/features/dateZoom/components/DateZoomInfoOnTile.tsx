@@ -1,7 +1,7 @@
-import { CompiledDimension } from '@lightdash/common';
+import { type CompiledDimension } from '@lightdash/common';
 import { Text, Tooltip } from '@mantine/core';
 import { IconCalendarSearch } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 

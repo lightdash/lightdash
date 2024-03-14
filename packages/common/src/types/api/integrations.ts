@@ -1,4 +1,4 @@
-import { DbtCloudIntegration } from '../dbtCloud';
+import { type DbtCloudIntegration } from '../dbtCloud';
 
 export type ApiDbtCloudIntegrationSettings = {
     status: 'ok';

@@ -1,5 +1,5 @@
 import { Box, createStyles } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { ProjectType } from '@lightdash/common';

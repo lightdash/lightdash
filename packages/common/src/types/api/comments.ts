@@ -1,4 +1,4 @@
-import { Comment } from '../comments';
+import { type Comment } from '../comments';
 
 export type ApiCreateComment = {
     status: 'ok';

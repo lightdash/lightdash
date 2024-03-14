@@ -1,26 +1,26 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { ItemsMap } from '..';
 import {
-    ConditionalFormattingConfig,
-    ConditionalFormattingConfigWithColorRange,
-    ConditionalFormattingConfigWithSingleColor,
-    ConditionalFormattingWithConditionalOperator,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    type ConditionalFormattingConfig,
+    type ConditionalFormattingConfigWithColorRange,
+    type ConditionalFormattingConfigWithSingleColor,
+    type ConditionalFormattingWithConditionalOperator,
 } from '../types/conditionalFormatting';
 import {
     ConditionalOperator,
-    ConditionalRuleLabels,
+    type ConditionalRuleLabels,
 } from '../types/conditionalRule';
 import {
     CustomFormatType,
-    FilterableItem,
     Format,
     isField,
     isFilterableItem,
     isTableCalculation,
+    type FilterableItem,
 } from '../types/field';
-import { FieldTarget } from '../types/filter';
+import { type FieldTarget } from '../types/filter';
 import assertUnreachable from './assertUnreachable';
 import { getItemId, isNumericItem } from './item';
 

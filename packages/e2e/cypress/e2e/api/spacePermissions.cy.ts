@@ -363,7 +363,7 @@ describe('Lightdash API tests for an project admin accessing other private space
 
     it('Should not list private dashboards', () => {
         cy.request({
-            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards?includePrivate=false`,
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(200);

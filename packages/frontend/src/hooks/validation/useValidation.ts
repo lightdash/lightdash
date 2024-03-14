@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    ApiError,
-    ApiJobScheduledResponse,
-    ValidationResponse,
+    type ApiError,
+    type ApiJobScheduledResponse,
+    type ValidationResponse,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useLocalStorageState from 'use-local-storage-state';

@@ -11,7 +11,6 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ResourceViewItemModel } from '../../models/ResourceViewItemModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type PinningServiceArguments = {
     dashboardModel: DashboardModel;
@@ -65,9 +64,27 @@ export class PinningService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
+
+        const hasSpaceAccess = await Promise.all(
+            spaces.map(async (space) =>
+                user.ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid,
+                        isPrivate: space.isPrivate,
+                        access: await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            space.uuid,
+                        ),
+                    }),
+                ),
+            ),
+        );
+
         const allowedSpaceUuids = spaces
-            .filter((space) => hasSpaceAccess(user, space))
-            .map((space) => space.uuid);
+            .filter((_, index) => hasSpaceAccess[index])
+            .map(({ uuid }) => uuid);
 
         if (allowedSpaceUuids.length === 0) {
             return [];

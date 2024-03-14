@@ -35,11 +35,13 @@ const SavedDashboards = () => {
         useSpaceSummaries(projectUuid);
     const hasNoSpaces = spaces && spaces.length === 0;
 
-    const userCanManageDashboards = user.data?.ability?.can(
-        'manage',
+    // test if user can managed dashboards for this project & org when given chart access
+    const userCanCreateDashboards = user.data?.ability?.can(
+        'create',
         subject('Dashboard', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            isPrivate: false,
         }),
     );
 
@@ -63,7 +65,7 @@ const SavedDashboards = () => {
                     />
 
                     {dashboards.length > 0 &&
-                        userCanManageDashboards &&
+                        userCanCreateDashboards &&
                         !isDemo && (
                             <Button
                                 leftIcon={<IconPlus size={18} />}
@@ -87,7 +89,7 @@ const SavedDashboards = () => {
                         icon: <IconLayoutDashboard size={30} />,
                         title: 'No dashboards added yet',
                         action:
-                            userCanManageDashboards &&
+                            userCanCreateDashboards &&
                             !isDemo &&
                             hasNoSpaces ? (
                                 <Tooltip label="First you must create a space for this dashboard">
@@ -101,7 +103,7 @@ const SavedDashboards = () => {
                                         </Button>
                                     </div>
                                 </Tooltip>
-                            ) : userCanManageDashboards && !isDemo ? (
+                            ) : userCanCreateDashboards && !isDemo ? (
                                 <Button
                                     leftIcon={<IconPlus size={18} />}
                                     onClick={handleCreateDashboard}

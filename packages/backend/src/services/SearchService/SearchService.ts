@@ -17,7 +17,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 
 type SearchServiceArguments = {
@@ -89,7 +89,7 @@ export class SearchService {
                 this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
-        const filterItem = (
+        const filterItem = async (
             item:
                 | DashboardSearchResult
                 | SpaceSearchResult
@@ -98,7 +98,11 @@ export class SearchService {
             const spaceUuid: string =
                 'spaceUuid' in item ? item.spaceUuid : item.uuid;
             const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
-            return itemSpace && hasSpaceAccess(user, itemSpace, true);
+            const access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                spaceUuid,
+            );
+            return itemSpace && hasViewAccessToSpace(user, itemSpace, access);
         };
 
         const hasExploreAccess = user.ability.can(
@@ -162,13 +166,27 @@ export class SearchService {
             }
         }
 
+        const hasDashboardAccess = await Promise.all(
+            results.dashboards.map(filterItem),
+        );
+        const hasSavedChartAccess = await Promise.all(
+            results.savedCharts.map(filterItem),
+        );
+        const hasSpaceAccess = await Promise.all(
+            results.spaces.map(filterItem),
+        );
+
         const filteredResults = {
             ...results,
             tables: filteredTables,
             fields: filteredFields,
-            dashboards: results.dashboards.filter(filterItem),
-            savedCharts: results.savedCharts.filter(filterItem),
-            spaces: results.spaces.filter(filterItem),
+            dashboards: results.dashboards.filter(
+                (_, index) => hasDashboardAccess[index],
+            ),
+            savedCharts: results.savedCharts.filter(
+                (_, index) => hasSavedChartAccess[index],
+            ),
+            spaces: results.spaces.filter((_, index) => hasSpaceAccess[index]),
             pages: user.ability.can(
                 'view',
                 subject('Analytics', {

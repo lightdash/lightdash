@@ -265,7 +265,7 @@ projectRouter.get(
                 ? req.query.chartUuid.toString()
                 : undefined;
 
-        const includePrivate = req.query.includePrivate === 'true';
+        const includePrivate = req.query.includePrivate !== 'false';
 
         req.services
             .getDashboardService()

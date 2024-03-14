@@ -1,10 +1,10 @@
 import {
     assertUnreachable,
     ChartKind,
-    ResourceViewItem,
     ResourceViewItemType,
+    type ResourceViewItem,
 } from '@lightdash/common';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 export const getResourceTypeName = (item: ResourceViewItem) => {
     switch (item.type) {
@@ -84,7 +84,7 @@ export const getResourceViewsSinceWhenDescription = (
     }
 
     return item.data.firstViewedAt
-        ? `${item.data.views} views since ${moment(
+        ? `${item.data.views} views since ${dayjs(
               item.data.firstViewedAt,
           ).format('MMM D, YYYY h:mm A')}`
         : undefined;

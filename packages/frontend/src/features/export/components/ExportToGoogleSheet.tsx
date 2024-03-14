@@ -1,7 +1,7 @@
-import { ApiScheduledDownloadCsv } from '@lightdash/common';
+import { type ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button, Loader, Menu } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import { FC, memo, useState } from 'react';
+import { memo, useState, type FC } from 'react';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';

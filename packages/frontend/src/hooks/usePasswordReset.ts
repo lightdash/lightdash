@@ -1,7 +1,7 @@
 import {
-    ApiError,
-    CreatePasswordResetLink,
-    PasswordReset,
+    type ApiError,
+    type CreatePasswordResetLink,
+    type PasswordReset,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';

@@ -1,7 +1,7 @@
-import { MonthPickerInput, MonthPickerInputProps } from '@mantine/dates';
+import { MonthPickerInput, type MonthPickerInputProps } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
-import moment from 'moment';
-import { FC } from 'react';
+import dayjs from 'dayjs';
+import { type FC } from 'react';
 
 type Props = Omit<MonthPickerInputProps, 'value' | 'onChange'> & {
     value: Date | null;
@@ -11,14 +11,14 @@ type Props = Omit<MonthPickerInputProps, 'value' | 'onChange'> & {
 const FilterMonthAndYearPicker: FC<Props> = ({ value, onChange, ...props }) => {
     const [isPopoverOpen, { open, close, toggle }] = useDisclosure();
 
-    const yearValue = value ? moment(value).toDate() : null;
+    const yearValue = value ? dayjs(value).toDate() : null;
 
     return (
         <MonthPickerInput
             w="100%"
             size="xs"
-            minDate={moment().year(1000).toDate()}
-            maxDate={moment().year(9999).toDate()}
+            minDate={dayjs().year(1000).toDate()}
+            maxDate={dayjs().year(9999).toDate()}
             onClick={toggle}
             {...props}
             popoverProps={{

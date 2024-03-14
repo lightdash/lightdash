@@ -1,10 +1,10 @@
 import {
-    ApiError,
-    ApiGetNotifications,
-    ApiNotificationResourceType,
-    ApiNotificationUpdateParams,
-    ApiSuccessEmpty,
-    Notification,
+    type ApiError,
+    type ApiGetNotifications,
+    type ApiNotificationResourceType,
+    type ApiNotificationUpdateParams,
+    type ApiSuccessEmpty,
+    type Notification,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';

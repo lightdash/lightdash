@@ -1,7 +1,7 @@
 import { Controller, type IocContainerFactory } from '@tsoa/runtime';
+import type { Request } from 'express';
 import { BaseController } from '../controllers/baseController';
 import type { ServiceRepository } from './ServiceRepository';
-import { serviceRepository } from './services';
 
 /**
  * For now, we allow both classes extending tsoa's Controller directly, as well as those
@@ -27,10 +27,10 @@ const isBaseControllerCtor = (
  * Override's tsoa's native controller instantiation, and allows us to manage controller
  * instantiation directly.
  */
-export const iocContainer: IocContainerFactory = () => ({
+export const iocContainer: IocContainerFactory = (request: Request) => ({
     async get<T extends RouteControllerKlass>(Ctor: T) {
         if (isBaseControllerCtor(Ctor)) {
-            return new Ctor(serviceRepository);
+            return new Ctor(request.services);
         }
 
         return new (Ctor as TsoaControllerKlass)();

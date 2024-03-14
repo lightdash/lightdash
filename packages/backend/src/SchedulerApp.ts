@@ -9,7 +9,11 @@ import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { registerWorkerMetrics } from './schedulerMetrics';
-import * as services from './services/services';
+import {
+    OperationContext,
+    ServiceProviderMap,
+    ServiceRepository,
+} from './services/ServiceRepository';
 import { VERSION } from './version';
 
 type SchedulerAppArguments = {
@@ -17,9 +21,12 @@ type SchedulerAppArguments = {
     port: string | number;
     environment?: 'production' | 'development';
     otelSdk: NodeSDK;
+    serviceProviders?: ServiceProviderMap;
 };
 
 export default class SchedulerApp {
+    private readonly serviceRepository: ServiceRepository;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -47,6 +54,14 @@ export default class SchedulerApp {
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
         });
+        this.serviceRepository = new ServiceRepository({
+            serviceProviders: args.serviceProviders,
+            context: new OperationContext({
+                lightdashAnalytics: this.analytics,
+                lightdashConfig: this.lightdashConfig,
+                operationId: 'SchedulerApp#ctor',
+            }),
+        });
     }
 
     public async start() {
@@ -72,7 +87,17 @@ export default class SchedulerApp {
         const worker = new SchedulerWorker({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-            ...services,
+            // TODO: Do not use serviceRepository singleton:
+            ...{
+                unfurlService: this.serviceRepository.getUnfurlService(),
+                csvService: this.serviceRepository.getCsvService(),
+                dashboardService: this.serviceRepository.getDashboardService(),
+                projectService: this.serviceRepository.getProjectService(),
+                schedulerService: this.serviceRepository.getSchedulerService(),
+                validationService:
+                    this.serviceRepository.getValidationService(),
+                userService: this.serviceRepository.getUserService(),
+            },
             ...clients,
         });
         registerWorkerMetrics();

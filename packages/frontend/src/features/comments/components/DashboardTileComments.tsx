@@ -5,13 +5,13 @@ import {
     Divider,
     Indicator,
     Popover,
-    PopoverProps,
     Stack,
     Text,
+    type PopoverProps,
 } from '@mantine/core';
 import { useScrollIntoView } from '@mantine/hooks';
 import { IconMessage } from '@tabler/icons-react';
-import { FC, useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useApp } from '../../../providers/AppProvider';
 import { useDashboardContext } from '../../../providers/DashboardProvider';

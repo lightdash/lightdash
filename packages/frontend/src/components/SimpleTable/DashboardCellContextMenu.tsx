@@ -1,19 +1,19 @@
 import { subject } from '@casl/ability';
 import {
     createDashboardFilterRuleFromField,
-    DashboardFilterRule,
     hasCustomDimension,
     isDimension,
     isField,
     isFilterableField,
-    ItemsMap,
-    ResultValue,
+    type FilterDashboardToRule,
+    type ItemsMap,
+    type ResultValue,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
@@ -22,7 +22,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
-import { CellContextMenuProps } from '../common/Table/types';
+import { type CellContextMenuProps } from '../common/Table/types';
 import { FilterDashboardTo } from '../DashboardFilter/FilterDashboardTo';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -69,7 +69,7 @@ const DashboardCellContextMenu: FC<
 
     const possiblePivotFilters = (
         meta?.pivotReference?.pivotValues || []
-    ).reduce<DashboardFilterRule[]>((acc, pivot) => {
+    ).reduce<FilterDashboardToRule[]>((acc, pivot) => {
         const pivotField = itemsMap?.[pivot?.field];
         if (
             !pivotField ||
@@ -88,11 +88,8 @@ const DashboardCellContextMenu: FC<
             }),
         ];
     }, []);
-    const filters: DashboardFilterRule[] = [
-        ...filterField,
-        ...possiblePivotFilters,
-    ];
 
+    const filters = [...filterField, ...possiblePivotFilters];
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();

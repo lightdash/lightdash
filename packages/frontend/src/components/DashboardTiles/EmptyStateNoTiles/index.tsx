@@ -1,11 +1,11 @@
 import { subject } from '@casl/ability';
-import { Dashboard } from '@lightdash/common';
+import { type Dashboard } from '@lightdash/common';
 import {
     IconChartBarOff,
     IconLayoutDashboard,
     IconPlayerPlay,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useApp } from '../../../providers/AppProvider';

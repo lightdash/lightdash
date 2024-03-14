@@ -1,4 +1,4 @@
-import { Avatar, AvatarProps, useMantineTheme } from '@mantine/core';
+import { Avatar, useMantineTheme, type AvatarProps } from '@mantine/core';
 import { forwardRef } from 'react';
 
 import { useApp } from '../providers/AppProvider';

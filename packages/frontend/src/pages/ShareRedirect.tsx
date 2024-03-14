@@ -1,5 +1,5 @@
 import { IconLinkOff } from '@tabler/icons-react';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';

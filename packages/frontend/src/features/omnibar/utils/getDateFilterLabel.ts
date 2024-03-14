@@ -1,4 +1,4 @@
-import { SearchFilters } from '@lightdash/common';
+import { type SearchFilters } from '@lightdash/common';
 import dayjs from 'dayjs';
 
 export function getDateFilterLabel(filters: SearchFilters = {}) {

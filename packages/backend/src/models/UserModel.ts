@@ -331,7 +331,10 @@ export class UserModel {
 
     private async getUserProjectRoles(
         userId: number,
-    ): Promise<Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[]> {
+        userUuid: string,
+    ): Promise<
+        Pick<ProjectMemberProfile, 'projectUuid' | 'role' | 'userUuid'>[]
+    > {
         const projectMemberships = await this.database('project_memberships')
             .leftJoin(
                 'projects',
@@ -344,13 +347,17 @@ export class UserModel {
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
             role: membership.role,
+            userUuid,
         }));
     }
 
     private async getUserGroupProjectRoles(
         userId: number,
         organizationId: number,
-    ): Promise<Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[]> {
+        userUuid: string,
+    ): Promise<
+        Pick<ProjectMemberProfile, 'projectUuid' | 'role' | 'userUuid'>[]
+    > {
         // Remember: primary key for an organization is organization_id,user_id - not user_id alone
         const query = this.database('group_memberships')
             .innerJoin(
@@ -370,6 +377,7 @@ export class UserModel {
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
             role: membership.role,
+            userUuid,
         }));
     }
 
@@ -393,10 +401,14 @@ export class UserModel {
             return user;
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
-        const projectRoles = await this.getUserProjectRoles(user.user_id);
+        const projectRoles = await this.getUserProjectRoles(
+            user.user_id,
+            user.user_uuid,
+        );
         const groupProjectRoles = await this.getUserGroupProjectRoles(
             user.user_id,
             user.organization_id,
+            user.user_uuid,
         );
         const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
             ...projectRoles,
@@ -536,10 +548,14 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
-        const projectRoles = await this.getUserProjectRoles(user.user_id);
+        const projectRoles = await this.getUserProjectRoles(
+            user.user_id,
+            user.user_uuid,
+        );
         const groupProjectRoles = await this.getUserGroupProjectRoles(
             user.user_id,
             user.organization_id,
+            user.user_uuid,
         );
         const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
             ...projectRoles,
@@ -561,10 +577,14 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${email}`);
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
-        const projectRoles = await this.getUserProjectRoles(user.user_id);
+        const projectRoles = await this.getUserProjectRoles(
+            user.user_id,
+            user.user_uuid,
+        );
         const groupProjectRoles = await this.getUserGroupProjectRoles(
             user.user_id,
             user.organization_id,
+            user.user_uuid,
         );
         const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
             ...projectRoles,
@@ -632,10 +652,14 @@ export class UserModel {
             return undefined;
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(row);
-        const projectRoles = await this.getUserProjectRoles(row.user_id);
+        const projectRoles = await this.getUserProjectRoles(
+            row.user_id,
+            row.user_uuid,
+        );
         const groupProjectRoles = await this.getUserGroupProjectRoles(
             row.user_id,
             row.organization_id,
+            row.user_uuid,
         );
         const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
             ...projectRoles,

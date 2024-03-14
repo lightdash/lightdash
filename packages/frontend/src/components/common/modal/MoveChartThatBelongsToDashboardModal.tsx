@@ -3,13 +3,13 @@ import {
     Flex,
     Group,
     Modal,
-    ModalProps,
     Stack,
     Text,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { IconFolders } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { useMoveChartMutation } from '../../../hooks/useSavedQuery';
 import MantineIcon from '../MantineIcon';
 

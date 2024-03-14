@@ -1,7 +1,7 @@
 import {
-    ApiError,
-    CreateUserAttribute,
-    UserAttribute,
+    type ApiError,
+    type CreateUserAttribute,
+    type UserAttribute,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';

@@ -1,8 +1,8 @@
 import {
-    CompiledDimension,
-    CustomDimension,
-    Field,
-    TableCalculation,
+    type CompiledDimension,
+    type CustomDimension,
+    type Field,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     Collapse,
@@ -13,7 +13,7 @@ import {
     Text,
 } from '@mantine/core';
 import startCase from 'lodash/startCase';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';

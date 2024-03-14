@@ -3,7 +3,7 @@ import { useForm, zodResolver } from '@mantine/form';
 import { forwardRef } from 'react';
 import { z } from 'zod';
 import useHealth from '../../hooks/health/useHealth';
-import { Props } from './index';
+import { type Props } from './index';
 
 type LimitFormProps = Pick<Props, 'limit' | 'onLimitChange'>;
 

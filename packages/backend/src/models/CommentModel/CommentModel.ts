@@ -235,6 +235,20 @@ export class CommentModel {
         );
     }
 
+    async findUsersThatCommentedInDashboardTile(
+        dashboardTileUuid: string,
+    ): Promise<Pick<LightdashUser, 'userUuid'>[]> {
+        const usersThatCommentedInDashboardTile = await this.database(
+            DashboardTileCommentsTableName,
+        )
+            .distinct('user_uuid')
+            .where('dashboard_tile_uuid', dashboardTileUuid);
+
+        return usersThatCommentedInDashboardTile.map((comment) => ({
+            userUuid: comment.user_uuid,
+        }));
+    }
+
     async resolveComment(commentId: string): Promise<void> {
         await this.database(DashboardTileCommentsTableName)
             .update({ resolved: true })

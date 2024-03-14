@@ -1,5 +1,5 @@
-import { DashboardLoomTile } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
+import { type DashboardLoomTile } from '@lightdash/common';
+import React, { useMemo, useState, type FC } from 'react';
 import { DashboardTileComments } from '../../features/comments';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import TileBase from './TileBase/index';
@@ -20,9 +20,7 @@ const LoomTile: FC<Props> = (props) => {
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
-        (c) =>
-            c.dashboardCommentsCheck?.canViewDashboardComments &&
-            c.dashboardCommentsCheck?.isDashboardTileCommentsFeatureEnabled,
+        (c) => c.dashboardCommentsCheck?.canViewDashboardComments,
     );
     const tileHasComments = useDashboardContext((c) => c.hasTileComments(uuid));
     const dashboardComments = useMemo(

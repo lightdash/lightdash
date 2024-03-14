@@ -44,8 +44,11 @@ import { registerNodeMetrics } from './nodeMetrics';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
-import type { ServiceRepository } from './services/ServiceRepository';
-import * as services from './services/services';
+import {
+    OperationContext,
+    ServiceProviderMap,
+    ServiceRepository,
+} from './services/ServiceRepository';
 import { wrapOtelSpan } from './utils';
 import { VERSION } from './version';
 
@@ -70,9 +73,12 @@ type AppArguments = {
     port: string | number;
     otelSdk: NodeSDK;
     environment?: 'production' | 'development';
+    serviceProviders?: ServiceProviderMap;
 };
 
 export default class App {
+    private readonly serviceRepository: ServiceRepository;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -101,6 +107,14 @@ export default class App {
                     this.lightdashConfig.rudder.writeKey &&
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
+        });
+        this.serviceRepository = new ServiceRepository({
+            serviceProviders: args.serviceProviders,
+            context: new OperationContext({
+                operationId: 'App#ctor',
+                lightdashAnalytics: this.analytics,
+                lightdashConfig: this.lightdashConfig,
+            }),
         });
     }
 
@@ -185,8 +199,7 @@ export default class App {
          * request context - for now we simply proxy the existing service repository singleton.
          */
         expressApp.use((req, res, next) => {
-            req.services = services.serviceRepository;
-
+            req.services = this.serviceRepository;
             next();
         });
 
@@ -290,8 +303,14 @@ export default class App {
         );
 
         // Authentication
-        passport.use(apiKeyPassportStrategy);
-        passport.use(localPassportStrategy);
+        const userService = this.serviceRepository.getUserService();
+
+        passport.use(apiKeyPassportStrategy({ userService }));
+        passport.use(
+            localPassportStrategy({
+                userService,
+            }),
+        );
         if (googlePassportStrategy) {
             passport.use(googlePassportStrategy);
             refresh.use(googlePassportStrategy);
@@ -334,6 +353,9 @@ export default class App {
             slackAuthenticationModel,
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
+
+            // TODO: Do not use serviceRepository singleton here:
+            unfurlService: this.serviceRepository.getUnfurlService(),
         });
     }
 
@@ -396,9 +418,20 @@ export default class App {
         this.schedulerWorker = new SchedulerWorker({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-            ...services,
+            // TODO: Do not use serviceRepository singleton:
+            ...{
+                unfurlService: this.serviceRepository.getUnfurlService(),
+                csvService: this.serviceRepository.getCsvService(),
+                dashboardService: this.serviceRepository.getDashboardService(),
+                projectService: this.serviceRepository.getProjectService(),
+                schedulerService: this.serviceRepository.getSchedulerService(),
+                validationService:
+                    this.serviceRepository.getValidationService(),
+                userService: this.serviceRepository.getUserService(),
+            },
             ...clients,
         });
+
         this.schedulerWorker.run().catch((e) => {
             Logger.error('Error starting scheduler worker', e);
         });

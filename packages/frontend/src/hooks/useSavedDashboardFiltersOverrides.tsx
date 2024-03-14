@@ -1,7 +1,7 @@
 import {
-    DashboardFilterRule,
-    DashboardFilterRuleOverride,
-    DashboardFilters,
+    type DashboardFilterRule,
+    type DashboardFilterRuleOverride,
+    type DashboardFilters,
 } from '@lightdash/common';
 import { useReducer } from 'react';
 import { useLocation } from 'react-router-dom';

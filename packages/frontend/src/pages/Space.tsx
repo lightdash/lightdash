@@ -13,7 +13,7 @@ import {
     IconPlus,
     IconSquarePlus,
 } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
@@ -69,22 +69,6 @@ const Space: FC = () => {
     const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
-    const userCanManageDashboards = user.data?.ability?.can(
-        'manage',
-        subject('Dashboard', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
-
-    const userCanManageCharts = user.data?.ability?.can(
-        'manage',
-        subject('SavedChart', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
-
     const handlePinToggleSpace = useCallback(
         (spaceId: string) => pinSpace(spaceId),
         [pinSpace],
@@ -113,6 +97,16 @@ const Space: FC = () => {
         );
     }
 
+    const userCanCreateDashboards = user.data?.ability?.can(
+        'create',
+        subject('Dashboard', { ...space }),
+    );
+
+    const userCanCreateCharts = user.data?.ability?.can(
+        'create',
+        subject('SavedChart', { ...space }),
+    );
+
     const dashboardsInSpace = space!.dashboards;
     const chartsInSpace = space!.queries;
     const allItems = [
@@ -138,16 +132,10 @@ const Space: FC = () => {
                     />
 
                     <Group spacing="xs">
-                        <Can
-                            I="manage"
-                            this={subject('Space', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                        <Can I="manage" this={subject('Space', space)}>
                             {!isDemo &&
-                                (userCanManageDashboards ||
-                                    userCanManageCharts) && (
+                                (userCanCreateDashboards ||
+                                    userCanCreateCharts) && (
                                     <Menu
                                         position="bottom-end"
                                         shadow="md"
@@ -171,7 +159,7 @@ const Space: FC = () => {
                                         </Menu.Target>
 
                                         <Menu.Dropdown>
-                                            {userCanManageDashboards ? (
+                                            {userCanCreateDashboards ? (
                                                 <>
                                                     <Menu.Label>
                                                         Add dashboard
@@ -213,12 +201,12 @@ const Space: FC = () => {
                                                 </>
                                             ) : null}
 
-                                            {userCanManageDashboards &&
-                                                userCanManageCharts && (
+                                            {userCanCreateDashboards &&
+                                                userCanCreateCharts && (
                                                     <Menu.Divider />
                                                 )}
 
-                                            {userCanManageCharts ? (
+                                            {userCanCreateCharts ? (
                                                 <>
                                                     <Menu.Label>
                                                         Add chart

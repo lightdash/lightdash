@@ -1,18 +1,18 @@
 import {
-    CustomDimension,
-    Field,
-    PivotReference,
-    ResultRow,
-    SortField,
-    TableCalculation,
+    type CustomDimension,
+    type Field,
+    type PivotReference,
+    type ResultRow,
+    type SortField,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
-    Cell,
-    ColumnDef,
     createColumnHelper,
-    Header,
+    type Cell,
+    type ColumnDef,
+    type Header,
 } from '@tanstack/react-table';
-import { CSSProperties } from 'styled-components';
+import { type CSSProperties } from 'styled-components';
 
 export type HeaderProps = { header: Header<ResultRow, any> };
 export type CellContextMenuProps = {

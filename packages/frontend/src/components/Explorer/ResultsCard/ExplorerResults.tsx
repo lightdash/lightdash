@@ -1,6 +1,6 @@
 import { getItemMap } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
-import { FC, memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';

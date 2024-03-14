@@ -1,11 +1,10 @@
-import { Text, Tooltip } from '@mantine/core';
-import moment from 'moment';
-import { FC } from 'react';
-
 import {
-    ResourceViewChartItem,
-    ResourceViewDashboardItem,
+    type ResourceViewChartItem,
+    type ResourceViewDashboardItem,
 } from '@lightdash/common';
+import { Text, Tooltip } from '@mantine/core';
+import dayjs from 'dayjs';
+import type { FC } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
 interface ResourceLastEditedProps {
@@ -23,7 +22,7 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
         <div>
             <Tooltip
                 position="top-start"
-                label={moment(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+                label={dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             >
                 <Text fz={12} fw={500} color="gray.7">
                     {timeAgo}

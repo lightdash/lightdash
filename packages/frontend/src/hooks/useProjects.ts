@@ -1,9 +1,13 @@
-import { ApiError, OrganizationProject, ProjectType } from '@lightdash/common';
+import {
+    ProjectType,
+    type ApiError,
+    type OrganizationProject,
+} from '@lightdash/common';
 import {
     useMutation,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import { useOrganization } from './organization/useOrganization';

@@ -16,9 +16,11 @@ import {
     isConditionalFormattingConfigWithSingleColor,
     isUserWithOrg,
     SavedChart,
+    SavedChartDAO,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
+    SpaceShare,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -39,7 +41,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type SavedChartServiceArguments = {
     analytics: LightdashAnalytics;
@@ -82,18 +84,24 @@ export class SavedChartService {
     ): Promise<ChartSummary> {
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
+        const space = await this.spaceModel.getSpaceSummary(
+            savedChart.spaceUuid,
+        );
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            savedChart.spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
                 }),
             )
         ) {
-            throw new ForbiddenError();
-        }
-        if (!(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -132,14 +140,18 @@ export class SavedChartService {
     ): Promise<boolean> {
         try {
             const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            return hasSpaceAccess(user, space);
+            const access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                space.uuid,
+            );
+            return await hasViewAccessToSpace(user, space, access);
         } catch (e) {
             return false;
         }
     }
 
     static getCreateEventProperties(
-        savedChart: SavedChart,
+        savedChart: SavedChartDAO,
     ): CreateSavedChartVersionEvent['properties'] {
         const echartsConfig =
             savedChart.chartConfig.type === ChartType.CARTESIAN
@@ -222,7 +234,7 @@ export class SavedChartService {
     }
 
     static getConditionalFormattingEventProperties(
-        savedChart: SavedChart,
+        savedChart: SavedChartDAO,
     ): ConditionalFormattingRuleSavedEvent['properties'][] | undefined {
         if (
             savedChart.chartConfig.type !== ChartType.TABLE ||
@@ -271,20 +283,26 @@ export class SavedChartService {
         const { organizationUuid, projectUuid, spaceUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
 
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
+
         if (
             user.ability.cannot(
                 'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this chart belongs to",
-            );
-        }
         const savedChart = await this.savedChartModel.createVersion(
             savedChartUuid,
             data,
@@ -307,7 +325,11 @@ export class SavedChartService {
             });
         });
 
-        return savedChart;
+        return {
+            ...savedChart,
+            isPrivate: space.isPrivate,
+            access,
+        };
     }
 
     async update(
@@ -318,20 +340,28 @@ export class SavedChartService {
         const { organizationUuid, projectUuid, spaceUuid, dashboardUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
 
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
+
         if (
             user.ability.cannot(
                 'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
             )
         ) {
-            throw new ForbiddenError();
-        }
-
-        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
         }
+
         const savedChart = await this.savedChartModel.update(
             savedChartUuid,
             data,
@@ -357,7 +387,11 @@ export class SavedChartService {
                 },
             });
         }
-        return savedChart;
+        return {
+            ...savedChart,
+            isPrivate: space.isPrivate,
+            access,
+        };
     }
 
     async togglePinning(
@@ -417,28 +451,47 @@ export class SavedChartService {
     ): Promise<SavedChart[]> {
         const project = await this.projectModel.getSummary(projectUuid);
 
-        if (
-            user.ability.cannot(
+        const spaceAccessPromises = data.map(async (chart) => {
+            const space = await this.spaceModel.getSpaceSummary(
+                chart.spaceUuid,
+            );
+            const access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                chart.spaceUuid,
+            );
+            return user.ability.can(
                 'update',
                 subject('SavedChart', {
                     organizationUuid: project.organizationUuid,
                     projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
                 }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const spaceAccessPromises = data.map(async (chart) =>
-            this.hasChartSpaceAccess(user, chart.spaceUuid),
-        );
+            );
+        });
 
         const hasAllAccess = await Promise.all(spaceAccessPromises);
         if (hasAllAccess.includes(false)) {
             throw new ForbiddenError();
         }
 
-        const savedCharts = await this.savedChartModel.updateMultiple(data);
+        const savedChartsDaos = await this.savedChartModel.updateMultiple(data);
+        const savedCharts = await Promise.all(
+            savedChartsDaos.map(async (savedChart) => {
+                const space = await this.spaceModel.getSpaceSummary(
+                    savedChart.spaceUuid,
+                );
+                const access = await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
+                    savedChart.spaceUuid,
+                );
+                return {
+                    ...savedChart,
+                    isPrivate: space.isPrivate,
+                    access,
+                };
+            }),
+        );
         this.analytics.track({
             event: 'saved_chart.updated_multiple',
             userId: user.userUuid,
@@ -453,19 +506,24 @@ export class SavedChartService {
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
         const { organizationUuid, projectUuid, spaceUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
 
         if (
             user.ability.cannot(
                 'delete',
-                subject('SavedChart', { organizationUuid, projectUuid }),
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
             )
         ) {
             throw new ForbiddenError();
-        }
-        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this chart belongs to",
-            );
         }
 
         const deletedChart = await this.savedChartModel.delete(savedChartUuid);
@@ -486,10 +544,23 @@ export class SavedChartService {
         const savedChart = await this.savedChartModel.getSummary(
             savedChartUuid,
         );
-        if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
-            throw new ForbiddenError();
-        }
-        if (!(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))) {
+        const space = await this.spaceModel.getSpaceSummary(
+            savedChart.spaceUuid,
+        );
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            savedChart.spaceUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    ...savedChart,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -499,11 +570,24 @@ export class SavedChartService {
 
     async get(savedChartUuid: string, user: SessionUser): Promise<SavedChart> {
         const savedChart = await this.savedChartModel.get(savedChartUuid);
-        if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
-            throw new ForbiddenError();
-        }
+        const space = await this.spaceModel.getSpaceSummary(
+            savedChart.spaceUuid,
+        );
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            savedChart.spaceUuid,
+        );
 
-        if (!(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))) {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    ...savedChart,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -524,7 +608,11 @@ export class SavedChartService {
             },
         });
 
-        return savedChart;
+        return {
+            ...savedChart,
+            isPrivate: space.isPrivate,
+            access,
+        };
     }
 
     async create(
@@ -535,21 +623,31 @@ export class SavedChartService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
-        if (
-            user.ability.cannot(
-                'create',
-                subject('SavedChart', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        let isPrivate = false;
+        let access: SpaceShare[] = [];
         if (savedChart.spaceUuid) {
             const space = await this.spaceModel.getSpaceSummary(
                 savedChart.spaceUuid,
             );
-            if (!hasSpaceAccess(user, space)) {
-                throw new ForbiddenError();
-            }
+            isPrivate = space.isPrivate;
+            access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                savedChart.spaceUuid,
+            );
+        }
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
 
         const newSavedChart = await this.savedChartModel.create(
@@ -579,7 +677,7 @@ export class SavedChartService {
             });
         });
 
-        return newSavedChart;
+        return { ...newSavedChart, isPrivate, access };
     }
 
     async duplicate(
@@ -588,10 +686,21 @@ export class SavedChartService {
         chartUuid: string,
     ): Promise<SavedChart> {
         const chart = await this.savedChartModel.get(chartUuid);
-        if (user.ability.cannot('create', subject('SavedChart', chart))) {
-            throw new ForbiddenError();
-        }
-        if (!(await this.hasChartSpaceAccess(user, chart.spaceUuid))) {
+        const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            chart.spaceUuid,
+        );
+        if (
+            user.ability.cannot(
+                'create',
+                subject('SavedChart', {
+                    ...chart,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -644,7 +753,7 @@ export class SavedChartService {
                 duplicateOfSavedQueryId: chartUuid,
             },
         });
-        return newSavedChart;
+        return { ...newSavedChart, isPrivate: space.isPrivate, access };
     }
 
     async getSchedulers(
@@ -713,10 +822,21 @@ export class SavedChartService {
         chartUuid: string,
     ): Promise<ChartHistory> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
-        if (user.ability.cannot('view', subject('SavedChart', chart))) {
-            throw new ForbiddenError();
-        }
-        if (!(await this.hasChartSpaceAccess(user, chart.spaceUuid))) {
+        const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            chart.spaceUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    ...chart,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -744,10 +864,21 @@ export class SavedChartService {
         versionUuid: string,
     ): Promise<ChartVersion> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
-        if (user.ability.cannot('view', subject('SavedChart', chart))) {
-            throw new ForbiddenError();
-        }
-        if (!(await this.hasChartSpaceAccess(user, chart.spaceUuid))) {
+        const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            chart.spaceUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    ...chart,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -770,7 +901,7 @@ export class SavedChartService {
 
         return {
             ...chartVersionSummary,
-            chart: savedChart,
+            chart: { ...savedChart, isPrivate: space.isPrivate, access },
         };
     }
 

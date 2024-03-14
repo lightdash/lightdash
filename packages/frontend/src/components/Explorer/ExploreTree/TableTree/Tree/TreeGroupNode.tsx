@@ -2,11 +2,11 @@ import { hasIntersection } from '@lightdash/common';
 import { Badge, Group, Highlight, NavLink, Text } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash/intersectionBy';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../../common/MantineIcon';
 import TreeNodes from './TreeNodes';
-import { GroupNode, Node, useTableTreeContext } from './TreeProvider';
+import { useTableTreeContext, type GroupNode, type Node } from './TreeProvider';
 
 const getAllChildrenKeys = (nodes: Node[]): string[] => {
     return nodes.flatMap(function loop(node): string[] {

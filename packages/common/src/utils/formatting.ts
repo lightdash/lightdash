@@ -1,20 +1,21 @@
-import moment, { MomentInput } from 'moment';
+import dayjs from 'dayjs';
+import moment, { type MomentInput } from 'moment';
 import {
-    CompactOrAlias,
-    CustomDimension,
-    CustomFormat,
     CustomFormatType,
     DimensionType,
-    Field,
     findCompactConfig,
     Format,
     isDimension,
     isTableCalculation,
     MetricType,
     NumberSeparator,
-    TableCalculation,
+    type CompactOrAlias,
+    type CustomDimension,
+    type CustomFormat,
+    type Field,
+    type TableCalculation,
 } from '../types/field';
-import { AdditionalMetric, hasFormatOptions } from '../types/metricQuery';
+import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 
@@ -97,11 +98,13 @@ const getTimeFormat = (
     return `YYYY-MM-DD, ${timeFormat} (Z)`;
 };
 
+// TODO: To rename to isDayJsInput once we remove moment usage
 export const isMomentInput = (value: unknown): value is MomentInput =>
     typeof value === 'string' ||
     typeof value === 'number' ||
     value instanceof Date ||
-    value instanceof moment;
+    value instanceof moment ||
+    value instanceof dayjs;
 
 export function formatDate(
     date: MomentInput,

@@ -1,27 +1,27 @@
 import {
-    CartesianChartLayout,
     CartesianSeriesType,
-    CustomDimension,
-    Field,
     formatItemValue,
     getItemId,
     getItemLabelWithoutTableName,
     getSeriesId,
     isCustomDimension,
     isSeriesWithMixedChartTypes,
-    Series,
-    TableCalculation,
+    type CartesianChartLayout,
+    type CustomDimension,
+    type Field,
+    type Series,
+    type TableCalculation,
 } from '@lightdash/common';
-import React, { FC, useCallback } from 'react';
+import React, { useCallback, type FC } from 'react';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 import {
     DragDropContext,
     Draggable,
-    DraggableProvidedDragHandleProps,
-    DraggableStateSnapshot,
     Droppable,
-    DropResult,
+    type DraggableProvidedDragHandleProps,
+    type DraggableStateSnapshot,
+    type DropResult,
 } from '@hello-pangea/dnd';
 import {
     Box,

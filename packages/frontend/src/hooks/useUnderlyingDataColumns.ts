@@ -1,12 +1,15 @@
 import {
-    ApiQueryResults,
-    Field,
-    FieldId,
     fieldId as getFieldId,
     formatItemValue,
+    type ApiQueryResults,
+    type Field,
+    type FieldId,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import { columnHelper, TableColumn } from '../components/common/Table/types';
+import {
+    columnHelper,
+    type TableColumn,
+} from '../components/common/Table/types';
 import useColumnTotals from './useColumnTotals';
 
 type Args = {

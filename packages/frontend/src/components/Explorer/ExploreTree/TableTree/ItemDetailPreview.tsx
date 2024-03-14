@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
-import { FC, PropsWithChildren } from 'react';
+import { type FC, type PropsWithChildren } from 'react';
 import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { useItemDetail } from './ItemDetailContext';

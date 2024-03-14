@@ -1,6 +1,6 @@
 import { Box, Flex } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';

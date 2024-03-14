@@ -1,22 +1,22 @@
 import { extractSystemStyles, Input } from '@mantine/core';
 import {
-    BaseSelectProps,
-    BaseSelectStylesNames,
+    type BaseSelectProps,
+    type BaseSelectStylesNames,
 } from '@mantine/core/lib/Select/types';
 import { useId, useMergedRef, useUncontrolled } from '@mantine/hooks';
 import {
-    DefaultProps,
-    MantineSize,
-    Selectors,
     useComponentDefaultProps,
+    type DefaultProps,
+    type MantineSize,
+    type Selectors,
 } from '@mantine/styles';
 import uniq from 'lodash/uniq';
 import React, { forwardRef, useRef, useState } from 'react';
 import {
     DefaultValue,
-    DefaultValueStylesNames,
+    type DefaultValueStylesNames,
 } from './DefaultValue/DefaultValue';
-import useStyles, { InputFieldPosition } from './TagInput.styles';
+import useStyles, { type InputFieldPosition } from './TagInput.styles';
 import { getTagInputRightSectionProps } from './TagInputRightSection/get-taginput-right-section-props';
 
 export type TagInputStylesNames =

@@ -1,7 +1,12 @@
-import { Anchor, AnchorProps, Tooltip, TooltipProps } from '@mantine/core';
+import {
+    Anchor,
+    Tooltip,
+    type AnchorProps,
+    type TooltipProps,
+} from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
-import { FC } from 'react';
-import MantineIcon, { MantineIconProps } from './common/MantineIcon';
+import { type FC } from 'react';
+import MantineIcon, { type MantineIconProps } from './common/MantineIcon';
 
 type Props = React.AnchorHTMLAttributes<HTMLAnchorElement> &
     Partial<AnchorProps> & {

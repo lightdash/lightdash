@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    ApiError,
-    GitIntegrationConfiguration,
-    PullRequestCreated,
+    type ApiError,
+    type GitIntegrationConfiguration,
+    type PullRequestCreated,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -38,7 +38,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { FC, Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { lightdashApi } from '../../../api';
@@ -312,13 +312,9 @@ const SavedChartsHeader: FC = () => {
         };
     }, [spacesSharedWithMe, spacesAdminsCanSee]);
 
-    const userCanManageCharts = user.data?.ability?.can(
-        'manage',
-        subject('SavedChart', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
+    const userCanManageChart =
+        savedChart &&
+        user.data?.ability?.can('manage', subject('SavedChart', savedChart));
 
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
@@ -403,23 +399,15 @@ const SavedChartsHeader: FC = () => {
                                     withChartData={true}
                                 />
 
-                                {isEditMode &&
-                                    user.data?.ability?.can(
-                                        'manage',
-                                        'SavedChart',
-                                    ) && (
-                                        <ActionIcon
-                                            color="gray.7"
-                                            disabled={
-                                                updateSavedChart.isLoading
-                                            }
-                                            onClick={() =>
-                                                setIsRenamingChart(true)
-                                            }
-                                        >
-                                            <MantineIcon icon={IconPencil} />
-                                        </ActionIcon>
-                                    )}
+                                {isEditMode && userCanManageChart && (
+                                    <ActionIcon
+                                        color="gray.7"
+                                        disabled={updateSavedChart.isLoading}
+                                        onClick={() => setIsRenamingChart(true)}
+                                    >
+                                        <MantineIcon icon={IconPencil} />
+                                    </ActionIcon>
+                                )}
                                 <ChartUpdateModal
                                     opened={isRenamingChart}
                                     uuid={savedChart.uuid}
@@ -471,9 +459,9 @@ const SavedChartsHeader: FC = () => {
                     )}
                 </PageTitleAndDetailsContainer>
 
-                {(userCanManageCharts || userCanCreateDeliveriesAndAlerts) && (
+                {(userCanManageChart || userCanCreateDeliveriesAndAlerts) && (
                     <PageActionsContainer>
-                        {userCanManageCharts && (
+                        {userCanManageChart && (
                             <>
                                 {!isEditMode ? (
                                     <>
@@ -539,7 +527,7 @@ const SavedChartsHeader: FC = () => {
                         >
                             <Menu.Dropdown>
                                 <Menu.Label>Manage</Menu.Label>
-                                {userCanManageCharts && hasUnsavedChanges && (
+                                {userCanManageChart && hasUnsavedChanges && (
                                     <Menu.Item
                                         icon={
                                             <MantineIcon
@@ -553,7 +541,7 @@ const SavedChartsHeader: FC = () => {
                                         Save chart as
                                     </Menu.Item>
                                 )}
-                                {userCanManageCharts &&
+                                {userCanManageChart &&
                                     !hasUnsavedChanges &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
@@ -567,7 +555,7 @@ const SavedChartsHeader: FC = () => {
                                             Duplicate
                                         </Menu.Item>
                                     )}
-                                {userCanManageCharts &&
+                                {userCanManageChart &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
                                             icon={
@@ -584,7 +572,7 @@ const SavedChartsHeader: FC = () => {
                                             Add to dashboard
                                         </Menu.Item>
                                     )}
-                                {userCanManageCharts &&
+                                {userCanManageChart &&
                                     savedChart?.dashboardUuid && (
                                         <Menu.Item
                                             icon={
@@ -600,7 +588,7 @@ const SavedChartsHeader: FC = () => {
                                         </Menu.Item>
                                     )}
 
-                                {userCanManageCharts &&
+                                {userCanManageChart &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
                                             icon={
@@ -734,7 +722,7 @@ const SavedChartsHeader: FC = () => {
                                             </Menu>
                                         </Menu.Item>
                                     )}
-                                {userCanManageCharts && (
+                                {userCanManageChart && (
                                     <Menu.Item
                                         icon={
                                             <MantineIcon icon={IconHistory} />
@@ -770,8 +758,7 @@ const SavedChartsHeader: FC = () => {
                                         Alerts
                                     </Menu.Item>
                                 )}
-                                {userCanManageCharts &&
-                                hasGoogleDriveEnabled ? (
+                                {userCanManageChart && hasGoogleDriveEnabled ? (
                                     <Menu.Item
                                         icon={
                                             <MantineIcon
@@ -799,7 +786,7 @@ const SavedChartsHeader: FC = () => {
                                         Add custom metrics to dbt project
                                     </Menu.Item>
                                 )}
-                                {userCanManageCharts && (
+                                {userCanManageChart && (
                                     <>
                                         <Menu.Divider />
 

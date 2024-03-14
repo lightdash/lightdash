@@ -10,7 +10,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 
 import ErrorState from '../components/common/ErrorState';

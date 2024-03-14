@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconFolderPlus, IconFolders, IconPlus } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
@@ -49,6 +49,7 @@ const Spaces: FC = () => {
         subject('Space', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            isPrivate: false,
         }),
     );
     const userCanManageSpace = user.data?.ability?.can(

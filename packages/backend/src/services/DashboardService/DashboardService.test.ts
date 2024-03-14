@@ -57,6 +57,7 @@ jest.mock('../../models/models', () => ({
         getFullSpace: jest.fn(async () => publicSpace),
         getSpaceSummary: jest.fn(async () => publicSpace),
         getFirstAccessibleSpace: jest.fn(async () => space),
+        getUserSpaceAccess: jest.fn(async () => []),
     },
     analyticsModel: {
         addDashboardViewEvent: jest.fn(async () => null),
@@ -112,7 +113,7 @@ describe('DashboardService', () => {
     test('should create dashboard', async () => {
         const result = await service.create(user, projectUuid, createDashboard);
 
-        expect(result).toEqual(dashboard);
+        expect(result).toEqual({ ...dashboard, isPrivate: space.is_private });
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
         expect(dashboardModel.create).toHaveBeenCalledWith(
             space.space_uuid,
@@ -134,7 +135,7 @@ describe('DashboardService', () => {
             createDashboardWithTileIds,
         );
 
-        expect(result).toEqual(dashboard);
+        expect(result).toEqual({ ...dashboard, isPrivate: space.is_private });
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
         expect(dashboardModel.create).toHaveBeenCalledWith(
             space.space_uuid,
@@ -289,7 +290,7 @@ describe('DashboardService', () => {
             service.getById(anotherUser, dashboard.uuid),
         ).rejects.toThrowError(ForbiddenError);
     });
-    test('should not see empty list if getting all dashboard by project uuid from another organization', async () => {
+    test('should see empty list if getting all dashboard by project uuid from another organization', async () => {
         const anotherUser = {
             ...user,
             ability: defineUserAbility(
@@ -326,7 +327,13 @@ describe('DashboardService', () => {
                     ...user,
                     organizationUuid: 'another-org-uuid',
                 },
-                [{ projectUuid, role: ProjectMemberRole.VIEWER }],
+                [
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: user.userUuid,
+                    },
+                ],
             ),
         };
         await expect(

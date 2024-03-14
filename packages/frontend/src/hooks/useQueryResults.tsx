@@ -1,12 +1,12 @@
 import {
-    ApiChartAndResults,
-    ApiError,
-    ApiQueryResults,
-    DashboardFilters,
-    DateGranularity,
     getCustomDimensionId,
-    MetricQuery,
-    SortField,
+    type ApiChartAndResults,
+    type ApiError,
+    type ApiQueryResults,
+    type DashboardFilters,
+    type DateGranularity,
+    type MetricQuery,
+    type SortField,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';

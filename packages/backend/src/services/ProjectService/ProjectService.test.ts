@@ -22,7 +22,6 @@ import {
     userWarehouseCredentialsModel,
 } from '../../models/models';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
-import { projectService } from '../services';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -224,7 +223,7 @@ describe('ProjectService', () => {
     });
     describe('getJobStatus', () => {
         test('should get job with projectUuid if user belongs to org ', async () => {
-            const result = await projectService.getJobStatus('jobUuid', user);
+            const result = await service.getJobStatus('jobUuid', user);
             expect(result).toEqual(job);
         });
         test('should get job without projectUuid if user created the job ', async () => {
@@ -233,7 +232,7 @@ describe('ProjectService', () => {
                 async () => jobWithoutProjectUuid,
             );
 
-            const result = await projectService.getJobStatus('jobUuid', user);
+            const result = await service.getJobStatus('jobUuid', user);
             expect(result).toEqual(jobWithoutProjectUuid);
         });
 
@@ -257,32 +256,31 @@ describe('ProjectService', () => {
                 ),
             };
             await expect(
-                projectService.getJobStatus('jobUuid', anotherUser),
+                service.getJobStatus('jobUuid', anotherUser),
             ).rejects.toThrowError(NotFoundError);
         });
 
         test('should limit CSV results', async () => {
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, undefined),
+                service.metricQueryWithLimit(METRIC_QUERY, undefined),
             ).toEqual(METRIC_QUERY); // Returns same metricquery
 
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, 5).limit,
+                service.metricQueryWithLimit(METRIC_QUERY, 5).limit,
             ).toEqual(5);
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, null).limit,
+                service.metricQueryWithLimit(METRIC_QUERY, null).limit,
             ).toEqual(33333);
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
+                service.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
             ).toEqual(9999);
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(METRIC_QUERY, 9999999)
-                    .limit,
+                service.metricQueryWithLimit(METRIC_QUERY, 9999999).limit,
             ).toEqual(33333);
 
             const metricWithoutRows = {
@@ -293,14 +291,13 @@ describe('ProjectService', () => {
             };
             expect(() =>
                 // @ts-ignore
-                projectService.metricQueryWithLimit(metricWithoutRows, null),
+                service.metricQueryWithLimit(metricWithoutRows, null),
             ).toThrowError(ParameterError);
 
             const metricWithDimension = { ...METRIC_QUERY, metrics: [] };
             expect(
                 // @ts-ignore
-                projectService.metricQueryWithLimit(metricWithDimension, null)
-                    .limit,
+                service.metricQueryWithLimit(metricWithDimension, null).limit,
             ).toEqual(50000);
         });
     });

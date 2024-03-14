@@ -1,5 +1,5 @@
 import { Loader } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { LogoContainer, SpinnerWrapper } from './PageSpinner.styles';
 
 const PageSpinner: FC = () => (
