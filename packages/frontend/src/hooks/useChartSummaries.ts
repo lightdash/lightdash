@@ -1,5 +1,5 @@
 import { type ApiError, type ChartSummary } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
 const getChartSummariesInProject = async (projectUuid: string) => {
