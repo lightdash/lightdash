@@ -310,6 +310,7 @@ export const startPreviewHandler = async (
         });
 
         const project = results?.project;
+        const hasContentCopy = Boolean(results?.hasContentCopy);
 
         if (!project) {
             console.error(
@@ -343,6 +344,14 @@ export const startPreviewHandler = async (
             ignoreErrors: true,
         });
         const url = await projectUrl(project);
+
+        if (!hasContentCopy) {
+            console.error(
+                styles.warning(
+                    `\n\nDeveloper preview deployed without any copied content!\n`,
+                ),
+            );
+        }
 
         console.error(`New project created on ${url}`);
         if (process.env.CI === 'true') {
