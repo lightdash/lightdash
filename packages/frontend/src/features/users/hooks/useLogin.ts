@@ -1,11 +1,14 @@
-import { ApiError, ApiGetLoginOptionsResponse } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import {
+    type ApiError,
+    type ApiGetLoginOptionsResponse,
+} from '@lightdash/common';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useQueryError from '../../../hooks/useQueryError';
 
 const fetchLoginOptions = async (email: string) =>
     lightdashApi<ApiGetLoginOptionsResponse>({
-        url: `/login_options?email=${encodeURIComponent(email)}`,
+        url: `/login-options?email=${encodeURIComponent(email)}`,
         method: 'GET',
         body: undefined,
     });
