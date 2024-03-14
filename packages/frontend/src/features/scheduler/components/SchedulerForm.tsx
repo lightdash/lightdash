@@ -1,6 +1,4 @@
 import {
-    CreateSchedulerAndTargetsWithoutIds,
-    CreateSchedulerTarget,
     getItemId,
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
@@ -9,12 +7,14 @@ import {
     isSchedulerCsvOptions,
     isSchedulerImageOptions,
     isSlackTarget,
-    ItemsMap,
     NotificationFrequency,
-    SchedulerAndTargets,
     SchedulerFormat,
     ThresholdOperator,
     validateEmail,
+    type CreateSchedulerAndTargetsWithoutIds,
+    type CreateSchedulerTarget,
+    type ItemsMap,
+    type SchedulerAndTargets,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -47,7 +47,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../components/common/MantineIcon';

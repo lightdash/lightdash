@@ -1,8 +1,8 @@
 import {
-    ApiDownloadCsv,
-    ApiError,
-    ApiScheduledDownloadCsv,
     SchedulerJobStatus,
+    type ApiDownloadCsv,
+    type ApiError,
+    type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery } from '@tanstack/react-query';

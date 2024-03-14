@@ -1,15 +1,15 @@
 import {
     ConditionalOperator,
     countTotalFilterRules,
-    Field,
     fieldId,
-    FilterRule,
     getTotalFilterRules,
     getVisibleFields,
     isFilterableField,
+    type Field,
+    type FilterRule,
 } from '@lightdash/common';
 import { Badge, Text, Tooltip } from '@mantine/core';
-import { FC, memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';

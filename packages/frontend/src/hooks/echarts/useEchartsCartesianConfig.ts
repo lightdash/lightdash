@@ -1,8 +1,6 @@
 import {
-    ApiQueryResults,
     applyCustomFormat,
     assertUnreachable,
-    CartesianChart,
     CartesianSeriesType,
     DimensionType,
     formatItemValue,
@@ -20,23 +18,25 @@ import {
     isPivotReferenceWithValues,
     isTableCalculation,
     isTimeInterval,
-    ItemsMap,
     MetricType,
-    PivotReference,
-    ResultRow,
-    Series,
     timeFrameConfigs,
     TimeFrames,
+    type ApiQueryResults,
+    type CartesianChart,
+    type ItemsMap,
+    type PivotReference,
+    type ResultRow,
+    type Series,
 } from '@lightdash/common';
+import dayjs from 'dayjs';
 import {
-    DefaultLabelFormatterCallbackParams,
-    LineSeriesOption,
-    TooltipComponentFormatterCallback,
-    TooltipComponentOption,
+    type DefaultLabelFormatterCallbackParams,
+    type LineSeriesOption,
+    type TooltipComponentFormatterCallback,
+    type TooltipComponentOption,
 } from 'echarts';
 import groupBy from 'lodash/groupBy';
 import toNumber from 'lodash/toNumber';
-import moment from 'moment';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
@@ -327,7 +327,7 @@ export const getMinAndMaxValues = (
             (acc, value) => {
                 if (
                     typeof value === 'string' &&
-                    moment(value, 'YYYY-MM-DD', false).isValid()
+                    dayjs(value, 'YYYY-MM-DD', false).isValid()
                 ) {
                     // is date
                     const min = minDate(acc[0], value);

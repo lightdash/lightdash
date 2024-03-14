@@ -1,5 +1,5 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { FC, memo } from 'react';
+import { memo, type FC } from 'react';
 import BigNumberConfigPanel from '../../VisualizationConfigs/BigNumberConfig';
 import ChartConfigPanel from '../../VisualizationConfigs/ChartConfigPanel';
 import CustomVisualizationConfigPanel from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';

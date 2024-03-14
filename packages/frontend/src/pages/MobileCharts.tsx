@@ -1,12 +1,12 @@
 import {
-    ResourceViewItem,
     ResourceViewItemType,
     wrapResourceView,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { ActionIcon, Group, Stack, TextInput } from '@mantine/core';
 import { IconChartBar, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { FC, useMemo, useState } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';

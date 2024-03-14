@@ -1,5 +1,5 @@
-import { ItemsMap } from '@lightdash/common';
-import React, { FC } from 'react';
+import { type ItemsMap } from '@lightdash/common';
+import React, { type FC } from 'react';
 import {
     useChartSchedulerCreateMutation,
     useChartSchedulers,

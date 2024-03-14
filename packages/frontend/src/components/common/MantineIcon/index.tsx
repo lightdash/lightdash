@@ -1,9 +1,12 @@
 import {
-    MantineColor,
-    MantineNumberSize,
     useMantineTheme,
+    type MantineColor,
+    type MantineNumberSize,
 } from '@mantine/core';
-import { Icon as TablerIconType, TablerIconsProps } from '@tabler/icons-react';
+import {
+    type Icon as TablerIconType,
+    type TablerIconsProps,
+} from '@tabler/icons-react';
 import { forwardRef } from 'react';
 
 export interface MantineIconProps extends Omit<TablerIconsProps, 'ref'> {

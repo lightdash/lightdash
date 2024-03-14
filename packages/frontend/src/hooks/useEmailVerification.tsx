@@ -1,4 +1,4 @@
-import { ApiError, EmailStatusExpiring } from '@lightdash/common';
+import { type ApiError, type EmailStatusExpiring } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';

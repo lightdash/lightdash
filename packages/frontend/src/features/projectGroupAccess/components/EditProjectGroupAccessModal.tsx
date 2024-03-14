@@ -1,13 +1,13 @@
 import {
-    GroupWithMembers,
-    ProjectGroupAccess,
     ProjectMemberRole,
-    UpdateProjectGroupAccess,
+    type GroupWithMembers,
+    type ProjectGroupAccess,
+    type UpdateProjectGroupAccess,
 } from '@lightdash/common';
 import { Button, Group, Modal, Select, Text, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TrackPage } from '../../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';

@@ -1,14 +1,14 @@
 import {
     Box,
     Card,
-    CardProps,
     Flex,
-    FlexProps,
-    MantineTransition,
     Stack,
     Transition,
+    type CardProps,
+    type FlexProps,
+    type MantineTransition,
 } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/TrackingProvider';

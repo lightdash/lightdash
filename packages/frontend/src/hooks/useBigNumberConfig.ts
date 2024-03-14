@@ -1,8 +1,5 @@
 import {
-    ApiQueryResults,
     applyCustomFormat,
-    BigNumber,
-    CompactOrAlias,
     ComparisonDiffTypes,
     ComparisonFormatTypes,
     CustomFormatType,
@@ -15,8 +12,11 @@ import {
     isMetric,
     isNumericItem,
     isTableCalculation,
-    ItemsMap,
     valueIsNaN,
+    type ApiQueryResults,
+    type BigNumber,
+    type CompactOrAlias,
+    type ItemsMap,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 

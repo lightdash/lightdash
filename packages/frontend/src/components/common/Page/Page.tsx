@@ -1,5 +1,5 @@
 import { Box, createStyles } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { ProjectType } from '@lightdash/common';
@@ -203,7 +203,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     </Sidebar>
                 ) : null}
 
-                <Box className={classes.content}>
+                <Box component="main" className={classes.content}>
                     <TrackSection name={SectionName.PAGE_CONTENT}>
                         {children}
                     </TrackSection>

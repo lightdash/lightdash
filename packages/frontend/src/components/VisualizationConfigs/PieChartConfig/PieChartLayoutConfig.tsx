@@ -1,14 +1,14 @@
 import {
-    CustomDimension,
-    Dimension,
     fieldId,
     getCustomDimensionId,
     isCustomDimension,
     isDimension,
     isField,
     isTableCalculation,
-    Metric,
-    TableCalculation,
+    type CustomDimension,
+    type Dimension,
+    type Metric,
+    type TableCalculation,
 } from '@lightdash/common';
 import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';

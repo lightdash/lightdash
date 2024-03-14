@@ -1,6 +1,6 @@
 import { Badge, Box, Group, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { FC, memo, useEffect } from 'react';
+import { memo, useEffect, type FC } from 'react';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { Can } from '../../common/Authorization';

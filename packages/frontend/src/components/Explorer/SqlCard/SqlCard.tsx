@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FC, memo } from 'react';
+import { memo, type FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,

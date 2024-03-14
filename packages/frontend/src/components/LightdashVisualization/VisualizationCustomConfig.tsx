@@ -1,9 +1,9 @@
-import { ChartType, ItemsMap } from '@lightdash/common';
-import { FC, useEffect } from 'react';
+import { ChartType, type ItemsMap } from '@lightdash/common';
+import { useEffect, type FC } from 'react';
 import useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
 import {
-    VisualizationConfig,
-    VisualizationConfigCommon,
+    type VisualizationConfig,
+    type VisualizationConfigCommon,
 } from './VisualizationProvider';
 
 export type VisualizationCustomConfigType = {

@@ -46,17 +46,15 @@ export class CommentsController extends BaseController {
         @Body()
         body: Pick<Comment, 'text' | 'replyTo' | 'mentions' | 'textHtml'>,
     ): Promise<ApiCreateComment> {
-        const commentId = await this.services
-            .getCommentService()
-            .createComment(
-                req.user!,
-                dashboardUuid,
-                dashboardTileUuid,
-                body.text,
-                body.textHtml,
-                body.replyTo ?? null,
-                body.mentions,
-            );
+        const commentId = await this.services.getCommentService().createComment(
+            req.user!,
+            dashboardUuid,
+            dashboardTileUuid,
+            body.text,
+            body.textHtml, // not yet sanitized
+            body.replyTo ?? null,
+            body.mentions,
+        );
         this.setStatus(200);
         return {
             status: 'ok',

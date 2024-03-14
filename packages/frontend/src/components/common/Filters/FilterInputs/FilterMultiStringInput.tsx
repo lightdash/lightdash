@@ -1,8 +1,8 @@
-import { FilterableItem } from '@lightdash/common';
-import { Group, MultiSelect, MultiSelectProps, Text } from '@mantine/core';
+import { type FilterableItem } from '@lightdash/common';
+import { Group, MultiSelect, Text, type MultiSelectProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../MantineIcon';
 import { useFiltersContext } from '../FiltersProvider';
 

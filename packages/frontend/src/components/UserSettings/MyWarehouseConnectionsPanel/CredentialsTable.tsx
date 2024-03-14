@@ -1,7 +1,7 @@
-import { UserWarehouseCredentials } from '@lightdash/common';
+import { type UserWarehouseCredentials } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
-import { Dispatch, FC, SetStateAction } from 'react';
+import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import MantineIcon from '../../common/MantineIcon';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/SelectWarehouse';

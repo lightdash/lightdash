@@ -7,7 +7,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { ModalRootProps } from '@mantine/core/lib/Modal/ModalRoot/ModalRoot';
+import { type ModalRootProps } from '@mantine/core/lib/Modal/ModalRoot/ModalRoot';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import ReactJson from 'react-json-view';
 import MantineIcon from './common/MantineIcon';

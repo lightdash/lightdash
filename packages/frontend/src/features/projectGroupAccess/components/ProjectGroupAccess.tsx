@@ -1,7 +1,7 @@
-import { CreateProjectGroupAccess } from '@lightdash/common';
+import { type CreateProjectGroupAccess } from '@lightdash/common';
 import { Box, Paper, Table } from '@mantine/core';
 import { IconUsersGroup } from '@tabler/icons-react';
-import { FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import useToaster from '../../../hooks/toaster/useToaster';

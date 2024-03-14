@@ -1,7 +1,13 @@
-import { ProjectCatalog } from '@lightdash/common';
-import { Ace } from 'ace-builds';
+import { type ProjectCatalog } from '@lightdash/common';
+import { type Ace } from 'ace-builds';
 import langTools from 'ace-builds/src-noconflict/ext-language_tools';
-import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useState,
+    type Dispatch,
+    type SetStateAction,
+} from 'react';
 
 const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
     fields,

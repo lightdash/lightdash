@@ -1,6 +1,6 @@
 import { TimeInput } from '@mantine/dates';
 import dayjs from 'dayjs';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { parseCronExpression } from './cronInputUtils';
 
 const getTimePickerValue = (hours: number, minutes: number) => {

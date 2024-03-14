@@ -14,7 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';

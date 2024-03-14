@@ -1,6 +1,6 @@
 import { OrganizationMemberRole } from './organizationMemberProfile';
 import { ProjectMemberRole } from './projectMemberRole';
-import { ProjectType, WarehouseTypes } from './projects';
+import { type ProjectType, type WarehouseTypes } from './projects';
 
 /**
  * Details of a user's Organization

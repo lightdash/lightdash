@@ -1,7 +1,7 @@
 import type { AdditionalMetric, currencies } from '..';
 import { CompileError } from './errors';
-import { MetricFilterRule } from './filter';
-import { TimeFrames } from './timeFrames';
+import { type MetricFilterRule } from './filter';
+import { type TimeFrames } from './timeFrames';
 
 export enum Compact {
     THOUSANDS = 'thousands',

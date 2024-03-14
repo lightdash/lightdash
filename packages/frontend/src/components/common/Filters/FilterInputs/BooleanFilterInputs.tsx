@@ -1,10 +1,10 @@
 import {
-    ConditionalRule,
     FilterOperator,
     isFilterRule,
+    type ConditionalRule,
 } from '@lightdash/common';
 import { Select } from '@mantine/core';
-import { FilterInputsProps } from '.';
+import { type FilterInputsProps } from '.';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs from './DefaultFilterInputs';
 

@@ -1,5 +1,5 @@
 import { Group, Input, NumberInput } from '@mantine/core';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { getHourlyCronExpression, parseCronExpression } from './cronInputUtils';
 
 const HourlyInputs: FC<{

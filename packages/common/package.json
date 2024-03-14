@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.1030.3",
+    "version": "0.1030.8",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
@@ -9,6 +9,7 @@
     "license": "MIT",
     "devDependencies": {
         "@types/pegjs": "^0.10.3",
+        "@types/sanitize-html": "^2.11.0",
         "typescript-json-schema": "^0.54.0"
     },
     "dependencies": {
@@ -23,6 +24,7 @@
         "lodash": "^4.17.21",
         "moment": "^2.29.4",
         "pegjs": "^0.10.0",
+        "sanitize-html": "^2.12.1",
         "uuid": "^8.3.2",
         "zod": "^3.22.3"
     },

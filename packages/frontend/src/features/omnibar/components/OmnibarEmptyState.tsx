@@ -1,5 +1,5 @@
 import { Center, Text } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 type Props = {
     message: string;

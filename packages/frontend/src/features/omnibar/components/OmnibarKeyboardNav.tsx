@@ -1,7 +1,7 @@
-import { SearchItemType } from '@lightdash/common';
+import { type SearchItemType } from '@lightdash/common';
 import { Box } from '@mantine/core';
-import { PropsWithChildren, useCallback } from 'react';
-import { FocusedItemIndex, SearchItem } from '../types/searchItem';
+import { useCallback, type PropsWithChildren } from 'react';
+import { type FocusedItemIndex, type SearchItem } from '../types/searchItem';
 
 interface Props {
     groupedItems: [SearchItemType, SearchItem[]][];

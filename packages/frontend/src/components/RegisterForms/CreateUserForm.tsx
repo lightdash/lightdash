@@ -1,7 +1,7 @@
 import {
-    CreateUserArgs,
     getEmailSchema,
     getPasswordSchema,
+    type CreateUserArgs,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -13,7 +13,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { z } from 'zod';
 import PasswordTextInput from '../PasswordTextInput';
 

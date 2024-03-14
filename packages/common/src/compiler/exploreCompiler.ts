@@ -1,25 +1,25 @@
-import { SupportedDbtAdapter } from '../types/dbt';
+import { type SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
 import {
-    CompiledExploreJoin,
-    CompiledTable,
-    Explore,
-    ExploreJoin,
-    Table,
+    type CompiledExploreJoin,
+    type CompiledTable,
+    type Explore,
+    type ExploreJoin,
+    type Table,
 } from '../types/explore';
 import {
-    CompiledDimension,
-    CompiledMetric,
-    Dimension,
     friendlyName,
     isNonAggregateMetric,
-    Metric,
+    type CompiledDimension,
+    type CompiledMetric,
+    type Dimension,
+    type Metric,
 } from '../types/field';
-import { WarehouseClient } from '../types/warehouse';
+import { type WarehouseClient } from '../types/warehouse';
 
 import {
-    DateGranularity,
     dateGranularityToTimeFrameMap,
+    type DateGranularity,
 } from '../types/timeFrames';
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { renderFilterRuleSql } from './filtersCompiler';

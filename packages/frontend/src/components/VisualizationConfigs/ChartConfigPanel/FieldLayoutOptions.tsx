@@ -1,13 +1,13 @@
 import {
     CartesianSeriesType,
-    CustomDimension,
-    Field,
     getItemId,
     isCustomDimension,
     isDimension,
     isNumericItem,
     replaceStringInArray,
-    TableCalculation,
+    type CustomDimension,
+    type Field,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     Button,
@@ -19,7 +19,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';

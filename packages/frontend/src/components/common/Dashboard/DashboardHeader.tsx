@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
+import {
+    type Dashboard,
+    type SpaceSummary,
+    type UpdatedByUser,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,

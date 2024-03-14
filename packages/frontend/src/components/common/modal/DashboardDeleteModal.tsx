@@ -4,13 +4,13 @@ import {
     Group,
     List,
     Modal,
-    ModalProps,
     Stack,
     Text,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import {
     useDashboardDeleteMutation,
     useDashboardQuery,

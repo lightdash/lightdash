@@ -1,6 +1,6 @@
-import { DashboardLoomTileProperties } from '@lightdash/common';
+import { type DashboardLoomTileProperties } from '@lightdash/common';
 import { ActionIcon, Flex, Stack, TextInput } from '@mantine/core';
-import { UseFormReturnType } from '@mantine/form';
+import { type UseFormReturnType } from '@mantine/form';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 

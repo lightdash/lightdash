@@ -1,6 +1,6 @@
 import { Button, Flex, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { z } from 'zod';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';

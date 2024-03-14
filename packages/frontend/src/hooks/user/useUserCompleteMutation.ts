@@ -1,4 +1,8 @@
-import { ApiError, CompleteUserArgs, LightdashUser } from '@lightdash/common';
+import {
+    type ApiError,
+    type CompleteUserArgs,
+    type LightdashUser,
+} from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 

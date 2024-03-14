@@ -2,13 +2,13 @@ import {
     Button,
     Group,
     Modal,
-    ModalProps,
     Stack,
     Text,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
 
 interface Props extends ModalProps {

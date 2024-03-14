@@ -6,13 +6,13 @@ import {
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { IconArrowBarToDown } from '@tabler/icons-react';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import {
-    DrillDownConfig,
     useMetricQueryDataContext,
+    type DrillDownConfig,
 } from './MetricQueryDataProvider';
 
 type DrillDownMenuItemProps = Partial<DrillDownConfig> & {

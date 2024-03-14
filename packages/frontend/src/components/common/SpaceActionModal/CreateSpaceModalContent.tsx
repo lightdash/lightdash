@@ -2,19 +2,19 @@ import {
     OrganizationMemberRole,
     ProjectMemberRole,
     SpaceMemberRole,
-    SpaceShare,
+    type SpaceShare,
 } from '@lightdash/common';
 import { Avatar, Group, Radio, Stack, Text, TextInput } from '@mantine/core';
 import upperFirst from 'lodash/upperFirst';
-import { FC, useMemo, useState } from 'react';
-import { CreateSpaceModalBody } from '.';
+import { useMemo, useState, type FC } from 'react';
+import { type CreateSpaceModalBody } from '.';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
 import {
-    AccessOption,
     SpaceAccessOptions,
     SpaceAccessType,
     SpacePrivateAccessType,
+    type AccessOption,
 } from '../ShareSpaceModal/ShareSpaceSelect';
 import { CreateSpaceAddUser } from './CreateSpaceAddUser';
 import { CreateSpaceSelectAccessType } from './CreateSpaceSelectAccessType';

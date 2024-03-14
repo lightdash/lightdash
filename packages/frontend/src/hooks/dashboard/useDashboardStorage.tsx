@@ -1,4 +1,4 @@
-import { DashboardFilters, DashboardTile } from '@lightdash/common';
+import { type DashboardFilters, type DashboardTile } from '@lightdash/common';
 import { useCallback } from 'react';
 
 const useDashboardStorage = () => {

@@ -1,13 +1,11 @@
-import { ChartType, ItemsMap } from '@lightdash/common';
-import { isEqual } from 'lodash';
-import { FC, useEffect, useMemo } from 'react';
-import { usePrevious } from 'react-use';
+import { ChartType, type ItemsMap } from '@lightdash/common';
+import { useEffect, type FC } from 'react';
 import useCartesianChartConfig, {
-    CartesianTypeOptions,
+    type CartesianTypeOptions,
 } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import {
-    VisualizationConfig,
-    VisualizationConfigCommon,
+    type VisualizationConfig,
+    type VisualizationConfigCommon,
 } from './VisualizationProvider';
 
 export type VisualizationConfigCartesian = {
@@ -47,7 +45,6 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     colorPalette,
     children,
 }) => {
-    const prevChartConfig = usePrevious(initialChartConfig);
     const cartesianConfig = useCartesianChartConfig({
         initialChartConfig,
         pivotKeys: validPivotDimensions,
@@ -60,26 +57,14 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         colorPalette,
     });
 
-    const hasChartConfigChangedInHook = useMemo(() => {
-        return (
-            isEqual(initialChartConfig, prevChartConfig) &&
-            !isEqual(initialChartConfig, cartesianConfig.validConfig)
-        );
-    }, [cartesianConfig.validConfig, initialChartConfig, prevChartConfig]);
-
     useEffect(() => {
-        if (!hasChartConfigChangedInHook) return;
+        if (!onChartConfigChange || !cartesianConfig.validConfig) return;
 
-        // Update chart config state ONLY when the hook has changed it
-        onChartConfigChange?.({
+        onChartConfigChange({
             type: ChartType.CARTESIAN,
             config: cartesianConfig.validConfig,
         });
-    }, [
-        cartesianConfig.validConfig,
-        hasChartConfigChangedInHook,
-        onChartConfigChange,
-    ]);
+    }, [cartesianConfig, onChartConfigChange]);
 
     return children({
         visualizationConfig: {

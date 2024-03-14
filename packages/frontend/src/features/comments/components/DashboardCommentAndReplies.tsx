@@ -1,7 +1,7 @@
-import { Comment } from '@lightdash/common';
+import { type Comment } from '@lightdash/common';
 import { Box, Button, Collapse, Divider, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useCreateComment, useRemoveComment } from '../hooks/useComments';

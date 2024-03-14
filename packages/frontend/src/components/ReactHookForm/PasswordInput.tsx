@@ -1,8 +1,8 @@
 import { ActionIcon, TextInput, Tooltip } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
-import InputWrapper, { InputWrapperProps } from './InputWrapper';
+import InputWrapper, { type InputWrapperProps } from './InputWrapper';
 
 const PasswordInput: FC<Omit<InputWrapperProps, 'render'>> = (props) => {
     const [showPassword, setShowPassword] = useState<boolean>(false);

@@ -640,7 +640,10 @@ export class ValidationService {
                     hasViewAccessToSpace(
                         user,
                         space,
-                        await this.spaceModel.getSpaceAccess(space.uuid),
+                        await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            space.uuid,
+                        ),
                     );
                 if (hasAccess) return validation;
 

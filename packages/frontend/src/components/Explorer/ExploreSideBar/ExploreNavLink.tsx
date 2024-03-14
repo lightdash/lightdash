@@ -1,4 +1,4 @@
-import { InlineErrorType, SummaryExplore } from '@lightdash/common';
+import { InlineErrorType, type SummaryExplore } from '@lightdash/common';
 import { Anchor, Box, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
 import { useToggle } from '@mantine/hooks';
 import {

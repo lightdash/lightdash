@@ -1,8 +1,8 @@
 import {
-    CompleteUserArgs,
     getEmailDomain,
     LightdashMode,
     validateOrganizationEmailDomains,
+    type CompleteUserArgs,
 } from '@lightdash/common';
 import {
     Box,
@@ -17,7 +17,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import shuffle from 'lodash/shuffle';
-import { FC, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useApp } from '../../providers/AppProvider';
 

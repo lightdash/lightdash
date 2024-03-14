@@ -1,49 +1,49 @@
 import {
-    ApiQueryResults,
     assertUnreachable,
-    ChartConfig,
     ChartType,
-    DashboardFilters,
     getCustomDimensionId,
     getDefaultSeriesColor,
-    ItemsMap,
+    type ApiQueryResults,
+    type ChartConfig,
+    type DashboardFilters,
+    type ItemsMap,
 } from '@lightdash/common';
-import EChartsReact from 'echarts-for-react';
+import type EChartsReact from 'echarts-for-react';
 import isEqual from 'lodash/isEqual';
 import {
     createContext,
-    FC,
-    RefObject,
     useCallback,
     useContext,
     useEffect,
     useMemo,
     useRef,
     useState,
+    type FC,
+    type RefObject,
 } from 'react';
-import { CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
+import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import {
     isGroupedSeries,
-    SeriesLike,
     useChartColorConfig,
+    type SeriesLike,
 } from '../../hooks/useChartColorConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
-import { EchartSeriesClickEvent } from '../SimpleChart';
+import { type EchartSeriesClickEvent } from '../SimpleChart';
 import VisualizationBigNumberConfig, {
-    VisualizationConfigBigNumber,
+    type VisualizationConfigBigNumber,
 } from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig, {
-    VisualizationConfigCartesian,
+    type VisualizationConfigCartesian,
 } from './VisualizationConfigCartesian';
 import VisualizationPieConfig, {
-    VisualizationConfigPie,
+    type VisualizationConfigPie,
 } from './VisualizationConfigPie';
 import VisualizationTableConfig, {
-    VisualizationConfigTable,
+    type VisualizationConfigTable,
 } from './VisualizationConfigTable';
 import VisualizationCustomConfig, {
-    VisualizationCustomConfigType,
+    type VisualizationCustomConfigType,
 } from './VisualizationCustomConfig';
 
 export type VisualizationConfig =

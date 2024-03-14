@@ -1,6 +1,6 @@
 import {
-    OrganizationMemberProfile,
     OrganizationMemberRole,
+    type OrganizationMemberProfile,
 } from '../types/organizationMemberProfile';
 
 export const ORGANIZATION_MEMBER: OrganizationMemberProfile = {

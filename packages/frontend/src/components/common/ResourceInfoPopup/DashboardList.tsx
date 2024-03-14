@@ -1,5 +1,5 @@
 import { Anchor, List, Loader, Text } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 
 type Props = {

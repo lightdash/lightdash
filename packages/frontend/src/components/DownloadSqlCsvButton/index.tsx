@@ -1,6 +1,6 @@
 import { Button } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import { FC, memo } from 'react';
+import { memo, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../common/CollapsableCard';
 import MantineIcon from '../common/MantineIcon';

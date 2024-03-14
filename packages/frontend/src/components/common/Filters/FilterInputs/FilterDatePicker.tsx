@@ -1,5 +1,5 @@
-import { DateInput, DateInputProps, DayOfWeek } from '@mantine/dates';
-import { FC } from 'react';
+import { DateInput, type DateInputProps, type DayOfWeek } from '@mantine/dates';
+import { type FC } from 'react';
 
 interface Props
     extends Omit<

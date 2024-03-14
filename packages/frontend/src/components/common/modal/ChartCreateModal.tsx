@@ -1,9 +1,9 @@
 import {
-    CreateChartInDashboard,
-    CreateDashboardChartTile,
-    CreateSavedChartVersion,
     DashboardTileTypes,
     getDefaultChartTileSize,
+    type CreateChartInDashboard,
+    type CreateDashboardChartTile,
+    type CreateSavedChartVersion,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -20,7 +20,7 @@ import {
 import { useForm } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
 import { IconArrowLeft, IconChartBar, IconPlus } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';

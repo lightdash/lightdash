@@ -1,4 +1,4 @@
-import { ResultRow } from '@lightdash/common';
+import { type ResultRow } from '@lightdash/common';
 import { describe, expect, test, vi } from 'vitest';
 import {
     getAxisDefaultMaxValue,

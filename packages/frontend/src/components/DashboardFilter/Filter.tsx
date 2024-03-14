@@ -1,12 +1,12 @@
 import {
     applyDefaultTileTargets,
-    DashboardFilterRule,
-    FilterableField,
+    type DashboardFilterRule,
+    type FilterableField,
 } from '@lightdash/common';
 import { Button, CloseButton, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,

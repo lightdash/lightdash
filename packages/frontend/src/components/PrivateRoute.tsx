@@ -1,4 +1,4 @@
-import React, { ComponentProps, FC, useEffect } from 'react';
+import React, { useEffect, type ComponentProps, type FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useApp } from '../providers/AppProvider';

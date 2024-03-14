@@ -5,7 +5,7 @@ import {
     IconChevronRight,
     IconTerminal,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { ConnectMethod } from '../../../pages/CreateProject';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';

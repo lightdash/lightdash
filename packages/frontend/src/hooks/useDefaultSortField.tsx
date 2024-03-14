@@ -1,10 +1,10 @@
 import {
-    CreateSavedChartVersion,
     DimensionType,
     fieldId as getFieldId,
     getDimensions,
     getMetrics,
-    SortField,
+    type CreateSavedChartVersion,
+    type SortField,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useExplore } from './useExplore';

@@ -63,7 +63,10 @@ export class CommentService {
 
         try {
             space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
+            spaceAccess = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                spaceUuid,
+            );
         } catch (e) {
             Sentry.captureException(e);
             console.error(e);
@@ -131,7 +134,7 @@ export class CommentService {
         dashboardUuid: string,
         dashboardTileUuid: string,
         text: string,
-        textHtml: string,
+        unsafeTextHtml: string,
         replyTo: string | null,
         mentions: string[],
     ): Promise<string> {
@@ -169,7 +172,7 @@ export class CommentService {
             dashboardUuid,
             dashboardTileUuid,
             text,
-            textHtml,
+            unsafeTextHtml,
             replyTo,
             user,
             mentions,

@@ -1,4 +1,4 @@
-import { Comment } from '@lightdash/common';
+import { sanitizeHtml, type Comment } from '@lightdash/common';
 import {
     ActionIcon,
     Avatar,
@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconDotsVertical, IconMessage, IconTrash } from '@tabler/icons-react';
-import { FC } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
 import { CommentTimestamp } from './CommentTimestamp';
@@ -32,6 +32,15 @@ export const CommentDetail: FC<Props> = ({
     onReply,
 }) => {
     const { ref, hovered } = useHover();
+
+    /**
+     * Content should already be sanitized from the API, but as an extra
+     * precaution we also sanitize it before rendering.
+     */
+    const sanitizedCommentTextHtml = useMemo(
+        () => sanitizeHtml(comment.textHtml),
+        [comment.textHtml],
+    );
 
     return (
         <Box ref={ref}>
@@ -97,7 +106,7 @@ export const CommentDetail: FC<Props> = ({
                     </Group>
                     <Box
                         dangerouslySetInnerHTML={{
-                            __html: comment.textHtml,
+                            __html: sanitizedCommentTextHtml,
                         }}
                         fz="xs"
                         sx={{

@@ -1,4 +1,4 @@
-import { ApiError, Space } from '@lightdash/common';
+import { type ApiError, type Space } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';

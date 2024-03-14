@@ -1,10 +1,10 @@
 import {
-    ApiError,
-    ApiGdriveAccessTokenResponse,
-    ApiScheduledDownloadCsv,
-    UploadMetricGsheet,
+    type ApiError,
+    type ApiGdriveAccessTokenResponse,
+    type ApiScheduledDownloadCsv,
+    type UploadMetricGsheet,
 } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { lightdashApi } from '../../api';
 import { convertDateFilters } from '../../utils/dateFilter';

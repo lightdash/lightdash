@@ -1,6 +1,6 @@
 import { Anchor } from '@mantine/core';
 import { IconFolder } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 
 import { InfoContainer } from '.';

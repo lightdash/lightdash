@@ -8,14 +8,14 @@ import {
     Button,
     Divider,
     Group,
-    MantineSize,
     Modal,
     Stack,
     Text,
     Title,
+    type MantineSize,
 } from '@mantine/core';
 import { IconBook, IconInfoCircle } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 
 import { useApp } from '../providers/AppProvider';
 import { TrackPage, TrackSection } from '../providers/TrackingProvider';
@@ -41,7 +41,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
 
     return (
         <TrackSection name={SectionName.PAGE_FOOTER}>
-            <Box mt={FOOTER_MARGIN} h={FOOTER_HEIGHT}>
+            <Box mt={FOOTER_MARGIN} h={FOOTER_HEIGHT} component="footer">
                 <Divider color="gray.2" w="100%" />
 
                 <Group

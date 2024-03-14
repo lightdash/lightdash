@@ -1,6 +1,6 @@
 import { Loader, Stack, Text } from '@mantine/core';
-import React, { FC } from 'react';
-import MantineIcon, { MantineIconProps } from '../MantineIcon';
+import React, { type FC } from 'react';
+import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 
 interface Props extends React.ComponentPropsWithoutRef<'div'> {
     icon?: MantineIconProps['icon'];

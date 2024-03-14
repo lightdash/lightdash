@@ -1,5 +1,5 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
-import { ProjectMemberProfile } from '../types/projectMemberProfile';
+import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { SpaceMemberRole } from '../types/space';
 import { projectMemberAbilities } from './projectMemberAbility';
 import {
@@ -9,7 +9,7 @@ import {
     PROJECT_INTERACTIVE_VIEWER,
     PROJECT_VIEWER,
 } from './projectMemberAbility.mock';
-import { MemberAbility } from './types';
+import { type MemberAbility } from './types';
 
 const { projectUuid } = PROJECT_VIEWER;
 

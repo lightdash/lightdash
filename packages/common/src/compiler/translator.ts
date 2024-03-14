@@ -2,36 +2,36 @@ import {
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
-    DbtMetric,
-    DbtModelColumn,
-    DbtModelNode,
     isV9MetricRef,
-    LineageGraph,
     SupportedDbtAdapter,
+    type DbtMetric,
+    type DbtModelColumn,
+    type DbtModelNode,
+    type LineageGraph,
 } from '../types/dbt';
 import { MissingCatalogEntryError, ParseError } from '../types/errors';
-import { Explore, ExploreError, Table } from '../types/explore';
+import { type Explore, type ExploreError, type Table } from '../types/explore';
 import {
     defaultSql,
-    Dimension,
     DimensionType,
     FieldType,
     friendlyName,
-    Metric,
     MetricType,
     parseMetricType,
-    Source,
+    type Dimension,
+    type Metric,
+    type Source,
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
 import { OrderFieldsByStrategy } from '../types/table';
-import { TimeFrames } from '../types/timeFrames';
-import { WarehouseClient } from '../types/warehouse';
+import { type TimeFrames } from '../types/timeFrames';
+import { type WarehouseClient } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getDefaultTimeFrames,
     timeFrameConfigs,
     validateTimeFrames,
-    WeekDay,
+    type WeekDay,
 } from '../utils/timeFrames';
 import { ExploreCompiler } from './exploreCompiler';
 

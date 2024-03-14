@@ -1,12 +1,12 @@
-import { ApiError } from '@lightdash/common';
+import { type ApiError } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
-import { ComponentProps, FC, useMemo, useState } from 'react';
+import { type useQuery } from '@tanstack/react-query';
+import { useMemo, useState, type ComponentProps, type FC } from 'react';
 import { Link } from 'react-router-dom';
 import CollapsableCard from '../../../components/common/CollapsableCard';
 import MantineIcon from '../../../components/common/MantineIcon';
-import Table from '../../../components/common/Table';
+import type Table from '../../../components/common/Table';
 import MetricFlowSqlCode from './MetricFlowSqlCode';
 
 interface Props {

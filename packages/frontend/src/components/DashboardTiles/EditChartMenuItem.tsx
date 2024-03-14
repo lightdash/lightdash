@@ -1,11 +1,11 @@
-import { DashboardChartTile } from '@lightdash/common';
+import { type DashboardChartTile } from '@lightdash/common';
 import { IconFilePencil } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
-import LinkMenuItem, { LinkMenuItemProps } from '../common/LinkMenuItem';
+import LinkMenuItem, { type LinkMenuItemProps } from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = LinkMenuItemProps & {

@@ -1,10 +1,10 @@
 import {
-    ConditionalFormattingConfig,
     createConditionalFormattingConfigWithSingleColor,
-    FilterableItem,
     getItemId,
     isFilterableItem,
     isNumericItem,
+    type ConditionalFormattingConfig,
+    type FilterableItem,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';

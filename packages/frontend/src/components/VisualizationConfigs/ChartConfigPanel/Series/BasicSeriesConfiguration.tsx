@@ -1,15 +1,15 @@
-import { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
+import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
-    CartesianChartLayout,
-    CustomDimension,
-    Field,
     getItemLabelWithoutTableName,
-    Series,
-    TableCalculation,
+    type CartesianChartLayout,
+    type CustomDimension,
+    type Field,
+    type Series,
+    type TableCalculation,
 } from '@lightdash/common';
 import { Box, Group, Stack, Text } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 

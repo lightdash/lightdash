@@ -1,3 +1,3 @@
-import { getSearchItemMap } from '../utils/getSearchItemMap';
+import { type getSearchItemMap } from '../utils/getSearchItemMap';
 
 export type SearchResultMap = ReturnType<typeof getSearchItemMap>;

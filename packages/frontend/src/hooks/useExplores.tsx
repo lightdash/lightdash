@@ -1,5 +1,5 @@
-import { ApiError, ApiExploresResults } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { type ApiError, type ApiExploresResults } from '@lightdash/common';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
 

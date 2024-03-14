@@ -324,7 +324,10 @@ Affected charts:
     ): Promise<PullRequestCreated> {
         const chartDao = await this.savedChartModel.get(chartUuid);
         const space = await this.spaceModel.getSpaceSummary(chartDao.spaceUuid);
-        const access = await this.spaceModel.getSpaceAccess(chartDao.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            chartDao.spaceUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -398,7 +401,10 @@ Affected charts:
             const space = await this.spaceModel.getSpaceSummary(
                 chart.spaceUuid,
             );
-            const access = this.spaceModel.getSpaceAccess(chart.spaceUuid);
+            const access = this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                chart.spaceUuid,
+            );
             return user.ability.can(
                 'manage',
                 subject('SavedChart', {

@@ -1,7 +1,7 @@
 import { DbtProjectType } from '@lightdash/common';
 import { Alert, Stack } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
 import Input from '../../ReactHookForm/Input';

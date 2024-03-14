@@ -1,5 +1,5 @@
 import { CloseButton } from '@mantine/core';
-import { MantineSize } from '@mantine/styles';
+import { type MantineSize } from '@mantine/styles';
 import React from 'react';
 
 export interface TagInputRightSectionProps {

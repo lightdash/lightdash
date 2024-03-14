@@ -1,8 +1,8 @@
 import {
-    ApiError,
-    CreateUserArgs,
-    LightdashUser,
     OpenIdIdentityIssuerType,
+    type ApiError,
+    type CreateUserArgs,
+    type LightdashUser,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -14,7 +14,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';

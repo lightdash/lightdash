@@ -1,6 +1,6 @@
 import { Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { FC, memo, useState } from 'react';
+import { memo, useState, type FC } from 'react';
 import { CreateTableCalculationModal } from '../features/tableCalculation';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';

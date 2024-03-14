@@ -1,13 +1,13 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { Dashboard } from './dashboard';
-import { Table } from './explore';
-import { Dimension, Metric } from './field';
-import { ChartKind, SavedChart } from './savedCharts';
-import { Space } from './space';
+import { type Dashboard } from './dashboard';
+import { type Table } from './explore';
+import { type Dimension, type Metric } from './field';
+import { type ChartKind, type SavedChart } from './savedCharts';
+import { type Space } from './space';
 import {
-    ValidationErrorChartResponse,
-    ValidationErrorDashboardResponse,
-    ValidationErrorTableResponse,
+    type ValidationErrorChartResponse,
+    type ValidationErrorDashboardResponse,
+    type ValidationErrorTableResponse,
 } from './validation';
 
 type RankedItem = {

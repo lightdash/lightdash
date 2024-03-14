@@ -1,6 +1,6 @@
 import { Group, NavLink } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../common/MantineIcon';
 

@@ -1,14 +1,14 @@
 import {
-    AdditionalMetric,
-    CustomDimension,
-    Field,
     isAdditionalMetric,
     isCustomDimension,
     isField,
-    TableCalculation,
+    type AdditionalMetric,
+    type CustomDimension,
+    type Field,
+    type TableCalculation,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 
 interface FieldLabelProps {
     item: Field | TableCalculation | AdditionalMetric | CustomDimension;

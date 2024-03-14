@@ -1,9 +1,9 @@
-import { ApiError } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { type ApiError } from '@lightdash/common';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import {
     getSemanticLayerMetrics,
-    GetSemanticLayerMetricsResponse,
-    TimeGranularity,
+    type GetSemanticLayerMetricsResponse,
+    type TimeGranularity,
 } from '../../../api/MetricFlowAPI';
 
 const useSemanticLayerMetrics = (

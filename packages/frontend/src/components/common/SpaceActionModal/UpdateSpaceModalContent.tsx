@@ -1,6 +1,6 @@
 import { TextInput } from '@mantine/core';
-import { FC } from 'react';
-import { SpaceModalBody } from '.';
+import { type FC } from 'react';
+import { type SpaceModalBody } from '.';
 
 const UpdateSpaceModalContent: FC<SpaceModalBody> = ({ form }) => (
     <TextInput

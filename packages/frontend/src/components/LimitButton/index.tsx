@@ -1,7 +1,7 @@
-import { Button, MantineSize, Popover } from '@mantine/core';
+import { Button, Popover, type MantineSize } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
-import { FC, memo } from 'react';
+import { memo, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import LimitForm from './LimitForm';
 

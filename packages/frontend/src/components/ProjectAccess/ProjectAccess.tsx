@@ -2,12 +2,12 @@ import { subject } from '@casl/ability';
 import {
     convertOrganizationRoleToProjectRole,
     getHighestProjectRole,
-    OrganizationMemberRole,
-    ProjectMemberRole,
+    type OrganizationMemberRole,
+    type ProjectMemberRole,
 } from '@lightdash/common';
 import { ActionIcon, Paper, Table, TextInput } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
-import { FC, useMemo, useState } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { useProjectGroupAccessList } from '../../features/projectGroupAccess/hooks/useProjectGroupAccess';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';

@@ -1,6 +1,6 @@
-import { DateInput, DateInputProps, DayOfWeek } from '@mantine/dates';
+import { DateInput, type DateInputProps, type DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import {
     endOfWeek,
     isInWeekRange,

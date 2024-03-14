@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
-    ApiScheduledDownloadCsv,
     assertUnreachable,
     ChartType,
     getCustomLabelsFromColumnProperties,
+    type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
 import {
     Button,
@@ -14,9 +14,9 @@ import {
     Text,
 } from '@mantine/core';
 import { IconDownload, IconShare2 } from '@tabler/icons-react';
-import EChartsReact from 'echarts-for-react';
+import type EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
-import React, { memo, RefObject, useCallback, useState } from 'react';
+import React, { memo, useCallback, useState, type RefObject } from 'react';
 import useEchartsCartesianConfig from '../hooks/echarts/useEchartsCartesianConfig';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';

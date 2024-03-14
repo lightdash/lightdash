@@ -1,7 +1,7 @@
-import { GroupWithMembers } from '@lightdash/common';
+import { type GroupWithMembers } from '@lightdash/common';
 import { Button, Group, Modal, Text, Title } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type RevokeProjectGroupAccessModalProps = {

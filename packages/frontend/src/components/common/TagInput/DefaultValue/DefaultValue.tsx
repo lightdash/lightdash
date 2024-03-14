@@ -1,9 +1,9 @@
 import {
     CloseButton,
-    DefaultProps,
-    MantineNumberSize,
-    MantineSize,
-    Selectors,
+    type DefaultProps,
+    type MantineNumberSize,
+    type MantineSize,
+    type Selectors,
 } from '@mantine/core';
 import React from 'react';
 import useStyles from './DefaultValue.styles';

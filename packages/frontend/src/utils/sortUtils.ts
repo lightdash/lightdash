@@ -1,13 +1,13 @@
 import {
     assertUnreachable,
-    CustomDimension,
     DimensionType,
-    Field,
     isDimension,
     isField,
     isMetric,
     MetricType,
-    TableCalculation,
+    type CustomDimension,
+    type Field,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     IconSortAscendingLetters,

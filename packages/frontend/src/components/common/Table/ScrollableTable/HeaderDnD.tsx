@@ -1,7 +1,7 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import { ResultRow } from '@lightdash/common';
-import { flexRender, HeaderGroup } from '@tanstack/react-table';
-import React, { FC, MutableRefObject } from 'react';
+import { type ResultRow } from '@lightdash/common';
+import { flexRender, type HeaderGroup } from '@tanstack/react-table';
+import React, { type FC, type MutableRefObject } from 'react';
 import { useTableContext } from '../TableProvider';
 import { ROW_NUMBER_COLUMN_ID } from '../types';
 

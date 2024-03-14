@@ -1,4 +1,4 @@
-import { ConditionalOperator, ConditionalRule } from './conditionalRule';
+import { ConditionalOperator, type ConditionalRule } from './conditionalRule';
 import type { SchedulerFilterRule } from './scheduler';
 
 export enum FilterType {

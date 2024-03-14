@@ -1,13 +1,13 @@
 import {
     createFilterRuleFromField,
-    FilterableField,
-    FilterGroup,
     FilterGroupOperator,
-    FilterRule,
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
     isAndFilterGroup,
     isFilterGroup,
+    type FilterableField,
+    type FilterGroup,
+    type FilterRule,
 } from '@lightdash/common';
 import {
     Box,
@@ -19,7 +19,7 @@ import {
     Text,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import React, { FC, useCallback } from 'react';
+import React, { useCallback, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import FilterRuleForm from './FilterRuleForm';

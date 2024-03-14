@@ -2,36 +2,36 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
     CustomFormatType,
-    Dimension,
     DimensionType,
-    Field,
     fieldId,
-    FilterableDimension,
-    FilterableField,
-    FilterableItem,
     isDimension,
     isFilterableDimension,
     isTableCalculation,
     isTableCalculationField,
     MetricType,
+    type Dimension,
+    type Field,
+    type FilterableDimension,
+    type FilterableField,
+    type FilterableItem,
 } from '../types/field';
 import {
-    DashboardFieldTarget,
-    DashboardFilterRule,
-    DashboardFilters,
-    DateFilterRule,
-    FilterDashboardToRule,
-    FilterGroup,
-    FilterGroupItem,
     FilterOperator,
-    FilterRule,
-    Filters,
     FilterType,
     isAndFilterGroup,
     isFilterGroup,
     UnitOfTime,
+    type DashboardFieldTarget,
+    type DashboardFilterRule,
+    type DashboardFilters,
+    type DateFilterRule,
+    type FilterDashboardToRule,
+    type FilterGroup,
+    type FilterGroupItem,
+    type FilterRule,
+    type Filters,
 } from '../types/filter';
-import { MetricQuery } from '../types/metricQuery';
+import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
