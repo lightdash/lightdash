@@ -1183,13 +1183,15 @@ export class UserService {
                 redirectUri: new URL(
                     `/api/v1${getRedirectUri(
                         openIdIssuer,
-                    )}?login_hint=${email}`,
+                    )}?login_hint=${encodeURIComponent(email)}`,
                     this.lightdashConfig.siteUrl,
                 ).href,
             };
         }
         const googleRedirectUri = new URL(
-            `/api/v1${this.lightdashConfig.auth.google.loginPath}?login_hint=${email}`,
+            `/api/v1${
+                this.lightdashConfig.auth.google.loginPath
+            }?login_hint=${encodeURIComponent(email)}`,
             this.lightdashConfig.siteUrl,
         ).href;
 
