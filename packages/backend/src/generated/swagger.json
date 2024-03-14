@@ -5791,13 +5791,16 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SpaceShare.userUuid_": {
+            "Pick_SpaceShare.userUuid-or-role_": {
                 "properties": {
                     "userUuid": {
                         "type": "string"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
                     }
                 },
-                "required": ["userUuid"],
+                "required": ["userUuid", "role"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -5805,7 +5808,7 @@
                 "properties": {
                     "access": {
                         "items": {
-                            "$ref": "#/components/schemas/Pick_SpaceShare.userUuid_"
+                            "$ref": "#/components/schemas/Pick_SpaceShare.userUuid-or-role_"
                         },
                         "type": "array"
                     },

@@ -787,8 +787,12 @@ export class SpaceModel {
                         email,
                         role: spaceRole,
                         hasDirectAccess: !!user_with_direct_access,
-                        inheritedRole: highestRole.role,
-                        inheritedFrom: highestRole.type,
+                        inheritedRole: is_private
+                            ? undefined
+                            : highestRole.role,
+                        inheritedFrom: is_private
+                            ? undefined
+                            : highestRole.type,
                     },
                 ];
             },

@@ -5171,12 +5171,13 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SpaceShare.userUuid_': {
+    'Pick_SpaceShare.userUuid-or-role_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 userUuid: { dataType: 'string', required: true },
+                role: { ref: 'SpaceMemberRole', required: true },
             },
             validators: {},
         },
@@ -5191,7 +5192,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'Pick_SpaceShare.userUuid_',
+                        ref: 'Pick_SpaceShare.userUuid-or-role_',
                     },
                 },
                 isPrivate: { dataType: 'boolean' },
