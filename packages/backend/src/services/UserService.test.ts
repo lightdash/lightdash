@@ -49,7 +49,7 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
     });
 
 jest.spyOn(analyticsMock, 'track');
-describe('DashboardService', () => {
+describe('UserService', () => {
     const userService = createUserService(lightdashConfigMock);
 
     afterEach(() => {
