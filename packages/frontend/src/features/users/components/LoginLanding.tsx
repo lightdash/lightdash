@@ -92,7 +92,7 @@ const Login: FC<{}> = () => {
         },
     });
 
-    // // Skip login for demo app
+    // Skip login for demo app
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     useEffect(() => {
         if (isDemo && isIdle) {
@@ -149,9 +149,16 @@ const Login: FC<{}> = () => {
             />
         );
     }
-
     if (health.status === 'success' && health.data?.isAuthenticated) {
         return <Redirect to={redirectUrl} />;
+    }
+
+    if (
+        loginOptionsSuccess &&
+        loginOptions.forceRedirect === true &&
+        loginOptions.redirectUri
+    ) {
+        return <Redirect to={loginOptions.redirectUri} />;
     }
 
     return (
