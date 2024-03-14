@@ -1,4 +1,5 @@
 import { SavedChart } from '@lightdash/common';
+import type { ModalProps } from '@mantine/core';
 import {
     Button,
     Group,
@@ -7,10 +8,10 @@ import {
     Textarea,
     TextInput,
     Title,
-    type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { useEffect, type FC } from 'react';
+import type { FC } from 'react';
+import { useEffect } from 'react';
 import {
     useDuplicateChartMutation,
     useSavedQuery,
