@@ -105,9 +105,14 @@ import { type SlackChannel } from './types/slack';
 import { type Space } from './types/space';
 import { type ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { type TableBase } from './types/table';
-import { type LightdashUser, type UserAllowedOrganization } from './types/user';
+import {
+    type LightdashUser,
+    type LoginOptions,
+    type UserAllowedOrganization,
+} from './types/user';
 import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { type ValidationResponse } from './types/validation';
+
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
@@ -539,6 +544,7 @@ type ApiResults =
     | ApiHealthResults
     | Organization
     | LightdashUser
+    | LoginOptions
     | SavedChart
     | SavedChart[]
     | Space[]

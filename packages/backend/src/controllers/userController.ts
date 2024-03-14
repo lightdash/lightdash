@@ -2,6 +2,7 @@ import {
     ApiEmailStatusResponse,
     ApiErrorPayload,
     ApiGetAuthenticatedUserResponse,
+    ApiGetLoginOptionsResponse,
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
@@ -310,10 +311,7 @@ export class UserController extends BaseController {
     async getLoginOptions(
         @Request() req: express.Request,
         @Query() email: string,
-    ): Promise<{
-        status: 'ok';
-        results: LoginOptions;
-    }> {
+    ): Promise<ApiGetLoginOptionsResponse> {
         const loginOptions = await this.services
             .getUserService()
             .getLoginOptions(email);

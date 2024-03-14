@@ -1188,7 +1188,7 @@ export class UserService {
 
         const openIdIssuer = await this.userModel.getOpenIdIssuer(email);
         // First it checks for existing SSO logins
-        if (openIdIssuer !== undefined) {
+        if (openIdIssuer !== null) {
             return {
                 showOptions: [openIdIssuer],
                 forceRedirect: true,
