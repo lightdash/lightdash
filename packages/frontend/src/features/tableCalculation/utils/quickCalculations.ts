@@ -1,9 +1,4 @@
-import {
-    DimensionType,
-    type Field,
-    type Metric,
-    type MetricQuery,
-} from '@lightdash/common';
+import { DimensionType, type Field, type MetricQuery } from '@lightdash/common';
 
 export enum QuickCalculationType {
     PercentChangeFromPrevious = 'percent_change_from_previous',
@@ -26,7 +21,7 @@ interface QuickCalculationDefinition {
 
     /** Function responsible for generating the quick calculation for a field */
     generateQuickCalculation?: (generatorArgs: {
-        item: Field | Metric;
+        item: Field;
         metricQuery: MetricQuery;
         warehouseType: string;
     }) => CompiledQuickCalculation;

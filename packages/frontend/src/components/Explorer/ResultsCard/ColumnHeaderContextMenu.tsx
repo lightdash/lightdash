@@ -7,10 +7,11 @@ import {
     isFilterableField,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Menu, Text } from '@mantine/core';
+import { ActionIcon, Group, Menu, Text } from '@mantine/core';
 import {
     IconChevronDown,
     IconFilter,
+    IconMathFunction,
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
@@ -114,6 +115,17 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         Edit custom metric
                     </Menu.Item>
                 ) : null}
+
+                <Menu.Label>
+                    <Group spacing="sm">
+                        <MantineIcon icon={IconMathFunction} color="yellow.9" />
+                        <Text size="xs" color="gray.6">
+                            Quick calculations
+                        </Text>
+                    </Group>
+                </Menu.Label>
+                <Menu.Item>Percent of change</Menu.Item>
+                <Menu.Item>Rank in column</Menu.Item>
 
                 <Menu.Item
                     icon={<MantineIcon icon={IconTrash} />}
