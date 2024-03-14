@@ -423,6 +423,7 @@ export class ProjectService {
             } catch (e) {
                 Sentry.captureException(e);
                 Logger.error(`Unable to copy content on preview ${e}`);
+                throw e;
             }
         }
 
