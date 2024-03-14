@@ -41,7 +41,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
 
     return (
         <TrackSection name={SectionName.PAGE_FOOTER}>
-            <Box mt={FOOTER_MARGIN} h={FOOTER_HEIGHT}>
+            <Box mt={FOOTER_MARGIN} h={FOOTER_HEIGHT} component="footer">
                 <Divider color="gray.2" w="100%" />
 
                 <Group

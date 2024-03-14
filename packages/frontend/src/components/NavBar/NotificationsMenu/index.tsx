@@ -72,6 +72,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
         >
             <Menu.Target>
                 <Button
+                    aria-label="Notifications"
                     variant="default"
                     size="xs"
                     // NOTE: Set validation notification as read (Local Storage)
