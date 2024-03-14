@@ -21,6 +21,7 @@
     "devDependencies": {
         "@types/pg": "^8.10.7",
         "@types/pg-cursor": "^2.7.0",
+        "@types/snowflake-sdk": "^1.6.20",
         "@types/ssh2": "^1.11.15"
     },
     "description": "Warehouse connectors for Lightdash",
