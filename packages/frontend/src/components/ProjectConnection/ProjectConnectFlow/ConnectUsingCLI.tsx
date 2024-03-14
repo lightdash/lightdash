@@ -7,7 +7,7 @@ import { Avatar, Button, LoadingOverlay, Stack, Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -80,8 +80,8 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     useEffect(() => {
         if (isTokenCreated) return;
 
-        const expiresAt = moment().add(30, 'days').toDate();
-        const generatedAtString = moment().format(
+        const expiresAt = dayjs().add(30, 'days').toDate();
+        const generatedAtString = dayjs().format(
             getDateFormat(TimeFrames.SECOND),
         );
 
