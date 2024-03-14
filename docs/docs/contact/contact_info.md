@@ -32,7 +32,7 @@ There are four things you can do to keep up with all things Lightdash:
 
 4. Join in on the fun in [#tools-lightdash](https://getdbt.slack.com/archives/C026WJE4A69) in dbt's Slack space.
 
-  If you're not already a member of dbt's Slack, then you can add yourself with [this invite link](https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A). Once you're in there, join us in [#tools-lightdash](https://getdbt.slack.com/archives/C026WJE4A69).
+  If you're not already a member of dbt's Slack, then you can add yourself with [this invite link](https://join.slack.com/t/getdbt/shared_invite/zt-z3ztp07n-P1JXnr0AR4jMA5eNmPul0g). Once you're in there, join us in [#tools-lightdash](https://getdbt.slack.com/archives/C026WJE4A69).
 
 ## I'm having problems setting up or using Lightdash (and I want to talk to someone about it)
 
