@@ -58,6 +58,7 @@ export type SpaceShare = {
 export enum SpaceMemberRole {
     VIEWER = 'viewer',
     EDITOR = 'editor',
+    ADMIN = 'admin',
 }
 
 export type ApiSpaceSummaryListResponse = {
@@ -70,6 +71,7 @@ export type ApiSpaceResponse = {
     results: Space;
 };
 
-export type AddSpaceShare = {
+export type AddSpaceUserAccess = {
     userUuid: string;
+    spaceRole: string;
 };

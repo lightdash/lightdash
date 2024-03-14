@@ -1095,6 +1095,7 @@ export class ProjectModel {
                 `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
             );
             const spaceIds = dbSpaces.map((s) => s.space_id);
+            const spaceUuids = spaces.map((s) => s.uuid);
 
             const newSpaces =
                 spaces.length > 0
@@ -1120,23 +1121,29 @@ export class ProjectModel {
 
             const spaceMapping = dbSpaces.map((s, i) => ({
                 id: s.space_id,
+                uuid: s.space_uuid,
                 newId: newSpaces[i].space_id,
+                newUuid: newSpaces[i].space_uuid,
             }));
 
-            const getNewSpace = (oldSpaceId: number): number =>
-                spaceMapping.find((s) => s.id === oldSpaceId)?.newId!;
-            const spaceShares = await trx('space_share').whereIn(
-                'space_id',
-                spaceIds,
+            const getNewSpaceId = (oldSpacId: number): number =>
+                spaceMapping.find((s) => s.id === oldSpacId)?.newId!;
+
+            const getNewSpaceUuid = (oldSpaceUuid: string): string =>
+                spaceMapping.find((s) => s.uuid === oldSpaceUuid)?.newUuid!;
+
+            const spaceUserAccesses = await trx('space_user_access').whereIn(
+                'space_uuid',
+                spaceUuids,
             );
 
-            const newSpaceShare =
-                spaceShares.length > 0
-                    ? await trx('space_share')
+            const newSpaceUserAccess =
+                spaceUserAccesses.length > 0
+                    ? await trx('space_user_access')
                           .insert(
-                              spaceShares.map((d) => ({
+                              spaceUserAccesses.map((d) => ({
                                   ...d,
-                                  space_id: getNewSpace(d.space_id),
+                                  space_uuid: getNewSpaceUuid(d.space_uuid),
                               })),
                           )
                           .returning('*')
@@ -1167,7 +1174,7 @@ export class ProjectModel {
                                       search_vector: undefined,
                                       saved_query_id: undefined,
                                       saved_query_uuid: undefined,
-                                      space_id: getNewSpace(d.space_id),
+                                      space_id: getNewSpaceId(d.space_id),
                                       dashboard_uuid: null,
                                   };
                                   delete createChart.saved_query_id;
@@ -1366,7 +1373,7 @@ export class ProjectModel {
                                       search_vector: undefined,
                                       dashboard_id: undefined,
                                       dashboard_uuid: undefined,
-                                      space_id: getNewSpace(d.space_id),
+                                      space_id: getNewSpaceId(d.space_id),
                                   };
                                   delete createDashboard.dashboard_id;
                                   delete createDashboard.dashboard_uuid;
