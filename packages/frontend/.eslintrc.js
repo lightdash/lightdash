@@ -8,7 +8,7 @@ const unusedVarExceptions = {
 
 module.exports = {
     parserOptions: {
-        project: './tsconfig.json',
+        project: ['./tsconfig.json'],
         createDefaultProgram: true,
     },
     ignorePatterns: ['**/styles/*.css', '.eslintrc.js'],
