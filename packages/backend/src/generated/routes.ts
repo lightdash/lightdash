@@ -4246,7 +4246,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpaceMemberRole: {
         dataType: 'refEnum',
-        enums: ['viewer', 'editor'],
+        enums: ['viewer', 'editor', 'admin'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpaceShare: {
@@ -5212,11 +5212,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AddSpaceShare: {
+    AddSpaceUserAccess: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                spaceRole: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -11448,10 +11449,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
         ...fetchMiddlewares<RequestHandler>(
-            SpaceController.prototype.addSpaceShare,
+            SpaceController.prototype.addSpaceUserAccess,
         ),
 
-        async function SpaceController_addSpaceShare(
+        async function SpaceController_addSpaceUserAccess(
             request: any,
             response: any,
             next: any,
@@ -11473,7 +11474,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'AddSpaceShare',
+                    ref: 'AddSpaceUserAccess',
                 },
                 req: {
                     in: 'request',
@@ -11501,7 +11502,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.addSpaceShare.apply(
+                const promise = controller.addSpaceUserAccess.apply(
                     controller,
                     validatedArgs as any,
                 );

@@ -4679,7 +4679,7 @@
                 ]
             },
             "SpaceMemberRole": {
-                "enum": ["viewer", "editor"],
+                "enum": ["viewer", "editor", "admin"],
                 "type": "string"
             },
             "SpaceShare": {
@@ -5828,13 +5828,16 @@
                 "required": ["isPrivate", "name"],
                 "type": "object"
             },
-            "AddSpaceShare": {
+            "AddSpaceUserAccess": {
                 "properties": {
+                    "spaceRole": {
+                        "type": "string"
+                    },
                     "userUuid": {
                         "type": "string"
                     }
                 },
-                "required": ["userUuid"],
+                "required": ["spaceRole", "userUuid"],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -6702,7 +6705,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1035.0",
+        "version": "0.1036.4",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -10992,7 +10995,7 @@
         },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/share": {
             "post": {
-                "operationId": "AddSpaceShareToUser",
+                "operationId": "AddSpaceUserAccess",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -11042,7 +11045,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/AddSpaceShare"
+                                "$ref": "#/components/schemas/AddSpaceUserAccess"
                             }
                         }
                     }

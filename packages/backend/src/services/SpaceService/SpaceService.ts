@@ -223,10 +223,11 @@ export class SpaceService {
         });
     }
 
-    async addSpaceShare(
+    async addSpaceUserAccess(
         user: SessionUser,
         spaceUuid: string,
         shareWithUserUuid: string,
+        spaceRole: string,
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const spaceAccess = await this.spaceModel.getUserSpaceAccess(
@@ -245,10 +246,14 @@ export class SpaceService {
             throw new ForbiddenError();
         }
 
-        await this.spaceModel.addSpaceAccess(spaceUuid, shareWithUserUuid);
+        await this.spaceModel.addSpaceAccess(
+            spaceUuid,
+            shareWithUserUuid,
+            spaceRole,
+        );
     }
 
-    async removeSpaceShare(
+    async removeSpaceUserAccess(
         user: SessionUser,
         spaceUuid: string,
         shareWithUserUuid: string,

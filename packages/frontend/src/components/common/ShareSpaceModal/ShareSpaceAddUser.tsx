@@ -133,7 +133,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 disabled={usersSelected.length === 0}
                 onClick={async () => {
                     for (const userUuid of usersSelected) {
-                        if (userUuid) await shareSpaceMutation(userUuid);
+                        if (userUuid)
+                            await shareSpaceMutation([userUuid, 'viewer']);
                     }
                     setUsersSelected([]);
                 }}

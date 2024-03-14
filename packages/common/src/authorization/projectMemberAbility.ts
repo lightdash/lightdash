@@ -91,6 +91,38 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
+        can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
+        // should not check space access & role when creating a space
+        // allow interactive to create a space
+        can('create', 'Space', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
@@ -101,23 +133,6 @@ export const projectMemberAbilities: Record<
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
             isPrivate: false,
-        });
-        // should not check space access when creating a space
-        can('create', 'Space', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {

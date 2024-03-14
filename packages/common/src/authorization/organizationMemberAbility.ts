@@ -113,6 +113,37 @@ export const organizationMemberAbilities: Record<
                 },
             },
         });
+        can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
+        // should not check space access when creating a space
+        can('create', 'Space', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'Space', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
     },
     editor(member, { can }) {
         organizationMemberAbilities.interactive_viewer(member, { can });
@@ -123,23 +154,6 @@ export const organizationMemberAbilities: Record<
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
-        });
-        // should not check space access when creating a space
-        can('create', 'Space', {
-            organizationUuid: member.organizationUuid,
-        });
-        can('manage', 'Space', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
-        });
-        can('manage', 'Space', {
-            organizationUuid: member.organizationUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {

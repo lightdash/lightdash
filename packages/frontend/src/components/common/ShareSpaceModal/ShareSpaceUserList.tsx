@@ -14,7 +14,10 @@ import {
 } from '@mantine/core';
 import upperFirst from 'lodash/upperFirst';
 import { forwardRef, type FC } from 'react';
-import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
+import {
+    useAddSpaceShareMutation,
+    useDeleteSpaceShareMutation,
+} from '../../../hooks/useSpaces';
 import { type AccessOption } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
@@ -27,13 +30,26 @@ export interface ShareSpaceUserListProps {
 const enum UserAccessAction {
     KEEP = 'keep',
     DELETE = 'delete',
+    VIEWER = 'viewer',
+    EDITOR = 'editor',
+    ADMIN = 'admin',
 }
 
 const UserAccessOptions: AccessOption[] = [
     {
-        title: 'viewer',
+        title: 'Viewer',
         selectDescription: `This permission has been inherited`,
-        value: UserAccessAction.KEEP,
+        value: UserAccessAction.VIEWER,
+    },
+    {
+        title: 'Editor',
+        selectDescription: `This permission has been inherited`,
+        value: UserAccessAction.EDITOR,
+    },
+    {
+        title: 'Admin',
+        selectDescription: `This permission has been inherited`,
+        value: UserAccessAction.ADMIN,
     },
     {
         title: 'No access',
@@ -66,6 +82,11 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     sessionUser,
 }) => {
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
+        projectUuid,
+        space.uuid,
+    );
+
+    const { mutate: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
@@ -158,13 +179,21 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                         }))}
                                         value={roleType}
                                         itemComponent={UserAccessSelectItem}
-                                        onChange={(item) => {
+                                        onChange={(userAccessOption) => {
                                             if (
-                                                item === UserAccessAction.DELETE
+                                                userAccessOption ===
+                                                UserAccessAction.DELETE
                                             ) {
                                                 unshareSpaceMutation(
                                                     sharedUser.userUuid,
                                                 );
+                                            } else {
+                                                shareSpaceMutation([
+                                                    sharedUser.userUuid,
+                                                    userAccessOption
+                                                        ? userAccessOption
+                                                        : 'viewer',
+                                                ]);
                                             }
                                         }}
                                     />
