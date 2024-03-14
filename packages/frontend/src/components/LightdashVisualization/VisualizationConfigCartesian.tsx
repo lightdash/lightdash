@@ -1,5 +1,7 @@
 import { ChartType, type ItemsMap } from '@lightdash/common';
-import { useEffect, type FC } from 'react';
+import { isEqual } from 'lodash';
+import { useEffect, useMemo, type FC } from 'react';
+import { usePrevious } from 'react-use';
 import useCartesianChartConfig, {
     type CartesianTypeOptions,
 } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
