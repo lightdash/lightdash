@@ -786,25 +786,17 @@ export class UserModel {
     }
 
     async getOpenIdIssuer(email: string) {
-        const row = await this.database('openid_identities')
-            .where('email', email)
-            .select('issuer_type')
+        const row = await this.database('emails')
+            .leftJoin(
+                'openid_identities',
+                'emails.user_id',
+                'openid_identities.user_id',
+            )
+            .where('emails.email', email)
+            .andWhere('emails.is_primary', true)
+            .select('openid_identities.issuer_type')
             .first();
 
         return row?.issuer_type;
-    }
-
-    async hasUserPassword(email: string): Promise<boolean> {
-        const user = await userDetailsQueryBuilder(this.database)
-            .leftJoin(
-                'password_logins',
-                'users.user_id',
-                'password_logins.user_id',
-            )
-            .where('email', email)
-            .select('password_hash')
-            .first();
-
-        return user?.password_hash !== undefined;
     }
 }
