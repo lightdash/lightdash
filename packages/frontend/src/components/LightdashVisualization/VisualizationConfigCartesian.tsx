@@ -47,7 +47,6 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     colorPalette,
     children,
 }) => {
-    const prevChartConfig = usePrevious(initialChartConfig);
     const cartesianConfig = useCartesianChartConfig({
         initialChartConfig,
         pivotKeys: validPivotDimensions,
@@ -59,13 +58,21 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         cartesianType,
         colorPalette,
     });
+    const prevChartConfig = usePrevious(initialChartConfig);
+    const prevValidConfig = usePrevious(cartesianConfig.validConfig);
 
     const hasChartConfigChangedInHook = useMemo(() => {
         return (
             !isEqual(initialChartConfig, cartesianConfig.validConfig) &&
-            isEqual(prevChartConfig, initialChartConfig)
+            !isEqual(cartesianConfig.validConfig, prevValidConfig) &&
+            isEqual(initialChartConfig, prevChartConfig)
         );
-    }, [cartesianConfig.validConfig, initialChartConfig, prevChartConfig]);
+    }, [
+        cartesianConfig.validConfig,
+        initialChartConfig,
+        prevChartConfig,
+        prevValidConfig,
+    ]);
 
     useEffect(() => {
         if (!hasChartConfigChangedInHook) return;

@@ -145,13 +145,20 @@ const useCartesianChartConfig = ({
             : EMPTY_CARTESIAN_CHART_CONFIG;
     }, [dirtyLayout, dirtyEchartsConfig]);
 
+    const prevInitialChartConfig = usePrevious(initialChartConfig);
     const prevValidConfig = usePrevious(validConfig);
     const hasInitialChartConfigPropChanged = useMemo(() => {
         return (
             !isEqual(initialChartConfig, validConfig) &&
+            !isEqual(initialChartConfig, prevInitialChartConfig) &&
             isEqual(validConfig, prevValidConfig)
         );
-    }, [initialChartConfig, prevValidConfig, validConfig]);
+    }, [
+        prevInitialChartConfig,
+        initialChartConfig,
+        prevValidConfig,
+        validConfig,
+    ]);
 
     useEffect(() => {
         if (!hasInitialChartConfigPropChanged) return;
