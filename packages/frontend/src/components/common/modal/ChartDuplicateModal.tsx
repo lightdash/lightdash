@@ -46,6 +46,8 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
         };
         form.setInitialValues(initialValues);
         form.setValues(initialValues);
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chart]);
 
     if (isInitialLoading || !chart) {

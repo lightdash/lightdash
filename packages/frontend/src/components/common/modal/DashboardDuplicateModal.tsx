@@ -46,6 +46,8 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
         };
         form.setInitialValues(initialValues);
         form.setValues(initialValues);
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dashboard]);
 
     if (isInitialLoading || !dashboard) {
