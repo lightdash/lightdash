@@ -13,7 +13,7 @@ const nunjucksContext = {
 
 export const renderProfilesYml = (
     raw: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
 ) => {
     const template = nunjucks.compile(raw, nunjucksEnv);
     const rendered = template.render({

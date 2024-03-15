@@ -10,14 +10,14 @@ jobs:
       frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
       backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend == 'true' }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check for files changes
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         id: changes
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
-      - uses: 8BitJonny/gh-get-current-pr@2.2.0
+      - uses: 8BitJonny/gh-get-current-pr@3.0.0
         id: PR
       - name: Check for keyword overrides
         id: overrides
@@ -50,9 +50,9 @@ jobs:
     name: API tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       # Install packages
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'yarn'
@@ -81,7 +81,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: GitHub Registry Login
@@ -115,9 +115,9 @@ jobs:
     name: App (${{ matrix.containers }}/${{ strategy.job-total }})
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       # Install packages
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'yarn'
@@ -162,7 +162,7 @@ jobs:
 
       # After the test run completes
       # store videos and any screenshots
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: cypress-screenshots-and-videos-${{ strategy.job-index }}
@@ -186,9 +186,9 @@ jobs:
     name: Timezone (${{ matrix.timezone }})
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       # Install packages
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'yarn'
@@ -219,7 +219,7 @@ jobs:
 
       # After the test run completes
       # store videos and any screenshots
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: cypress-screenshots-and-videos-timezone-${{ strategy.job-index }}

@@ -27,6 +27,12 @@ jobs:
         platform:
           - linux/amd64
     steps:
+      # Write the PLATFORM_PAIR varible to env and replace `/` with `-`
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV     
+      
       - name: Set up Docker tags
         id: meta
         uses: docker/metadata-action@v5
@@ -69,9 +75,9 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: digests
+          name: digests-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -85,10 +91,11 @@ jobs:
       - docker-build
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: digests
+          pattern: digests-*
           path: /tmp/digests
+          merge-multiple: true
 
       - name: Set up Docker tags
         id: meta

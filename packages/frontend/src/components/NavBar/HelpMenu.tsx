@@ -54,7 +54,7 @@ const HelpMenu: FC = () => {
 
                 <LargeMenuItem
                     component="a"
-                    href="https://join.slack.com/t/lightdash-community/shared_invite/zt-1nvwh36o0-gd3jOUx6DuVLNNeng1pPcw"
+                    href="https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A"
                     target="_blank"
                     title="Join Slack community"
                     description="Get advice share best practices with other users."

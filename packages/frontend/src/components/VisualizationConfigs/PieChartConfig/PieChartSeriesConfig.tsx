@@ -270,6 +270,7 @@ const PieChartSeriesConfig: FC = () => {
     if (!isPieChartConfig) return null;
 
     const {
+        groupFieldIds,
         valueLabel,
         valueLabelChange,
         showValue,
@@ -370,7 +371,10 @@ const PieChartSeriesConfig: FC = () => {
                                                     groupColorOverrides[
                                                         groupLabel
                                                     ] ??
-                                                    getGroupColor(groupLabel)
+                                                    getGroupColor(
+                                                        groupFieldIds.join('_'),
+                                                        groupLabel,
+                                                    )
                                                 }
                                                 label={
                                                     groupLabelOverrides[

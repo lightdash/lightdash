@@ -870,54 +870,6 @@ export class SpaceModel {
         }));
     }
 
-    async getAllSpaces(projectUuid: string): Promise<Space[]> {
-        const results = await this.database(SpaceTableName)
-            .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
-            .innerJoin(
-                'organizations',
-                'organizations.organization_id',
-                'projects.organization_id',
-            )
-            .leftJoin(
-                PinnedSpaceTableName,
-                `${PinnedSpaceTableName}.space_uuid`,
-                `${SpaceTableName}.space_uuid`,
-            )
-            .leftJoin(
-                PinnedListTableName,
-                `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedSpaceTableName}.pinned_list_uuid`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .select<
-                (DbSpace &
-                    DbProject &
-                    DbOrganization &
-                    Pick<DbPinnedList, 'pinned_list_uuid'> &
-                    Pick<DBPinnedSpace, 'order'>)[]
-            >([
-                'spaces.*',
-                'projects.project_uuid',
-                'organizations.organization_uuid',
-                `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedSpaceTableName}.order`,
-            ]);
-        return Promise.all(
-            results.map(async (row) => ({
-                organizationUuid: row.organization_uuid,
-                name: row.name,
-                isPrivate: row.is_private,
-                uuid: row.space_uuid,
-                projectUuid: row.project_uuid,
-                pinnedListUuid: row.pinned_list_uuid,
-                pinnedListOrder: row.order,
-                queries: await this.getSpaceQueries([row.space_uuid]),
-                dashboards: await this.getSpaceDashboards([row.space_uuid]),
-                access: await this._getSpaceAccess(row.space_uuid),
-            })),
-        );
-    }
-
     async getSpaceSummary(spaceUuid: string): Promise<SpaceSummary> {
         return wrapOtelSpan('SpaceModel.getSpaceSummary', {}, async () => {
             const [space] = await this.find({ spaceUuid });

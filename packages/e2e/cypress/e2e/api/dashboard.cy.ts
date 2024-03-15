@@ -188,12 +188,11 @@ describe('Lightdash dashboard', () => {
     it('Should update chart that belongs to dashboard', () => {
         const newDescription = 'updated chart description';
         cy.request(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
         ).then((response) => {
             // Get the latest dashboard created via API
             const dashboard = response.body.results
-                .find((s) => s.name === SEED_PROJECT.name)
-                .dashboards.sort((d) => d.updatedAt)
+                .sort((d) => d.updatedAt)
                 .reverse()
                 .find((s) => s.name === dashboardName);
 
@@ -230,12 +229,11 @@ describe('Lightdash dashboard', () => {
     });
     it('Should get chart summaries without charts that belongs to dashboard', () => {
         cy.request(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
         ).then((response) => {
             // Get the latest dashboard created via API
             const dashboard = response.body.results
-                .find((s) => s.name === SEED_PROJECT.name)
-                .dashboards.sort((d) => d.updatedAt)
+                .sort((d) => d.updatedAt)
                 .reverse()
                 .find((s) => s.name === dashboardName);
 

@@ -3,7 +3,7 @@ export type LoadProfileArgs = {
     profileName: string;
     targetName?: string;
 };
-export type Target = Record<string, any> & {
+export type Target = Record<string, unknown> & {
     type: string;
 };
 type Profile = {

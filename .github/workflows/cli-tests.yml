@@ -13,14 +13,14 @@ jobs:
     outputs:
       cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check for files changes
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         id: changes
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
-      - uses: 8BitJonny/gh-get-current-pr@2.2.0
+      - uses: 8BitJonny/gh-get-current-pr@3.0.0
         id: PR
       - name: Get result with overides
         id: overrides

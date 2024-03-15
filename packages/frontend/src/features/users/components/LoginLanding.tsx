@@ -103,25 +103,25 @@ const Login: FC<{}> = () => {
         }
     }, [isDemo, mutate, isIdle]);
 
-    const handleFormSubmit = useCallback(() => {
-        if (!loginOptions && !loginOptionsSuccess && form.values.email !== '') {
-            setFetchOptionsEnabled(true);
-        } else if (
-            loginOptions &&
-            loginOptionsSuccess &&
-            form.values.email !== '' &&
-            form.values.password !== ''
-        ) {
-            mutate(form.values);
-        }
-    }, [form.values, loginOptions, loginOptionsSuccess, mutate]);
-
     const formStage =
         loginOptionsSuccess && loginOptions?.showOptions ? 'login' : 'precheck';
 
     const isEmailLoginAvailable =
         loginOptions?.showOptions &&
         loginOptions?.showOptions.includes(LocalIssuerTypes.EMAIL);
+
+    const handleFormSubmit = useCallback(() => {
+        if (formStage === 'precheck' && form.values.email !== '') {
+            setFetchOptionsEnabled(true);
+        } else if (
+            formStage === 'login' &&
+            isEmailLoginAvailable &&
+            form.values.email !== '' &&
+            form.values.password !== ''
+        ) {
+            mutate(form.values);
+        }
+    }, [form.values, formStage, isEmailLoginAvailable, mutate]);
 
     const disableControls =
         (loginOptionsLoading && loginOptionsFetched) || isLoading || isSuccess;
@@ -158,7 +158,7 @@ const Login: FC<{}> = () => {
         loginOptions.forceRedirect === true &&
         loginOptions.redirectUri
     ) {
-        return <Redirect to={loginOptions.redirectUri} />;
+        window.location.href = loginOptions.redirectUri;
     }
 
     return (

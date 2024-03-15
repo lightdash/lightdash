@@ -8,22 +8,22 @@ declare module '@rudderstack/rudder-sdk-node' {
     interface Identify {
         anonymousId?: string;
         userId?: string;
-        traits?: Record<string, any>;
-        context?: Record<string, any>;
+        traits?: Record<string, unknown>;
+        context?: Record<string, unknown>;
     }
     interface Group {
         anonymousId?: string;
         userId?: string;
         groupId: string;
-        traits?: Record<string, any>;
-        context?: Record<string, any>;
+        traits?: Record<string, unknown>;
+        context?: Record<string, unknown>;
     }
     export interface Track {
         userId?: string;
         anonymousId?: string;
         event: string;
-        properties?: Record<string, any>;
-        context?: Record<string, any>;
+        properties?: Record<string, unknown>;
+        context?: Record<string, unknown>;
     }
 
     declare class Analytics {

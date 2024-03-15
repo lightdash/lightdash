@@ -76,23 +76,6 @@ export type SortField = {
     descending: boolean; // Direction of the sort
 };
 
-const idPattern = /(.+)id$/i;
-export const extractEntityNameFromIdColumn = (
-    columnName: string,
-): string | null => {
-    const match = columnName.match(idPattern);
-    if (!match || columnName.toLowerCase().endsWith('valid')) {
-        return null;
-    }
-    return (
-        match[1]
-            .toLowerCase()
-            .split(/[^a-z]/)
-            .filter((x) => x)
-            .join('_') || null
-    );
-};
-
 export const getAdditionalMetricLabel = (item: AdditionalMetric) =>
     `${friendlyName(item.table)} ${item.label}`;
 
