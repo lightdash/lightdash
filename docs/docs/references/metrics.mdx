@@ -44,12 +44,12 @@ Sometimes a metric references many columns, in these cases you can define the me
 version: 2
 
 models:
-    - name: my_model
-      meta:
-          metrics:
-              num_unique_user_ids:
-                  type: count_distinct
-                  sql: ${TABLE}.user_id
+  - name: my_model
+    meta:
+      metrics:
+        num_unique_user_ids:
+          type: count_distinct
+          sql: ${TABLE}.user_id
 ```
 
 ### 3. Using dbt's Semantic Layer
@@ -80,30 +80,30 @@ You can customize your metrics in your dbt model's YAML file. Here's an example 
 version: 2
 
 models:
-    - name: sales_stats
-      meta:
-          joins:
-              - join: web_sessions
-                sql_on: ${web_sessions.date} = ${sales_stats.date}
-      columns:
-          - name: revenue
-            description: 'Total estimated revenue in GBP based on forecasting done by the finance team.'
-            meta:
-                metrics:
-                    total_revenue:
-                        label: 'Total revenue GBP'
-                        type: SUM
-                        description: 'Total revenue in GBP'
-                        sql: 'IF(${revenue} IS NULL, 10, ${revenue})'
-                        hidden: false
-                        round: 0
-                        format: 'gbp'
-                        show_underlying_values:
-                            - revenue
-                            - forecast_date
-                            - web_sessions.session_id # field from joined table
-                        filters:
-                            - is_adjusted: true
+  - name: sales_stats
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.date} = ${sales_stats.date}
+    columns:
+      - name: revenue
+        description: 'Total estimated revenue in GBP based on forecasting done by the finance team.'
+        meta:
+          metrics:
+            total_revenue:
+              label: 'Total revenue GBP'
+              type: SUM
+              description: 'Total revenue in GBP'
+              sql: 'IF(${revenue} IS NULL, 10, ${revenue})'
+              hidden: false
+              round: 0
+              format: 'gbp'
+              show_underlying_values:
+                - revenue
+                - forecast_date
+                - web_sessions.session_id # field from joined table
+              filters:
+                - is_adjusted: true
 ```
 
 Here are all of the properties you can customize:
@@ -150,12 +150,12 @@ For example, this creates a metric `median_price` by taking the 50% percentile o
 
 ```yaml
 columns:
-    - name: item_price
-      meta:
-          metrics:
-              median_price:
-                  type: percentile
-                  percentile: 50
+  - name: item_price
+    meta:
+      metrics:
+        median_price:
+          type: percentile
+          percentile: 50
 ```
 
 ### median
@@ -168,11 +168,11 @@ For example, this creates a metric `median_price` by taking the 50% percentile o
 
 ```yaml
 columns:
-    - name: item_price
-      meta:
-          metrics:
-              median_price:
-                  type: median
+  - name: item_price
+    meta:
+      metrics:
+        median_price:
+          type: median
 ```
 
 ### average
@@ -185,11 +185,11 @@ For example, this creates a metric `avg_price` by taking the average of the `ite
 
 ```yaml
 columns:
-    - name: item_price
-      meta:
-          metrics:
-              avg_price:
-                  type: average
+  - name: item_price
+    meta:
+      metrics:
+        avg_price:
+          type: average
 ```
 
 ### boolean
@@ -204,14 +204,14 @@ For example, the `avg_price` metric below is an average of all of the `item_pric
 
 ```yaml
 columns:
-    - name: item_price
-      meta:
-          metrics:
-              avg_price:
-                  type: average
-              is_avg_price_above_20:
-                  type: boolean
-                  sql: 'IF(${avg_price} > 20, TRUE, FALSE)'
+  - name: item_price
+    meta:
+      metrics:
+        avg_price:
+          type: average
+        is_avg_price_above_20:
+          type: boolean
+          sql: 'IF(${avg_price} > 20, TRUE, FALSE)'
 ```
 
 ### count
@@ -224,11 +224,11 @@ For example, this creates a metric `number_of_users` by counting the number of `
 
 ```yaml
 columns:
-    - name: user_id
-      meta:
-          metrics:
-              number_of_users:
-                  type: count
+  - name: user_id
+    meta:
+      metrics:
+        number_of_users:
+          type: count
 ```
 
 ### count_distinct
@@ -241,11 +241,11 @@ For example, this creates a metric `number_of_unique_users` by counting the numb
 
 ```yaml
 columns:
-    - name: user_id
-      meta:
-          metrics:
-              number_of_unique_users:
-                  type: count_distinct
+  - name: user_id
+    meta:
+      metrics:
+        number_of_unique_users:
+          type: count_distinct
 ```
 
 ### date
@@ -281,11 +281,11 @@ For example, this creates a metric `max_delivery_cost` by looking at the `delive
 
 ```yaml
 columns:
-    - name: delivery_cost
-      meta:
-          metrics:
-              max_delivery_cost:
-                  type: max
+  - name: delivery_cost
+    meta:
+      metrics:
+        max_delivery_cost:
+          type: max
 ```
 
 ### min
@@ -300,11 +300,11 @@ For example, this creates a metric `min_delivery_cost` by looking at the `delive
 
 ```yaml
 columns:
-    - name: delivery_cost
-      meta:
-          metrics:
-              min_delivery_cost:
-                  type: min
+  - name: delivery_cost
+    meta:
+      metrics:
+        min_delivery_cost:
+          type: min
 ```
 
 ### number
@@ -317,19 +317,19 @@ For example, this creates a metric called `total_gross_profit_margin_percentage`
 
 ```yaml
 columns:
-    - name: sale_price
-      meta:
-          metrics:
-              total_sale_price:
-                  type: sum
-    - name: gross_profit_margin
-      meta:
-          metrics:
-              total_gross_profit_margin:
-                  type: sum
-              total_gross_profit_margin_percentage:
-                  type: number
-                  sql: '(${total_gross_profit_margin}/ NULLIF(${total_sale_price},0))'
+  - name: sale_price
+    meta:
+      metrics:
+        total_sale_price:
+          type: sum
+  - name: gross_profit_margin
+    meta:
+      metrics:
+        total_gross_profit_margin:
+          type: sum
+        total_gross_profit_margin_percentage:
+          type: number
+          sql: '(${total_gross_profit_margin}/ NULLIF(${total_sale_price},0))'
 ```
 
 The example above also uses the NULLIF() SQL function to avoid division-by-zero errors.
@@ -344,11 +344,11 @@ For example, this creates a metric `total_revenue` by adding up the values in th
 
 ```yaml
 columns:
-    - name: revenue
-      meta:
-          metrics:
-              total_revenue:
-                  type: sum
+  - name: revenue
+    meta:
+      metrics:
+        total_revenue:
+          type: sum
 ```
 
 ### string
@@ -363,12 +363,12 @@ For example, this creates a metric `product_name_group` by combining the unique 
 
 ```yaml
 columns:
-    - name: product_name
-      meta:
-          metrics:
-              product_name_group:
-                  type: string
-                  sql: 'GROUP_CONCAT(${TABLE}.product_name)'
+  - name: product_name
+    meta:
+      metrics:
+        product_name_group:
+          type: string
+          sql: 'GROUP_CONCAT(${TABLE}.product_name)'
 ```
 
 ## Adding your own metric descriptions
@@ -377,9 +377,9 @@ We add default descriptions to all of the metrics you include in your model. But
 
 ```yaml
 metrics:
-    num_user_ids:
-        type: count
-        description: 'Total number of user IDs. NOTE: this is NOT counting unique user IDs'
+  num_user_ids:
+    type: count
+    description: 'Total number of user IDs. NOTE: this is NOT counting unique user IDs'
 ```
 
 ## Using custom SQL in aggregate metrics
@@ -392,12 +392,12 @@ Or from joined models like this: `sql: "${other_model.dimension_in_other_model}"
 
 ```yaml
 metrics:
-    num_unique_7d_web_active_user_ids:
-        type: count_distinct # metric type
-        sql: 'IF(${is_7d_web_active}, ${user_id}, NULL)'
-    num_unique_paid_user_ids:
-        type: count_distinct
-        sql: 'IF(${subscriptions.is_active}, ${user_id}, NULL)'
+  num_unique_7d_web_active_user_ids:
+    type: count_distinct # metric type
+    sql: 'IF(${is_7d_web_active}, ${user_id}, NULL)'
+  num_unique_paid_user_ids:
+    type: count_distinct
+    sql: 'IF(${subscriptions.is_active}, ${user_id}, NULL)'
 ```
 
 ## Using custom SQL in non-aggregate metrics
@@ -409,14 +409,14 @@ Or from joined models like this: `sql: "${other_model.metric_in_other_model}"`
 
 ```yaml
 metrics:
-    num_unique_users:
-        type: count_distinct
-    is_num_unique_users_above_100:
-        type: boolean
-        sql: 'IF(${num_unique_users} > 100, TRUE, FALSE)'
-    percentage_user_growth_daily:
-        type: number
-        sql: '(${num_unique_users} - ${growth_model.num_unique_users_lag_1d}) / NULLIF(${growth_model.num_unique_users_lag_1d}, 0)'
+  num_unique_users:
+    type: count_distinct
+  is_num_unique_users_above_100:
+    type: boolean
+    sql: 'IF(${num_unique_users} > 100, TRUE, FALSE)'
+  percentage_user_growth_daily:
+    type: number
+    sql: '(${num_unique_users} - ${growth_model.num_unique_users_lag_1d}) / NULLIF(${growth_model.num_unique_users_lag_1d}, 0)'
 ```
 
 ## Show underlying values
@@ -424,10 +424,10 @@ metrics:
 By default, we show all of the dimensions from the Table when you click `View underlying data`. If you have fields from a joined table included in your results table, then we'll also show you all of the fields from the joined Table.
 
 <img
-    src={UnderlyingData}
-    width="1103"
-    height="580"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={UnderlyingData}
+  width="1103"
+  height="580"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 You can limit which dimensions are shown for a field when a user clicks `View underlying data` by adding the list of dimensions to your `.yml` files:
@@ -436,24 +436,24 @@ You can limit which dimensions are shown for a field when a user clicks `View un
 version: 2
 
 models:
-    - name: sales_stats
-      meta:
-          joins:
-              - join: web_sessions
-                sql_on: ${web_sessions.date} = ${sales_stats.date}
-      columns:
-          - name: user_id
-            description: 'Unique ID for users.'
-            meta:
-                dimension:
-                    type: string
-                metrics:
-                    count_users:
-                        type: count_distinct
-                        show_underlying_values:
-                            - revenue_gbp_total_est
-                            - actual_date
-                            - web_sessions.session_id # field from joined table
+  - name: sales_stats
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.date} = ${sales_stats.date}
+    columns:
+      - name: user_id
+        description: 'Unique ID for users.'
+        meta:
+          dimension:
+            type: string
+          metrics:
+            count_users:
+              type: count_distinct
+              show_underlying_values:
+                - revenue_gbp_total_est
+                - actual_date
+                - web_sessions.session_id # field from joined table
 ```
 
 The list of fields must be made of dimension names (no metrics) from the base table or from any joined tables. To reference a field from a joined table, you just need to prefix the dimension name with the joined table name, like this: `my_joined_table_name.my_dimension`.
@@ -492,18 +492,18 @@ For example, we could add a filter to our users count to make sure it didn't inc
 version: 2
 
 models:
-    - name: sales_stats
-      columns:
-          - name: user_id
-            description: 'Unique ID for users.'
-            meta:
-                dimension:
-                    type: string
-                metrics:
-                    count_users:
-                        type: count_distinct
-                        filters:
-                            - is_closed_account: false
+  - name: sales_stats
+    columns:
+      - name: user_id
+        description: 'Unique ID for users.'
+        meta:
+          dimension:
+            type: string
+          metrics:
+            count_users:
+              type: count_distinct
+              filters:
+                - is_closed_account: false
 ```
 
 These filters do not appear in the `Filters` tab in the Explore view, instead, they are applied automatically in the SQL query that fetches your results. That means filters added using the `filter` parameter can't be removed in the UI and won't be visible to users unless they look at the SQL query.
@@ -515,13 +515,13 @@ if you wanted to filter for users with subscription status `is_subscribed` you s
 
 ```yaml
 columns:
-    - name: user_id
-      meta:
-          metrics:
-              total_subscribed_users:
-                  type: count_distinct
-                  filters:
-                      - subscription_status: is\_subscribed
+  - name: user_id
+    meta:
+      metrics:
+        total_subscribed_users:
+          type: count_distinct
+          filters:
+            - subscription_status: is\_subscribed
 ```
 
 :::
@@ -552,15 +552,15 @@ if you wanted to filter for orders with order status `completed` or `shipped` yo
 
 ```yaml
 columns:
-    - name: order_id
-      meta:
-          metrics:
-              completed_or_shipped_order_count:
-                  type: count_distinct
-                  filters:
-                      - order_status:
-                            - completed
-                            - shipped
+  - name: order_id
+    meta:
+      metrics:
+        completed_or_shipped_order_count:
+          type: count_distinct
+          filters:
+            - order_status:
+                - completed
+                - shipped
 ```
 
 :::
@@ -571,8 +571,8 @@ For example:
 
 ```yaml
 filters:
-    - is_closed_account: false
-    - is_7d_active: true
+  - is_closed_account: false
+  - is_7d_active: true
 ```
 
 Would give you logic like `is_closed_account = TRUE AND is_7d_active = FALSE`.
@@ -585,23 +585,23 @@ To filter using a field from a joined model, just use the syntax `model_name.fie
 version: 2
 
 models:
-    - name: sales_stats
-      meta:
-          joins:
-              - join: web_sessions
-                sql_on: ${web_sessions.date} = ${sales_stats.date}
-      columns:
-          - name: user_id
-            description: 'Unique ID for users.'
-            meta:
-                dimension:
-                    type: string
-                metrics:
-                    count_users:
-                        type: count_distinct
-                        filters:
-                            - is_closed_account: false
-                            - web_sessions.is_bot_user: false
+  - name: sales_stats
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.date} = ${sales_stats.date}
+    columns:
+      - name: user_id
+        description: 'Unique ID for users.'
+        meta:
+          dimension:
+            type: string
+          metrics:
+            count_users:
+              type: count_distinct
+              filters:
+                - is_closed_account: false
+                - web_sessions.is_bot_user: false
 ```
 
 ### Metric filters cannot be used with non-aggregate metrics
@@ -614,37 +614,37 @@ Here's an example: imagine you wanted to calculate the average cost per item tha
 version: 2
 
 models:
-    - name: orders
-      meta:
+  - name: orders
+    meta:
+      metrics:
+        average_cost_per_item_shipped:
+          type: number
+          sql: ${total_cost_of_shipped} / ${count_unique_items_shipped}
+    columns:
+      - name: item_id
+        description: 'Unique ID for items ordered.'
+        meta:
+          dimension:
+            type: string
           metrics:
-              average_cost_per_item_shipped:
-                  type: number
-                  sql: ${total_cost_of_shipped} / ${count_unique_items_shipped}
-      columns:
-          - name: item_id
-            description: 'Unique ID for items ordered.'
-            meta:
-                dimension:
-                    type: string
-                metrics:
-                    count_unique_items:
-                        type: count_distinct
-                    count_unique_items_shipped:
-                        type: count_distinct
-                        filters:
-                            - status: 'shipped'
-          - name: item_cost
-            description: 'Cost for each item ordered.'
-            meta:
-                dimension:
-                    type: number
-                metrics:
-                    total_cost:
-                        type: sum
-                    total_cost_of_shipped:
-                        type: sum
-                        filters:
-                            - status: 'shipped'
+            count_unique_items:
+              type: count_distinct
+            count_unique_items_shipped:
+              type: count_distinct
+              filters:
+                - status: 'shipped'
+      - name: item_cost
+        description: 'Cost for each item ordered.'
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_cost:
+              type: sum
+            total_cost_of_shipped:
+              type: sum
+              filters:
+                - status: 'shipped'
 ```
 
 ## Format

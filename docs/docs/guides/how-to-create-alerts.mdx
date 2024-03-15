@@ -30,19 +30,19 @@ To set up Slack, see [setting up Slack](/guides/sharing-in-slack.mdx#adding-slac
 Only users with [admin, developer or edit access](/references/roles.mdx) can create alerts. To create an alert, click on the three-dot menu in the top-right corner of your chart or dashboard, then click on `Alerts`.
 
 <img
-    src={ThreeDotMenu}
-    width="752"
-    height="222"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={ThreeDotMenu}
+  width="752"
+  height="222"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 You'll get a modal that pops up and shows you the list of existing alerts for your saved chart, and gives you the option to `create new`.
 
 <img
-    src={CreateNewModal}
-    width="500"
-    height="605"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={CreateNewModal}
+  width="500"
+  height="605"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ### Setup
@@ -50,23 +50,23 @@ You'll get a modal that pops up and shows you the list of existing alerts for yo
 Once you click on `create new`, you'll be brought to a configuration screen for your new alert.
 
 <img
-    src={ConfigureNewAlert}
-    width="526"
-    height="598"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={ConfigureNewAlert}
+  width="526"
+  height="598"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 Here, you can configure your alert.
 The options are:
 
--   **Alert name**: this is the name of your alert.
--   **Conditions**: Configure the condition that is going to be evaluated against the first result(s).
-    -   `Alert field` The numeric field is going to be evaluated
-    -   `Condition`: Operator we are going to use to evaluate your value.
-        -   **is greater/less than**: Check if the `first` value in your results is greater/less than your threshold value.
-        -   **increased/decreased by**: Verify whether the percentage change in the first value relative to the second value exceeds the specified threshold, either by increasing or decreasing.
--   **Run frequency**: This is the frequency at which Lightdash runs a query to check your data for changes. (You will be notified if the conditions on the latest value are met) . All times for the scheduler are in UTC.
--   **Send to**: here, you can pick if you want to send your alert to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. You can send an alert to a person in Slack using `@persons-name` or to a channel using `#channel-name`.
+- **Alert name**: this is the name of your alert.
+- **Conditions**: Configure the condition that is going to be evaluated against the first result(s).
+  - `Alert field` The numeric field is going to be evaluated
+  - `Condition`: Operator we are going to use to evaluate your value.
+    - **is greater/less than**: Check if the `first` value in your results is greater/less than your threshold value.
+    - **increased/decreased by**: Verify whether the percentage change in the first value relative to the second value exceeds the specified threshold, either by increasing or decreasing.
+- **Run frequency**: This is the frequency at which Lightdash runs a query to check your data for changes. (You will be notified if the conditions on the latest value are met) . All times for the scheduler are in UTC.
+- **Send to**: here, you can pick if you want to send your alert to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. You can send an alert to a person in Slack using `@persons-name` or to a channel using `#channel-name`.
 
 ## Editing and deleting your alerts
 
@@ -74,10 +74,10 @@ To edit an alert, click on the pencil-icon next to the alert you want to edit. T
 In case you want to delete a alert, click on the trash-icon next to the alert you want to delete.
 
 <img
-    src={EditDeleteAlert}
-    width="500"
-    height="515"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EditDeleteAlert}
+  width="500"
+  height="515"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 You can also pause alerts by clicking on the `toggle` button on the list of alerts.
@@ -87,10 +87,10 @@ You can also pause alerts by clicking on the `toggle` button on the list of aler
 You can also send alerts to private Slack channels. To do this, simply type the name of the Slack channel exactly as it appears in Slack into the input text box. Then click on it to confirm and save the alert.
 
 <img
-    src={PrivateSlackChannel}
-    width="752"
-    height="222"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={PrivateSlackChannel}
+  width="752"
+  height="222"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 :::info

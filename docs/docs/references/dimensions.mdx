@@ -38,50 +38,50 @@ If you want to declare multiple dimensions based on the same column, check [addi
 version: 2
 
 models:
-    - name: sales_stats
-      meta:
-          joins:
-              - join: web_sessions
-                sql_on: ${web_sessions.date} = ${sales_stats.date}
-      columns:
-          - name: revenue_gbp_total_est
-            description: 'Total estimated revenue in GBP based on forecasting done by the finance team.'
-            meta:
-                dimension:
-                    type: string
-                    label: 'Total revenue' # this is the label you'll see in Lightdash
-                    description: 'My custom description' # you can override the description you'll see in Lightdash here
-                    sql: 'IF(${TABLE}.revenue_gbp_total_est = NULL, 0, ${registered_user_email})' # custom SQL applied to the column from dbt used to define the dimension
-                    hidden: false
-                    round: 2
-                    format: 'gbp'
-                    group_label: 'Revenue'
-          - name: forecast_date
-            description: 'Date of the forecasting.'
-            meta:
-                dimension:
-                    type: date
-                    time_intervals: ['DAY', 'WEEK', 'MONTH', 'QUARTER'] # not required: the default time intervals for dates are `['DAY', 'WEEK', 'MONTH', 'YEAR']`
-                    urls:
-                        - label: 'Open in forecasting tool'
-                          url: 'https://finance.com/forceasts/weeks/${ value.raw }'
-                        - label: Open in Google Calendar
-                          url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
-                    required_attributes:
-                        is_admin: 'true'
-          - name: date
-            meta:
-                dimension:
-                    type: date
-                additional_dimensions:
-                    dimension_name_one:
-                        type: number
-                        label: 'Day of Week'
-                        sql: 'day_of_week(${date})'
-                    dimension_name_two:
-                        type: boolean
-                        label: 'Weekday or Weekend'
-                        sql: "case when day_of_week(${date}) < 5 then 'weekday' else 'weekend' end"
+  - name: sales_stats
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.date} = ${sales_stats.date}
+    columns:
+      - name: revenue_gbp_total_est
+        description: 'Total estimated revenue in GBP based on forecasting done by the finance team.'
+        meta:
+          dimension:
+            type: string
+            label: 'Total revenue' # this is the label you'll see in Lightdash
+            description: 'My custom description' # you can override the description you'll see in Lightdash here
+            sql: 'IF(${TABLE}.revenue_gbp_total_est = NULL, 0, ${registered_user_email})' # custom SQL applied to the column from dbt used to define the dimension
+            hidden: false
+            round: 2
+            format: 'gbp'
+            group_label: 'Revenue'
+      - name: forecast_date
+        description: 'Date of the forecasting.'
+        meta:
+          dimension:
+            type: date
+            time_intervals: ['DAY', 'WEEK', 'MONTH', 'QUARTER'] # not required: the default time intervals for dates are `['DAY', 'WEEK', 'MONTH', 'YEAR']`
+            urls:
+              - label: 'Open in forecasting tool'
+                url: 'https://finance.com/forceasts/weeks/${ value.raw }'
+              - label: Open in Google Calendar
+                url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
+            required_attributes:
+              is_admin: 'true'
+      - name: date
+        meta:
+          dimension:
+            type: date
+          additional_dimensions:
+            dimension_name_one:
+              type: number
+              label: 'Day of Week'
+              sql: 'day_of_week(${date})'
+            dimension_name_two:
+              type: boolean
+              label: 'Weekday or Weekend'
+              sql: "case when day_of_week(${date}) < 5 then 'weekday' else 'weekend' end"
 ```
 
 All the properties you can customize:
@@ -108,8 +108,8 @@ The types of your dimensions are pulled from your data warehouse, automatically.
 ```yaml
 - name: user_created_date
   meta:
-      dimension:
-          type: date
+    dimension:
+      type: date
 ```
 
 We currently support these dimension types:
@@ -175,8 +175,8 @@ In this example, `created` would now appear as a single, timestamp dimension wit
 - name: created
   description: 'Timestamp when the user was created.'
   meta:
-      dimension:
-          time_intervals: OFF
+    dimension:
+      time_intervals: OFF
 ```
 
 ![screenshot-intervals-off](assets/screenshot-intervals-off.png)
@@ -189,8 +189,8 @@ If you specify time intervals manually, then this overrides the default time int
 - name: created
   description: 'Timestamp when the user was created.'
   meta:
-      dimension:
-          time_intervals: ['DAY', 'WEEK', 'MONTH', 'YEAR', 'QUARTER']
+    dimension:
+      time_intervals: ['DAY', 'WEEK', 'MONTH', 'YEAR', 'QUARTER']
 ```
 
 You can see all of the interval options for date and timestamp fields below.
@@ -240,12 +240,12 @@ You can use the `format` parameter to have your dimensions show in a particular 
 - name: revenue
   description: 'Timestamp when the user was created.'
   meta:
-      dimension:
-          format: 'usd'
-      metrics:
-          total_revenue:
-              type: sum
-              format: 'usd'
+    dimension:
+      format: 'usd'
+    metrics:
+      total_revenue:
+        type: sum
+        format: 'usd'
 ```
 
 These are the options:
@@ -266,10 +266,10 @@ Lightdash users can interact with dimension values by clicking on them. By addin
 the actions available to your users. Like linking to external tools, or taking actions in other tools.
 
 <img
-    src={ClickableDimension}
-    width="583"
-    height="274"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={ClickableDimension}
+  width="583"
+  height="274"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 In the example below, users can click on a company name and open a corresponding record in their CRM or search for
@@ -277,15 +277,15 @@ the company in google or open that company's Slack channel.
 
 ```yaml
 columns:
-    - name: company_name
-      label: Registered trading name of the company
-      meta:
-          dimension:
-              urls:
-                  - label: Search for company in Google
-                    url: 'https://google.com/search?${ value.formatted | url_encode }'
-                  - label: Open in CRM
-                    url: 'https://mycrm.com/companies/${ row.company.company_id.raw | url_encode }'
+  - name: company_name
+    label: Registered trading name of the company
+    meta:
+      dimension:
+        urls:
+          - label: Search for company in Google
+            url: 'https://google.com/search?${ value.formatted | url_encode }'
+          - label: Open in CRM
+            url: 'https://mycrm.com/companies/${ row.company.company_id.raw | url_encode }'
 ```
 
 The `${ value.formatted }` will be replaced with the value of the company name in the Lightdash UI at query run time.
@@ -360,8 +360,8 @@ If a user without access to this dimension runs a query that contains this dimen
 Lightdash dimensions and custom metrics are protected by this feature, however,
 it is possible to write custom SQL to bypass this filter, for example:
 
--   Developers and admins running SQL queries on SQL runner.
--   Custom SQL or subqueries on `table calculations`
+- Developers and admins running SQL queries on SQL runner.
+- Custom SQL or subqueries on `table calculations`
 
 :::info
 
@@ -417,26 +417,26 @@ Additional dimensions names need to be unique in the model.
 
 ```yaml
 columns:
-    - name: revenue
-      meta:
-          dimension:
-              type: number
-          additional_dimensions:
-              revenue_in_thousands:
-                  type: number
-                  compact: thousands
-              revenue_in_millions:
-                  type: number
-                  compact: million
+  - name: revenue
+    meta:
+      dimension:
+        type: number
+      additional_dimensions:
+        revenue_in_thousands:
+          type: number
+          compact: thousands
+        revenue_in_millions:
+          type: number
+          compact: million
 
-    - name: metadata # this is a jsonb column with metadata
-      meta:
-          dimension:
-              hidden: true
-          additional_dimensions:
-              version:
-                  type: number
-                  sql: JSON_VALUE(${metadata}, '$.version') # custom SQL applied to get the "version" value inside metadata
+  - name: metadata # this is a jsonb column with metadata
+    meta:
+      dimension:
+        hidden: true
+      additional_dimensions:
+        version:
+          type: number
+          sql: JSON_VALUE(${metadata}, '$.version') # custom SQL applied to get the "version" value inside metadata
 ```
 
 To define metrics based on a sub-dimension, you need to add them to the model's meta metrics, or use custom SQL in
@@ -445,23 +445,23 @@ defining them under the column's meta.
 ```yaml
 version: 2
 models:
-    - name: users
-      meta:
+  - name: users
+    meta:
+      metrics:
+        highest_version_model_metric_example:
+          type: max
+          sql: ${version}
+    columns:
+      - name: metadata
+        meta:
+          dimension:
+            hidden: true
+          additional_dimensions:
+            version:
+              type: number
+              sql: JSON_VALUE(${metadata}, '$.version')
           metrics:
-              highest_version_model_metric_example:
-                  type: max
-                  sql: ${version}
-      columns:
-          - name: metadata
-            meta:
-                dimension:
-                    hidden: true
-                additional_dimensions:
-                    version:
-                        type: number
-                        sql: JSON_VALUE(${metadata}, '$.version')
-                metrics:
-                    highest_version:
-                        type: max
-                        sql: ${version}
+            highest_version:
+              type: max
+              sql: ${version}
 ```

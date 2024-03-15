@@ -12,21 +12,21 @@ For example, if we have a dimension, `status`, to split orders by their `status`
 # schema.yml
 version: 2
 models:
-    - name: 'orders'
-      description: 'A table of all orders.'
-      columns:
-          - name: 'status'
-            description: 'Status of an order: ordered/processed/complete'
-          - name: 'order_id'
-            meta:
-                metrics:
-                    total_order_count:
-                        type: count_distinct
-          - name: 'order_value'
-            meta:
-                metrics:
-                    total_sales:
-                        type: sum
+  - name: 'orders'
+    description: 'A table of all orders.'
+    columns:
+      - name: 'status'
+        description: 'Status of an order: ordered/processed/complete'
+      - name: 'order_id'
+        meta:
+          metrics:
+            total_order_count:
+              type: count_distinct
+      - name: 'order_value'
+        meta:
+          metrics:
+            total_sales:
+              type: sum
 ```
 
 You can [see the full list of metric types](/references/metrics.mdx#metric-types) that you can use in your Lightdash project.
@@ -36,10 +36,10 @@ We support metrics defined using either Lightdash or dbt syntax! You can read mo
 Once you've added your metrics, you can use them in Lightdash to build charts and filter results. Metrics appear in the Explore view, above dimensions and, if selected, pop us as brownish-yellow fields in your results table.
 
 <img
-    src={MetricsExploreView}
-    width="1132"
-    height="883"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={MetricsExploreView}
+  width="1132"
+  height="883"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ## Let's try adding a metric to our dbt project
@@ -66,14 +66,14 @@ For example:
 # schema.yml
 version: 2
 models:
-    - name: 'orders'
-      columns:
-          - name: 'status'
-          - name: 'order_id'
-            meta:
-                metrics:
-                    total_order_count:
-                        type: count
+  - name: 'orders'
+    columns:
+      - name: 'status'
+      - name: 'order_id'
+        meta:
+          metrics:
+            total_order_count:
+              type: count
 ```
 
 ### Preview your changes using `lightdash preview`

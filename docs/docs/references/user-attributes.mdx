@@ -1,6 +1,6 @@
 ---
 tags:
-    - role:admin
+  - role:admin
 ---
 
 import DefaultValue from './assets/user-attribute-default-value.png';
@@ -13,10 +13,10 @@ that is logged in. For example, you could only show your sales team members data
 User attributes are defined for your whole Organization and can only be a text value (not a date or number). Some
 examples of user attributes are:
 
--   Sales region
--   Department
--   Can view PII
--   Can view financial data
+- Sales region
+- Department
+- Can view PII
+- Can view financial data
 
 To start user attributes you need to follow 2 steps:
 
@@ -26,13 +26,13 @@ To start user attributes you need to follow 2 steps:
 User attributes can only be managed by admins.
 
 <iframe
-    width="100%"
-    height="315"
-    src="https://www.youtube.com/embed/eSUULAeBZU8"
-    title="YouTube video player"
-    frameborder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-    allowfullscreen
+  width="100%"
+  height="315"
+  src="https://www.youtube.com/embed/eSUULAeBZU8"
+  title="YouTube video player"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  allowfullscreen
 ></iframe>
 
 ## Managing user attributes
@@ -52,10 +52,10 @@ clicking on the user attribute you'd like to assign. Select a user by email addr
 You can add a default attribute that will be applied to all users who don't have their own value defined in this user attribute.
 
 <img
-    src={DefaultValue}
-    width="683"
-    height="936"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={DefaultValue}
+  width="683"
+  height="936"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 If a user has an attribute defined, we will ignore the default for that user.
@@ -66,9 +66,9 @@ There are several places in Lightdash where you can customise behaviour based on
 
 When referencing user attributes in SQL you can use the following [SQL variables](./sql-variables.mdx):
 
--   `${lightdash.attributes.my_attr_1}` - a user attribute called `my_attr_1`
-    -   (optional) `ld` as an alias for `lightdash`
-    -   (optional) `attribute` or `attr` as an alias for `attributes`
+- `${lightdash.attributes.my_attr_1}` - a user attribute called `my_attr_1`
+  - (optional) `ld` as an alias for `lightdash`
+  - (optional) `attribute` or `attr` as an alias for `attributes`
 
 ### Row filtering with `sql_filter`
 
@@ -82,9 +82,9 @@ use it in your sql like this:
 
 ```yaml
 models:
-    - name: my_model
-      meta:
-          sql_filter: ${TABLE}.sales_region IN (${lightdash.attributes.sales_region})
+  - name: my_model
+    meta:
+      sql_filter: ${TABLE}.sales_region IN (${lightdash.attributes.sales_region})
 ```
 
 ### Column filtering with `required_attributes`
@@ -113,29 +113,29 @@ You can add multiple attributes for a single dimension. There are two ways to do
 
 ```yaml
 columns:
-    - name: user
-      description: User name
-    - name: salary
-      description: User salary
-      meta:
-          dimension:
-              required_attributes:
-                  is_admin: 'true'
-                  team_name: 'HR'
+  - name: user
+    description: User name
+  - name: salary
+    description: User salary
+    meta:
+      dimension:
+        required_attributes:
+          is_admin: 'true'
+          team_name: 'HR'
 ```
 
 2. **Multiple attribute values joined with `OR`.** In the example below, users with `team_name = 'HR' OR team_name = 'C-Suite'` have access to the `salary` dimension in Lightdash.
 
 ```yaml
 columns:
-    - name: user
-      description: User name
-    - name: salary
-      description: User salary
-      meta:
-          dimension:
-              required_attributes:
-                  team_name: ['HR', 'C-Suite']
+  - name: user
+    description: User name
+  - name: salary
+    description: User salary
+    meta:
+      dimension:
+        required_attributes:
+          team_name: ['HR', 'C-Suite']
 ```
 
 ### Table filtering with `required_attributes`
@@ -166,13 +166,13 @@ use it in your sql like this:
 
 ```yaml
 models:
-    - name: base
-      meta:
-          joins:
-              - join: joined
-                sql_on: >
-                    ${base}.id = ${joined}.id
-                    AND ${joined}.sales_region = ${lightdash.attributes.sales_region}
+  - name: base
+    meta:
+      joins:
+        - join: joined
+          sql_on: >
+            ${base}.id = ${joined}.id
+            AND ${joined}.sales_region = ${lightdash.attributes.sales_region}
 ```
 
 ## Current limitations
@@ -180,8 +180,8 @@ models:
 Lightdash dimensions and custom metrics are protected by this feature, however,
 it is possible to write custom SQL to bypass this filter, for example:
 
--   Developers and admins running SQL queries on SQL runner.
--   Custom SQL or subqueries on `table calculations`
+- Developers and admins running SQL queries on SQL runner.
+- Custom SQL or subqueries on `table calculations`
 
 :::info
 
@@ -194,13 +194,13 @@ Scheduler deliveries will run against the user who created the scheduled deliver
 The following video gives you a full demo for how to use user attributes to filter chart results.
 
 <iframe
-    width="100%"
-    height="315"
-    src="https://www.youtube.com/embed/t6QS0rr0PDQ"
-    title="YouTube video player"
-    frameborder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-    allowfullscreen
+  width="100%"
+  height="315"
+  src="https://www.youtube.com/embed/t6QS0rr0PDQ"
+  title="YouTube video player"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  allowfullscreen
 ></iframe>
 
 ## How user and group attribute values interact
@@ -215,11 +215,11 @@ For example, if a user is part of a group with the attribute value `kiwi`, anoth
 
 ```yaml
 columns:
-    - name: tropical_fruits_column
-      meta:
-          dimension:
-              required_attributes:
-                  fruits: 'coconut'
+  - name: tropical_fruits_column
+    meta:
+      dimension:
+        required_attributes:
+          fruits: 'coconut'
 ```
 
 In this example, the `tropical_fruits_column` will be visible to them because `coconut` is listed in their attribute values `['kiwi','orange', 'coconut']`.
@@ -232,9 +232,9 @@ Let's walk through an example:
 
 ```yaml
 models:
-    - name: my_model
-      meta:
-          sql_filter: ${TABLE}.fruit IN (${lightdash.attributes.fruit})
+  - name: my_model
+    meta:
+      sql_filter: ${TABLE}.fruit IN (${lightdash.attributes.fruit})
 ```
 
 In this example, the `${lightdash.attributes.fruit}` will be replaced with `'kiwi','orange','coconut'`.

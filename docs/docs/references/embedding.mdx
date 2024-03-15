@@ -29,10 +29,10 @@ The embed secret is used to generate tokens for embedding dashboards.
 This secret is like a password that will help you encrypt the URLs so we know the access is valid.
 
 <img
-    src={EmbedCreateSecret}
-    width="668"
-    height="466"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EmbedCreateSecret}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 .
 
@@ -43,10 +43,10 @@ You can regenerate the secret by clicking on the `Generate new secret` button. I
 Only dashboards included in the `allowed dashboards` can be accessed using embed URLs. To embed a dashboard, you need to first add it to the `allowed dashboards` list.
 
 <img
-    src={EmbedAddDashboard}
-    width="668"
-    height="466"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EmbedAddDashboard}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ## Configure
@@ -54,10 +54,10 @@ Only dashboards included in the `allowed dashboards` can be accessed using embed
 Configure the embed URL. Then preview your settings and copy it to your clipboard.
 
 <img
-    src={EmbedPreview}
-    width="668"
-    height="466"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EmbedPreview}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ### Dashboard
@@ -103,10 +103,10 @@ Although you can generate URLs directly from Lightdash with a long expiration, i
 To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL.
 
 <img
-    src={EmbedDeveloper}
-    width="668"
-    height="466"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EmbedDeveloper}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ### User metadata
@@ -120,13 +120,13 @@ import jwt from 'jsonwebtoken';
 const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
 const projectUuid = 'my-project-uuid';
 const data = {
-    user: {
-        externalId: 'your_user_id_123', // Add this to assign an external ID
-    },
-    content: {
-        type: 'dashboard',
-        dashboardUuid: 'your dashboard uuid',
-    },
+  user: {
+    externalId: 'your_user_id_123', // Add this to assign an external ID
+  },
+  content: {
+    type: 'dashboard',
+    dashboardUuid: 'your dashboard uuid',
+  },
 };
 const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '1 hour' });
 const url = `https://analytics.lightdash.cloud/embed/${projectUuid}/#${token}`;

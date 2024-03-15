@@ -32,19 +32,19 @@ To set up Slack, see [setting up Slack](/guides/sharing-in-slack.mdx#adding-slac
 Only users with [admin, developer or edit access](/references/roles.mdx) can create scheduled deliveries. To create a scheduled delivery, click on the three-dot menu in the top-right corner of your chart or dashboard, then click on `scheduled deliveries`.
 
 <img
-    src={ThreeDotMenu}
-    width="752"
-    height="222"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={ThreeDotMenu}
+  width="752"
+  height="222"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 You'll get a modal that pops up and shows you the list of existing scheduled deliveries for your saved chart or dashboard, and gives you the option to `create new`.
 
 <img
-    src={CreateNewModal}
-    width="500"
-    height="605"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={CreateNewModal}
+  width="500"
+  height="605"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ### Setup
@@ -52,32 +52,32 @@ You'll get a modal that pops up and shows you the list of existing scheduled del
 Once you click on `create new`, you'll be brought to a configuration screen for your new scheduled delivery.
 
 <img
-    src={ConfigureNewDelivery}
-    width="526"
-    height="598"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={ConfigureNewDelivery}
+  width="526"
+  height="598"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 Here, you can configure your scheduled delivery.
 The options are:
 
--   **Delivery name**: this is the name of your scheduled delivery.
--   **Delivery frequency**: this is how often your scheduled delivery will be sent. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. For example, with a monthly schedule, you set the day of the month and the time that you want your scheduled delivery to be sent. The custom frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. All times for the scheduler are in UTC.
--   **Format**: either `Image` or `CSV`.
-    -   `Image` sends an image of the content (chart or dashboard) to your chosen destination. You may also want to send the image as a PDF attachment if you choose to send it over email.
-    -   `CSV`: sends a downloadable .csv file of the results table from your chart, or if you're sending a dashboard, it sends a single message with multiple .csv files for the results tables from each of your charts. You can set the `values` to either be `raw` (we remove the formatting applied dates, numbers, or other fields in Lightdash) or `formatted` (the way the values appear in your table in Lightdash is how they'll appear in the .csv). You can also adjust the `limit` and specify the number of rows that you want to be delivered in your .csv. `Results in table` will deliver the number of results that are currently in the results table for your charts. You can also set a custom number of rows to be delivered using `custom`, or set all results to be delivered so there's no maximum row limit for each chart using `all results`.
-        -   **Limit on CSV format**: We limit CSV downloads to 100,000 cells by default, so if you are trying to download more cells, your file will get truncated.
--   **Send to**: here, you can pick if you want to send your scheduled delivery to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. You can send a scheduled delivery to a person in Slack using `@persons-name` or to a channel using `#channel-name`.
+- **Delivery name**: this is the name of your scheduled delivery.
+- **Delivery frequency**: this is how often your scheduled delivery will be sent. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. For example, with a monthly schedule, you set the day of the month and the time that you want your scheduled delivery to be sent. The custom frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. All times for the scheduler are in UTC.
+- **Format**: either `Image` or `CSV`.
+  - `Image` sends an image of the content (chart or dashboard) to your chosen destination. You may also want to send the image as a PDF attachment if you choose to send it over email.
+  - `CSV`: sends a downloadable .csv file of the results table from your chart, or if you're sending a dashboard, it sends a single message with multiple .csv files for the results tables from each of your charts. You can set the `values` to either be `raw` (we remove the formatting applied dates, numbers, or other fields in Lightdash) or `formatted` (the way the values appear in your table in Lightdash is how they'll appear in the .csv). You can also adjust the `limit` and specify the number of rows that you want to be delivered in your .csv. `Results in table` will deliver the number of results that are currently in the results table for your charts. You can also set a custom number of rows to be delivered using `custom`, or set all results to be delivered so there's no maximum row limit for each chart using `all results`.
+    - **Limit on CSV format**: We limit CSV downloads to 100,000 cells by default, so if you are trying to download more cells, your file will get truncated.
+- **Send to**: here, you can pick if you want to send your scheduled delivery to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. You can send a scheduled delivery to a person in Slack using `@persons-name` or to a channel using `#channel-name`.
 
 ### Filters
 
 You can also customise the **saved** filters([more information on how to save filters in dashboards](/guides/limiting-data-using-filters#adding-saved-filters-to-your-dashboard)) applied to your dashboard on the `Filters` tab. This lets you send a different version of your dashboard to different people, without having to create multiple dashboards.
 
 <img
-    src={DashboardScheduledDeliveryFilters}
-    width="845"
-    height="515"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={DashboardScheduledDeliveryFilters}
+  width="845"
+  height="515"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 :::info
@@ -93,10 +93,10 @@ Here, you'll be able to:
 ### Customization
 
 <img
-    src={ScheduledDeliveryCustomization}
-    width="400"
-    height="515"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={ScheduledDeliveryCustomization}
+  width="400"
+  height="515"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 Finally, you can customize the message that gets sent with your scheduled delivery on the `Customization` tab.
@@ -107,10 +107,10 @@ To edit a scheduled delivery, click on the pencil-icon next to the scheduled del
 In case you want to delete a scheduled delivery, click on the trash-icon next to the scheduled delivery you want to delete.
 
 <img
-    src={EditDeleteDelivery}
-    width="500"
-    height="515"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EditDeleteDelivery}
+  width="500"
+  height="515"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ## Overview of your scheduled deliveries
@@ -122,10 +122,10 @@ In the scheduled deliveries overview page, you can see a list of all of your sch
 To access the overview page, just head to your project settings, then to the `Syncs & Scheduled Deliveries` tab.
 
 <img
-    src={ScheduledDeliveriesOverview}
-    width="1086"
-    height="589"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={ScheduledDeliveriesOverview}
+  width="1086"
+  height="589"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ## Sending to private Slack channels

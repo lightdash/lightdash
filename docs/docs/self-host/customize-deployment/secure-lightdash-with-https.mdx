@@ -13,30 +13,30 @@ cloud provider's load balancer or ingress controller. Optionally you could use a
 ```yaml
 # values.yaml
 configMap:
-    # Ensures all Lightdash links use https
-    SITE_URL: https://lightdash.mycompany.com
+  # Ensures all Lightdash links use https
+  SITE_URL: https://lightdash.mycompany.com
 
-    # Only allow cookies to be sent over HTTPS
-    SECURE_COOKIES: 'true'
+  # Only allow cookies to be sent over HTTPS
+  SECURE_COOKIES: 'true'
 
-    # (optional) allow http traffic behind a https enabled proxy
-    TRUST_PROXY: 'true'
+  # (optional) allow http traffic behind a https enabled proxy
+  TRUST_PROXY: 'true'
 
 # Depending on your ingress implemantation you may need to set the following
 service:
-    type: NodePort
+  type: NodePort
 
 # Example ingress controller configuration
 ingress:
-    enabled: true
-    annotations: {}
-    hosts:
-        - host: lightdash.mycompany.com
-          paths:
-              - path: /*
-                pathType: ImplementationSpecific
-    tls:
-        - hosts:
-              - lightdash.mycompany.com
-          secretName: lightdash-tls
+  enabled: true
+  annotations: {}
+  hosts:
+    - host: lightdash.mycompany.com
+      paths:
+        - path: /*
+          pathType: ImplementationSpecific
+  tls:
+    - hosts:
+        - lightdash.mycompany.com
+      secretName: lightdash-tls
 ```

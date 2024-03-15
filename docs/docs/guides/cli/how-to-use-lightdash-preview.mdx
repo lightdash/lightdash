@@ -7,7 +7,7 @@ import GithubSecrets from '../../snippets/github-secrets.mdx';
 without affecting your production project.
 
 <a href="https://www.loom.com/share/fddc9adab0694f60a85d0a48d67469be">
-    <img src="https://cdn.loom.com/sessions/thumbnails/fddc9adab0694f60a85d0a48d67469be-with-play.gif" />
+  <img src="https://cdn.loom.com/sessions/thumbnails/fddc9adab0694f60a85d0a48d67469be-with-play.gif" />
 </a>
 
 Preview environments will copy all spaces/charts/dashboards into your new preview environment, so you can test the content
@@ -81,15 +81,15 @@ We need to add a step in the GitHub action to fetch the user that created the pu
 - uses: actions/github-script@v6
   id: get_pr_creator
   with:
-      script: |
-          return (
-            await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              commit_sha: context.sha,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            })
-          ).data[0].user.login;
-      result-encoding: string
+    script: |
+      return (
+        await github.rest.repos.listPullRequestsAssociatedWithCommit({
+          commit_sha: context.sha,
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+        })
+      ).data[0].user.login;
+    result-encoding: string
 ```
 
 When copying the following templates, you should replace `${{ github.actor }}` with `${{steps.get_pr_creator.outputs.result}}`.
@@ -101,26 +101,26 @@ Update your `DBT_PROFILES` to have 1 target per developer. The target name shoul
 
 ```yaml
 jaffle_shop:
-    target: prod
-    outputs:
-        prod:
-            type: bigquery
-            method: oauth
-            keyfile: keyfile.json
-            project: jaffle-shop
-            dataset: prod
-        katie: # example developer 1, should be GitHub username
-            type: bigquery
-            method: oauth
-            keyfile: keyfile.json
-            project: jaffle-shop
-            dataset: dbt_katie
-        jose: # example developer 2
-            type: bigquery
-            method: oauth
-            keyfile: keyfile.json
-            project: jaffle-shop
-            dataset: dbt_jose
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      keyfile: keyfile.json
+      project: jaffle-shop
+      dataset: prod
+    katie: # example developer 1, should be GitHub username
+      type: bigquery
+      method: oauth
+      keyfile: keyfile.json
+      project: jaffle-shop
+      dataset: dbt_katie
+    jose: # example developer 2
+      type: bigquery
+      method: oauth
+      keyfile: keyfile.json
+      project: jaffle-shop
+      dataset: dbt_jose
 ```
 
 Then, update your GitHub action to use the username as the `--target` flag for the `lightdash start-preview` command.
@@ -136,9 +136,9 @@ Then, update your GitHub action to use the username as the environment.
 
 ```yml
 jobs:
-    preview:
-        runs-on: ubuntu-latest
-        environment: ${{ github.actor }}
+  preview:
+    runs-on: ubuntu-latest
+    environment: ${{ github.actor }}
 ```
 
 ## How to use the dbt cloud schema in your preview project
@@ -159,21 +159,21 @@ Then we need to add a step in the GitHub action to fetch the pull request id.
 - uses: actions/github-script@v6
   id: pr_id
   with:
-      script: |
-          if (context.issue.number) {
-            // Return issue number if present
-            return context.issue.number;
-          } else {
-            // Otherwise return issue number from commit
-            return (
-              await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                commit_sha: context.sha,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              })
-            ).data[0].number;
-          }
-      result-encoding: string
+    script: |
+      if (context.issue.number) {
+        // Return issue number if present
+        return context.issue.number;
+      } else {
+        // Otherwise return issue number from commit
+        return (
+          await github.rest.repos.listPullRequestsAssociatedWithCommit({
+            commit_sha: context.sha,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          })
+        ).data[0].number;
+      }
+    result-encoding: string
 ```
 
 After that we need to add a new env variable to the step "Lightdash CLI start preview" which is the schema that dbt cloud will use.
@@ -182,8 +182,8 @@ Note that in this example we assume the job id is `1234`. You will need to repla
 
 ```yaml
 env:
-    # ... keep existing env variables
-    DBT_SCHEMA: 'dbt_cloud_pr_1234_${{steps.pr_id.outputs.result}}'
+  # ... keep existing env variables
+  DBT_SCHEMA: 'dbt_cloud_pr_1234_${{steps.pr_id.outputs.result}}'
 ```
 
 Now dbt will use the correct schema when running in the preview environment.

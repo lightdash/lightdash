@@ -13,7 +13,7 @@ Not too sure what a .yml file or a Table is? Be sure to check out our tutorial o
 ## Auto-generate `schema.yml` files
 
 <a href="https://www.loom.com/share/82833c5ea8a841dbb0ebdbcd878f85a1">
-    <img src="https://cdn.loom.com/sessions/thumbnails/82833c5ea8a841dbb0ebdbcd878f85a1-with-play.gif" />
+  <img src="https://cdn.loom.com/sessions/thumbnails/82833c5ea8a841dbb0ebdbcd878f85a1-with-play.gif" />
 </a>
 
 To make it faster to write and maintain your `schema.yml` files, the Lightdash CLI will automatically generate and
@@ -69,10 +69,10 @@ This is a string field that tells us the category of the product that was sold. 
 
 The valid product categories are:
 
--   clothing
--   home
--   accessories
--   beauty
+- clothing
+- home
+- accessories
+- beauty
 
 {% enddocs %}
 
@@ -82,12 +82,12 @@ I can then reference this doc block in my .yml files like so:
 version: 2
 
 models:
-    - name: products
-      description: 'one row per product ID'
+  - name: products
+    description: 'one row per product ID'
 
-      columns:
-          - name: product_category
-            description: '{{ doc("product_category") }}'
+    columns:
+      - name: product_category
+        description: '{{ doc("product_category") }}'
 ```
 ````
 
@@ -101,12 +101,12 @@ The nice thing about doc blocks is that Lightdash automatically adds these to th
 version: 2
 
 models:
-    - name: product_sales
+  - name: product_sales
 
-      columns:
-          - name: product_id
-          - name: product_value
-          - name: product_category
+    columns:
+      - name: product_id
+      - name: product_value
+      - name: product_category
 ```
 
 Then, I did:
@@ -121,13 +121,13 @@ Then my `product_sales.yml` file would be updated to include the doc block for `
 version: 2
 
 models:
-    - name: product_sales
+  - name: product_sales
 
-      columns:
-          - name: product_id
-          - name: product_value
-          - name: product_category
-            description: '{{ doc("product_category") }}'
+    columns:
+      - name: product_id
+      - name: product_value
+      - name: product_category
+        description: '{{ doc("product_category") }}'
 ```
 
 We reccomend using doc blocks whenever you can! They help with keeping the definitions of fields across your project consistent, and they also allow you to get great docs, completely automatically with the Lightdash CLI.

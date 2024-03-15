@@ -14,10 +14,10 @@ import CurrencyFormat from './assets/currency-format.png';
 Table calculations make it easy to create metrics on the fly (for example, aggregating the data in your table over some window, or getting a running total of a column). You add table calculations in the Explore view and they appear as green columns in your results table (remember, [dimensions](https://docs.lightdash.com/references/dimensions) are blue, and [metrics](https://docs.lightdash.com/references/metrics) are orange).
 
 <img
-    src={TableCalculationsAddImage}
-    width="880"
-    height="557"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={TableCalculationsAddImage}
+  width="880"
+  height="557"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 Table calculations are built using raw SQL. That means you can use table calculations to build mathematical, True/False, text, and date-based calculations (basically, anything you can do in SQL, you can do in table calculations).
@@ -41,10 +41,10 @@ Table calculations can only be built using the dimensions + metrics that you've 
 Once you've got some data in your results table, you can create a table calculation by clicking on the `+ Table calculation` in the `Results` tab of the Explore view:
 
 <img
-    src={CreateNewCalc}
-    width="970"
-    height="505"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={CreateNewCalc}
+  width="970"
+  height="505"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 #### 3. Write the SQL for your table calculation in the pop-up box
@@ -54,10 +54,10 @@ Your table calculation is defined using raw SQL that you write up in this pop up
 To reference the metrics and dimensions in your results table, you can either use the autocomplete, or you can manually write the full field name using the format `${table_name.field_name}`.
 
 <img
-    src={WriteNewCalc}
-    width="870"
-    height="563"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={WriteNewCalc}
+  width="870"
+  height="563"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 #### 4. Update the format of your table calculation (if needed)
@@ -65,10 +65,10 @@ To reference the metrics and dimensions in your results table, you can either us
 If needed, you can update the format of your table calculation to things like percent formatting using the `format` tab.
 
 <img
-    src={FormatCalc}
-    width="793"
-    height="454"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={FormatCalc}
+  width="793"
+  height="454"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 | Format types | Description                                     | Raw value | How it might look like in Lightdash |
@@ -83,10 +83,10 @@ If needed, you can update the format of your table calculation to things like pe
 If you need to edit or delete a table calculation, you can just click on the toggle beside the field and do what you need to do!
 
 <img
-    src={EditDeleteCalc}
-    width="330"
-    height="273"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EditDeleteCalc}
+  width="330"
+  height="273"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ---

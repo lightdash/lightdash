@@ -14,15 +14,15 @@ Joins are defined at the same level as your model parameters in your YAML file.
 ```yaml
 version: 2
 models:
-    - name: users
-      meta:
-          joins:
-              - join: web_sessions
-                sql_on: ${web_sessions.user_id} = ${users.user_id}
-                fields: [user_id, email, name]
-              - join: subscriptions
-                sql_on: ${subscriptions.user_id} = ${users.user_id} AND ${subscriptions.is_active}
-                type: inner
+  - name: users
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.user_id} = ${users.user_id}
+          fields: [user_id, email, name]
+        - join: subscriptions
+          sql_on: ${subscriptions.user_id} = ${users.user_id} AND ${subscriptions.is_active}
+          type: inner
 ```
 
 When you open Lightdash, your joined models' dimensions and metrics will appear below the ones in your selected model.
@@ -39,12 +39,12 @@ When joining a model B onto a model A, you may want to rename the model for read
 
 ```yaml
 models:
-    - name: messages
-      meta:
-          joins:
-              - join: users
-                label: Sender
-                sql_on: ${messages.sent_by} = ${users.user_id}
+  - name: messages
+    meta:
+      joins:
+        - join: users
+          label: Sender
+          sql_on: ${messages.sent_by} = ${users.user_id}
 ```
 
 ## Join the same table multiple times with an `alias`
@@ -55,15 +55,15 @@ this `messages` model has both a sender and a recipient:
 
 ```yaml
 models:
-    - name: messages
-      meta:
-          joins:
-              - join: users
-                alias: sender
-                sql_on: ${messages.sent_by} = ${sender.user_id}
-              - join: users
-                alias: recipient
-                sql_on: ${messages.sent_to} = ${recipient.user_id}
+  - name: messages
+    meta:
+      joins:
+        - join: users
+          alias: sender
+          sql_on: ${messages.sent_by} = ${sender.user_id}
+        - join: users
+          alias: recipient
+          sql_on: ${messages.sent_to} = ${recipient.user_id}
 ```
 
 Note the following important differences when aliasing models in joins:
@@ -82,12 +82,12 @@ here's an example of how to specify a join type:
 
 ```yaml
 models:
-    - name: messages
-      meta:
-          joins:
-              - join: users
-                type: inner
-                sql_on: ${messages.sent_by} = ${users.user_id}
+  - name: messages
+    meta:
+      joins:
+        - join: users
+          type: inner
+          sql_on: ${messages.sent_by} = ${users.user_id}
 ```
 
 :::info
@@ -113,12 +113,12 @@ Here's an example of how to specify an inner join:
 
 ```yaml
 models:
-    - name: users
-      meta:
-          joins:
-              - join: subscriptions
-                sql_on: ${users.user_id} = ${subscriptions.user_id}
-                type: inner
+  - name: users
+    meta:
+      joins:
+        - join: subscriptions
+          sql_on: ${users.user_id} = ${subscriptions.user_id}
+          type: inner
 ```
 
 ### left
@@ -129,12 +129,12 @@ Here's an example of how to specify a left join:
 
 ```yaml
 models:
-    - name: users
-      meta:
-          joins:
-              - join: subscriptions
-                sql_on: ${users.user_id} = ${subscriptions.user_id}
-                type: left # you can omit this, as left is the default
+  - name: users
+    meta:
+      joins:
+        - join: subscriptions
+          sql_on: ${users.user_id} = ${subscriptions.user_id}
+          type: left # you can omit this, as left is the default
 ```
 
 ### right
@@ -145,12 +145,12 @@ Here's an example of how to specify a right join:
 
 ```yaml
 models:
-    - name: users
-      meta:
-          joins:
-              - join: subscriptions
-                sql_on: ${users.user_id} = ${subscriptions.user_id}
-                type: right
+  - name: users
+    meta:
+      joins:
+        - join: subscriptions
+          sql_on: ${users.user_id} = ${subscriptions.user_id}
+          type: right
 ```
 
 ### full
@@ -165,12 +165,12 @@ few of its fields are useful in the joined context. For example this `messages` 
 
 ```yaml
 models:
-    - name: messages
-      meta:
-          joins:
-              - join: users
-                sql_on: ${messages.sent_by} = ${users.user_id}
-                fields: [user_id, email, name]
+  - name: messages
+    meta:
+      joins:
+        - join: users
+          sql_on: ${messages.sent_by} = ${users.user_id}
+          fields: [user_id, email, name]
 ```
 
 ## Using joined dimensions or metrics in your .yml
@@ -183,22 +183,22 @@ For example, I can filter one of my metrics using a dimension from my joined mod
 version: 2
 
 models:
-    - name: users
-      meta:
-          joins:
-              - join: web_sessions
-                sql_on: ${web_sessions.user_id} = ${users.user_id}
-              - join: subscriptions
-                sql_on: ${subscriptions.user_id} = ${users.user_id} AND ${subscriptions.is_active}
+  - name: users
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.user_id} = ${users.user_id}
+        - join: subscriptions
+          sql_on: ${subscriptions.user_id} = ${users.user_id} AND ${subscriptions.is_active}
 
-      columns:
-          - name: user_id
-            meta:
-                metrics:
-                    num_unique_premium_user_ids:
-                        type: count_distinct
-                        filters:
-                            - subscriptions.plan: premium
+    columns:
+      - name: user_id
+        meta:
+          metrics:
+            num_unique_premium_user_ids:
+              type: count_distinct
+              filters:
+                - subscriptions.plan: premium
 ```
 
 You can also reference these joined metrics and dimensions in custom sql, like this:
@@ -207,23 +207,23 @@ You can also reference these joined metrics and dimensions in custom sql, like t
 version: 2
 
 models:
-    - name: users
-      meta:
-          joins:
-              - join: web_sessions
-                sql_on: ${web_sessions.user_id} = ${users.user_id}
-              - join: subscriptions
-                sql_on: ${subscriptions.user_id} = ${users.user_id} AND ${subscriptions.is_active}
+  - name: users
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.user_id} = ${users.user_id}
+        - join: subscriptions
+          sql_on: ${subscriptions.user_id} = ${users.user_id} AND ${subscriptions.is_active}
 
-      columns:
-          - name: user_id
-            meta:
-                dimension:
-                    sql: IF(${subscriptions.plan} IS NULL, NULL, ${user_id})
-                metrics:
-                    num_unique_premium_user_ids:
-                        type: count_distinct
-                        sql: IF(${subscriptions.plan} = 'premium', ${user_id}, NULL)
+    columns:
+      - name: user_id
+        meta:
+          dimension:
+            sql: IF(${subscriptions.plan} IS NULL, NULL, ${user_id})
+          metrics:
+            num_unique_premium_user_ids:
+              type: count_distinct
+              sql: IF(${subscriptions.plan} = 'premium', ${user_id}, NULL)
 ```
 
 Check out our [dimensions](/references/dimensions) and [metrics](/references/metrics) reference docs to see all of the other configurations you can use with your joined fields.
@@ -235,23 +235,23 @@ You can add a `hidden: true` tag to joins, like this to hide these intermediate 
 
 ```yaml
 models:
-    - name: users
-      meta:
-      joins:
-          - join: map_users_organizations
-            sql_on: users.user_id = map_users_organizations.user_id
-            hidden: true
-          - join: organizations
-            sql_on: organizations.organization_id = map_users_organizations.organization_id
+  - name: users
+    meta:
+    joins:
+      - join: map_users_organizations
+        sql_on: users.user_id = map_users_organizations.user_id
+        hidden: true
+      - join: organizations
+        sql_on: organizations.organization_id = map_users_organizations.organization_id
 ```
 
 Using just the `hidden` tag in the join and changing nothing else will remove the joined table from the sidebar of metrics/dimensions in `users`, but it will still appear in the "Tables" list as a table to explore on its own.
 
 <img
-    src={HideJoinTableColumns}
-    width="928"
-    height="527"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={HideJoinTableColumns}
+  width="928"
+  height="527"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 .
 
@@ -273,14 +273,14 @@ For example:
 
 ```yaml
 models:
-    users:
-        +tags:
-            - 'lightdash'
-            - 'lightdash-explore'
+  users:
+    +tags:
+      - 'lightdash'
+      - 'lightdash-explore'
 
-    map_users_organizations:
-        +tags:
-            - 'lightdash'
+  map_users_organizations:
+    +tags:
+      - 'lightdash'
 ```
 
 When deploying lightdash via the CLI or using GitHub actions, you should use the dbt selector `-s lightdash` to make sure you don't compile unnecessary models.
@@ -290,9 +290,9 @@ In the Lightdash app, under the `project settings` --> `tables configuration`, y
 Doing this (combined with using the `hidden` label for the joined table above) would hide it both from the Tables list, and from the sidebar in the `Users` table.
 
 <img
-    src={HideJoinedTableFromTablesList}
-    width="996"
-    height="492"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={HideJoinedTableFromTablesList}
+  width="996"
+  height="492"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 .

@@ -5,7 +5,7 @@
     "organizeImportsSkipDestructiveCodeActions": true,
     "overrides": [
         {
-            "files": ["*.yml", "*.yaml"],
+            "files": ["*.mdx", "*.md", "*.yml", "*.yaml"],
             "options": {
                 "useTabs": false,
                 "tabWidth": 2

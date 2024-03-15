@@ -23,10 +23,10 @@ First, you need to generate a secret per project.
 This secret is like a password that will help you encrypt the URLs so we know the access is valid.
 
 <img
-    src={EmbedCreateSecret}
-    width="668"
-    height="466"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EmbedCreateSecret}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 .
 
@@ -37,10 +37,10 @@ You can regenerate the secret by clicking on the `Generate new secret` button. I
 Only selected dashboards can be accessed via embed URLs
 
 <img
-    src={EmbedAddDashboard}
-    width="668"
-    height="466"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EmbedAddDashboard}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ### Preview
@@ -48,10 +48,10 @@ Only selected dashboards can be accessed via embed URLs
 Under preview you can generate a one-off shareable embed URL for a single dashboard.
 
 <img
-    src={EmbedPreview}
-    width="668"
-    height="466"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EmbedPreview}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 Click on `preview` to see the embed content and click on `Generate & copy URL` to generate an embed URL for this dashboard
@@ -65,10 +65,10 @@ to make sure people can't be using embed URLs outside your app.
 To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL
 
 <img
-    src={EmbedDeveloper}
-    width="668"
-    height="466"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={EmbedDeveloper}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 :::info
@@ -94,10 +94,10 @@ Imagine a scenario where I have a dashboard embedded in my application showing a
 First, we need to create a [user attribute](../references/user-attributes.mdx) in Lightdash that we can use to assign our users to a specific shop. I create an attribute called `shop_id` and I set the default value to `all`.
 
 <img
-    src={CreateUserAttribute}
-    width="516"
-    height="381"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={CreateUserAttribute}
+  width="516"
+  height="381"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 .
 
@@ -108,9 +108,9 @@ We need to filter the access to all of the tables we use in our dashboard using 
 ```yaml
 version: 2
 models:
-    - name: orders
-      meta:
-          sql_filter: ${lightdash.attributes.shop_id} = 'all' OR ${TABLE}.shop_id = ${lightdash.attributes.shop_id}
+  - name: orders
+    meta:
+      sql_filter: ${lightdash.attributes.shop_id} = 'all' OR ${TABLE}.shop_id = ${lightdash.attributes.shop_id}
 ```
 
 ### Add the user attribute to your dashboard embed
@@ -126,10 +126,10 @@ You can assign your dashboard a single, constant value for your attribute by add
 For example, if I wanted the embed link to only show data for `shop_id = Thyme to Shine`, then I would add a user attribute `shop_id` with the value `Thyme to Shine`.
 
 <img
-    src={DashboardEmbedAttribute}
-    width="399"
-    height="149"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={DashboardEmbedAttribute}
+  width="399"
+  height="149"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 .
 
@@ -145,11 +145,11 @@ const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
 const projectUuid = '21eef0b9-5bae-40f3-851e-9554588e71a6';
 const userShopId = await getUserShopIdFromDatabase();
 const data = {
-    content: {
-        type: 'dashboard',
-        dashboardUuid: 'a392ed6d-4c53-4102-89b7-1c57a87df391',
-    },
-    userAttributes: { shop_id: userShopId },
+  content: {
+    type: 'dashboard',
+    dashboardUuid: 'a392ed6d-4c53-4102-89b7-1c57a87df391',
+  },
+  userAttributes: { shop_id: userShopId },
 };
 const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '1 hour' });
 const url = `https://analytics.lightdash.cloud/embed/${projectUuid}/#${token}`;

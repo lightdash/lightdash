@@ -12,12 +12,12 @@ Ensure you have access to the dbt Semantic Layer via your dbt Cloud account, fol
 
 **Features:**
 
--   Query your Semantic Layer via the Lightdash UI
--   Dynamically show matching metrics and dimensions based on current selected fields
--   Dimensions are grouped by dbt Entities
--   Modify time granularity for any timegrain dimensions
--   (coming soon) Share & save Semantic Layer to Lightdash dashboards
--   (coming soon) Search field for easier discover of metrics and dimensions
+- Query your Semantic Layer via the Lightdash UI
+- Dynamically show matching metrics and dimensions based on current selected fields
+- Dimensions are grouped by dbt Entities
+- Modify time granularity for any timegrain dimensions
+- (coming soon) Share & save Semantic Layer to Lightdash dashboards
+- (coming soon) Search field for easier discover of metrics and dimensions
 
 ## Getting started with dbt Semantic Layer in Lightdash
 
@@ -39,18 +39,18 @@ The dbt Semantic Layer integration with Lightdash is actively being developed an
 
 1. Add these `dbt semantic layer` environment variables to your Lightdash deployment https://docs.lightdash.com/self-host/customize-deployment/environment-variables
 
-    1. `DBT_CLOUD_DOMAIN` (optional): set this if your domain is different from `https://semantic-layer.cloud.getdbt.com`
-    2. `DBT_CLOUD_ENVIRONMENT_ID`: If your dbt URL ends with .../environments/1234, your environmentId is 1234
-    3. `DBT_CLOUD_BEARER_TOKEN`: https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens
+   1. `DBT_CLOUD_DOMAIN` (optional): set this if your domain is different from `https://semantic-layer.cloud.getdbt.com`
+   2. `DBT_CLOUD_ENVIRONMENT_ID`: If your dbt URL ends with .../environments/1234, your environmentId is 1234
+   3. `DBT_CLOUD_BEARER_TOKEN`: https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens
 
 2. Restart server/lightdash
 3. Click `New` and then `Query using dbt semantic layer`, like so:
 
 <img
-    src={QueryUsingDbtSemanticLayer}
-    width="300"
-    height="883"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={QueryUsingDbtSemanticLayer}
+  width="300"
+  height="883"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 :::warning

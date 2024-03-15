@@ -22,25 +22,25 @@ users and JIT provisioning to create users in Lightdash when they first log in.
 In the Okta admin panel, navigate to **Applications** and click **Create App Integration**, choose the following
 settings:
 
--   **Sign-in method**: OIDC - OpenID Connect
--   **Application type**: Web application
+- **Sign-in method**: OIDC - OpenID Connect
+- **Application type**: Web application
 
 On the following page you'll need to use the following settings, replace `{{ lightdash_url }}` with the URL of your
 Lightdash instance. For example if you normally access Lightdash at `https://lightdash.example.com/login` then you
 should use `https://lightdash.example.com` as your `{{ lightdash_url }}`.
 
--   **Grant type**: Authorization Code
--   **Sign-in redirect URIs**: `{{ lightdash_url }}/api/v1/oauth/redirect/okta`
--   **Sign-out redirect URIs**: `{{ lightdash_url }}`
--   **Controlled access**: Select who can access this application
+- **Grant type**: Authorization Code
+- **Sign-in redirect URIs**: `{{ lightdash_url }}/api/v1/oauth/redirect/okta`
+- **Sign-out redirect URIs**: `{{ lightdash_url }}`
+- **Controlled access**: Select who can access this application
 
 Hit **Save** and you'll be taken to the application settings page. For the optimal user experience, we recommend
 allowing Okta to initiate the login flow. To do this, click **Edit** next to **General Settings** and set:
 
--   **Login initiated by**: App and Okta Sign-in Page
--   **Application visibility**: Display application icon to users
--   **Login flow**: Redirect to app to initiate login (OIDC Compliant)
--   **Initiate login URI**: `{{ lightdash_url }}/api/v1/login/okta`
+- **Login initiated by**: App and Okta Sign-in Page
+- **Application visibility**: Display application icon to users
+- **Login flow**: Redirect to app to initiate login (OIDC Compliant)
+- **Initiate login URI**: `{{ lightdash_url }}/api/v1/login/okta`
 
 Hit **Save** to finish.
 
@@ -48,8 +48,8 @@ Hit **Save** to finish.
 
 From the application settings page, you'll need to copy the following values:
 
--   **Client ID**
--   **Client secret**
+- **Client ID**
+- **Client secret**
 
 You'll also need your **Okta domain**, which is the first part of your okta URL. For example if your Okta URL is
 https://dev-123456.okta.com then your Okta domain is `dev-123456.okta.com`.
@@ -67,12 +67,12 @@ If you want to use groups to control access to Lightdash, you'll need to configu
 
 If you're **not** using a custom authorization server ID:
 
--   on `OpenID Connect ID Token` section in the Okta application settings, add `groups` to the `Groups claim` field, by setting a Groups claims type to `Filter` and a Filter to match expression to `.*`
+- on `OpenID Connect ID Token` section in the Okta application settings, add `groups` to the `Groups claim` field, by setting a Groups claims type to `Filter` and a Filter to match expression to `.*`
 
 If you're using a custom authorization server ID:
 
--   you don't need to set the `AUTH_OKTA_EXTRA_SCOPES` environment variable
--   on the Authorization Server settings, add claim `groups`, value type `Groups`, matches regex `.*`
+- you don't need to set the `AUTH_OKTA_EXTRA_SCOPES` environment variable
+- on the Authorization Server settings, add claim `groups`, value type `Groups`, matches regex `.*`
 
 ### Configuring Lightdash for Okta
 
@@ -103,8 +103,8 @@ To enable Google Single Sign On (SSO) you'll need to follow these instructions t
 [Create the OAuth web client ID](https://support.google.com/workspacemigrate/answer/9222992?hl=en).
 Once you reach **Step 13** to configure the client you'll need to enter the following details:
 
--   Authorized JavaScript Origins: `https://{{ lightdash_domain }}`
--   Authorized redirect URIs: `https://{{ lightdash_domain }}/api/v1/oauth/redirect/google`
+- Authorized JavaScript Origins: `https://{{ lightdash_domain }}`
+- Authorized redirect URIs: `https://{{ lightdash_domain }}/api/v1/oauth/redirect/google`
 
 Where `{{ lightdash_domain }}` is the domain you use to sign in to Lightdash such as `mycompany.lightdash.com`
 
@@ -133,8 +133,8 @@ These variables enable you to control Single Sign On (SSO) functionality for One
 In the admin panel, navigate to **App Registrations** and click **New registration**, choose the following
 settings for the redirect URI:
 
--   **Type**: Web
--   **URI**: `{{ lightdash_url }}/api/v1/oauth/redirect/azuread`
+- **Type**: Web
+- **URI**: `{{ lightdash_url }}/api/v1/oauth/redirect/azuread`
 
 On the following page you'll need to use the following settings, replace `{{ lightdash_url }}` with the URL of your
 Lightdash instance. For example if you normally access Lightdash at `https://lightdash.example.com/login` then you
