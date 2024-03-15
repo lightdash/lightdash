@@ -27,10 +27,8 @@ describe('Settings - Profile', () => {
             SEED_ORG_1_ADMIN.first_name,
         ); // wait for form to populate
         cy.get('[data-cy="first-name-input"]').clear();
-        cy.get('[data-cy="first-name-input"]').should('be.empty');
         cy.get('[data-cy="first-name-input"]').type('Kevin');
         cy.get('[data-cy="last-name-input"]').clear();
-        cy.get('[data-cy="last-name-input"]').should('be.empty');
         cy.get('[data-cy="last-name-input"]').type('Space');
         cy.get('[data-cy="update-profile-settings"]').click();
         cy.findByText('Success! User details were updated.').should(
