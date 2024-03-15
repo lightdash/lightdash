@@ -10,6 +10,7 @@ import {
     LightdashUserWithAbilityRules,
     NotExistsError,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     OpenIdUser,
     OrganizationMemberRole,
     ParameterError,
@@ -785,7 +786,9 @@ export class UserModel {
         return row.refresh_token;
     }
 
-    async getOpenIdIssuer(email: string) {
+    async getOpenIdIssuer(
+        email: string,
+    ): Promise<OpenIdIdentityIssuerType | undefined | null> {
         const row = await this.database('emails')
             .leftJoin(
                 'openid_identities',
