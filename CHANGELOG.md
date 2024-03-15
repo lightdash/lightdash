@@ -1,3 +1,10 @@
+## [0.1034.1](https://github.com/lightdash/lightdash/compare/0.1034.0...0.1034.1) (2024-03-15)
+
+
+### Bug Fixes
+
+* revert "fix: replace name of x and y fields on tc change ([#9346](https://github.com/lightdash/lightdash/issues/9346))" ([#9394](https://github.com/lightdash/lightdash/issues/9394)) ([fa94123](https://github.com/lightdash/lightdash/commit/fa941232a42050a5f8450ae4f0c3873fe106f21b))
+
 # [0.1034.0](https://github.com/lightdash/lightdash/compare/0.1033.0...0.1034.0) (2024-03-15)
 
 
