@@ -448,33 +448,6 @@ const calcColumnOrder = (
     }
 };
 
-const updateChartConfigWithTableCalc = (
-    prevChartConfig: ChartConfig,
-    oldTableCalculationName: string,
-    newTableCalculationName: string,
-) => {
-    const newConfig = cloneDeep(prevChartConfig);
-
-    if (newConfig.type !== ChartType.CARTESIAN || !newConfig.config) {
-        return newConfig;
-    }
-
-    if (newConfig.config.layout.xField === oldTableCalculationName) {
-        newConfig.config.layout.xField = newTableCalculationName;
-    }
-
-    if (newConfig.config.layout.yField) {
-        const index = newConfig.config.layout.yField.indexOf(
-            oldTableCalculationName,
-        );
-
-        if (index > -1)
-            newConfig.config.layout.yField[index] = newTableCalculationName;
-    }
-
-    return newConfig;
-};
-
 function reducer(
     state: ExplorerReduceState,
     action: Action & { options?: { shouldFetchResults: boolean } },
@@ -1131,11 +1104,6 @@ function reducer(
                                     : field,
                         ),
                     },
-                    chartConfig: updateChartConfigWithTableCalc(
-                        state.unsavedChartVersion.chartConfig,
-                        action.payload.oldName,
-                        action.payload.tableCalculation.name,
-                    ),
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
                         columnOrder:
