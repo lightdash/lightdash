@@ -70,9 +70,24 @@ has_curl() {
     has_cmd curl
 }
 
+inform_macos_xcrun_requirement() {
+    # Check if xcrun is installed
+    if ! command -v xcrun >/dev/null 2>&1; then
+        echo "⚠️  macOS users: Before installing the Lightdash CLI, make sure you have 'xcrun' installed."
+        echo "    You can install it by running the following command:"
+        echo "    xcode-select --install"
+        echo "    After installing 'xcrun', you can proceed with the Lightdash CLI installation."
+        echo ""
+    fi
+}
+
 if  [[ $NODE_ENV == "development" || "$CI" == "true" ]]; then 
     echo "Do not send tracking on NODE_ENV=$NODE_ENV or CI=$CI mode" 
     exit 0 
+fi
+
+if is_mac; then
+    inform_macos_xcrun_requirement
 fi
 
 track() {
