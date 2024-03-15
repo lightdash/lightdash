@@ -1,3 +1,10 @@
+# [0.1033.0](https://github.com/lightdash/lightdash/compare/0.1032.0...0.1033.0) (2024-03-15)
+
+
+### Features
+
+* consistent color mapping via sequential assignment ([#9342](https://github.com/lightdash/lightdash/issues/9342)) ([40da0a3](https://github.com/lightdash/lightdash/commit/40da0a339ed00d932b1cdf5cc02251325402c7d4))
+
 # [0.1032.0](https://github.com/lightdash/lightdash/compare/0.1031.1...0.1032.0) (2024-03-15)
 
 
