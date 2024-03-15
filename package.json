@@ -103,6 +103,9 @@
         "generate-api": "yarn common-build && yarn workspace backend generate-api && yarn workspace backend formatter --write ./src/generated"
     },
     "lint-staged": {
+        "docs/**/*.(md,mdx,yml,yaml)": [
+            "yarn docs-fix-format"
+        ],
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
             "yarn workspace frontend linter --fix",
             "yarn workspace frontend formatter --write"
