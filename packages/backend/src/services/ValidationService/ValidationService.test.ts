@@ -8,6 +8,7 @@ import {
 } from '../../models/models';
 
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ValidationService } from './ValidationService';
 import {
     chart,
@@ -22,10 +23,6 @@ import {
     project,
     tableConfiguration,
 } from './ValidationService.mock';
-
-jest.mock('../../clients/clients', () => ({
-    schedulerClient: {},
-}));
 
 jest.mock('../../models/models', () => ({
     savedChartModel: {
@@ -56,6 +53,7 @@ describe('validation', () => {
         dashboardModel,
         lightdashConfig: config,
         spaceModel,
+        schedulerClient: {} as SchedulerClient,
     });
 
     afterEach(() => {

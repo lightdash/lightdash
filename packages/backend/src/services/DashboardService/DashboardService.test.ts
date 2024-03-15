@@ -16,6 +16,8 @@ import {
 } from '../../models/models';
 
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { SlackClient } from '../../clients/Slack/SlackClient';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { DashboardService } from './DashboardService';
 import {
     chart,
@@ -34,7 +36,6 @@ import {
 } from './DashboardService.mock';
 
 jest.mock('../../database/database', () => ({}));
-jest.mock('../../clients/clients', () => ({}));
 
 jest.mock('../../models/models', () => ({
     dashboardModel: {
@@ -85,6 +86,8 @@ describe('DashboardService', () => {
         pinnedListModel,
         schedulerModel,
         savedChartModel,
+        slackClient: {} as SlackClient,
+        schedulerClient: {} as SchedulerClient,
     });
     afterEach(() => {
         jest.clearAllMocks();

@@ -45,7 +45,6 @@ import {
     QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
-import { schedulerClient } from '../../clients/clients';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -53,6 +52,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { runWorkerThread } from '../../utils';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -65,6 +65,7 @@ type CsvServiceArguments = {
     dashboardModel: DashboardModel;
     userModel: UserModel;
     downloadFileModel: DownloadFileModel;
+    schedulerClient: SchedulerClient;
 };
 
 const isRowValueTimestamp = (
@@ -148,6 +149,8 @@ export class CsvService {
 
     downloadFileModel: DownloadFileModel;
 
+    schedulerClient: SchedulerClient;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -157,6 +160,7 @@ export class CsvService {
         savedChartModel,
         dashboardModel,
         downloadFileModel,
+        schedulerClient,
     }: CsvServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -166,6 +170,7 @@ export class CsvService {
         this.savedChartModel = savedChartModel;
         this.dashboardModel = dashboardModel;
         this.downloadFileModel = downloadFileModel;
+        this.schedulerClient = schedulerClient;
     }
 
     static convertRowToCsv(
@@ -630,7 +635,7 @@ export class CsvService {
         }
     }
 
-    static async scheduleDownloadCsv(
+    async scheduleDownloadCsv(
         user: SessionUser,
         csvOptions: DownloadMetricCsv,
     ) {
@@ -664,7 +669,7 @@ export class CsvService {
             csvLimit,
             userUuid: user.userUuid,
         };
-        const { jobId } = await schedulerClient.downloadCsvJob(payload);
+        const { jobId } = await this.schedulerClient.downloadCsvJob(payload);
 
         return { jobId };
     }

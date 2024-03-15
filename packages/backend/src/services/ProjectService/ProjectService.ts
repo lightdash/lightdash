@@ -110,7 +110,6 @@ import {
     QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
-import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { errorHandler } from '../../errors';
@@ -130,6 +129,7 @@ import { isFeatureFlagEnabled } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
 import {
     runWorkerThread,
@@ -169,6 +169,7 @@ type ProjectServiceArguments = {
     analyticsModel: AnalyticsModel;
     dashboardModel: DashboardModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    schedulerClient: SchedulerClient;
 };
 
 export class ProjectService {
@@ -202,6 +203,8 @@ export class ProjectService {
 
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
+    schedulerClient: SchedulerClient;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -217,6 +220,7 @@ export class ProjectService {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
+        schedulerClient,
     }: ProjectServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -233,6 +237,7 @@ export class ProjectService {
         this.analyticsModel = analyticsModel;
         this.dashboardModel = dashboardModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.schedulerClient = schedulerClient;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -560,7 +565,7 @@ export class ProjectService {
         }
         await this.projectModel.saveExploresToCache(projectUuid, explores);
 
-        await schedulerClient.generateValidation({
+        await this.schedulerClient.generateValidation({
             userUuid: user.userUuid,
             projectUuid,
             context: 'cli',
@@ -615,7 +620,7 @@ export class ProjectService {
         await this.jobModel.create(job);
 
         if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
-            await schedulerClient.testAndCompileProject({
+            await this.schedulerClient.testAndCompileProject({
                 organizationUuid: user.organizationUuid,
                 createdByUserUuid: user.userUuid,
                 projectUuid,
@@ -2430,7 +2435,7 @@ export class ProjectService {
 
         await this.jobModel.create(job);
 
-        await schedulerClient.compileProject({
+        await this.schedulerClient.compileProject({
             createdByUserUuid: user.userUuid,
             organizationUuid,
             projectUuid,

@@ -28,7 +28,6 @@ import {
     ValidationSourceType,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { schedulerClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -36,6 +35,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {
@@ -46,6 +46,7 @@ type ValidationServiceArguments = {
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
+    schedulerClient: SchedulerClient;
 };
 
 export class ValidationService {
@@ -63,6 +64,8 @@ export class ValidationService {
 
     spaceModel: SpaceModel;
 
+    schedulerClient: SchedulerClient;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -71,6 +74,7 @@ export class ValidationService {
         savedChartModel,
         dashboardModel,
         spaceModel,
+        schedulerClient,
     }: ValidationServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -79,6 +83,7 @@ export class ValidationService {
         this.validationModel = validationModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
+        this.schedulerClient = schedulerClient;
     }
 
     private static getTableCalculationFieldIds(
@@ -599,7 +604,7 @@ export class ValidationService {
 
         const fromCLI =
             context === RequestMethod.CLI_CI || context === RequestMethod.CLI;
-        const jobId = await schedulerClient.generateValidation({
+        const jobId = await this.schedulerClient.generateValidation({
             userUuid: user.userUuid,
             projectUuid,
             context: fromCLI ? 'cli' : 'lightdash_app',

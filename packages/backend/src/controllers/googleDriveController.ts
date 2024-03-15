@@ -60,7 +60,9 @@ export class GoogleDriveController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await GdriveService.scheduleUploadGsheet(req.user!, body),
+            results: await req.services
+                .getGdriveService()
+                .scheduleUploadGsheet(req.user!, body),
         };
     }
 }
