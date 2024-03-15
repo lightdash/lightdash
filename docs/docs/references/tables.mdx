@@ -20,7 +20,7 @@ For example, if we had this in our schema.yml files in dbt, we'd see a Table cal
 version: 2
 
 models:
-  - name: users
+    - name: users
 ```
 
 You can read more about [adding Tables to Lightdash here](/guides/adding-tables-to-lightdash).
@@ -33,31 +33,31 @@ You can customize your Tables in your dbt model's YAML file. Here's an example o
 version: 2
 
 models:
-  - name: my_table
-    meta:
-      label: "My Custom Table Name"
-      order_fields_by: "label"
-      group_label: "Revenue"
-      sql_filter: ${date_dimension} > '2020-01-01'
-      joins:
-        - join: my_other_table
-          sql_on: ${my_table.column_a} = ${my_other_table.column_a}
-      required_attributes:
-        is_admin: "true"
+    - name: my_table
+      meta:
+          label: 'My Custom Table Name'
+          order_fields_by: 'label'
+          group_label: 'Revenue'
+          sql_filter: ${date_dimension} > '2020-01-01'
+          joins:
+              - join: my_other_table
+                sql_on: ${my_table.column_a} = ${my_other_table.column_a}
+          required_attributes:
+              is_admin: 'true'
 ```
 
 Here are all of the properties you can customize:
 
-| Property                                          | Value              | Note                                                                                                                                |
-|---------------------------------------------------|--------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| label                                             | string             | Custom label. This is what you'll see in Lightdash instead of the Table name.                                                       |
-| [order_fields_by](#order-fields-by)               | 'index' or 'label' | How the fields will be sorted in the sidebar. [Read more about the order rules in here](#order-fields-by)                           |
-| [joins](joins.md)                                 | array              | Join logic to join other data models to the Table. [Read more about joins in here.](joins.md)                                       |
-| [metrics](metrics.mdx#2-using-the-model-meta-tag) | object             | Model metrics. [Read more about model metrics in here](metrics.mdx#2-using-the-model-meta-tag)                                      |
-| [group_label](#group-label)                       | string             | Group tables in the sidebar.  [Read more about the group label in here](#group-label)                                               |
-| [sql_filter](#sql-filter)                         | string | A permanent filter that will always be applied when querying this table directly. Read more about `sql_filter` [below](#sql-filter) |
-| [sql_where](#sql-filter)                          | string | Alias for `sql_filter` |                                                                                                             |
-| [required_attributes](#required-attributes)       | Object with { user_attribute, value } | Limits access to users with those attributes. [Read more about user attributes in here](./user-attributes.mdx) |
+| Property                                          | Value                                 | Note                                                                                                                                |
+| ------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --- |
+| label                                             | string                                | Custom label. This is what you'll see in Lightdash instead of the Table name.                                                       |
+| [order_fields_by](#order-fields-by)               | 'index' or 'label'                    | How the fields will be sorted in the sidebar. [Read more about the order rules in here](#order-fields-by)                           |
+| [joins](joins.mdx)                                | array                                 | Join logic to join other data models to the Table. [Read more about joins in here.](joins.mdx)                                      |
+| [metrics](metrics.mdx#2-using-the-model-meta-tag) | object                                | Model metrics. [Read more about model metrics in here](metrics.mdx#2-using-the-model-meta-tag)                                      |
+| [group_label](#group-label)                       | string                                | Group tables in the sidebar. [Read more about the group label in here](#group-label)                                                |
+| [sql_filter](#sql-filter)                         | string                                | A permanent filter that will always be applied when querying this table directly. Read more about `sql_filter` [below](#sql-filter) |
+| [sql_where](#sql-filter)                          | string                                | Alias for `sql_filter`                                                                                                              |     |
+| [required_attributes](#required-attributes)       | Object with { user_attribute, value } | Limits access to users with those attributes. [Read more about user attributes in here](./user-attributes.mdx)                      |
 
 ### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it before it will appear in Lightdash
 
@@ -68,12 +68,12 @@ This means that if you add a new dbt model to your project or update a model so 
 to the table it generates, then you need to do two things before your changes will appear in Lightdash:
 
 1. **Materialize the new table/changes to the table (using `dbt run`).**
-You basically want the data in your data warehouse to be the new
-table you're expecting. So you need to do `dbt run` to update the table from the data model you just changed.
+   You basically want the data in your data warehouse to be the new
+   table you're expecting. So you need to do `dbt run` to update the table from the data model you just changed.
 
 2. **Click `dbt refresh` in Lightdash.**
-This will re-sync your dbt project in Lightdash so that any changes you made
-to your dbt models is shown in Lightdash (e.g. adding a new table).
+   This will re-sync your dbt project in Lightdash so that any changes you made
+   to your dbt models is shown in Lightdash (e.g. adding a new table).
 
 ### Order fields by
 
@@ -83,51 +83,56 @@ By default, the fields in your sidebar for any table will appear alphabetically 
 version: 2
 
 models:
-  - name: my_table
-    meta:
-      order_fields_by: "index"
-    columns:
-      - name: user_id
-      - name: product_id
-      - name: account_id
+    - name: my_table
+      meta:
+          order_fields_by: 'index'
+      columns:
+          - name: user_id
+          - name: product_id
+          - name: account_id
 ```
 
 So, in the example above, the fields in the sidebar for "My Table" would appear in the order:
 
-- user_id
-- product_id
-- account_id
+-   user_id
+-   product_id
+-   account_id
 
 Instead of being listed alphabetically.
 
 Here are some other things worth mentioning about the `order_fields_by` parameter:
 
-- By default, `order_fields_by` is set to `label`, which means that your fields will appear in the table listed alphabetically.
-- Since metrics can be declared in multiple places within your .yml (as a dbt metric, in the model `meta` tag, under a dimension's `meta`), we force the following order on metrics if you set `order_fields_by` to `index`:
+-   By default, `order_fields_by` is set to `label`, which means that your fields will appear in the table listed alphabetically.
+-   Since metrics can be declared in multiple places within your .yml (as a dbt metric, in the model `meta` tag, under a dimension's `meta`), we force the following order on metrics if you set `order_fields_by` to `index`:
 
-- dbt metrics appear first
-- then, metrics defined in the model's `meta`
-- then, metrics defined in the dimensions' `meta`
-- Group labels inherit the index of the first dimension that use them.
+-   dbt metrics appear first
+-   then, metrics defined in the model's `meta`
+-   then, metrics defined in the dimensions' `meta`
+-   Group labels inherit the index of the first dimension that use them.
 
 ### Group label
 
 If you set this property, the table will be grouped in the sidebar with other tables with the same group label.
 
 The tables in your sidebar will appear in the following order:
-- Group labels appear first, alphabetically
-- Ungrouped tables appear after the grouped tables in the sidebar, alphabetically
-- Tables within the groups are also ordered alphabetically
 
-<img src={TableGroupLabelImg} width="300" style={{display: "block", margin: "0 auto 20px auto"}}/>
+-   Group labels appear first, alphabetically
+-   Ungrouped tables appear after the grouped tables in the sidebar, alphabetically
+-   Tables within the groups are also ordered alphabetically
+
+<img
+    src={TableGroupLabelImg}
+    width="300"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ### SQL filter
 
 Use `sql_filter` to permanently filter the table for all queries made against it. `sql_filter` accepts a sql string that can reference
 
-- `${TABLE}` the current table
-- `${dimension_a}` a dimension from the current table
-- `${table_b.dimension_b} a dimension from a joined table
+-   `${TABLE}` the current table
+-   `${dimension_a}` a dimension from the current table
+-   `${table_b.dimension_b} a dimension from a joined table
 
 The filter will only be applied when querying this table directly. If the current table (Table A) is included via a join to another table (Table B) then the `sql_where` for Table B will be applied but not for Table A.
 
