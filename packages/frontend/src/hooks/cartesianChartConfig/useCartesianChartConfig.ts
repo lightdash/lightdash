@@ -145,21 +145,18 @@ const useCartesianChartConfig = ({
             : EMPTY_CARTESIAN_CHART_CONFIG;
     }, [dirtyLayout, dirtyEchartsConfig]);
 
-    const prevValidConfig = usePrevious(validConfig);
-    const hasInitialChartConfigPropChanged = useMemo(() => {
-        return (
-            !isEqual(initialChartConfig, validConfig) &&
-            isEqual(validConfig, prevValidConfig)
-        );
-    }, [initialChartConfig, prevValidConfig, validConfig]);
+    const prevInitialChartConfig = usePrevious(initialChartConfig);
+    const hasInitialChartConfigChanged = useMemo(() => {
+        return !isEqual(initialChartConfig, prevInitialChartConfig);
+    }, [initialChartConfig, prevInitialChartConfig]);
 
     useEffect(() => {
-        if (!hasInitialChartConfigPropChanged) return;
+        if (!hasInitialChartConfigChanged) return;
 
-        // Update dirty chart config ONLY when initial chart config props changes and this hook wasn't the source of the change
+        // Update dirty chart config ONLY when initial chart config prop changes
         setDirtyLayout(initialChartConfig?.layout);
         setDirtyEchartsConfig(initialChartConfig?.eChartsConfig);
-    }, [initialChartConfig, hasInitialChartConfigPropChanged]);
+    }, [initialChartConfig, hasInitialChartConfigChanged]);
 
     const setLegend = useCallback((legend: EchartsLegend) => {
         const removePropertiesWithAuto = Object.entries(
