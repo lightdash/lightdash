@@ -9,7 +9,6 @@ import {
     CreatePasswordResetLink,
     CreateUserArgs,
     DeleteOpenIdentity,
-    EmailIssuerType,
     EmailStatusExpiring,
     ExpiredError,
     ForbiddenError,
@@ -20,6 +19,7 @@ import {
     isUserWithOrg,
     LightdashMode,
     LightdashUser,
+    LocalIssuerTypes,
     LoginOptions,
     NotExistsError,
     NotFoundError,
@@ -1263,7 +1263,7 @@ export class UserService {
 
         const allLoginOptions = isPasswordDisabled
             ? enabledOpenIdIssuers
-            : [...enabledOpenIdIssuers, EmailIssuerType.EMAIL];
+            : [...enabledOpenIdIssuers, LocalIssuerTypes.EMAIL];
         return {
             showOptions: allLoginOptions,
             forceRedirect:

@@ -6419,9 +6419,19 @@
                 "enum": ["google", "okta", "oneLogin", "azuread"],
                 "type": "string"
             },
-            "EmailIssuerType": {
-                "enum": ["email"],
+            "LocalIssuerTypes": {
+                "enum": ["email", "apiToken"],
                 "type": "string"
+            },
+            "LoginOptionTypes": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/OpenIdIdentityIssuerType"
+                    },
+                    {
+                        "$ref": "#/components/schemas/LocalIssuerTypes"
+                    }
+                ]
             },
             "LoginOptions": {
                 "properties": {
@@ -6433,19 +6443,26 @@
                     },
                     "showOptions": {
                         "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/OpenIdIdentityIssuerType"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/EmailIssuerType"
-                                }
-                            ]
+                            "$ref": "#/components/schemas/LoginOptionTypes"
                         },
                         "type": "array"
                     }
                 },
                 "required": ["showOptions"],
+                "type": "object"
+            },
+            "ApiGetLoginOptionsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LoginOptions"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "ValidationErrorType": {
@@ -11692,18 +11709,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "results": {
-                                            "$ref": "#/components/schemas/LoginOptions"
-                                        },
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ApiGetLoginOptionsResponse"
                                 }
                             }
                         }

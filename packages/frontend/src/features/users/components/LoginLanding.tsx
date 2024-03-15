@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState, type FC } from 'react';
 
 import {
-    EmailIssuerType,
     getEmailSchema,
     LightdashMode,
+    LocalIssuerTypes,
     OpenIdIdentityIssuerType,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
@@ -121,7 +121,7 @@ const Login: FC<{}> = () => {
 
     const isEmailLoginAvailable =
         loginOptions?.showOptions &&
-        loginOptions?.showOptions.includes(EmailIssuerType.EMAIL);
+        loginOptions?.showOptions.includes(LocalIssuerTypes.EMAIL);
 
     const disableControls =
         (loginOptionsLoading && loginOptionsFetched) || isLoading || isSuccess;
@@ -131,7 +131,7 @@ const Login: FC<{}> = () => {
     const otherSsoLogins = loginOptions?.showOptions
         ? loginOptions.showOptions.filter(
               (option) =>
-                  option !== EmailIssuerType.EMAIL &&
+                  option !== LocalIssuerTypes.EMAIL &&
                   option !== OpenIdIdentityIssuerType.GOOGLE,
           )
         : [];

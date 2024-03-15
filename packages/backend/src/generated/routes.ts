@@ -5746,9 +5746,21 @@ const models: TsoaRoute.Models = {
         enums: ['google', 'okta', 'oneLogin', 'azuread'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    EmailIssuerType: {
+    LocalIssuerTypes: {
         dataType: 'refEnum',
-        enums: ['email'],
+        enums: ['email', 'apiToken'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LoginOptionTypes: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'OpenIdIdentityIssuerType' },
+                { ref: 'LocalIssuerTypes' },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LoginOptions: {
@@ -5760,15 +5772,21 @@ const models: TsoaRoute.Models = {
                 forceRedirect: { dataType: 'boolean' },
                 showOptions: {
                     dataType: 'array',
-                    array: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'OpenIdIdentityIssuerType' },
-                            { ref: 'EmailIssuerType' },
-                        ],
-                    },
+                    array: { dataType: 'refAlias', ref: 'LoginOptionTypes' },
                     required: true,
                 },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetLoginOptionsResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'LoginOptions', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
