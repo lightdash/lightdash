@@ -21,6 +21,7 @@ import {
     LightdashUser,
     LocalIssuerTypes,
     LoginOptions,
+    LoginOptionTypes,
     NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
@@ -241,7 +242,10 @@ export class UserService {
                 );
             }
         } else if (
-            (await this.isLoginMethodAllowed(userEmail, 'password')) === false
+            (await this.isLoginMethodAllowed(
+                userEmail,
+                LocalIssuerTypes.EMAIL,
+            )) === false
         ) {
             throw new ForbiddenError(
                 `User with email ${userEmail} is not allowed to login with password`,
@@ -701,7 +705,10 @@ export class UserService {
         email: string,
         password: string,
     ): Promise<LightdashUser> {
-        if ((await this.isLoginMethodAllowed(email, 'password')) === false) {
+        if (
+            (await this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL)) ===
+            false
+        ) {
             throw new ForbiddenError(
                 `User with email ${email} is not allowed to login with password`,
             );
@@ -815,8 +822,10 @@ export class UserService {
                 );
             }
         } else if (
-            (await this.isLoginMethodAllowed(createUser.email, 'password')) ===
-            false
+            (await this.isLoginMethodAllowed(
+                createUser.email,
+                LocalIssuerTypes.EMAIL,
+            )) === false
         ) {
             throw new ForbiddenError(
                 `User with email ${createUser.email} is not allowed to login with password`,
@@ -1120,17 +1129,21 @@ export class UserService {
         return accessToken;
     }
 
-    async isLoginMethodAllowed(
-        email: string,
-        loginMethod: string /* TODO Use loginmethod enum */,
-    ) {
+    async isLoginMethodAllowed(email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
-            case 'password':
+            case LocalIssuerTypes.EMAIL:
                 return !this.lightdashConfig.auth.disablePasswordAuthentication;
-            case 'google':
+            case LocalIssuerTypes.API_TOKEN:
+            case OpenIdIdentityIssuerType.GOOGLE:
+            case OpenIdIdentityIssuerType.OKTA:
+            case OpenIdIdentityIssuerType.ONELOGIN:
+            case OpenIdIdentityIssuerType.AZUREAD:
                 return true;
             default:
-            // assertUnreachable(loginMethod, `Invalid login method ${loginMethod} provided.`)
+                assertUnreachable(
+                    loginMethod,
+                    `Invalid login method ${loginMethod} provided.`,
+                );
         }
         return true;
     }
