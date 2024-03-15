@@ -36,8 +36,7 @@ module.exports = {
         'react-hooks',
         'react',
         'jest-dom',
-        'testing-library',
-        'unused-imports'
+        'testing-library'
     ],
 
     settings: {
@@ -91,8 +90,6 @@ module.exports = {
         'testing-library/no-await-sync-queries': 'error',
         'testing-library/no-debugging-utils': 'warn',
         'testing-library/no-dom-import': 'off',
-
-        'unused-imports/no-unused-imports': 'warn',
         '@typescript-eslint/consistent-type-imports': [
             'error',
             {

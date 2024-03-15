@@ -33,6 +33,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
             selectedMetric,
             data,
             sortedGroupLabels,
+            groupFieldIds,
             validConfig: {
                 valueLabel: valueLabelDefault,
                 showValue: showValueDefault,
@@ -62,8 +63,11 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                     groupValueOptionOverrides?.[name]?.showPercentage ??
                     showPercentageDefault;
 
+                // Use all group field IDs as the group prefix for color assignment:
+                const groupPrefix = groupFieldIds.join('_');
                 const itemColor =
-                    groupColorOverrides?.[name] ?? getGroupColor(name);
+                    groupColorOverrides?.[name] ??
+                    getGroupColor(groupPrefix, name);
 
                 const config: PieSeriesDataPoint = {
                     id: name,

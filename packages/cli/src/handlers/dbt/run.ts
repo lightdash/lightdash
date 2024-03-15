@@ -1,4 +1,5 @@
 import { ParseError } from '@lightdash/common';
+import { Command } from 'commander';
 import execa from 'execa';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import GlobalState from '../../globalState';
@@ -12,9 +13,14 @@ type DbtRunHandlerOptions = DbtCompileOptions & {
 
 export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
-    command: any,
+    command: Command,
 ) => {
     GlobalState.setVerbose(options.verbose);
+
+    if (!command.parent) {
+        throw new Error('Parent command not found');
+    }
+
     await LightdashAnalytics.track({
         event: 'dbt_command.started',
         properties: {
@@ -22,13 +28,10 @@ export const dbtRunHandler = async (
         },
     });
 
-    const commands = command.parent.args.reduce(
-        (acc: unknown[], arg: unknown) => {
-            if (arg === '--verbose') return acc;
-            return [...acc, arg];
-        },
-        [],
-    );
+    const commands = command.parent.args.reduce<string[]>((acc, arg) => {
+        if (arg === '--verbose') return acc;
+        return [...acc, arg];
+    }, []);
 
     GlobalState.debug(`> Running dbt command: ${commands}`);
 

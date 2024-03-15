@@ -1,12 +1,30 @@
 import { type Series } from '@lightdash/common';
-import { createContext, useCallback, useContext, useRef, type FC } from 'react';
+import { useMantineTheme } from '@mantine/core';
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    type FC,
+} from 'react';
+import { useLocation } from 'react-router-dom';
 import { type EChartSeries } from './echarts/useEchartsCartesianConfig';
 
-export type SeriesLike = EChartSeries | Series;
+/**
+ * A unique key used to track the latest index assigned within a group,
+ * within the color mappings Map.
+ */
+const ASSIGNMENT_IDX_KEY = '$___idx';
 
 interface ChartColorMappingContextProps {
-    colorMappings: Map<string, string>;
+    colorMappings: Map<string, Map<string, number>>;
 }
+
+/**
+ * There's some variation in what Series object we may be working with.
+ */
+export type SeriesLike = EChartSeries | Series;
 
 const ChartColorMappingContext =
     createContext<ChartColorMappingContextProps | null>(null);
@@ -18,16 +36,36 @@ const ChartColorMappingContext =
 export const ChartColorMappingContextProvider: FC<
     React.PropsWithChildren<{}>
 > = ({ children }) => {
+    const location = useLocation();
+
     /**
      * Changes to colorMappings are intentionally kept outside the React render loop,
      * we don't want to trigger re-renders for every mapping assignment, and we're
      * creating assignments during the render process anyway.
      */
-    const colorMappings = useRef(new Map<string, string>());
+    const colorMappings = useRef(new Map<string, Map<string, number>>());
+
+    /**
+     * Any time the path changes, if we have any color mappings in the context,
+     * we reset them completely. This prevents things like playing around with
+     * filters, or editing a chart, from 'polluting' the mappings table in
+     * unpredictable ways.
+     *
+     * This could alternatively be implemented as contexts further down the tree,
+     * but this approach ensures mappings are always shared at the highest possible
+     * level regardless of how/where a chart is being rendered.
+     */
+    useEffect(() => {
+        if (colorMappings.current.size > 0) {
+            colorMappings.current = new Map<string, Map<string, number>>();
+        }
+    }, [location.pathname]);
 
     return (
         <ChartColorMappingContext.Provider
-            value={{ colorMappings: colorMappings.current }}
+            value={{
+                colorMappings: colorMappings.current,
+            }}
         >
             {children}
         </ChartColorMappingContext.Provider>
@@ -58,64 +96,63 @@ export const useChartColorConfig = ({
 }: {
     colorPalette: string[];
 }) => {
+    const theme = useMantineTheme();
     const { colorMappings } = useChartColorMappingContext();
     /**
      * Given the org's color palette, and an identifier, return the color palette value
      * for said identifier.
      *
-     * This works by hashing the identifier into an integer value, and then projecting
-     * that value into the org's color space - effectivelly getting a number from 0 to
-     * <number of colors in palette>.
+     * This works by taking a group and identifier, and cycling through the color palette
+     * colors on a first-come first-serve basis, scoped to a particular group of identifiers.
      *
-     * This is a straight-forward way to handle hashing dimensions into colors, with
-     * two major caveats:
+     * 'Group' will generally be something like a table or model name, e.g 'customer',
+     * 'Identifier' will generally be something like a field name, or a group value.
      *
-     * - We're no longer cycling over colors in the palette, potentially not following
-     *   an intentionally-designed best-neighbor-color approach.
-     * - We have no guarantee different dimensions won't be assigned the same color due
-     *   to the narrow color space - we can fix this by shifting colors aside when
-     *   compiling the chart config.
+     * Because this color cycling is done per group, it allows unrelated charts/series
+     * to cycle through colors in the palette in parallel.
      */
     const calculateKeyColorAssignment = useCallback(
-        (identifier: string) => {
-            if (colorMappings.has(identifier)) {
-                return colorMappings.get(identifier)!;
+        (group: string, identifier: string) => {
+            // Ensure we always color null the same:
+            if (!identifier || identifier === 'null') {
+                return theme.colors.gray[6];
             }
 
-            const hashedValue = Math.abs(
-                identifier.split('').reduce(function (a, b) {
-                    a = (a << 5) - a + b.charCodeAt(0);
-                    return a & a;
-                }, 0),
-            );
+            let groupMappings = colorMappings.get(group);
 
-            // Project the hashed value into the available color space:
-            const colorIdx = hashedValue % colorPalette.length;
-
-            // Look at our existing color mappings so we can figure out if we need
-            // to try and avoid any of the current colors:
-            const colorsToAvoid = [...colorMappings.values()];
-            let colorHex = colorPalette[colorIdx];
-
-            // Intersect colors we've already used with our color palette, and try to find the
-            // next available color on the list.
-            if (colorsToAvoid.includes(colorHex)) {
-                const intersection = colorPalette.filter(
-                    (v) => !colorsToAvoid.includes(v),
-                );
-
-                if (intersection.length > 0) {
-                    colorHex = intersection[0];
-                }
+            /**
+             * If we already picked a color for this group/identifier pair, return it:
+             */
+            if (groupMappings && groupMappings.has(identifier)) {
+                return colorPalette[groupMappings.get(identifier)!];
             }
 
-            // Keep track of this identifier->color pairing so we can reuse it without
-            // treating it as a collision:
-            colorMappings.set(identifier, colorHex);
+            /**
+             * If this is the first time we're seeing this group, create a sub-map for it:
+             */
+            if (!groupMappings) {
+                groupMappings = new Map<string, number>();
+                colorMappings.set(group, groupMappings);
+            }
+
+            /**
+             * Figure out the last color assigned in this group, and either pick the
+             * next color in the palette, or start over from 0.
+             */
+            const currentIdx = groupMappings.get(ASSIGNMENT_IDX_KEY) ?? -1;
+            const nextIdx =
+                currentIdx === colorPalette.length - 1 ? 0 : currentIdx + 1;
+            const colorHex = colorPalette[nextIdx];
+
+            // Keep track of the current value of the color idx for this group:
+            groupMappings.set(ASSIGNMENT_IDX_KEY, nextIdx);
+
+            // Keep track of the color idx used for this identifier, within this group:
+            groupMappings.set(identifier, nextIdx);
 
             return colorHex;
         },
-        [colorPalette, colorMappings],
+        [colorPalette, colorMappings, theme],
     );
 
     const calculateSeriesColorAssignment = useCallback(
@@ -139,7 +176,12 @@ export const useChartColorConfig = ({
                 ? pivotValuesSubPath
                 : baseField;
 
-            return calculateKeyColorAssignment(completeIdentifier);
+            /**
+             * Always includes the base field + the pivot sub path. This can be tweaked
+             * to allow 'reuse' across different fields, but is also more likely to lead
+             * to collision issues.
+             */
+            return calculateKeyColorAssignment(baseField, completeIdentifier);
         },
         [calculateKeyColorAssignment],
     );

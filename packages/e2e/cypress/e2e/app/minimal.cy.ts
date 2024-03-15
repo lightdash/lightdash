@@ -8,16 +8,13 @@ describe('Minimal pages', () => {
     });
     it('I can view a minimal chart', () => {
         cy.request(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         ).then((projectResponse) => {
-            const savedChart = projectResponse.body.results
-                .find((s) => s.name === SEED_PROJECT.name)
-
-                .queries.find(
-                    (s) =>
-                        s.name ===
-                        'How much revenue do we have per payment method?',
-                );
+            const savedChart = projectResponse.body.results.find(
+                (s) =>
+                    s.name ===
+                    'How much revenue do we have per payment method?',
+            );
 
             cy.visit(
                 `/minimal/projects/${SEED_PROJECT.project_uuid}/saved/${savedChart.uuid}`,
@@ -31,16 +28,13 @@ describe('Minimal pages', () => {
 
     it('I can view a minimal table', () => {
         cy.request(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         ).then((projectResponse) => {
-            const savedChart = projectResponse.body.results
-                .find((s) => s.name === SEED_PROJECT.name)
-
-                .queries.find(
-                    (s) =>
-                        s.name ===
-                        'Which customers have not recently ordered an item?',
-                );
+            const savedChart = projectResponse.body.results.find(
+                (s) =>
+                    s.name ===
+                    'Which customers have not recently ordered an item?',
+            );
 
             cy.visit(
                 `/minimal/projects/${SEED_PROJECT.project_uuid}/saved/${savedChart.uuid}`,
@@ -55,14 +49,11 @@ describe('Minimal pages', () => {
 
     it('I can view a minimal big number', () => {
         cy.request(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         ).then((projectResponse) => {
-            const savedChart = projectResponse.body.results
-                .find((s) => s.name === SEED_PROJECT.name)
-
-                .queries.find(
-                    (s) => s.name === `What's our total revenue to date?`,
-                );
+            const savedChart = projectResponse.body.results.find(
+                (s) => s.name === `What's our total revenue to date?`,
+            );
 
             cy.visit(
                 `/minimal/projects/${SEED_PROJECT.project_uuid}/saved/${savedChart.uuid}`,
@@ -74,11 +65,11 @@ describe('Minimal pages', () => {
     });
     it('I can view a minimal dashboard', () => {
         cy.request(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
         ).then((projectResponse) => {
-            const dashboard = projectResponse.body.results
-                .find((s) => s.name === SEED_PROJECT.name)
-                .dashboards.find((s) => s.name === `Jaffle dashboard`);
+            const dashboard = projectResponse.body.results.find(
+                (s) => s.name === `Jaffle dashboard`,
+            );
 
             cy.visit(
                 `/minimal/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboard.uuid}`,

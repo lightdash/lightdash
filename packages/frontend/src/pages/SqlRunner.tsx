@@ -19,6 +19,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import CatalogTree from '../components/common/SqlRunner/CatalogTree';
 import DownloadSqlCsvButton from '../components/DownloadSqlCsvButton';
+import { ItemDetailProvider } from '../components/Explorer/ExploreTree/TableTree/ItemDetailContext';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -209,10 +210,12 @@ const SqlRunnerPage = () => {
                             ) : (
                                 <Stack sx={{ overflowY: 'auto', flex: 1 }}>
                                     <Box>
-                                        <CatalogTree
-                                            nodes={catalogTree}
-                                            onSelect={handleTableSelect}
-                                        />
+                                        <ItemDetailProvider>
+                                            <CatalogTree
+                                                nodes={catalogTree}
+                                                onSelect={handleTableSelect}
+                                            />
+                                        </ItemDetailProvider>
                                     </Box>
                                 </Stack>
                             )}

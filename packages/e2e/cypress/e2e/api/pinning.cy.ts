@@ -8,11 +8,9 @@ describe('Lightdash pinning endpoints', () => {
     });
     it('Should pin/unpin chart', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
+        cy.request(`${apiUrl}/projects/${projectUuid}/charts`).then(
             (projectResponse) => {
-                const savedChart = projectResponse.body.results.find(
-                    (space) => space.queries.length > 0,
-                ).queries[0];
+                const savedChart = projectResponse.body.results[0];
 
                 // change once
                 cy.request(

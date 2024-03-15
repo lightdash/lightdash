@@ -11,12 +11,11 @@ module.exports = {
         'prettier',
         'plugin:json/recommended',
     ],
-    plugins: ['@typescript-eslint', 'unused-imports'],
+    plugins: ['@typescript-eslint'],
     rules: {
         'no-case-declarations': 'off',
         'no-template-curly-in-string': 'off',
         'import/prefer-default-export': 'off',
-        'unused-imports/no-unused-imports': 'warn',
         '@typescript-eslint/consistent-type-imports': [
             'error',
             {

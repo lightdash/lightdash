@@ -26,7 +26,10 @@ export const getBigqueryCredentialsFromOauth = async (): Promise<
         'key' in credentials.credential
     ) {
         // Works with service credentials
-        const { email, key, projectId } = credentials.credential as any;
+        const { email, key, projectId } = credentials.credential as Record<
+            string,
+            string
+        >;
 
         return {
             client_email: email,

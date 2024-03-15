@@ -557,6 +557,11 @@ export type ApiChartSummaryListResponse = {
     results: ChartSummary[];
 };
 
+export type ApiChartListResponse = {
+    status: 'ok';
+    results: SpaceQuery[];
+};
+
 export type ChartHistory = {
     history: ChartVersionSummary[];
 };
