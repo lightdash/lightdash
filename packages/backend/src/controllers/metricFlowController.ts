@@ -13,7 +13,6 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { dbtCloudGraphqlClient } from '../clients/clients';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
@@ -81,7 +80,7 @@ export class MetricFlowController extends BaseController {
 
         return {
             status: 'ok',
-            results: await dbtCloudGraphqlClient.runQuery({
+            results: await req.services.clients.dbtCloudGraphqlClient.runQuery({
                 domain,
                 bearerToken,
                 environmentId,

@@ -1,5 +1,13 @@
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { S3Client } from '../clients/Aws/s3';
+import { S3CacheClient } from '../clients/Aws/S3CacheClient';
+import DbtCloudGraphqlClient from '../clients/dbtCloud/DbtCloudGraphqlClient';
+import EmailClient from '../clients/EmailClient/EmailClient';
+import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
+import { SlackClient } from '../clients/Slack/SlackClient';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { schedulerModel, slackAuthenticationModel } from '../models/models';
+import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { OperationContext, ServiceRepository } from './ServiceRepository';
 
 const analytics = new LightdashAnalytics({
@@ -27,4 +35,28 @@ export const serviceRepository = new ServiceRepository({
         lightdashAnalytics: analytics,
         lightdashConfig,
     }),
+    clients: {
+        dbtCloudGraphqlClient: new DbtCloudGraphqlClient(),
+        emailClient: new EmailClient({
+            lightdashConfig,
+        }),
+        googleDriveClient: new GoogleDriveClient({
+            lightdashConfig,
+        }),
+        s3CacheClient: new S3CacheClient({
+            lightdashConfig,
+        }),
+        s3Client: new S3Client({
+            lightdashConfig,
+        }),
+        schedulerClient: new SchedulerClient({
+            lightdashConfig,
+            analytics,
+            schedulerModel,
+        }),
+        slackClient: new SlackClient({
+            slackAuthenticationModel,
+            lightdashConfig,
+        }),
+    },
 });

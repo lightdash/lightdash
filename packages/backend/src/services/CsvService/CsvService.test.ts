@@ -31,10 +31,6 @@ jest.mock('../../models/models', () => ({
     downloadFileModel: {},
 }));
 
-jest.mock('../services', () => ({
-    projectService: {},
-}));
-
 describe('Csv service', () => {
     const csvService = new CsvService({
         lightdashConfig,

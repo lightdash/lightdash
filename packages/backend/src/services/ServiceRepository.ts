@@ -1,11 +1,5 @@
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import {
-    emailClient,
-    s3CacheClient,
-    s3Client,
-    schedulerClient,
-    slackClient,
-} from '../clients/clients';
+import type { ClientManifest } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import {
     analyticsModel,
@@ -188,15 +182,23 @@ abstract class ServiceRepositoryBase {
      */
     protected readonly context: OperationContext;
 
+    /**
+     * Holds client singletons. Temporary solution, will be replaced by dependency injection.
+     */
+    public clients: ClientManifest;
+
     constructor({
         serviceProviders,
         context,
+        clients,
     }: {
         serviceProviders?: ServiceProviderMap<ServiceManifest>;
         context: OperationContext;
+        clients: ClientManifest;
     }) {
         this.providers = serviceProviders ?? {};
         this.context = context;
+        this.clients = clients;
     }
 }
 
@@ -256,11 +258,11 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     projectService: this.getProjectService(),
                     userModel,
-                    s3Client,
+                    s3Client: this.clients.s3Client,
                     dashboardModel,
                     savedChartModel,
                     downloadFileModel,
-                    schedulerClient,
+                    schedulerClient: this.clients.schedulerClient,
                 }),
         );
     }
@@ -277,8 +279,8 @@ export class ServiceRepository
                     pinnedListModel,
                     schedulerModel,
                     savedChartModel,
-                    schedulerClient,
-                    slackClient,
+                    schedulerClient: this.clients.schedulerClient,
+                    slackClient: this.clients.slackClient,
                 }),
         );
     }
@@ -339,7 +341,7 @@ export class ServiceRepository
                     userModel,
                     dashboardModel,
                     savedChartModel,
-                    schedulerClient,
+                    schedulerClient: this.clients.schedulerClient,
                 }),
         );
     }
@@ -433,15 +435,15 @@ export class ServiceRepository
                     onboardingModel,
                     savedChartModel,
                     jobModel,
-                    emailClient,
+                    emailClient: this.clients.emailClient,
                     spaceModel,
                     sshKeyPairModel,
                     userAttributesModel,
-                    s3CacheClient,
+                    s3CacheClient: this.clients.s3CacheClient,
                     analyticsModel,
                     dashboardModel,
                     userWarehouseCredentialsModel,
-                    schedulerClient,
+                    schedulerClient: this.clients.schedulerClient,
                 }),
         );
     }
@@ -458,8 +460,8 @@ export class ServiceRepository
                     analyticsModel,
                     pinnedListModel,
                     schedulerModel,
-                    schedulerClient,
-                    slackClient,
+                    schedulerClient: this.clients.schedulerClient,
+                    slackClient: this.clients.slackClient,
                 }),
         );
     }
@@ -475,8 +477,8 @@ export class ServiceRepository
                     savedChartModel,
                     dashboardModel,
                     spaceModel,
-                    schedulerClient,
-                    slackClient,
+                    schedulerClient: this.clients.schedulerClient,
+                    slackClient: this.clients.slackClient,
                 }),
         );
     }
@@ -541,7 +543,7 @@ export class ServiceRepository
                     savedChartModel,
                     spaceModel,
                     shareModel,
-                    s3Client,
+                    s3Client: this.clients.s3Client,
                     projectModel,
                     downloadFileModel,
                 }),
@@ -573,7 +575,7 @@ export class ServiceRepository
                     emailModel,
                     openIdIdentityModel,
                     passwordResetLinkModel,
-                    emailClient,
+                    emailClient: this.clients.emailClient,
                     organizationMemberProfileModel,
                     organizationModel,
                     personalAccessTokenModel,
@@ -595,7 +597,7 @@ export class ServiceRepository
                     validationModel,
                     dashboardModel,
                     spaceModel,
-                    schedulerClient,
+                    schedulerClient: this.clients.schedulerClient,
                 }),
         );
     }

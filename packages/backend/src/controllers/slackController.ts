@@ -17,7 +17,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { slackClient } from '../clients/clients';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -45,7 +44,9 @@ export class SlackController extends BaseController {
         if (!organizationUuid) throw new ForbiddenError();
         return {
             status: 'ok',
-            results: await slackClient.getChannels(organizationUuid),
+            results: await req.services.clients.slackClient.getChannels(
+                organizationUuid,
+            ),
         };
     }
 
@@ -70,11 +71,12 @@ export class SlackController extends BaseController {
         if (!organizationUuid) throw new ForbiddenError();
         return {
             status: 'ok',
-            results: await slackClient.updateNotificationChannel(
-                `${req.user?.firstName} ${req.user?.lastName}`,
-                organizationUuid,
-                body.channelId,
-            ),
+            results:
+                await req.services.clients.slackClient.updateNotificationChannel(
+                    `${req.user?.firstName} ${req.user?.lastName}`,
+                    organizationUuid,
+                    body.channelId,
+                ),
         };
     }
 }
