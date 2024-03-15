@@ -35,21 +35,18 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
     const { data: chart, isInitialLoading } = useSavedQuery({ id: uuid });
 
     const form = useForm<FormState>({
-        initialValues: {
-            name: '',
-            description: '',
-        },
+        initialValues: { name: '', description: '' },
     });
-
-    const { setValues } = form;
 
     useEffect(() => {
         if (!chart) return;
-        setValues({
+        const initialValues = {
             name: 'Copy - ' + chart.name,
             description: chart.description,
-        });
-    }, [chart, setValues]);
+        };
+        form.setInitialValues(initialValues);
+        form.setValues(initialValues);
+    }, [chart]);
 
     if (isInitialLoading || !chart) {
         return null;

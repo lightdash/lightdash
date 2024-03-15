@@ -35,21 +35,18 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
     const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
 
     const form = useForm<FormState>({
-        initialValues: {
-            name: '',
-            description: '',
-        },
+        initialValues: { name: '', description: '' },
     });
-
-    const { setValues } = form;
 
     useEffect(() => {
         if (!dashboard) return;
-        setValues({
+        const initialValues = {
             name: 'Copy - ' + dashboard.name,
             description: dashboard.description ?? '',
-        });
-    }, [dashboard, setValues]);
+        };
+        form.setInitialValues(initialValues);
+        form.setValues(initialValues);
+    }, [dashboard]);
 
     if (isInitialLoading || !dashboard) {
         return null;
