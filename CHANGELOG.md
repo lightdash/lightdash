@@ -1,3 +1,10 @@
+# [0.1034.0](https://github.com/lightdash/lightdash/compare/0.1033.0...0.1034.0) (2024-03-15)
+
+
+### Features
+
+* split login ([#9340](https://github.com/lightdash/lightdash/issues/9340)) ([c35a70e](https://github.com/lightdash/lightdash/commit/c35a70e758ab4991fa002141d5923d40e8957add)), closes [#9348](https://github.com/lightdash/lightdash/issues/9348)
+
 # [0.1033.0](https://github.com/lightdash/lightdash/compare/0.1032.0...0.1033.0) (2024-03-15)
 
 
