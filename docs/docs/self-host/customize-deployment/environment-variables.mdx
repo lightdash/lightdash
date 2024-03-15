@@ -3,14 +3,14 @@
 This is a reference to all environment variables that can be used to configure a Lightdash deployment.
 
 | Variable                                     | Description                                                                                                                                                                                                   | Required? | Default                                                         |
-|----------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|-----------------------------------------------------------------|
-| `PGHOST`                                     | Hostname of postgres server to store Lightdash data                                                                                                                                                           | ✅         |                                                                 |
-| `PGPORT`                                     | Port of postgres server to store Lightdash data                                                                                                                                                               | ✅         |                                                                 |
-| `PGUSER`                                     | Username of postgres user to access postgres server to store Lightdash data                                                                                                                                   | ✅         |                                                                 |
-| `PGPASSWORD`                                 | Password for `PGUSER`                                                                                                                                                                                         | ✅         |                                                                 |
-| `PGDATABASE`                                 | Database name inside postgres server to store Lightdash data                                                                                                                                                  | ✅         |                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | --------------------------------------------------------------- |
+| `PGHOST`                                     | Hostname of postgres server to store Lightdash data                                                                                                                                                           | ✅        |                                                                 |
+| `PGPORT`                                     | Port of postgres server to store Lightdash data                                                                                                                                                               | ✅        |                                                                 |
+| `PGUSER`                                     | Username of postgres user to access postgres server to store Lightdash data                                                                                                                                   | ✅        |                                                                 |
+| `PGPASSWORD`                                 | Password for `PGUSER`                                                                                                                                                                                         | ✅        |                                                                 |
+| `PGDATABASE`                                 | Database name inside postgres server to store Lightdash data                                                                                                                                                  | ✅        |                                                                 |
 | `PGCONNECTIONURI`                            | Connection URI for postgres server to store Lightdash data in the format `postgresql://user:password@host:port/db?params`                                                                                     |           | This is an alternative to providing the previous `PG` variables |
-| `LIGHTDASH_SECRET`                           | Secret key used to secure various tokens in Lightdash. This **must** be fixed between deployments. If the secret changes, you won't have access to Lightdash data.                                            | ✅         |                                                                 |
+| `LIGHTDASH_SECRET`                           | Secret key used to secure various tokens in Lightdash. This **must** be fixed between deployments. If the secret changes, you won't have access to Lightdash data.                                            | ✅        |                                                                 |
 | `SECURE_COOKIES`                             | Only allows cookies to be stored over a `https` connection. We use cookies to keep you logged in. This is recommended to be set to `true` in production.                                                      |           | `false`                                                         |
 | `COOKIES_MAX_AGE_HOURS`                      | How many hours a user session exists before the user is automatically signed out. For example if 24, then the user will be automatically after 24 hours of inactivity.                                        |           |                                                                 |
 | `TRUST_PROXY`                                | This tells the Lightdash server that it can trust the `X-Forwarded-Proto` header it receives in requests. This is useful if you use `SECURE_COOKIES=true` behind a HTTPS terminated proxy that you can trust. |           | `false`                                                         |
@@ -20,7 +20,7 @@ This is a reference to all environment variables that can be used to configure a
 | `LIGHTDASH_QUERY_MAX_LIMIT`                  | Query max rows limit                                                                                                                                                                                          |           | `5000`                                                          |
 | `SCHEDULER_ENABLED`                          | Enables/Disables the scheduler worker that triggers the scheduled deliveries.                                                                                                                                 |           | `true`                                                          |
 | `SCHEDULER_CONCURRENCY`                      | How many scheduled delivery jobs can be processed concurrently.                                                                                                                                               |           | `1`                                                             |
-| `SCHEDULER_JOB_TIMEOUT`                      | After how many milliseconds the job should be timeout so the scheduler worker can pick other jobs.                                                                                                            |           | `600000`  (10 minutes)                                          |
+| `SCHEDULER_JOB_TIMEOUT`                      | After how many milliseconds the job should be timeout so the scheduler worker can pick other jobs.                                                                                                            |           | `600000` (10 minutes)                                           |
 | `LIGHTDASH_CSV_CELLS_LIMIT`                  | Max cells on CSV file exports                                                                                                                                                                                 |           | `100000`                                                        |
 | `LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT` | Configure how far back the chart versions history goes in days                                                                                                                                                |           | `3`                                                             |
 | `LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT`     | Configure maximum number of columns in pivot table                                                                                                                                                            |           | `60`                                                            |
@@ -32,17 +32,17 @@ Lightdash also accepts all [standard postgres environment variables](https://www
 
 This is a reference to all the SMTP environment variables that can be used to configure a Lightdash email client.
 
-| Variable | Description | Required? | Default |
-|----------|-------------|-----------|---------|
-|`EMAIL_SMTP_HOST`| Hostname of email server | ✅ | |
-|`EMAIL_SMTP_PORT` | Port of email server | | 587 |
-|`EMAIL_SMTP_SECURE` | Secure connection | | true |
-|`EMAIL_SMTP_USER` | Auth user | ✅ | |
-|`EMAIL_SMTP_PASSWORD` | Auth password | [1] | |
-|`EMAIL_SMTP_ACCESS_TOKEN` | Auth access token for Oauth2 authentication | [1] | |
-|`EMAIL_SMTP_ALLOW_INVALID_CERT` | Allow connection to TLS server with self-signed or invalid TLS certificate | | false |
-|`EMAIL_SMTP_SENDER_EMAIL` | The email address that sends emails | ✅ | |
-|`EMAIL_SMTP_SENDER_NAME` | The name of the email address that sends emails | | Lightdash |
+| Variable                        | Description                                                                | Required? | Default   |
+| ------------------------------- | -------------------------------------------------------------------------- | --------- | --------- |
+| `EMAIL_SMTP_HOST`               | Hostname of email server                                                   | ✅        |           |
+| `EMAIL_SMTP_PORT`               | Port of email server                                                       |           | 587       |
+| `EMAIL_SMTP_SECURE`             | Secure connection                                                          |           | true      |
+| `EMAIL_SMTP_USER`               | Auth user                                                                  | ✅        |           |
+| `EMAIL_SMTP_PASSWORD`           | Auth password                                                              | [1]       |           |
+| `EMAIL_SMTP_ACCESS_TOKEN`       | Auth access token for Oauth2 authentication                                | [1]       |           |
+| `EMAIL_SMTP_ALLOW_INVALID_CERT` | Allow connection to TLS server with self-signed or invalid TLS certificate |           | false     |
+| `EMAIL_SMTP_SENDER_EMAIL`       | The email address that sends emails                                        | ✅        |           |
+| `EMAIL_SMTP_SENDER_NAME`        | The name of the email address that sends emails                            |           | Lightdash |
 
 [1] `EMAIL_SMTP_PASSWORD` or `EMAIL_SMTP_ACCESS_TOKEN` needs to be provided
 
@@ -72,7 +72,7 @@ These variables enable you to control Single Sign On (SSO) functionality.
 # Logging environment variables
 
 | Variable                       | Description                                                 | Required? | Default                |
-|--------------------------------|-------------------------------------------------------------|-----------|------------------------|
+| ------------------------------ | ----------------------------------------------------------- | --------- | ---------------------- |
 | `LIGHTDASH_LOG_LEVEL`          | The minimum level of log messages to display                |           | `INFO`                 |
 | `LIGHTDASH_LOG_FORMAT`         | The format of log messages                                  |           | `pretty`               |
 | `LIGHTDASH_LOG_OUTPUTS`        | The outputs to send log messages to                         |           | `console`              |
@@ -84,9 +84,8 @@ These variables enable you to control Single Sign On (SSO) functionality.
 
 # dbt semantic layer environment variables
 
-| Variable                                     | Description                            | Required?                                                                                                                                                               | Default                                                                                                                                                                                                                       |
-|----------------------------------------------|----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------|
-| `DBT_CLOUD_DOMAIN`                           |  dbt cloud Semantic Layer API domain   | Only required if your dbt cloud URL is similar to this `client123.us1.dbt.com`. If so, you should set the value `https://client123.semantic-layer.us1.dbt.com`          | https://semantic-layer.cloud.getdbt.com                         |
-| `DBT_CLOUD_ENVIRONMENT_ID`                   | dbt environment ID                     | ✅                                                                                                                                                                      |                                                                 |
-| `DBT_CLOUD_BEARER_TOKEN`                     | dbt cloud bearer token                 | ✅                                                                                                                                                                      |                                                                 |
-
+| Variable                   | Description                         | Required?                                                                                                                                                      | Default                                 |
+| -------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `DBT_CLOUD_DOMAIN`         | dbt cloud Semantic Layer API domain | Only required if your dbt cloud URL is similar to this `client123.us1.dbt.com`. If so, you should set the value `https://client123.semantic-layer.us1.dbt.com` | https://semantic-layer.cloud.getdbt.com |
+| `DBT_CLOUD_ENVIRONMENT_ID` | dbt environment ID                  | ✅                                                                                                                                                             |                                         |
+| `DBT_CLOUD_BEARER_TOKEN`   | dbt cloud bearer token              | ✅                                                                                                                                                             |                                         |

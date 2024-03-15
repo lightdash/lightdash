@@ -8,7 +8,12 @@ Ranking values in a column is when you set every value as a number either higher
 
 Here's an example of a percent change calculation:
 
-<img src={RankInColumn} width="845" height="426" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={RankInColumn}
+    width="845"
+    height="426"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 And here's the SQL used to generate it:
 
@@ -18,8 +23,8 @@ ROW_NUMBER() OVER(PARTITION BY ${orders.order_date_month} ORDER BY ${orders.tota
 
 In general, the SQL used for calculating the rank in a column has just one important column and one other important parameter:
 
-- `column_i_want_to_rank` - this is the column that you want to rank
-- `ASC` and `DESC` - if you want to have the **biggest values** with rank = 1, then you need to add `DESC` to your `ORDER BY` clause. If you want the **smallest values** with rank = 1 then you can add `ASC` to your `ORDER BY` clause (this isn't required, since the ordering is `ASC` by default).
+-   `column_i_want_to_rank` - this is the column that you want to rank
+-   `ASC` and `DESC` - if you want to have the **biggest values** with rank = 1, then you need to add `DESC` to your `ORDER BY` clause. If you want the **smallest values** with rank = 1 then you can add `ASC` to your `ORDER BY` clause (this isn't required, since the ordering is `ASC` by default).
 
 ### Here's the SQL you can copy-paste to calculate your rank in column
 

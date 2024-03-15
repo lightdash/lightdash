@@ -38,58 +38,58 @@ If you want to declare multiple dimensions based on the same column, check [addi
 version: 2
 
 models:
-  - name: sales_stats
-    meta:
-      joins:
-        - join: web_sessions
-          sql_on: ${web_sessions.date} = ${sales_stats.date}
-    columns:
-      - name: revenue_gbp_total_est
-        description: "Total estimated revenue in GBP based on forecasting done by the finance team."
-        meta:
-          dimension:
-            type: string
-            label: 'Total revenue' # this is the label you'll see in Lightdash
-            description: 'My custom description' # you can override the description you'll see in Lightdash here
-            sql: "IF(${TABLE}.revenue_gbp_total_est = NULL, 0, ${registered_user_email})" # custom SQL applied to the column from dbt used to define the dimension
-            hidden: false
-            round: 2
-            format: 'gbp'
-            group_label: "Revenue"
-      - name: forecast_date
-        description: "Date of the forecasting."
-        meta:
-          dimension:
-            type: date
-            time_intervals: ['DAY', 'WEEK', 'MONTH', 'QUARTER'] # not required: the default time intervals for dates are `['DAY', 'WEEK', 'MONTH', 'YEAR']`
-            urls:
-              - label: "Open in forecasting tool"
-                url: "https://finance.com/forceasts/weeks/${ value.raw }"
-              - label: Open in Google Calendar
-                url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
-            required_attributes:
-              is_admin: "true"
-      - name: date
-        meta:
-          dimension:
-            type: date
-          additional_dimensions:
-            dimension_name_one:
-              type: number
-              label: "Day of Week"
-              sql: "day_of_week(${date})"
-            dimension_name_two:
-              type: boolean
-              label: "Weekday or Weekend"
-              sql: "case when day_of_week(${date}) < 5 then 'weekday' else 'weekend' end"
+    - name: sales_stats
+      meta:
+          joins:
+              - join: web_sessions
+                sql_on: ${web_sessions.date} = ${sales_stats.date}
+      columns:
+          - name: revenue_gbp_total_est
+            description: 'Total estimated revenue in GBP based on forecasting done by the finance team.'
+            meta:
+                dimension:
+                    type: string
+                    label: 'Total revenue' # this is the label you'll see in Lightdash
+                    description: 'My custom description' # you can override the description you'll see in Lightdash here
+                    sql: 'IF(${TABLE}.revenue_gbp_total_est = NULL, 0, ${registered_user_email})' # custom SQL applied to the column from dbt used to define the dimension
+                    hidden: false
+                    round: 2
+                    format: 'gbp'
+                    group_label: 'Revenue'
+          - name: forecast_date
+            description: 'Date of the forecasting.'
+            meta:
+                dimension:
+                    type: date
+                    time_intervals: ['DAY', 'WEEK', 'MONTH', 'QUARTER'] # not required: the default time intervals for dates are `['DAY', 'WEEK', 'MONTH', 'YEAR']`
+                    urls:
+                        - label: 'Open in forecasting tool'
+                          url: 'https://finance.com/forceasts/weeks/${ value.raw }'
+                        - label: Open in Google Calendar
+                          url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
+                    required_attributes:
+                        is_admin: 'true'
+          - name: date
+            meta:
+                dimension:
+                    type: date
+                additional_dimensions:
+                    dimension_name_one:
+                        type: number
+                        label: 'Day of Week'
+                        sql: 'day_of_week(${date})'
+                    dimension_name_two:
+                        type: boolean
+                        label: 'Weekday or Weekend'
+                        sql: "case when day_of_week(${date}) < 5 then 'weekday' else 'weekend' end"
 ```
 
 All the properties you can customize:
 
 | Property                                    | Required | Value                                                                                                                                             | Description                                                                                                                                                                                                                                                |
-|---------------------------------------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | label                                       | No       | string                                                                                                                                            | Custom label. If you set this property, this is what you'll see in Lightdash instead of the dimension name.                                                                                                                                                |
-| [type](#type)                                        | No       | Dimension type                                                                                                                                    | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property.                                                                                                                         |
+| [type](#type)                               | No       | Dimension type                                                                                                                                    | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property.                                                                                                                         |
 | description                                 | No       | string                                                                                                                                            | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt.                                                                                                                                 |
 | sql                                         | No       | string                                                                                                                                            | Custom SQL applied to the column used to define the dimension.                                                                                                                                                                                             |
 | [time_intervals](#time-intervals)           | No       | `'default'` or `OFF` or an array[] containing elements of [date](#date-options), [numeric](#numeric-options) or [string](#string-options) options | `'default'` (or not setting the `time_intervals` property) will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps; if you want no time intervals set `'OFF'`.                    |
@@ -99,17 +99,17 @@ All the properties you can customize:
 | [compact](#compact-values)                  | No       | string                                                                                                                                            | This option will compact the number value (e.g. 1,500 to 1.50K). Currently supports one of the following: `['thousands', 'millions', 'billions', 'trillions']`                                                                                             |
 | group_label                                 | No       | string                                                                                                                                            | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                    |
 | [urls](#urls)                               | No       | Array of { url, label }                                                                                                                           | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
-| [required_attributes](#required-attributes) | No       | Object with { user_attribute, value }                                                                                                             | Limits access to users with those attributes  |
+| [required_attributes](#required-attributes) | No       | Object with { user_attribute, value }                                                                                                             | Limits access to users with those attributes                                                                                                                                                                                                               |
 
 ## Type
 
-The types of your dimensions are pulled from your data warehouse, automatically. You can override these types using the `type` meta tag in your .yml file. If you run `lightdash generate` to generate your .yml files, then Lightdash will add the `type` from your data warehouse to your .yml files automatically. 
+The types of your dimensions are pulled from your data warehouse, automatically. You can override these types using the `type` meta tag in your .yml file. If you run `lightdash generate` to generate your .yml files, then Lightdash will add the `type` from your data warehouse to your .yml files automatically.
 
 ```yaml
 - name: user_created_date
   meta:
-    dimension:
-      type: date
+      dimension:
+          type: date
 ```
 
 We currently support these dimension types:
@@ -121,7 +121,6 @@ We currently support these dimension types:
 | timestamp       |
 | date            |
 | boolean         |
-
 
 ## Compact values
 
@@ -139,7 +138,7 @@ You can compact values in your YAML. For example, if I wanted all of my revenue 
 ```
 
 | Value     | Alias              | Example output |
-|-----------|--------------------|----------------|
+| --------- | ------------------ | -------------- |
 | thousands | "K" and "thousand" | 1K             |
 | millions  | "M" and "million"  | 1M             |
 | billions  | "B" and "billion"  | 1B             |
@@ -152,8 +151,8 @@ Lightdash automatically adds intervals for dimensions that are timestamps or dat
 For example, here we have the timestamp dimension `created` defined in our dbt project:
 
 ```yaml
-      - name: created
-        description: 'Timestamp when the user was created.'
+- name: created
+  description: 'Timestamp when the user was created.'
 ```
 
 Lightdash breaks this out into the default intervals automatically. So, this is how `created` appears in our Lightdash project:
@@ -173,25 +172,25 @@ If you want to turn off time intervals for a dimension, you can simply set the `
 In this example, `created` would now appear as a single, timestamp dimension without a drop-down list of time intervals in Lightdash:
 
 ```yaml
-      - name: created
-        description: 'Timestamp when the user was created.'
-        meta:
-          dimension:
-            time_intervals: OFF
+- name: created
+  description: 'Timestamp when the user was created.'
+  meta:
+      dimension:
+          time_intervals: OFF
 ```
 
 ![screenshot-intervals-off](assets/screenshot-intervals-off.png)
 
-### To customize the time intervals for a dimension, you can use the `time_intervals` parameter. 
+### To customize the time intervals for a dimension, you can use the `time_intervals` parameter.
 
 If you specify time intervals manually, then this overrides the default time intervals used by Lightdash.
 
 ```yaml
-      - name: created
-        description: 'Timestamp when the user was created.'
-        meta:
-          dimension:
-            time_intervals: ['DAY', 'WEEK', 'MONTH', 'YEAR', 'QUARTER']
+- name: created
+  description: 'Timestamp when the user was created.'
+  meta:
+      dimension:
+          time_intervals: ['DAY', 'WEEK', 'MONTH', 'YEAR', 'QUARTER']
 ```
 
 You can see all of the interval options for date and timestamp fields below.
@@ -199,7 +198,7 @@ You can see all of the interval options for date and timestamp fields below.
 ### Date options
 
 | Option      | Description                                   | Type            | Displayed value                           | Notes                                                         |
-|-------------|-----------------------------------------------|-----------------|-------------------------------------------|---------------------------------------------------------------|
+| ----------- | --------------------------------------------- | --------------- | ----------------------------------------- | ------------------------------------------------------------- |
 | RAW         | Original value                                | Date / DateTime | 2019-01-01 / 2019-01-01, 09:30:30:300 UTC |                                                               |
 | YEAR        | Date truncated to the nearest year            | Date            | 2019                                      |                                                               |
 | QUARTER     | Date truncated to the nearest quarter         | Date            | 2019-Q1                                   |                                                               |
@@ -213,75 +212,80 @@ You can see all of the interval options for date and timestamp fields below.
 
 ### Numeric options
 
-| Option            | Description                  | Type   | Displayed value | Notes                                                                         |
-|-------------------|------------------------------|--------|-----------------|-------------------------------------------------------------------------------|
-| DAY_OF_WEEK_INDEX | Index of the day of the week | Number | 0               | The value range and start of the week depends on your warehouse configuration |
-| DAY_OF_MONTH_NUM  | Day of the month             | Number | 21              |                                                                               |
-| DAY_OF_YEAR_NUM   | Day of the year              | Number | 127             |                                                                               |
-| WEEK_NUM          | Week number                  | Number | 37              |                                                                               |
-| MONTH_NUM         | Month number                 | Number | 7               |                                                                               |
-| QUARTER_NUM       | Quarter number               | Number | 3               |                                                                               |
-| YEAR_NUM          | Year number                  | Number | 2019            |                                                                               |
-| MINUTE_OF_HOUR_NUM| Minute number                | Number | 50              |                                                                               |
-| HOUR_OF_DAY_NUM   | Hour number                  | Number | 22              |                                                                               |
+| Option             | Description                  | Type   | Displayed value | Notes                                                                         |
+| ------------------ | ---------------------------- | ------ | --------------- | ----------------------------------------------------------------------------- |
+| DAY_OF_WEEK_INDEX  | Index of the day of the week | Number | 0               | The value range and start of the week depends on your warehouse configuration |
+| DAY_OF_MONTH_NUM   | Day of the month             | Number | 21              |                                                                               |
+| DAY_OF_YEAR_NUM    | Day of the year              | Number | 127             |                                                                               |
+| WEEK_NUM           | Week number                  | Number | 37              |                                                                               |
+| MONTH_NUM          | Month number                 | Number | 7               |                                                                               |
+| QUARTER_NUM        | Quarter number               | Number | 3               |                                                                               |
+| YEAR_NUM           | Year number                  | Number | 2019            |                                                                               |
+| MINUTE_OF_HOUR_NUM | Minute number                | Number | 50              |                                                                               |
+| HOUR_OF_DAY_NUM    | Hour number                  | Number | 22              |                                                                               |
 
 ### String options
 
 | Option           | Description     | Type   | Displayed value |
-|------------------|-----------------|--------|-----------------|
+| ---------------- | --------------- | ------ | --------------- |
 | DAY_OF_WEEK_NAME | Day of the week | String | Monday          |
 | MONTH_NAME       | Month name      | String | March           |
 | QUARTER_NAME     | Quarter name    | String | Q3              |
 
 ## Format
 
-You can use the `format` parameter to have your dimensions show in a particular format in Lightdash. 
+You can use the `format` parameter to have your dimensions show in a particular format in Lightdash.
 
 ```yaml
-      - name: revenue
-        description: 'Timestamp when the user was created.'
-        meta:
-          dimension:
-            format: 'usd'
-          metrics:
-            total_revenue:
+- name: revenue
+  description: 'Timestamp when the user was created.'
+  meta:
+      dimension:
+          format: 'usd'
+      metrics:
+          total_revenue:
               type: sum
               format: 'usd'
 ```
 
 These are the options:
 
-| Option | Description                                                                           | Raw value | Displayed value |
-|--------|---------------------------------------------------------------------------------------|-----------|-----------------|
-| km     | Adds the suffix `km` to your value                                                    | 10        | 10 km           |
-| mi     | Adds the suffix `mile` to your value                                                  | 10        | 10 mi           |
-| usd    | Adds the `$` symbol to your number value                                              | 10        | $10.00          |
-| gbp    | Adds the `£` symbol to your number value                                              | 10        | £10.00          |
-| eur    | Adds the `€` symbol to your number value                                              | 10        | €10.00          |
-| percent| Adds the `%` symbol and multiplies your value by 100                                  | 0.1       | %10             |
-| id     | Removes commas and spaces from number or string types so that they appear like IDs.   | 12,389,572| 12389572        |
+| Option  | Description                                                                         | Raw value  | Displayed value |
+| ------- | ----------------------------------------------------------------------------------- | ---------- | --------------- |
+| km      | Adds the suffix `km` to your value                                                  | 10         | 10 km           |
+| mi      | Adds the suffix `mile` to your value                                                | 10         | 10 mi           |
+| usd     | Adds the `$` symbol to your number value                                            | 10         | $10.00          |
+| gbp     | Adds the `£` symbol to your number value                                            | 10         | £10.00          |
+| eur     | Adds the `€` symbol to your number value                                            | 10         | €10.00          |
+| percent | Adds the `%` symbol and multiplies your value by 100                                | 0.1        | %10             |
+| id      | Removes commas and spaces from number or string types so that they appear like IDs. | 12,389,572 | 12389572        |
 
 ## URLs
 
 Lightdash users can interact with dimension values by clicking on them. By adding custom `urls` you can configure
 the actions available to your users. Like linking to external tools, or taking actions in other tools.
 
-<img src={ClickableDimension} width="583" height="274" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={ClickableDimension}
+    width="583"
+    height="274"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 In the example below, users can click on a company name and open a corresponding record in their CRM or search for
 the company in google or open that company's Slack channel.
 
 ```yaml
 columns:
-  - name: company_name
-    label: Registered trading name of the company
-    meta:
-      dimension:
-        urls:
-          - label: Search for company in Google
-            url: "https://google.com/search?${ value.formatted | url_encode }"
-          - label: Open in CRM
-            url: "https://mycrm.com/companies/${ row.company.company_id.raw | url_encode }"
+    - name: company_name
+      label: Registered trading name of the company
+      meta:
+          dimension:
+              urls:
+                  - label: Search for company in Google
+                    url: 'https://google.com/search?${ value.formatted | url_encode }'
+                  - label: Open in CRM
+                    url: 'https://mycrm.com/companies/${ row.company.company_id.raw | url_encode }'
 ```
 
 The `${ value.formatted }` will be replaced with the value of the company name in the Lightdash UI at query run time.
@@ -313,7 +317,7 @@ Use templates to configure the url values depending on the query, this allows yo
 **Available liquid tags**
 
 | Tag                                         | Description                                                                                  |
-|---------------------------------------------|----------------------------------------------------------------------------------------------|
+| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `${ value.formatted }`                      | The exact value of the dimension as seen in the Lightdash UI. For example "$1,427.20"        |
 | `${ value.raw }`                            | The raw value of the dimension returned from the underlying SQL query. For example "1427.2 " |
 | `${ row.table_name.column_name.formatted }` | The exact value of the column as seen in the Lightdash UI. For example "$1,427.20"           |
@@ -323,51 +327,51 @@ Use templates to configure the url values depending on the query, this allows yo
 
 Filters can be used to make small transformations of your values:
 
-| Filter     | Description                                                            | Example usage        |
-|------------|------------------------------------------------------------------------|----------------------|
-| url_encode | Encode a string as url safe, for example it replaces spaces with `%20` | `${value.formatted \ | url_encode }`|
-| downcase   | Convert string to all lowercase                                        | `${value.formatted \ | downcase }`|
-| append     | Append a string to another                                             | `${value.formatted \ | append: ".html"}`|
+| Filter     | Description                                                            | Example usage         |
+| ---------- | ---------------------------------------------------------------------- | --------------------- | ----------------- |
+| url_encode | Encode a string as url safe, for example it replaces spaces with `%20` | `${value.formatted \  | url_encode }`     |
+| downcase   | Convert string to all lowercase                                        | `${value.formatted \  | downcase }`       |
+| append     | Append a string to another                                             | `${value.formatted \  | append: ".html"}` |
 
 There are [many more filters available in the Liquid documentation](https://liquidjs.com/filters/overview.html).
 
-## Required attributes 
+## Required attributes
 
-Lightdash can use `user attributes` to limit some dimensions to some users. 
+Lightdash can use `user attributes` to limit some dimensions to some users.
 
-In the example below, only users with `is_admin` attribute `true` can use the `salary` dimension on `user` table. Users without access to this dimension will not see it on the `explore page`. 
+In the example below, only users with `is_admin` attribute `true` can use the `salary` dimension on `user` table. Users without access to this dimension will not see it on the `explore page`.
 
 ```
-columns: 
-  - name: 
+columns:
+  - name:
     description: User name
-  - salary: 
-    description: User salary 
-    meta: 
-      dimension: 
-        required_attributes: 
-          is_admin: "true" 
+  - salary:
+    description: User salary
+    meta:
+      dimension:
+        required_attributes:
+          is_admin: "true"
 ```
 
-If a user without access to this dimension runs a query that contains this dimension, they will get a `Forbidden` error. 
+If a user without access to this dimension runs a query that contains this dimension, they will get a `Forbidden` error.
 
-### Current limitations 
+### Current limitations
 
-Lightdash dimensions and custom metrics are protected by this feature, however, 
-it is possible to write custom SQL to bypass this filter, for example: 
+Lightdash dimensions and custom metrics are protected by this feature, however,
+it is possible to write custom SQL to bypass this filter, for example:
 
-- Developers and admins running SQL queries on SQL runner. 
-- Custom SQL or subqueries on `table calculations`
+-   Developers and admins running SQL queries on SQL runner.
+-   Custom SQL or subqueries on `table calculations`
 
 :::info
 
-Scheduler deliveries will run against the user who created the scheduled delivery, be careful when sharing required attributes with other users. 
+Scheduler deliveries will run against the user who created the scheduled delivery, be careful when sharing required attributes with other users.
 
 :::
 
 ## Using special characters or capital letters in your column names
 
-If you use special characters on your column names,  you might get errors when using those columns on explore.
+If you use special characters on your column names, you might get errors when using those columns on explore.
 For example, having a column named `Status` with capital S on a table named `orders` in postgres throws the following error:
 
 ```
@@ -399,7 +403,7 @@ FROM "postgres"."jaffle"."orders" AS "orders"
 Additional dimensions let you define multiple dimensions off of a single column from your dbt model. This is useful when handling JSONB
 columns, adding different formatting options to a column, or creating persisted groups/buckets based off of a column.
 
-A "normal" dimension is a column created in your .sql file in dbt that is written to/stored in your data warehouse. 
+A "normal" dimension is a column created in your .sql file in dbt that is written to/stored in your data warehouse.
 An additional dimension is not included in your dbt .sql file, so it's not written to/stored in your data warehouse. When used in Lightdash, it just adds the dimension definition to your SQL query (so it's "created" at runtime).
 
 All the [dimension configuration](#dimension-configuration), beside `time_intervals`, are available for additional
@@ -412,53 +416,52 @@ Additional dimensions names need to be unique in the model.
 :::
 
 ```yaml
-    columns:
-      - name: revenue
-        meta:
+columns:
+    - name: revenue
+      meta:
           dimension:
-            type: number
+              type: number
           additional_dimensions:
-            revenue_in_thousands:
-              type: number
-              compact: thousands
-            revenue_in_millions:
-              type: number
-              compact: million
+              revenue_in_thousands:
+                  type: number
+                  compact: thousands
+              revenue_in_millions:
+                  type: number
+                  compact: million
 
-      - name: metadata # this is a jsonb column with metadata
-        meta:
+    - name: metadata # this is a jsonb column with metadata
+      meta:
           dimension:
-            hidden: true
+              hidden: true
           additional_dimensions:
-            version:
-              type: number
-              sql: JSON_VALUE(${metadata}, '$.version') # custom SQL applied to get the "version" value inside metadata
+              version:
+                  type: number
+                  sql: JSON_VALUE(${metadata}, '$.version') # custom SQL applied to get the "version" value inside metadata
 ```
 
 To define metrics based on a sub-dimension, you need to add them to the model's meta metrics, or use custom SQL in
 defining them under the column's meta.
 
-
 ```yaml
 version: 2
 models:
-  - name: users
-    meta:
-      metrics:
-        highest_version_model_metric_example:
-          type: max
-          sql: ${version}
-    columns:
-      - name: metadata
-        meta:
-          dimension:
-            hidden: true
-          additional_dimensions:
-            version:
-              type: number
-              sql: JSON_VALUE(${metadata}, '$.version')
+    - name: users
+      meta:
           metrics:
-            highest_version:
-              type: max
-              sql: ${version}
+              highest_version_model_metric_example:
+                  type: max
+                  sql: ${version}
+      columns:
+          - name: metadata
+            meta:
+                dimension:
+                    hidden: true
+                additional_dimensions:
+                    version:
+                        type: number
+                        sql: JSON_VALUE(${metadata}, '$.version')
+                metrics:
+                    highest_version:
+                        type: max
+                        sql: ${version}
 ```

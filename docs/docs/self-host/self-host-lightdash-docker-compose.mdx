@@ -5,14 +5,14 @@ sidebar_label: Host with docker-compose
 
 # Self-host Lightdash using docker-compose
 
-This guide will give you a minimal Lightdash instance running on your local machine. It will not be accessible from 
-the internet, but it will be accessible from your local machine. This is a great way to get started with Lightdash 
+This guide will give you a minimal Lightdash instance running on your local machine. It will not be accessible from
+the internet, but it will be accessible from your local machine. This is a great way to get started with Lightdash
 for a proof-of-concept without needing access to kubernetes.
 
 ## Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
+-   [Docker](https://docs.docker.com/get-docker/)
+-   [Docker Compose](https://docs.docker.com/compose/install/)
 
 ## 1. Clone the Lightdash repository
 
@@ -24,9 +24,9 @@ git clone https://github.com/lightdash/lightdash
 cd lightdash
 ```
 
-## 2. Update your ENV config 
+## 2. Update your ENV config
 
-Edit all the ENV variables in `.env` to match your setup, eg: 
+Edit all the ENV variables in `.env` to match your setup, eg:
 
 ```
 PGHOST=db
@@ -42,12 +42,12 @@ LIGHTDASH_CONFIG_FILE=/*path*/*to*/lightdash/lightdash.yml
 
 You must set the following two environment variables:
 
-- `PGPASSWORD` is the password used for the internal postgres database
-- `LIGHTDASH_SECRET` is the secret used to encrypt data at rest in the database. If you lose this secret, you will not be able to access your data in Lightdash.
+-   `PGPASSWORD` is the password used for the internal postgres database
+-   `LIGHTDASH_SECRET` is the secret used to encrypt data at rest in the database. If you lose this secret, you will not be able to access your data in Lightdash.
 
 ```bash
 
-export LIGHTDASH_SECRET="not very secret" 
+export LIGHTDASH_SECRET="not very secret"
 export PGPASSWORD="password"
 
 docker-compose -f docker-compose.yml --env-file .env up --detach --remove-orphans

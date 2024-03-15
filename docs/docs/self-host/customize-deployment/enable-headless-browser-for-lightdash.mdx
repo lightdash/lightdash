@@ -14,7 +14,12 @@ If you are running Lightdash on self-hosting, you will also have to run this hea
 
 ## How it works
 
-<img src={HeadlessBrowserSchema} width="800" height="800" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={HeadlessBrowserSchema}
+    width="800"
+    height="800"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 When Lightdash needs to generate an image, it will open a new socket connection to the headless browser on `ws://HEADLESS_BROWSER_HOST:HEADLESS_BROWSER_PORT`
 
@@ -31,9 +36,9 @@ If the image was requested by Scheduler, we will send the image to the destinati
 
 In order to make this work, there are a few key ENV variables that need to be configured correctly.
 
-- `HEADLESS_BROWSER_HOST` : If you're running docker, this could be `headless-browser`, or `localhost` if you're running it locally (or with network:host)
-- `HEADLESS_BROWSER_PORT` : Optional port for headless browser, defaults to 3001
-- `SITE_URL` : The URL for your Lightdash instance.
+-   `HEADLESS_BROWSER_HOST` : If you're running docker, this could be `headless-browser`, or `localhost` if you're running it locally (or with network:host)
+-   `HEADLESS_BROWSER_PORT` : Optional port for headless browser, defaults to 3001
+-   `SITE_URL` : The URL for your Lightdash instance.
 
 :::info
 
