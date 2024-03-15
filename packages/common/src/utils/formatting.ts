@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import moment, { type MomentInput } from 'moment';
 import {
     CustomFormatType,
@@ -97,11 +98,13 @@ const getTimeFormat = (
     return `YYYY-MM-DD, ${timeFormat} (Z)`;
 };
 
+// TODO: To rename to isDayJsInput once we remove moment usage
 export const isMomentInput = (value: unknown): value is MomentInput =>
     typeof value === 'string' ||
     typeof value === 'number' ||
     value instanceof Date ||
-    value instanceof moment;
+    value instanceof moment ||
+    value instanceof dayjs;
 
 export function formatDate(
     date: MomentInput,

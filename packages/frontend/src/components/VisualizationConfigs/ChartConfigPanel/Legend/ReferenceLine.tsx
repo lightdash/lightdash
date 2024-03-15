@@ -13,7 +13,7 @@ import {
     type TableCalculation,
     type WeekDay,
 } from '@lightdash/common';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { useMemo, useState, type FC } from 'react';
 
 import {
@@ -81,7 +81,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <FilterWeekPicker
                             size="sm"
-                            value={moment(value).toDate()}
+                            value={dayjs(value).toDate()}
                             firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                             onChange={(dateValue) => {
                                 if (!dateValue) return;
@@ -100,7 +100,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <FilterMonthAndYearPicker
                             size="sm"
-                            value={moment(value).toDate()}
+                            value={dayjs(value).toDate()}
                             onChange={(dateValue: Date) => {
                                 onChange(
                                     formatDate(
@@ -117,7 +117,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <FilterYearPicker
                             size="sm"
-                            value={moment(value).toDate()}
+                            value={dayjs(value).toDate()}
                             onChange={(dateValue: Date) => {
                                 onChange(
                                     formatDate(
@@ -134,7 +134,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             return (
                 <FilterDatePicker
                     size="sm"
-                    value={moment(value).toDate()}
+                    value={dayjs(value).toDate()}
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     onChange={(newValue) => {
                         onChange(formatDate(newValue, TimeFrames.DAY, false));

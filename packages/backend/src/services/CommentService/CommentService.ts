@@ -134,7 +134,7 @@ export class CommentService {
         dashboardUuid: string,
         dashboardTileUuid: string,
         text: string,
-        textHtml: string,
+        unsafeTextHtml: string,
         replyTo: string | null,
         mentions: string[],
     ): Promise<string> {
@@ -172,7 +172,7 @@ export class CommentService {
             dashboardUuid,
             dashboardTileUuid,
             text,
-            textHtml,
+            unsafeTextHtml,
             replyTo,
             user,
             mentions,
