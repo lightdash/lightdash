@@ -224,9 +224,12 @@ export const ResourceIndicator: FC<
                     opened={opened || isHovering}
                 >
                     <MantineIcon
-                        {...iconProps}
+                        icon={iconProps.icon}
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
+                        style={{
+                            color: iconProps.color, // NOTE: If react-tabler icon is filled, then we have to override the color this way
+                        }}
                     />
                 </Tooltip>
             }

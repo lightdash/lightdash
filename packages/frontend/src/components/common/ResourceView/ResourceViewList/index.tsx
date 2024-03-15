@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import {
-    IconAlertTriangle,
+    IconAlertTriangleFilled,
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
@@ -137,8 +137,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                 item.data.validationErrors?.length ? (
                                     <ResourceIndicator
                                         iconProps={{
-                                            fill: 'red',
-                                            icon: IconAlertTriangle,
+                                            icon: IconAlertTriangleFilled,
+                                            color: 'red',
                                         }}
                                         tooltipProps={{
                                             maw: 300,
