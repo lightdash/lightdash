@@ -58,6 +58,9 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
                                 savedQueryUuid ? 'view' : 'edit'
                             }`,
                         );
+
+                        // Also clear dashboard storage when navigating back to dashboard
+                        clearDashboardStorage();
                     }}
                     size="xs"
                     ml="md"
