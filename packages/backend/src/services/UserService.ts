@@ -21,6 +21,7 @@ import {
     LightdashUser,
     LocalIssuerTypes,
     LoginOptions,
+    LoginOptionTypes,
     NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
@@ -436,7 +437,7 @@ export class UserService {
         if (openIdSession) {
             const organization = this.loginToOrganization(
                 openIdSession?.userUuid,
-                openIdUser.openId.issuer,
+                openIdUser.openId.issuerType,
             );
             const loginUser: SessionUser = {
                 ...openIdSession,
@@ -703,7 +704,7 @@ export class UserService {
             );
             const userOrganization = this.loginToOrganization(
                 user.userUuid,
-                'password',
+                LocalIssuerTypes.EMAIL,
             );
             const userWithOrganization = {
                 ...user,
@@ -884,7 +885,10 @@ export class UserService {
             throw new AuthorizationError();
         }
         const { user, personalAccessToken } = results;
-        const organization = this.loginToOrganization(user.userUuid, 'token'); // TODO add this method to the enum
+        const organization = this.loginToOrganization(
+            user.userUuid,
+            LocalIssuerTypes.API_TOKEN,
+        );
         const userWithOrganization: SessionUser = { ...user, ...organization };
 
         const now = new Date();
@@ -1069,7 +1073,7 @@ export class UserService {
 
     async loginToOrganization(
         userUuid: string,
-        loginMethod: string /* TODO make enum */,
+        loginMethod: LoginOptionTypes,
     ): Promise<
         Pick<
             LightdashUser,
