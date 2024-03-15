@@ -135,7 +135,6 @@ type Props = {
     sidebar?: React.ReactNode;
     isSidebarOpen?: boolean;
     header?: React.ReactNode;
-    hasBanner?: boolean;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
 const Page: FC<React.PropsWithChildren<Props>> = ({
@@ -152,7 +151,6 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
-    hasBanner = false,
 
     children,
 }) => {
@@ -166,8 +164,6 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             project.type === ProjectType.PREVIEW,
     );
 
-    hasBanner = hasBanner || isCurrentProjectPreview;
-
     const { classes } = usePageStyles(
         {
             withCenteredContent,
@@ -180,7 +176,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withPaddedContent,
             withSidebar: !!sidebar,
             withSidebarFooter,
-            hasBanner,
+            hasBanner: isCurrentProjectPreview,
         },
         { name: 'Page' },
     );
