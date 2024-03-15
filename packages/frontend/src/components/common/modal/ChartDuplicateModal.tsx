@@ -1,4 +1,4 @@
-import { SavedChart } from '@lightdash/common';
+import { type SavedChart } from '@lightdash/common';
 import type { ModalProps } from '@mantine/core';
 import {
     Button,

@@ -1,4 +1,4 @@
-import { Dashboard } from '@lightdash/common';
+import { type Dashboard } from '@lightdash/common';
 import type { ModalProps } from '@mantine/core';
 import {
     Button,
