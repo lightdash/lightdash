@@ -10,6 +10,7 @@ For more advanced infrastructure, we can run the scheduler worker separately fro
 ### 1. Disable scheduler worker in the main server
 
 Set the following environment variable value:
+
 ```
 SCHEDULER_ENABLED=false
 ```
@@ -88,4 +89,3 @@ services:
 volumes:
   db-data:
 ```
-
