@@ -2,9 +2,11 @@ import {
     ApiEmailStatusResponse,
     ApiErrorPayload,
     ApiGetAuthenticatedUserResponse,
+    ApiGetLoginOptionsResponse,
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
+    LoginOptions,
     ParameterError,
     RegisterOrActivateUser,
     UpsertUserWarehouseCredentials,
@@ -298,6 +300,25 @@ export class UserController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Get login options for email
+     */
+    @Get('/login-options')
+    @OperationId('getLoginOptions')
+    async getLoginOptions(
+        @Request() req: express.Request,
+        @Query() email: string,
+    ): Promise<ApiGetLoginOptionsResponse> {
+        const loginOptions = await this.services
+            .getUserService()
+            .getLoginOptions(email);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: loginOptions,
         };
     }
 }

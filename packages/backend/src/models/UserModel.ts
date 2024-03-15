@@ -10,6 +10,7 @@ import {
     LightdashUserWithAbilityRules,
     NotExistsError,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     OpenIdUser,
     OrganizationMemberRole,
     ParameterError,
@@ -783,5 +784,22 @@ export class UserModel {
         }
 
         return row.refresh_token;
+    }
+
+    async getOpenIdIssuer(
+        email: string,
+    ): Promise<OpenIdIdentityIssuerType | undefined | null> {
+        const row = await this.database('emails')
+            .leftJoin(
+                'openid_identities',
+                'emails.user_id',
+                'openid_identities.user_id',
+            )
+            .where('emails.email', email)
+            .andWhere('emails.is_primary', true)
+            .select('openid_identities.issuer_type')
+            .first();
+
+        return row?.issuer_type;
     }
 }

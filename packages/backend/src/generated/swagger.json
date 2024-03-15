@@ -6432,6 +6432,56 @@
                 "required": ["credentials", "name"],
                 "type": "object"
             },
+            "OpenIdIdentityIssuerType": {
+                "enum": ["google", "okta", "oneLogin", "azuread"],
+                "type": "string"
+            },
+            "LocalIssuerTypes": {
+                "enum": ["email", "apiToken"],
+                "type": "string"
+            },
+            "LoginOptionTypes": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/OpenIdIdentityIssuerType"
+                    },
+                    {
+                        "$ref": "#/components/schemas/LocalIssuerTypes"
+                    }
+                ]
+            },
+            "LoginOptions": {
+                "properties": {
+                    "redirectUri": {
+                        "type": "string"
+                    },
+                    "forceRedirect": {
+                        "type": "boolean"
+                    },
+                    "showOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/LoginOptionTypes"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["showOptions"],
+                "type": "object"
+            },
+            "ApiGetLoginOptionsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LoginOptions"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ValidationErrorType": {
                 "enum": [
                     "chart",
@@ -11700,6 +11750,46 @@
                     {
                         "in": "path",
                         "name": "uuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/login-options": {
+            "get": {
+                "operationId": "getLoginOptions",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetLoginOptionsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get login options for email",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "email",
                         "required": true,
                         "schema": {
                             "type": "string"
