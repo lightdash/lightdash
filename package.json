@@ -87,6 +87,8 @@
         "warehouses-fix-format": "yarn workspace @lightdash/warehouses fix-format",
         "warehouses-test": "yarn workspace @lightdash/warehouses test",
         "warehouses-build": "yarn workspace @lightdash/warehouses build",
+        "docs-format": "prettier --ignore-unknown ./docs/**/*.{md,mdx} --check",
+        "docs-fix-format": "prettier --ignore-unknown ./docs/**/*.{md,mdx} --write",
         "lint": "run-s common-lint backend-lint frontend-lint e2e-lint cli-lint",
         "format": "run-s common-format backend-format frontend-format e2e-format cli-format",
         "fix-lint": "run-s common-fix-lint backend-fix-lint frontend-fix-lint e2e-fix-lint cli-fix-lint",
