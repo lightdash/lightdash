@@ -16,7 +16,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { z } from 'zod';
 import { useExplores } from '../../hooks/useExplores';

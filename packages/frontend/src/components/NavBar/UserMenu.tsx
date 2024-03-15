@@ -1,7 +1,7 @@
 import { Menu } from '@mantine/core';
 import { IconLogout, IconUserCircle, IconUserPlus } from '@tabler/icons-react';
 import posthog from 'posthog-js';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';

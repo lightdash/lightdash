@@ -1,4 +1,4 @@
-import { DashboardFilterRule } from '@lightdash/common';
+import { type DashboardFilterRule } from '@lightdash/common';
 import {
     Button,
     CloseButton,
@@ -7,7 +7,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {

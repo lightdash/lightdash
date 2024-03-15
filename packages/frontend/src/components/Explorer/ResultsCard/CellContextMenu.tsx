@@ -1,19 +1,19 @@
 import { subject } from '@casl/ability';
 import {
-    Field,
     hasCustomDimension,
     isCustomDimension,
     isDimension,
     isField,
     isFilterableField,
-    ResultValue,
-    TableCalculation,
+    type Field,
+    type ResultValue,
+    type TableCalculation,
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconEye, IconFilter, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFilters } from '../../../hooks/useFilters';
@@ -22,7 +22,7 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
-import { CellContextMenuProps } from '../../common/Table/types';
+import { type CellContextMenuProps } from '../../common/Table/types';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
 import UrlMenuItems from './UrlMenuItems';

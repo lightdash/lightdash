@@ -1,5 +1,5 @@
 import { Stack } from '@mantine/core';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';

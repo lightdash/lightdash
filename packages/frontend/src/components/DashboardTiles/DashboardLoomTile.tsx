@@ -1,5 +1,5 @@
-import { DashboardLoomTile } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
+import { type DashboardLoomTile } from '@lightdash/common';
+import React, { useMemo, useState, type FC } from 'react';
 import { DashboardTileComments } from '../../features/comments';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import TileBase from './TileBase/index';

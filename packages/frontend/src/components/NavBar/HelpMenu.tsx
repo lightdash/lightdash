@@ -7,7 +7,7 @@ import {
     IconMessages,
     IconUsers,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useIntercom } from 'react-use-intercom';
 import useHealth from '../../hooks/health/useHealth';
 import LargeMenuItem from '../common/LargeMenuItem';
@@ -28,7 +28,7 @@ const HelpMenu: FC = () => {
             offset={-2}
         >
             <Menu.Target>
-                <Button variant="default" size="xs">
+                <Button aria-label="Help" variant="default" size="xs">
                     <MantineIcon icon={IconHelp} />
                 </Button>
             </Menu.Target>

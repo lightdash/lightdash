@@ -13,7 +13,7 @@ import {
     IconPlus,
     IconSquarePlus,
 } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';

@@ -9,7 +9,7 @@ import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 
-import { SummaryExplore } from '@lightdash/common';
+import { type SummaryExplore } from '@lightdash/common';
 import { useExplores } from '../../../hooks/useExplores';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';

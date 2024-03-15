@@ -2,23 +2,23 @@ import { subject } from '@casl/ability';
 import {
     ChartType,
     convertFieldRefToFieldId,
-    CreateSavedChartVersion,
-    Field,
     fieldId as getFieldId,
     FilterOperator,
-    FilterRule,
     getDimensions,
     getFields,
     isDimension,
     isField,
     isMetric,
-    Metric,
-    MetricQuery,
+    type CreateSavedChartVersion,
+    type Field,
+    type FilterRule,
+    type Metric,
+    type MetricQuery,
 } from '@lightdash/common';
 import { Box, Button, Group, Modal, Title } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import { IconShare2 } from '@tabler/icons-react';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
@@ -30,7 +30,7 @@ import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
 import MantineIcon from '../common/MantineIcon';
-import { TableColumn } from '../common/Table/types';
+import { type TableColumn } from '../common/Table/types';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';

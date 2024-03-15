@@ -2,9 +2,9 @@ import {
     assertUnreachable,
     SchedulerFormat,
     SchedulerJobStatus,
-    SchedulerWithLogs,
+    type SchedulerWithLogs,
 } from '@lightdash/common';
-import { MantineTheme, Tooltip } from '@mantine/core';
+import { Tooltip, type MantineTheme } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,

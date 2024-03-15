@@ -1,6 +1,6 @@
 import { Alert, Anchor, Group, Stack, Switch, Text } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { Controller } from 'react-hook-form';
 import MantineIcon from '../../common/MantineIcon';
 

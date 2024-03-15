@@ -1,5 +1,5 @@
 import { Select } from '@mantine/core';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 
 type Option = {
     value: string;

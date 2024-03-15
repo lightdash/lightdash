@@ -1,13 +1,13 @@
 import {
     Anchor,
-    AnchorProps,
     Breadcrumbs,
-    BreadcrumbsProps,
-    MantineSize,
     Tooltip,
-    TooltipProps,
+    type AnchorProps,
+    type BreadcrumbsProps,
+    type MantineSize,
+    type TooltipProps,
 } from '@mantine/core';
-import { FC, HTMLAttributes } from 'react';
+import { type FC, type HTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
 
 type BreadCrumbItem = {

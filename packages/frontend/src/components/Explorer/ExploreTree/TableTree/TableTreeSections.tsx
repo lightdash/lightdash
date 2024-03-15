@@ -1,13 +1,13 @@
 import {
-    AdditionalMetric,
-    CompiledTable,
-    CustomDimension,
     getCustomDimensionId,
     getItemId,
+    type AdditionalMetric,
+    type CompiledTable,
+    type CustomDimension,
 } from '@lightdash/common';
 import { Center, Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
-import { FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';

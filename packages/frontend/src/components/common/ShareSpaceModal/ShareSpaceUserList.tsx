@@ -1,4 +1,8 @@
-import { LightdashUser, Space, SpaceShare } from '@lightdash/common';
+import {
+    type LightdashUser,
+    type Space,
+    type SpaceShare,
+} from '@lightdash/common';
 import {
     Avatar,
     Badge,
@@ -9,9 +13,9 @@ import {
     Tooltip,
 } from '@mantine/core';
 import upperFirst from 'lodash/upperFirst';
-import { FC, forwardRef } from 'react';
+import { forwardRef, type FC } from 'react';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
-import { AccessOption } from './ShareSpaceSelect';
+import { type AccessOption } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 export interface ShareSpaceUserListProps {

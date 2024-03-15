@@ -1,14 +1,17 @@
 import {
-    ApiError,
-    CreateSchedulerAndTargets,
-    CreateSchedulerAndTargetsWithoutIds,
-    ItemsMap,
-    SchedulerAndTargets,
-    UpdateSchedulerAndTargetsWithoutId,
+    type ApiError,
+    type CreateSchedulerAndTargets,
+    type CreateSchedulerAndTargetsWithoutIds,
+    type ItemsMap,
+    type SchedulerAndTargets,
+    type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { Box, Loader, LoadingOverlay, Stack, Text } from '@mantine/core';
-import { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
-import { FC, useCallback, useEffect, useState } from 'react';
+import {
+    type UseMutationResult,
+    type UseQueryResult,
+} from '@tanstack/react-query';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';

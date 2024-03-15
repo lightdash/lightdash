@@ -1,12 +1,12 @@
 import {
     applyDimensionOverrides,
-    Dashboard,
-    DashboardScheduler,
-    SchedulerFilterRule,
+    type Dashboard,
+    type DashboardScheduler,
+    type SchedulerFilterRule,
 } from '@lightdash/common';
 import { Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
 import { PreviewAndCustomizeScreenshot } from '../../preview';

@@ -1,16 +1,16 @@
-import { SavedChart } from '@lightdash/common';
+import { type SavedChart } from '@lightdash/common';
 import {
     Button,
     Group,
     Modal,
-    ModalProps,
     Stack,
     Textarea,
     TextInput,
     Title,
+    type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { useSavedQuery, useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 

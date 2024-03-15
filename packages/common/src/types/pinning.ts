@@ -1,9 +1,9 @@
 import {
-    ResourceViewChartItem,
-    ResourceViewDashboardItem,
-    ResourceViewItem,
-    ResourceViewItemType,
-    ResourceViewSpaceItem,
+    type ResourceViewChartItem,
+    type ResourceViewDashboardItem,
+    type ResourceViewItem,
+    type ResourceViewItemType,
+    type ResourceViewSpaceItem,
 } from './resourceViewItem';
 
 export type PinnedList = {

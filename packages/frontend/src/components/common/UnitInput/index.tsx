@@ -1,4 +1,4 @@
-import { Button, TextInput, TextInputProps } from '@mantine/core';
+import { Button, TextInput, type TextInputProps } from '@mantine/core';
 import { mergeRefs } from '@mantine/hooks';
 import { forwardRef, useCallback, useMemo, useRef } from 'react';
 

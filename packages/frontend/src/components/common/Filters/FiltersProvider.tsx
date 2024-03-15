@@ -1,15 +1,15 @@
 import {
-    AndFilterGroup,
-    DashboardFilters,
-    FilterableField,
-    FilterableItem,
-    FilterRule,
     isField,
-    WeekDay,
+    type AndFilterGroup,
+    type DashboardFilters,
+    type FilterableField,
+    type FilterableItem,
+    type FilterRule,
+    type WeekDay,
 } from '@lightdash/common';
-import { PopoverProps } from '@mantine/core';
+import { type PopoverProps } from '@mantine/core';
 import { uuid4 } from '@sentry/utils';
-import { createContext, FC, useCallback, useContext } from 'react';
+import { createContext, useCallback, useContext, type FC } from 'react';
 
 export type FieldWithSuggestions = FilterableField & {
     suggestions?: string[];

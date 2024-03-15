@@ -1,10 +1,10 @@
 import {
-    AllowedEmailDomains,
     isValidEmailDomain,
     OrganizationMemberRole,
     ProjectMemberRole,
     ProjectType,
     validateOrganizationEmailDomains,
+    type AllowedEmailDomains,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -19,7 +19,13 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
-import { FC, ForwardedRef, forwardRef, useEffect, useMemo } from 'react';
+import {
+    forwardRef,
+    useEffect,
+    useMemo,
+    type FC,
+    type ForwardedRef,
+} from 'react';
 import { z } from 'zod';
 import {
     useAllowedEmailDomains,

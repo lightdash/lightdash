@@ -1,16 +1,16 @@
 import {
-    AdditionalMetric,
-    CustomDimension,
-    Dimension,
     fieldId,
     isCustomDimension,
     isDimension,
     isField,
-    Metric,
-    OrderFieldsByStrategy,
+    type AdditionalMetric,
+    type CustomDimension,
+    type Dimension,
+    type Metric,
+    type OrderFieldsByStrategy,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
-import { createContext, FC, useContext } from 'react';
+import { createContext, useContext, type FC } from 'react';
 
 export const getSearchResults = (
     itemsMap: Record<string, Item>,

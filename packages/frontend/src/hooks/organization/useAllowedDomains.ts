@@ -1,7 +1,7 @@
 import {
-    AllowedEmailDomains,
-    ApiError,
-    UpdateAllowedEmailDomains,
+    type AllowedEmailDomains,
+    type ApiError,
+    type UpdateAllowedEmailDomains,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';

@@ -1,8 +1,8 @@
-import { Notification } from '@lightdash/common';
+import { type Notification } from '@lightdash/common';
 import { Menu, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
-import moment from 'moment';
-import { FC, useCallback } from 'react';
+import dayjs from 'dayjs';
+import { useCallback, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -24,7 +24,7 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
             offset={-2}
             label={
                 <Text fz="xs">
-                    {moment(createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                    {dayjs(createdAt).format('YYYY-MM-DD HH:mm:ss')}
                 </Text>
             }
         >

@@ -1,10 +1,10 @@
 import {
-    DashboardFieldTarget,
-    DashboardFilterRule,
-    FilterOperator,
+    type DashboardFieldTarget,
+    type DashboardFilterRule,
+    type FilterOperator,
 } from '@lightdash/common';
 import { Flex } from '@mantine/core';
-import { FC, useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';

@@ -1,4 +1,4 @@
-import { ApiError, getEmailSchema } from '@lightdash/common';
+import { getEmailSchema, type ApiError } from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {

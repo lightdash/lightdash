@@ -1,11 +1,11 @@
 import {
-    FilterDashboardToRule,
     FilterOperator,
     friendlyName,
+    type FilterDashboardToRule,
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {

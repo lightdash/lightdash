@@ -1,15 +1,15 @@
 import {
     ChartType,
-    CreateSavedChartVersion,
     DateGranularity,
-    MetricQuery,
+    type CreateSavedChartVersion,
+    type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import {
-    ExplorerReduceState,
     ExplorerSection,
     useExplorerContext,
+    type ExplorerReduceState,
 } from '../providers/ExplorerProvider';
 import useToaster from './toaster/useToaster';
 

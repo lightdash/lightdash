@@ -1,10 +1,10 @@
 import {
-    Dimension,
     DimensionType,
     FieldType,
-    Metric,
     MetricType,
-    TableCalculation,
+    type Dimension,
+    type Metric,
+    type TableCalculation,
 } from '../index';
 
 export const dimension: Dimension = {

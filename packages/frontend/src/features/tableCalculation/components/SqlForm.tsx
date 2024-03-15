@@ -6,12 +6,12 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
-import { FC } from 'react';
-import AceEditor, { IAceEditorProps } from 'react-ace';
+import { type FC } from 'react';
+import AceEditor, { type IAceEditorProps } from 'react-ace';
 import styled, { css } from 'styled-components';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplorerAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
-import { TableCalculationForm } from '../types';
+import { type TableCalculationForm } from '../types';
 
 import { useLocalStorage } from '@mantine/hooks';
 import 'ace-builds/src-noconflict/mode-sql';

@@ -1,6 +1,6 @@
 import { Switch } from '@mantine/core';
-import React, { FC } from 'react';
-import InputWrapper, { InputWrapperProps } from './InputWrapper';
+import React, { type FC } from 'react';
+import InputWrapper, { type InputWrapperProps } from './InputWrapper';
 
 interface Props extends Omit<InputWrapperProps, 'render'> {
     switchProps?: React.ComponentProps<typeof Switch>;

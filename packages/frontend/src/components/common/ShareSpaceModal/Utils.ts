@@ -1,4 +1,4 @@
-import { OrganizationMemberProfile } from '@lightdash/common';
+import { type OrganizationMemberProfile } from '@lightdash/common';
 
 export const getUserNameOrEmail = (
     userUuid: string | undefined,

@@ -1,10 +1,10 @@
 import {
-    DbtMetric,
-    DbtModelColumn,
-    DbtModelNode,
-    V9MetricRef,
+    type DbtMetric,
+    type DbtModelColumn,
+    type DbtModelNode,
+    type V9MetricRef,
 } from '../types/dbt';
-import { Table } from '../types/explore';
+import { type Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType } from '../types/field';
 import { OrderFieldsByStrategy } from '../types/table';
 import { TimeFrames } from '../types/timeFrames';

@@ -1,4 +1,7 @@
-import { CreateUserAttribute, UserAttribute } from '@lightdash/common';
+import {
+    type CreateUserAttribute,
+    type UserAttribute,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -14,7 +17,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconTrash, IconUserPlus, IconUsersPlus } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import {

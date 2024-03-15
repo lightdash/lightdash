@@ -1,11 +1,12 @@
 import {
-    ApiError,
+    FeatureFlags,
     getEmailSchema,
     LightdashMode,
-    LightdashUser,
     OpenIdIdentityIssuerType,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
+    type ApiError,
+    type LightdashUser,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -21,7 +22,7 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useMutation } from '@tanstack/react-query';
-import { FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { Redirect, useLocation } from 'react-router-dom';
 
 import { z } from 'zod';
@@ -29,7 +30,9 @@ import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
+import LoginLanding from '../features/users/components/LoginLanding';
 import useToaster from '../hooks/toaster/useToaster';
+import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -221,6 +224,9 @@ const LoginContent: FC = () => {
 };
 
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
+    // FEATURE FLAG
+    const useNewLogin = useFeatureFlagEnabled(FeatureFlags.newLoginEnabled);
+
     return minimal ? (
         <Stack m="xl">
             <LoginContent />
@@ -228,7 +234,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     ) : (
         <Page title="Login" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
-                <LoginContent />
+                {useNewLogin ? <LoginLanding /> : <LoginContent />}
             </Stack>
         </Page>
     );

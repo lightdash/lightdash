@@ -1,7 +1,7 @@
 import { Button, Stack, Text, Tooltip } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useTracking } from '../../../../providers/TrackingProvider';
 import { EventName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';

@@ -1,12 +1,12 @@
 import { Ability } from '@casl/ability';
 import {
-    ApiError,
-    HealthState,
-    LightdashUserWithAbilityRules,
+    type ApiError,
+    type HealthState,
+    type LightdashUserWithAbilityRules,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { FC, PropsWithChildren } from 'react';
-import { UserWithAbility } from '../../../hooks/user/useUser';
+import { type FC, type PropsWithChildren } from 'react';
+import { type UserWithAbility } from '../../../hooks/user/useUser';
 import { AppProviderContext } from '../../../providers/AppProvider';
 import mockHealthResponse from '../api/healthResponse.mock';
 import { mockUserResponse } from '../api/userResponse.mock';

@@ -1,12 +1,12 @@
-import { ResultRow } from '@lightdash/common';
+import { type ResultRow } from '@lightdash/common';
 import { getHotkeyHandler, useDisclosure } from '@mantine/hooks';
-import { Cell } from '@tanstack/react-table';
+import { type Cell } from '@tanstack/react-table';
 import copy from 'copy-to-clipboard';
-import { FC, useCallback, useEffect, useRef, useState } from 'react';
-import { CSSProperties } from 'styled-components';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { type CSSProperties } from 'styled-components';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { Td } from '../Table.styles';
-import { CellContextMenuProps } from '../types';
+import { type CellContextMenuProps } from '../types';
 import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
 import RichBodyCell from './RichBodyCell';

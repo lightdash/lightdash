@@ -1,8 +1,12 @@
 import { subject } from '@casl/ability';
-import { hasCustomDimension, ItemsMap, ResultValue } from '@lightdash/common';
-import { Menu, MenuProps, Text } from '@mantine/core';
+import {
+    hasCustomDimension,
+    type ItemsMap,
+    type ResultValue,
+} from '@lightdash/common';
+import { Menu, Text, type MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { useApp } from '../../../providers/AppProvider';

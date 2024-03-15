@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { Button, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import { FC, memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';

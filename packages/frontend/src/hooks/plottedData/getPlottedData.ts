@@ -1,10 +1,10 @@
 import {
-    ApiQueryResults,
-    FieldId,
     hashFieldReference,
-    PivotReference,
-    ResultRow,
-    ResultValue,
+    type ApiQueryResults,
+    type FieldId,
+    type PivotReference,
+    type ResultRow,
+    type ResultValue,
 } from '@lightdash/common';
 
 export type PivotValueMap = {

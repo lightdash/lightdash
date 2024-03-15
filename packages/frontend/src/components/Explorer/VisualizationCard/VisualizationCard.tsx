@@ -3,12 +3,12 @@ import {
     getHiddenTableFields,
     NotFoundError,
 } from '@lightdash/common';
-import { FC, memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 
 import { useDisclosure } from '@mantine/hooks';
 import { downloadCsv } from '../../../api/csv';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
-import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
+import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
@@ -21,7 +21,7 @@ import { ChartDownloadMenu } from '../../ChartDownload';
 import CollapsableCard from '../../common/CollapsableCard';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
-import { EchartSeriesClickEvent } from '../../SimpleChart';
+import { type EchartSeriesClickEvent } from '../../SimpleChart';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import VisualizationSidebar from './VisualizationSidebar';
 

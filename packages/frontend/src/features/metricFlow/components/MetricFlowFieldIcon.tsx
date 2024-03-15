@@ -2,10 +2,10 @@ import { Icon123, IconAbc, IconClockHour4 } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import {
     MetricFlowDimensionType,
-    MetricFlowMetricType,
+    type MetricFlowMetricType,
 } from '../../../api/MetricFlowAPI';
 import MantineIcon, {
-    MantineIconProps,
+    type MantineIconProps,
 } from '../../../components/common/MantineIcon';
 
 type Props = Omit<MantineIconProps, 'icon'> & {

@@ -1,10 +1,10 @@
 import {
-    Dimension,
     DimensionType,
     FieldType,
     FilterOperator,
-    FilterRule,
     TimeFrames,
+    type Dimension,
+    type FilterRule,
 } from '.';
 
 export const dateDayDimension: Dimension = {

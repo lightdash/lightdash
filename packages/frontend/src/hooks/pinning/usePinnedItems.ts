@@ -1,7 +1,7 @@
 import {
-    ApiError,
-    PinnedItems,
-    UpdatePinnedItemOrder,
+    type ApiError,
+    type PinnedItems,
+    type UpdatePinnedItemOrder,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';

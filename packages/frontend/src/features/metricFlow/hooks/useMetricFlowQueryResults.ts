@@ -1,15 +1,15 @@
-import { ApiError, friendlyName } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
-import { ComponentProps } from 'react';
+import { friendlyName, type ApiError } from '@lightdash/common';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import { type ComponentProps } from 'react';
 import {
     createMetricFlowQuery,
-    CreateMetricFlowQueryResponse,
     getMetricFlowQueryResults,
-    GetMetricFlowQueryResultsResponse,
     QueryStatus,
-    TimeGranularity,
+    type CreateMetricFlowQueryResponse,
+    type GetMetricFlowQueryResultsResponse,
+    type TimeGranularity,
 } from '../../../api/MetricFlowAPI';
-import Table from '../../../components/common/Table';
+import type Table from '../../../components/common/Table';
 
 type ApiRequestsState = Pick<
     ReturnType<typeof useQuery<GetMetricFlowQueryResultsResponse, ApiError>>,

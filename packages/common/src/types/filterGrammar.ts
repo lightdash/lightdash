@@ -1,7 +1,7 @@
 import * as peg from 'pegjs';
 import { v4 as uuidv4 } from 'uuid';
 import { UnexpectedServerError } from './errors';
-import { FilterOperator, MetricFilterRule } from './filter';
+import { FilterOperator, type MetricFilterRule } from './filter';
 
 export type ParsedFilter = {
     type: string;

@@ -1,19 +1,19 @@
 import {
     assertUnreachable,
-    OrganizationMemberProfile,
-    Space,
+    type OrganizationMemberProfile,
+    type Space,
 } from '@lightdash/common';
 import {
     Button,
-    DefaultMantineColor,
     Group,
     MantineProvider,
     Modal,
     Title,
+    type DefaultMantineColor,
 } from '@mantine/core';
-import { useForm, UseFormReturnType, zodResolver } from '@mantine/form';
-import { Icon } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { type Icon } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';

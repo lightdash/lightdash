@@ -1,8 +1,8 @@
-import { SortField } from '@lightdash/common';
+import { type SortField } from '@lightdash/common';
 import { Badge, Popover, Text } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import Sorting from './Sorting';
 

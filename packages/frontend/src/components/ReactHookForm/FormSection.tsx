@@ -1,5 +1,5 @@
 import { Collapse } from '@mantine/core';
-import React, { FC } from 'react';
+import React, { type FC } from 'react';
 
 interface FormSectionProps {
     name: string; // required prop so it can receive props from <Form/>

@@ -1,13 +1,13 @@
 import {
     assertUnreachable,
-    HealthState,
     OpenIdIdentityIssuerType,
-    OpenIdIdentitySummary,
+    type HealthState,
+    type OpenIdIdentitySummary,
 } from '@lightdash/common';
 import { ActionIcon, Card, Group, Stack, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { FC, useEffect } from 'react';
-import { Entries } from 'type-fest';
+import { useEffect, type FC } from 'react';
+import { type Entries } from 'type-fest';
 import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';

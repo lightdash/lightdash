@@ -1,4 +1,4 @@
-import { ApiError, TablesConfiguration } from '@lightdash/common';
+import { type ApiError, type TablesConfiguration } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';

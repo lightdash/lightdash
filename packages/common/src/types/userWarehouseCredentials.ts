@@ -1,10 +1,10 @@
 import {
-    CreateBigqueryCredentials,
-    CreateDatabricksCredentials,
-    CreatePostgresCredentials,
-    CreateRedshiftCredentials,
-    CreateSnowflakeCredentials,
-    CreateTrinoCredentials,
+    type CreateBigqueryCredentials,
+    type CreateDatabricksCredentials,
+    type CreatePostgresCredentials,
+    type CreateRedshiftCredentials,
+    type CreateSnowflakeCredentials,
+    type CreateTrinoCredentials,
 } from './projects';
 
 export type UserWarehouseCredentials = {

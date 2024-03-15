@@ -2,7 +2,7 @@ import {
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
-    ResourceViewItem,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import {
@@ -10,9 +10,9 @@ import {
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
-import React, { FC, useMemo, useState } from 'react';
+import React, { useMemo, useState, type FC } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
-import { ResourceViewCommonProps } from '..';
+import { type ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
@@ -23,7 +23,7 @@ import {
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
 } from '../resourceUtils';
-import { ResourceViewItemActionState } from './../ResourceActionHandlers';
+import { type ResourceViewItemActionState } from './../ResourceActionHandlers';
 import ResourceActionMenu from './../ResourceActionMenu';
 import ResourceLastEdited from './../ResourceLastEdited';
 

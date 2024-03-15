@@ -12,7 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
-import { FC, memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import Omnibar from '../../features/omnibar';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';

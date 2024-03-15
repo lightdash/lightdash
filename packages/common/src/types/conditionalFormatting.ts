@@ -1,5 +1,8 @@
-import { ConditionalOperator, ConditionalRule } from './conditionalRule';
-import { FieldTarget } from './filter';
+import {
+    type ConditionalOperator,
+    type ConditionalRule,
+} from './conditionalRule';
+import { type FieldTarget } from './filter';
 
 export type ConditionalFormattingWithConditionalOperator<T = number> =
     ConditionalRule<ConditionalOperator, T> & {

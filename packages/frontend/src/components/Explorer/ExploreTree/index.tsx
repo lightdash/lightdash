@@ -1,15 +1,15 @@
 import {
-    AdditionalMetric,
-    CompiledTable,
-    CustomDimension,
-    Dimension,
-    Explore,
     getItemId,
-    Metric,
+    type AdditionalMetric,
+    type CompiledTable,
+    type CustomDimension,
+    type Dimension,
+    type Explore,
+    type Metric,
 } from '@lightdash/common';
 import { ActionIcon, Box, Center, Text, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/TreeProvider';

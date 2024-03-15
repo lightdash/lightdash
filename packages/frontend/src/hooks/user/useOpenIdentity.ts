@@ -1,7 +1,7 @@
 import {
-    ApiError,
-    DeleteOpenIdentity,
-    OpenIdIdentitySummary,
+    type ApiError,
+    type DeleteOpenIdentity,
+    type OpenIdIdentitySummary,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';

@@ -1,4 +1,8 @@
-import { Query, useIsFetching, useQueryClient } from '@tanstack/react-query';
+import {
+    useIsFetching,
+    useQueryClient,
+    type Query,
+} from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
 const QUERIES_TO_REFRESH = [

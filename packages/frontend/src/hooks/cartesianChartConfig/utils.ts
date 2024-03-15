@@ -1,13 +1,13 @@
 import {
-    ApiQueryResults,
-    CartesianSeriesType,
     DimensionType,
     getDimensionsFromItemsMap,
     getItemId,
     getSeriesId,
     isDimension,
-    ItemsMap,
-    Series,
+    type ApiQueryResults,
+    type CartesianSeriesType,
+    type ItemsMap,
+    type Series,
 } from '@lightdash/common';
 import { getPivotedData } from '../plottedData/getPlottedData';
 

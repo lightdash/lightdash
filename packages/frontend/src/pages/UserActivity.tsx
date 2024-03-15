@@ -1,12 +1,12 @@
 import {
-    ActivityViews,
-    UserActivity as UserActivityResponse,
-    UserWithCount,
+    type ActivityViews,
+    type UserActivity as UserActivityResponse,
+    type UserWithCount,
 } from '@lightdash/common';
 import { Box, Card, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 
 import MantineIcon from '../components/common/MantineIcon';

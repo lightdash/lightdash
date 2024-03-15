@@ -1,14 +1,14 @@
 import {
-    ApiError,
-    UpsertUserWarehouseCredentials,
-    UserWarehouseCredentials,
+    type ApiError,
+    type UpsertUserWarehouseCredentials,
+    type UserWarehouseCredentials,
 } from '@lightdash/common';
 import {
     useMutation,
-    UseMutationOptions,
     useQuery,
     useQueryClient,
-    UseQueryOptions,
+    type UseMutationOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';

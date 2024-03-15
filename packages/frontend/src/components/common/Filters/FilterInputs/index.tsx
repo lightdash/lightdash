@@ -1,11 +1,6 @@
 import {
     assertUnreachable,
-    ConditionalRule,
-    ConditionalRuleLabels,
     DimensionType,
-    Field,
-    FilterableField,
-    FilterableItem,
     FilterOperator,
     FilterType,
     formatBoolean,
@@ -19,9 +14,14 @@ import {
     isFilterableItem,
     isFilterRule,
     isMomentInput,
-    TableCalculation,
+    type ConditionalRule,
+    type ConditionalRuleLabels,
+    type Field,
+    type FilterableField,
+    type FilterableItem,
+    type TableCalculation,
 } from '@lightdash/common';
-import { PopoverProps } from '@mantine/core';
+import { type PopoverProps } from '@mantine/core';
 import isEmpty from 'lodash/isEmpty';
 import uniq from 'lodash/uniq';
 import BooleanFilterInputs from './BooleanFilterInputs';

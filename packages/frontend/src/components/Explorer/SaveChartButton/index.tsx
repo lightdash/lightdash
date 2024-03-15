@@ -1,6 +1,6 @@
 import { Button } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';

@@ -1,14 +1,14 @@
 import { subject } from '@casl/ability';
 import {
     LightdashMode,
-    MostPopularAndRecentlyUpdated,
     ResourceItemCategory,
     ResourceViewItemType,
     wrapResource,
+    type MostPopularAndRecentlyUpdated,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
-import { FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';

@@ -7,7 +7,7 @@ import {
     Stack,
     TextInput,
 } from '@mantine/core';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';

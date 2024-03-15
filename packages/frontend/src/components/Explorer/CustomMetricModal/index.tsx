@@ -1,15 +1,15 @@
 import {
-    AdditionalMetric,
     canApplyFormattingToCustomMetric,
-    CustomFormat,
     CustomFormatType,
-    Dimension,
     fieldId as getFieldId,
     friendlyName,
     isAdditionalMetric,
     isDimension,
     MetricType,
     NumberSeparator,
+    type AdditionalMetric,
+    type CustomFormat,
+    type Dimension,
 } from '@lightdash/common';
 import {
     Accordion,
@@ -23,14 +23,14 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ValueOf } from 'type-fest';
+import { type ValueOf } from 'type-fest';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import { FormatForm } from '../FormatForm';
-import { FilterForm, MetricFilterRuleWithFieldId } from './FilterForm';
+import { FilterForm, type MetricFilterRuleWithFieldId } from './FilterForm';
 import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
 import {
     addFieldIdToMetricFilterRule,

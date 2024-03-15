@@ -1,6 +1,4 @@
 import {
-    ConditionalRule,
-    DateFilterRule,
     DimensionType,
     FilterOperator,
     formatDate,
@@ -11,10 +9,12 @@ import {
     parseDate,
     parseTimestamp,
     TimeFrames,
+    type ConditionalRule,
+    type DateFilterRule,
 } from '@lightdash/common';
 import { Flex, NumberInput, Text } from '@mantine/core';
 import dayjs from 'dayjs';
-import { FilterInputsProps } from '.';
+import { type FilterInputsProps } from '.';
 import { useFiltersContext } from '../FiltersProvider';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';

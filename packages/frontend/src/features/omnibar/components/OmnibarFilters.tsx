@@ -1,8 +1,8 @@
 import {
     assertUnreachable,
-    OrganizationMemberProfile,
-    SearchFilters,
     SearchItemType,
+    type OrganizationMemberProfile,
+    type SearchFilters,
 } from '@lightdash/common';
 import { Button, Flex, Group, Menu, Select } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
@@ -20,7 +20,7 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react';
-import { FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { allSearchItemTypes } from '../types/searchItem';

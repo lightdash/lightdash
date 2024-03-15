@@ -1,4 +1,8 @@
-import { ApiError, CreateShareUrl, ShareUrl } from '@lightdash/common';
+import {
+    type ApiError,
+    type CreateShareUrl,
+    type ShareUrl,
+} from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 

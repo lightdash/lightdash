@@ -1,5 +1,5 @@
 import { Tabs } from '@mantine/core';
-import { FC, memo, useMemo } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import AxesOptions from './AxesOptions';
 import FieldLayoutOptions from './FieldLayoutOptions';

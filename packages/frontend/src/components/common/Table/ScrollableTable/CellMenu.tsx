@@ -1,9 +1,9 @@
-import { ResultRow } from '@lightdash/common';
-import { Menu, MenuProps, Portal } from '@mantine/core';
-import { Cell } from '@tanstack/react-table';
-import { FC } from 'react';
+import { type ResultRow } from '@lightdash/common';
+import { Menu, Portal, type MenuProps } from '@mantine/core';
+import { type Cell } from '@tanstack/react-table';
+import { type FC } from 'react';
 import { usePreventScroll } from '../../../../hooks/useBlockScroll';
-import { CellContextMenuProps } from '../types';
+import { type CellContextMenuProps } from '../types';
 
 type CellMenuProps = MenuProps & {
     menuItems: FC<React.PropsWithChildren<CellContextMenuProps>>;

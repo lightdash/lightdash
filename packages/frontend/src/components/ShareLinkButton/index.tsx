@@ -1,6 +1,6 @@
 import { ActionIcon } from '@mantine/core';
 import { IconLink } from '@tabler/icons-react';
-import { FC } from 'react';
+import { type FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';

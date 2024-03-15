@@ -1,14 +1,14 @@
 import {
-    CreateProjectMember,
-    InviteLink,
     OrganizationMemberRole,
     ProjectMemberRole,
     validateEmail,
+    type CreateProjectMember,
+    type InviteLink,
 } from '@lightdash/common';
 import { Button, Group, Modal, Select, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useCreateInviteLinkMutation } from '../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../hooks/useProjectAccess';

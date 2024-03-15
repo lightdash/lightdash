@@ -1,4 +1,4 @@
-import { assertUnreachable, ResourceViewItem } from '@lightdash/common';
+import { assertUnreachable, type ResourceViewItem } from '@lightdash/common';
 import {
     Box,
     Divider,
@@ -11,21 +11,21 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, type FC } from 'react';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import MantineIcon from '../MantineIcon';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
-    ResourceViewItemActionState,
+    type ResourceViewItemActionState,
 } from './ResourceActionHandlers';
 import ResourceEmptyState, {
-    ResourceEmptyStateProps,
+    type ResourceEmptyStateProps,
 } from './ResourceEmptyState';
 import ResourceViewGrid, {
-    ResourceViewGridCommonProps,
+    type ResourceViewGridCommonProps,
 } from './ResourceViewGrid';
 import ResourceViewList, {
-    ResourceViewListCommonProps,
+    type ResourceViewListCommonProps,
 } from './ResourceViewList';
 
 type TabType = {

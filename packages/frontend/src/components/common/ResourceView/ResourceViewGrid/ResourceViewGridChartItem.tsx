@@ -1,4 +1,4 @@
-import { ResourceViewChartItem } from '@lightdash/common';
+import { type ResourceViewChartItem } from '@lightdash/common';
 import {
     Box,
     Flex,
@@ -10,10 +10,10 @@ import {
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
-import { FC, ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
-    ResourceViewActionMenuCommonProps,
+    type ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
 import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
 

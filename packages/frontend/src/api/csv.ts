@@ -1,8 +1,8 @@
 import {
-    ApiCsvUrlResponse,
-    ApiDownloadCsv,
-    ApiScheduledDownloadCsv,
-    MetricQuery,
+    type ApiCsvUrlResponse,
+    type ApiDownloadCsv,
+    type ApiScheduledDownloadCsv,
+    type MetricQuery,
 } from '@lightdash/common';
 
 import { lightdashApi } from '../api';

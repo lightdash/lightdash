@@ -1,11 +1,11 @@
-import React, { FC, useEffect } from 'react';
+import React, { useEffect, type FC } from 'react';
 import { FormProvider } from 'react-hook-form';
-import { UseFormReturn } from 'react-hook-form/dist/types';
+import { type UseFormReturn } from 'react-hook-form/dist/types';
 import {
-    SubmitErrorHandler,
-    SubmitHandler,
+    type SubmitErrorHandler,
+    type SubmitHandler,
 } from 'react-hook-form/dist/types/form';
-import { StyledProps } from 'styled-components';
+import { type StyledProps } from 'styled-components';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 

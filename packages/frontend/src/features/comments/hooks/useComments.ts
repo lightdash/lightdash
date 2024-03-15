@@ -1,9 +1,9 @@
 import {
-    ApiCreateComment,
-    ApiDeleteComment,
-    ApiError,
-    ApiGetComments,
-    Comment,
+    type ApiCreateComment,
+    type ApiDeleteComment,
+    type ApiError,
+    type ApiGetComments,
+    type Comment,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';

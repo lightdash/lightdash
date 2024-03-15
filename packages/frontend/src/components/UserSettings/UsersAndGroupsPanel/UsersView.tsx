@@ -1,9 +1,9 @@
 import {
     getRoleDescription,
     isOrganizationMemberProfileWithGroups,
-    OrganizationMemberProfile,
-    OrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
+    type OrganizationMemberProfile,
+    type OrganizationMemberProfileWithGroups,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -33,7 +33,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
-import { FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {

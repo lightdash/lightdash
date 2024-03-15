@@ -4,10 +4,10 @@ import {
     FieldType,
     isTableErrorSearchResult,
     SearchItemType,
-    SearchResults,
+    type SearchResults,
 } from '@lightdash/common';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
-import { SearchItem } from '../types/searchItem';
+import { type SearchItem } from '../types/searchItem';
 
 export const getSearchItemMap = (
     results: SearchResults,
