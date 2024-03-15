@@ -1,3 +1,10 @@
+# [0.1032.0](https://github.com/lightdash/lightdash/compare/0.1031.1...0.1032.0) (2024-03-15)
+
+
+### Features
+
+* Add markdown description support to tables list in SQL runner ([#9356](https://github.com/lightdash/lightdash/issues/9356)) ([a2c07a2](https://github.com/lightdash/lightdash/commit/a2c07a209ff494a73fcf21816c5ec491ed0d6b41))
+
 ## [0.1031.1](https://github.com/lightdash/lightdash/compare/0.1031.0...0.1031.1) (2024-03-15)
 
 
