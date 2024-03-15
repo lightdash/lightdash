@@ -7,7 +7,6 @@ import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplore } from '../hooks/useExplore';
 import {
     useDateZoomGranularitySearch,
@@ -28,8 +27,6 @@ const ExplorerWithUrlParams = memo(() => {
     );
     const { data } = useExplore(tableId);
 
-    const { getIsEditingDashboardChart } = useDashboardStorage();
-
     const clearQuery = useExplorerContext(
         (context) => context.actions.clearQuery,
     );
@@ -41,7 +38,6 @@ const ExplorerWithUrlParams = memo(() => {
             sidebar={<ExploreSideBar />}
             withFullHeight
             withPaddedContent
-            hasBanner={getIsEditingDashboardChart()}
         >
             <Explorer />
         </Page>
