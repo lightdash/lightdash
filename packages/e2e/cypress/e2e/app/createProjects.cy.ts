@@ -448,7 +448,7 @@ describe('Create projects', () => {
         cy.get('[role="button"').contains('Manually').click();
     });
 
-    it.only('Should create a Postgres project', () => {
+    it('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
         cy.get('[role="button"').contains('PostgreSQL').click();
@@ -459,9 +459,9 @@ describe('Create projects', () => {
         configurePostgresWarehouse(warehouseConfig.postgresSQL);
 
         testCompile().then((projectUuid) => {
-            // testFilterStringEscaping(projectUuid);
-            // testTimeIntervalsResults(projectUuid);
-            // testPercentile(projectUuid);
+            testFilterStringEscaping(projectUuid);
+            testTimeIntervalsResults(projectUuid);
+            testPercentile(projectUuid);
 
             createCustomDimensionChart(projectUuid);
             testCustomDimensions(projectUuid);
