@@ -74,7 +74,7 @@ describe('Explore', () => {
         cy.findByText('Success! Chart was updated.');
     });
 
-    it.only('Should change chart config type', () => {
+    it('Should change chart config type', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
         cy.findByTestId('page-spinner').should('not.exist');
