@@ -13,8 +13,8 @@
         "format": "yarn run formatter ./cypress --check",
         "fix-format": "yarn run formatter ./cypress --write"
     },
-    "devDependencies": {},
     "dependencies": {
+        "@simonsmith/cypress-image-snapshot": "^9.0.1",
         "@testing-library/cypress": "^9.0.0",
         "cypress": "^13.6.2",
         "cypress-file-upload": "^5.0.8",

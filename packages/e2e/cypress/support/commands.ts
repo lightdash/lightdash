@@ -33,8 +33,11 @@ import {
     SEED_ORG_2_ADMIN_PASSWORD,
     SEED_PROJECT,
 } from '@lightdash/common';
+import { addMatchImageSnapshotCommand } from '@simonsmith/cypress-image-snapshot/command';
 import '@testing-library/cypress/add-commands';
 import 'cypress-file-upload';
+
+addMatchImageSnapshotCommand();
 
 declare global {
     namespace Cypress {
