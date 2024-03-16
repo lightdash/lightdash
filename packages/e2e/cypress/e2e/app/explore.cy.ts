@@ -102,32 +102,32 @@ describe('Explore', () => {
 
         cy.get('[role="menuitem"]').contains('Bar chart').click();
         cy.get('button').contains('Bar chart').click();
-        cy.wait(500); // wait for chart animation
+        cy.wait(1000); // wait for chart animation
         cy.get('.echarts-for-react').matchImageSnapshot('bar-chart');
 
         cy.get('[role="menuitem"]').contains('Horizontal bar chart').click();
         cy.get('button').contains('Horizontal bar chart').click();
-        cy.wait(500); // wait for chart animation
+        cy.wait(1000); // wait for chart animation
         cy.get('.echarts-for-react').matchImageSnapshot('horizontal-bar-chart');
 
         cy.get('[role="menuitem"]').contains('Line chart').click();
         cy.get('button').contains('Line chart').click();
-        cy.wait(500); // wait for chart animation
+        cy.wait(1000); // wait for chart animation
         cy.get('.echarts-for-react').matchImageSnapshot('line-chart');
 
         cy.get('[role="menuitem"]').contains('Area chart').click();
         cy.get('button').contains('Area chart').click();
-        cy.wait(500); // wait for chart animation
+        cy.wait(1000); // wait for chart animation
         cy.get('.echarts-for-react').matchImageSnapshot('area-chart');
 
         cy.get('[role="menuitem"]').contains('Scatter chart').click();
         cy.get('button').contains('Scatter chart').click();
-        cy.wait(500); // wait for chart animation
+        cy.wait(1000); // wait for chart animation
         cy.get('.echarts-for-react').matchImageSnapshot('scatter-chart');
 
         cy.get('[role="menuitem"]').contains('Pie chart').click();
         cy.get('button').contains('Pie chart').click();
-        cy.wait(500); // wait for chart animation
+        cy.wait(1000); // wait for chart animation
         cy.get('.echarts-for-react').matchImageSnapshot('pie-chart');
 
         cy.get('[role="menuitem"]').contains('Table').click();

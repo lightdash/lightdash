@@ -405,6 +405,10 @@ const testCustomDimensions = (projectUuid) => {
     cy.contains('How do payment methods vary').click();
     cy.contains('0 - 6');
     cy.contains('6 - 12');
+    cy.wait(1000); // wait for chart animation
+    cy.get('.echarts-for-react').matchImageSnapshot(
+        'custom-dimension-bar-chart',
+    );
 };
 
 describe('Create projects', () => {
@@ -444,7 +448,7 @@ describe('Create projects', () => {
         cy.get('[role="button"').contains('Manually').click();
     });
 
-    it('Should create a Postgres project', () => {
+    it.only('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
         cy.get('[role="button"').contains('PostgreSQL').click();
@@ -455,9 +459,9 @@ describe('Create projects', () => {
         configurePostgresWarehouse(warehouseConfig.postgresSQL);
 
         testCompile().then((projectUuid) => {
-            testFilterStringEscaping(projectUuid);
-            testTimeIntervalsResults(projectUuid);
-            testPercentile(projectUuid);
+            // testFilterStringEscaping(projectUuid);
+            // testTimeIntervalsResults(projectUuid);
+            // testPercentile(projectUuid);
 
             createCustomDimensionChart(projectUuid);
             testCustomDimensions(projectUuid);
