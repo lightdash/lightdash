@@ -1110,6 +1110,7 @@ export class SpaceModel {
         userUuid: string,
         spaceRole: string,
     ): Promise<void> {
+        console.log(`${spaceUuid} ${userUuid} ${spaceRole}`);
         await this.database(SpaceUserAccessTableName)
             .insert({
                 space_uuid: spaceUuid,
