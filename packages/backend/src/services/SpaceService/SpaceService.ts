@@ -128,10 +128,15 @@ export class SpaceService {
                     this.spaceModel.addSpaceAccess(
                         newSpace.uuid,
                         access.userUuid,
+                        access.role,
                     ),
                 ),
             );
-        await this.spaceModel.addSpaceAccess(newSpace.uuid, user.userUuid);
+        await this.spaceModel.addSpaceAccess(
+            newSpace.uuid,
+            user.userUuid,
+            'admin',
+        ); // user who created the space by default would be set to space admin
         this.analytics.track({
             event: 'space.created',
             userId: user.userUuid,
@@ -152,7 +157,7 @@ export class SpaceService {
         updateSpace: UpdateSpace,
     ): Promise<Space> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+        const userSpaceAccess = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,
             spaceUuid,
         );
@@ -161,20 +166,20 @@ export class SpaceService {
                 'manage',
                 subject('Space', {
                     ...space,
-                    access: spaceAccess,
+                    access: userSpaceAccess,
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        if (space.isPrivate !== updateSpace.isPrivate) {
-            // Switching public and private spaces switches between their defaults
-            // it will remove access to all users except for this `user.userUuid`
+        // if (space.isPrivate !== updateSpace.isPrivate) {
+        //     // Switching public and private spaces switches between their defaults
+        //     // it will remove access to all users except for this `user.userUuid`
 
-            await this.spaceModel.clearSpaceAccess(spaceUuid, user.userUuid);
-            await this.spaceModel.addSpaceAccess(spaceUuid, user.userUuid);
-        }
+        //     await this.spaceModel.clearSpaceAccess(spaceUuid, user.userUuid);
+        //     await this.spaceModel.addSpaceAccess(spaceUuid, user.userUuid, userSpaceAccess[0].role);
+        // }
         const updatedSpace = await this.spaceModel.update(
             spaceUuid,
             updateSpace,

@@ -691,6 +691,7 @@ export class SpaceModel {
                 `${ProjectMembershipsTableName}.role`,
                 `${OrganizationMembershipsTableName}.role`,
                 `${SpaceUserAccessTableName}.user_uuid`,
+                `${SpaceUserAccessTableName}.space_role`,
             )
             .select<
                 {
@@ -1098,6 +1099,7 @@ export class SpaceModel {
         userUuid: string,
         spaceRole: string,
     ): Promise<void> {
+        console.log(`${spaceUuid} ${userUuid} ${spaceRole}`);
         await this.database(SpaceUserAccessTableName)
             .insert({
                 space_uuid: spaceUuid,
@@ -1113,8 +1115,8 @@ export class SpaceModel {
         userUuid: string,
     ): Promise<void> {
         await this.database(SpaceUserAccessTableName)
-            .where('space_id', spaceUuid)
-            .andWhere('user_id', userUuid)
+            .where('space_uuid', spaceUuid)
+            .andWhere('user_uuid', userUuid)
             .delete();
     }
 

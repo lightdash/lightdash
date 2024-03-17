@@ -35,17 +35,17 @@ const enum UserAccessAction {
 const UserAccessOptions: AccessOption[] = [
     {
         title: 'Viewer',
-        selectDescription: `This permission has been inherited`,
+        selectDescription: `View space contents.`,
         value: UserAccessAction.VIEWER,
     },
     {
         title: 'Editor',
-        selectDescription: `This permission has been inherited`,
+        selectDescription: `Edit space contents.`,
         value: UserAccessAction.EDITOR,
     },
     {
         title: 'Admin',
-        selectDescription: `This permission has been inherited`,
+        selectDescription: `Manage space access.`,
         value: UserAccessAction.ADMIN,
     },
     {
@@ -150,14 +150,14 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 </Text>
                             </Group>
                             <Tooltip
-                                disabled={isYou || sharedUser.hasDirectAccess}
+                                disabled={isYou || space.isPrivate}
                                 label={
                                     <Text>
                                         {`This user has ${sharedUser.role} role for this space because they are an ${sharedUser.inheritedFrom} ${sharedUser.inheritedRole}`}
                                     </Text>
                                 }
                             >
-                                {isYou || !sharedUser.hasDirectAccess ? (
+                                {isYou ? (
                                     <Badge size="md" color="gray.6" radius="xs">
                                         {sharedUser.role}
                                     </Badge>
