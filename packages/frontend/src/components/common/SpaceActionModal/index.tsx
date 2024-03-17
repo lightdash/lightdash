@@ -255,6 +255,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
                 isPrivate: state!.isPrivate,
                 access: state!.access?.map((access) => ({
                     userUuid: access.userUuid,
+                    role: access.role,
                 })),
             });
             onSubmitForm?.(result);

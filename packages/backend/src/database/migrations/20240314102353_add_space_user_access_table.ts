@@ -10,7 +10,6 @@ export async function up(knex: Knex): Promise<void> {
             tableBuilder
                 .uuid('user_uuid')
                 .notNullable()
-                .primary()
                 .references('user_uuid')
                 .inTable(USER_TABLE)
                 .onDelete('CASCADE');
