@@ -1,21 +1,11 @@
 import { hasChartsInDashboard, isChartTile } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    List,
-    Modal,
-    Stack,
-    Text,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import { List, Stack, Text, type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
 import {
     useDashboardDeleteMutation,
     useDashboardQuery,
 } from '../../../hooks/dashboard/useDashboard';
-import MantineIcon from '../MantineIcon';
+import CommonModal, { Intent } from './Modal';
 
 interface DashboardDeleteModalProps extends ModalProps {
     uuid: string;
@@ -45,66 +35,43 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
     );
 
     return (
-        <Modal
-            title={
-                <Group spacing="xs">
-                    <MantineIcon icon={IconTrash} color="red" size="lg" />
-                    <Title order={4}>Delete dashboard</Title>
-                </Group>
-            }
+        <CommonModal
+            title="Delete dashboard"
+            intent={Intent.DELETE}
+            confirmButtonProps={{
+                onClick: handleConfirm,
+                loading: isDeleting,
+            }}
             {...modalProps}
         >
-            <Stack>
-                {hasChartsInDashboard(dashboard) ? (
-                    <Stack>
-                        <Text>
-                            Are you sure you want to delete the dashboard{' '}
-                            <b>"{dashboard.name}"</b>?
-                        </Text>
-                        <Text>
-                            This action will also permanently delete the
-                            following charts that were created from within it:
-                        </Text>
-                        <List size="sm">
-                            {chartsInDashboardTiles.map(
-                                (tile) =>
-                                    isChartTile(tile) && (
-                                        <List.Item key={tile.uuid}>
-                                            <Text>
-                                                {tile.properties.chartName}
-                                            </Text>
-                                        </List.Item>
-                                    ),
-                            )}
-                        </List>
-                    </Stack>
-                ) : (
+            {hasChartsInDashboard(dashboard) ? (
+                <Stack>
                     <Text>
                         Are you sure you want to delete the dashboard{' '}
                         <b>"{dashboard.name}"</b>?
                     </Text>
-                )}
-
-                <Group position="right" spacing="xs">
-                    <Button
-                        color="dark"
-                        variant="outline"
-                        onClick={modalProps.onClose}
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        color="red"
-                        loading={isDeleting}
-                        onClick={handleConfirm}
-                        type="submit"
-                    >
-                        Delete
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+                    <Text>
+                        This action will also permanently delete the following
+                        charts that were created from within it:
+                    </Text>
+                    <List size="sm">
+                        {chartsInDashboardTiles.map(
+                            (tile) =>
+                                isChartTile(tile) && (
+                                    <List.Item key={tile.uuid}>
+                                        <Text>{tile.properties.chartName}</Text>
+                                    </List.Item>
+                                ),
+                        )}
+                    </List>
+                </Stack>
+            ) : (
+                <Text>
+                    Are you sure you want to delete the dashboard{' '}
+                    <b>"{dashboard.name}"</b>?
+                </Text>
+            )}
+        </CommonModal>
     );
 };
 

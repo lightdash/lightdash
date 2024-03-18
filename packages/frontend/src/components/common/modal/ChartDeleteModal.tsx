@@ -1,15 +1,4 @@
-import {
-    Alert,
-    Anchor,
-    Button,
-    Group,
-    List,
-    Modal,
-    Stack,
-    Text,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Alert, Anchor, List, Text, type ModalProps } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -19,6 +8,7 @@ import {
     useSavedQueryDeleteMutation,
 } from '../../../hooks/useSavedQuery';
 import MantineIcon from '../MantineIcon';
+import CommonModal, { Intent } from './Modal';
 
 interface ChartDeleteModalProps extends ModalProps {
     uuid: string;
@@ -54,64 +44,50 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     };
 
     return (
-        <Modal title={<Title order={4}>Delete Chart</Title>} {...modalProps}>
-            <Stack spacing="lg" pt="sm">
-                <Text>
-                    Are you sure you want to delete the chart{' '}
-                    <Text span fw={600}>
-                        "{chart.name}"
-                    </Text>
-                    ?
+        <CommonModal
+            title="Delete Chart"
+            intent={Intent.DELETE}
+            onConfirm={handleConfirm}
+            isLoading={isDeleting}
+            {...modalProps}
+        >
+            <Text>
+                Are you sure you want to delete the chart{' '}
+                <Text span fw={600}>
+                    "{chart.name}"
                 </Text>
+                ?
+            </Text>
 
-                {relatedDashboards.length > 0 && (
-                    <>
-                        <Alert
-                            icon={<MantineIcon icon={IconAlertCircle} />}
-                            title={
-                                <Text fw={600}>
-                                    This action will remove a chart tile from{' '}
-                                    {relatedDashboards.length} dashboard
-                                    {relatedDashboards.length > 1 ? 's' : ''}:
-                                </Text>
-                            }
-                        >
-                            <List fz="sm">
-                                {relatedDashboards.map((dashboard) => (
-                                    <List.Item key={dashboard.uuid}>
-                                        <Anchor
-                                            component={Link}
-                                            target="_blank"
-                                            to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
-                                        >
-                                            {dashboard.name}
-                                        </Anchor>
-                                    </List.Item>
-                                ))}
-                            </List>
-                        </Alert>
-                    </>
-                )}
-
-                <Group position="right" mt="sm">
-                    <Button
-                        color="dark"
-                        variant="outline"
-                        onClick={modalProps.onClose}
+            {relatedDashboards.length > 0 && (
+                <>
+                    <Alert
+                        icon={<MantineIcon icon={IconAlertCircle} />}
+                        title={
+                            <Text fw={600}>
+                                This action will remove a chart tile from{' '}
+                                {relatedDashboards.length} dashboard
+                                {relatedDashboards.length > 1 ? 's' : ''}:
+                            </Text>
+                        }
                     >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        loading={isDeleting}
-                        color="red"
-                        onClick={handleConfirm}
-                    >
-                        Delete
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+                        <List fz="sm">
+                            {relatedDashboards.map((dashboard) => (
+                                <List.Item key={dashboard.uuid}>
+                                    <Anchor
+                                        component={Link}
+                                        target="_blank"
+                                        to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
+                                    >
+                                        {dashboard.name}
+                                    </Anchor>
+                                </List.Item>
+                            ))}
+                        </List>
+                    </Alert>
+                </>
+            )}
+        </CommonModal>
     );
 };
 

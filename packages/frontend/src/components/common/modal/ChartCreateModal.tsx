@@ -7,10 +7,8 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
-    Button,
     Group,
     Input,
-    Modal,
     Select,
     Stack,
     Text,
@@ -30,6 +28,7 @@ import {
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
+import CommonModal from './Modal';
 
 interface ChartCreateModalProps {
     savedData: CreateSavedChartVersion;
@@ -177,24 +176,26 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     if (isLoadingSpaces || !spaces) return null;
 
     return (
-        <Modal
+        <CommonModal
             opened={isOpen}
             onClose={onClose}
             keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
-                    <Text fw={600}>
-                        {fromDashboard
-                            ? `Save chart to ${fromDashboard}`
-                            : 'Save chart'}
-                    </Text>
-                </Group>
+            leftTitleIcon={
+                <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
             }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
-                body: { padding: 0 },
-            })}
+            title={
+                fromDashboard ? `Save chart to ${fromDashboard}` : 'Save chart'
+            }
+            confirmButtonProps={{
+                type: 'submit',
+                disabled:
+                    isCreating ||
+                    isCreatingSpace ||
+                    !form.values.name ||
+                    (!fromDashboard &&
+                        showSpaceInput &&
+                        !form.values.newSpaceName),
+            }}
         >
             <form
                 onSubmit={form.onSubmit((values) => {
@@ -272,36 +273,8 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         </Stack>
                     )}
                 </Stack>
-
-                <Group
-                    position="right"
-                    w="100%"
-                    sx={(theme) => ({
-                        borderTop: `1px solid ${theme.colors.gray[4]}`,
-                        bottom: 0,
-                        padding: theme.spacing.md,
-                    })}
-                >
-                    <Button onClick={onClose} variant="outline">
-                        Cancel
-                    </Button>
-
-                    <Button
-                        type="submit"
-                        disabled={
-                            isCreating ||
-                            isCreatingSpace ||
-                            !form.values.name ||
-                            (!fromDashboard &&
-                                showSpaceInput &&
-                                !form.values.newSpaceName)
-                        }
-                    >
-                        Save
-                    </Button>
-                </Group>
             </form>
-        </Modal>
+        </CommonModal>
     );
 };
 
