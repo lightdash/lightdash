@@ -1,3 +1,10 @@
+## [0.1035.2](https://github.com/lightdash/lightdash/compare/0.1035.1...0.1035.2) (2024-03-18)
+
+
+### Bug Fixes
+
+* add flash messages to new login ([#9421](https://github.com/lightdash/lightdash/issues/9421)) ([cd77131](https://github.com/lightdash/lightdash/commit/cd77131925e702fe09059947863065da1de1b4e9))
+
 ## [0.1035.1](https://github.com/lightdash/lightdash/compare/0.1035.0...0.1035.1) (2024-03-18)
 
 
