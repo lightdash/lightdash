@@ -22,6 +22,7 @@ export type ResourceViewChartItem = {
         | 'uuid'
         | 'name'
         | 'chartType'
+        | 'chartKind'
         | 'firstViewedAt'
         | 'views'
         | 'pinnedListUuid'

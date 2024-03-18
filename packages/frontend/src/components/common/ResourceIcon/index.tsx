@@ -66,8 +66,8 @@ export const IconBox: FC<IconBoxProps> = ({
     </Paper>
 );
 
-export const getChartIcon = (chartType: ChartKind | undefined) => {
-    switch (chartType) {
+export const getChartIcon = (chartKind: ChartKind | undefined) => {
+    switch (chartKind) {
         case undefined:
         case ChartKind.VERTICAL_BAR:
             return IconChartBar;
@@ -91,20 +91,20 @@ export const getChartIcon = (chartType: ChartKind | undefined) => {
             return IconCode;
         default:
             return assertUnreachable(
-                chartType,
-                `Chart type ${chartType} not supported`,
+                chartKind,
+                `Chart type ${chartKind} not supported`,
             );
     }
 };
 
-export const ChartIcon: FC<{ chartType: ChartKind | undefined }> = ({
-    chartType,
+export const ChartIcon: FC<{ chartKind: ChartKind | undefined }> = ({
+    chartKind,
 }) => (
     <IconBox
-        icon={getChartIcon(chartType)}
+        icon={getChartIcon(chartKind)}
         color="blue.8"
         transform={
-            chartType === ChartKind.HORIZONTAL_BAR ? 'rotate(90)' : undefined
+            chartKind === ChartKind.HORIZONTAL_BAR ? 'rotate(90)' : undefined
         }
     />
 );
@@ -116,7 +116,7 @@ export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
         case ResourceViewItemType.SPACE:
             return <IconBox icon={IconFolder} color="violet.8" />;
         case ResourceViewItemType.CHART:
-            return <ChartIcon chartType={item.data.chartType} />;
+            return <ChartIcon chartKind={item.data.chartKind} />;
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }

@@ -13,7 +13,7 @@ export type ValidationResponseBase = {
 
 export type ValidationErrorChartResponse = ValidationResponseBase & {
     chartUuid: string | undefined; // NOTE: can be undefined if private content
-    chartType?: ChartKind;
+    chartKind?: ChartKind;
     fieldName?: string;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
