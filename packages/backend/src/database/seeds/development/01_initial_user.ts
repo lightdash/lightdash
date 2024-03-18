@@ -22,7 +22,7 @@ import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
-import { projectModel } from '../../../models/models';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
 import { serviceRepository } from '../../../services/services';
 import { DbEmailIn } from '../../entities/emails';
@@ -207,10 +207,11 @@ export async function seed(knex: Knex): Promise<void> {
                 SEED_PROJECT.project_uuid,
                 RequestMethod.UNKNOWN,
             );
-        await projectModel.saveExploresToCache(
-            SEED_PROJECT.project_uuid,
-            explores,
-        );
+        await new ProjectModel({
+            database: knex,
+            lightdashConfig,
+            encryptionService: enc,
+        }).saveExploresToCache(SEED_PROJECT.project_uuid, explores);
     } catch (e) {
         console.error(e);
         throw e;

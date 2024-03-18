@@ -2,7 +2,6 @@ import { ForbiddenError } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import express from 'express';
 import { lightdashConfig } from '../config/lightdashConfig';
-import { userModel } from '../models/models';
 
 const puppeteer = require('puppeteer');
 
@@ -21,7 +20,9 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
         if (hash !== req.body.token) {
             throw new ForbiddenError();
         }
-        const sessionUser = await userModel.findSessionUserByUUID(userUuid);
+        const sessionUser = await req.services
+            .getUserService()
+            .getSessionByUserUuid(userUuid);
 
         req.login(sessionUser, (err) => {
             if (err) {

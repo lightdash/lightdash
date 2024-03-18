@@ -1,50 +1,45 @@
 import { OpenIdIdentityIssuerType } from '@lightdash/common';
-import {
-    emailModel,
-    groupsModel,
-    inviteLinkModel,
-    openIdIdentityModel,
-    organizationAllowedEmailDomainsModel,
-    organizationMemberProfileModel,
-    organizationModel,
-    passwordResetLinkModel,
-    personalAccessTokenModel,
-    sessionModel,
-    userModel,
-    userWarehouseCredentialsModel,
-} from '../models/models';
-
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { LightdashConfig } from '../config/parseConfig';
+import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
+import { EmailModel } from '../models/EmailModel';
+import { GroupsModel } from '../models/GroupsModel';
+import { InviteLinkModel } from '../models/InviteLinkModel';
+import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
+import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
+import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
+import { OrganizationModel } from '../models/OrganizationModel';
+import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
+import { SessionModel } from '../models/SessionModel';
+import { UserModel } from '../models/UserModel';
+import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserService } from './UserService';
 
 jest.mock('../database/database', () => ({}));
 
-jest.mock('../models/models', () => ({
-    userModel: {
-        getOpenIdIssuer: jest.fn(async () => undefined),
-    },
-}));
-
+const userModel = {
+    getOpenIdIssuer: jest.fn(async () => undefined),
+};
 const createUserService = (lightdashConfig: LightdashConfig) =>
     new UserService({
         analytics: analyticsMock,
         lightdashConfig,
-        inviteLinkModel,
-        userModel,
-        groupsModel,
-        sessionModel,
-        emailModel,
-        openIdIdentityModel,
-        passwordResetLinkModel,
+        inviteLinkModel: {} as InviteLinkModel,
+        userModel: userModel as unknown as UserModel,
+        groupsModel: {} as GroupsModel,
+        sessionModel: {} as SessionModel,
+        emailModel: {} as EmailModel,
+        openIdIdentityModel: {} as OpenIdIdentityModel,
+        passwordResetLinkModel: {} as PasswordResetLinkModel,
         emailClient: {} as EmailClient,
-        organizationMemberProfileModel,
-        organizationModel,
-        personalAccessTokenModel,
-        organizationAllowedEmailDomainsModel,
-        userWarehouseCredentialsModel,
+        organizationMemberProfileModel: {} as OrganizationMemberProfileModel,
+        organizationModel: {} as OrganizationModel,
+        personalAccessTokenModel: {} as PersonalAccessTokenModel,
+        organizationAllowedEmailDomainsModel:
+            {} as OrganizationAllowedEmailDomainsModel,
+        userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
     });
 
 jest.spyOn(analyticsMock, 'track');

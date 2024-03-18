@@ -30,7 +30,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
 import {
     allowApiKeyAuthentication,
@@ -181,9 +180,9 @@ export class UserController extends BaseController {
         await this.services
             .getUserService()
             .joinOrg(req.user!, organizationUuid);
-        const sessionUser = await userModel.findSessionUserByUUID(
-            req.user!.userUuid,
-        );
+        const sessionUser = await req.services
+            .getUserService()
+            .getSessionByUserUuid(req.user!.userUuid);
         await new Promise<void>((resolve, reject) => {
             req.login(sessionUser, (err) => {
                 if (err) {

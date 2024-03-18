@@ -1,6 +1,6 @@
 import { LightdashInstallType, LightdashMode } from '@lightdash/common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
-import { organizationModel } from '../../models/models';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { HealthService } from './HealthService';
 import { BaseResponse, Config } from './HealthService.mock';
 
@@ -8,11 +8,9 @@ jest.mock('../../version', () => ({
     VERSION: '0.1.0',
 }));
 
-jest.mock('../../models/models', () => ({
-    organizationModel: {
-        hasOrgs: jest.fn(async () => true),
-    },
-}));
+const organizationModel = {
+    hasOrgs: jest.fn(async () => true),
+};
 jest.mock('../../clients/DockerHub/DockerHub', () => ({
     getDockerHubVersion: jest.fn(() => '0.2.7'),
 }));
@@ -26,7 +24,7 @@ jest.mock('../../database/database', () => ({
 
 describe('health', () => {
     const healthService = new HealthService({
-        organizationModel,
+        organizationModel: organizationModel as unknown as OrganizationModel,
         lightdashConfig: Config,
     });
 
@@ -62,7 +60,8 @@ describe('health', () => {
     });
     it('Should return localDbtEnabled false when in cloud beta mode', async () => {
         const service = new HealthService({
-            organizationModel,
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
             lightdashConfig: {
                 ...Config,
                 mode: LightdashMode.CLOUD_BETA,
