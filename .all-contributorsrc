@@ -1350,6 +1350,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "chasewoo",
+      "name": "Chase Wu",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1282787?v=4",
+      "profile": "https://github.com/chasewoo",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
