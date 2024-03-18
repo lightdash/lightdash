@@ -15,6 +15,7 @@ import {
 type BigqueryTarget = {
     project: string;
     dataset: string;
+    schema: string;
     priority?: 'interactive' | 'batch';
     retries?: number;
     location?: string;
@@ -24,11 +25,15 @@ type BigqueryTarget = {
 
 export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
     type: 'object',
+    required: ['project'],
     properties: {
         project: {
             type: 'string',
         },
         dataset: {
+            type: 'string',
+        },
+        schema: {
             type: 'string',
         },
         priority: {
@@ -53,7 +58,14 @@ export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
             nullable: true,
         },
     },
-    required: ['project', 'dataset'],
+    oneOf: [
+        {
+            required: ['dataset'],
+        },
+        {
+            required: ['schema'],
+        },
+    ],
 };
 
 export const convertBigquerySchema = async (
@@ -83,7 +95,7 @@ export const convertBigquerySchema = async (
         return {
             type: WarehouseTypes.BIGQUERY,
             project: target.project,
-            dataset: target.dataset,
+            dataset: target.dataset ?? target.schema,
             timeoutSeconds: target.timeout_seconds,
             priority: target.priority,
             keyfileContents: await getBigqueryCredentials(target),
@@ -93,7 +105,13 @@ export const convertBigquerySchema = async (
         };
     }
     const lineErrorMessages = (validate.errors || [])
-        .map((err) => `Field at ${err.instancePath} ${err.message}`)
+        .map((err) => {
+            if (err.keyword === 'oneOf') {
+                return 'Profile should contain either `dataset` or `schema`';
+            }
+
+            return `Field at ${err.instancePath} ${err.message}`;
+        })
         .join('\n');
     throw new ParseError(
         `Couldn't read profiles.yml file for ${target.type}:\n  ${lineErrorMessages}`,
