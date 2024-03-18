@@ -1,40 +1,42 @@
 name: Test
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 jobs:
+    build:
+        runs-on: ubuntu-latest
 
-  build:
+        steps:
+            - uses: actions/checkout@v4
+            # Install packages
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'yarn'
+            - name: Install packages
+              run: yarn install --frozen-lockfile
 
-    runs-on: ubuntu-latest
+            - name: Lint all packages
+              run: yarn lint
+            - name: Check formatting all packages
+              run: yarn format
+            - name: Check for unused exports
+              run: yarn workspace frontend unused-exports
 
-    steps:
-    - uses: actions/checkout@v4
-    # Install packages
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'yarn'
-    - name: Install packages
-      run: yarn install --frozen-lockfile
+            - name: Build common
+              run: yarn common-build
 
-    - name: Lint all packages
-      run: yarn lint
-    - name: Check formatting all packages
-      run: yarn format
-    - name: Check for unused exports
-      run: yarn workspace frontend unused-exports
+            - name: Build warehouses
+              run: yarn warehouses-build
 
-    - name: Build common
-      run: yarn common-build
+            - name: Run dangerjs
+              run: yarn danger ci
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build warehouses
-      run: yarn warehouses-build
-
-    - name: Run unit tests
-      run: yarn backend-build && yarn test
-
+            - name: Run unit tests
+              run: yarn backend-build && yarn test

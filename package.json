@@ -99,8 +99,7 @@
         "start": "run-p backend-start",
         "prepare": "husky install",
         "load:env": "dotenv -c -e .env.development.local",
-        "generate-api": "yarn common-build && yarn workspace backend generate-api && yarn workspace backend formatter --write ./src/generated",
-        "danger": "danger"
+        "generate-api": "yarn common-build && yarn workspace backend generate-api && yarn workspace backend formatter --write ./src/generated"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [

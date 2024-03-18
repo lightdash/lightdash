@@ -1,3 +1,30 @@
+/**
+ * Learn more about writing dangerjs rules here:
+ * https://danger.systems/js/reference
+ *
+ * Please always:
+ *
+ * - Define your check using the `DangerCheck` type annotation:
+ *
+ *  ```ts
+ *      const mySanityCheck: DangerCheck = () => {
+ *          ...
+ *      }
+ *  ```
+ *
+ * - Add your check function to the `allChecks` list, with a description:
+ *
+ *
+ *  ```ts
+ *  const allChecks: DangerCheckEntry[] = [
+ *      ['Runs a critical sanity check', mySanityCheck]
+ *  ] as const;
+ *  ```
+ *
+ * - Use the `fail`, `message` and `warn` helpers, ideally with the correct filename
+ *   and lines, as well as detailed descriptions on the actions required or what the
+ *   exact problem is.
+ */
 import { danger, fail, markdown, message, warn } from 'danger';
 
 /**
