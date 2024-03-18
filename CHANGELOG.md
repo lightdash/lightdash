@@ -1,3 +1,10 @@
+# [0.1035.0](https://github.com/lightdash/lightdash/compare/0.1034.1...0.1035.0) (2024-03-18)
+
+
+### Features
+
+* is login method allowed ([#9351](https://github.com/lightdash/lightdash/issues/9351)) ([8dbd9f6](https://github.com/lightdash/lightdash/commit/8dbd9f6207a89040ebf2e664d88fb380ff3e0cad)), closes [#9348](https://github.com/lightdash/lightdash/issues/9348)
+
 ## [0.1034.1](https://github.com/lightdash/lightdash/compare/0.1034.0...0.1034.1) (2024-03-15)
 
 
