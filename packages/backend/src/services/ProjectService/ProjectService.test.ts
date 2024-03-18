@@ -9,18 +9,16 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import {
-    analyticsModel,
-    dashboardModel,
-    jobModel,
-    onboardingModel,
-    projectModel,
-    savedChartModel,
-    spaceModel,
-    sshKeyPairModel,
-    userAttributesModel,
-    userWarehouseCredentialsModel,
-} from '../../models/models';
+import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { JobModel } from '../../models/JobModel/JobModel';
+import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { SavedChartModel } from '../../models/SavedChartModel';
+import { SpaceModel } from '../../models/SpaceModel';
+import { SshKeyPairModel } from '../../models/SshKeyPairModel';
+import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectService } from './ProjectService';
@@ -48,67 +46,63 @@ import {
     validExplore,
 } from './ProjectService.mock';
 
-jest.mock('../../models/models', () => ({
-    projectModel: {
-        getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
-        get: jest.fn(async () => projectWithSensitiveFields),
-        getSummary: jest.fn(async () => projectSummary),
-        getTablesConfiguration: jest.fn(async () => tablesConfiguration),
-        updateTablesConfiguration: jest.fn(),
-        getExploresFromCache: jest.fn(async () => allExplores),
-        getExploreFromCache: jest.fn(async () => validExplore),
-        lockProcess: jest.fn((projectUuid, fun) => fun()),
-        getWarehouseCredentialsForProject: jest.fn(
-            async () => warehouseClientMock.credentials,
-        ),
-        getWarehouseClientFromCredentials: jest.fn(() => ({
-            ...warehouseClientMock,
-            runQuery: jest.fn(async () => resultsWith1Row),
-        })),
-    },
-    onboardingModel: {
-        getByOrganizationUuid: jest.fn(async () => ({
-            ranQueryAt: new Date(),
-            shownSuccessAt: new Date(),
-        })),
-    },
-    savedChartModel: {
-        getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
-    },
-    jobModel: {
-        get: jest.fn(async () => job),
-    },
-    spaceModel: {
-        getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
-    },
-    sshKeyPairModel: {},
-    userAttributesModel: {
-        getAttributeValuesForOrgMember: jest.fn(async () => ({})),
-    },
-    analyticsModel: {},
-    dashboardModel: {},
-    userWarehouseCredentialsModel: {},
-}));
+const projectModel = {
+    getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
+    get: jest.fn(async () => projectWithSensitiveFields),
+    getSummary: jest.fn(async () => projectSummary),
+    getTablesConfiguration: jest.fn(async () => tablesConfiguration),
+    updateTablesConfiguration: jest.fn(),
+    getExploresFromCache: jest.fn(async () => allExplores),
+    getExploreFromCache: jest.fn(async () => validExplore),
+    lockProcess: jest.fn((projectUuid, fun) => fun()),
+    getWarehouseCredentialsForProject: jest.fn(
+        async () => warehouseClientMock.credentials,
+    ),
+    getWarehouseClientFromCredentials: jest.fn(() => ({
+        ...warehouseClientMock,
+        runQuery: jest.fn(async () => resultsWith1Row),
+    })),
+};
+const onboardingModel = {
+    getByOrganizationUuid: jest.fn(async () => ({
+        ranQueryAt: new Date(),
+        shownSuccessAt: new Date(),
+    })),
+};
+const savedChartModel = {
+    getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
+};
+const jobModel = {
+    get: jest.fn(async () => job),
+};
+const spaceModel = {
+    getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
+};
+
+const userAttributesModel = {
+    getAttributeValuesForOrgMember: jest.fn(async () => ({})),
+};
 
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = new ProjectService({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
-        projectModel,
-        onboardingModel,
-        savedChartModel,
-        jobModel,
+        projectModel: projectModel as unknown as ProjectModel,
+        onboardingModel: onboardingModel as unknown as OnboardingModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
+        jobModel: jobModel as unknown as JobModel,
         emailClient: new EmailClient({
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
-        spaceModel,
-        sshKeyPairModel,
-        userAttributesModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        sshKeyPairModel: {} as SshKeyPairModel,
+        userAttributesModel:
+            userAttributesModel as unknown as UserAttributesModel,
         s3CacheClient: {} as S3CacheClient,
-        analyticsModel,
-        dashboardModel,
-        userWarehouseCredentialsModel,
+        analyticsModel: {} as AnalyticsModel,
+        dashboardModel: {} as DashboardModel,
+        userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         schedulerClient: {} as SchedulerClient,
     });
     afterEach(() => {

@@ -7,9 +7,15 @@ import {
     SEED_PROJECT,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { savedChartModel } from '../../../models/models';
+import { lightdashConfig } from '../../../config/lightdashConfig';
+import { SavedChartModel } from '../../../models/SavedChartModel';
 
 export async function seed(knex: Knex): Promise<void> {
+    const savedChartModel = new SavedChartModel({
+        database: knex,
+        lightdashConfig,
+    });
+
     // Deletes ALL existing entries
     await knex('saved_queries').del();
 

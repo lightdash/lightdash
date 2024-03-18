@@ -1,5 +1,7 @@
+import { lightdashConfig } from './config/lightdashConfig';
+import database from './database/database';
 import Logger from './logging/logger';
-import { userModel } from './models/models';
+import { UserModel } from './models/UserModel';
 
 (async function init() {
     Logger.warn(`Override user password`);
@@ -13,6 +15,8 @@ import { userModel } from './models/models';
     if (!newPassword) {
         throw new Error('New password is undefined');
     }
+
+    const userModel = new UserModel({ database, lightdashConfig });
 
     Logger.info(`Get user by email: ${email}`);
     const user = await userModel.findSessionUserByPrimaryEmail(email);

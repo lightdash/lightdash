@@ -1,13 +1,10 @@
 import { TableSelectionType } from '@lightdash/common';
-import {
-    dashboardModel,
-    projectModel,
-    savedChartModel,
-    spaceModel,
-    validationModel,
-} from '../../models/models';
-
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { SavedChartModel } from '../../models/SavedChartModel';
+import { SpaceModel } from '../../models/SpaceModel';
+import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ValidationService } from './ValidationService';
 import {
@@ -24,35 +21,33 @@ import {
     tableConfiguration,
 } from './ValidationService.mock';
 
-jest.mock('../../models/models', () => ({
-    savedChartModel: {
-        find: jest.fn(async () => [{}]),
-        get: jest.fn(async () => chart),
-    },
-    projectModel: {
-        getExploresFromCache: jest.fn(async () => [explore]),
-        get: jest.fn(async () => project),
-        getTablesConfiguration: jest.fn(async () => tableConfiguration),
-    },
-    validationModel: {
-        delete: jest.fn(async () => {}),
-        create: jest.fn(async () => {}),
-    },
-    dashboardModel: {
-        getAllByProject: jest.fn(async () => [{}]),
-        getById: jest.fn(async () => dashboard),
-    },
-}));
+const savedChartModel = {
+    find: jest.fn(async () => [{}]),
+    get: jest.fn(async () => chart),
+};
+const projectModel = {
+    getExploresFromCache: jest.fn(async () => [explore]),
+    get: jest.fn(async () => project),
+    getTablesConfiguration: jest.fn(async () => tableConfiguration),
+};
+const validationModel = {
+    delete: jest.fn(async () => {}),
+    create: jest.fn(async () => {}),
+};
+const dashboardModel = {
+    getAllByProject: jest.fn(async () => [{}]),
+    getById: jest.fn(async () => dashboard),
+};
 
 describe('validation', () => {
     const validationService = new ValidationService({
         analytics: analyticsMock,
-        validationModel,
-        projectModel,
-        savedChartModel,
-        dashboardModel,
+        validationModel: validationModel as unknown as ValidationModel,
+        projectModel: projectModel as unknown as ProjectModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
         lightdashConfig: config,
-        spaceModel,
+        spaceModel: {} as SpaceModel,
         schedulerClient: {} as SchedulerClient,
     });
 

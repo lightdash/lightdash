@@ -5,58 +5,49 @@ import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
-import {
-    analyticsModel,
-    dashboardModel,
-    downloadFileModel,
-    jobModel,
-    onboardingModel,
-    projectModel,
-    savedChartModel,
-    spaceModel,
-    sshKeyPairModel,
-    userAttributesModel,
-    userModel,
-    userWarehouseCredentialsModel,
-} from '../../models/models';
+import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { JobModel } from '../../models/JobModel/JobModel';
+import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { SavedChartModel } from '../../models/SavedChartModel';
+import { SpaceModel } from '../../models/SpaceModel';
+import { SshKeyPairModel } from '../../models/SshKeyPairModel';
+import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { UserModel } from '../../models/UserModel';
+import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
-jest.mock('../../models/models', () => ({
-    savedChartModel: {},
-    dashboardModel: {},
-    userModel: {},
-    downloadFileModel: {},
-}));
-
 describe('Csv service', () => {
     const csvService = new CsvService({
         lightdashConfig,
         analytics: analyticsMock,
-        userModel,
+        userModel: {} as UserModel,
         projectService: new ProjectService({
             lightdashConfig,
             analytics: analyticsMock,
-            analyticsModel,
-            dashboardModel,
+            analyticsModel: {} as AnalyticsModel,
+            dashboardModel: {} as DashboardModel,
             emailClient: {} as EmailClient,
-            jobModel,
-            onboardingModel,
-            projectModel,
+            jobModel: {} as JobModel,
+            onboardingModel: {} as OnboardingModel,
+            projectModel: {} as ProjectModel,
             s3CacheClient: {} as S3CacheClient,
-            savedChartModel,
-            spaceModel,
-            sshKeyPairModel,
-            userAttributesModel,
-            userWarehouseCredentialsModel,
+            savedChartModel: {} as SavedChartModel,
+            spaceModel: {} as SpaceModel,
+            sshKeyPairModel: {} as SshKeyPairModel,
+            userAttributesModel: {} as UserAttributesModel,
+            userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
             schedulerClient: {} as SchedulerClient,
         }),
         s3Client: {} as S3Client,
-        savedChartModel,
-        dashboardModel,
-        downloadFileModel,
+        savedChartModel: {} as SavedChartModel,
+        dashboardModel: {} as DashboardModel,
+        downloadFileModel: {} as DownloadFileModel,
         schedulerClient: {} as SchedulerClient,
     });
 

@@ -6,17 +6,15 @@ import {
     ProjectMemberRole,
     SessionUser,
 } from '@lightdash/common';
-import {
-    analyticsModel,
-    dashboardModel,
-    pinnedListModel,
-    savedChartModel,
-    schedulerModel,
-    spaceModel,
-} from '../../models/models';
 
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { SlackClient } from '../../clients/Slack/SlackClient';
+import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { PinnedListModel } from '../../models/PinnedListModel';
+import { SavedChartModel } from '../../models/SavedChartModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
+import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { DashboardService } from './DashboardService';
 import {
@@ -37,42 +35,38 @@ import {
 
 jest.mock('../../database/database', () => ({}));
 
-jest.mock('../../models/models', () => ({
-    dashboardModel: {
-        getAllByProject: jest.fn(async () => dashboardsDetails),
+const dashboardModel = {
+    getAllByProject: jest.fn(async () => dashboardsDetails),
 
-        getById: jest.fn(async () => dashboard),
+    getById: jest.fn(async () => dashboard),
 
-        create: jest.fn(async () => dashboard),
+    create: jest.fn(async () => dashboard),
 
-        update: jest.fn(async () => dashboard),
+    update: jest.fn(async () => dashboard),
 
-        delete: jest.fn(async () => dashboard),
+    delete: jest.fn(async () => dashboard),
 
-        addVersion: jest.fn(async () => dashboard),
+    addVersion: jest.fn(async () => dashboard),
 
-        getOrphanedCharts: jest.fn(async () => []),
-    },
+    getOrphanedCharts: jest.fn(async () => []),
+};
 
-    spaceModel: {
-        getFullSpace: jest.fn(async () => publicSpace),
-        getSpaceSummary: jest.fn(async () => publicSpace),
-        getFirstAccessibleSpace: jest.fn(async () => space),
-        getUserSpaceAccess: jest.fn(async () => []),
-    },
-    analyticsModel: {
-        addDashboardViewEvent: jest.fn(async () => null),
-    },
-    pinnedListModel: {},
-    schedulerModel: {},
-    savedChartModel: {
-        get: jest.fn(async () => chart),
-        delete: jest.fn(async () => ({
-            uuid: 'chart_uuid',
-            projectUuid: 'project_uuid',
-        })),
-    },
-}));
+const spaceModel = {
+    getFullSpace: jest.fn(async () => publicSpace),
+    getSpaceSummary: jest.fn(async () => publicSpace),
+    getFirstAccessibleSpace: jest.fn(async () => space),
+    getUserSpaceAccess: jest.fn(async () => []),
+};
+const analyticsModel = {
+    addDashboardViewEvent: jest.fn(async () => null),
+};
+const savedChartModel = {
+    get: jest.fn(async () => chart),
+    delete: jest.fn(async () => ({
+        uuid: 'chart_uuid',
+        projectUuid: 'project_uuid',
+    })),
+};
 
 jest.spyOn(analyticsMock, 'track');
 describe('DashboardService', () => {
@@ -80,12 +74,12 @@ describe('DashboardService', () => {
     const { uuid: dashboardUuid } = dashboard;
     const service = new DashboardService({
         analytics: analyticsMock,
-        dashboardModel,
-        spaceModel,
-        analyticsModel,
-        pinnedListModel,
-        schedulerModel,
-        savedChartModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        analyticsModel: analyticsModel as unknown as AnalyticsModel,
+        pinnedListModel: {} as PinnedListModel,
+        schedulerModel: {} as SchedulerModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
         slackClient: {} as SlackClient,
         schedulerClient: {} as SchedulerClient,
     });
