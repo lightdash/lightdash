@@ -64,9 +64,9 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
-import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartThatBelongsToDashboardModal';
+import { useChartDeleteModal } from '../../common/modal/useChartDeleteModal';
 import PageHeader from '../../common/Page/PageHeader';
 import {
     PageActionsContainer,
@@ -204,8 +204,7 @@ const SavedChartsHeader: FC = () => {
     ] = useToggle(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
-        useState<boolean>(false);
+
     const { user, health } = useApp();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
@@ -346,6 +345,11 @@ const SavedChartsHeader: FC = () => {
                 pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
             });
     };
+
+    const { openModal: openChartDeleteModal } = useChartDeleteModal(
+        savedChart?.uuid,
+        projectUuid,
+    );
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -808,9 +812,35 @@ const SavedChartsHeader: FC = () => {
                                                     color="red"
                                                     disabled={getIsEditingDashboardChart()}
                                                     onClick={() =>
-                                                        setIsDeleteDialogOpen(
-                                                            true,
-                                                        )
+                                                        openChartDeleteModal({
+                                                            onConfirm: () => {
+                                                                history.listen(
+                                                                    (
+                                                                        location,
+                                                                        action,
+                                                                    ) => {
+                                                                        if (
+                                                                            action ===
+                                                                            'POP'
+                                                                        ) {
+                                                                            if (
+                                                                                location.pathname.includes(
+                                                                                    '/tables/',
+                                                                                )
+                                                                            ) {
+                                                                                history.push(
+                                                                                    `/projects/${projectUuid}/tables`,
+                                                                                );
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                );
+
+                                                                history.push(
+                                                                    '/',
+                                                                );
+                                                            },
+                                                        })
                                                     }
                                                 >
                                                     Delete
@@ -850,28 +880,7 @@ const SavedChartsHeader: FC = () => {
                     onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
             )}
-            {isDeleteDialogOpen && savedChart?.uuid && (
-                <ChartDeleteModal
-                    uuid={savedChart.uuid}
-                    opened={isDeleteDialogOpen}
-                    onClose={() => setIsDeleteDialogOpen(false)}
-                    onConfirm={() => {
-                        history.listen((location, action) => {
-                            if (action === 'POP') {
-                                if (location.pathname.includes('/tables/')) {
-                                    history.push(
-                                        `/projects/${projectUuid}/tables`,
-                                    );
-                                }
-                            }
-                        });
 
-                        history.push('/');
-
-                        setIsDeleteDialogOpen(false);
-                    }}
-                />
-            )}
             {isSyncWithGoogleSheetsModalOpen && savedChart?.uuid && (
                 <GoogleSheetsSyncModal
                     chartUuid={savedChart.uuid}

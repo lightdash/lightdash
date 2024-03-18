@@ -9,6 +9,7 @@ import MobileRoutes from './MobileRoutes';
 import { ActiveJobProvider } from './providers/ActiveJobProvider';
 import { AppProvider } from './providers/AppProvider';
 import MantineProvider from './providers/MantineProvider';
+import { ModalsProvider } from './providers/ModalsProvider';
 import ReactQueryProvider from './providers/ReactQueryProvider';
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import { TrackingProvider } from './providers/TrackingProvider';
@@ -35,26 +36,30 @@ const App = () => (
             <MantineProvider>
                 <Router>
                     <AppProvider>
-                        <VersionAutoUpdater />
-                        <ThirdPartyProvider
-                            enabled={isMobile || !isMinimalPage}
-                        >
-                            <TrackingProvider
+                        <ModalsProvider>
+                            <VersionAutoUpdater />
+                            <ThirdPartyProvider
                                 enabled={isMobile || !isMinimalPage}
                             >
-                                <AbilityContext.Provider value={defaultAbility}>
-                                    <ActiveJobProvider>
-                                        <ChartColorMappingContextProvider>
-                                            {isMobile ? (
-                                                <MobileRoutes />
-                                            ) : (
-                                                <Routes />
-                                            )}
-                                        </ChartColorMappingContextProvider>
-                                    </ActiveJobProvider>
-                                </AbilityContext.Provider>
-                            </TrackingProvider>
-                        </ThirdPartyProvider>
+                                <TrackingProvider
+                                    enabled={isMobile || !isMinimalPage}
+                                >
+                                    <AbilityContext.Provider
+                                        value={defaultAbility}
+                                    >
+                                        <ActiveJobProvider>
+                                            <ChartColorMappingContextProvider>
+                                                {isMobile ? (
+                                                    <MobileRoutes />
+                                                ) : (
+                                                    <Routes />
+                                                )}
+                                            </ChartColorMappingContextProvider>
+                                        </ActiveJobProvider>
+                                    </AbilityContext.Provider>
+                                </TrackingProvider>
+                            </ThirdPartyProvider>
+                        </ModalsProvider>
                     </AppProvider>
                 </Router>
             </MantineProvider>

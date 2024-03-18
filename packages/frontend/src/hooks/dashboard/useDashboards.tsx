@@ -56,7 +56,7 @@ export const useDashboards = (
 
 export const useDashboardsContainingChart = (
     projectUuid: string,
-    chartId: string,
+    chartId: string | undefined,
     includePrivate = true,
 ) => {
     const setErrorResponse = useQueryError();
@@ -68,8 +68,9 @@ export const useDashboardsContainingChart = (
             includePrivate,
         ],
         queryFn: () =>
-            getDashboardsContainingChart(projectUuid, chartId, includePrivate),
+            getDashboardsContainingChart(projectUuid, chartId!, includePrivate),
         onError: (result) => setErrorResponse(result),
+        enabled: !!chartId,
     });
 };
 

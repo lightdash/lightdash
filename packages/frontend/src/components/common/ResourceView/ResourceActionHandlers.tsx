@@ -6,6 +6,7 @@ import {
     type ResourceViewItem,
     type Space,
 } from '@lightdash/common';
+import { modals } from '@mantine/modals';
 import {
     IconFolderCog,
     IconFolderPlus,
@@ -25,10 +26,10 @@ import {
     useMoveChartMutation,
 } from '../../../hooks/useSavedQuery';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import { useChartDeleteModal } from '../modal/useChartDeleteModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 
 export enum ResourceViewItemAction {
@@ -97,9 +98,22 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         showRedirectButton: true,
     });
 
+    const isChartDeleteModal =
+        action.type === ResourceViewItemAction.DELETE &&
+        action.item.type === ResourceViewItemType.CHART;
+
+    const { openModal, closeModal } = useChartDeleteModal(
+        isChartDeleteModal ? action.item.data.uuid : undefined,
+        projectUuid,
+    );
+
     const handleReset = useCallback(() => {
         onAction({ type: ResourceViewItemAction.CLOSE });
-    }, [onAction]);
+        console.log('on action, ready to close');
+
+        closeModal();
+        modals.closeAll();
+    }, [closeModal, onAction]);
 
     const handleCreateSpace = useCallback(
         (space: Space | null) => {
@@ -236,14 +250,11 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         case ResourceViewItemAction.DELETE:
             switch (action.item.type) {
                 case ResourceViewItemType.CHART:
-                    return (
-                        <ChartDeleteModal
-                            opened
-                            uuid={action.item.data.uuid}
-                            onClose={handleReset}
-                            onConfirm={handleReset}
-                        />
-                    );
+                    openModal({
+                        onConfirm: handleReset,
+                    });
+
+                    return null;
                 case ResourceViewItemType.DASHBOARD:
                     return (
                         <DashboardDeleteModal

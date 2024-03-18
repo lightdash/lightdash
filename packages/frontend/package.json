@@ -35,6 +35,7 @@
         "@mantine/dates": "^6.0.21",
         "@mantine/form": "^7.5.2",
         "@mantine/hooks": "^6.0.21",
+        "@mantine/modals": "6.0.21",
         "@mantine/notifications": "^6.0.20",
         "@mantine/prism": "^6.0.21",
         "@mantine/tiptap": "6.0.21",
