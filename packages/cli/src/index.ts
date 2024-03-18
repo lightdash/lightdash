@@ -96,39 +96,39 @@ ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'generate',
         )} --help ${styles.secondary(
-            '-- show detailed help for the "generate" command',
+            '-- shows detailed help for the "generate" command',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold('dbt run')} ${styles.secondary(
-            '-- Runs dbt for all models and updates .yml for all models',
+            '-- runs dbt for all models and updates .yml for all models',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'dbt run',
         )} -s model1 model2+ tag:dev ${styles.secondary(
-            '-- Runs dbt for models and generates .yml for affected models',
+            '-- runs dbt for models and generates .yml for affected models',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'dbt run',
         )} --help ${styles.secondary(
-            '-- show detailed help for the "dbt run" command',
+            '-- shows detailed help for the "dbt run" command',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold('compile')} ${styles.secondary(
-            '-- Compiles Lightdash metrics and dimensions',
+            '-- compiles Lightdash metrics and dimensions',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold('deploy')} ${styles.secondary(
-            '-- Compiles and deploys Lightdash metrics to active project',
+            '-- compiles and deploys Lightdash metrics to active project',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login https://lightdash.domain.com',
-        )} ${styles.secondary('-- Login to a Lightdash instance')}
+        )} ${styles.secondary('-- logs in to a Lightdash instance')}
 `,
     );
 
 // LOGIN
 program
     .command('login <url>')
-    .description('Login to a Lightdash instance')
+    .description('Logs in to a Lightdash instance')
     .description(
-        'Login to a Lightdash instance.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples',
+        'Logs in to a Lightdash instance.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples',
     )
     .addHelpText(
         'after',
@@ -137,22 +137,22 @@ ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://app.lightdash.cloud ${styles.secondary(
-            '-- Login to Lightdash Cloud US instance',
+            '-- Logs in to Lightdash Cloud US instance',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://eu1.lightdash.cloud ${styles.secondary(
-            '-- Login to Lightdash Cloud EU instance',
+            '-- Logs in to Lightdash Cloud EU instance',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://custom.lightdash.domain ${styles.secondary(
-            '-- Login to a self-hosted instance at a custom domain',
+            '-- Logs in to a self-hosted instance at a custom domain',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://custom.lightdash.domain --token 12345 ${styles.secondary(
-            '-- Login with a personal access token (useful for users that use SSO in the browser)',
+            '-- Logs in with a personal access token (useful for users that use SSO in the browser)',
         )}
 `,
     )
@@ -164,7 +164,7 @@ ${styles.bold('Examples:')}
 // CONFIG
 const configProgram = program
     .command('config')
-    .description('Set configuration');
+    .description('Sets configuration');
 configProgram
     .command('set-project')
     .description(
@@ -185,7 +185,7 @@ configProgram
     )
     .action(setProjectHandler);
 
-const dbtProgram = program.command('dbt').description('runs dbt commands');
+const dbtProgram = program.command('dbt').description('Runs dbt commands');
 
 dbtProgram
     .command('run')
@@ -250,7 +250,7 @@ ${styles.bold('Examples:')}
 
 program
     .command('compile')
-    .description('Compile Lightdash resources')
+    .description('Compiles Lightdash resources')
     .option(
         '--project-dir <path>',
         'The directory of the dbt project',
@@ -288,7 +288,7 @@ program
 
 program
     .command('preview')
-    .description('Compile Lightdash resources')
+    .description('Creates a new preview project - waits for a keypress to stop')
     .option(
         '--name <preview name>',
         'Custom name for the preview. If a name is not provided, a unique, randomly generated name will be created.',
@@ -350,7 +350,7 @@ program
 
 program
     .command('start-preview')
-    .description('Creates new preview project')
+    .description('Creates a new preview project')
     .option(
         '--name [preview name]',
         '[required] Name for the preview project. If a preview project with this name already exists, it will be updated, otherwise it will create a new preview project ',
@@ -422,7 +422,7 @@ program
 
 program
     .command('deploy')
-    .description('Compile and deploy Lightdash project')
+    .description('Compiles and deploys a Lightdash project')
     .option(
         '--project-dir <path>',
         'The directory of the dbt project',
@@ -487,7 +487,7 @@ program
 
 program
     .command('refresh')
-    .description('Refresh Lightdash project with remote repository')
+    .description('Refreshes Lightdash project with remote repository')
     .addHelpText(
         'after',
         `
@@ -500,7 +500,7 @@ ${styles.bold('Examples:')}
 
 program
     .command('validate')
-    .description('Validate a project')
+    .description('Validates a project')
     .option(
         '--project <project uuid>',
         'Project UUID to validate, if not provided, the last preview will be used',
