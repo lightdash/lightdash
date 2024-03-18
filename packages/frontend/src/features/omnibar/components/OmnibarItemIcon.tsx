@@ -7,7 +7,7 @@ import { Anchor } from '@mantine/core';
 import {
     Icon123,
     IconAbc,
-    IconAlertTriangle,
+    IconAlertTriangleFilled,
     IconBrowser,
     IconFolder,
     IconLayoutDashboard,
@@ -99,8 +99,8 @@ export const OmnibarItemIconWithIndicator: FC<
     item.item && 'validationErrors' in item.item ? (
         <ResourceIndicator
             iconProps={{
-                fill: 'red',
-                icon: IconAlertTriangle,
+                color: 'red',
+                icon: IconAlertTriangleFilled,
             }}
             tooltipProps={{
                 maw: 300,
