@@ -401,6 +401,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                   lightdashConfig.siteUrl,
               ).href,
               passReqToCallback: true,
+              pkce: true,
           },
           async (
               req: Express.Request,
@@ -457,6 +458,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
 const genericOidcHandler =
     (
         issuerType: OpenIdUser['openId']['issuerType'],
+        pkce: true,
     ): VerifyFunctionWithRequest =>
     async (req, issuer, profile, done) => {
         try {
