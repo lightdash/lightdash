@@ -365,6 +365,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/joemiltonm"><img src="https://avatars.githubusercontent.com/u/64725924?v=4?s=100" width="100px;" alt="Joe Milton"/><br /><sub><b>Joe Milton</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=joemiltonm" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://lassu.dev"><img src="https://avatars.githubusercontent.com/u/30611343?v=4?s=100" width="100px;" alt="Andras Lassu"/><br /><sub><b>Andras Lassu</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=la55u" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/chasewoo"><img src="https://avatars.githubusercontent.com/u/1282787?v=4?s=100" width="100px;" alt="Chase Wu"/><br /><sub><b>Chase Wu</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=chasewoo" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
