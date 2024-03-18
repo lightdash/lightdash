@@ -78,6 +78,7 @@ type ServiceFactoryMethod<T extends ServiceManifest> = {
 type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
     repository: ServiceRepository;
     context: OperationContext;
+    models: ModelRepository;
 }) => T[keyof T];
 
 /**
@@ -621,6 +622,7 @@ export class ServiceRepository
                 serviceInstance = this.providers[serviceName]!({
                     repository: this,
                     context: this.context,
+                    models: this.models,
                 }) as T;
             } else if (factory != null) {
                 serviceInstance = factory();
