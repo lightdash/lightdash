@@ -1,17 +1,16 @@
 ---
 tags:
- - role:admin
+  - role:admin
 ---
 
 import DefaultValue from './assets/user-attribute-default-value.png';
 
-
 # User Attributes
 
-User attributes provide a way to customise Lightdash charts, dashboards, and other behaviour depending on the user 
+User attributes provide a way to customise Lightdash charts, dashboards, and other behaviour depending on the user
 that is logged in. For example, you could only show your sales team members data that are relevant to their region.
 
-User attributes are defined for your whole Organization and can only be a text value (not a date or number). Some 
+User attributes are defined for your whole Organization and can only be a text value (not a date or number). Some
 examples of user attributes are:
 
 - Sales region
@@ -26,26 +25,38 @@ To start user attributes you need to follow 2 steps:
 
 User attributes can only be managed by admins.
 
-<iframe width="100%" height="315" src="https://www.youtube.com/embed/eSUULAeBZU8" title="YouTube video player" 
-frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<iframe
+  width="100%"
+  height="315"
+  src="https://www.youtube.com/embed/eSUULAeBZU8"
+  title="YouTube video player"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  allowfullscreen
+></iframe>
 
 ## Managing user attributes
 
 ### Creating user attributes
 
-User attributes can be created by navigating to **Organization Settings** > **User Attributes** and clicking on the 
+User attributes can be created by navigating to **Organization Settings** > **User Attributes** and clicking on the
 **Add attribute** button. This will create a new user attribute but it will not be assigned to any user.
 
 ### Assigning user attributes to users and groups
 
-User attributes can be assigned to users or [groups](/references/groups.mdx) by navigating to **Organization Settings** > **User Attributes** and 
+User attributes can be assigned to users or [groups](/references/groups.mdx) by navigating to **Organization Settings** > **User Attributes** and
 clicking on the user attribute you'd like to assign. Select a user by email address, or a group by group name and set their value.
 
 ### Setting a default value for your user attribute
 
-You can add a default attribute that will be applied to all users who don't have their own value defined in this user attribute. 
+You can add a default attribute that will be applied to all users who don't have their own value defined in this user attribute.
 
-<img src={DefaultValue} width="683" height="936" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DefaultValue}
+  width="683"
+  height="936"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 If a user has an attribute defined, we will ignore the default for that user.
 
@@ -61,8 +72,8 @@ When referencing user attributes in SQL you can use the following [SQL variables
 
 ### Row filtering with `sql_filter`
 
-You can use user attributes to filter the rows returned by a query. This is useful if you want to restrict the data 
-based on the user's attributes. To reference a user attribute in your sql, use the special lightdash reference 
+You can use user attributes to filter the rows returned by a query. This is useful if you want to restrict the data
+based on the user's attributes. To reference a user attribute in your sql, use the special lightdash reference
 `${lightdash.attributes.<attribute_name> }`.
 You should use the `IN` operator since the attribute might have multiple values.
 
@@ -78,53 +89,53 @@ models:
 
 ### Column filtering with `required_attributes`
 
-You can use `user attributes` to limit some dimensions to some users. 
+You can use `user attributes` to limit some dimensions to some users.
 
-In the example below, only users with `is_admin` attribute `true` can use the `salary` dimension on `user` table. Users without access to this dimension will not see it on the `explore page`. 
+In the example below, only users with `is_admin` attribute `true` can use the `salary` dimension on `user` table. Users without access to this dimension will not see it on the `explore page`.
 
 ```
-columns: 
-  - name: 
+columns:
+  - name:
     description: User name
-  - salary: 
-    description: User salary 
-    meta: 
-      dimension: 
-        required_attributes: 
-          is_admin: "true" 
+  - salary:
+    description: User salary
+    meta:
+      dimension:
+        required_attributes:
+          is_admin: "true"
 ```
 
-If a user without access to this dimension runs a query that contains this dimension, they will get a `Forbidden` error. 
+If a user without access to this dimension runs a query that contains this dimension, they will get a `Forbidden` error.
 
 You can add multiple attributes for a single dimension. There are two ways to do this:
 
 1. **Multiple attributes joined with `AND`.** In the example below, only users with `is_admin: "true" AND team_name: "HR"` have access to the `salary` dimension in Lightdash.
 
 ```yaml
-columns: 
+columns:
   - name: user
     description: User name
   - name: salary
-    description: User salary 
-    meta: 
-      dimension: 
-        required_attributes: 
-          is_admin: "true" 
-          team_name: "HR"
+    description: User salary
+    meta:
+      dimension:
+        required_attributes:
+          is_admin: 'true'
+          team_name: 'HR'
 ```
 
-2. **Multiple attribute values joined with `OR`.** In the example below, users with `team_name = 'HR' OR team_name = 'C-Suite'` have access to the `salary` dimension in Lightdash. 
+2. **Multiple attribute values joined with `OR`.** In the example below, users with `team_name = 'HR' OR team_name = 'C-Suite'` have access to the `salary` dimension in Lightdash.
 
 ```yaml
-columns: 
+columns:
   - name: user
     description: User name
   - name: salary
-    description: User salary 
-    meta: 
-      dimension: 
-        required_attributes:  
-          team_name: ["HR", "C-Suite"]
+    description: User salary
+    meta:
+      dimension:
+        required_attributes:
+          team_name: ['HR', 'C-Suite']
 ```
 
 ### Table filtering with `required_attributes`
@@ -146,10 +157,10 @@ Similar to [columns filtering](#column-filtering-with-required_attributes), you 
 
 ### Filtering joins with `sql_on`
 
-If you're joining a table, you can also customise the rows that are returned 
+If you're joining a table, you can also customise the rows that are returned
 
-You can use user attributes to filter the rows returned by a join. This is useful if you want to restrict the data 
-returned from the joined table. To reference a user attribute in your sql, use the special lightdash reference 
+You can use user attributes to filter the rows returned by a join. This is useful if you want to restrict the data
+returned from the joined table. To reference a user attribute in your sql, use the special lightdash reference
 `${ lightdash.attributes.<attribute_name> }`. For example, if you have a user attribute called `sales_region` you can
 use it in your sql like this:
 
@@ -178,12 +189,19 @@ Scheduler deliveries will run against the user who created the scheduled deliver
 
 :::
 
-
 ## Demo: filtering a chart based on user attributes
 
 The following video gives you a full demo for how to use user attributes to filter chart results.
 
-<iframe width="100%" height="315" src="https://www.youtube.com/embed/t6QS0rr0PDQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<iframe
+  width="100%"
+  height="315"
+  src="https://www.youtube.com/embed/t6QS0rr0PDQ"
+  title="YouTube video player"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  allowfullscreen
+></iframe>
 
 ## How user and group attribute values interact
 
@@ -196,12 +214,12 @@ If the required attributes match **_any_** of the user's group or user attribute
 For example, if a user is part of a group with the attribute value `kiwi`, another group with the attribute value `orange`, and they've also been assigned as a user to the attribute value `coconut`.
 
 ```yaml
-columns: 
-  - name: tropical_fruits_column 
-    meta: 
-      dimension: 
-        required_attributes:  
-          fruits: "coconut"
+columns:
+  - name: tropical_fruits_column
+    meta:
+      dimension:
+        required_attributes:
+          fruits: 'coconut'
 ```
 
 In this example, the `tropical_fruits_column` will be visible to them because `coconut` is listed in their attribute values `['kiwi','orange', 'coconut']`.

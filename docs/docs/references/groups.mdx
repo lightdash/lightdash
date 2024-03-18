@@ -2,7 +2,7 @@ import GroupsManagementPage from './assets/groups-management-page.jpg';
 
 # Groups
 
-Groups are a way to manage access to multiple users at the same time. A user can belong to multiple groups. 
+Groups are a way to manage access to multiple users at the same time. A user can belong to multiple groups.
 
 :::info
 
@@ -12,7 +12,13 @@ Groups are only available on Lightdash Cloud Pro, Enterprise plans, and Self-Hos
 
 To view and manage your groups, go to the `Organization Settings` > `Users & groups` tab. Only users with an `organization admin` role can manage groups.
 
-<img src={GroupsManagementPage} width="1230" height="520" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+<img
+  src={GroupsManagementPage}
+  width="1230"
+  height="520"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+.
 
 ## Creating groups
 
@@ -38,7 +44,7 @@ You can assign user attributes to groups as well as individual users. To learn m
 
 ## Using OKTA to manage groups in Lightdash
 
-If your Lightdash instance is configured to [use OKTA as an authentication provider](../self-host/customize-deployment/use-sso-login-for-self-hosted-lightdash.mdx#okta), then users will automatically be assigned to the same groups in Lightdash as they are in OKTA. See the guide to [setting up OKTA](../self-host/customize-deployment/use-sso-login-for-self-hosted-lightdash.mdx#okta) for more information on setting the correct environment variables as well as Okta configuration: with/without custom authorization server. 
+If your Lightdash instance is configured to [use OKTA as an authentication provider](../self-host/customize-deployment/use-sso-login-for-self-hosted-lightdash.mdx#okta), then users will automatically be assigned to the same groups in Lightdash as they are in OKTA. See the guide to [setting up OKTA](../self-host/customize-deployment/use-sso-login-for-self-hosted-lightdash.mdx#okta) for more information on setting the correct environment variables as well as Okta configuration: with/without custom authorization server.
 
 :::info
 
@@ -47,6 +53,7 @@ Note that users will only be assigned to groups that exist in Lightdash (groups 
 :::
 
 To manage groups in Lightdash using OKTA, you'll need to:
+
 1. [Setup groups in your directory in OKTA](https://help.okta.com/en-us/content/topics/users-groups-profiles/usgp-bulk-assign-group-people.htm)
 2. [Allow groups to login in to Lightdash from Okta](https://help.okta.com/en-us/content/topics/users-groups-profiles/usgp-assign-app-group.htm)
 3. Finally for group sync to work you need to [configure Okta to share groups with Lightdash](https://developer.okta.com/docs/guides/customize-tokens-groups-claim/main/#add-a-groups-claim-for-a-custom-authorization-server)

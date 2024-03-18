@@ -28,24 +28,36 @@ To setup your Lightdash connection you'll need to:
 ## Open up your Lightdash instance to get started.
 
 **To update an existing connection**, head to:
- 1. `Settings`
- 2. `Project management`
- 3. `Settings` for your project
+
+1.  `Settings`
+2.  `Project management`
+3.  `Settings` for your project
 
 (see steps 1-3 in the image below)
 
 **To create a new project connection**, head to:
- 1. `Settings`
- 2. `Project management`
- 4. `Create New`
+
+1.  `Settings`
+2.  `Project management`
+3.  `Create New`
 
 (see steps 1, 2 & 4 in the image below)
 
-<img src={SelectSettings} width="1043" height="613" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={SelectSettings}
+  width="1043"
+  height="613"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ## 1. Connect to a warehouse
 
-<img src={ChooseDatabase} width="300" height="277" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={ChooseDatabase}
+  width="300"
+  height="277"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 We currently support:
 
@@ -74,22 +86,37 @@ To find your project ID, head to the [BigQuery Cloud console](https://console.cl
 
 Once you're in there, click on the project name in the top bar.
 
-<img src={GetToProjects} width="417" height="104" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={GetToProjects}
+  width="417"
+  height="104"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Then, you should see all of the projects and their project IDs in your organization (that you have access to).
 
-<img src={ProjectIdList} width="553" height="203" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={ProjectIdList}
+  width="553"
+  height="203"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 For the project you want to connect Lightdash to, just copy its `id` and pop it into the `project` field in the Warehouse Connection form in Lightdash.
 
 #### Data set
 
 This is the default dataset used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE
-or  your local `profiles.yml` file.
+or your local `profiles.yml` file.
 
 If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
 
-<img src={DbtCloudCredentials} width="740" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DbtCloudCredentials}
+  width="740"
+  height="518"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
 named `dataset`:
@@ -114,7 +141,12 @@ The data location of the dataset in BigQuery where the output of your dbt models
 
 You can find the location of the dataset you're using for your dbt project [in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations), or in your BigQuery console.
 
-<img src={DataLocation} width="302" height="215" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DataLocation}
+  width="302"
+  height="215"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### Key File
 
@@ -127,14 +159,15 @@ If you're creating a new service account, make sure that you save your JSON key 
 :::
 
 The service account you use with Lightdash will need to have the following roles in your GCP project:
+
 - `roles/bigquery.dataViewer` (to see data in your project)
 - `roles/bigquery.jobUser` (to run queries in your project)
 
 If you need to provide access to data across multiple BigQuery projects, the service account will need to be granted `roles/bigquery.dataViewer` on each additional BigQuery project.
 
 Once you have a service account all ready to go, you'll need to add its JSON key file to Lightdash in the `key file` section of the Warehouse Connection page.
-#### Timeout in seconds
 
+#### Timeout in seconds
 
 BigQuery supports query timeouts. By default, the timeout is set to 300 seconds. If a query run by Lightdash takes longer than this timeout to complete, then BigQuery may cancel the query and issue the following error:
 
@@ -172,7 +205,7 @@ For example, setting this to `1000000000` means if a query would bill more than 
 
 This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
 
-----
+---
 
 ### Postgres
 
@@ -197,11 +230,16 @@ This is the database name.
 #### Schema
 
 This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE
-or  your local `profiles.yml` file.
+or your local `profiles.yml` file.
 
 If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
 
-<img src={DbtCloudCredentials} width="740" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DbtCloudCredentials}
+  width="740"
+  height="518"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
 named `schema`:
@@ -224,7 +262,6 @@ company-name:
 
 This is the port where the database is running.
 
-
 #### Keep alive idle (seconds)
 
 This specifies the amount of seconds with no network activity after which the operating system should send a TCP keepalive message to the client.
@@ -244,7 +281,7 @@ You can see more details in [dbt documentation](https://docs.getdbt.com/referenc
 
 This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
 
-----
+---
 
 ### Redshift
 
@@ -269,11 +306,16 @@ This is the database name.
 #### Schema
 
 This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE
-or  your local `profiles.yml` file.
+or your local `profiles.yml` file.
 
 If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
 
-<img src={DbtCloudCredentials} width="740" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DbtCloudCredentials}
+  width="740"
+  height="518"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
 named `schema`:
@@ -316,7 +358,7 @@ Allow dbt to use cross-database-resources
 
 This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
 
-----
+---
 
 ### Snowflake
 
@@ -332,7 +374,12 @@ before `snowflakecomputing.com`.
 For example in the image below, the user logs in via `https://aaa99827.snowflakecomputing.com/console/login#/` so
 the account identifier is `aaa99827`.
 
-<img src={SnowflakeAccountUrl} width="430" height="47" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={SnowflakeAccountUrl}
+  width="430"
+  height="47"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 If you don't have access via the browser, you can use the following format `<organization_name>-<account_name>` where
 `organization_name` and `account_name` can be found by following any of the methods listed in
@@ -348,21 +395,35 @@ with a username and password specifically for Lightdash to use.
 
 If you're a snowflake admin you can list all users available in the snowflake console:
 
-<img src={SnowflakeUsersList} width="772" height="218" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={SnowflakeUsersList}
+  width="772"
+  height="218"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### Password
 
 This is the password your Snowflake user. This is usually the same password you use to login to Snowflake:
 
-<img src={SnowflakeLoginForm} width="394" height="368" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
+<img
+  src={SnowflakeLoginForm}
+  width="394"
+  height="368"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html)
 with a username and password specifically for Lightdash to use.
 
 If you're a Snowflake admin you can list all users available in the snowflake console:
 
-<img src={SnowflakeUsersList} width="772" height="218" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={SnowflakeUsersList}
+  width="772"
+  height="218"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### Role
 
@@ -371,7 +432,12 @@ access to any warehouses, databases, schemas, and tables you want to use.
 
 If you're a Snowflake admin you can list all roles available in the snowflake console:
 
-<img src={SnowflakeRolesList} width="635" height="192" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={SnowflakeRolesList}
+  width="635"
+  height="192"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 You can configure your role to allow read access to all warehouses, databases, schemas, and tables by following the
 guide for
@@ -382,23 +448,38 @@ guide for
 This is the name of your database. The specified user must be granted access to this database. You can see a list of
 databases available in the snowflake console:
 
-<img src={SnowflakeDatabaseList} width="473" height="266" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={SnowflakeDatabaseList}
+  width="473"
+  height="266"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### Warehouse
 
 This is the name of the warehouse you would like to use for running queries. The specified user must be grantend
 access to use this warehouse. You can see al list of warehouses available in the snowflake console:
 
-<img src={SnowflakeWarehouseList} width="386" height="203" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={SnowflakeWarehouseList}
+  width="386"
+  height="203"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### Schema
 
 This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE
-or  your local `profiles.yml` file.
+or your local `profiles.yml` file.
 
 If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
 
-<img src={DbtCloudCredentials} width="740" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DbtCloudCredentials}
+  width="740"
+  height="518"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
 named `schema`:
@@ -415,7 +496,7 @@ my-snowflake-db:
       role: [user role]
       database: [database name]
       warehouse: [warehouse name]
-      schema: [dbt schema]    # Look for this one!
+      schema: [dbt schema] # Look for this one!
 ```
 
 #### Keep client session alive
@@ -442,7 +523,12 @@ The credentials needed to connect to your cluster can be found in the ODBC optio
 3. Expand the `Advanced options` tab
 4. Open the `JDBC/ODBC` tab
 
-<img src={DatabricksConnectScreenshot} width="922" height="608" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DatabricksConnectScreenshot}
+  width="922"
+  height="608"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### Server hostname
 
@@ -464,7 +550,12 @@ Your personal access token can be found in your user settings in databricks:
 2. Click `Generate token`. You'll be asked to enter a name and expiry.
 3. Copy the token
 
-<img src={DatabricksAccessScreenshot} width="1097" height="647" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DatabricksAccessScreenshot}
+  width="1097"
+  height="647"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### Database
 
@@ -510,27 +601,36 @@ This controls what day is the start of the week in Lightdash. `Auto` sets it to 
 
 ## 2. Import a dbt project
 
-----
+---
+
 Connecting Lightdash to a hosted dbt project means that you'll be able to keep your Lightdash instance in sync with the changes in your dbt project.
 
 To connect your dbt project, just head to your project connection settings in Lightdash:
 
-<img src={ProjectConnectionSettings} width="1043" height="613" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={ProjectConnectionSettings}
+  width="1043"
+  height="613"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Then scroll down to your dbt project connection:
 
-<img src={DbtConnectionSettings} width="1083" height="591" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
+<img
+  src={DbtConnectionSettings}
+  width="1083"
+  height="591"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Pick your repository type and follow the guide below:
 
-* [GitHub](#github)
-* [Gitlab](#gitlab)
-* [Azure DevOps](#azure-devops)
-* [Bitbucket](#bitbucket)
+- [GitHub](#github)
+- [Gitlab](#gitlab)
+- [Azure DevOps](#azure-devops)
+- [Bitbucket](#bitbucket)
 
 We don't support connecting Lightdash to [dbt Cloud managed repositories](https://docs.getdbt.com/docs/dbt-cloud/cloud-configuring-dbt-cloud/cloud-using-a-managed-repository). If you're using dbt Cloud and you'd like to use Lightdash, you'll need to have a remote repository for your dbt project in one of the services listed above.
-
 
 ### GitHub
 
@@ -545,8 +645,12 @@ See the [instructions for creating a personal access token here](https://docs.gi
 
 Select `repo` scope when you're creating the token.
 
-<img src={OauthScope} width="543" height="304" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
+<img
+  src={OauthScope}
+  width="543"
+  height="304"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ##### Fine-grained access token (beta)
 
@@ -557,16 +661,25 @@ You can read more about it on the [Github docs](https://docs.github.com/en/authe
 2. Add the name, expiration, description and owner (we'll need their username later)
 3. Add repository access, you might want to give access only to your `dbt` repository
 
-<img src={FineGrainedRepo} width="500" height="375" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={FineGrainedRepo}
+  width="500"
+  height="375"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 4. On repository permissions, select `Contents`
 
-<img src={FineGrainedPermissions} width="800" height="91" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={FineGrainedPermissions}
+  width="800"
+  height="91"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 5. Click `Generate token` and copy the token.
 
 You could also replace your old tokens with new fine-grained tokens on project settings.
-
 
 #### Repository
 
@@ -630,7 +743,7 @@ export DBT_USER="myspecialuserkey123"
 
 So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
 
-----
+---
 
 ### GitLab
 
@@ -706,7 +819,7 @@ export DBT_USER="myspecialuserkey123"
 
 So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
 
-----
+---
 
 ### Azure DevOps
 
@@ -800,7 +913,7 @@ export DBT_PROJECT_DIR= # Enter your path here!
 docker compose start
 ```
 
-----
+---
 
 ### Bitbucket
 
@@ -808,6 +921,7 @@ docker compose start
 
 This is the login name for your Bitbucket user. This is usually the same username you use to login to
 Bitbucket. You can find your username in Bitbucket by:
+
 1. Going to your avatar in the bottom left and click **Personal settings**.
 2. From the **Account settings** page, check the value next to the **Username**
 
@@ -818,8 +932,8 @@ with a username and password specifically for Lightdash to use.
 
 Getting a token depends on whether you use Bitbucket Cloud or Bitbucket server:
 
-* Bitbucket Cloud users should [follow instructions for creating an App Password](https://support.atlassian.com/bitbucket-cloud/docs/create-an-app-password/)
-* Bitbucket Server users should [follow instructions for creating a HTTP Access Token](https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html)
+- Bitbucket Cloud users should [follow instructions for creating an App Password](https://support.atlassian.com/bitbucket-cloud/docs/create-an-app-password/)
+- Bitbucket Server users should [follow instructions for creating a HTTP Access Token](https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html)
 
 Select `Project read` and `Repository read` scope when you're creating the token.
 
@@ -883,6 +997,4 @@ export DBT_USER="myspecialuserkey123"
 
 So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
 
-
-----
-
+---

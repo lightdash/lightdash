@@ -18,7 +18,7 @@ Now restart Lightdash and you'll be upgraded to the latest version.
 
 ## Kubernetes/helm deployments
 
-If you install Lightdash into kubernetes using our [community helm charts](https://github.com/lightdash/helm-charts) 
+If you install Lightdash into kubernetes using our [community helm charts](https://github.com/lightdash/helm-charts)
 you need to update your helm chart repository and upgrade your deployment.
 
 ```shell

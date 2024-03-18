@@ -1,5 +1,5 @@
 ---
-sidebar_label: External storage 
+sidebar_label: External storage
 ---
 
 # Configure Lightdash to use external storage
@@ -21,10 +21,10 @@ For this, all you need is to configure the cloud storage and export S3 credentia
 
 ## Configure cloud storage on Google Cloud Platform
 
-
 Go into GCP: Cloud storage
 
 Create a new bucket with the following details:
+
 - give it an unique `Bucket name` like - `lightdash-cloud-file-storage-eu`
 - Select region (like multi US or multi EU or single region EU-west-1)
 - select storage class: default standard
@@ -42,7 +42,7 @@ Go to settings > Interoperability and create a `Access key for service account`
 
 - Navigate to the S3 section of the AWS Management Console and click on the Create Bucket button.
 - Give your bucket a name and select the region where you want to store your data.
-- Next, you need to set the permissions for your bucket. Make it  private.
+- Next, you need to set the permissions for your bucket. Make it private.
 
 To export your S3 credentials, you need to follow these steps:
 
@@ -62,7 +62,7 @@ you can provide the following ENV variables to Lightdash so it can use the cloud
 ```
 S3_REGION
 S3_ACCESS_KEY
-S3_SECRET_KEY 
+S3_SECRET_KEY
 S3_BUCKET
 S3_ENDPOINT
 S3_EXPIRATION_TIME
@@ -71,6 +71,6 @@ S3_EXPIRATION_TIME
 We also support IAM roles. If you don't provide `S3_ACCESS_KEY` and `S3_SECRET_KEY` the S3 library will try to use IAM roles,
 see this [AWS documentation](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-credentials-node.html) for more details.
 
-The expiration time is optional and defaults to 259200 (seconds). 
+The expiration time is optional and defaults to 259200 (seconds).
 
 If you try to customize this expiration time, you should keep in mind that link to your object url will be available for the maximum of 7 days due to signed url limitations if you use IAM role to generate it.

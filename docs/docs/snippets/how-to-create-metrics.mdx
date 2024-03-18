@@ -1,11 +1,10 @@
-
 import MetricsExploreView from './assets/metrics-explore-view.jpg';
 
 ## What are metrics?
 
 **Metrics** are used to **perform calculations** on your Tables.
 
-If dimensions segment your data into groups, metrics calculate interesting statistics for those groups. You can define metrics in your dbt project .yml files along with your dimensions and dbt model properties. 
+If dimensions segment your data into groups, metrics calculate interesting statistics for those groups. You can define metrics in your dbt project .yml files along with your dimensions and dbt model properties.
 
 For example, if we have a dimension, `status`, to split orders by their `status`, we may want to know the "Total number of orders" or the "Total sales" of the orders. These calculations are metrics:
 
@@ -13,17 +12,17 @@ For example, if we have a dimension, `status`, to split orders by their `status`
 # schema.yml
 version: 2
 models:
-  - name: "orders"
-    description: "A table of all orders."
+  - name: 'orders'
+    description: 'A table of all orders.'
     columns:
-      - name: "status"
-        description: "Status of an order: ordered/processed/complete"
-      - name: "order_id"
+      - name: 'status'
+        description: 'Status of an order: ordered/processed/complete'
+      - name: 'order_id'
         meta:
           metrics:
             total_order_count:
               type: count_distinct
-      - name: "order_value"
+      - name: 'order_value'
         meta:
           metrics:
             total_sales:
@@ -36,7 +35,12 @@ We support metrics defined using either Lightdash or dbt syntax! You can read mo
 
 Once you've added your metrics, you can use them in Lightdash to build charts and filter results. Metrics appear in the Explore view, above dimensions and, if selected, pop us as brownish-yellow fields in your results table.
 
-<img src={MetricsExploreView} width="1132" height="883" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={MetricsExploreView}
+  width="1132"
+  height="883"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ## Let's try adding a metric to our dbt project
 
@@ -52,7 +56,7 @@ We're going to try adding a new metric to our dbt project, then syncing it with 
 
 ### Add a metric to one of your dbt models
 
-Head to your dbt project, checkout a new branch (or just work on `main` if that's your style 🤠) and add a metric to one of your dbt models. 
+Head to your dbt project, checkout a new branch (or just work on `main` if that's your style 🤠) and add a metric to one of your dbt models.
 
 We'd suggest starting out simple, like a `count` for a primary key in your table.
 
@@ -62,10 +66,10 @@ For example:
 # schema.yml
 version: 2
 models:
-  - name: "orders"
+  - name: 'orders'
     columns:
-      - name: "status"
-      - name: "order_id"
+      - name: 'status'
+      - name: 'order_id'
         meta:
           metrics:
             total_order_count:
@@ -74,9 +78,9 @@ models:
 
 ### Preview your changes using `lightdash preview`
 
-Once you've added a metric to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy. 
+Once you've added a metric to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy.
 
-**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts 
+**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts
 without affecting your production project.
 
 So, let's spin up a developer preview and check out our changes. In your terminal, run the commands:
@@ -144,7 +148,7 @@ And voilà! Your new metric is available to explore in Lightdash.
 
 The fields that you see in your `dimensions` and `metrics` are created by the people maintaining your Lightdash project.
 
-But, if there's something missing from this list of metrics, you can use `custom metrics` to add some on-the-fly calculations while you're exploring. 
+But, if there's something missing from this list of metrics, you can use `custom metrics` to add some on-the-fly calculations while you're exploring.
 
 To read more about custom metrics, take a look at [how to create custom fields](/guides/how-to-create-custom-fields).
 

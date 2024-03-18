@@ -4,22 +4,27 @@ import Overview from './assets/add-new-dimension-overview.png';
 
 # Adding dimensions
 
-<img src={Overview} width="1359" height="265" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={Overview}
+  width="1359"
+  height="265"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-**Dimensions** are fields that are used to **segment data** from your Tables. They are **directly linked to a column in a dbt model**. 
+**Dimensions** are fields that are used to **segment data** from your Tables. They are **directly linked to a column in a dbt model**.
 
 For a dimension to exist in Lightdash, it needs to be a column in your dbt model first.
 
 :::tip
 
-**New to dbt?** If you haven't used dbt before, [follow dbt's getting started guide](https://docs.getdbt.com/tutorial/setting-up) 
+**New to dbt?** If you haven't used dbt before, [follow dbt's getting started guide](https://docs.getdbt.com/tutorial/setting-up)
 before proceeding with setting up Lightdash.
 
 :::
 
 ## What are dimensions?
 
-Lightdash dimensions are columns that have been defined in your dbt project's .yml files. Basically, they're just the fields from your data models in dbt. 
+Lightdash dimensions are columns that have been defined in your dbt project's .yml files. Basically, they're just the fields from your data models in dbt.
 
 For example, the following dbt project file contains properties that create a single dimension, `source`, for the `Pages` Table in Lightdash:
 
@@ -38,7 +43,12 @@ The name of the dimension is `source` and the type will be inferred from the col
 
 Once you've added your dimensions, you can use them in Lightdash to build charts and filter results. Dimensions appear in the Explore view, above metrics and, if selected, pop us as blue fields in your results table.
 
-<img src={DimensionsExploreView} width="1300" height="769" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DimensionsExploreView}
+  width="1300"
+  height="769"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ---
 
@@ -54,7 +64,7 @@ If you haven't installed the Lightdash CLI yet, then [follow this guide to insta
 
 :::
 
-If you've added a new field (or many fields) to your dbt project, you can generate .yml for it so that it is available in Lightdash. 
+If you've added a new field (or many fields) to your dbt project, you can generate .yml for it so that it is available in Lightdash.
 
 All you need to do is run this in your terminal:
 
@@ -78,7 +88,7 @@ Now, you should have your model .yml file with its new dimensions added in!
 
 ### Option 2: Create dimensions in Lightdash by manually adding columns to your .yml files
 
-We recommend using the CLI because it's faster and more reliable. But, if you're keen to do some manual documenting, then you can just add columns to your dbt .yml files and they will appear as dimensions in Lightdash. 
+We recommend using the CLI because it's faster and more reliable. But, if you're keen to do some manual documenting, then you can just add columns to your dbt .yml files and they will appear as dimensions in Lightdash.
 
 For example, if I had a column in my dbt model called `source` and I wanted to add it as a dimension to Lightdash, I would just add the column to my .yml file like so:
 
@@ -122,8 +132,7 @@ models:
     description: "A table of all orders."
     columns:
       - name: status
-        description: "Status from org256 settings codes. Referenced at 
-        delivery from stat5 zone."
+        description: "Status from org256 settings codes. Referenced at delivery from stat5 zone."
         meta:
           dimension:
             label: "Status latest"
@@ -141,7 +150,7 @@ You can [see all of the dimension configurations in our dimensions reference doc
 
 There are two ways to do this:
 
-### Option 1: Deploy your changes using the CLI 
+### Option 1: Deploy your changes using the CLI
 
 If you're working with a version controlled project, you'll just want to make sure to merge your changes into the branch you've connected to your Lightdash project (e.g. `main` or `master`). You'll also want to make sure that you've **run your dbt models so that your new columns exist in your data warehouse**.
 

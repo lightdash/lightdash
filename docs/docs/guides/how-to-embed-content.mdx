@@ -15,40 +15,61 @@ Embedding is available to all Lightdash Cloud users, [get in touch](https://ligh
 
 :::
 
-## Quick start to embed dashboards 
+## Quick start to embed dashboards
 
 ### Create an embed secret
 
-First, you need to generate a secret per project. 
-This secret is like a password that will help you encrypt the URLs so we know the access is valid. 
+First, you need to generate a secret per project.
+This secret is like a password that will help you encrypt the URLs so we know the access is valid.
 
-<img src={EmbedCreateSecret} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+<img
+  src={EmbedCreateSecret}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+.
 
-You can regenerate the secret by clicking on the `Generate new secret` button.  If you do this, people with an old URL will automatically lose access to any previously shared embed URL.
+You can regenerate the secret by clicking on the `Generate new secret` button. If you do this, people with an old URL will automatically lose access to any previously shared embed URL.
 
-### Allowed dashboards 
+### Allowed dashboards
 
 Only selected dashboards can be accessed via embed URLs
 
-<img src={EmbedAddDashboard} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={EmbedAddDashboard}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-### Preview 
+### Preview
 
-Under preview you can generate a one-off shareable embed URL for a single dashboard. 
+Under preview you can generate a one-off shareable embed URL for a single dashboard.
 
-<img src={EmbedPreview} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={EmbedPreview}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-Click on `preview` to see the embed content and click on `Generate & copy URL` to generate an embed URL for this dashboard  
+Click on `preview` to see the embed content and click on `Generate & copy URL` to generate an embed URL for this dashboard
 
-### Developer flow and code snippet 
+### Developer flow and code snippet
 
-Although you can generate URLs directly from Lightdash with a long expiration 
-it is recommended to generate your own JWT tokens in your backend with a short expiration using your `secret` 
-to make sure people can't be using embed URLs outside your app. 
+Although you can generate URLs directly from Lightdash with a long expiration
+it is recommended to generate your own JWT tokens in your backend with a short expiration using your `secret`
+to make sure people can't be using embed URLs outside your app.
 
-To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL  
+To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL
 
-<img src={EmbedDeveloper} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={EmbedDeveloper}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 :::info
 
@@ -70,9 +91,15 @@ Imagine a scenario where I have a dashboard embedded in my application showing a
 
 ### Create a user attribute in Lightdash
 
-First, we need to create a [user attribute](../references/user-attributes.mdx) in Lightdash that we can use to assign our users to a specific shop. I create an attribute called `shop_id` and I set the default value to `all`. 
+First, we need to create a [user attribute](../references/user-attributes.mdx) in Lightdash that we can use to assign our users to a specific shop. I create an attribute called `shop_id` and I set the default value to `all`.
 
-<img src={CreateUserAttribute} width="516" height="381" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+<img
+  src={CreateUserAttribute}
+  width="516"
+  height="381"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+.
 
 ### Filter the tables used in your dashboard with `sql_filter`
 
@@ -83,7 +110,7 @@ version: 2
 models:
   - name: orders
     meta:
-      sql_filter: ${lightdash.attributes.shop_id} = 'all' OR ${TABLE}.shop_id = ${lightdash.attributes.shop_id} 
+      sql_filter: ${lightdash.attributes.shop_id} = 'all' OR ${TABLE}.shop_id = ${lightdash.attributes.shop_id}
 ```
 
 ### Add the user attribute to your dashboard embed
@@ -94,11 +121,17 @@ There are two ways to use user attributes in your embedded dashboard:
 
 **Option 1: assign a constant value for your attribute**
 
-You can assign your dashboard a single, constant value for your attribute by adding it in the `user attributes` section of your embedded dashboard setup. 
+You can assign your dashboard a single, constant value for your attribute by adding it in the `user attributes` section of your embedded dashboard setup.
 
-For example, if I wanted the embed link to only show data for `shop_id = Thyme to Shine`, then I would add a user attribute `shop_id` with the value `Thyme to Shine`. 
+For example, if I wanted the embed link to only show data for `shop_id = Thyme to Shine`, then I would add a user attribute `shop_id` with the value `Thyme to Shine`.
 
-<img src={DashboardEmbedAttribute} width="399" height="149" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+<img
+  src={DashboardEmbedAttribute}
+  width="399"
+  height="149"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+.
 
 **Option 2: assign a variable value for your attribute**
 
@@ -112,11 +145,11 @@ const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
 const projectUuid = '21eef0b9-5bae-40f3-851e-9554588e71a6';
 const userShopId = await getUserShopIdFromDatabase();
 const data = {
-    content: {
-        type: 'dashboard',
-        dashboardUuid: 'a392ed6d-4c53-4102-89b7-1c57a87df391',
-    },
-    userAttributes: {"shop_id": userShopId},
+  content: {
+    type: 'dashboard',
+    dashboardUuid: 'a392ed6d-4c53-4102-89b7-1c57a87df391',
+  },
+  userAttributes: { shop_id: userShopId },
 };
 const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '1 hour' });
 const url = `https://analytics.lightdash.cloud/embed/${projectUuid}/#${token}`;

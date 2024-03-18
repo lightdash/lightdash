@@ -8,7 +8,12 @@ import OverviewTables from './assets/overview-tables.png';
 
 # Adding and managing Tables in your Lightdash project
 
-<img src={OverviewTables} width="1359" height="265" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={OverviewTables}
+  width="1359"
+  height="265"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 In Lightdash, everything you need for BI is written as code in your dbt project. You use dbt to transform all of the data from your data warehouse, then you use Lightdash to explore it.
 
@@ -18,7 +23,7 @@ We'll walk you through the steps of installing + using the Lightdash CLI and gen
 
 :::tip
 
-**New to dbt?** If you haven't used dbt before, [follow dbt's getting started guide](https://docs.getdbt.com/tutorial/setting-up) 
+**New to dbt?** If you haven't used dbt before, [follow dbt's getting started guide](https://docs.getdbt.com/tutorial/setting-up)
 before proceeding with setting up Lightdash.
 
 :::
@@ -27,7 +32,7 @@ before proceeding with setting up Lightdash.
 
 Tables are the starting point to any data exploration in Lightdash - they're the data in Lightdash that you can query. The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's `.yml` files.
 
-If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table. 
+If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table.
 
 :::tip
 
@@ -37,7 +42,12 @@ Not sure what a .yml file is? Make sure to [check out dbt's docs](https://docs.g
 
 Here's an example of our `Community stats daily` model we've defined in dbt. In Lightdash, we can see it in our list of available Tables to explore.
 
-<img src={TablesView} width="920" height="391" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={TablesView}
+  width="920"
+  height="391"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ---
 
@@ -67,17 +77,23 @@ lightdash dbt run -s my_model
 This will generate the Table and dimensions for the model you've selected. It will document all of the columns in your model and these are what we explore in Lightdash as `Dimensions`.
 
 For example, if I ran `lightdash dbt run -s projects`, we would get:
-- a `projects.yml` file generated in our dbt project 
-- in Lightdash, we'd have a Table called `Projects` 
+
+- a `projects.yml` file generated in our dbt project
+- in Lightdash, we'd have a Table called `Projects`
 - our `Projects` table would have the dimensions: `Dashboards created num total` and `Days since project created`.
 
-<img src={ExampleTable} width="709" height="226" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={ExampleTable}
+  width="709"
+  height="226"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ### Step 3. Preview your changes using `lightdash preview`
 
-Once you've generated your Tables in dbt, you can test them out in a Lightdash preview environment. 
+Once you've generated your Tables in dbt, you can test them out in a Lightdash preview environment.
 
-**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts 
+**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts
 without affecting your production project.
 
 So, let's spin up a developer preview and check out our changes. In your terminal, run the commands:
@@ -90,7 +106,7 @@ You can read more about [Lightdash preview environments here](/guides/cli/how-to
 
 ### Step 4. Make sure your changes are in production, then you're ready to explore!
 
-If you're working with a version controlled project, make sure to **merge your changes into production** (e.g. `main` or `master`). 
+If you're working with a version controlled project, make sure to **merge your changes into production** (e.g. `main` or `master`).
 
 If you're working with a local project that isn't version controlled, you don't need to worry about syncing your changes.
 
@@ -116,7 +132,7 @@ Now, your Table is Lightdash-ready: so, open up Lightdash and your Table should 
 
 ## Configuring which Tables appear in your Lightdash project
 
-Sometimes, there are models in our dbt project with .yml files that we might not want to appear in Lightdash (`base` tables, I'm looking at you 👀). So, we've made it possible for you to configure which Tables you want to appear in Lightdash. 
+Sometimes, there are models in our dbt project with .yml files that we might not want to appear in Lightdash (`base` tables, I'm looking at you 👀). So, we've made it possible for you to configure which Tables you want to appear in Lightdash.
 
 To get to your Table Configuration settings, just:
 
@@ -125,11 +141,21 @@ To get to your Table Configuration settings, just:
 3. Click on the `Settings` button for the project's tables you want to configure
 4. Once you're in your `Project settings`, click on the `Tables configuration` in the sidebar.
 
-<img src={TablesConfiguration} width="2113" height="681" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={TablesConfiguration}
+  width="2113"
+  height="681"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Now that you're in the right place, let's get to the juicy stuff. You have three options for configuring the Tables that pop up in Lightdash:
 
-<img src={PickTables} width="493" height="286" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={PickTables}
+  width="493"
+  height="286"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 1. **Show entire project**: I hope this one isn't too much of a surprise. If you select this option, it shows _all_ of the models with .yml files in your dbt project in Lightdash.
 
@@ -154,26 +180,31 @@ All of these configurations and more are outlined in the [Tables reference doc h
 
 ### We recommend structuring your dbt project with one .yml file per model (or .sql file).
 
-We've found that this makes it easier to navigate through your .yml files and easier to manage your dbt models, especially as your project becomes bigger. 
+We've found that this makes it easier to navigate through your .yml files and easier to manage your dbt models, especially as your project becomes bigger.
 
 Here's an example of our dbt project at Lightdash too see what that looks like in practice:
 
 - We have one .sql file per model (these are the files where all of our models' business logic sits)
 - We have one .yml file per model (these are the files where all of your Tables' configuration sits)
 
-<img src={dbtRepoExample} width="316" height="431" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={dbtRepoExample}
+  width="316"
+  height="431"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### But, in my dbt project, I have a single schema.yml file. Not one for each model. Will that still work?
 
-Yep! We realize that schema files come in all shapes and sizes. 
+Yep! We realize that schema files come in all shapes and sizes.
 
-Some people prefer to write the .yml files for all of their models in a single .yml file at the directory level, and that's totally fine - it will still work with Lightdash. 
+Some people prefer to write the .yml files for all of their models in a single .yml file at the directory level, and that's totally fine - it will still work with Lightdash.
 
 But, like we said just above, if you're trying to decide how to setup your dbt project, **we'd recommend having one .yml file per model.**
 
 ### Limiting the Tables in Lightdash using dbt tags
 
-There may be a specific set of models that you want include as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. 
+There may be a specific set of models that you want include as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag.
 
 You can add tags to your model's `.yml` file like this:
 
@@ -184,7 +215,6 @@ models:
   - name: model_name
     config:
       tags: ['lightdash']
-...
 ```
 
 Or, to your model's `.sql` file in the config block:
@@ -199,7 +229,12 @@ select ...
 
 Then, you'll set your [Table Configuration](#configuring-which-tables-appear-in-your-lightdash-project):
 
-<img src={LightdashTag} width="708" height="414" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={LightdashTag}
+  width="708"
+  height="414"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ### Select the models you want to run using dbt selection syntax
 
@@ -221,4 +256,4 @@ To do this, you just need to run the following on your command line:
 lightdash dbt run
 ```
 
-This command will run + generate tables for all of the models with `.yml` files. It will also generate dimensions for all of the columns in your dbt project. 
+This command will run + generate tables for all of the models with `.yml` files. It will also generate dimensions for all of the columns in your dbt project.

@@ -38,6 +38,6 @@ Lightdash requires the following extensions to be installed on the database:
 
 ## Migrations
 
-Migrations are ran automatically on starting the Lightdash server or workers. When upgrading Lightdash, migrations 
-will be ran automatically. If migrations fail due to a pg_lock error, check for a table called 
+Migrations are ran automatically on starting the Lightdash server or workers. When upgrading Lightdash, migrations
+will be ran automatically. If migrations fail due to a pg_lock error, check for a table called
 `knex_migrations_lock` to manually release the lock.

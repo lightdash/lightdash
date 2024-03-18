@@ -1,7 +1,6 @@
 import ValidateDashboard from './assets/validate-dashboard.jpg';
 import DismissErrors from './assets/dismiss-errors.png';
 
-
 # Validating your content
 
 Broken content is not useful content. We've built tools in Lightdash to help validate your content so you can keep it useful and we'll notify you when it isn't.
@@ -10,19 +9,24 @@ In Lightdash, users with [admin or developer roles](../references/roles) can acc
 
 You can access the content validation dashboard by heading to `project settings`, then selecting the `Validator` tab.
 
-<img src={ValidateDashboard} width="1125" height="568" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={ValidateDashboard}
+  width="1125"
+  height="568"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ## How can I validate my content?
 
 Your project is validated any time the content validator is run. The content validator will run when:
 
-  - a user hits `Refresh dbt` in the app
-  - the command `lightdash deploy` is run on the [Lightdash CLI](/guides/cli/intro) (you can read more about automatically deploying your changes using GitHub actions [here](https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action))
-  - you update your project settings and hit `Test and compile`.
-  - you hit `Run validation` directly inside the content validator dashboard
-  - you run  [`lightdash validate` from the CLI](/guides/cli/how-to-use-lightdash-validate)
+- a user hits `Refresh dbt` in the app
+- the command `lightdash deploy` is run on the [Lightdash CLI](/guides/cli/intro) (you can read more about automatically deploying your changes using GitHub actions [here](https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action))
+- you update your project settings and hit `Test and compile`.
+- you hit `Run validation` directly inside the content validator dashboard
+- you run [`lightdash validate` from the CLI](/guides/cli/how-to-use-lightdash-validate)
 
-## What content is included in the validation? 
+## What content is included in the validation?
 
 The validator will show you any errors caused by metrics or dimensions which no longer exist, have been renamed, or have invalid definitions. The validator does not show errors caused by invalid SQL at run time (e.g. invalid SQL syntax, division by 0, trying to perform numeric calculations on a string value type).
 
@@ -38,10 +42,15 @@ The content types included in the validator dashboard are:
 - **Charts** - errors in charts are caused when the results table or filters reference a metric or dimension which no longer exists.
 - **Dashboards** - errors in dashboards are caused when a chart is broken in the dashboard or a filter references a metric or dimension which no longer exists.
 
-## How to dismiss errors 
+## How to dismiss errors
 
-You can dismiss errors from validation by clicking on the "x" button that appears when you hover over a row on the validation table. 
+You can dismiss errors from validation by clicking on the "x" button that appears when you hover over a row on the validation table.
 
-<img src={DismissErrors} width="1125" height="568" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DismissErrors}
+  width="1125"
+  height="568"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-Dismissed validation errors are applied to everyone. So, if you dismiss an error, it will be removed from everyone else's validation results as well as yours. The errors you dismissed will reappear again if you run another validation and the issue hasn't been fixed yet. 
+Dismissed validation errors are applied to everyone. So, if you dismiss an error, it will be removed from everyone else's validation results as well as yours. The errors you dismissed will reappear again if you run another validation and the issue hasn't been fixed yet.

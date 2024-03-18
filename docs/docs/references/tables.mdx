@@ -20,7 +20,7 @@ For example, if we had this in our schema.yml files in dbt, we'd see a Table cal
 version: 2
 
 models:
-    - name: users
+  - name: users
 ```
 
 You can read more about [adding Tables to Lightdash here](/guides/adding-tables-to-lightdash).
@@ -33,17 +33,17 @@ You can customize your Tables in your dbt model's YAML file. Here's an example o
 version: 2
 
 models:
-    - name: my_table
-      meta:
-          label: 'My Custom Table Name'
-          order_fields_by: 'label'
-          group_label: 'Revenue'
-          sql_filter: ${date_dimension} > '2020-01-01'
-          joins:
-              - join: my_other_table
-                sql_on: ${my_table.column_a} = ${my_other_table.column_a}
-          required_attributes:
-              is_admin: 'true'
+  - name: my_table
+    meta:
+      label: 'My Custom Table Name'
+      order_fields_by: 'label'
+      group_label: 'Revenue'
+      sql_filter: ${date_dimension} > '2020-01-01'
+      joins:
+        - join: my_other_table
+          sql_on: ${my_table.column_a} = ${my_other_table.column_a}
+      required_attributes:
+        is_admin: 'true'
 ```
 
 Here are all of the properties you can customize:
@@ -83,32 +83,32 @@ By default, the fields in your sidebar for any table will appear alphabetically 
 version: 2
 
 models:
-    - name: my_table
-      meta:
-          order_fields_by: 'index'
-      columns:
-          - name: user_id
-          - name: product_id
-          - name: account_id
+  - name: my_table
+    meta:
+      order_fields_by: 'index'
+    columns:
+      - name: user_id
+      - name: product_id
+      - name: account_id
 ```
 
 So, in the example above, the fields in the sidebar for "My Table" would appear in the order:
 
--   user_id
--   product_id
--   account_id
+- user_id
+- product_id
+- account_id
 
 Instead of being listed alphabetically.
 
 Here are some other things worth mentioning about the `order_fields_by` parameter:
 
--   By default, `order_fields_by` is set to `label`, which means that your fields will appear in the table listed alphabetically.
--   Since metrics can be declared in multiple places within your .yml (as a dbt metric, in the model `meta` tag, under a dimension's `meta`), we force the following order on metrics if you set `order_fields_by` to `index`:
+- By default, `order_fields_by` is set to `label`, which means that your fields will appear in the table listed alphabetically.
+- Since metrics can be declared in multiple places within your .yml (as a dbt metric, in the model `meta` tag, under a dimension's `meta`), we force the following order on metrics if you set `order_fields_by` to `index`:
 
--   dbt metrics appear first
--   then, metrics defined in the model's `meta`
--   then, metrics defined in the dimensions' `meta`
--   Group labels inherit the index of the first dimension that use them.
+- dbt metrics appear first
+- then, metrics defined in the model's `meta`
+- then, metrics defined in the dimensions' `meta`
+- Group labels inherit the index of the first dimension that use them.
 
 ### Group label
 
@@ -116,23 +116,23 @@ If you set this property, the table will be grouped in the sidebar with other ta
 
 The tables in your sidebar will appear in the following order:
 
--   Group labels appear first, alphabetically
--   Ungrouped tables appear after the grouped tables in the sidebar, alphabetically
--   Tables within the groups are also ordered alphabetically
+- Group labels appear first, alphabetically
+- Ungrouped tables appear after the grouped tables in the sidebar, alphabetically
+- Tables within the groups are also ordered alphabetically
 
 <img
-    src={TableGroupLabelImg}
-    width="300"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={TableGroupLabelImg}
+  width="300"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ### SQL filter
 
 Use `sql_filter` to permanently filter the table for all queries made against it. `sql_filter` accepts a sql string that can reference
 
--   `${TABLE}` the current table
--   `${dimension_a}` a dimension from the current table
--   `${table_b.dimension_b} a dimension from a joined table
+- `${TABLE}` the current table
+- `${dimension_a}` a dimension from the current table
+- `${table_b.dimension_b} a dimension from a joined table
 
 The filter will only be applied when querying this table directly. If the current table (Table A) is included via a join to another table (Table B) then the `sql_where` for Table B will be applied but not for Table A.
 

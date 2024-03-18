@@ -50,17 +50,32 @@ Here are some general tips about filters that apply to using them in both the Ex
 
 In the Explore view:
 
-<img src={AddFilter} width="623" height="208" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
+<img
+  src={AddFilter}
+  width="623"
+  height="208"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Or in a dashboard:
-<img src={AddMoreFiltersDashboard} width="461" height="125" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+<img
+  src={AddMoreFiltersDashboard}
+  width="461"
+  height="125"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ### If you add multiple filters, you can choose to have `ALL` or `ANY` of the conditions match
 
 To choose which option you want, just click on the drop-down menu on the top-left of the filters.
 
-<img src={MultipleFilterOptions} width="538" height="167" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={MultipleFilterOptions}
+  width="538"
+  height="167"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Selecting `ALL` conditions to match means you'd add an `AND` between your conditions in SQL. So, the example in the Explore view above would give us compiled SQL that looks like:
 
@@ -80,7 +95,12 @@ WHERE (
 
 ### If you want to include multiple values in your filter, just hit `enter` between each value entry in your list
 
-<img src={MultipleValuesFilter} width="585" height="198" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={MultipleValuesFilter}
+  width="585"
+  height="198"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 The listed values are separated by an OR statement in the compiled SQL. E.g. the above would give us:
 
@@ -103,7 +123,12 @@ There are a couple of ways that you can add filters in the Explore view.
 
 In the Explores view, you can add filters from within the `Filters` tab. Just click to open the toggle, then click `add filter`.
 
-<img src={AddingFiltersFromToggle} width="516" height="251" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddingFiltersFromToggle}
+  width="516"
+  height="251"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Select the field you would like to filter from the drop-down list, then select the filtering options.
 
@@ -111,23 +136,41 @@ Select the field you would like to filter from the drop-down list, then select t
 
 It's easy to add filters directly from the list of fields in the sidebar. Just click on the `options` for a field, then click `add filter`.
 
-<img src={AddingFiltersFromSidebar} width="493" height="263" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddingFiltersFromSidebar}
+  width="493"
+  height="263"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ### Adding a filter from the results table
 
 Once you have some results in your results table, you can add filters by clicking on the three-dot menu of the column you want to filter on, or by clicking on the value you want to filter by.
 
-<img src={AddingFiltersResultsTable} width="608" height="553" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddingFiltersResultsTable}
+  width="608"
+  height="553"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ### Adding nested filters
 
 You can add nested filters by clicking on the options button on the right-hand side of the filter and then click on `convert to group`.
 
-<img src={ConvertToFilterGroup} width="856" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={ConvertToFilterGroup}
+  width="856"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Then, you can add a new filter to the nested filter by clicking `add filter`.
 
-<img src={NestedFilters} width="856" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={NestedFilters}
+  width="856"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ## Adding filters to your dashboard
 
@@ -144,19 +187,39 @@ There are two ways to add temporary filters to your dashboard.
 1. Open up your dashboard.
 2. Click `add filter`, then specify the field that you want to filter on and the value you want to filter by.
 
-<img src={AddTemporaryFilterDashboard} width="300" height="257" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddTemporaryFilterDashboard}
+  width="300"
+  height="257"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 3. If you want, you can adjust which tiles the filter is applied to by clicking on the `Tiles` tab.
 
-<img src={AddTemporaryFilterDashboardTile} width="502" height="624" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddTemporaryFilterDashboardTile}
+  width="502"
+  height="624"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 You can remove the filter from a certain tile, or you can change which field the filter is applied to in a tile.
 
-<img src={AddTemporaryFilterDashboardTileEdit} width="741" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddTemporaryFilterDashboardTileEdit}
+  width="741"
+  height="518"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 4. And voilà! Your filters will pop up on the top of your dashboard.
 
-<img src={AddTemporaryFilterDashboardView} width="900" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddTemporaryFilterDashboardView}
+  width="900"
+  height="188"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### `Cross filtering` your dashboard using values in your tiles
 
@@ -165,11 +228,21 @@ Cross-filtering lets you interact with one chart and apply that interaction as a
 1. Clicking on one of the values in the chart.
 2. Selecting the value you want to filter on from the drop-down list.
 
-<img src={AddTemporaryFilterDashboardCrossfilter} width="641" height="390" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddTemporaryFilterDashboardCrossfilter}
+  width="641"
+  height="390"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 3. Now, your filter will pop up on the top of your dashboard.
 
-<img src={AddTemporaryFilterDashboardNewFilters} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddTemporaryFilterDashboardNewFilters}
+  width="543"
+  height="188"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ### Adding saved filters to your dashboard
 
@@ -177,49 +250,98 @@ If you add a saved filter to your dashboard, then anyone that opens the dashboar
 
 To add saved filters, you just:
 
-
 1. Open up your dashboard.
 2. Make sure you're in `edit` mode (if you're not, you should see the option to click `Edit Dashboard`)
 
-<img src={EditDashboard} width="435" height="180" style={{ display: 'block', margin: '0 auto 20px auto' }}
+<img
+  src={EditDashboard}
+  width="435"
+  height="180"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 3. Click `add filter`, then specify the dimension or metric that you want to filter on.
 
-<img src={AddTemporaryFilterDashboard} width="449" height="257" style={{ display: 'block', margin: '0 auto 20px auto' }} />
+<img
+  src={AddTemporaryFilterDashboard}
+  width="449"
+  height="257"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 4. You can leave the value blank, or you can specify a value that you want to filter by:
-    
-  4.1. If you leave the value blank, then no filter will be applied to the tiles in your dashboard. Importantly, this provides dashboard viewers the option to define a value in the filter, enabling them to tailor the results to their needs.
-    <img src={AddFilterDashboardEmptyValue} width="449" height="257" style={{ display: 'block', margin: '0 auto 20px auto' }} />
-  4.2. If you want to specify a value, ensure you toggle 'Default value' so that you can apply a filter to the tiles in your dashboard.
-    <img src={AddFilterDashboardDefaultValue} width="449" height="257" style={{ display: 'block', margin: '0 auto 20px auto' }} />
+
+   4.1. If you leave the value blank, then no filter will be applied to the tiles in your dashboard. Importantly, this provides dashboard viewers the option to define a value in the filter, enabling them to tailor the results to their needs.
+
+   <img
+     src={AddFilterDashboardEmptyValue}
+     width="449"
+     height="257"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+   4.2. If you want to specify a value, ensure you toggle 'Default value' so that
+   you can apply a filter to the tiles in your dashboard.
+   <img
+     src={AddFilterDashboardDefaultValue}
+     width="449"
+     height="257"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
 
 5. If you want, you can adjust which tiles the filter is applied to by clicking on
-the `Tiles` tab.
+   the `Tiles` tab.
 
-<img src={FilterTilesTab} width="502" height="624" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={FilterTilesTab}
+  width="502"
+  height="624"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 You can remove the filter from a certain tile, or you can change which field the filter is applied to in a tile.
 
-<img src={AddTemporaryFilterDashboardTileEdit} width="741" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddTemporaryFilterDashboardTileEdit}
+  width="741"
+  height="518"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 6. Click `apply`, and your filters will pop up on the top of your dashboard.
 
-<img src={DashboardFiltersReadyToBeSaved} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DashboardFiltersReadyToBeSaved}
+  width="543"
+  height="188"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 7. Once you have all of the filters you want, just hit `save` to save your filter settings.
 
-<img src={SaveDashboard} width="300" height="171" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={SaveDashboard}
+  width="300"
+  height="171"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-8. Now, whenever someone opens the dashboard, they'll see your saved filters applied! 
+8. Now, whenever someone opens the dashboard, they'll see your saved filters applied!
 
-<img src={DashboardFiltersSaved} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DashboardFiltersSaved}
+  width="543"
+  height="188"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 9. And if they want to drill-down into the data, they can always change the filters by clicking on the filter and adjusting the values.
 
-<img src={DashboardFiltersViewMode} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
+<img
+  src={DashboardFiltersViewMode}
+  width="543"
+  height="188"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 :::info
 
@@ -231,16 +353,18 @@ To add saved filters to your dashboard, you must be an `editor` or an `admin` fo
 
 #### Sharing your dashboard with overrides
 
-You might want to share a dashboard with someone with custom filters applied. To do this, you have to be in *view mode*. Then, you can either/or: 
+You might want to share a dashboard with someone with custom filters applied. To do this, you have to be in _view mode_. Then, you can either/or:
+
 1. Apply temporary filters to your dashboard and share the link with the filters applied.
 2. Apply changes(overrides) to your saved filters and share the link with the filters applied.
 
 Rules for sharing dashboards with filters applied:
+
 - In view mode and when adding a temporary filter, you can change the field, value, operator, and tiles this is applied to. But, you can't change the filter type (e.g. from `temporary filter` to `saved filter`).
 - In view mode and when overriding a saved filter, you can only change the value and operator, so the field and tile configuration will remain the same.
 - In edit mode, when changing a saved filter (with an override present), once you save the changes (click "Apply"), the override for that filter will be removed.
 
-The same behaviour applies when exporting dashboards. 
+The same behaviour applies when exporting dashboards.
 
 #### You can easily see which dashboard tiles have which filters applied to them
 
@@ -248,14 +372,19 @@ If a tile in a dashboard has a filter applied to it, you'll see the text `dashbo
 
 You can also hover over this to see **_which_** filters have been applied to that tile.
 
-<img src={DashboardFilterApplied} width="490" height="395" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={DashboardFilterApplied}
+  width="490"
+  height="395"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 #### Dashboard filters _are added to_ the filters applied in a saved chart so `ALL` the conditions match
 
 For example, if I had a chart for Sales in Asia and I filtered to `country` **is equal to** `China`, `India`, `Japan`. Then, on my dashboard I added a filter `country` **is equal to** `India`. My saved chart's filter would still be included, and my new dashboard filter would be applied as well, so the tile in the dashboard would be filtered to include:
 
- `country` **is equal to** `China`, `India`, `Japan` AND `country` **is equal to** `India`
+`country` **is equal to** `China`, `India`, `Japan` AND `country` **is equal to** `India`
 
- So, the result? My tile would only include Sales where the `country = India`.
+So, the result? My tile would only include Sales where the `country = India`.
 
 Here's another example using a date filter: If my original saved chart was filtered to only include orders completed on or after April 3rd, 2022. But, I add a date filter to my dashboard to include orders completed on or after August 1st, 2022, then the dashboard filter would be added to the saved chart filter and I'll end up with the chart filtered by orders completed on or after August 1st, 2022.

@@ -9,14 +9,19 @@ The percent change gives you the percent change in a value compared to the value
 
 Here's an example of a percent change calculation:
 
-<img src={PercentChange} width="846" height="425" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={PercentChange}
+  width="846"
+  height="425"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 And here's the SQL that was used to generate it:
 
 ```sql
 (
   ${orders.total_order_amount} / LAG(${orders.total_order_amount}) OVER(
-    ORDER BY 
+    ORDER BY
       ${orders.order_date_week}
   )
 ) - 1
@@ -32,10 +37,10 @@ In general, the SQL used for calculating the percent change from the previous va
 
 ```sql
 (
-  ${table.column_i_want_to_compare} / 
+  ${table.column_i_want_to_compare} /
   LAG(${table.column_i_want_to_compare}) OVER(
-    ORDER BY 
-      ${table.column_I_want_to_order_by}, 
+    ORDER BY
+      ${table.column_I_want_to_order_by},
       ${table.optional_other_column_I_want_to_order_by}
   )
 ) - 1
@@ -45,4 +50,9 @@ In general, the SQL used for calculating the percent change from the previous va
 
 In the `format` tab, make sure to update the format to `percent` so that your table calculation is shown as a percentage value (instead of a number).
 
-<img src={FormatPercent} width="793" height="454" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={FormatPercent}
+  width="793"
+  height="454"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>

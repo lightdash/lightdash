@@ -64,13 +64,13 @@ Each metric type falls into one of these categories. The metric categories tell 
 
 Aggregate metric types perform (surprise, surprise) aggregations. Sums and averages are examples of aggregate metrics: they are measurements summarizing a collection of data points.
 
-Aggregate metrics can *only* reference dimensions, not other metrics.
+Aggregate metrics can _only_ reference dimensions, not other metrics.
 
 ### Non-aggregate metrics
 
-Non-aggregate metrics are metric types that, you guessed it, do *not* perform aggregations.
+Non-aggregate metrics are metric types that, you guessed it, do _not_ perform aggregations.
 
-Numbers and booleans are examples of non-aggregate metrics. These metric types perform a calculation on a single data point, so they can only reference aggregate metrics. They *cannot* reference dimensions.
+Numbers and booleans are examples of non-aggregate metrics. These metric types perform a calculation on a single data point, so they can only reference aggregate metrics. They _cannot_ reference dimensions.
 
 ## Metric configuration
 
@@ -87,14 +87,14 @@ models:
           sql_on: ${web_sessions.date} = ${sales_stats.date}
     columns:
       - name: revenue
-        description: "Total estimated revenue in GBP based on forecasting done by the finance team."
+        description: 'Total estimated revenue in GBP based on forecasting done by the finance team.'
         meta:
           metrics:
             total_revenue:
               label: 'Total revenue GBP'
               type: SUM
-              description: "Total revenue in GBP"
-              sql: "IF(${revenue} IS NULL, 10, ${revenue})"
+              description: 'Total revenue in GBP'
+              sql: 'IF(${revenue} IS NULL, 10, ${revenue})'
               hidden: false
               round: 0
               format: 'gbp'
@@ -109,7 +109,7 @@ models:
 Here are all of the properties you can customize:
 
 | Property                                            | Required | Value                          | Description                                                                                                                                                                                                                                          |
-|-----------------------------------------------------|----------|--------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| --------------------------------------------------- | -------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | label                                               | No       | string                         | Custom label. This is what you'll see in Lightdash instead of the metric name.                                                                                                                                                                       |
 | [type](#metric-types)                               | Yes      | metric type                    | Metrics must be one of the supported types.                                                                                                                                                                                                          |
 | [description](#adding-your-own-metric-descriptions) | No       | string                         | Description of the metric that appears in Lightdash. A default description is created by Lightdash if this isn't included                                                                                                                            |
@@ -126,7 +126,7 @@ Here are all of the properties you can customize:
 ## Metric types
 
 | Type                              | Category      | Description                                               |
-|-----------------------------------|---------------|-----------------------------------------------------------|
+| --------------------------------- | ------------- | --------------------------------------------------------- |
 | [percentile](#percentile)         | Aggregate     | Generates a percentile of values within a column          |
 | [median](#median)                 | Aggregate     | Generates the 50th percentile of values within a column   |
 | [average](#average)               | Aggregate     | Generates an average (mean) of values within a column     |
@@ -139,7 +139,6 @@ Here are all of the properties you can customize:
 | [number](#number)                 | Non-aggregate | For adding calculations to metrics that return numbers.   |
 | [string](#string)                 | Non-aggregate | For metrics that contain letters or special characters    |
 | [sum](#sum)                       | Aggregate     | Generates a sum of values within a column                 |
-
 
 ### percentile
 
@@ -197,7 +196,7 @@ columns:
 
 Tells you whether something is True or False.
 
-The `boolean` metric can be used on any valid SQL expression that gives you a `TRUE` or `FALSE` value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `boolean` metric by referencing other unaggregated dimensions from your model.
+The `boolean` metric can be used on any valid SQL expression that gives you a `TRUE` or `FALSE` value. It can only be used on aggregations, which means either aggregate metrics _or_ [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `boolean` metric by referencing other unaggregated dimensions from your model.
 
 `boolean` metrics don't do any aggregations; they just reference other aggregations.
 
@@ -212,7 +211,7 @@ columns:
           type: average
         is_avg_price_above_20:
           type: boolean
-          sql: "IF(${avg_price} > 20, TRUE, FALSE)"
+          sql: 'IF(${avg_price} > 20, TRUE, FALSE)'
 ```
 
 ### count
@@ -253,7 +252,7 @@ columns:
 
 Gives you a date value from an expression.
 
-The `date` metric can be used on any valid SQL expression that gives you a date value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `date` metric by referencing other unaggregated dimensions from your model.
+The `date` metric can be used on any valid SQL expression that gives you a date value. It can only be used on aggregations, which means either aggregate metrics _or_ [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `date` metric by referencing other unaggregated dimensions from your model.
 
 **Creating a max or min date metric with `type: date`**
 
@@ -312,7 +311,7 @@ columns:
 
 Used with numbers or integers. A `number` metric doesn't perform any aggregation but can be used to perform simple transformations on other metrics.
 
-The `number` metric can be used on any valid SQL expression that gives you a numeric or integer value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `number` metric by referencing other unaggregated dimensions from your model.
+The `number` metric can be used on any valid SQL expression that gives you a numeric or integer value. It can only be used on aggregations, which means either aggregate metrics _or_ [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `number` metric by referencing other unaggregated dimensions from your model.
 
 For example, this creates a metric called `total_gross_profit_margin_percentage` based on the `total_sale_price` and `total_gross_profit_margin` aggregate metrics:
 
@@ -330,7 +329,7 @@ columns:
           type: sum
         total_gross_profit_margin_percentage:
           type: number
-          sql: "(${total_gross_profit_margin}/ NULLIF(${total_sale_price},0))"
+          sql: '(${total_gross_profit_margin}/ NULLIF(${total_sale_price},0))'
 ```
 
 The example above also uses the NULLIF() SQL function to avoid division-by-zero errors.
@@ -356,7 +355,7 @@ columns:
 
 Used with fields that include letters or special characters.
 
-The `string` metric can be used on any valid SQL expression that gives you a string value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `string` metric by referencing other unaggregated dimensions from your model.
+The `string` metric can be used on any valid SQL expression that gives you a string value. It can only be used on aggregations, which means either aggregate metrics _or_ [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `string` metric by referencing other unaggregated dimensions from your model.
 
 `string` metrics are rarely used because most SQL aggregate functions don't return strings. One common exception is MySQL’s `GROUP_CONCAT` function.
 
@@ -369,7 +368,7 @@ columns:
       metrics:
         product_name_group:
           type: string
-          sql: "GROUP_CONCAT(${TABLE}.product_name)"
+          sql: 'GROUP_CONCAT(${TABLE}.product_name)'
 ```
 
 ## Adding your own metric descriptions
@@ -380,7 +379,7 @@ We add default descriptions to all of the metrics you include in your model. But
 metrics:
   num_user_ids:
     type: count
-    description: "Total number of user IDs. NOTE: this is NOT counting unique user IDs"
+    description: 'Total number of user IDs. NOTE: this is NOT counting unique user IDs'
 ```
 
 ## Using custom SQL in aggregate metrics
@@ -395,10 +394,10 @@ Or from joined models like this: `sql: "${other_model.dimension_in_other_model}"
 metrics:
   num_unique_7d_web_active_user_ids:
     type: count_distinct # metric type
-    sql: "IF(${is_7d_web_active}, ${user_id}, NULL)"
+    sql: 'IF(${is_7d_web_active}, ${user_id}, NULL)'
   num_unique_paid_user_ids:
     type: count_distinct
-    sql: "IF(${subscriptions.is_active}, ${user_id}, NULL)"
+    sql: 'IF(${subscriptions.is_active}, ${user_id}, NULL)'
 ```
 
 ## Using custom SQL in non-aggregate metrics
@@ -411,20 +410,25 @@ Or from joined models like this: `sql: "${other_model.metric_in_other_model}"`
 ```yaml
 metrics:
   num_unique_users:
-      type: count_distinct
+    type: count_distinct
   is_num_unique_users_above_100:
     type: boolean
-    sql: "IF(${num_unique_users} > 100, TRUE, FALSE)"
+    sql: 'IF(${num_unique_users} > 100, TRUE, FALSE)'
   percentage_user_growth_daily:
     type: number
-    sql: "(${num_unique_users} - ${growth_model.num_unique_users_lag_1d}) / NULLIF(${growth_model.num_unique_users_lag_1d}, 0)"
+    sql: '(${num_unique_users} - ${growth_model.num_unique_users_lag_1d}) / NULLIF(${growth_model.num_unique_users_lag_1d}, 0)'
 ```
 
 ## Show underlying values
 
 By default, we show all of the dimensions from the Table when you click `View underlying data`. If you have fields from a joined table included in your results table, then we'll also show you all of the fields from the joined Table.
 
-<img src={UnderlyingData} width="1103" height="580" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={UnderlyingData}
+  width="1103"
+  height="580"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 You can limit which dimensions are shown for a field when a user clicks `View underlying data` by adding the list of dimensions to your `.yml` files:
 
@@ -439,7 +443,7 @@ models:
           sql_on: ${web_sessions.date} = ${sales_stats.date}
     columns:
       - name: user_id
-        description: "Unique ID for users."
+        description: 'Unique ID for users.'
         meta:
           dimension:
             type: string
@@ -450,7 +454,6 @@ models:
                 - revenue_gbp_total_est
                 - actual_date
                 - web_sessions.session_id # field from joined table
-...
 ```
 
 The list of fields must be made of dimension names (no metrics) from the base table or from any joined tables. To reference a field from a joined table, you just need to prefix the dimension name with the joined table name, like this: `my_joined_table_name.my_dimension`.
@@ -473,7 +476,7 @@ You can compact values in your YAML. For example, if I wanted all of my revenue 
 ```
 
 | Value     | Alias              | Example output |
-|-----------|--------------------|----------------|
+| --------- | ------------------ | -------------- |
 | thousands | "K" and "thousand" | 1K             |
 | millions  | "M" and "million"  | 1M             |
 | billions  | "B" and "billion"  | 1B             |
@@ -492,7 +495,7 @@ models:
   - name: sales_stats
     columns:
       - name: user_id
-        description: "Unique ID for users."
+        description: 'Unique ID for users.'
         meta:
           dimension:
             type: string
@@ -501,7 +504,6 @@ models:
               type: count_distinct
               filters:
                 - is_closed_account: false
-...
 ```
 
 These filters do not appear in the `Filters` tab in the Explore view, instead, they are applied automatically in the SQL query that fetches your results. That means filters added using the `filter` parameter can't be removed in the UI and won't be visible to users unless they look at the SQL query.
@@ -510,7 +512,6 @@ These filters do not appear in the `Filters` tab in the Explore view, instead, t
 
 To use special characters such as `%!_>` in your filter value you must escape them with a backslash `\`. For example,
 if you wanted to filter for users with subscription status `is_subscribed` you should write the metric like:
-
 
 ```yaml
 columns:
@@ -528,7 +529,7 @@ columns:
 ### Available filter types
 
 | Type                        | Example (in English)                           | Example (as code)       |
-|-----------------------------|------------------------------------------------|-------------------------|
+| --------------------------- | ---------------------------------------------- | ----------------------- |
 | is                          | User name is equal to katie                    | `user_name: "katie"`    |
 | is not                      | User name is not equal to katie                | `user_name: "!katie"`   |
 | contains                    | User name contains katie                       | `user_name: "%katie%"`  |
@@ -548,7 +549,6 @@ columns:
 
 To filter a field by a set of given values you can supply them as an array for that field. For example,
 if you wanted to filter for orders with order status `completed` or `shipped` you should write the metric like:
-
 
 ```yaml
 columns:
@@ -573,7 +573,6 @@ For example:
 filters:
   - is_closed_account: false
   - is_7d_active: true
-...
 ```
 
 Would give you logic like `is_closed_account = TRUE AND is_7d_active = FALSE`.
@@ -593,7 +592,7 @@ models:
           sql_on: ${web_sessions.date} = ${sales_stats.date}
     columns:
       - name: user_id
-        description: "Unique ID for users."
+        description: 'Unique ID for users.'
         meta:
           dimension:
             type: string
@@ -603,12 +602,11 @@ models:
               filters:
                 - is_closed_account: false
                 - web_sessions.is_bot_user: false
-...
 ```
 
 ### Metric filters cannot be used with non-aggregate metrics
 
-You can't use filters with non-aggregate metric types. Instead, if your non-aggregate metrics are referencing aggregate metric types, you need to apply metric filters to the aggregate metrics. 
+You can't use filters with non-aggregate metric types. Instead, if your non-aggregate metrics are referencing aggregate metric types, you need to apply metric filters to the aggregate metrics.
 
 Here's an example: imagine you wanted to calculate the average cost per item that had the status `shipped`. You would need to do something like this in your .yml:
 
@@ -624,7 +622,7 @@ models:
           sql: ${total_cost_of_shipped} / ${count_unique_items_shipped}
     columns:
       - name: item_id
-        description: "Unique ID for items ordered."
+        description: 'Unique ID for items ordered.'
         meta:
           dimension:
             type: string
@@ -636,7 +634,7 @@ models:
               filters:
                 - status: 'shipped'
       - name: item_cost
-        description: "Cost for each item ordered."
+        description: 'Cost for each item ordered.'
         meta:
           dimension:
             type: number
@@ -647,19 +645,18 @@ models:
               type: sum
               filters:
                 - status: 'shipped'
-...
 ```
 
 ## Format
 
 You can use the `format` parameter to have your metrics show in a particular format in Lightdash. These are the options:
 
-| Option | Description                                                                           | Raw value | Displayed value |
-|--------|---------------------------------------------------------------------------------------|-----------|-----------------|
-| km     | Adds the suffix `km` to your value                                                    | 10        | 10 km           |
-| mi     | Adds the suffix `mile` to your value                                                  | 10        | 10 mi           |
-| usd    | Adds the `$` symbol to your number value                                              | 10        | $10.00          |
-| gbp    | Adds the `£` symbol to your number value                                              | 10        | £10.00          |
-| eur    | Adds the `€` symbol to your number value                                              | 10        | €10.00          |
-| percent| Adds the `%` symbol and multiplies your value by 100                                  | 0.1       | %10             |
-| id     | Removes commas and spaces from number or string types so that they appear like IDs.   | 12,389,572| 12389572        |
+| Option  | Description                                                                         | Raw value  | Displayed value |
+| ------- | ----------------------------------------------------------------------------------- | ---------- | --------------- |
+| km      | Adds the suffix `km` to your value                                                  | 10         | 10 km           |
+| mi      | Adds the suffix `mile` to your value                                                | 10         | 10 mi           |
+| usd     | Adds the `$` symbol to your number value                                            | 10         | $10.00          |
+| gbp     | Adds the `£` symbol to your number value                                            | 10         | £10.00          |
+| eur     | Adds the `€` symbol to your number value                                            | 10         | €10.00          |
+| percent | Adds the `%` symbol and multiplies your value by 100                                | 0.1        | %10             |
+| id      | Removes commas and spaces from number or string types so that they appear like IDs. | 12,389,572 | 12389572        |

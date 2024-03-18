@@ -9,7 +9,12 @@ The percent of the group/pivot total will give you the percentage of each value 
 
 Here's an example of a percent of the total group/pivot:
 
-<img src={PercentOfTotalGroup} width="878" height="410" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={PercentOfTotalGroup}
+  width="878"
+  height="410"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 And here's the SQL used in the table calculation:
 
@@ -25,7 +30,7 @@ In general, the SQL used for calculating the percent of the total has two import
 ### Here's the SQL you can copy-paste to calculate the percent of the group/pivot total
 
 ```sql
-${table.column_i_want_to_see_the_percent_of_total} / 
+${table.column_i_want_to_see_the_percent_of_total} /
   SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER(PARTITION BY ${table.column_i_want_to_group_by})
 ```
 
@@ -33,4 +38,9 @@ ${table.column_i_want_to_see_the_percent_of_total} /
 
 In the `format` tab, make sure to update the format to `percent` so that your table calculation is shown as a percentage value (instead of a number).
 
-<img src={FormatPercent} width="793" height="454" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={FormatPercent}
+  width="793"
+  height="454"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>

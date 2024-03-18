@@ -6,29 +6,28 @@ sidebar_position: 1
 
 Lightdash is MIT licensed and open source. You can self-host Lightdash on your own infrastructure.
 
-This guide is designed for DevOps Engineers that are familiar with Docker, Kubernetes, and are comfortable 
-configuring environment variables, SMTP credentials, and database connections.
+This guide is designed for DevOps Engineers that are familiar with Docker, Kubernetes, and are comfortable configuring environment variables, SMTP credentials, and database connections.
 If you're unsure whether to self-host please read our guide on [Lightdash Cloud vs. Self-Hosted](./lightdash-cloud-vs-self-hosted.mdx).
 
 ## Prerequisites for self-hosting
 
- - Access to a kubernetes cluster and [`kubectl`](https://kubernetes.io/docs/tasks/tools/) installed
- - [Helm](https://helm.sh/docs/intro/quickstart/)
- - Docker
+- Access to a kubernetes cluster and [`kubectl`](https://kubernetes.io/docs/tasks/tools/) installed
+- [Helm](https://helm.sh/docs/intro/quickstart/)
+- Docker
 
 ## Self-host Lightdash on Kubernetes
 
 The following steps will create a Lightdash instance and a postgres database to store your metadata (note: this is
 separate to your data warehouse with your analytics data).
 
-We recommend using kubernetes + helm but you can alternatively follow these guides for a minimum deployment without 
+We recommend using kubernetes + helm but you can alternatively follow these guides for a minimum deployment without
 kubernetes:
- - [Docker compose](./self-host-lightdash-docker-compose.mdx)
- - [Restack](./self-host-lightdash-restack.mdx)
 
-To deploy Lightdash on your Kubernetes cluster you can use our community maintained Helm chart: https://github.com/lightdash/helm-charts. 
-This will get you started with the simplest configuration possible. At the end of this 
-guide you can find a list of configuration options to customise your Lightdash instance and make it production ready.
+- [Docker compose](./self-host-lightdash-docker-compose.mdx)
+- [Restack](./self-host-lightdash-restack.mdx)
+
+To deploy Lightdash on your Kubernetes cluster you can use our community maintained Helm chart: https://github.com/lightdash/helm-charts.
+This will get you started with the simplest configuration possible. At the end of this guide you can find a list of configuration options to customise your Lightdash instance and make it production ready.
 
 ### 1. Add the Lightdash Helm repository
 
@@ -46,14 +45,14 @@ kubectl create namespace lightdash
 
 At minimum you should configure:
 
- - `secrets.LIGHTDASH_SECRET` - this variable is used by Lightdash to encrypt data at rest in the database. You must 
-   keep this secret. If this is lost, you will not be able to access your data in Lightdash.
- - `service.type` - by default the Lightdash UI and API is exposed on a `ClusterIP` service. This means that it is 
-   only accessible from within the Kubernetes cluster. If you want to access Lightdash from outside the cluster, 
-   you can change this to `LoadBalancer` or `NodePort`. See the [Kubernetes documentation](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) for more information.
- - `SITE_URL` - if you know the URL that Lightdash will be accessible at, you can set this variable. This will 
-   ensure that all links in Lightdash are correct. If you don't know the URL yet, you can leave this blank and 
-   update it later.
+- `secrets.LIGHTDASH_SECRET` - this variable is used by Lightdash to encrypt data at rest in the database. You must
+  keep this secret. If this is lost, you will not be able to access your data in Lightdash.
+- `service.type` - by default the Lightdash UI and API is exposed on a `ClusterIP` service. This means that it is
+  only accessible from within the Kubernetes cluster. If you want to access Lightdash from outside the cluster,
+  you can change this to `LoadBalancer` or `NodePort`. See the [Kubernetes documentation](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) for more information.
+- `SITE_URL` - if you know the URL that Lightdash will be accessible at, you can set this variable. This will
+  ensure that all links in Lightdash are correct. If you don't know the URL yet, you can leave this blank and
+  update it later.
 
 Example `values.yaml` file containing our configuration:
 
@@ -71,7 +70,7 @@ service:
 
 ### 4. Install Lightdash with helm
 
-Create a new helm release called `lightdash` using the `lightdash/lightdash` helm chart. In this example we're also 
+Create a new helm release called `lightdash` using the `lightdash/lightdash` helm chart. In this example we're also
 using the namespace `-n lightdash`. Finally we apply our minimum configuration from above using `-f values.yaml`.
 
 ```bash
@@ -92,20 +91,21 @@ Visit your `SITE_URL` to access Lightdash!
 
 ## Configure Lightdash for production
 
-Now you have a working Lightdash instance, you can customise it to your needs. The following docs cover the most 
+Now you have a working Lightdash instance, you can customise it to your needs. The following docs cover the most
 common configuration options, including those we recommend before going to production:
 
 **Recommended for production usage**
+
 - [Secure Lightdash with HTTPS](./customize-deployment/secure-lightdash-with-https.mdx)
 - [Configure Lightdash to use an external database](./customize-deployment/configure-lightdash-to-use-an-external-database.mdx)
 - [Configure SMTP for email notifications](./customize-deployment/configure-smtp-for-lightdash-email-notifications.mdx)
 - [Configure Lightdash to use external object storage](./customize-deployment/configure-lightdash-to-use-external-object-storage.mdx)
 
 **Optional configuration**
+
 - [Use SSO login for self-hosted Lightdash](./customize-deployment/use-sso-login-for-self-hosted-lightdash.mdx)
 - [Enable scheduler in self-hosted Lightdash](./customize-deployment/enable-scheduler-in-self-hosted-lightdash.mdx)
 - [Configure a Slack App for Lightdash](./customize-deployment/configure-a-slack-app-for-lightdash.mdx)
 - [Configure environment variables for Lightdash](./customize-deployment/environment-variables.mdx)
 - [Enable headless browser for Lightdash](./customize-deployment/enable-headless-browser-for-lightdash.mdx)
 - [Configure Logging for Lightdash](./customize-deployment/configure-logging-for-lightdash.mdx)
-

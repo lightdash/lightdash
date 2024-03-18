@@ -4,7 +4,7 @@ import GithubSecrets from './../../snippets/github-secrets.mdx';
 
 # Test your changes with Lightdash compile
 
-If you've connected Lightdash to GitHub, you can setup a `github action` and get Lightdash to compile your project and test your changes whenever you open a pull request. 
+If you've connected Lightdash to GitHub, you can setup a `github action` and get Lightdash to compile your project and test your changes whenever you open a pull request.
 
 Adding this Lightdash compile action will compile your dbt project's .yml files and check to see if there are any errors that will break your Lightdash project. For example, a metric that references a dimension that doesn't exist.
 
@@ -22,7 +22,12 @@ If you don't have any GitHub actions, you'll just need to click on `Configure`
 
 If you have some GitHub actions in your repo already, click on `New workflow`, then select `setup a workflow yourself`.
 
-<img src={NewWorkflowExistingActions} width="952" height="203" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={NewWorkflowExistingActions}
+  width="952"
+  height="203"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Now copy [this file](https://github.com/lightdash/cli-actions/blob/main/compile.yml) from our [cli-actions](https://github.com/lightdash/cli-actions) repo.
 
@@ -34,11 +39,15 @@ Give it a nice name like `compile-lightdash.yml`
 
 And commit this to your repo by clicking on `Start commit`.
 
-
 ### You're done!
 
 Everytime you open a new pull request on the repository that contains your Lightdash project, `lightdash compile` will run and check to see if any of the changes you made will break your Lightdash instance.
 
 You can see the log on the `Github actions` page
 
-<img src={GithubRun} width="970" height="739" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={GithubRun}
+  width="970"
+  height="739"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>

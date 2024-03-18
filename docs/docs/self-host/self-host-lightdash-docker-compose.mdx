@@ -5,8 +5,8 @@ sidebar_label: Host with docker-compose
 
 # Self-host Lightdash using docker-compose
 
-This guide will give you a minimal Lightdash instance running on your local machine. It will not be accessible from 
-the internet, but it will be accessible from your local machine. This is a great way to get started with Lightdash 
+This guide will give you a minimal Lightdash instance running on your local machine. It will not be accessible from
+the internet, but it will be accessible from your local machine. This is a great way to get started with Lightdash
 for a proof-of-concept without needing access to kubernetes.
 
 ## Prerequisites
@@ -24,9 +24,9 @@ git clone https://github.com/lightdash/lightdash
 cd lightdash
 ```
 
-## 2. Update your ENV config 
+## 2. Update your ENV config
 
-Edit all the ENV variables in `.env` to match your setup, eg: 
+Edit all the ENV variables in `.env` to match your setup, eg:
 
 ```
 PGHOST=db
@@ -47,7 +47,7 @@ You must set the following two environment variables:
 
 ```bash
 
-export LIGHTDASH_SECRET="not very secret" 
+export LIGHTDASH_SECRET="not very secret"
 export PGPASSWORD="password"
 
 docker-compose -f docker-compose.yml --env-file .env up --detach --remove-orphans

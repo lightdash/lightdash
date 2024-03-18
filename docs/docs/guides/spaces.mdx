@@ -10,35 +10,65 @@ import EditSpaceAccess from './assets/edit-space-access.jpg';
 
 # Spaces
 
-Once you've used Lightdash for a while, your team will probably end up with a lot of saved charts and dashboards. Spaces let you organize your saved charts and dashboards. 
+Once you've used Lightdash for a while, your team will probably end up with a lot of saved charts and dashboards. Spaces let you organize your saved charts and dashboards.
 
 They're kind of like folders except you can't put a Space inside of a Space (no nesting 🐥). All saved chart and dashboards exist in a Space and can only be in one Space at a time.
 
-<img src={Spaces} width="863" height="539" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={Spaces}
+  width="863"
+  height="539"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 To access Spaces, you can either select a Space from the drop-down list in `Browse` or you can click on the Lightdash icon and select your Space from the homepage.
 
-<img src={AccessSpaces} width="426" height="246" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AccessSpaces}
+  width="426"
+  height="246"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ## Moving items between Spaces
 
 To move a saved chart or dashboard between Spaces, you can click on the three dot menu (`...`) to the right of the item and pick the `Move to Space` action.
 
-<img src={MoveBetweenSpace} width="1005" height="351" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={MoveBetweenSpace}
+  width="1005"
+  height="351"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 You can also add items to a Space from within the Space. Just click on the `Add` button by the saved charts or the dashboards section of the page. If you select an item that's in another Space, it will get moved to the Space you're adding it to.
 
-<img src={AddWithinSpace} width="812" height="564" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddWithinSpace}
+  width="812"
+  height="564"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 You select multiple items to add at the same time to your Space.
 
-<img src={AddModal} width="530" height="247" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={AddModal}
+  width="530"
+  height="247"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ## Updating and deleting Spaces
 
 You can rename or delete your Space on the homescreen by clicking on the three-dot menu (`...`) for the Space.
 
-<img src={RenameDeleteSpace} width="892" height="258" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={RenameDeleteSpace}
+  width="892"
+  height="258"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 :::warning
 
@@ -48,21 +78,31 @@ Deleting a Space will delete all of the content in that Space.
 
 ## Managing access to a Space
 
-By default, when you create a Space, it is restricted so only you can access it. You can edit a Space to make it Restricted Access or Full Access. 
+By default, when you create a Space, it is restricted so only you can access it. You can edit a Space to make it Restricted Access or Full Access.
 
 To edit access to a Space, navigate into the Space, then click the `share` button. From there, you can choose to make a space `Restricted Access` or `Full Access`.
 
-<img src={EditSpaceAccess} width="2249" height="445" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={EditSpaceAccess}
+  width="2249"
+  height="445"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Users inherit their space permissions from their project permissions. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
 
 ### Restricted Access Spaces
 
-**Only admins and members that are invited to a Space with Restricted Access have access to it.** 
+**Only admins and members that are invited to a Space with Restricted Access have access to it.**
 
-For example, here I have a Space called `Finance` with Restricted Access. Only admins and the invited members (Katie, who created the space, and Hamzah, who was invited) have access to this Space. No one else in Lightdash can see or interact with the content in this Space unless they're invited or become an admin. 
+For example, here I have a Space called `Finance` with Restricted Access. Only admins and the invited members (Katie, who created the space, and Hamzah, who was invited) have access to this Space. No one else in Lightdash can see or interact with the content in this Space unless they're invited or become an admin.
 
-<img src={RestrictedAccessSpace} width="540" height="356" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={RestrictedAccessSpace}
+  width="540"
+  height="356"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 **Anyone with editor or admin permissions in your project who have access to a Restricted Space can invite other users to that Space.**
 
@@ -78,8 +118,13 @@ So, in my example project, Hamzah is a project admin. This means when he's invit
 
 For example, here I have a Space called `Finance` with Full Access. Everyone who has access to my Project, "Lightdash analytics", will get access to the content in my `Finance` Space.
 
-<img src={RestrictedAccessSpace} width="543" height="175" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={RestrictedAccessSpace}
+  width="543"
+  height="175"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-**You inherit your space permissions from your project permissions.** 
+**You inherit your space permissions from your project permissions.**
 
-So, if someone is an `editor` in my project, they will have `edit` permissions in my Space. If someone is a `viewer` in my project, they will have `view` permissions in my Space. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).  
+So, if someone is an `editor` in my project, they will have `edit` permissions in my Space. If someone is a `viewer` in my project, they will have `view` permissions in my Space. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).

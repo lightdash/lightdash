@@ -17,26 +17,26 @@ For example, I can find out what the underlying data is for the $4,334.0 in my `
 I'd see all of the rows in the underlying table that make up that total.
 
 <img
-    src={UnderlyingChart}
-    width="1175"
-    height="466"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={UnderlyingChart}
+  width="1175"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 After viewing the underlying data, I can also:
 
--   Export this data as a CSV
--   Explore from this underlying data, which will take me to a new chart with the underlying data as the starting point
+- Export this data as a CSV
+- Explore from this underlying data, which will take me to a new chart with the underlying data as the starting point
 
 ## Using a chart to filter your dashboard (a.k.a. cross-filtering)
 
 When you click on the value in a chart (e.g. a bar in your bar chart), you can choose to filter on that value and update all of the other relevant charts in the dashboard. This type of chart-to-dashboard filtering is sometimes called `cross-filtering`.
 
 <img
-    src={CrossFilteringImage}
-    width="694"
-    height="351"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={CrossFilteringImage}
+  width="694"
+  height="351"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ### You can see which tiles had the filter applied by hovering over the `dashboard filter applied` text on your chart tile.
@@ -46,10 +46,10 @@ Once you've clicked on your filter, all of the tiles in your dashboard with the 
 You can see which tiles had the filter applied by hovering over the tile and then on the funnel icon to see the filter that was applied.
 
 <img
-    src={CrossFilteringAppliedImage}
-    width="700"
-    height="362"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={CrossFilteringAppliedImage}
+  width="700"
+  height="362"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 ### Your cross-filtering will not change the saved chart unless you're in `edit` mode
@@ -65,19 +65,19 @@ When viewing a dashboard, you can also change the date granularity (e.g. to Week
 This is helpful if you want to zoom in to look more closely at something, or zoom out to identify a trend. You're able to quickly date-drill into your data without having to edit the chart.
 
 <img
-    src={DateZoomBeforeAndAfter}
-    width="694"
-    height="351"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={DateZoomBeforeAndAfter}
+  width="694"
+  height="351"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 When the date granularity of a chart is changed, you can hover over the indicator to see the date dimension that was affected, like so:
 
 <img
-    src={DateZoomIndicator}
-    width="400"
-    height="351"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={DateZoomIndicator}
+  width="400"
+  height="351"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 Any chart with results that have at least one date dimension will be affected by
 Date Zoom (even if the date dimension is not explicitly shown on the chart).
@@ -99,26 +99,26 @@ I have a chart with the total number of page views (a metric) over time. You can
 To do this, I click on the data point in my chart, then click `drill by` in the action menu:
 
 <img
-    src={DrillByActionMenu}
-    width="629"
-    height="305"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={DrillByActionMenu}
+  width="629"
+  height="305"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 I then select the dimension I want to segment my metric by (or "drill by"). In this example, I'm interested in grouping the total page views by the `source` so I can figure out where this traffic is coming from.
 
 <img
-    src={DrillByModal}
-    width="416"
-    height="344"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={DrillByModal}
+  width="416"
+  height="344"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
 Once I've selected the dimension I want to group by, I click `open in new tab` and see a chart with my metric, grouped by `Source`. Now I can uncover where this spike in web traffic was coming from 👀
 
 <img
-    src={DrillBySourceExample}
-    width="1006"
-    height="247"
-    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  src={DrillBySourceExample}
+  width="1006"
+  height="247"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
 />

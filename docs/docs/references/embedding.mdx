@@ -6,7 +6,7 @@ import CreateUserAttribute from '../guides/assets/create-user-attribute.png';
 
 # Embedding
 
-You can embed Lightdash content in your website or application securely using Lightdash embedding. 
+You can embed Lightdash content in your website or application securely using Lightdash embedding.
 
 Embedded Lightdash content is available to view by anyone (not just folks with a Lightdash login).
 
@@ -24,25 +24,41 @@ For more of a deep dive into setting up and using embedding in Lightdash, check 
 
 ## Embed secret
 
-The embed secret is used to generate tokens for embedding dashboards. 
+The embed secret is used to generate tokens for embedding dashboards.
 
 This secret is like a password that will help you encrypt the URLs so we know the access is valid.
 
-<img src={EmbedCreateSecret} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>.
+<img
+  src={EmbedCreateSecret}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+.
 
-You can regenerate the secret by clicking on the `Generate new secret` button.  If you do this, people with an old URL will automatically lose access to any previously shared embed URL. 
+You can regenerate the secret by clicking on the `Generate new secret` button. If you do this, people with an old URL will automatically lose access to any previously shared embed URL.
 
 ## Allowed dashboards
 
-Only dashboards included in the `allowed dashboards` can be accessed using embed URLs. To embed a dashboard, you need to first add it to the `allowed dashboards` list. 
+Only dashboards included in the `allowed dashboards` can be accessed using embed URLs. To embed a dashboard, you need to first add it to the `allowed dashboards` list.
 
-<img src={EmbedAddDashboard} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={EmbedAddDashboard}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-## Configure 
+## Configure
 
 Configure the embed URL. Then preview your settings and copy it to your clipboard.
 
-<img src={EmbedPreview} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={EmbedPreview}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ### Dashboard
 
@@ -50,25 +66,25 @@ Select the dashboard that you want to embed. Only dashboards included in the `al
 
 ### Expires in
 
-Set the amount of time it takes before your embed token expires. 
+Set the amount of time it takes before your embed token expires.
 
 Although you can generate URLs directly from Lightdash with a long expiration using [`generate and copy URL`](#generate--copy-url), it is recommended to generate your own JWT embed tokens in your backend (using the [`code snippet`](#code-snippet)) with a short expiration using your `secret` to make sure people can't be using embed URLs outside your app.
 
 ### User attributes
 
-Use user attributes to limit access to certain data in the embedded dashboard. You can use any [user attribute](/references/user-attributes.mdx) that you've defined in your organization in the embedded dashboard. 
+Use user attributes to limit access to certain data in the embedded dashboard. You can use any [user attribute](/references/user-attributes.mdx) that you've defined in your organization in the embedded dashboard.
 
 To learn about getting your embedded dashboard to show different values for different users in your app, [check out the guide here](../guides/how-to-embed-content.mdx#i-want-to-have-my-embedded-dashboard-show-different-values-for-different-users-in-my-app).
 
 ### Interactivity
 
-There are options to enable certain dashboard interactivity features on your embedded dashboard in this section. By default, all interactivity is disabled on an embedded dashboard. 
+There are options to enable certain dashboard interactivity features on your embedded dashboard in this section. By default, all interactivity is disabled on an embedded dashboard.
 
 #### Allow users to change dashboard filters
 
-When disabled, if your dashboard in Lightdash has filters, they will be applied, but won't be shown in the embedded dashboard. 
+When disabled, if your dashboard in Lightdash has filters, they will be applied, but won't be shown in the embedded dashboard.
 
-When enabled, if your dashboard in Lightdash has filters, they will appear in the embedded dashboard like they do in Lightdash. Users interacting with the embedded dashboard will be able to change the value and operator of your filters. They cannot add new filters, remove existing filters, change the field used in the filter, or change the tiles the filter is applied to. 
+When enabled, if your dashboard in Lightdash has filters, they will appear in the embedded dashboard like they do in Lightdash. Users interacting with the embedded dashboard will be able to change the value and operator of your filters. They cannot add new filters, remove existing filters, change the field used in the filter, or change the tiles the filter is applied to.
 
 ### Preview
 
@@ -76,17 +92,22 @@ Clicking on `preview` allows you to preview the configuration for your embedded 
 
 ### Generate & Copy URL
 
-Clicking `generate & copy url` will generate an embed URL based on the configuration that you've set. 
+Clicking `generate & copy url` will generate an embed URL based on the configuration that you've set.
 
-You can embed this one-off URL directly into your application, but you will manually need to update the URL each time the embed URL expires. Alternatively, you can add the [`code snippet`](#code-snippet) to your app to automatically generate embed URLs in your application.  
+You can embed this one-off URL directly into your application, but you will manually need to update the URL each time the embed URL expires. Alternatively, you can add the [`code snippet`](#code-snippet) to your app to automatically generate embed URLs in your application.
 
 ## Code snippet
 
-Although you can generate URLs directly from Lightdash with a long expiration, it is recommended to generate your own JWT embed tokens in your backend with a short expiration using your `secret` to make sure people can't be using embed URLs outside your app. 
+Although you can generate URLs directly from Lightdash with a long expiration, it is recommended to generate your own JWT embed tokens in your backend with a short expiration using your `secret` to make sure people can't be using embed URLs outside your app.
 
 To make this easier to integrate, we included some code snippets you can copy and use in your app to generate a valid embed URL.
 
-<img src={EmbedDeveloper} width="668" height="466" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+  src={EmbedDeveloper}
+  width="668"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ### User metadata
 
@@ -99,13 +120,13 @@ import jwt from 'jsonwebtoken';
 const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
 const projectUuid = 'my-project-uuid';
 const data = {
-    user: {
-      externalId: 'your_user_id_123', // Add this to assign an external ID
-    },
-    content: {
-      type: 'dashboard',
-      dashboardUuid: 'your dashboard uuid'
-    },
+  user: {
+    externalId: 'your_user_id_123', // Add this to assign an external ID
+  },
+  content: {
+    type: 'dashboard',
+    dashboardUuid: 'your dashboard uuid',
+  },
 };
 const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '1 hour' });
 const url = `https://analytics.lightdash.cloud/embed/${projectUuid}/#${token}`;
