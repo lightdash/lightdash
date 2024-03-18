@@ -1,3 +1,10 @@
+## [0.1035.1](https://github.com/lightdash/lightdash/compare/0.1035.0...0.1035.1) (2024-03-18)
+
+
+### Bug Fixes
+
+* use 3rd person singular for descriptions ([#9404](https://github.com/lightdash/lightdash/issues/9404)) ([2e9d05c](https://github.com/lightdash/lightdash/commit/2e9d05ce2a90f8e032988fe1e73d030b0d33d0b2))
+
 # [0.1035.0](https://github.com/lightdash/lightdash/compare/0.1034.1...0.1035.0) (2024-03-18)
 
 
