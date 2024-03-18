@@ -15,13 +15,12 @@ import {
 } from '../models/models';
 
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
-import { emailClient } from '../clients/clients';
+import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { LightdashConfig } from '../config/parseConfig';
 import { UserService } from './UserService';
 
 jest.mock('../database/database', () => ({}));
-jest.mock('../clients/clients', () => ({}));
 
 jest.mock('../models/models', () => ({
     userModel: {
@@ -40,7 +39,7 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         emailModel,
         openIdIdentityModel,
         passwordResetLinkModel,
-        emailClient,
+        emailClient: {} as EmailClient,
         organizationMemberProfileModel,
         organizationModel,
         personalAccessTokenModel,
