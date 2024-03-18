@@ -27,6 +27,7 @@ import { z } from 'zod';
 import { ThirdPartySignInButton } from '../../../components/common/ThirdPartySignInButton';
 import PageSpinner from '../../../components/PageSpinner';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import LightdashLogo from '../../../svgs/lightdash-black.svg';
@@ -39,8 +40,18 @@ import {
 const Login: FC<{}> = () => {
     const { health } = useApp();
     const { identify } = useTracking();
-    const { showToastError } = useToaster();
     const location = useLocation<{ from?: Location } | undefined>();
+
+    const { showToastError } = useToaster();
+    const flashMessages = useFlashMessages();
+    useEffect(() => {
+        if (flashMessages.data?.error) {
+            showToastError({
+                title: 'Failed to authenticate',
+                subtitle: flashMessages.data.error.join('\n'),
+            });
+        }
+    }, [flashMessages.data, showToastError]);
 
     const [fetchOptionsEnabled, setFetchOptionsEnabled] = useState(false);
 
