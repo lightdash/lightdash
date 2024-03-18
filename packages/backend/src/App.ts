@@ -335,7 +335,7 @@ export default class App {
         // Before each request handler we read `sess.passport.user` from the session store
         passport.deserializeUser(
             async (
-                passportUser: string | { id: string; organization: string },
+                passportUser: { id: string; organization: string },
                 done,
             ) => {
                 // Convert to a full user profile
