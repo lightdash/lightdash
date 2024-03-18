@@ -787,12 +787,8 @@ export class SpaceModel {
                         email,
                         role: spaceRole,
                         hasDirectAccess: !!user_with_direct_access,
-                        inheritedRole: is_private
-                            ? undefined
-                            : highestRole.role,
-                        inheritedFrom: is_private
-                            ? undefined
-                            : highestRole.type,
+                        inheritedRole: highestRole.role,
+                        inheritedFrom: highestRole.type,
                     },
                 ];
             },
@@ -1110,7 +1106,6 @@ export class SpaceModel {
         userUuid: string,
         spaceRole: string,
     ): Promise<void> {
-        console.log(`${spaceUuid} ${userUuid} ${spaceRole}`);
         await this.database(SpaceUserAccessTableName)
             .insert({
                 space_uuid: spaceUuid,
