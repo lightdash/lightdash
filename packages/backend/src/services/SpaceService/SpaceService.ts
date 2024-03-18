@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     SessionUser,
     Space,
+    SpaceMemberRole,
     SpaceShare,
     SpaceSummary,
     UpdateSpace,
@@ -135,7 +136,7 @@ export class SpaceService {
         await this.spaceModel.addSpaceAccess(
             newSpace.uuid,
             user.userUuid,
-            'admin',
+            SpaceMemberRole.ADMIN,
         ); // user who created the space by default would be set to space admin
         this.analytics.track({
             event: 'space.created',
@@ -173,13 +174,6 @@ export class SpaceService {
             throw new ForbiddenError();
         }
 
-        // if (space.isPrivate !== updateSpace.isPrivate) {
-        //     // Switching public and private spaces switches between their defaults
-        //     // it will remove access to all users except for this `user.userUuid`
-
-        //     await this.spaceModel.clearSpaceAccess(spaceUuid, user.userUuid);
-        //     await this.spaceModel.addSpaceAccess(spaceUuid, user.userUuid, userSpaceAccess[0].role);
-        // }
         const updatedSpace = await this.spaceModel.update(
             spaceUuid,
             updateSpace,

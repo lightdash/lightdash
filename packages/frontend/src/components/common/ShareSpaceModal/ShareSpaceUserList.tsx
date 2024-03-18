@@ -2,6 +2,7 @@ import {
     type LightdashUser,
     type Space,
     type SpaceShare,
+    SpaceMemberRole,
 } from '@lightdash/common';
 import {
     Avatar,
@@ -14,6 +15,7 @@ import {
 } from '@mantine/core';
 import upperFirst from 'lodash/upperFirst';
 import { forwardRef, type FC } from 'react';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useAddSpaceShareMutation, useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
 import { type AccessOption } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
@@ -78,6 +80,8 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     projectUuid,
     sessionUser,
 }) => {
+    const { showToastError } = useToaster();
+
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
         projectUuid,
         space.uuid,
@@ -150,7 +154,11 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 </Text>
                             </Group>
                             <Tooltip
-                                disabled={isYou || space.isPrivate}
+                                disabled={
+                                    isYou ||
+                                    space.isPrivate ||
+                                    sharedUser.hasDirectAccess
+                                }
                                 label={
                                     <Text>
                                         {`This user has ${sharedUser.role} role for this space because they are an ${sharedUser.inheritedFrom} ${sharedUser.inheritedRole}`}
@@ -185,11 +193,31 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                                     sharedUser.userUuid,
                                                 );
                                             } else {
+                                                if (
+                                                    sharedUser.inheritedRole ===
+                                                        'member' ||
+                                                    sharedUser.inheritedRole ===
+                                                        'viewer'
+                                                ) {
+                                                    if (
+                                                        userAccessOption ==
+                                                            'editor' ||
+                                                        userAccessOption ==
+                                                            'admin'
+                                                    ) {
+                                                        showToastError({
+                                                            title: `Failed to share space`,
+                                                            subtitle: `User with ${sharedUser.inheritedRole} can not be set to space ${userAccessOption}`,
+                                                        });
+                                                        return;
+                                                    }
+                                                }
+
                                                 shareSpaceMutation([
                                                     sharedUser.userUuid,
                                                     userAccessOption
                                                         ? userAccessOption
-                                                        : 'viewer',
+                                                        : SpaceMemberRole.VIEWER, // default to viewer role for new private space member
                                                 ]);
                                             }
                                         }}
