@@ -6,13 +6,14 @@ import {
 } from '@lightdash/common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
-import { getMigrationStatus } from '../../database/database';
+import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { VERSION } from '../../version';
 
 type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationModel: OrganizationModel;
+    migrationModel: MigrationModel;
 };
 
 export class HealthService {
@@ -20,16 +21,21 @@ export class HealthService {
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly migrationModel: MigrationModel;
+
     constructor({
         organizationModel,
+        migrationModel,
         lightdashConfig,
     }: HealthServiceArguments) {
         this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
+        this.migrationModel = migrationModel;
     }
 
     async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
-        const { isComplete, currentVersion } = await getMigrationStatus();
+        const { isComplete, currentVersion } =
+            await this.migrationModel.getMigrationStatus();
 
         if (!isComplete) {
             throw new UnexpectedDatabaseError(
