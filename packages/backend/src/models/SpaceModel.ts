@@ -765,6 +765,12 @@ export class SpaceModel {
                 if (!highestRole) {
                     return acc;
                 }
+
+                const publicSpaceRole =
+                    space_role !== null
+                        ? space_role
+                        : convertProjectRoleToSpaceRole(highestRole.role);
+
                 return [
                     ...acc,
                     {
@@ -772,16 +778,10 @@ export class SpaceModel {
                         firstName: first_name,
                         lastName: last_name,
                         email,
-                        role: is_private
-                            ? space_role
-                            : convertProjectRoleToSpaceRole(highestRole.role),
+                        role: is_private ? space_role : publicSpaceRole,
                         hasDirectAccess: !!user_with_direct_access,
-                        inheritedRole: is_private
-                            ? undefined
-                            : highestRole.role,
-                        inheritedFrom: is_private
-                            ? undefined
-                            : highestRole.type,
+                        inheritedRole: highestRole.role,
+                        inheritedFrom: highestRole.type,
                     },
                 ];
             },
@@ -1099,7 +1099,6 @@ export class SpaceModel {
         userUuid: string,
         spaceRole: string,
     ): Promise<void> {
-        console.log(`${spaceUuid} ${userUuid} ${spaceRole}`);
         await this.database(SpaceUserAccessTableName)
             .insert({
                 space_uuid: spaceUuid,
