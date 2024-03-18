@@ -1,8 +1,8 @@
 import {
+    SpaceMemberRole,
     type LightdashUser,
     type Space,
     type SpaceShare,
-    SpaceMemberRole,
 } from '@lightdash/common';
 import {
     Avatar,
@@ -16,7 +16,10 @@ import {
 import upperFirst from 'lodash/upperFirst';
 import { forwardRef, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useAddSpaceShareMutation, useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
+import {
+    useAddSpaceShareMutation,
+    useDeleteSpaceShareMutation,
+} from '../../../hooks/useSpaces';
 import { type AccessOption } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
