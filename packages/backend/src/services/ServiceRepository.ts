@@ -528,6 +528,7 @@ export class ServiceRepository
             'slackIntegrationService',
             () =>
                 new SlackIntegrationService({
+                    analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel,
                 }),
         );
