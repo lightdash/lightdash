@@ -20,6 +20,7 @@
         "@typescript-eslint/eslint-plugin": "^5.45.0",
         "@typescript-eslint/parser": "^5.45.0",
         "confusing-browser-globals": "^1.0.11",
+        "danger": "^11.3.1",
         "dotenv": "^16.0.2",
         "dotenv-cli": "^6.0.0",
         "eslint": "^8.23.0",
@@ -98,7 +99,8 @@
         "start": "run-p backend-start",
         "prepare": "husky install",
         "load:env": "dotenv -c -e .env.development.local",
-        "generate-api": "yarn common-build && yarn workspace backend generate-api && yarn workspace backend formatter --write ./src/generated"
+        "generate-api": "yarn common-build && yarn workspace backend generate-api && yarn workspace backend formatter --write ./src/generated",
+        "danger": "danger"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
