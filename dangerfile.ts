@@ -26,10 +26,6 @@
  */
 import { danger, fail, markdown, message, warn } from 'danger';
 
-const dangerTest: DangerCheck = () => {
-    fail('Uh oh, something broke :(');
-};
-
 /**
  * Checks can return specific codes to affect the overall run.
  */
@@ -50,7 +46,7 @@ type DangerCheckEntry = [description: string, DangerCheck];
  * The order + signature is important, since some checks may fail early
  * and prevent later checks from completing.
  */
-const allChecks: DangerCheckEntry[] = [['Dangerjs test', dangerTest]] as const;
+const allChecks: DangerCheckEntry[] = [] as const;
 
 async function runAllChecks() {
     for (const [description, check] of allChecks) {
