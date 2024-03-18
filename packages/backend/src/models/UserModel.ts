@@ -581,8 +581,8 @@ export class UserModel {
 
     /**
      * Returns the user with the default organization
-     * Used in old deserialization method, for backwards compatibility
-     * You should use findSessionUserAndOrgByUuid instead
+     * Used in old methods to get the organizationUuid from the userUuid
+     * You should use findSessionUserAndOrgByUuid instead and stop assuming a user has a default organization
      * @deprecated
      */
     async findSessionUserByUUID(userUuid: string): Promise<SessionUser> {

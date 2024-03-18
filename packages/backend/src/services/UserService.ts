@@ -1093,17 +1093,12 @@ export class UserService {
         return organizations[0];
     }
 
-    async findSessionUser(
-        passportUser: string | { id: string; organization: string },
-    ) {
-        // backwards compatible support user as strings (just the id, without the organization)
+    async findSessionUser(passportUser: { id: string; organization: string }) {
         const user = await wrapOtelSpan('Passport.deserializeUser', {}, () =>
-            typeof passportUser === 'string'
-                ? this.userModel.findSessionUserByUUID(passportUser)
-                : this.userModel.findSessionUserAndOrgByUuid(
-                      passportUser.id,
-                      passportUser.organization,
-                  ),
+            this.userModel.findSessionUserAndOrgByUuid(
+                passportUser.id,
+                passportUser.organization,
+            ),
         );
         return user;
     }
