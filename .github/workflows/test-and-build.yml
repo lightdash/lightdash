@@ -22,7 +22,7 @@ jobs:
             - name: Run dangerjs
               run: yarn danger ci --failOnErrors
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
             - name: Lint all packages
               run: yarn lint
             - name: Check formatting all packages
