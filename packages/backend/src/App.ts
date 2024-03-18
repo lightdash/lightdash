@@ -27,7 +27,7 @@ import { ClientManifest } from './clients/clients';
 import DbtCloudGraphqlClient from './clients/dbtCloud/DbtCloudGraphqlClient';
 import EmailClient from './clients/EmailClient/EmailClient';
 import { GoogleDriveClient } from './clients/Google/GoogleDriveClient';
-import { SlackService } from './clients/Slack/Slackbot';
+import { SlackBot } from './clients/Slack/Slackbot';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { LightdashConfig } from './config/parseConfig';
 import {
@@ -387,7 +387,7 @@ export default class App {
     }
 
     private initSlack() {
-        const slackService = new SlackService({
+        const slackBot = new SlackBot({
             slackAuthenticationModel,
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,

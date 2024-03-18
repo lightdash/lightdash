@@ -37,14 +37,14 @@ const notifySlackError = async (
         );
 };
 
-type SlackServiceArguments = {
+type SlackBotArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     unfurlService: UnfurlService;
 };
 
-export class SlackService {
+export class SlackBot {
     slackAuthenticationModel: SlackAuthenticationModel;
 
     lightdashConfig: LightdashConfig;
@@ -58,7 +58,7 @@ export class SlackService {
         lightdashConfig,
         analytics,
         unfurlService,
-    }: SlackServiceArguments) {
+    }: SlackBotArguments) {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
