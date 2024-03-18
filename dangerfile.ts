@@ -26,6 +26,10 @@
  */
 import { danger, fail, markdown, message, warn } from 'danger';
 
+const dangerTest: DangerCheck = () => {
+    fail('Uh oh', danger.git.created_files[0], 0);
+};
+
 /**
  * Checks can return specific codes to affect the overall run.
  */
@@ -46,7 +50,7 @@ type DangerCheckEntry = [description: string, DangerCheck];
  * The order + signature is important, since some checks may fail early
  * and prevent later checks from completing.
  */
-const allChecks: DangerCheckEntry[] = [] as const;
+const allChecks: DangerCheckEntry[] = [['Dangerjs test', dangerTest]] as const;
 
 async function runAllChecks() {
     for (const [description, check] of allChecks) {
