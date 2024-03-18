@@ -402,6 +402,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
               ).href,
               passReqToCallback: true,
               pkce: true,
+              state: true,
           },
           async (
               req: Express.Request,
@@ -458,7 +459,6 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
 const genericOidcHandler =
     (
         issuerType: OpenIdUser['openId']['issuerType'],
-        pkce: true,
     ): VerifyFunctionWithRequest =>
     async (req, issuer, profile, done) => {
         try {
