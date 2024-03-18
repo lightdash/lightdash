@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    ChartType,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToSpaceRole,
     getHighestProjectRole,
@@ -44,7 +45,10 @@ import {
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { DbProject, ProjectTableName } from '../database/entities/projects';
-import { SavedChartsTableName } from '../database/entities/savedCharts';
+import {
+    SavedChartsTableName,
+    SavedChartVersionsTableName,
+} from '../database/entities/savedCharts';
 import {
     DbSpace,
     SpaceShareTableName,
@@ -175,6 +179,21 @@ export class SpaceModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
             )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .leftJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
             .select<
                 {
                     saved_query_uuid: string;
@@ -187,8 +206,14 @@ export class SpaceModel {
                     pinned_list_uuid: string | null;
                     order: number | null;
                     chart_kind: ChartKind;
+                    chart_type: ChartType;
                     views: string;
                     first_viewed_at: Date | null;
+                    space_name: string;
+                    project_uuid: string;
+                    organization_uuid: string;
+                    dashboard_uuid: string;
+                    dashboard_name: string;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -196,6 +221,9 @@ export class SpaceModel {
                 `saved_queries.description`,
                 `saved_queries.last_version_updated_at`,
                 `saved_queries.last_version_chart_kind`,
+                this.database.raw(
+                    `(SELECT ${SavedChartVersionsTableName}.chart_type FROM ${SavedChartVersionsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = saved_queries.saved_query_id ORDER BY ${SavedChartVersionsTableName}.created_at DESC LIMIT 1) as chart_type`,
+                ),
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
@@ -208,6 +236,11 @@ export class SpaceModel {
                 this.database.raw(
                     `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
+                `${SpaceTableName}.name as space_name`,
+                `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.name as dashboard_name`,
             ])
             .orderBy('saved_queries.last_version_updated_at', 'desc')
             .where('space_id', space.space_id);
@@ -222,6 +255,11 @@ export class SpaceModel {
             queries: savedQueries.map((savedQuery) => ({
                 uuid: savedQuery.saved_query_uuid,
                 name: savedQuery.name,
+                spaceName: savedQuery.space_name,
+                projectUuid: savedQuery.project_uuid,
+                organizationUuid: savedQuery.organization_uuid,
+                dashboardUuid: savedQuery.dashboard_uuid,
+                dashboardName: savedQuery.dashboard_name,
                 description: savedQuery.description,
                 updatedAt: savedQuery.created_at,
                 updatedByUser: {
@@ -232,7 +270,8 @@ export class SpaceModel {
                 spaceUuid: space.space_uuid,
                 pinnedListUuid: savedQuery.pinned_list_uuid,
                 pinnedListOrder: savedQuery.order,
-                chartType: savedQuery.chart_kind,
+                chartType: savedQuery.chart_type,
+                chartKind: savedQuery.chart_kind,
                 views: parseInt(savedQuery.views, 10) || 0,
                 firstViewedAt: savedQuery.first_viewed_at,
             })),
@@ -769,6 +808,21 @@ export class SpaceModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
             )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .leftJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
             .select<
                 {
                     saved_query_uuid: string;
@@ -781,10 +835,16 @@ export class SpaceModel {
                     views: string;
                     first_viewed_at: Date | null;
                     chart_kind: ChartKind;
+                    chart_type: ChartType;
                     pinned_list_uuid: string;
                     order: number;
                     validation_errors: DbValidationTable[];
                     space_uuid: string;
+                    space_name: string;
+                    project_uuid: string;
+                    organization_uuid: string;
+                    dashboard_uuid: string | null;
+                    dashboard_name: string | null;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -801,6 +861,9 @@ export class SpaceModel {
                     `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
                 `saved_queries.last_version_chart_kind as chart_kind`,
+                this.database.raw(
+                    `(SELECT ${SavedChartVersionsTableName}.chart_type FROM ${SavedChartVersionsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = saved_queries.saved_query_id ORDER BY ${SavedChartVersionsTableName}.created_at DESC LIMIT 1) as chart_type`,
+                ),
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.order`,
                 this.database.raw(`
@@ -813,6 +876,11 @@ export class SpaceModel {
                     ) as validation_errors
                 `),
                 `${SpaceTableName}.space_uuid`,
+                `${SpaceTableName}.name as space_name`,
+                `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.name as dashboard_name`,
             ]);
 
         if (filters?.recentlyUpdated || filters?.mostPopular) {
@@ -847,6 +915,11 @@ export class SpaceModel {
         return savedQueries.map((savedQuery) => ({
             uuid: savedQuery.saved_query_uuid,
             name: savedQuery.name,
+            spaceName: savedQuery.space_name,
+            dashboardName: savedQuery.dashboard_name,
+            organizationUuid: savedQuery.organization_uuid,
+            projectUuid: savedQuery.project_uuid,
+            dashboardUuid: savedQuery.dashboard_uuid,
             description: savedQuery.description,
             updatedAt: savedQuery.created_at,
             updatedByUser: {
@@ -857,7 +930,8 @@ export class SpaceModel {
             spaceUuid: savedQuery.space_uuid,
             views: parseInt(savedQuery.views, 10),
             firstViewedAt: savedQuery.first_viewed_at,
-            chartType: savedQuery.chart_kind,
+            chartType: savedQuery.chart_type,
+            chartKind: savedQuery.chart_kind,
             pinnedListUuid: savedQuery.pinned_list_uuid,
             pinnedListOrder: savedQuery.order,
             validationErrors: savedQuery.validation_errors.map(
