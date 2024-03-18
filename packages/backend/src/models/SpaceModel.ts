@@ -165,6 +165,11 @@ export class SpaceModel {
         const space = await this.getFirstAccessibleSpace(projectUuid, userUuid);
         const savedQueries = await this.database('saved_queries')
             .leftJoin(
+                SpaceTableName,
+                `saved_queries.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .leftJoin(
                 'users',
                 'saved_queries.last_version_updated_by_user_uuid',
                 'users.user_uuid',
@@ -209,7 +214,6 @@ export class SpaceModel {
                     chart_type: ChartType;
                     views: string;
                     first_viewed_at: Date | null;
-                    space_name: string;
                     project_uuid: string;
                     organization_uuid: string;
                     dashboard_uuid: string;
@@ -236,7 +240,6 @@ export class SpaceModel {
                 this.database.raw(
                     `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
-                `${SpaceTableName}.name as space_name`,
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -255,7 +258,7 @@ export class SpaceModel {
             queries: savedQueries.map((savedQuery) => ({
                 uuid: savedQuery.saved_query_uuid,
                 name: savedQuery.name,
-                spaceName: savedQuery.space_name,
+                spaceName: space.name,
                 projectUuid: savedQuery.project_uuid,
                 organizationUuid: savedQuery.organization_uuid,
                 dashboardUuid: savedQuery.dashboard_uuid,
