@@ -21,6 +21,7 @@ import {
     LightdashUser,
     LocalIssuerTypes,
     LoginOptions,
+    LoginOptionTypes,
     NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
@@ -224,17 +225,32 @@ export class UserService {
         inviteCode: string,
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
-        if (
-            !isOpenIdUser(activateUser) &&
-            this.lightdashConfig.auth.disablePasswordAuthentication
-        ) {
-            throw new ForbiddenError('Password credentials are not allowed');
-        }
-
         const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
         const userEmail = isOpenIdUser(activateUser)
             ? activateUser.openId.email
             : inviteLink.email;
+
+        if (isOpenIdUser(activateUser)) {
+            if (
+                (await this.isLoginMethodAllowed(
+                    userEmail,
+                    activateUser.openId.issuerType,
+                )) === false
+            ) {
+                throw new ForbiddenError(
+                    `User with email ${userEmail} is not allowed to login with ${activateUser.openId.issuerType}`,
+                );
+            }
+        } else if (
+            (await this.isLoginMethodAllowed(
+                userEmail,
+                LocalIssuerTypes.EMAIL,
+            )) === false
+        ) {
+            throw new ForbiddenError(
+                `User with email ${userEmail} is not allowed to login with password`,
+            );
+        }
 
         if (inviteLink.email.toLowerCase() !== userEmail.toLowerCase()) {
             Logger.error(
@@ -431,6 +447,16 @@ export class UserService {
             openIdUser.openId.subject,
         );
 
+        if (
+            (await this.isLoginMethodAllowed(
+                openIdUser.openId.email,
+                openIdUser.openId.issuerType,
+            )) === false
+        ) {
+            throw new ForbiddenError(
+                `User with email ${openIdUser.openId.email} is not allowed to login with ${openIdUser.openId.issuerType}`,
+            );
+        }
         // Identity already exists. Update the identity attributes and login the user
         if (loginUser) {
             if (inviteCode) {
@@ -679,6 +705,15 @@ export class UserService {
         email: string,
         password: string,
     ): Promise<LightdashUser> {
+        if (
+            (await this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL)) ===
+            false
+        ) {
+            throw new ForbiddenError(
+                `User with email ${email} is not allowed to login with password`,
+            );
+        }
+
         try {
             if (this.lightdashConfig.auth.disablePasswordAuthentication) {
                 throw new ForbiddenError(
@@ -775,12 +810,28 @@ export class UserService {
     }
 
     private async registerUser(createUser: CreateUserArgs | OpenIdUser) {
-        if (
-            !isOpenIdUser(createUser) &&
-            this.lightdashConfig.auth.disablePasswordAuthentication
+        if (isOpenIdUser(createUser)) {
+            if (
+                (await this.isLoginMethodAllowed(
+                    createUser.openId.email,
+                    createUser.openId.issuerType,
+                )) === false
+            ) {
+                throw new ForbiddenError(
+                    `User with email ${createUser.openId.email} is not allowed to login with ${createUser.openId.issuerType}`,
+                );
+            }
+        } else if (
+            (await this.isLoginMethodAllowed(
+                createUser.email,
+                LocalIssuerTypes.EMAIL,
+            )) === false
         ) {
-            throw new ForbiddenError('Password credentials are not allowed');
+            throw new ForbiddenError(
+                `User with email ${createUser.email} is not allowed to login with password`,
+            );
         }
+
         const user = await this.userModel.createUser(createUser);
         this.identifyUser({
             ...user,
@@ -1076,6 +1127,25 @@ export class UserService {
             refreshToken,
         );
         return accessToken;
+    }
+
+    async isLoginMethodAllowed(email: string, loginMethod: LoginOptionTypes) {
+        switch (loginMethod) {
+            case LocalIssuerTypes.EMAIL:
+                return !this.lightdashConfig.auth.disablePasswordAuthentication;
+            case LocalIssuerTypes.API_TOKEN:
+            case OpenIdIdentityIssuerType.GOOGLE:
+            case OpenIdIdentityIssuerType.OKTA:
+            case OpenIdIdentityIssuerType.ONELOGIN:
+            case OpenIdIdentityIssuerType.AZUREAD:
+                return true;
+            default:
+                assertUnreachable(
+                    loginMethod,
+                    `Invalid login method ${loginMethod} provided.`,
+                );
+        }
+        return true;
     }
 
     /**
