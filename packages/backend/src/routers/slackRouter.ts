@@ -1,8 +1,4 @@
-import {
-    ForbiddenError,
-    NotFoundError,
-    SlackSettings,
-} from '@lightdash/common';
+import { NotFoundError } from '@lightdash/common';
 import { ExpressReceiver } from '@slack/bolt';
 import express from 'express';
 import path from 'path';
@@ -37,27 +33,11 @@ slackRouter.get(
 
     async (req, res, next) => {
         try {
-            const organizationUuid = req.user?.organizationUuid;
-            if (!organizationUuid) throw new ForbiddenError();
-            const slackAuth = await req.services
-                .getSlackIntegrationService()
-                .getInstallationFromOrganizationUuid(organizationUuid);
-            if (slackAuth === undefined) {
-                res.status(404).send(
-                    `Could not find an installation for organizationUuid ${organizationUuid}`,
-                );
-                return;
-            }
-            const response: SlackSettings = {
-                organizationUuid,
-                slackTeamName: slackAuth.slackTeamName,
-                createdAt: slackAuth.createdAt,
-                scopes: slackAuth.scopes,
-                notificationChannel: slackAuth.notificationChannel,
-            };
             res.json({
                 status: 'ok',
-                results: response,
+                results: await req.services
+                    .getSlackIntegrationService()
+                    .getInstallationFromOrganizationUuid(req.user!),
             });
         } catch (error) {
             next(error);
@@ -92,19 +72,9 @@ slackRouter.delete(
 
     async (req, res, next) => {
         try {
-            analytics.track({
-                event: 'share_slack.delete',
-                userId: req.user?.userUuid,
-                properties: {
-                    organizationId: req.params.organizationUuid,
-                },
-            });
-
-            const organizationUuid = req.user?.organizationUuid;
-            if (!organizationUuid) throw new ForbiddenError();
             await req.services
                 .getSlackIntegrationService()
-                .deleteInstallationFromOrganizationUuid(organizationUuid);
+                .deleteInstallationFromOrganizationUuid(req.user!);
 
             res.json({
                 status: 'ok',
