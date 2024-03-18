@@ -27,6 +27,7 @@ import {
     searchModel,
     sessionModel,
     shareModel,
+    slackAuthenticationModel,
     spaceModel,
     sshKeyPairModel,
     userAttributesModel,
@@ -54,6 +55,7 @@ import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
+import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { SshKeyPairService } from './SshKeyPairService';
 import { UnfurlService } from './UnfurlService/UnfurlService';
@@ -87,6 +89,7 @@ interface ServiceManifest {
     schedulerService: SchedulerService;
     searchService: SearchService;
     shareService: ShareService;
+    slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
     spaceService: SpaceService;
     unfurlService: UnfurlService;
@@ -516,6 +519,16 @@ export class ServiceRepository
             () =>
                 new SshKeyPairService({
                     sshKeyPairModel,
+                }),
+        );
+    }
+
+    public getSlackIntegrationService(): SlackIntegrationService {
+        return this.getService(
+            'slackIntegrationService',
+            () =>
+                new SlackIntegrationService({
+                    slackAuthenticationModel,
                 }),
         );
     }

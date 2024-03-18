@@ -13,7 +13,6 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { slackAuthenticationModel } from '../models/models';
 
 // TODO: to be removed once this is refactored. https://github.com/lightdash/lightdash/issues/9174
 const analytics = new LightdashAnalytics({
@@ -40,10 +39,9 @@ slackRouter.get(
         try {
             const organizationUuid = req.user?.organizationUuid;
             if (!organizationUuid) throw new ForbiddenError();
-            const slackAuth =
-                await slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                    organizationUuid,
-                );
+            const slackAuth = await req.services
+                .getSlackIntegrationService()
+                .getInstallationFromOrganizationUuid(organizationUuid);
             if (slackAuth === undefined) {
                 res.status(404).send(
                     `Could not find an installation for organizationUuid ${organizationUuid}`,
@@ -104,9 +102,9 @@ slackRouter.delete(
 
             const organizationUuid = req.user?.organizationUuid;
             if (!organizationUuid) throw new ForbiddenError();
-            await slackAuthenticationModel.deleteInstallationFromOrganizationUuid(
-                organizationUuid,
-            );
+            await req.services
+                .getSlackIntegrationService()
+                .deleteInstallationFromOrganizationUuid(organizationUuid);
 
             res.json({
                 status: 'ok',
