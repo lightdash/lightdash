@@ -15,6 +15,7 @@ import express, {
 } from 'express';
 import expressSession from 'express-session';
 import expressStaticGzip from 'express-static-gzip';
+import { Knex } from 'knex';
 import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
 import path from 'path';
@@ -39,17 +40,12 @@ import {
     oneLoginPassportStrategy,
     OpenIDClientOktaStrategy,
 } from './controllers/authentication';
-import database from './database/database';
 import { errorHandler } from './errors';
 import { RegisterRoutes } from './generated/routes';
 import apiSpec from './generated/swagger.json';
 import Logger from './logging/logger';
 import { expressWinstonMiddleware } from './logging/winston';
-import {
-    schedulerModel,
-    slackAuthenticationModel,
-    userModel,
-} from './models/models';
+import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { registerNodeMetrics } from './nodeMetrics';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
@@ -85,6 +81,8 @@ type AppArguments = {
     otelSdk: NodeSDK;
     environment?: 'production' | 'development';
     serviceProviders?: ServiceProviderMap;
+    database: Knex;
+    modelProviders?: ModelProviderMap;
 };
 
 export default class App {
@@ -104,6 +102,10 @@ export default class App {
 
     private readonly clients: ClientManifest;
 
+    private readonly models: ModelRepository;
+
+    private readonly database: Knex;
+
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.otelSdk = args.otelSdk;
@@ -120,6 +122,12 @@ export default class App {
                     this.lightdashConfig.rudder.writeKey &&
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
+        });
+        this.database = args.database;
+        this.models = new ModelRepository({
+            modelProviders: args.modelProviders,
+            lightdashConfig: this.lightdashConfig,
+            database: args.database,
         });
         this.clients = {
             dbtCloudGraphqlClient: new DbtCloudGraphqlClient(),
@@ -138,10 +146,11 @@ export default class App {
             schedulerClient: new SchedulerClient({
                 lightdashConfig: this.lightdashConfig,
                 analytics: this.analytics,
-                schedulerModel,
+                schedulerModel: this.models.getSchedulerModel(),
             }),
             slackClient: new SlackClient({
-                slackAuthenticationModel,
+                slackAuthenticationModel:
+                    this.models.getSlackAuthenticationModel(),
                 lightdashConfig: this.lightdashConfig,
             }),
         };
@@ -153,6 +162,7 @@ export default class App {
                 lightdashConfig: this.lightdashConfig,
             }),
             clients: this.clients,
+            models: this.models,
         });
     }
 
@@ -181,7 +191,7 @@ export default class App {
         const KnexSessionStore = connectSessionKnex(expressSession);
 
         const store = new KnexSessionStore({
-            knex: database as any,
+            knex: this.database as any,
             createtable: false,
             tablename: 'sessions',
             sidfieldname: 'sid',
@@ -390,7 +400,7 @@ export default class App {
 
     private initSlack() {
         const slackBot = new SlackBot({
-            slackAuthenticationModel,
+            slackAuthenticationModel: this.models.getSlackAuthenticationModel(),
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
 
