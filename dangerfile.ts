@@ -27,7 +27,7 @@
 import { danger, fail, markdown, message, warn } from 'danger';
 
 const dangerTest: DangerCheck = () => {
-    fail('Uh oh', danger.git.created_files[0], 0);
+    fail('Uh oh, something broke :(');
 };
 
 /**

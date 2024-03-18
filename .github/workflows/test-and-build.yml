@@ -20,7 +20,7 @@ jobs:
             - name: Install packages
               run: yarn install --frozen-lockfile
             - name: Run dangerjs
-              run: yarn danger ci --failOnErrors
+              run: yarn danger ci --use-github-checks
               env:
                   GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
             - name: Lint all packages
