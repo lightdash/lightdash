@@ -183,7 +183,8 @@ abstract class ServiceRepositoryBase {
     protected readonly context: OperationContext;
 
     /**
-     * Holds client singletons. Temporary solution, will be replaced by dependency injection.
+     * @deprecated Clients should be used inside services. This will be removed soon.
+     * Holds client singletons. Temporary solution, will be replaced by dependency injection and should not be exposed.
      */
     public clients: ClientManifest;
 
