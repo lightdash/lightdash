@@ -1,7 +1,9 @@
 import * as fs from 'fs/promises';
 import moment from 'moment';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { emailClient, s3CacheClient, s3Client } from '../../clients/clients';
+import { S3Client } from '../../clients/Aws/s3';
+import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
+import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import {
     analyticsModel,
@@ -17,14 +19,10 @@ import {
     userModel,
     userWarehouseCredentialsModel,
 } from '../../models/models';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
-
-jest.mock('../../clients/clients', () => ({
-    schedulerClient: {},
-    s3Client: {},
-}));
 
 jest.mock('../../models/models', () => ({
     savedChartModel: {},
@@ -47,21 +45,23 @@ describe('Csv service', () => {
             analytics: analyticsMock,
             analyticsModel,
             dashboardModel,
-            emailClient,
+            emailClient: {} as EmailClient,
             jobModel,
             onboardingModel,
             projectModel,
-            s3CacheClient,
+            s3CacheClient: {} as S3CacheClient,
             savedChartModel,
             spaceModel,
             sshKeyPairModel,
             userAttributesModel,
             userWarehouseCredentialsModel,
+            schedulerClient: {} as SchedulerClient,
         }),
-        s3Client,
+        s3Client: {} as S3Client,
         savedChartModel,
         dashboardModel,
         downloadFileModel,
+        schedulerClient: {} as SchedulerClient,
     });
 
     it('Should convert rows to CSV with format', async () => {

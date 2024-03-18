@@ -33,7 +33,7 @@ import {
     LightdashAnalytics,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
-import { schedulerClient, slackClient } from '../../clients/clients';
+import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -41,6 +41,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type SavedChartServiceArguments = {
@@ -51,6 +52,8 @@ type SavedChartServiceArguments = {
     analyticsModel: AnalyticsModel;
     pinnedListModel: PinnedListModel;
     schedulerModel: SchedulerModel;
+    schedulerClient: SchedulerClient;
+    slackClient: SlackClient;
 };
 
 export class SavedChartService {
@@ -68,6 +71,10 @@ export class SavedChartService {
 
     private readonly schedulerModel: SchedulerModel;
 
+    private readonly schedulerClient: SchedulerClient;
+
+    private readonly slackClient: SlackClient;
+
     constructor(args: SavedChartServiceArguments) {
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
@@ -76,6 +83,8 @@ export class SavedChartService {
         this.analyticsModel = args.analyticsModel;
         this.pinnedListModel = args.pinnedListModel;
         this.schedulerModel = args.schedulerModel;
+        this.schedulerClient = args.schedulerClient;
+        this.slackClient = args.slackClient;
     }
 
     private async checkUpdateAccess(
@@ -807,12 +816,12 @@ export class SavedChartService {
         };
         this.analytics.track(createSchedulerEventData);
 
-        await slackClient.joinChannels(
+        await this.slackClient.joinChannels(
             user.organizationUuid,
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
-        await schedulerClient.generateDailyJobsForScheduler(scheduler);
+        await this.schedulerClient.generateDailyJobsForScheduler(scheduler);
 
         return scheduler;
     }

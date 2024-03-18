@@ -6,7 +6,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { s3CacheClient } from '../../clients/clients';
+import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
@@ -22,6 +22,7 @@ import {
     userWarehouseCredentialsModel,
 } from '../../models/models';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -46,8 +47,6 @@ import {
     user,
     validExplore,
 } from './ProjectService.mock';
-
-jest.mock('../../clients/clients', () => ({}));
 
 jest.mock('../../models/models', () => ({
     projectModel: {
@@ -106,10 +105,11 @@ describe('ProjectService', () => {
         spaceModel,
         sshKeyPairModel,
         userAttributesModel,
-        s3CacheClient,
+        s3CacheClient: {} as S3CacheClient,
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
+        schedulerClient: {} as SchedulerClient,
     });
     afterEach(() => {
         jest.clearAllMocks();

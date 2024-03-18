@@ -163,18 +163,20 @@ export class ExploreController extends BaseController {
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
         };
-        const { jobId } = await CsvService.scheduleDownloadCsv(req.user!, {
-            userUuid: req.user?.userUuid!,
-            projectUuid,
-            exploreId,
-            metricQuery,
-            onlyRaw,
-            csvLimit,
-            showTableNames,
-            customLabels,
-            columnOrder,
-            hiddenFields,
-        });
+        const { jobId } = await req.services
+            .getCsvService()
+            .scheduleDownloadCsv(req.user!, {
+                userUuid: req.user?.userUuid!,
+                projectUuid,
+                exploreId,
+                metricQuery,
+                onlyRaw,
+                csvLimit,
+                showTableNames,
+                customLabels,
+                columnOrder,
+                hiddenFields,
+            });
 
         return {
             status: 'ok',

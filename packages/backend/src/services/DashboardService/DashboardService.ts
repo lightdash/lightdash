@@ -27,7 +27,7 @@ import {
     LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
-import { schedulerClient, slackClient } from '../../clients/clients';
+import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -35,6 +35,7 @@ import { PinnedListModel } from '../../models/PinnedListModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
@@ -46,6 +47,8 @@ type DashboardServiceArguments = {
     pinnedListModel: PinnedListModel;
     schedulerModel: SchedulerModel;
     savedChartModel: SavedChartModel;
+    schedulerClient: SchedulerClient;
+    slackClient: SlackClient;
 };
 
 export class DashboardService {
@@ -63,6 +66,10 @@ export class DashboardService {
 
     savedChartModel: SavedChartModel;
 
+    schedulerClient: SchedulerClient;
+
+    slackClient: SlackClient;
+
     constructor({
         analytics,
         dashboardModel,
@@ -71,6 +78,8 @@ export class DashboardService {
         pinnedListModel,
         schedulerModel,
         savedChartModel,
+        schedulerClient,
+        slackClient,
     }: DashboardServiceArguments) {
         this.analytics = analytics;
         this.dashboardModel = dashboardModel;
@@ -79,6 +88,8 @@ export class DashboardService {
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
         this.savedChartModel = savedChartModel;
+        this.schedulerClient = schedulerClient;
+        this.slackClient = slackClient;
     }
 
     static getCreateEventProperties(
@@ -756,11 +767,11 @@ export class DashboardService {
         };
         this.analytics.track(createSchedulerData);
 
-        await slackClient.joinChannels(
+        await this.slackClient.joinChannels(
             user.organizationUuid,
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
-        await schedulerClient.generateDailyJobsForScheduler(scheduler);
+        await this.schedulerClient.generateDailyJobsForScheduler(scheduler);
         return scheduler;
     }
 

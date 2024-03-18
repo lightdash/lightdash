@@ -1,5 +1,11 @@
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { emailClient, s3CacheClient, s3Client } from '../clients/clients';
+import {
+    emailClient,
+    s3CacheClient,
+    s3Client,
+    schedulerClient,
+    slackClient,
+} from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import {
     analyticsModel,
@@ -254,6 +260,7 @@ export class ServiceRepository
                     dashboardModel,
                     savedChartModel,
                     downloadFileModel,
+                    schedulerClient,
                 }),
         );
     }
@@ -270,6 +277,8 @@ export class ServiceRepository
                     pinnedListModel,
                     schedulerModel,
                     savedChartModel,
+                    schedulerClient,
+                    slackClient,
                 }),
         );
     }
@@ -330,6 +339,7 @@ export class ServiceRepository
                     userModel,
                     dashboardModel,
                     savedChartModel,
+                    schedulerClient,
                 }),
         );
     }
@@ -431,6 +441,7 @@ export class ServiceRepository
                     analyticsModel,
                     dashboardModel,
                     userWarehouseCredentialsModel,
+                    schedulerClient,
                 }),
         );
     }
@@ -447,6 +458,8 @@ export class ServiceRepository
                     analyticsModel,
                     pinnedListModel,
                     schedulerModel,
+                    schedulerClient,
+                    slackClient,
                 }),
         );
     }
@@ -462,6 +475,8 @@ export class ServiceRepository
                     savedChartModel,
                     dashboardModel,
                     spaceModel,
+                    schedulerClient,
+                    slackClient,
                 }),
         );
     }
@@ -580,6 +595,7 @@ export class ServiceRepository
                     validationModel,
                     dashboardModel,
                     spaceModel,
+                    schedulerClient,
                 }),
         );
     }
