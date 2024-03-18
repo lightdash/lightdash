@@ -14,7 +14,6 @@
  *
  * - Add your check function to the `allChecks` list, with a description:
  *
- *
  *  ```ts
  *  const allChecks: DangerCheckEntry[] = [
  *      ['Runs a critical sanity check', mySanityCheck]

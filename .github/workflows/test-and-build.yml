@@ -34,7 +34,7 @@ jobs:
               run: yarn warehouses-build
 
             - name: Run dangerjs
-              run: yarn danger ci
+              run: yarn danger ci --failOnErrors  --use-github-checks
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
