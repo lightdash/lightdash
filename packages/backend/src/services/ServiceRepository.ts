@@ -214,9 +214,6 @@ abstract class ServiceRepositoryBase {
  * repository - ideally one that you accessed through a controller, or otherwise
  * via dependency injection.
  *
- * NOTE: For now, this repository simply exposes services instantiated in `./services.ts`,
- *       and provided to this repository directly. At a later stage, this repository will
- *       handle instantiating all services internally, including cross-service dependencies.
  */
 export class ServiceRepository
     extends ServiceRepositoryBase
