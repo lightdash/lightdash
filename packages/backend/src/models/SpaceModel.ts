@@ -223,17 +223,16 @@ export class SpaceModel {
                 `saved_queries.saved_query_uuid`,
                 `saved_queries.name`,
                 `saved_queries.description`,
-                `saved_queries.last_version_updated_at`,
-                `saved_queries.last_version_chart_kind`,
-                this.database.raw(
-                    `(SELECT ${SavedChartVersionsTableName}.chart_type FROM ${SavedChartVersionsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = saved_queries.saved_query_id ORDER BY ${SavedChartVersionsTableName}.created_at DESC LIMIT 1) as chart_type`,
-                ),
+                `saved_queries.last_version_updated_at as created_at`,
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.order`,
-
+                `saved_queries.last_version_chart_kind as chart_kind`,
+                this.database.raw(
+                    `(SELECT ${SavedChartVersionsTableName}.chart_type FROM ${SavedChartVersionsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = saved_queries.saved_query_id ORDER BY ${SavedChartVersionsTableName}.created_at DESC LIMIT 1) as chart_type`,
+                ),
                 this.database.raw(
                     `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid) as views`,
                 ),
@@ -246,7 +245,7 @@ export class SpaceModel {
                 `${DashboardsTableName}.name as dashboard_name`,
             ])
             .orderBy('saved_queries.last_version_updated_at', 'desc')
-            .where('space_id', space.space_id);
+            .where('saved_queries.space_id', space.space_id);
 
         return {
             organizationUuid: space.organization_uuid,

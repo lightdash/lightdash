@@ -2237,7 +2237,22 @@
                 "enum": ["cartesian", "table", "big_number", "pie", "custom"],
                 "type": "string"
             },
-            "Pick_SpaceQuery.uuid-or-name-or-chartType-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_": {
+            "ChartKind": {
+                "enum": [
+                    "line",
+                    "horizontal_bar",
+                    "vertical_bar",
+                    "scatter",
+                    "area",
+                    "mixed",
+                    "pie",
+                    "table",
+                    "big_number",
+                    "custom"
+                ],
+                "type": "string"
+            },
+            "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -2291,6 +2306,9 @@
                     },
                     "chartType": {
                         "$ref": "#/components/schemas/ChartType"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
                     }
                 },
                 "required": [
@@ -2312,7 +2330,7 @@
                         "$ref": "#/components/schemas/ResourceItemCategory"
                     },
                     "data": {
-                        "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_"
+                        "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType.CHART"
@@ -3291,21 +3309,6 @@
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "ChartKind": {
-                "enum": [
-                    "line",
-                    "horizontal_bar",
-                    "vertical_bar",
-                    "scatter",
-                    "area",
-                    "mixed",
-                    "pie",
-                    "table",
-                    "big_number",
-                    "custom"
-                ],
-                "type": "string"
             },
             "ChartSummary": {
                 "allOf": [
@@ -6541,7 +6544,7 @@
                             "fieldName": {
                                 "type": "string"
                             },
-                            "chartType": {
+                            "chartKind": {
                                 "$ref": "#/components/schemas/ChartKind"
                             },
                             "chartUuid": {
