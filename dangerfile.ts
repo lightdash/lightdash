@@ -25,11 +25,19 @@
  *   exact problem is.
  */
 import { danger, fail, markdown, message, warn } from 'danger';
+import { existsSync } from 'fs';
+
+/**
+ * Looks for and executes repo/local dangerfiles.
+ *
+ * All function exports on the module are assumed to be checks, and executed.
+ */
+const runRepoChecks: DangerCheck = async () => {};
 
 /**
  * Checks can return specific codes to affect the overall run.
  */
-enum DangerCheckCode {
+export enum DangerCheckCode {
     FailAll,
 }
 
@@ -37,7 +45,10 @@ enum DangerCheckCode {
  * Expected type signature for danger checks - split into two types to make
  * it more convenient when defining a function with DangerCheck.
  */
-type DangerCheck = () => (DangerCheck | void) | Promise<DangerCheckCode | void>;
+export type DangerCheck = () =>
+    | (DangerCheck | void)
+    | Promise<DangerCheckCode | void>;
+
 type DangerCheckEntry = [description: string, DangerCheck];
 
 /**
@@ -46,10 +57,41 @@ type DangerCheckEntry = [description: string, DangerCheck];
  * The order + signature is important, since some checks may fail early
  * and prevent later checks from completing.
  */
-const allChecks: DangerCheckEntry[] = [] as const;
+const checks: DangerCheckEntry[] = [
+    ['Run local or repository-specific checks', runRepoChecks],
+] as const;
 
 async function runAllChecks() {
-    for (const [description, check] of allChecks) {
+    /**
+     * A list of possible additional dangerfiles:
+     */
+    const repoFilePaths = [
+        './dangerfile.repo.ts',
+        './dangerfile.development.ts',
+    ];
+
+    /**
+     * Check if any of the local dangerfiles exist, and if so, include their
+     * exports as additional checks.
+     */
+    let localChecks: DangerCheckEntry[] = [];
+    for (const repoDangerfile of repoFilePaths) {
+        if (existsSync(repoDangerfile)) {
+            console.log(`Danger: 🔍 including checks from '${repoDangerfile}'`);
+            const mod = await import(repoDangerfile);
+
+            localChecks = [
+                ...localChecks,
+                ...(Object.entries(mod).filter(
+                    ([_, fn]) => typeof fn === 'function',
+                ) as DangerCheckEntry[]),
+            ];
+        }
+    }
+
+    const mergedChecks = [...localChecks, ...checks];
+
+    for (const [description, check] of mergedChecks) {
         const result = await check();
 
         /**

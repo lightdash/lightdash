@@ -65,3 +65,6 @@ venv/
 dbt_modules/
 logs/
 /.envrc
+
+# dangerfile
+dangerfile.development.ts
