@@ -122,7 +122,7 @@ const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
     const onCreate = (value: TableCalculation) => {
         addTableCalculation(value);
         track({
-            name: EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED,
+            name: EventName.CREATE_QUICK_TABLE_CALCULATION_BUTTON_CLICKED,
         });
     };
     const columnOrder = useExplorerContext(
