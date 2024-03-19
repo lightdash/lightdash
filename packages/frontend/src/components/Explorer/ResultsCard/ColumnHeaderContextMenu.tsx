@@ -5,6 +5,7 @@ import {
     isCustomDimension,
     isField,
     isFilterableField,
+    isMetric,
     type TableCalculation,
 } from '@lightdash/common';
 import { ActionIcon, Menu, Text } from '@mantine/core';
@@ -26,6 +27,7 @@ import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { type HeaderProps, type TableColumn } from '../../common/Table/types';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
+import QuickCalculationMenuOptions from './QuickCalculations';
 
 interface ContextMenuProps extends HeaderProps {
     onToggleCalculationEditModal: (value: boolean) => void;
@@ -99,6 +101,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
                 <Menu.Divider />
+                {isMetric(item) && (
+                    <>
+                        <QuickCalculationMenuOptions item={item} />
+                        <Menu.Divider />
+                    </>
+                )}
 
                 {isItemAdditionalMetric ? (
                     <Menu.Item
