@@ -1,3 +1,10 @@
+## [0.1036.4](https://github.com/lightdash/lightdash/compare/0.1036.3...0.1036.4) (2024-03-19)
+
+
+### Bug Fixes
+
+* extends SpaceQuery from ChartSummary type. Add missing fields ([#9418](https://github.com/lightdash/lightdash/issues/9418)) ([754821e](https://github.com/lightdash/lightdash/commit/754821ea306a9643d2aaa55fcc547afe8d058679))
+
 ## [0.1036.3](https://github.com/lightdash/lightdash/compare/0.1036.2...0.1036.3) (2024-03-19)
 
 
