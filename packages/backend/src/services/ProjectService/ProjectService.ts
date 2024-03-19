@@ -95,6 +95,7 @@ import {
     UserWarehouseCredentials,
     WarehouseClient,
     WarehouseTypes,
+    type ApiCreateProjectResults,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
@@ -357,7 +358,7 @@ export class ProjectService {
         user: SessionUser,
         data: CreateProject,
         method: RequestMethod,
-    ): Promise<Project> {
+    ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -399,6 +400,8 @@ export class ProjectService {
             },
         });
 
+        let hasContentCopy = false;
+
         if (data.copiedFromProjectUuid) {
             try {
                 const { organizationUuid } = await this.projectModel.getSummary(
@@ -420,13 +423,20 @@ export class ProjectService {
                     data.copiedFromProjectUuid,
                     projectUuid,
                 );
+
+                hasContentCopy = true;
             } catch (e) {
                 Sentry.captureException(e);
                 Logger.error(`Unable to copy content on preview ${e}`);
             }
         }
 
-        return this.projectModel.get(projectUuid);
+        const project = await this.projectModel.get(projectUuid);
+
+        return {
+            hasContentCopy,
+            project,
+        };
     }
 
     async create(

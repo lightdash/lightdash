@@ -30,20 +30,30 @@ accessible by users with organization roles.
 | Use the SQL runner                                     |      ✅       |        ✅         |       ❌       |             ❌             |       ❌       |
 | Manage project access and permissions                  |      ✅       |        ❌         |       ❌       |             ❌             |       ❌       |
 | Delete project                                         |      ✅       |        ❌         |       ❌       |             ❌             |       ❌       |
+| Create project previews                                |      ✅       |        ❌         |       ❌       |             ❌             |       ❌       |
 
 ### Organization Roles
 
 Organization Admins can assign roles to organization members, which gives access to all projects in the organization.
 
-| Action                                     | Organization Admin | Organization Developer | Organization Editor | Organization Interactive Viewer | Organization Viewer | Organization Member |
-| :----------------------------------------- | :----------------: | :--------------------: | :-----------------: | :-----------------------------: | :-----------------: | :-----------------: |
-| Create Personal access tokens              |         ✅         |           ✅           |         ✅          |               ✅                |         ✅          |         ✅          |
-| View **all** projects                      |         ✅         |           ✅           |         ✅          |               ✅                |         ✅          |         ❌          |
-| Create new projects                        |         ✅         |           ✅           |         ✅          |               ✅                |         ❌          |         ❌          |
-| Edit **all** projects                      |         ✅         |           ✅           |         ✅          |               ❌                |         ❌          |         ❌          |
-| Admin for **all** projects                 |         ✅         |           ❌           |         ❌          |               ❌                |         ❌          |         ❌          |
-| Invite users to organization               |         ✅         |           ❌           |         ❌          |               ❌                |         ❌          |         ❌          |
-| Manage organization access and permissions |         ✅         |           ❌           |         ❌          |               ❌                |         ❌          |         ❌          |
+| Action                                     | Organization Admin |   Organization Developer   |    Organization Editor     | Organization Interactive Viewer | Organization Viewer | Organization Member |
+| :----------------------------------------- | :----------------: | :------------------------: | :------------------------: | :-----------------------------: | :-----------------: | :-----------------: |
+| Create Personal access tokens              |         ✅         |             ✅             |             ✅             |               ✅                |         ✅          |         ✅          |
+| View **all** projects                      |         ✅         |             ✅             |             ✅             |               ✅                |         ✅          |         ❌          |
+| Create new projects                        |         ✅         |             ✅             |             ✅             |               ✅                |         ❌          |         ❌          |
+| Create project previews                    |         ✅         | [✅ \*](#project-previews) | [✅ \*](#project-previews) |   [✅ \*](#project-previews)    |         ❌          |         ❌          |
+| Edit **all** projects                      |         ✅         |             ✅             |             ✅             |               ❌                |         ❌          |         ❌          |
+| Admin for **all** projects                 |         ✅         |             ❌             |             ❌             |               ❌                |         ❌          |         ❌          |
+| Invite users to organization               |         ✅         |             ❌             |             ❌             |               ❌                |         ❌          |         ❌          |
+| Manage organization access and permissions |         ✅         |             ❌             |             ❌             |               ❌                |         ❌          |         ❌          |
+
+:::info
+
+<a name="project-previews" class="hidden-anchor"></a>
+Project previews created by Developers, Editors or Interactive Viewers will not
+have spaces/charts/dashboards copied from the source project.
+
+:::
 
 ### Space Roles
 

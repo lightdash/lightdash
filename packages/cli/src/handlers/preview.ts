@@ -111,15 +111,19 @@ export const previewHandler = async (
     }
 
     let project: Project | undefined;
+    let hasContentCopy = false;
 
     const config = await getConfig();
     try {
-        project = await createProject({
+        const results = await createProject({
             ...options,
             name,
             type: ProjectType.PREVIEW,
             copiedFromProjectUuid: config.context?.project,
         });
+
+        project = results?.project;
+        hasContentCopy = Boolean(results?.hasContentCopy);
     } catch (e) {
         GlobalState.debug(`> Unable to create project: ${e}`);
         spinner.fail();
@@ -164,6 +168,14 @@ export const previewHandler = async (
 
             process.exit(0);
         });
+
+        if (!hasContentCopy) {
+            console.error(
+                styles.warning(
+                    `\n\nDeveloper preview deployed without any copied content!\n`,
+                ),
+            );
+        }
 
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${await projectUrl(
@@ -290,12 +302,15 @@ export const startPreviewHandler = async (
 
         // Create
         console.error(`Creating new project preview ${projectName}`);
-        const project = await createProject({
+        const results = await createProject({
             ...options,
             name: projectName,
             type: ProjectType.PREVIEW,
             copiedFromProjectUuid: config.context?.project,
         });
+
+        const project = results?.project;
+        const hasContentCopy = Boolean(results?.hasContentCopy);
 
         if (!project) {
             console.error(
@@ -329,6 +344,14 @@ export const startPreviewHandler = async (
             ignoreErrors: true,
         });
         const url = await projectUrl(project);
+
+        if (!hasContentCopy) {
+            console.error(
+                styles.warning(
+                    `\n\nDeveloper preview deployed without any copied content!\n`,
+                ),
+            );
+        }
 
         console.error(`New project created on ${url}`);
         if (process.env.CI === 'true') {

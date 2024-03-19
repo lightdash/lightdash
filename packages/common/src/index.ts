@@ -529,6 +529,11 @@ export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
     role?: OrganizationMemberRole;
 };
 
+export type ApiCreateProjectResults = {
+    project: Project;
+    hasContentCopy: boolean;
+};
+
 export type ProjectSavedChartStatus = boolean;
 
 export type ApiFlashResults = Record<string, string[]>;
@@ -608,7 +613,8 @@ type ApiResults =
     | ApiCreateComment['results']
     | ApiGetComments['results']
     | ApiDeleteComment
-    | ApiSuccessEmpty;
+    | ApiSuccessEmpty
+    | ApiCreateProjectResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

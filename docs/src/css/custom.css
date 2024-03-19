@@ -48,3 +48,7 @@
   margin-top: 0;
   max-width: 15rem;
 }
+
+a.hidden-anchor {
+  scroll-margin-top: 250px
+}
