@@ -1,3 +1,10 @@
+## [0.1036.3](https://github.com/lightdash/lightdash/compare/0.1036.2...0.1036.3) (2024-03-19)
+
+
+### Bug Fixes
+
+* navbar layout issues ([#9396](https://github.com/lightdash/lightdash/issues/9396)) ([a129c5d](https://github.com/lightdash/lightdash/commit/a129c5db256005b494a5e2010041498349bfc011))
+
 ## [0.1036.2](https://github.com/lightdash/lightdash/compare/0.1036.1...0.1036.2) (2024-03-19)
 
 
