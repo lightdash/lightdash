@@ -188,6 +188,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      # Prepare bigquery credentials for Cypress
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: "credentials.json"
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: "./packages/e2e/cypress/fixtures/"
       # Install packages
       - uses: actions/setup-node@v4
         with:
@@ -198,14 +206,6 @@ jobs:
       # Build packages
       - name: Build packages/common module
         run: yarn common-build
-      # Prepare bigquery credentials for Cypress
-      - name: create-json
-        id: create-json
-        uses: jsdaniell/create-json@v1.2.2
-        with:
-          name: "credentials.json"
-          json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: "./packages/e2e/cypress/fixtures/"
       # Run E2E tests
       - name: Cypress run
         uses: cypress-io/github-action@v5
