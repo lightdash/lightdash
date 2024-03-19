@@ -341,6 +341,7 @@ export class ServiceRepository
                 new HealthService({
                     lightdashConfig: this.context.lightdashConfig,
                     organizationModel: this.models.getOrganizationModel(),
+                    migrationModel: this.models.getMigrationModel(),
                 }),
         );
     }

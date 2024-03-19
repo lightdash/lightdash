@@ -11,6 +11,7 @@ import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppI
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
+import { MigrationModel } from './MigrationModel/MigrationModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
@@ -49,6 +50,7 @@ export type ModelManifest = {
     groupsModel: GroupsModel;
     inviteLinkModel: InviteLinkModel;
     jobModel: JobModel;
+    migrationModel: MigrationModel;
     notificationsModel: NotificationsModel;
     onboardingModel: OnboardingModel;
     openIdIdentityModel: OpenIdIdentityModel;
@@ -230,6 +232,13 @@ export class ModelRepository
         return this.getModel(
             'jobModel',
             () => new JobModel({ database: this.database }),
+        );
+    }
+
+    public getMigrationModel(): MigrationModel {
+        return this.getModel(
+            'migrationModel',
+            () => new MigrationModel({ database: this.database }),
         );
     }
 
