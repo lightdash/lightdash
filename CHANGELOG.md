@@ -1,3 +1,10 @@
+## [0.1036.2](https://github.com/lightdash/lightdash/compare/0.1036.1...0.1036.2) (2024-03-19)
+
+
+### Bug Fixes
+
+* show warning on content not copied on dev previews ([#9373](https://github.com/lightdash/lightdash/issues/9373)) ([507f2aa](https://github.com/lightdash/lightdash/commit/507f2aae65a7790b962943dfe1d0732b76354487))
+
 ## [0.1036.1](https://github.com/lightdash/lightdash/compare/0.1036.0...0.1036.1) (2024-03-19)
 
 
