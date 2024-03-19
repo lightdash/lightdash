@@ -12,6 +12,7 @@ import {
     NotFoundError,
     OpenIdIdentityIssuerType,
     OpenIdUser,
+    Organization,
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
@@ -31,7 +32,10 @@ import {
 } from '../database/entities/emails';
 import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import { OrganizationTableName } from '../database/entities/organizations';
+import {
+    DbOrganization,
+    OrganizationTableName,
+} from '../database/entities/organizations';
 import {
     DbPasswordLoginIn,
     PasswordLoginTableName,
@@ -88,6 +92,7 @@ const userDetailsQueryBuilder = (
         .joinRaw(
             'LEFT JOIN emails ON users.user_id = emails.user_id AND emails.is_primary',
         )
+        // TODO remove this org join, we should do this in the service
         .leftJoin(
             'organization_memberships',
             'users.user_id',
@@ -193,6 +198,39 @@ export class UserModel {
             }
         }
         return newUser;
+    }
+
+    async getOrganizationsForUser(
+        userUuid: string,
+    ): Promise<
+        Pick<
+            LightdashUser,
+            'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
+        >[]
+    > {
+        const organizations = await this.database('organization_memberships')
+            .leftJoin(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .where(
+                'user_id',
+                this.database('users')
+                    .where('user_uuid', userUuid)
+                    .select('user_id'),
+            )
+            .select<DbOrganization[]>(
+                'organizations.organization_uuid',
+                'organizations.created_at',
+                'organizations.organization_name',
+            );
+
+        return organizations.map((organization) => ({
+            organizationUuid: organization.organization_uuid,
+            organizationCreatedAt: organization.created_at,
+            organizationName: organization.organization_name,
+        }));
     }
 
     async hasUsers(): Promise<boolean> {
@@ -541,10 +579,50 @@ export class UserModel {
         return this.getUserDetailsByUuid(user.user_uuid);
     }
 
+    /**
+     * Returns the user with the default organization
+     * Used in old methods to get the organizationUuid from the userUuid
+     * You should use findSessionUserAndOrgByUuid instead and stop assuming a user has a default organization
+     * @deprecated
+     */
     async findSessionUserByUUID(userUuid: string): Promise<SessionUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
             .select('*', 'organizations.created_at as organization_created_at');
+        if (user === undefined) {
+            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
+        }
+        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const projectRoles = await this.getUserProjectRoles(
+            user.user_id,
+            user.user_uuid,
+        );
+        const groupProjectRoles = await this.getUserGroupProjectRoles(
+            user.user_id,
+            user.organization_id,
+            user.user_uuid,
+        );
+        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
+            ...projectRoles,
+            ...groupProjectRoles,
+        ]);
+        return {
+            ...lightdashUser,
+            userId: user.user_id,
+            abilityRules: abilityBuilder.rules,
+            ability: abilityBuilder.build(),
+        };
+    }
+
+    async findSessionUserAndOrgByUuid(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<SessionUser> {
+        const [user] = await userDetailsQueryBuilder(this.database)
+            .where('user_uuid', userUuid)
+            .andWhere('organizations.organization_uuid', organizationUuid) // We filter organizationUuid here
+            .select('*', 'organizations.created_at as organization_created_at');
+
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }

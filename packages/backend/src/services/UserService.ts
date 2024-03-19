@@ -57,6 +57,7 @@ import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { postHogClient } from '../postHog';
+import { wrapOtelSpan } from '../utils';
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -442,7 +443,7 @@ export class UserService {
         inviteCode: string | undefined,
         refreshToken?: string,
     ): Promise<SessionUser> {
-        const loginUser = await this.userModel.findSessionUserByOpenId(
+        const openIdSession = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
         );
@@ -458,7 +459,16 @@ export class UserService {
             );
         }
         // Identity already exists. Update the identity attributes and login the user
-        if (loginUser) {
+        if (openIdSession) {
+            const organization = this.loginToOrganization(
+                openIdSession?.userUuid,
+                openIdUser.openId.issuerType,
+            );
+            const loginUser: SessionUser = {
+                ...openIdSession,
+                ...organization,
+            };
+
             if (inviteCode) {
                 const inviteLink = await this.inviteLinkModel.getByCode(
                     inviteCode,
@@ -721,11 +731,20 @@ export class UserService {
                 );
             }
             // TODO: move to authorization service layer
+            // TODO we should probably remove the organization from the model
             const user = await this.userModel.getUserByPrimaryEmailAndPassword(
                 email,
                 password,
             );
-            this.identifyUser(user);
+            const userOrganization = this.loginToOrganization(
+                user.userUuid,
+                LocalIssuerTypes.EMAIL,
+            );
+            const userWithOrganization = {
+                ...user,
+                ...userOrganization,
+            };
+            this.identifyUser(userWithOrganization);
             this.analytics.track({
                 userId: user.userUuid,
                 event: 'user.logged_in',
@@ -916,6 +935,12 @@ export class UserService {
             throw new AuthorizationError();
         }
         const { user, personalAccessToken } = results;
+        const organization = this.loginToOrganization(
+            user.userUuid,
+            LocalIssuerTypes.API_TOKEN,
+        );
+        const userWithOrganization: SessionUser = { ...user, ...organization };
+
         const now = new Date();
         if (
             personalAccessToken.expiresAt &&
@@ -928,7 +953,7 @@ export class UserService {
             }
             throw new AuthorizationError();
         }
-        return user;
+        return userWithOrganization;
     }
 
     async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
@@ -1094,6 +1119,38 @@ export class UserService {
                 ),
             },
         });
+    }
+
+    async loginToOrganization(
+        userUuid: string,
+        loginMethod: LoginOptionTypes,
+    ): Promise<
+        Pick<
+            LightdashUser,
+            'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
+        >
+    > {
+        const organizations = await this.userModel.getOrganizationsForUser(
+            userUuid,
+        );
+        if (organizations.length === 0) {
+            throw new NotExistsError('User not part of any organization');
+        } else if (organizations.length > 1) {
+            throw new ForbiddenError('User is part of multiple organizations');
+        }
+        // TODO check valid login methods allowed in org
+        // const organization = await this.organizationModel.get(organizations[0].organization_uuid)
+        return organizations[0];
+    }
+
+    async findSessionUser(passportUser: { id: string; organization: string }) {
+        const user = await wrapOtelSpan('Passport.deserializeUser', {}, () =>
+            this.userModel.findSessionUserAndOrgByUuid(
+                passportUser.id,
+                passportUser.organization,
+            ),
+        );
+        return user;
     }
 
     private static async generateGoogleAccessToken(

@@ -364,24 +364,26 @@ export default class App {
         }
         passport.serializeUser((user, done) => {
             // On login (user changes), user.userUuid is written to the session store in the `sess.passport.data` field
-            done(null, user.userUuid);
+            done(null, {
+                id: user.userUuid,
+                organization: user.organizationUuid,
+            });
         });
 
         // Before each request handler we read `sess.passport.user` from the session store
-        passport.deserializeUser(async (id: string, done) => {
-            // Convert to a full user profile
-            try {
-                const user = await wrapOtelSpan(
-                    'Passport.deserializeUser',
-                    {},
-                    () => userModel.findSessionUserByUUID(id),
-                );
-                // Store that user on the request (`req`) object
-                done(null, user);
-            } catch (e) {
-                done(e);
-            }
-        });
+        passport.deserializeUser(
+            async (
+                passportUser: { id: string; organization: string },
+                done,
+            ) => {
+                // Convert to a full user profile
+                try {
+                    done(null, await userService.findSessionUser(passportUser));
+                } catch (e) {
+                    done(e);
+                }
+            },
+        );
 
         return expressApp;
     }
