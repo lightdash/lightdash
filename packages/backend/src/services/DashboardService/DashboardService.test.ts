@@ -33,8 +33,6 @@ import {
     user,
 } from './DashboardService.mock';
 
-jest.mock('../../database/database', () => ({}));
-
 const dashboardModel = {
     getAllByProject: jest.fn(async () => dashboardsDetails),
 

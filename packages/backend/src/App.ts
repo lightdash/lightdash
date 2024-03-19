@@ -15,7 +15,7 @@ import express, {
 } from 'express';
 import expressSession from 'express-session';
 import expressStaticGzip from 'express-static-gzip';
-import { Knex } from 'knex';
+import knex, { Knex } from 'knex';
 import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
 import path from 'path';
@@ -56,7 +56,6 @@ import {
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
-import { wrapOtelSpan } from './utils';
 import { VERSION } from './version';
 
 // We need to override this interface to have our user typing
@@ -81,7 +80,10 @@ type AppArguments = {
     otelSdk: NodeSDK;
     environment?: 'production' | 'development';
     serviceProviders?: ServiceProviderMap;
-    database: Knex;
+    knexConfig: {
+        production: Knex.Config<Knex.PgConnectionConfig>;
+        development: Knex.Config<Knex.PgConnectionConfig>;
+    };
     modelProviders?: ModelProviderMap;
 };
 
@@ -123,11 +125,15 @@ export default class App {
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
         });
-        this.database = args.database;
+        this.database = knex(
+            this.environment === 'production'
+                ? args.knexConfig.production
+                : args.knexConfig.development,
+        );
         this.models = new ModelRepository({
             modelProviders: args.modelProviders,
             lightdashConfig: this.lightdashConfig,
-            database: args.database,
+            database: this.database,
         });
         this.clients = {
             dbtCloudGraphqlClient: new DbtCloudGraphqlClient(),
