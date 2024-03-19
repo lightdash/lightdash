@@ -2,8 +2,8 @@ import { ActionIcon } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCheck, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
-import useToaster from '../../hooks/toaster/useToaster';
-import MantineIcon from '../common/MantineIcon';
+import useToaster from '../../../hooks/toaster/useToaster';
+import MantineIcon from '../MantineIcon';
 
 const ShareLinkButton: FC<{ url: string }> = ({ url }) => {
     const clipboard = useClipboard({ timeout: 500 });

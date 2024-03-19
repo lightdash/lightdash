@@ -44,7 +44,6 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
-import ShareLinkButton from '../../ShareLinkButton';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
@@ -57,6 +56,7 @@ import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
+import ShareLinkButton from './ShareLinkButton';
 
 type DashboardHeaderProps = {
     spaces?: SpaceSummary[];
