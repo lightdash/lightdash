@@ -401,6 +401,8 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                   lightdashConfig.siteUrl,
               ).href,
               passReqToCallback: true,
+              pkce: true,
+              state: true,
           },
           async (
               req: Express.Request,
