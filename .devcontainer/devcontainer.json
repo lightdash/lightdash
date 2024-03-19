@@ -1,0 +1,33 @@
+
+{
+	"name": "Lightdash",
+	"dockerComposeFile": "../docker/docker-compose.dev.yml",
+	"service": "lightdash-dev",
+	"workspaceFolder": "/usr/app",
+	"shutdownAction": "stopCompose",
+	"postCreateCommand": "git submodule update --init && ./docker/scripts/build.sh && ./docker/scripts/seed-jaffle.sh",
+	"forwardPorts": [3000, 8080],
+	"remoteEnv": {
+	  "LIGHTDASH_CONFIG_FILE": "/usr/app/lightdash.yml",
+	  "DBT_DEMO_DIR": "/usr/app/examples/full-jaffle-shop-demo",
+	  "HEADLESS_BROWSER_HOST": "headless-browser",
+	  "HEADLESS_BROWSER_PORT": "3000"
+	},
+	"extensions": ["mtxr.sqltools", "mtxr.sqltools-driver-pg"],
+	"settings": {
+	  "git.autofetch": true,
+	  "sqltools.autoConnectTo": "Lightdash db",
+	  "sqltools.connections": [
+		{
+		  "name": "Lightdash db",
+		  "driver": "PostgreSQL",
+		  "previewLimit": 50,
+		  "server": "db-dev",
+		  "port": 5432,
+		  "database": "postgres",
+		  "username": "postgres",
+		  "password": "password"
+		}
+	  ]
+	}
+  }
