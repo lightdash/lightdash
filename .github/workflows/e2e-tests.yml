@@ -169,6 +169,7 @@ jobs:
           path: |
             packages/e2e/cypress/screenshots
             packages/e2e/cypress/videos
+            packages/e2e/cypress/snapshots
           if-no-files-found: ignore
 
   timezone-tests:
