@@ -138,6 +138,7 @@ export class ExploreCompiler {
                     ...prev,
                     [join.alias || join.table]: {
                         ...tables[join.table],
+                        originalName: tables[join.table].name,
                         name: joinTableName,
                         label: joinTableLabel,
                         hidden: join.hidden,

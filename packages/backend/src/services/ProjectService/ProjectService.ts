@@ -3681,7 +3681,6 @@ export class ProjectService {
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
-
         if (!explores) {
             throw new NotFoundError('No explores found');
         }
@@ -3701,15 +3700,14 @@ export class ProjectService {
                 label: chart.name,
                 description: chart.description ?? '',
                 url: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
-                dependsOn: Object.keys(
+                dependsOn: Object.values(
                     explores.find(({ name }) => name === chart.tableName)
                         ?.tables || {},
-                ).map((tableName) => `ref('${tableName}')`),
+                ).map((table) => `ref('${table.originalName || table.name}')`),
                 tags: ['lightdash', 'chart'],
             });
             return acc;
         }, []);
-
         const dashboards = await this.dashboardModel.findInfoForDbtExposures(
             projectUuid,
         );

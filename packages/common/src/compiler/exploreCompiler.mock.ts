@@ -710,6 +710,7 @@ export const compiledSimpleJoinedExplore: Explore = {
         },
         b: {
             name: 'b',
+            originalName: 'b',
             label: 'Custom B label',
             database: 'database',
             schema: 'schema',
@@ -1501,6 +1502,7 @@ export const exploreWithRequiredAttributesCompiled: Explore = {
         },
         b: {
             name: 'b',
+            originalName: 'b',
             label: 'b',
             database: 'database',
             schema: 'schema',
