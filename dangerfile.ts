@@ -45,9 +45,17 @@ export enum DangerCheckCode {
  * Expected type signature for danger checks - split into two types to make
  * it more convenient when defining a function with DangerCheck.
  */
-export type DangerCheck = () =>
-    | (DangerCheck | void)
-    | Promise<DangerCheckCode | void>;
+interface DangerCheckArgs {
+    fail: typeof fail;
+    markdown: typeof markdown;
+    danger: typeof danger;
+    message: typeof message;
+    warn: typeof warn;
+}
+
+export type DangerCheck = (
+    args: DangerCheckArgs,
+) => (DangerCheck | void) | Promise<DangerCheckCode | void>;
 
 type DangerCheckEntry = [description: string, DangerCheck];
 
@@ -92,7 +100,13 @@ async function runAllChecks() {
     const mergedChecks = [...localChecks, ...checks];
 
     for (const [description, check] of mergedChecks) {
-        const result = await check();
+        const result = await check({
+            danger,
+            fail,
+            markdown,
+            message,
+            warn,
+        });
 
         /**
          * Handle special cases for check return values; the default behavior is
