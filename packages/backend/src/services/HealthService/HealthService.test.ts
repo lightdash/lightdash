@@ -1,5 +1,6 @@
 import { LightdashInstallType, LightdashMode } from '@lightdash/common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
+import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { HealthService } from './HealthService';
 import { BaseResponse, Config } from './HealthService.mock';
@@ -15,17 +16,18 @@ jest.mock('../../clients/DockerHub/DockerHub', () => ({
     getDockerHubVersion: jest.fn(() => '0.2.7'),
 }));
 
-jest.mock('../../database/database', () => ({
+const migrationModel = {
     getMigrationStatus: jest.fn(() => ({
         isComplete: true,
         currentVersion: 'example',
     })),
-}));
+};
 
 describe('health', () => {
     const healthService = new HealthService({
         organizationModel: organizationModel as unknown as OrganizationModel,
         lightdashConfig: Config,
+        migrationModel: migrationModel as unknown as MigrationModel,
     });
 
     afterEach(() => {
@@ -66,6 +68,7 @@ describe('health', () => {
                 ...Config,
                 mode: LightdashMode.CLOUD_BETA,
             },
+            migrationModel: migrationModel as unknown as MigrationModel,
         });
         expect(await service.getHealthState(false)).toEqual({
             ...BaseResponse,
