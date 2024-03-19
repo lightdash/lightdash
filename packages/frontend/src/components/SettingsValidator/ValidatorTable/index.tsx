@@ -58,7 +58,7 @@ const isDeleted = (validationError: ValidationResponse) =>
 
 const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     if (isChartValidationError(validationError))
-        return <ChartIcon chartType={validationError.chartType} />;
+        return <ChartIcon chartKind={validationError.chartKind} />;
     if (isDashboardValidationError(validationError))
         return <IconBox icon={IconLayoutDashboard} color="green.8" />;
     return <IconBox icon={IconTable} color="indigo.6" />;

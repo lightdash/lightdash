@@ -366,22 +366,6 @@ export type UpdateMultipleSavedChart = Pick<
     'uuid' | 'name' | 'description' | 'spaceUuid'
 >;
 
-export type SpaceQuery = Pick<
-    SavedChart,
-    | 'uuid'
-    | 'name'
-    | 'updatedAt'
-    | 'updatedByUser'
-    | 'description'
-    | 'spaceUuid'
-    | 'pinnedListUuid'
-    | 'pinnedListOrder'
-> &
-    ViewStatistics & {
-        chartType: ChartKind | undefined;
-        validationErrors?: ValidationSummary[];
-    };
-
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,
 ): value is CompleteCartesianChartLayout =>
@@ -550,7 +534,13 @@ export type ChartSummary = Pick<
     | 'pinnedListUuid'
     | 'dashboardUuid'
     | 'dashboardName'
-> & { chartType?: ChartType | undefined };
+> & { chartType?: ChartType | undefined; chartKind?: ChartKind | undefined };
+
+export type SpaceQuery = ChartSummary &
+    Pick<SavedChart, 'updatedAt' | 'updatedByUser' | 'pinnedListOrder'> &
+    ViewStatistics & {
+        validationErrors?: ValidationSummary[];
+    };
 
 export type ApiChartSummaryListResponse = {
     status: 'ok';
