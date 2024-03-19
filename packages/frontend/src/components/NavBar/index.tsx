@@ -1,4 +1,4 @@
-import { ProjectType } from '@lightdash/common';
+import { assertUnreachable, ProjectType } from '@lightdash/common';
 import {
     Box,
     getDefaultZIndex,
@@ -81,12 +81,16 @@ const NavBar = memo(() => {
             case NavBarMode.EDITING_DASHBOARD_CHART:
                 return <DashboardExplorerBanner projectUuid={projectUuid} />;
             case NavBarMode.DEFAULT:
-            default:
                 return (
                     <MainNavBarContent
                         activeProjectUuid={activeProjectUuid}
                         isLoadingActiveProject={isLoadingActiveProject}
                     />
+                );
+            default:
+                assertUnreachable(
+                    navBarMode,
+                    `Unknown navBarMode ${navBarMode}`,
                 );
         }
     };
