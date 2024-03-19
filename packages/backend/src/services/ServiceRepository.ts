@@ -1,40 +1,7 @@
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import type { ClientManifest } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
-import {
-    analyticsModel,
-    commentModel,
-    dashboardModel,
-    downloadFileModel,
-    emailModel,
-    githubAppInstallationsModel,
-    groupsModel,
-    inviteLinkModel,
-    jobModel,
-    notificationsModel,
-    onboardingModel,
-    openIdIdentityModel,
-    organizationAllowedEmailDomainsModel,
-    organizationMemberProfileModel,
-    organizationModel,
-    passwordResetLinkModel,
-    personalAccessTokenModel,
-    pinnedListModel,
-    projectModel,
-    resourceViewItemModel,
-    savedChartModel,
-    schedulerModel,
-    searchModel,
-    sessionModel,
-    shareModel,
-    slackAuthenticationModel,
-    spaceModel,
-    sshKeyPairModel,
-    userAttributesModel,
-    userModel,
-    userWarehouseCredentialsModel,
-    validationModel,
-} from '../models/models';
+import { ModelRepository } from '../models/ModelRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { CommentService } from './CommentService/CommentService';
 import { CsvService } from './CsvService/CsvService';
@@ -111,6 +78,7 @@ type ServiceFactoryMethod<T extends ServiceManifest> = {
 type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
     repository: ServiceRepository;
     context: OperationContext;
+    models: ModelRepository;
 }) => T[keyof T];
 
 /**
@@ -191,18 +159,23 @@ abstract class ServiceRepositoryBase {
      */
     public clients: ClientManifest;
 
+    protected models: ModelRepository;
+
     constructor({
         serviceProviders,
         context,
         clients,
+        models,
     }: {
         serviceProviders?: ServiceProviderMap<ServiceManifest>;
         context: OperationContext;
         clients: ClientManifest;
+        models: ModelRepository;
     }) {
         this.providers = serviceProviders ?? {};
         this.context = context;
         this.clients = clients;
+        this.models = models;
     }
 }
 
@@ -230,7 +203,7 @@ export class ServiceRepository
             () =>
                 new AnalyticsService({
                     analytics: this.context.lightdashAnalytics,
-                    analyticsModel,
+                    analyticsModel: this.models.getAnalyticsModel(),
                 }),
         );
     }
@@ -241,11 +214,11 @@ export class ServiceRepository
             () =>
                 new CommentService({
                     analytics: this.context.lightdashAnalytics,
-                    dashboardModel,
-                    spaceModel,
-                    commentModel,
-                    notificationsModel,
-                    userModel,
+                    dashboardModel: this.models.getDashboardModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    commentModel: this.models.getCommentModel(),
+                    notificationsModel: this.models.getNotificationsModel(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }
@@ -258,11 +231,11 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectService: this.getProjectService(),
-                    userModel,
+                    userModel: this.models.getUserModel(),
                     s3Client: this.clients.s3Client,
-                    dashboardModel,
-                    savedChartModel,
-                    downloadFileModel,
+                    dashboardModel: this.models.getDashboardModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    downloadFileModel: this.models.getDownloadFileModel(),
                     schedulerClient: this.clients.schedulerClient,
                 }),
         );
@@ -274,12 +247,12 @@ export class ServiceRepository
             () =>
                 new DashboardService({
                     analytics: this.context.lightdashAnalytics,
-                    dashboardModel,
-                    spaceModel,
-                    analyticsModel,
-                    pinnedListModel,
-                    schedulerModel,
-                    savedChartModel,
+                    dashboardModel: this.models.getDashboardModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    analyticsModel: this.models.getAnalyticsModel(),
+                    pinnedListModel: this.models.getPinnedListModel(),
+                    schedulerModel: this.models.getSchedulerModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
                     schedulerClient: this.clients.schedulerClient,
                     slackClient: this.clients.slackClient,
                 }),
@@ -292,7 +265,7 @@ export class ServiceRepository
             () =>
                 new DownloadFileService({
                     lightdashConfig: this.context.lightdashConfig,
-                    downloadFileModel,
+                    downloadFileModel: this.models.getDownloadFileModel(),
                 }),
         );
     }
@@ -313,10 +286,11 @@ export class ServiceRepository
             () =>
                 new GitIntegrationService({
                     lightdashConfig: this.context.lightdashConfig,
-                    savedChartModel,
-                    projectModel,
-                    spaceModel,
-                    githubAppInstallationsModel,
+                    savedChartModel: this.models.getSavedChartModel(),
+                    projectModel: this.models.getProjectModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    githubAppInstallationsModel:
+                        this.models.getGithubAppInstallationsModel(),
                 }),
         );
     }
@@ -326,8 +300,9 @@ export class ServiceRepository
             'githubAppService',
             () =>
                 new GithubAppService({
-                    githubAppInstallationsModel,
-                    userModel,
+                    githubAppInstallationsModel:
+                        this.models.getGithubAppInstallationsModel(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }
@@ -339,9 +314,9 @@ export class ServiceRepository
                 new GdriveService({
                     lightdashConfig: this.context.lightdashConfig,
                     projectService: this.getProjectService(),
-                    userModel,
-                    dashboardModel,
-                    savedChartModel,
+                    userModel: this.models.getUserModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
                     schedulerClient: this.clients.schedulerClient,
                 }),
         );
@@ -353,8 +328,8 @@ export class ServiceRepository
             () =>
                 new GroupsService({
                     analytics: this.context.lightdashAnalytics,
-                    groupsModel,
-                    projectModel,
+                    groupsModel: this.models.getGroupsModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
@@ -365,7 +340,7 @@ export class ServiceRepository
             () =>
                 new HealthService({
                     lightdashConfig: this.context.lightdashConfig,
-                    organizationModel,
+                    organizationModel: this.models.getOrganizationModel(),
                 }),
         );
     }
@@ -375,7 +350,7 @@ export class ServiceRepository
             'notificationService',
             () =>
                 new NotificationsService({
-                    notificationsModel,
+                    notificationsModel: this.models.getNotificationsModel(),
                 }),
         );
     }
@@ -387,14 +362,16 @@ export class ServiceRepository
                 new OrganizationService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
-                    organizationModel,
-                    projectModel,
-                    onboardingModel,
-                    inviteLinkModel,
-                    organizationMemberProfileModel,
-                    userModel,
-                    organizationAllowedEmailDomainsModel,
-                    groupsModel,
+                    organizationModel: this.models.getOrganizationModel(),
+                    projectModel: this.models.getProjectModel(),
+                    onboardingModel: this.models.getOnboardingModel(),
+                    inviteLinkModel: this.models.getInviteLinkModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
+                    userModel: this.models.getUserModel(),
+                    organizationAllowedEmailDomainsModel:
+                        this.models.getOrganizationAllowedEmailDomainsModel(),
+                    groupsModel: this.models.getGroupsModel(),
                 }),
         );
     }
@@ -405,7 +382,8 @@ export class ServiceRepository
             () =>
                 new PersonalAccessTokenService({
                     analytics: this.context.lightdashAnalytics,
-                    personalAccessTokenModel,
+                    personalAccessTokenModel:
+                        this.models.getPersonalAccessTokenModel(),
                 }),
         );
     }
@@ -415,12 +393,13 @@ export class ServiceRepository
             'pinningService',
             () =>
                 new PinningService({
-                    dashboardModel,
-                    savedChartModel,
-                    spaceModel,
-                    pinnedListModel,
-                    resourceViewItemModel,
-                    projectModel,
+                    dashboardModel: this.models.getDashboardModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    pinnedListModel: this.models.getPinnedListModel(),
+                    resourceViewItemModel:
+                        this.models.getResourceViewItemModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
@@ -432,18 +411,19 @@ export class ServiceRepository
                 new ProjectService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
-                    projectModel,
-                    onboardingModel,
-                    savedChartModel,
-                    jobModel,
+                    projectModel: this.models.getProjectModel(),
+                    onboardingModel: this.models.getOnboardingModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    jobModel: this.models.getJobModel(),
                     emailClient: this.clients.emailClient,
-                    spaceModel,
-                    sshKeyPairModel,
-                    userAttributesModel,
+                    spaceModel: this.models.getSpaceModel(),
+                    sshKeyPairModel: this.models.getSshKeyPairModel(),
+                    userAttributesModel: this.models.getUserAttributesModel(),
                     s3CacheClient: this.clients.s3CacheClient,
-                    analyticsModel,
-                    dashboardModel,
-                    userWarehouseCredentialsModel,
+                    analyticsModel: this.models.getAnalyticsModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    userWarehouseCredentialsModel:
+                        this.models.getUserWarehouseCredentialsModel(),
                     schedulerClient: this.clients.schedulerClient,
                 }),
         );
@@ -455,12 +435,12 @@ export class ServiceRepository
             () =>
                 new SavedChartService({
                     analytics: this.context.lightdashAnalytics,
-                    projectModel,
-                    savedChartModel,
-                    spaceModel,
-                    analyticsModel,
-                    pinnedListModel,
-                    schedulerModel,
+                    projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    analyticsModel: this.models.getAnalyticsModel(),
+                    pinnedListModel: this.models.getPinnedListModel(),
+                    schedulerModel: this.models.getSchedulerModel(),
                     schedulerClient: this.clients.schedulerClient,
                     slackClient: this.clients.slackClient,
                 }),
@@ -474,10 +454,10 @@ export class ServiceRepository
                 new SchedulerService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
-                    schedulerModel,
-                    savedChartModel,
-                    dashboardModel,
-                    spaceModel,
+                    schedulerModel: this.models.getSchedulerModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    spaceModel: this.models.getSpaceModel(),
                     schedulerClient: this.clients.schedulerClient,
                     slackClient: this.clients.slackClient,
                 }),
@@ -490,10 +470,10 @@ export class ServiceRepository
             () =>
                 new SearchService({
                     analytics: this.context.lightdashAnalytics,
-                    projectModel,
-                    searchModel,
-                    spaceModel,
-                    userAttributesModel,
+                    projectModel: this.models.getProjectModel(),
+                    searchModel: this.models.getSearchModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    userAttributesModel: this.models.getUserAttributesModel(),
                 }),
         );
     }
@@ -505,7 +485,7 @@ export class ServiceRepository
                 new ShareService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
-                    shareModel,
+                    shareModel: this.models.getShareModel(),
                 }),
         );
     }
@@ -515,7 +495,7 @@ export class ServiceRepository
             'sshKeyPairService',
             () =>
                 new SshKeyPairService({
-                    sshKeyPairModel,
+                    sshKeyPairModel: this.models.getSshKeyPairModel(),
                 }),
         );
     }
@@ -526,7 +506,8 @@ export class ServiceRepository
             () =>
                 new SlackIntegrationService({
                     analytics: this.context.lightdashAnalytics,
-                    slackAuthenticationModel,
+                    slackAuthenticationModel:
+                        this.models.getSlackAuthenticationModel(),
                 }),
         );
     }
@@ -537,9 +518,9 @@ export class ServiceRepository
             () =>
                 new SpaceService({
                     analytics: this.context.lightdashAnalytics,
-                    projectModel,
-                    spaceModel,
-                    pinnedListModel,
+                    projectModel: this.models.getProjectModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    pinnedListModel: this.models.getPinnedListModel(),
                 }),
         );
     }
@@ -551,13 +532,13 @@ export class ServiceRepository
                 new UnfurlService({
                     lightdashConfig: this.context.lightdashConfig,
                     encryptionService: this.getEncryptionService(),
-                    dashboardModel,
-                    savedChartModel,
-                    spaceModel,
-                    shareModel,
+                    dashboardModel: this.models.getDashboardModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    shareModel: this.models.getShareModel(),
                     s3Client: this.clients.s3Client,
-                    projectModel,
-                    downloadFileModel,
+                    projectModel: this.models.getProjectModel(),
+                    downloadFileModel: this.models.getDownloadFileModel(),
                 }),
         );
     }
@@ -568,7 +549,7 @@ export class ServiceRepository
             () =>
                 new UserAttributesService({
                     analytics: this.context.lightdashAnalytics,
-                    userAttributesModel,
+                    userAttributesModel: this.models.getUserAttributesModel(),
                 }),
         );
     }
@@ -580,19 +561,24 @@ export class ServiceRepository
                 new UserService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
-                    inviteLinkModel,
-                    userModel,
-                    groupsModel,
-                    sessionModel,
-                    emailModel,
-                    openIdIdentityModel,
-                    passwordResetLinkModel,
+                    inviteLinkModel: this.models.getInviteLinkModel(),
+                    userModel: this.models.getUserModel(),
+                    groupsModel: this.models.getGroupsModel(),
+                    sessionModel: this.models.getSessionModel(),
+                    emailModel: this.models.getEmailModel(),
+                    openIdIdentityModel: this.models.getOpenIdIdentityModel(),
+                    passwordResetLinkModel:
+                        this.models.getPasswordResetLinkModel(),
                     emailClient: this.clients.emailClient,
-                    organizationMemberProfileModel,
-                    organizationModel,
-                    personalAccessTokenModel,
-                    organizationAllowedEmailDomainsModel,
-                    userWarehouseCredentialsModel,
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
+                    organizationModel: this.models.getOrganizationModel(),
+                    personalAccessTokenModel:
+                        this.models.getPersonalAccessTokenModel(),
+                    organizationAllowedEmailDomainsModel:
+                        this.models.getOrganizationAllowedEmailDomainsModel(),
+                    userWarehouseCredentialsModel:
+                        this.models.getUserWarehouseCredentialsModel(),
                 }),
         );
     }
@@ -604,11 +590,11 @@ export class ServiceRepository
                 new ValidationService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
-                    projectModel,
-                    savedChartModel,
-                    validationModel,
-                    dashboardModel,
-                    spaceModel,
+                    projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    validationModel: this.models.getValidationModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    spaceModel: this.models.getSpaceModel(),
                     schedulerClient: this.clients.schedulerClient,
                 }),
         );
@@ -636,6 +622,7 @@ export class ServiceRepository
                 serviceInstance = this.providers[serviceName]!({
                     repository: this,
                     context: this.context,
+                    models: this.models,
                 }) as T;
             } else if (factory != null) {
                 serviceInstance = factory();

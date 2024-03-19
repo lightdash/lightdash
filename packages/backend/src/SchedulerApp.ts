@@ -3,6 +3,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
+import { Knex } from 'knex';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { S3Client } from './clients/Aws/s3';
 import { S3CacheClient } from './clients/Aws/S3CacheClient';
@@ -13,7 +14,7 @@ import { GoogleDriveClient } from './clients/Google/GoogleDriveClient';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
-import { schedulerModel, slackAuthenticationModel } from './models/models';
+import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { SchedulerClient } from './scheduler/SchedulerClient';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { registerWorkerMetrics } from './schedulerMetrics';
@@ -30,6 +31,8 @@ type SchedulerAppArguments = {
     environment?: 'production' | 'development';
     otelSdk: NodeSDK;
     serviceProviders?: ServiceProviderMap;
+    database: Knex;
+    modelProviders?: ModelProviderMap;
 };
 
 export default class SchedulerApp {
@@ -64,6 +67,13 @@ export default class SchedulerApp {
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
         });
+
+        const models = new ModelRepository({
+            modelProviders: args.modelProviders,
+            lightdashConfig: this.lightdashConfig,
+            database: args.database,
+        });
+
         this.clients = {
             dbtCloudGraphqlClient: new DbtCloudGraphqlClient(),
             emailClient: new EmailClient({
@@ -81,10 +91,10 @@ export default class SchedulerApp {
             schedulerClient: new SchedulerClient({
                 lightdashConfig: this.lightdashConfig,
                 analytics: this.analytics,
-                schedulerModel,
+                schedulerModel: models.getSchedulerModel(),
             }),
             slackClient: new SlackClient({
-                slackAuthenticationModel,
+                slackAuthenticationModel: models.getSlackAuthenticationModel(),
                 lightdashConfig: this.lightdashConfig,
             }),
         };
@@ -96,6 +106,7 @@ export default class SchedulerApp {
                 operationId: 'SchedulerApp#ctor',
             }),
             clients: this.clients,
+            models,
         });
     }
 
