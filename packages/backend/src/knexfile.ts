@@ -4,13 +4,13 @@
 import { Knex } from 'knex';
 import path from 'path';
 import { parse } from 'pg-connection-string';
-import { lightdashConfig } from '../config/lightdashConfig';
+import { lightdashConfig } from './config/lightdashConfig';
 
 const CONNECTION = lightdashConfig.database.connectionUri
     ? parse(lightdashConfig.database.connectionUri)
     : {};
 
-export const development: Knex.Config = {
+const development: Knex.Config<Knex.PgConnectionConfig> = {
     client: 'pg',
     connection: CONNECTION,
     pool: {
@@ -18,26 +18,30 @@ export const development: Knex.Config = {
         max: lightdashConfig.database.maxConnections || 10,
     },
     migrations: {
-        directory: path.join(__dirname, './migrations'),
+        directory: path.join(__dirname, './database/migrations'),
         tableName: 'knex_migrations',
         extension: 'ts',
         loadExtensions: ['.ts'],
     },
     seeds: {
-        directory: './seeds/development',
+        directory: './database/seeds/development',
         loadExtensions: ['.ts'],
     },
 };
 
-export const production: Knex.Config = {
+const production: Knex.Config<Knex.PgConnectionConfig> = {
     ...development,
     migrations: {
-        directory: path.join(__dirname, './migrations'),
-        tableName: 'knex_migrations',
+        ...development.migrations,
         loadExtensions: ['.js'],
     },
     seeds: {
-        directory: './seeds/development',
+        ...development.seeds,
         loadExtensions: ['.js'],
     },
+};
+
+export default {
+    development,
+    production,
 };

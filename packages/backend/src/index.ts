@@ -4,7 +4,7 @@ import otelSdk from './otel'; // must be imported first
 import { lightdashConfig } from './config/lightdashConfig';
 import Logger from './logging/logger';
 import App from './App';
-import database from './database/database';
+import knexConfig from './knexfile';
 
 const app = new App({
     lightdashConfig,
@@ -12,7 +12,7 @@ const app = new App({
     environment:
         process.env.NODE_ENV === 'development' ? 'development' : 'production',
     otelSdk,
-    database,
+    knexConfig,
 });
 
 process.on('unhandledRejection', (reason, p) => {

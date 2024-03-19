@@ -3,7 +3,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
-import { Knex } from 'knex';
+import knex, { Knex } from 'knex';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { S3Client } from './clients/Aws/s3';
 import { S3CacheClient } from './clients/Aws/S3CacheClient';
@@ -31,7 +31,10 @@ type SchedulerAppArguments = {
     environment?: 'production' | 'development';
     otelSdk: NodeSDK;
     serviceProviders?: ServiceProviderMap;
-    database: Knex;
+    knexConfig: {
+        production: Knex.Config<Knex.PgConnectionConfig>;
+        development: Knex.Config<Knex.PgConnectionConfig>;
+    };
     modelProviders?: ModelProviderMap;
 };
 
@@ -68,10 +71,16 @@ export default class SchedulerApp {
             },
         });
 
+        const database = knex(
+            this.environment === 'production'
+                ? args.knexConfig.production
+                : args.knexConfig.development,
+        );
+
         const models = new ModelRepository({
             modelProviders: args.modelProviders,
             lightdashConfig: this.lightdashConfig,
-            database: args.database,
+            database,
         });
 
         this.clients = {

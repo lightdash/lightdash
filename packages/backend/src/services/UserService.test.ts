@@ -17,8 +17,6 @@ import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserService } from './UserService';
 
-jest.mock('../database/database', () => ({}));
-
 const userModel = {
     getOpenIdIssuer: jest.fn(async () => undefined),
 };

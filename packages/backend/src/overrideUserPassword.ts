@@ -1,5 +1,6 @@
+import knex from 'knex';
 import { lightdashConfig } from './config/lightdashConfig';
-import database from './database/database';
+import knexConfig from './knexfile';
 import Logger from './logging/logger';
 import { UserModel } from './models/UserModel';
 
@@ -15,8 +16,16 @@ import { UserModel } from './models/UserModel';
     if (!newPassword) {
         throw new Error('New password is undefined');
     }
-
-    const userModel = new UserModel({ database, lightdashConfig });
+    const environment =
+        process.env.NODE_ENV === 'development' ? 'development' : 'production';
+    const userModel = new UserModel({
+        lightdashConfig,
+        database: knex(
+            environment === 'production'
+                ? knexConfig.production
+                : knexConfig.development,
+        ),
+    });
 
     Logger.info(`Get user by email: ${email}`);
     const user = await userModel.findSessionUserByPrimaryEmail(email);
