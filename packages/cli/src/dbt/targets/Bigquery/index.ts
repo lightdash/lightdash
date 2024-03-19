@@ -4,6 +4,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
+import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../../ajv';
 import { Target } from '../../types';
 import { getBigqueryCredentialsFromOauth } from './oauth';
@@ -15,6 +16,7 @@ import {
 type BigqueryTarget = {
     project: string;
     dataset: string;
+    schema: string;
     priority?: 'interactive' | 'batch';
     retries?: number;
     location?: string;
@@ -29,6 +31,9 @@ export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
             type: 'string',
         },
         dataset: {
+            type: 'string',
+        },
+        schema: {
             type: 'string',
         },
         priority: {
@@ -53,7 +58,15 @@ export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
             nullable: true,
         },
     },
-    required: ['project', 'dataset'],
+    required: ['project'],
+    oneOf: [
+        {
+            required: ['dataset'],
+        },
+        {
+            required: ['schema'],
+        },
+    ],
 };
 
 export const convertBigquerySchema = async (
@@ -83,7 +96,7 @@ export const convertBigquerySchema = async (
         return {
             type: WarehouseTypes.BIGQUERY,
             project: target.project,
-            dataset: target.dataset,
+            dataset: target.dataset || target.schema,
             timeoutSeconds: target.timeout_seconds,
             priority: target.priority,
             keyfileContents: await getBigqueryCredentials(target),
@@ -92,10 +105,14 @@ export const convertBigquerySchema = async (
             location: target.location,
         };
     }
-    const lineErrorMessages = (validate.errors || [])
-        .map((err) => `Field at ${err.instancePath} ${err.message}`)
-        .join('\n');
+
+    const errs = betterAjvErrors(
+        bigqueryTargetJsonSchema,
+        target,
+        validate.errors || [],
+    );
+
     throw new ParseError(
-        `Couldn't read profiles.yml file for ${target.type}:\n  ${lineErrorMessages}`,
+        `Couldn't read profiles.yml file for ${target.type}:\n${errs}`,
     );
 };
