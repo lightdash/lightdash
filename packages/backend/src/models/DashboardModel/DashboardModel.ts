@@ -589,10 +589,11 @@ export class DashboardModel {
                     name,
                     last_version_chart_kind,
                 }) => {
-                    const base: Omit<
-                        Dashboard['tiles'][number],
-                        'type' | 'properties'
-                    > = {
+                    // const base: Omit<
+                    //     Dashboard['tiles'][number],
+                    //     'type' | 'properties'
+                    // > = {
+                    const base: any = {
                         uuid: dashboard_tile_uuid,
                         x: x_offset,
                         y: y_offset,
