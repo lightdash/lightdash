@@ -1,3 +1,10 @@
+# [0.1036.0](https://github.com/lightdash/lightdash/compare/0.1035.2...0.1036.0) (2024-03-19)
+
+
+### Features
+
+* login to organization ([#9364](https://github.com/lightdash/lightdash/issues/9364)) ([d51402e](https://github.com/lightdash/lightdash/commit/d51402e9213523053ccc46427a90327393fb1ca9)), closes [#9348](https://github.com/lightdash/lightdash/issues/9348)
+
 ## [0.1035.2](https://github.com/lightdash/lightdash/compare/0.1035.1...0.1035.2) (2024-03-18)
 
 
