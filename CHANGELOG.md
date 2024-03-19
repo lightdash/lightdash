@@ -1,3 +1,10 @@
+## [0.1036.5](https://github.com/lightdash/lightdash/compare/0.1036.4...0.1036.5) (2024-03-19)
+
+
+### Bug Fixes
+
+* exposure join with alias ([#9429](https://github.com/lightdash/lightdash/issues/9429)) ([e64eb14](https://github.com/lightdash/lightdash/commit/e64eb1474396d624f0ae58efbb6d25df5b96c553))
+
 ## [0.1036.4](https://github.com/lightdash/lightdash/compare/0.1036.3...0.1036.4) (2024-03-19)
 
 
