@@ -113,6 +113,6 @@ export const convertBigquerySchema = async (
     );
 
     throw new ParseError(
-        `Couldn't read profiles.yml file for ${target.type}:\n  ${errs}`,
+        `Couldn't read profiles.yml file for ${target.type}:\n${errs}`,
     );
 };
