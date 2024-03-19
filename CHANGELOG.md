@@ -1,3 +1,10 @@
+## [0.1036.1](https://github.com/lightdash/lightdash/compare/0.1036.0...0.1036.1) (2024-03-19)
+
+
+### Bug Fixes
+
+* allow schema in profiles.yml for bigquery ([#9437](https://github.com/lightdash/lightdash/issues/9437)) ([e101594](https://github.com/lightdash/lightdash/commit/e101594471f5db6c8003d7d74a7e8aaa89438046))
+
 # [0.1036.0](https://github.com/lightdash/lightdash/compare/0.1035.2...0.1036.0) (2024-03-19)
 
 
