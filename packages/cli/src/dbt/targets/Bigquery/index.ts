@@ -4,6 +4,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
+import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../../ajv';
 import { Target } from '../../types';
 import { getBigqueryCredentialsFromOauth } from './oauth';
@@ -25,7 +26,6 @@ type BigqueryTarget = {
 
 export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
     type: 'object',
-    required: ['project'],
     properties: {
         project: {
             type: 'string',
@@ -58,6 +58,7 @@ export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
             nullable: true,
         },
     },
+    required: ['project'],
     oneOf: [
         {
             required: ['dataset'],
@@ -95,7 +96,7 @@ export const convertBigquerySchema = async (
         return {
             type: WarehouseTypes.BIGQUERY,
             project: target.project,
-            dataset: target.dataset ?? target.schema,
+            dataset: target.dataset || target.schema,
             timeoutSeconds: target.timeout_seconds,
             priority: target.priority,
             keyfileContents: await getBigqueryCredentials(target),
@@ -104,16 +105,14 @@ export const convertBigquerySchema = async (
             location: target.location,
         };
     }
-    const lineErrorMessages = (validate.errors || [])
-        .map((err) => {
-            if (err.keyword === 'oneOf') {
-                return 'Profile should contain either `dataset` or `schema`';
-            }
 
-            return `Field at ${err.instancePath} ${err.message}`;
-        })
-        .join('\n');
+    const errs = betterAjvErrors(
+        bigqueryTargetJsonSchema,
+        target,
+        validate.errors || [],
+    );
+
     throw new ParseError(
-        `Couldn't read profiles.yml file for ${target.type}:\n  ${lineErrorMessages}`,
+        `Couldn't read profiles.yml file for ${target.type}:\n  ${errs}`,
     );
 };
