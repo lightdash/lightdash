@@ -74,6 +74,9 @@ export type ModelManifest = {
     userModel: UserModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     validationModel: ValidationModel;
+
+    /** An implementation signature for these models are not available at this stage */
+    embedModel: unknown;
 };
 
 /**
@@ -438,6 +441,10 @@ export class ModelRepository
             'validationModel',
             () => new ValidationModel({ database: this.database }),
         );
+    }
+
+    public getEmbedModel<ModelImplT>(): ModelImplT {
+        return this.getModel('embedModel');
     }
 
     /**
