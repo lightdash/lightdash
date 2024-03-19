@@ -1,7 +1,12 @@
 import moment from 'moment';
-import { getFilterRuleWithDefaultValue, getPasswordSchema } from '.';
+import {
+    getDateGroupLabel,
+    getFilterRuleWithDefaultValue,
+    getPasswordSchema,
+} from '.';
 import {
     dateDayDimension,
+    dateDayDimensionWithGroup,
     dateMonthDimension,
     dateYearDimension,
     emptyValueFilter,
@@ -139,5 +144,35 @@ describe('Password Validation', () => {
                 );
             }
         });
+    });
+});
+
+describe('getDateGroupLabel', () => {
+    test('returns undefined if not a date dimension', () => {
+        expect(getDateGroupLabel(stringDimension)).toBeUndefined();
+    });
+
+    test('returns undefined if no group', () => {
+        expect(getDateGroupLabel(dateDayDimension)).toBeUndefined();
+    });
+
+    test('removes time interval from end of label', () => {
+        expect(getDateGroupLabel(dateDayDimensionWithGroup)).toEqual('date');
+
+        expect(
+            getDateGroupLabel({
+                ...dateDayDimensionWithGroup,
+                label: 'month dayday month date year day',
+            }),
+        ).toEqual('month dayday month date year'); // only replaces time frame at the end of string
+    });
+
+    test('returns friendly label if it cant recognise time interval', () => {
+        expect(
+            getDateGroupLabel({
+                ...dateDayDimensionWithGroup,
+                label: 'day date (day)',
+            }),
+        ).toEqual('Day date day'); // doesn't recognize (day) as a valid time frame
     });
 });
