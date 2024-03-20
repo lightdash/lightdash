@@ -169,7 +169,7 @@ describe('Explore', () => {
 
         const newTCName = 'TC2';
 
-        cy.findByRole('menuitem', { name: 'Edit calculation' }).click();
+        cy.get('button').contains('Edit calculation').click();
         cy.findByTestId('table-calculation-name-input').type(
             `{selectAll}${newTCName}`,
         );
