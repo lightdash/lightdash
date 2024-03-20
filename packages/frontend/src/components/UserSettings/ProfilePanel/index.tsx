@@ -32,22 +32,17 @@ type FormValues = z.infer<typeof validationSchema>;
 
 const ProfilePanel: FC = () => {
     const {
-        user: { data: userData, isInitialLoading: isLoadingUser },
+        user: { data: userData, isLoading: isLoadingUser },
         health,
     } = useApp();
     const { showToastSuccess, showToastError } = useToaster();
 
     const form = useForm<FormValues>({
-        initialValues: {
-            firstName: '',
-            lastName: '',
-            email: '',
-        },
         validate: zodResolver(validationSchema),
     });
 
     useEffect(() => {
-        if (isLoadingUser || !userData) return;
+        if (!userData) return;
 
         const initialValues = {
             firstName: userData.firstName,
@@ -55,11 +50,15 @@ const ProfilePanel: FC = () => {
             email: userData.email,
         };
 
-        form.setInitialValues(initialValues);
-        form.setValues(initialValues);
+        if (form.initialized) {
+            form.setInitialValues(initialValues);
+            form.setValues(initialValues);
+        } else {
+            form.initialize(initialValues);
+        }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoadingUser, userData]);
+    }, [userData]);
 
     const isEmailServerConfigured = health.data?.hasEmailClient;
     const { data, isInitialLoading: statusLoading } = useEmailStatus();
@@ -103,6 +102,8 @@ const ProfilePanel: FC = () => {
         updateUser(formValues);
     });
 
+    const isLoading = isLoadingUser || isUpdatingUser || !form.initialized;
+
     return (
         <form onSubmit={handleOnSubmit}>
             <Stack mt="md">
@@ -111,8 +112,9 @@ const ProfilePanel: FC = () => {
                     label="First name"
                     type="text"
                     required
-                    disabled={isLoadingUser || isUpdatingUser}
+                    disabled={isLoading}
                     {...form.getInputProps('firstName')}
+                    value={form.values.firstName ?? ''}
                 />
 
                 <TextInput
@@ -120,8 +122,9 @@ const ProfilePanel: FC = () => {
                     label="Last name"
                     type="text"
                     required
-                    disabled={isLoadingUser || isUpdatingUser}
+                    disabled={isLoading}
                     {...form.getInputProps('lastName')}
+                    value={form.values.lastName ?? ''}
                 />
 
                 <TextInput
@@ -129,7 +132,7 @@ const ProfilePanel: FC = () => {
                     label="Email"
                     type="email"
                     required
-                    disabled={isLoadingUser || isUpdatingUser}
+                    disabled={isLoading}
                     inputWrapperOrder={[
                         'label',
                         'input',
@@ -137,6 +140,7 @@ const ProfilePanel: FC = () => {
                         'description',
                     ]}
                     {...form.getInputProps('email')}
+                    value={form.values.email ?? ''}
                     rightSection={
                         isEmailServerConfigured && data?.isVerified ? (
                             <Tooltip label="This e-mail has been verified">
@@ -185,7 +189,7 @@ const ProfilePanel: FC = () => {
                     <Button
                         type="submit"
                         display="block"
-                        loading={isLoadingUser || isUpdatingUser}
+                        loading={isLoading}
                         disabled={!form.isDirty()}
                     >
                         Update
