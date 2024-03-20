@@ -107,29 +107,24 @@ const ProfilePanel: FC = () => {
         <form onSubmit={handleOnSubmit}>
             <Stack mt="md">
                 <TextInput
-                    id="first-name-input"
                     placeholder="First name"
                     label="First name"
                     type="text"
                     required
                     disabled={isLoadingUser || isUpdatingUser}
-                    data-cy="first-name-input"
                     {...form.getInputProps('firstName')}
                 />
 
                 <TextInput
-                    id="last-name-input"
                     placeholder="Last name"
                     label="Last name"
                     type="text"
                     required
                     disabled={isLoadingUser || isUpdatingUser}
-                    data-cy="last-name-input"
                     {...form.getInputProps('lastName')}
                 />
 
                 <TextInput
-                    id="email-input"
                     placeholder="Email"
                     label="Email"
                     type="email"
@@ -142,7 +137,6 @@ const ProfilePanel: FC = () => {
                         'description',
                     ]}
                     {...form.getInputProps('email')}
-                    data-cy="email-input"
                     rightSection={
                         isEmailServerConfigured && data?.isVerified ? (
                             <Tooltip label="This e-mail has been verified">
@@ -192,7 +186,6 @@ const ProfilePanel: FC = () => {
                         type="submit"
                         display="block"
                         loading={isLoadingUser || isUpdatingUser}
-                        data-cy="update-profile-settings"
                         disabled={!form.isDirty()}
                     >
                         Update

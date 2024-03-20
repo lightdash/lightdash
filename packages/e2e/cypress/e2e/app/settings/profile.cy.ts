@@ -22,20 +22,26 @@ describe('Settings - Profile', () => {
         cy.visit('/');
         cy.findByTestId('user-avatar').click();
         cy.findByRole('menuitem', { name: 'User settings' }).click();
-        cy.get('[data-cy="first-name-input"]').should(
-            'have.value',
-            SEED_ORG_1_ADMIN.first_name,
-        ); // wait for form to populate
-        cy.get('[data-cy="first-name-input"]').focus().clear();
-        cy.get('[data-cy="first-name-input"]').should('be.empty');
-        cy.get('[data-cy="first-name-input"]').type('Kevin');
-        cy.get('[data-cy="last-name-input"]').focus().clear();
-        cy.get('[data-cy="last-name-input"]').should('be.empty');
-        cy.get('[data-cy="last-name-input"]').type('Space');
-        cy.get('[data-cy="update-profile-settings"]').click();
+
+        cy.findByPlaceholderText('First name')
+            .should('not.be.disabled')
+            .should('have.value', SEED_ORG_1_ADMIN.first_name);
+        cy.findByPlaceholderText('Last name')
+            .should('not.be.disabled')
+            .should('have.value', SEED_ORG_1_ADMIN.last_name);
+        cy.findByPlaceholderText('Email')
+            .should('not.be.disabled')
+            .should('have.value', SEED_ORG_1_ADMIN_EMAIL.email);
+
+        cy.findByPlaceholderText('First name').clear().type('Kevin');
+        cy.findByPlaceholderText('Last name').clear().type('Space');
+
+        cy.findByRole('button', { name: 'Update' }).click();
+
         cy.findByText('Success! User details were updated.').should(
             'be.visible',
         );
+
         cy.visit('/');
         cy.findByTestId('user-avatar').should('contain', 'KS');
     });
