@@ -1,6 +1,6 @@
 import { Button, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useEffect, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../common/MantineIcon';
@@ -15,15 +15,15 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         savedQueryUuid: string;
         mode?: string;
     }>();
+    const [isCancelling, setIsCancelling] = useState(false);
 
     const { getEditingDashboardInfo, clearDashboardStorage } =
         useDashboardStorage();
     const { name: dashboardName, dashboardUuid } = getEditingDashboardInfo();
 
     useEffect(() => {
-        window.addEventListener('unload', clearDashboardStorage);
-        return () =>
-            window.removeEventListener('unload', clearDashboardStorage);
+        // Clear dashboard storage when component unmounts
+        return () => clearDashboardStorage();
     }, [clearDashboardStorage]);
 
     const action = useMemo(() => {
@@ -39,12 +39,41 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         }
     }, [savedQueryUuid, mode]);
 
+    const handleOnCancel = useCallback(() => {
+        setIsCancelling(true);
+        history.push(
+            `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
+                savedQueryUuid ? 'view' : 'edit'
+            }`,
+        );
+
+        // Also clear dashboard storage when navigating back to dashboard
+        clearDashboardStorage();
+
+        setTimeout(() => {
+            setIsCancelling(false);
+            // Clear the banner after navigating back to dashboard
+        }, 1000);
+    }, [
+        clearDashboardStorage,
+        dashboardUuid,
+        history,
+        projectUuid,
+        savedQueryUuid,
+    ]);
+
     return (
         <>
             <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
+
             <Text color="white" fw={500} fz="xs" mx="xxs">
-                You are {action} this chart from within "{dashboardName}"
+                {isCancelling
+                    ? `Cancelling...`
+                    : `You are ${action} this chart from within ${
+                          dashboardName ? `"${dashboardName}"` : 'a dashboard'
+                      }`}
             </Text>
+
             <Tooltip
                 withinPortal
                 label="Cancel chart creation and return to dashboard"
@@ -52,16 +81,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
                 maw={350}
             >
                 <Button
-                    onClick={() => {
-                        history.push(
-                            `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
-                                savedQueryUuid ? 'view' : 'edit'
-                            }`,
-                        );
-
-                        // Also clear dashboard storage when navigating back to dashboard
-                        clearDashboardStorage();
-                    }}
+                    onClick={handleOnCancel}
                     size="xs"
                     ml="md"
                     variant="white"
