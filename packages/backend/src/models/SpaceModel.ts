@@ -119,10 +119,9 @@ export class SpaceModel {
                 `${UserTableName}.user_id`,
             )
             .where((q) => {
-                q.where(`${UserTableName}.user_uuid`, userUuid).orWhere(
-                    `${SpaceTableName}.is_private`,
-                    false,
-                );
+                void q
+                    .where(`${UserTableName}.user_uuid`, userUuid)
+                    .orWhere(`${SpaceTableName}.is_private`, false);
             })
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .select<
@@ -359,10 +358,10 @@ export class SpaceModel {
                         ),
                 });
             if (filters.projectUuid) {
-                query.where('projects.project_uuid', filters.projectUuid);
+                void query.where('projects.project_uuid', filters.projectUuid);
             }
             if (filters.spaceUuid) {
-                query.where('spaces.space_uuid', filters.spaceUuid);
+                void query.where('spaces.space_uuid', filters.spaceUuid);
             }
             return await query;
         } finally {
@@ -495,8 +494,8 @@ export class SpaceModel {
                 this.database.raw(`
                     COALESCE(
                         (
-                            SELECT json_agg(validations.*) 
-                            FROM validations 
+                            SELECT json_agg(validations.*)
+                            FROM validations
                             WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
                         ), '[]'
                     ) as validation_errors
@@ -650,17 +649,20 @@ export class SpaceModel {
             .where(`${SpaceTableName}.space_uuid`, spaceUuid)
             .modify((query) => {
                 if (filters?.userUuid) {
-                    query.where(`${UserTableName}.user_uuid`, filters.userUuid);
+                    void query.where(
+                        `${UserTableName}.user_uuid`,
+                        filters.userUuid,
+                    );
                 }
             })
             .where((query) => {
-                query
+                void query
                     .where((query1) => {
                         // if space is private, only return user with direct access or admin role
-                        query1
+                        void query1
                             .where(`${SpaceTableName}.is_private`, true)
                             .andWhere((query2) => {
-                                query2
+                                void query2
                                     .whereNotNull(
                                         `${SpaceShareTableName}.user_id`,
                                     )
@@ -871,8 +873,8 @@ export class SpaceModel {
                 this.database.raw(`
                     COALESCE(
                         (
-                            SELECT json_agg(validations.*) 
-                            FROM validations 
+                            SELECT json_agg(validations.*)
+                            FROM validations
                             WHERE validations.saved_chart_uuid = saved_queries.saved_query_uuid
                         ), '[]'
                     ) as validation_errors

@@ -33,7 +33,8 @@ export class SlackClient {
     }: SlackClientArguments) {
         this.lightdashConfig = lightdashConfig;
         this.slackAuthenticationModel = slackAuthenticationModel;
-        this.start();
+
+        void this.start();
     }
 
     async start() {

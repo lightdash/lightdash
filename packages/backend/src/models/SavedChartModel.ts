@@ -428,7 +428,7 @@ export class SavedChartModel {
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
             .andWhere(function whereRecentVersionsOrCurrentVersion() {
                 // get all versions from the last X days + the current version ( in case is older than X days )
-                this.whereRaw(
+                void this.whereRaw(
                     `${SavedChartVersionsTableName}.created_at >= DATE(current_timestamp - interval '?? days')`,
                     [daysLimit],
                 ).orWhere(
@@ -649,7 +649,7 @@ export class SavedChartModel {
                 .limit(1);
 
             if (versionUuid) {
-                chartQuery.where(
+                void chartQuery.where(
                     `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
                     versionUuid,
                 );
@@ -887,10 +887,10 @@ export class SavedChartModel {
         try {
             const query = this.getChartSummaryQuery();
             if (filters.projectUuid) {
-                query.where('projects.project_uuid', filters.projectUuid);
+                void query.where('projects.project_uuid', filters.projectUuid);
             }
             if (filters.spaceUuids) {
-                query
+                void query
                     .whereNotNull(`${SavedChartsTableName}.space_id`)
                     .whereIn('spaces.space_uuid', filters.spaceUuids);
             }
