@@ -35,7 +35,6 @@ import {
 import { IconGripVertical } from '@tabler/icons-react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../../common/MantineIcon';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
 const VALUE_LABELS_OPTIONS = [
     { value: 'hidden', label: 'Hidden' },
@@ -108,7 +107,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSeries,
     series,
 }) => {
-    const { getSeriesColor } = useVisualizationContext();
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
     >();
@@ -134,11 +132,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     const onDragEnd = useCallback(
         (result: DropResult) => {
             const allSerieIds = series.map(getSeriesId);
-            const seriesWithColor: Series[] = series.map((s) => ({
-                ...s,
-                color: getSeriesColor(s),
-            }));
-            const serie = seriesWithColor.find(
+            const serie = series.find(
                 (s) => getSeriesId(s) === result.draggableId,
             );
             if (!serie) return;
@@ -154,14 +148,14 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     ? allSerieIds.indexOf(getSeriesId(previousGroupedItem))
                     : 0;
 
-            const sortedSeries = seriesWithColor.filter(
+            const sortedSeries = series.filter(
                 (s) => getSeriesId(s) !== result.draggableId,
             );
             sortedSeries.splice(destinationIndex, 0, serie);
 
             updateSeries(sortedSeries);
         },
-        [series, seriesGroup, updateSeries, getSeriesColor],
+        [series, seriesGroup, updateSeries],
     );
 
     return (

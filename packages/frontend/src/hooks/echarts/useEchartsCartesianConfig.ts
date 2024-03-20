@@ -1406,11 +1406,9 @@ const useEchartsCartesianConfig = (
         if (!itemsMap) return;
 
         const seriesWithValidStack = series.map<EChartSeries>((serie) => {
-            const color = getSeriesColor(serie);
-
             return {
                 ...serie,
-                color,
+                color: getSeriesColor(serie),
                 stack: getValidStack(serie),
             };
         });

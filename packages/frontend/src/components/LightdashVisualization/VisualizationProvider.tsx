@@ -194,12 +194,17 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         }
     }, [resultsData?.metricQuery, columnOrder]);
 
+    /**
+     * Build a local set of fallback colors, used when dealing with ungrouped series.
+     *
+     * Colors are pre-calculated per-series, and re-calculated when series change.
+     */
     const fallbackColors = useMemo<Record<string, string>>(() => {
         if (!chartConfig?.config || chartConfig.type !== ChartType.CARTESIAN) {
             return {};
         }
 
-        const entries = Object.fromEntries(
+        return Object.fromEntries(
             (chartConfig.config.eChartsConfig.series ?? []).map((series, i) => {
                 return [
                     calculateSeriesLikeIdentifier(series).join('|'),
@@ -207,10 +212,6 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                 ];
             }),
         );
-
-        console.log(entries);
-
-        return entries;
     }, [chartConfig, colorPalette]);
 
     const handleChartConfigChange = useCallback(
@@ -256,6 +257,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
             return isGroupedSeries(seriesLike)
                 ? calculateSeriesColorAssignment(seriesLike)
                 : fallbackColors[
+                      // Note: we don't use getSeriesId since we may not be dealing with a Series type here
                       calculateSeriesLikeIdentifier(seriesLike).join('|')
                   ];
         },
