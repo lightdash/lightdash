@@ -1,5 +1,10 @@
 import { createRow } from '@tanstack/table-core/src/core/row';
-import { Row, RowData, RowModel, Table } from '@tanstack/table-core/src/types';
+import {
+    type Row,
+    type RowData,
+    type RowModel,
+    type Table,
+} from '@tanstack/table-core/src/types';
 import { flattenBy, memo } from '@tanstack/table-core/src/utils';
 
 // Customizes row grouping based on a clone of
