@@ -4,6 +4,7 @@ import {
     MetricType,
     type CustomFormat,
     type Metric,
+    type SortField,
     type TableCalculation,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
@@ -83,9 +84,17 @@ const isCalculationAvailable = (
 const getSqlForQuickCalculation = (
     quickCalculation: QuickCalculation,
     fieldReference: string,
-    order: string[],
+    sorts: SortField[],
 ) => {
-    const orderSql = order.length > 0 ? `ORDER BY ${order.join(', ')} ` : '';
+    const orderSql =
+        sorts.length > 0
+            ? `ORDER BY ${sorts
+                  .map(
+                      (sort) =>
+                          `${sort.fieldId} ${sort.descending ? 'DESC' : 'ASC'}`,
+                  )
+                  .join(', ')} `
+            : '';
     switch (quickCalculation) {
         case QuickCalculation.PERCENT_CHANGE_FROM_PREVIOUS:
             return `(
@@ -125,16 +134,15 @@ const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
             name: EventName.CREATE_QUICK_TABLE_CALCULATION_BUTTON_CLICKED,
         });
     };
-    const columnOrder = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
+    const sorts = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
-
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
-    const orderWithoutTableCalculations = columnOrder.filter(
-        (order) => !tableCalculations.some((tc) => tc.name === order),
+    const orderWithoutTableCalculations = sorts.filter(
+        (sort) => !tableCalculations.some((tc) => tc.name === sort.fieldId),
     );
 
     return (
