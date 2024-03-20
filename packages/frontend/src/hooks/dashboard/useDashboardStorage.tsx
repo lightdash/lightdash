@@ -93,6 +93,8 @@ const useDashboardStorage = () => {
                 'hasDashboardChanges',
                 JSON.stringify(haveTilesChanged || haveFiltersChanged),
             );
+            // Trigger storage event to update NavBar
+            window.dispatchEvent(new Event('storage'));
         },
         [],
     );
