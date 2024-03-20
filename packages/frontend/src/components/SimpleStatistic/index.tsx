@@ -1,5 +1,12 @@
 import { ComparisonDiffTypes } from '@lightdash/common';
-import { Tooltip, useMantineTheme } from '@mantine/core';
+import {
+    Center,
+    Flex,
+    Stack,
+    Text,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
 import { useMemo, type FC, type HTMLAttributes } from 'react';
@@ -10,12 +17,6 @@ import { isBigNumberVisualizationConfig } from '../LightdashVisualization/Visual
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
-import {
-    BigNumber,
-    BigNumberContainer,
-    BigNumberHalf,
-    BigNumberLabel,
-} from './SimpleStatistics.styles';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
@@ -159,79 +160,116 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     if (isLoading) return <LoadingChart />;
 
     return validData ? (
-        <BigNumberContainer
-            $paddingBottom={
-                isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT
-            }
+        <Center
+            w="100%"
+            component={Stack}
+            spacing={0}
+            pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
             ref={(elem) => setRef(elem)}
             {...wrapperProps}
         >
-            <BigNumberHalf>
+            <Flex style={{ flexShrink: 1 }}>
                 {minimal || isSqlRunner ? (
-                    <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
+                    <Text
+                        fz={valueFontSize}
+                        c="dark.4"
+                        align="center"
+                        fw={500}
+                        style={{
+                            transition: 'font-size 0.1s ease-in-out',
+                        }}
+                    >
+                        {bigNumber}
+                    </Text>
                 ) : (
                     <BigNumberContextMenu>
-                        <BigNumber $interactive $fontSize={valueFontSize}>
+                        <Text
+                            fz={valueFontSize}
+                            c="dark.4"
+                            align="center"
+                            fw={500}
+                            style={{
+                                transition: 'font-size 0.1s ease-in-out',
+                                cursor: 'pointer',
+                            }}
+                        >
                             {bigNumber}
-                        </BigNumber>
+                        </Text>
                     </BigNumberContextMenu>
                 )}
-            </BigNumberHalf>
+            </Flex>
 
             {showBigNumberLabel ? (
-                <BigNumberHalf>
-                    <BigNumberLabel $fontSize={labelFontSize}>
+                <Flex style={{ flexShrink: 1 }}>
+                    <Text
+                        fz={labelFontSize}
+                        c="dark.4"
+                        align="center"
+                        fw={500}
+                        style={{
+                            transition: 'font-size 0.1s ease-in-out',
+                        }}
+                    >
                         {bigNumberLabel || defaultLabel}
-                    </BigNumberLabel>
-                </BigNumberHalf>
+                    </Text>
+                </Flex>
             ) : null}
 
             {showComparison ? (
-                <BigNumberHalf
-                    style={{
-                        marginTop: 10,
-                    }}
-                >
-                    <Tooltip withinPortal label={comparisonTooltip}>
-                        <BigNumber
-                            $fontSize={comparisonFontSize}
-                            style={{
-                                color: comparisonValueColor,
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
-                        >
-                            {comparisonValue}
-                            {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
-                                <MantineIcon
-                                    icon={IconArrowUpRight}
-                                    size={18}
-                                    style={{
-                                        display: 'inline',
-                                        margin: '0 7px 0 0',
-                                    }}
-                                />
-                            ) : comparisonDiff ===
-                              ComparisonDiffTypes.NEGATIVE ? (
-                                <MantineIcon
-                                    icon={IconArrowDownRight}
-                                    size={18}
-                                    style={{
-                                        display: 'inline',
-                                        margin: '0 7px 0 0',
-                                    }}
-                                />
-                            ) : (
-                                <span style={{ margin: '0 7px 0 0' }} />
-                            )}
-                        </BigNumber>
-                    </Tooltip>
-                    <BigNumberLabel $fontSize={comparisonFontSize}>
+                <Flex style={{ flexShrink: 1 }} mt="lg">
+                    <Text
+                        fz={comparisonFontSize}
+                        c="gray.6"
+                        align="center"
+                        fw={500}
+                        style={{
+                            transition: 'font-size 0.1s ease-in-out',
+                        }}
+                    >
+                        <Tooltip withinPortal label={comparisonTooltip}>
+                            <Text
+                                span
+                                fz={comparisonFontSize}
+                                c={comparisonValueColor}
+                                align="center"
+                                fw={500}
+                                style={{
+                                    transition: 'font-size 0.1s ease-in-out',
+                                }}
+                            >
+                                {comparisonValue}
+
+                                {comparisonDiff ===
+                                ComparisonDiffTypes.POSITIVE ? (
+                                    <MantineIcon
+                                        icon={IconArrowUpRight}
+                                        size={18}
+                                        style={{
+                                            display: 'inline',
+                                            margin: '0 7px 0 0',
+                                        }}
+                                    />
+                                ) : comparisonDiff ===
+                                  ComparisonDiffTypes.NEGATIVE ? (
+                                    <MantineIcon
+                                        icon={IconArrowDownRight}
+                                        size={18}
+                                        style={{
+                                            display: 'inline',
+                                            margin: '0 7px 0 0',
+                                        }}
+                                    />
+                                ) : (
+                                    <span style={{ margin: '0 7px 0 0' }} />
+                                )}
+                            </Text>
+                        </Tooltip>
+
                         {comparisonLabel ?? null}
-                    </BigNumberLabel>
-                </BigNumberHalf>
+                    </Text>
+                </Flex>
             ) : null}
-        </BigNumberContainer>
+        </Center>
     ) : (
         <EmptyChart />
     );
