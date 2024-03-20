@@ -136,7 +136,7 @@ jobs:
           dir: "./packages/e2e/cypress/fixtures/"
       # Run E2E tests
       - name: Cypress run
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v5
         with:
           browser: chrome
           project: ./packages/e2e
@@ -169,7 +169,6 @@ jobs:
           path: |
             packages/e2e/cypress/screenshots
             packages/e2e/cypress/videos
-            packages/e2e/cypress/snapshots
           if-no-files-found: ignore
 
   timezone-tests:
@@ -208,7 +207,7 @@ jobs:
           dir: "./packages/e2e/cypress/fixtures/"
       # Run E2E tests
       - name: Cypress run
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v5
         with:
           project: ./packages/e2e
           spec: packages/e2e/cypress/e2e/app/dates.cy.ts
@@ -227,5 +226,4 @@ jobs:
           path: |
             packages/e2e/cypress/screenshots
             packages/e2e/cypress/videos
-            packages/e2e/cypress/snapshots
           if-no-files-found: ignore
