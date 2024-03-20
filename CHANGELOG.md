@@ -1,3 +1,10 @@
+# [0.1037.0](https://github.com/lightdash/lightdash/compare/0.1036.6...0.1037.0) (2024-03-20)
+
+
+### Features
+
+* clone preview without private spaces ([#9461](https://github.com/lightdash/lightdash/issues/9461)) ([96a276b](https://github.com/lightdash/lightdash/commit/96a276b7065d4077eaba82acbdff54bd0709161a))
+
 ## [0.1036.6](https://github.com/lightdash/lightdash/compare/0.1036.5...0.1036.6) (2024-03-20)
 
 
