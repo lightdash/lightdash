@@ -1,6 +1,6 @@
 import { Button, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../common/MantineIcon';
@@ -21,11 +21,6 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         useDashboardStorage();
     const { name: dashboardName, dashboardUuid } = getEditingDashboardInfo();
 
-    useEffect(() => {
-        // Clear dashboard storage when component unmounts
-        return () => clearDashboardStorage();
-    }, [clearDashboardStorage]);
-
     const action = useMemo(() => {
         if (!savedQueryUuid) {
             return 'creating';
@@ -41,18 +36,18 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
 
     const handleOnCancel = useCallback(() => {
         setIsCancelling(true);
+        // Also clear dashboard storage when navigating back to dashboard
+        clearDashboardStorage();
+
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
                 savedQueryUuid ? 'view' : 'edit'
             }`,
         );
 
-        // Also clear dashboard storage when navigating back to dashboard
-        clearDashboardStorage();
-
         setTimeout(() => {
+            // Clear the banner after navigating back to dashboard, but only after a delay so that the user can see the banner change
             setIsCancelling(false);
-            // Clear the banner after navigating back to dashboard
         }, 1000);
     }, [
         clearDashboardStorage,
