@@ -137,9 +137,9 @@ export class ValidationModel {
             .where('project_uuid', projectUuid)
             .andWhere((queryBuilder) => {
                 if (jobId) {
-                    queryBuilder.where('job_id', jobId);
+                    void queryBuilder.where('job_id', jobId);
                 } else {
-                    queryBuilder.whereNull('job_id');
+                    void queryBuilder.whereNull('job_id');
                 }
             })
             .andWhere(
@@ -246,9 +246,9 @@ export class ValidationModel {
             .where('project_uuid', projectUuid)
             .andWhere((queryBuilder) => {
                 if (jobId) {
-                    queryBuilder.where('job_id', jobId);
+                    void queryBuilder.where('job_id', jobId);
                 } else {
-                    queryBuilder.whereNull('job_id');
+                    void queryBuilder.whereNull('job_id');
                 }
             })
             .andWhere(
@@ -315,9 +315,9 @@ export class ValidationModel {
                 .where('project_uuid', projectUuid)
                 .andWhere((queryBuilder) => {
                     if (jobId) {
-                        queryBuilder.where('job_id', jobId);
+                        void queryBuilder.where('job_id', jobId);
                     } else {
-                        queryBuilder.whereNull('job_id');
+                        void queryBuilder.whereNull('job_id');
                     }
                 })
                 .andWhere(

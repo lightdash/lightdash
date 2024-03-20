@@ -10,9 +10,13 @@ type Args = {
 function run() {
     const { results, customLabels }: Args = workerData;
 
-    convertSqlToCsv(results, customLabels).then((csv) => {
-        if (parentPort) parentPort.postMessage(csv);
-    });
+    convertSqlToCsv(results, customLabels)
+        .then((csv) => {
+            if (parentPort) parentPort.postMessage(csv);
+        })
+        .catch((_error) => {
+            // TODO: not implemented
+        });
 }
 
 run();
