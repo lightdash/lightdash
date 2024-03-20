@@ -1,3 +1,10 @@
+# [0.1038.0](https://github.com/lightdash/lightdash/compare/0.1037.0...0.1038.0) (2024-03-20)
+
+
+### Features
+
+* quick calculations ([#9452](https://github.com/lightdash/lightdash/issues/9452)) ([9999cb6](https://github.com/lightdash/lightdash/commit/9999cb66c3d6940fec51b4b1636f8da10267f7dd))
+
 # [0.1037.0](https://github.com/lightdash/lightdash/compare/0.1036.6...0.1037.0) (2024-03-20)
 
 
