@@ -55,7 +55,7 @@ const ExportCSVModal: FC<ExportCSVModalProps> = ({
                         <Button
                             loading={isExporting}
                             onClick={() => {
-                                onExport().then(() => {
+                                void onExport().then(() => {
                                     onConfirm?.();
                                 });
                             }}

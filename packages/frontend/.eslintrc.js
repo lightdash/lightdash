@@ -24,7 +24,7 @@ module.exports = {
         'airbnb-typescript',
         'prettier',
         'plugin:jest-dom/recommended',
-        'plugin:testing-library/react'
+        'plugin:testing-library/react',
     ],
     plugins: [
         'css-modules',
@@ -35,7 +35,7 @@ module.exports = {
         'react-hooks',
         'react',
         'jest-dom',
-        'testing-library'
+        'testing-library',
     ],
 
     settings: {
@@ -93,15 +93,15 @@ module.exports = {
             'error',
             {
                 prefer: 'type-imports',
-                fixStyle: 'inline-type-imports'
-            }
+                fixStyle: 'inline-type-imports',
+            },
         ],
         '@typescript-eslint/no-unused-vars': [
             'error',
             {
                 argsIgnorePattern: '^_',
                 varsIgnorePattern: '^_',
-                ignoreRestSiblings: true
+                ignoreRestSiblings: true,
             },
         ],
     },

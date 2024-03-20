@@ -39,8 +39,8 @@ export function useAddProjectGroupAccessMutation() {
     >({
         mutationFn: ({ groupUuid, projectUuid, role }) =>
             addProjectGroupAccess({ groupUuid, projectUuid, role }),
-        onSuccess: (_data, { projectUuid }) => {
-            queryClient.invalidateQueries([
+        onSuccess: async (_data, { projectUuid }) => {
+            await queryClient.invalidateQueries([
                 'projects',
                 projectUuid,
                 'groupAccesses',
@@ -59,8 +59,8 @@ export function useUpdateProjectGroupAccessMutation() {
     >({
         mutationFn: ({ groupUuid, projectUuid, role }) =>
             updateProjectGroupAccess({ groupUuid, projectUuid, role }),
-        onSuccess: (_data, { projectUuid }) => {
-            queryClient.invalidateQueries([
+        onSuccess: async (_data, { projectUuid }) => {
+            await queryClient.invalidateQueries([
                 'projects',
                 projectUuid,
                 'groupAccesses',
@@ -75,8 +75,8 @@ export function useRemoveProjectGroupAccessMutation() {
     return useMutation<null, LightdashError, DeleteProjectGroupAccess>({
         mutationFn: ({ groupUuid, projectUuid }) =>
             removeProjectGroupAccess({ groupUuid, projectUuid }),
-        onSuccess: (_data, { projectUuid }) => {
-            queryClient.invalidateQueries([
+        onSuccess: async (_data, { projectUuid }) => {
+            await queryClient.invalidateQueries([
                 'projects',
                 projectUuid,
                 'groupAccesses',

@@ -98,9 +98,9 @@ export const useJob = (
                 ? false
                 : 500,
         staleTime: 0,
-        onSuccess: (job) => {
+        onSuccess: async (job) => {
             if (job.jobStatus === JobStatusType.DONE) {
-                queryClient.invalidateQueries(['tables']);
+                await queryClient.invalidateQueries(['tables']);
             }
             onSuccess(job);
         },
