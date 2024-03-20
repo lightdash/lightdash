@@ -19,7 +19,7 @@ import {
     ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
-    Space,
+    SpaceSummary,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
@@ -63,7 +63,6 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import { wrapOtelSpan } from '../../utils';
-import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 
 type ProjectModelArguments = {
@@ -1070,7 +1069,7 @@ export class ProjectModel {
     async duplicateContent(
         projectUuid: string,
         previewProjectUuid: string,
-        spaces: Space[],
+        spaces: SpaceSummary[],
     ) {
         Logger.debug(
             `Duplicating content from ${projectUuid} to ${previewProjectUuid}`,
