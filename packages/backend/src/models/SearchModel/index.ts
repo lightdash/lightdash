@@ -208,11 +208,22 @@ export class SearchModel {
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
         let subquery = this.database(SavedChartsTableName)
             .leftJoin(
-                SpaceTableName,
-                `${SavedChartsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
+                DashboardsTableName,
+                `${SavedChartsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
             )
-
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SavedChartsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+                this.orOn(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+            })
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
