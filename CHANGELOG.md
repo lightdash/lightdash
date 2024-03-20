@@ -1,3 +1,10 @@
+## [0.1038.1](https://github.com/lightdash/lightdash/compare/0.1038.0...0.1038.1) (2024-03-20)
+
+
+### Bug Fixes
+
+* join dashboards table to allow search on dashboard charts ([#9469](https://github.com/lightdash/lightdash/issues/9469)) ([c5258b6](https://github.com/lightdash/lightdash/commit/c5258b6c9a037ca4b77ad39a2d4b10a73205cb30))
+
 # [0.1038.0](https://github.com/lightdash/lightdash/compare/0.1037.0...0.1038.0) (2024-03-20)
 
 
