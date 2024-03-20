@@ -62,7 +62,6 @@ export default defineConfig({
                         'posthog-js',
                     ],
                     uiw: [
-                        '@uiw/copy-to-clipboard',
                         '@uiw/react-markdown-preview',
                         '@uiw/react-md-editor',
                     ],
