@@ -410,7 +410,7 @@ export class ProjectService {
                 // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
                 if (
                     user.ability.cannot(
-                        'manage',
+                        'create',
                         subject('Project', {
                             organizationUuid,
                             projectUuid: data.copiedFromProjectUuid,
@@ -422,6 +422,7 @@ export class ProjectService {
                 await this.copyContentOnPreview(
                     data.copiedFromProjectUuid,
                     projectUuid,
+                    user,
                 );
 
                 hasContentCopy = true;
@@ -3420,6 +3421,7 @@ export class ProjectService {
     async copyContentOnPreview(
         projectUuid: string,
         previewProjectUuid: string,
+        user: SessionUser,
     ): Promise<void> {
         Logger.debug(
             `Copying content from project ${projectUuid} to preview project ${previewProjectUuid}`,
@@ -3430,9 +3432,28 @@ export class ProjectService {
                 projectUuid,
             },
             async () => {
+                const spaces = await this.spaceModel.find({ projectUuid }); // Get all spaces in the project
+                const allowedSpacesBooleans = await Promise.all(
+                    spaces.map(async (space) =>
+                        hasViewAccessToSpace(
+                            user,
+                            space,
+                            await this.spaceModel.getUserSpaceAccess(
+                                user.userUuid,
+                                space.uuid,
+                            ),
+                        ),
+                    ),
+                );
+
+                const allowedSpaces = spaces.filter(
+                    (_, index) => allowedSpacesBooleans[index],
+                );
+
                 await this.projectModel.duplicateContent(
                     projectUuid,
                     previewProjectUuid,
+                    allowedSpaces,
                 );
             },
         );
