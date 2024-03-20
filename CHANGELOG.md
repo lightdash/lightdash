@@ -1,3 +1,10 @@
+## [0.1036.6](https://github.com/lightdash/lightdash/compare/0.1036.5...0.1036.6) (2024-03-20)
+
+
+### Bug Fixes
+
+* add icloud to email provider list ([#9459](https://github.com/lightdash/lightdash/issues/9459)) ([3006168](https://github.com/lightdash/lightdash/commit/3006168f55abccce5c60b2f11b55b368a83b110b))
+
 ## [0.1036.5](https://github.com/lightdash/lightdash/compare/0.1036.4...0.1036.5) (2024-03-19)
 
 
