@@ -150,6 +150,12 @@ describe('Explore', () => {
         cy.get('div.ace_content').type('${{}orders.unique_order_count{}}'); // cypress way of escaping { and }
         cy.findAllByTestId('table-calculation-save-button').click();
 
+        // run query
+        cy.get('button').contains('Run query').click();
+
+        // wait for the chart to finish loading
+        cy.contains('Loading chart').should('not.exist');
+
         // open chart menu and change chart types
         cy.findByText('Configure').click();
 
