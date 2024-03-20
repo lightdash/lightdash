@@ -30,10 +30,12 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
 }) => {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const queryClient = useQueryClient();
+
     const handleDelete = async () => {
         setIsDeleting(false);
-        queryClient.invalidateQueries(['schedulerLogs']);
+        await queryClient.invalidateQueries(['schedulerLogs']);
     };
+
     return (
         <>
             <Menu

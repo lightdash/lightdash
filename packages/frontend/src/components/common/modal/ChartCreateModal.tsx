@@ -199,9 +199,9 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             <form
                 onSubmit={form.onSubmit((values) => {
                     if (fromDashboard && dashboardUuid) {
-                        handleSaveChartInDashboard(values);
+                        void handleSaveChartInDashboard(values);
                     } else {
-                        handleConfirm(values);
+                        void handleConfirm(values);
                     }
                 })}
             >
