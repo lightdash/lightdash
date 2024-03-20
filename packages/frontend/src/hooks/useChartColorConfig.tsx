@@ -178,23 +178,11 @@ export const useChartColorConfig = ({
     );
 
     const calculateSeriesColorAssignment = useCallback(
-        (
-            series: SeriesLike,
-            options: {
-                groupPrefix?: string;
-            } = {},
-        ) => {
+        (series: SeriesLike) => {
             const [baseField, completeIdentifier] =
                 calculateSeriesLikeIdentifier(series);
 
-            return calculateKeyColorAssignment(
-                /**
-                 * If no group prefix is specified, we treat the base field as the group.
-                 * This allows overriding colors are grouped across different contexts.
-                 */
-                options.groupPrefix ?? baseField,
-                completeIdentifier,
-            );
+            return calculateKeyColorAssignment(baseField, completeIdentifier);
         },
         [calculateKeyColorAssignment],
     );
