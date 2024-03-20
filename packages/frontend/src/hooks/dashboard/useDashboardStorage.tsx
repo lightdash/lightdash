@@ -1,13 +1,30 @@
-import { type DashboardFilters, type DashboardTile } from '@lightdash/common';
-import { useCallback } from 'react';
+import {
+    type CreateDashboardChartTile,
+    type DashboardFilters,
+    type DashboardTile,
+} from '@lightdash/common';
+import { useCallback, useEffect, useState } from 'react';
 
 const useDashboardStorage = () => {
+    const [isEditingDashboardChart, setIsEditingDashboardChart] =
+        useState(false);
+
     const getIsEditingDashboardChart = useCallback(() => {
         return (
             !!sessionStorage.getItem('fromDashboard') ||
             !!sessionStorage.getItem('dashboardUuid')
         );
     }, []);
+
+    // Update isEditingDashboardChart when storage changes, so that NavBar can update accordingly
+    useEffect(() => {
+        const handleStorage = () => {
+            setIsEditingDashboardChart(getIsEditingDashboardChart());
+        };
+
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+    }, [getIsEditingDashboardChart]);
 
     const clearIsEditingDashboardChart = useCallback(() => {
         sessionStorage.removeItem('fromDashboard');
@@ -20,6 +37,19 @@ const useDashboardStorage = () => {
             dashboardUuid: sessionStorage.getItem('dashboardUuid'),
         };
     }, []);
+
+    const setDashboardChartInfo = useCallback(
+        (dashboardData: { name: string; dashboardUuid: string }) => {
+            sessionStorage.setItem('fromDashboard', dashboardData.name);
+            sessionStorage.setItem(
+                'dashboardUuid',
+                dashboardData.dashboardUuid,
+            );
+            // Trigger storage event to update NavBar
+            window.dispatchEvent(new Event('storage'));
+        },
+        [],
+    );
 
     const getHasDashboardChanges = useCallback(() => {
         return JSON.parse(
@@ -67,13 +97,35 @@ const useDashboardStorage = () => {
         [],
     );
 
+    const getUnsavedDashboardTiles = useCallback(() => {
+        return JSON.parse(
+            sessionStorage.getItem('unsavedDashboardTiles') ?? '[]',
+        );
+    }, []);
+
+    const setUnsavedDashboardTiles = useCallback(
+        (
+            unsavedDashboardTiles: DashboardTile[] | CreateDashboardChartTile[],
+        ) => {
+            sessionStorage.setItem(
+                'unsavedDashboardTiles',
+                JSON.stringify(unsavedDashboardTiles),
+            );
+        },
+        [],
+    );
+
     return {
-        storeDashboard: storeDashboard,
-        clearDashboardStorage: clearDashboardStorage,
-        getEditingDashboardInfo: getEditingDashboardInfo,
-        getIsEditingDashboardChart: getIsEditingDashboardChart,
-        clearIsEditingDashboardChart: clearIsEditingDashboardChart,
-        getHasDashboardChanges: getHasDashboardChanges,
+        storeDashboard,
+        clearDashboardStorage,
+        isEditingDashboardChart,
+        getIsEditingDashboardChart,
+        getEditingDashboardInfo,
+        setDashboardChartInfo,
+        clearIsEditingDashboardChart,
+        getHasDashboardChanges,
+        getUnsavedDashboardTiles,
+        setUnsavedDashboardTiles,
     };
 };
 
