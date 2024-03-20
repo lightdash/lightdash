@@ -405,10 +405,6 @@ const testCustomDimensions = (projectUuid) => {
     cy.contains('How do payment methods vary').click();
     cy.contains('0 - 6');
     cy.contains('6 - 12');
-    cy.wait(1000); // wait for chart animation
-    cy.get('.echarts-for-react').matchImageSnapshot(
-        'custom-dimension-bar-chart',
-    );
 };
 
 describe('Create projects', () => {

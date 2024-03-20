@@ -1,4 +1,3 @@
-import { addMatchImageSnapshotPlugin } from '@simonsmith/cypress-image-snapshot/plugin';
 import { defineConfig } from 'cypress';
 import * as cypressSplit from 'cypress-split';
 import { unlinkSync } from 'fs';
@@ -24,7 +23,6 @@ export default defineConfig({
         trashAssetsBeforeRuns: true,
         setupNodeEvents(on, config) {
             cypressSplit(on, config);
-            addMatchImageSnapshotPlugin(on);
 
             // Delete videos for specs without failing or retried tests
             // https://docs.cypress.io/guides/guides/screenshots-and-videos#Delete-videos-for-specs-without-failing-or-retried-tests
