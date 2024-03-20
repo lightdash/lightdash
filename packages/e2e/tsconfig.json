@@ -7,10 +7,9 @@
             "cypress",
             "@testing-library/cypress",
             "node",
-            "cypress-file-upload",
-            "@simonsmith/cypress-image-snapshot/types"
+            "cypress-file-upload"
         ],
-        "strictNullChecks": true /* Enable strict null checks. */
+        "strictNullChecks": true /* Enable strict null checks. */,
     },
     "include": ["**/*.ts"],
     "references": [
