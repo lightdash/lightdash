@@ -355,7 +355,9 @@ export type CreateSavedChartVersion = Omit<
     | 'colorPalette'
     | 'isPrivate'
     | 'access'
->;
+> &
+    // For Charts created within a dashboard
+    Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;
 
 export type UpdateSavedChart = Partial<
     Pick<SavedChart, 'name' | 'description' | 'spaceUuid'>
