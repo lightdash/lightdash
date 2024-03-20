@@ -58,6 +58,7 @@ const EMAIL_PROVIDER_LIST = [
     'yahoo.co.jp',
     'sky.com',
     'blueyonder.co.uk',
+    'icloud.com',
 ];
 
 const isEmailProviderDomain = (domain: string): boolean =>
