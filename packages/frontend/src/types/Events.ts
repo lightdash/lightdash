@@ -68,6 +68,7 @@ export enum EventName {
     RUN_QUERY_BUTTON_CLICKED = 'run_query_button.clicked',
     ADD_COLUMN_BUTTON_CLICKED = 'add_column_button.click',
     CREATE_TABLE_CALCULATION_BUTTON_CLICKED = 'create_table_calculation_button.click',
+    CREATE_QUICK_TABLE_CALCULATION_BUTTON_CLICKED = 'create_quick_table_calculation_button.click',
     EDIT_TABLE_CALCULATION_BUTTON_CLICKED = 'edit_table_calculation_button.click',
     UPDATE_TABLE_CALCULATION_BUTTON_CLICKED = 'update_table_calculation_button.click',
     DELETE_TABLE_CALCULATION_BUTTON_CLICKED = 'delete_table_calculation_button.click',
