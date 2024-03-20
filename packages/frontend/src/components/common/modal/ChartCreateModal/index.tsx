@@ -1,0 +1,92 @@
+import { type CreateSavedChartVersion } from '@lightdash/common';
+import { Group, Modal, Text } from '@mantine/core';
+import { IconChartBar } from '@tabler/icons-react';
+import { useCallback, useMemo, type FC } from 'react';
+import { useParams } from 'react-router-dom';
+import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
+import MantineIcon from '../../MantineIcon';
+import { SaveToDashboard } from './SaveToDashboard';
+import { SaveToSpaceOrDashboard } from './SaveToSpaceOrDashboard';
+
+interface ChartCreateModalProps {
+    savedData: CreateSavedChartVersion;
+    isOpen: boolean;
+    onClose: () => void;
+    defaultSpaceUuid?: string;
+    onConfirm: (savedData: CreateSavedChartVersion) => void;
+}
+
+enum SaveMode {
+    Default = 'default',
+    ToDashboard = 'toDashboard',
+}
+
+const ChartCreateModal: FC<ChartCreateModalProps> = ({
+    savedData,
+    isOpen,
+    onClose,
+    defaultSpaceUuid,
+    onConfirm,
+}) => {
+    const { getEditingDashboardInfo } = useDashboardStorage();
+    const editingDashboardInfo = getEditingDashboardInfo();
+
+    const saveMode = useMemo(() => {
+        if (editingDashboardInfo.name && editingDashboardInfo.dashboardUuid) {
+            return SaveMode.ToDashboard;
+        }
+        return SaveMode.Default;
+    }, [editingDashboardInfo]);
+
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const getModalTitle = useCallback(() => {
+        if (saveMode === SaveMode.ToDashboard) {
+            return `Save chart "${editingDashboardInfo.name}"`;
+        }
+        return 'Save chart';
+    }, [saveMode, editingDashboardInfo]);
+
+    return (
+        <Modal
+            opened={isOpen}
+            onClose={onClose}
+            keepMounted={false}
+            title={
+                <Group spacing="xs">
+                    <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
+                    <Text fw={500}>{getModalTitle()}</Text>
+                </Group>
+            }
+            styles={(theme) => ({
+                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                body: { padding: 0 },
+            })}
+        >
+            {saveMode === SaveMode.ToDashboard && (
+                <SaveToDashboard
+                    projectUuid={projectUuid}
+                    dashboardName={editingDashboardInfo.name}
+                    dashboardUuid={editingDashboardInfo.dashboardUuid}
+                    savedData={savedData}
+                    onClose={onClose}
+                />
+            )}
+
+            {saveMode === SaveMode.Default && (
+                <SaveToSpaceOrDashboard
+                    savedData={savedData}
+                    onConfirm={onConfirm}
+                    onClose={onClose}
+                    defaultSpaceUuid={defaultSpaceUuid}
+                    dashboardInfoFromSavedData={{
+                        dashboardName: savedData.dashboardName ?? null,
+                        dashboardUuid: savedData.dashboardUuid ?? null,
+                    }}
+                />
+            )}
+        </Modal>
+    );
+};
+
+export default ChartCreateModal;
