@@ -126,6 +126,7 @@ const TableCalculationModal: FC<Props> = ({
                         label="Name"
                         required
                         placeholder="E.g. Cumulative order count"
+                        data-testid="table-calculation-name-input"
                         {...form.getInputProps('name')}
                     />
                     <Tabs
@@ -177,7 +178,13 @@ const TableCalculationModal: FC<Props> = ({
                             <Button variant="outline" onClick={onClose}>
                                 Cancel
                             </Button>
-                            <Button type="submit"> Save </Button>
+                            <Button
+                                type="submit"
+                                data-testid="table-calculation-save-button"
+                            >
+                                {' '}
+                                Save{' '}
+                            </Button>
                         </Group>
                     </Group>
                 </Stack>

@@ -126,6 +126,52 @@ describe('Explore', () => {
         cy.get('button').contains('Big value');
     });
 
+    it.only('Keeps chart config after updating table calculation', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
+
+        cy.findByTestId('page-spinner').should('not.exist');
+
+        // choose table and select fields
+        cy.findByText('Customers').click();
+        cy.findByText('First name').click();
+        cy.findByText('Unique order count').click();
+
+        // add table calculation
+        cy.get('button').contains('Table calculation').click();
+        cy.findByTestId('table-calculation-name-input').type('TC');
+        // eslint-disable-next-line no-template-curly-in-string
+        cy.get('div.ace_content').type('${{}orders.unique_order_count{}}'); // cypress way of escaping { and }
+        cy.findAllByTestId('table-calculation-save-button').click();
+
+        // open chart menu and change chart types
+        cy.findByText('Configure').click();
+
+        // change X-axis to table calculation
+        cy.findByTestId('x-axis-field-select').click();
+        cy.findByTestId('x-axis-field-select').clear();
+        cy.findByTestId('x-axis-field-select').type('TC');
+        cy.findByTestId('x-axis-field-select').type('{downArrow}{enter}');
+
+        // change y-axis to table calculation
+        cy.findByTestId('y-axis-field-select').click();
+        cy.findByTestId('y-axis-field-select').clear();
+        cy.findByTestId('y-axis-field-select').type('TC');
+        cy.findByTestId('y-axis-field-select').type('{downArrow}{enter}');
+
+        cy.get('th').contains('TC').closest('th').find('button').click();
+
+        const newTCName = 'TC2';
+
+        cy.findByRole('menuitem', { name: 'Edit calculation' }).click();
+        cy.findByTestId('table-calculation-name-input').type(
+            `{selectAll}${newTCName}`,
+        );
+        cy.findAllByTestId('table-calculation-save-button').click();
+
+        cy.findByTestId('x-axis-field-select').should('have.value', newTCName);
+        cy.findByTestId('y-axis-field-select').should('have.value', newTCName);
+    });
+
     it('Should change chart config layout', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         cy.findByTestId('page-spinner').should('not.exist');
