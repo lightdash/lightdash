@@ -19,6 +19,7 @@ import {
     ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    SpaceSummary,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
@@ -26,6 +27,7 @@ import {
     WarehouseCredentials,
     WarehouseTypes,
 } from '@lightdash/common';
+
 import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
@@ -1064,7 +1066,11 @@ export class ProjectModel {
         }
     }
 
-    async duplicateContent(projectUuid: string, previewProjectUuid: string) {
+    async duplicateContent(
+        projectUuid: string,
+        previewProjectUuid: string,
+        spaces: SpaceSummary[],
+    ) {
         Logger.debug(
             `Duplicating content from ${projectUuid} to ${previewProjectUuid}`,
         );
@@ -1080,18 +1086,21 @@ export class ProjectModel {
                 .select('project_id');
             const projectId = project.project_id;
 
-            const spaces = await trx('spaces').where('project_id', projectId);
+            const dbSpaces = await trx('spaces').whereIn(
+                'space_uuid',
+                spaces.map((s) => s.uuid),
+            );
 
             Logger.debug(
                 `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
             );
-            const spaceIds = spaces.map((s) => s.space_id);
+            const spaceIds = dbSpaces.map((s) => s.space_id);
 
             const newSpaces =
                 spaces.length > 0
                     ? await trx('spaces')
                           .insert(
-                              spaces.map((d) => {
+                              dbSpaces.map((d) => {
                                   const createSpace = {
                                       ...d,
                                       search_vector: undefined,
@@ -1109,7 +1118,7 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const spaceMapping = spaces.map((s, i) => ({
+            const spaceMapping = dbSpaces.map((s, i) => ({
                 id: s.space_id,
                 newId: newSpaces[i].space_id,
             }));
@@ -1135,7 +1144,8 @@ export class ProjectModel {
 
             const charts = await trx('saved_queries')
                 .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
-                .where('spaces.project_id', projectId)
+                .whereIn('saved_queries.space_id', spaceIds)
+                .andWhere('spaces.project_id', projectId)
                 .select<DbSavedChart[]>('saved_queries.*');
 
             Logger.debug(
@@ -1336,7 +1346,8 @@ export class ProjectModel {
 
             const dashboards = await trx('dashboards')
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
-                .where('spaces.project_id', projectId)
+                .whereIn('dashboards.space_id', spaceIds)
+                .andWhere('spaces.project_id', projectId)
                 .select<DbDashboard[]>('dashboards.*');
 
             const dashboardIds = dashboards.map((d) => d.dashboard_id);
