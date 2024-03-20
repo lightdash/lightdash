@@ -209,10 +209,6 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
             {
                 staleTime: 0,
                 onSuccess: () => {
-                    console.log(
-                        'dashboardInfoFromSavedData',
-                        dashboardInfoFromSavedData,
-                    );
                     if (
                         dashboardInfoFromSavedData.dashboardUuid &&
                         dashboardInfoFromSavedData.dashboardName
@@ -228,7 +224,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                     }
                 },
             },
-            true, // includePrivateSpaces // TODO: check if this is needed
+            true, // includePrivateSpaces
         );
 
     const { data: spaces, isInitialLoading: isLoadingSpaces } =
@@ -256,6 +252,10 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     const handleOnSubmit = useCallback(
         async (values: ChartCreateModalFormValues) => {
             let savedQuery: SavedChart | undefined;
+            /**
+             * Create chart
+             * Save to dashboard by creating a new tile and then updating the dashboard by sending it to the bottom
+             */
             if (values.saveDestination === SaveDestination.Dashboard) {
                 if (!selectedDashboard) {
                     throw new Error('Expected dashboard');
@@ -285,6 +285,10 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                 });
             }
 
+            /**
+             * Create space if user wants to create a new space
+             * Save to space by creating a new chart
+             */
             if (values.saveDestination === SaveDestination.Space) {
                 let newSpace = values.newSpaceName
                     ? await createSpace({
