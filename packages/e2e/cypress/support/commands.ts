@@ -37,7 +37,12 @@ import { addMatchImageSnapshotCommand } from '@simonsmith/cypress-image-snapshot
 import '@testing-library/cypress/add-commands';
 import 'cypress-file-upload';
 
-addMatchImageSnapshotCommand();
+addMatchImageSnapshotCommand({
+    failureThreshold: 0.001,
+    failureThresholdType: 'percent',
+    customDiffConfig: { threshold: 0.1 },
+    capture: 'viewport',
+});
 
 declare global {
     namespace Cypress {
