@@ -503,7 +503,6 @@ export class SearchModel {
             filters,
         );
 
-
         const explores = await this.getProjectExplores(projectUuid);
         const tableErrors = await this.searchTableErrors(
             projectUuid,
