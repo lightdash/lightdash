@@ -202,11 +202,11 @@ export const ReferenceLine: FC<Props> = ({
     }, [referenceLine]);
 
     const [value, setValue] = useState<string | undefined>(
-        referenceLine.data[markLineKey],
+        referenceLine.data[markLineKey] || referenceLine.data.type,
     );
 
     const [label, setLabel] = useState<string | undefined>(
-        referenceLine.data.label?.formatter,
+        referenceLine.data.name,
     );
     const [isOpen, setIsOpen] = useState<boolean>(
         isDefaultOpen || referenceLine.fieldId === undefined,
@@ -252,8 +252,10 @@ export const ReferenceLine: FC<Props> = ({
                     <ActionIcon
                         onClick={() =>
                             removeReferenceLine(
-                                referenceLine.data.value ||
-                                    referenceLine.data.name,
+                                referenceLine.data.uuid ||
+                                    referenceLine.data.value ||
+                                    referenceLine.data.name ||
+                                    '',
                             )
                         }
                         size="sm"
@@ -285,8 +287,11 @@ export const ReferenceLine: FC<Props> = ({
                                     newField,
                                     label,
                                     lineColor,
-                                    referenceLine.data.value ||
-                                        referenceLine.data.name,
+
+                                    referenceLine.data.uuid ||
+                                        referenceLine.data.value ||
+                                        referenceLine.data.name ||
+                                        '',
                                 );
                         }}
                     />
@@ -306,8 +311,10 @@ export const ReferenceLine: FC<Props> = ({
                                         selectedField,
                                         label,
                                         lineColor,
-                                        referenceLine.data.value ||
-                                            referenceLine.data.name,
+                                        referenceLine.data.uuid ||
+                                            referenceLine.data.value ||
+                                            referenceLine.data.name ||
+                                            '',
                                     );
                             }}
                         />
@@ -327,8 +334,10 @@ export const ReferenceLine: FC<Props> = ({
                                     selectedField,
                                     label,
                                     lineColor,
-                                    referenceLine.data.value ||
-                                        referenceLine.data.name,
+                                    referenceLine.data.uuid ||
+                                        referenceLine.data.value ||
+                                        referenceLine.data.name ||
+                                        '',
                                 );
                         }}
                     />
@@ -352,8 +361,10 @@ export const ReferenceLine: FC<Props> = ({
                                     selectedField,
                                     label,
                                     color,
-                                    referenceLine.data.value ||
-                                        referenceLine.data.name,
+                                    referenceLine.data.uuid ||
+                                        referenceLine.data.value ||
+                                        referenceLine.data.name ||
+                                        '',
                                 );
                         }}
                     />

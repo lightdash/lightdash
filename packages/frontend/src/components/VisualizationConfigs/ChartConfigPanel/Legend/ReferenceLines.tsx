@@ -70,21 +70,35 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     );
                     if (selectedSeries === undefined) return;
 
+                    const useAverage = updateValue === 'average';
+
                     const dataWithAxis = {
-                        name: updateLabel || 'Reference line',
-                        value: lineId,
+                        name: updateLabel,
+                        type: useAverage ? 'average' : undefined,
+                        uuid: lineId,
                         lineStyle: { color: updateColor },
-                        label: updateLabel ? { formatter: updateLabel } : {},
-                        xAxis: undefined,
-                        yAxis: undefined,
-                        [dirtyLayout?.xField === fieldId ? 'xAxis' : 'yAxis']:
-                            updateValue,
+                        label: updateLabel
+                            ? { formatter: updateLabel }
+                            : useAverage
+                            ? { formatter: 'ave: {c}' }
+                            : {},
+                        xAxis:
+                            dirtyLayout?.xField === fieldId
+                                ? updateValue
+                                : undefined,
+                        yAxis:
+                            dirtyLayout?.xField === fieldId
+                                ? undefined
+                                : useAverage
+                                ? undefined
+                                : updateValue,
                     };
 
                     const updatedReferenceLines: ReferenceLineField[] =
                         referenceLines.map((line) => {
-                            // Check both .value and .name for backwards compatibility
+                            // Check uuid, .value and .name for backwards compatibility
                             if (
+                                line.data.uuid === lineId ||
                                 line.data.value === lineId ||
                                 line.data.name === lineId
                             )
@@ -107,8 +121,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
 
         const newReferenceLine: ReferenceLineField = {
             data: {
-                name: 'Reference line',
-                value: uuidv4(),
+                uuid: uuidv4(),
             },
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
@@ -134,6 +147,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         data:
                             serie.markLine?.data.filter(
                                 (data) =>
+                                    data.uuid !== markLineId &&
                                     data.value !== markLineId &&
                                     data.name !== markLineId,
                             ) || [],
@@ -146,6 +160,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             setReferenceLines(
                 referenceLines.filter(
                     (line) =>
+                        line.data.uuid !== markLineId &&
                         line.data.value !== markLineId &&
                         line.data.name !== markLineId,
                 ),
@@ -165,7 +180,8 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                 referenceLines.map((line, index) => {
                     return (
                         <ReferenceLine
-                            key={line.data.value}
+                            key={line.data.uuid}
+                            data-testid={line.data.uuid}
                             index={index + 1}
                             isDefaultOpen={referenceLines.length <= 1}
                             items={items}

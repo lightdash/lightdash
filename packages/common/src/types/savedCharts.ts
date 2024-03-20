@@ -134,8 +134,10 @@ export const isPivotReferenceWithValues = (
 export type MarkLineData = {
     yAxis?: string;
     xAxis?: string;
-    name: string;
-    value: string;
+    name?: string;
+    value?: string;
+    type?: string;
+    uuid: string;
     lineStyle?: {
         color: string;
     };
