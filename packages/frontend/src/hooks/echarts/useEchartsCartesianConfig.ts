@@ -1405,8 +1405,8 @@ const useEchartsCartesianConfig = (
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
 
-        const seriesWithValidStack = series.map<EChartSeries>((serie, i) => {
-            const color = getSeriesColor(serie, i);
+        const seriesWithValidStack = series.map<EChartSeries>((serie) => {
+            const color = getSeriesColor(serie);
 
             return {
                 ...serie,

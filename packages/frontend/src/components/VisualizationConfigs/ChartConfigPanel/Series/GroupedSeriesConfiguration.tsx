@@ -134,9 +134,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     const onDragEnd = useCallback(
         (result: DropResult) => {
             const allSerieIds = series.map(getSeriesId);
-            const seriesWithColor: Series[] = series.map((s, i) => ({
+            const seriesWithColor: Series[] = series.map((s) => ({
                 ...s,
-                color: getSeriesColor(s, i),
+                color: getSeriesColor(s),
             }));
             const serie = seriesWithColor.find(
                 (s) => getSeriesId(s) === result.draggableId,
@@ -378,7 +378,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                                 dragHandleProps={
                                                                     groupedDragHandleProps
                                                                 }
-                                                                seriesIndex={i}
                                                                 isCollapsable
                                                                 layout={layout}
                                                                 series={

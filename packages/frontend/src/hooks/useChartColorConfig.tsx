@@ -91,6 +91,27 @@ export const isGroupedSeries = (series: SeriesLike) => {
     );
 };
 
+export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
+    const baseField =
+        (series as Series).encode.yRef?.field ??
+        (series as EChartSeries).encode?.x;
+
+    const yPivotValues = (
+        (series as EChartSeries)?.pivotReference?.pivotValues ??
+        (series as Series)?.encode.yRef.pivotValues ??
+        []
+    ).map(({ value }) => `${value}`);
+
+    const pivotValuesSubPath =
+        yPivotValues && yPivotValues.length > 0 ? `${yPivotValues[0]}` : null;
+
+    const completeIdentifier = pivotValuesSubPath
+        ? pivotValuesSubPath
+        : baseField;
+
+    return [baseField, completeIdentifier];
+};
+
 export const useChartColorConfig = ({
     colorPalette,
 }: {
@@ -98,6 +119,7 @@ export const useChartColorConfig = ({
 }) => {
     const theme = useMantineTheme();
     const { colorMappings } = useChartColorMappingContext();
+
     /**
      * Given the org's color palette, and an identifier, return the color palette value
      * for said identifier.
@@ -156,32 +178,23 @@ export const useChartColorConfig = ({
     );
 
     const calculateSeriesColorAssignment = useCallback(
-        (series: SeriesLike) => {
-            const baseField =
-                (series as Series).encode.yRef?.field ??
-                (series as EChartSeries).encode?.x;
+        (
+            series: SeriesLike,
+            options: {
+                groupPrefix?: string;
+            } = {},
+        ) => {
+            const [baseField, completeIdentifier] =
+                calculateSeriesLikeIdentifier(series);
 
-            const yPivotValues = (
-                (series as EChartSeries)?.pivotReference?.pivotValues ??
-                (series as Series)?.encode.yRef.pivotValues ??
-                []
-            ).map(({ value }) => `${value}`);
-
-            const pivotValuesSubPath =
-                yPivotValues && yPivotValues.length > 0
-                    ? `${yPivotValues[0]}`
-                    : null;
-
-            const completeIdentifier = pivotValuesSubPath
-                ? pivotValuesSubPath
-                : baseField;
-
-            /**
-             * Always includes the base field + the pivot sub path. This can be tweaked
-             * to allow 'reuse' across different fields, but is also more likely to lead
-             * to collision issues.
-             */
-            return calculateKeyColorAssignment(baseField, completeIdentifier);
+            return calculateKeyColorAssignment(
+                /**
+                 * If no group prefix is specified, we treat the base field as the group.
+                 * This allows overriding colors are grouped across different contexts.
+                 */
+                options.groupPrefix ?? baseField,
+                completeIdentifier,
+            );
         },
         [calculateKeyColorAssignment],
     );

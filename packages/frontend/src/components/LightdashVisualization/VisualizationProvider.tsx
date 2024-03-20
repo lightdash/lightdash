@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     ChartType,
     getCustomDimensionId,
-    getDefaultSeriesColor,
     type ApiQueryResults,
     type ChartConfig,
     type DashboardFilters,
@@ -24,6 +23,7 @@ import {
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import {
+    calculateSeriesLikeIdentifier,
     isGroupedSeries,
     useChartColorConfig,
     type SeriesLike,
@@ -74,7 +74,7 @@ type VisualizationContext = {
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
 
-    getSeriesColor: (seriesLike: SeriesLike, seriesIndex: number) => string;
+    getSeriesColor: (seriesLike: SeriesLike) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
 
     colorPalette: string[];
@@ -194,6 +194,25 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         }
     }, [resultsData?.metricQuery, columnOrder]);
 
+    const fallbackColors = useMemo<Record<string, string>>(() => {
+        if (!chartConfig?.config || chartConfig.type !== ChartType.CARTESIAN) {
+            return {};
+        }
+
+        const entries = Object.fromEntries(
+            (chartConfig.config.eChartsConfig.series ?? []).map((series, i) => {
+                return [
+                    calculateSeriesLikeIdentifier(series).join('|'),
+                    colorPalette[i % colorPalette.length],
+                ];
+            }),
+        );
+
+        console.log(entries);
+
+        return entries;
+    }, [chartConfig, colorPalette]);
+
     const handleChartConfigChange = useCallback(
         (newChartConfig: ChartConfig) => {
             if (!onChartConfigChange) return;
@@ -227,7 +246,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
      * Gets a shared color for a given series.
      */
     const getSeriesColor = useCallback(
-        (seriesLike: SeriesLike, seriesIndex: number) => {
+        (seriesLike: SeriesLike) => {
             if (seriesLike.color) return seriesLike.color;
 
             /**
@@ -236,10 +255,11 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
              */
             return isGroupedSeries(seriesLike)
                 ? calculateSeriesColorAssignment(seriesLike)
-                : colorPalette[seriesIndex % colorPalette.length] ??
-                      getDefaultSeriesColor(seriesIndex);
+                : fallbackColors[
+                      calculateSeriesLikeIdentifier(seriesLike).join('|')
+                  ];
         },
-        [calculateSeriesColorAssignment, colorPalette],
+        [calculateSeriesColorAssignment, fallbackColors],
     );
 
     const value: Omit<VisualizationContext, 'visualizationConfig'> = {
