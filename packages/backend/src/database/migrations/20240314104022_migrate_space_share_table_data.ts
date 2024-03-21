@@ -1,17 +1,161 @@
-import {
-    convertOrganizationRoleToProjectRole,
-    convertProjectRoleToSpaceRole,
-    getHighestProjectRole,
-} from '@lightdash/common';
-import { OrganizationMemberRole } from '@lightdash/common/src/types/organizationMemberProfile';
-import {
-    GroupRole,
-    OrganizationRole,
-    ProjectMemberRole,
-    ProjectRole,
-} from '@lightdash/common/src/types/projectMemberRole';
 import { Knex } from 'knex';
-import { CreateDbSpaceUserAccess, DbSpaceUserAccess } from '../entities/spaces';
+
+enum OrganizationMemberRole {
+    MEMBER = 'member',
+    VIEWER = 'viewer',
+    INTERACTIVE_VIEWER = 'interactive_viewer',
+    EDITOR = 'editor',
+    DEVELOPER = 'developer',
+    ADMIN = 'admin',
+}
+
+enum ProjectMemberRole {
+    VIEWER = 'viewer',
+    INTERACTIVE_VIEWER = 'interactive_viewer',
+    EDITOR = 'editor',
+    DEVELOPER = 'developer',
+    ADMIN = 'admin',
+}
+
+enum SpaceMemberRole {
+    VIEWER = 'viewer',
+    EDITOR = 'editor',
+    ADMIN = 'admin',
+}
+
+const ProjectMemberRoleLabels: Record<ProjectMemberRole, string> = {
+    [ProjectMemberRole.VIEWER]: 'Viewer',
+    [ProjectMemberRole.INTERACTIVE_VIEWER]: 'Interactive Viewer',
+    [ProjectMemberRole.EDITOR]: 'Editor',
+    [ProjectMemberRole.DEVELOPER]: 'Developer',
+    [ProjectMemberRole.ADMIN]: 'Admin',
+} as const;
+
+type OrganizationRole = {
+    type: 'organization';
+    role: ProjectMemberRole | undefined;
+};
+
+type ProjectRole = {
+    type: 'project';
+    role: ProjectMemberRole | undefined;
+};
+
+type GroupRole = {
+    type: 'group';
+    role: ProjectMemberRole | undefined;
+};
+
+type InheritedRoles = [OrganizationRole, GroupRole, ProjectRole];
+
+const RoleTypes = ['organization', 'project', 'group'] as const;
+
+type RoleType = typeof RoleTypes[number];
+
+type InheritedProjectRole = {
+    type: RoleType;
+    role: ProjectMemberRole;
+};
+
+const ProjectRoleOrder = {
+    [ProjectMemberRole.VIEWER]: 0,
+    [ProjectMemberRole.INTERACTIVE_VIEWER]: 1,
+    [ProjectMemberRole.EDITOR]: 2,
+    [ProjectMemberRole.DEVELOPER]: 3,
+    [ProjectMemberRole.ADMIN]: 4,
+} as const;
+
+type DbSpaceUserAccess = {
+    user_uuid: string;
+    space_uuid: string;
+    space_role: string;
+    created_at: Date;
+    updated_at: Date;
+};
+
+type CreateDbSpaceUserAccess = Pick<
+    DbSpaceUserAccess,
+    'user_uuid' | 'space_uuid' | 'space_role'
+>;
+
+const assertUnreachable = (_x: never, error: string | Error): never => {
+    if (typeof error === 'string') {
+        throw Error(error);
+    } else {
+        throw error;
+    }
+};
+
+const convertOrganizationRoleToProjectRole = (
+    organizationRole: OrganizationMemberRole,
+): ProjectMemberRole | undefined => {
+    switch (organizationRole) {
+        case OrganizationMemberRole.VIEWER:
+            return ProjectMemberRole.VIEWER;
+        case OrganizationMemberRole.INTERACTIVE_VIEWER:
+            return ProjectMemberRole.INTERACTIVE_VIEWER;
+        case OrganizationMemberRole.EDITOR:
+            return ProjectMemberRole.EDITOR;
+        case OrganizationMemberRole.DEVELOPER:
+            return ProjectMemberRole.DEVELOPER;
+        case OrganizationMemberRole.ADMIN:
+            return ProjectMemberRole.ADMIN;
+        case OrganizationMemberRole.MEMBER:
+            return undefined;
+        default:
+            return assertUnreachable(
+                organizationRole,
+                `Unknown role ${organizationRole}`,
+            );
+    }
+};
+
+const getHighestProjectRole = (
+    inheritedRoles: Array<OrganizationRole | ProjectRole | GroupRole>,
+): InheritedProjectRole | undefined =>
+    inheritedRoles.reduce<InheritedProjectRole | undefined>(
+        (highestRole, role) => {
+            if (role.role === undefined) {
+                return highestRole;
+            }
+
+            if (
+                highestRole?.role === undefined ||
+                ProjectRoleOrder[role.role] >=
+                    ProjectRoleOrder[highestRole.role]
+            ) {
+                return {
+                    type: role.type,
+                    role: role.role,
+                };
+            }
+
+            return highestRole;
+        },
+        undefined,
+    );
+
+const convertProjectRoleToSpaceRole = (
+    projectRole: ProjectMemberRole,
+): SpaceMemberRole => {
+    switch (projectRole) {
+        case ProjectMemberRole.VIEWER:
+            return SpaceMemberRole.VIEWER;
+        case ProjectMemberRole.INTERACTIVE_VIEWER:
+            return SpaceMemberRole.VIEWER;
+        case ProjectMemberRole.EDITOR:
+            return SpaceMemberRole.EDITOR;
+        case ProjectMemberRole.DEVELOPER:
+            return SpaceMemberRole.EDITOR;
+        case ProjectMemberRole.ADMIN:
+            return SpaceMemberRole.EDITOR;
+        default:
+            return assertUnreachable(
+                projectRole,
+                `Project role ${projectRole} does not match Space roles`,
+            );
+    }
+};
 
 const SPACE_USER_ACCESS = 'space_user_access';
 const SPACE_SHARE_TABLE = 'space_share';
@@ -170,9 +314,48 @@ export async function up(knex: Knex): Promise<void> {
         );
 
         await knex(SPACE_USER_ACCESS).insert(spaceAccessRows);
+        await knex(SPACE_SHARE_TABLE).del();
+        await knex.schema.dropTableIfExists(SPACE_SHARE_TABLE);
     }
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await knex(SPACE_USER_ACCESS).del();
+    if (await knex.schema.hasTable(SPACE_USER_ACCESS)) {
+        if (!(await knex.schema.hasTable(SPACE_SHARE_TABLE))) {
+            await knex.schema.createTable(SPACE_SHARE_TABLE, (tableBuilder) => {
+                tableBuilder
+                    .integer('user_id')
+                    .notNullable()
+                    .references('user_id')
+                    .inTable(USER_TABLE)
+                    .onDelete('CASCADE');
+                tableBuilder
+                    .integer('space_id')
+                    .notNullable()
+                    .references('space_id')
+                    .inTable(SPACE_TABEL)
+                    .onDelete('CASCADE');
+                tableBuilder.unique(['user_id', 'space_id']);
+            });
+        }
+        const rows = knex(SPACE_SHARE_TABLE)
+            .leftJoin(
+                USER_TABLE,
+                `${SPACE_SHARE_TABLE}.user_id`,
+                `${USER_TABLE}.user_id`,
+            )
+            .leftJoin(
+                SPACE_TABEL,
+                `${SPACE_SHARE_TABLE}.space_id`,
+                `${SPACE_TABEL}.space_id`,
+            )
+            .select<
+                {
+                    user_id: string;
+                    space_id: string;
+                }[]
+            >([`${USER_TABLE}.user_id`, `${SPACE_TABEL}.space_id`]);
+        await knex(SPACE_SHARE_TABLE).insert(rows);
+        await knex(SPACE_USER_ACCESS).del();
+    }
 }
