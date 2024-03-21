@@ -1,3 +1,10 @@
+## [0.1038.4](https://github.com/lightdash/lightdash/compare/0.1038.3...0.1038.4) (2024-03-21)
+
+
+### Bug Fixes
+
+* flaky e2e profile test ([#9466](https://github.com/lightdash/lightdash/issues/9466)) ([ef9060c](https://github.com/lightdash/lightdash/commit/ef9060cfae2f364f7027da35c0dd396003c53ca3))
+
 ## [0.1038.3](https://github.com/lightdash/lightdash/compare/0.1038.2...0.1038.3) (2024-03-21)
 
 
