@@ -6,6 +6,7 @@ import {
     Text,
     Tooltip,
     useMantineTheme,
+    type TextProps,
 } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
@@ -59,6 +60,23 @@ const calculateFontSize = (
     );
 
     return fontSize;
+};
+
+const BigNumberText: FC<TextProps> = ({ children, ...textProps }) => {
+    return (
+        <Text
+            c="dark.4"
+            align="center"
+            fw={500}
+            {...textProps}
+            style={{
+                transition: 'font-size 0.1s ease-in-out',
+                ...textProps.style,
+            }}
+        >
+            {children}
+        </Text>
+    );
 };
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
@@ -170,103 +188,75 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         >
             <Flex style={{ flexShrink: 1 }}>
                 {minimal || isSqlRunner ? (
-                    <Text
-                        fz={valueFontSize}
-                        c="dark.4"
-                        align="center"
-                        fw={500}
-                        style={{
-                            transition: 'font-size 0.1s ease-in-out',
-                        }}
-                    >
+                    <BigNumberText fz={valueFontSize}>
                         {bigNumber}
-                    </Text>
+                    </BigNumberText>
                 ) : (
                     <BigNumberContextMenu>
-                        <Text
+                        <BigNumberText
                             fz={valueFontSize}
-                            c="dark.4"
-                            align="center"
-                            fw={500}
-                            style={{
-                                transition: 'font-size 0.1s ease-in-out',
-                                cursor: 'pointer',
-                            }}
+                            style={{ cursor: 'pointer' }}
                         >
                             {bigNumber}
-                        </Text>
+                        </BigNumberText>
                     </BigNumberContextMenu>
                 )}
             </Flex>
 
             {showBigNumberLabel ? (
                 <Flex style={{ flexShrink: 1 }}>
-                    <Text
-                        fz={labelFontSize}
-                        c="dark.4"
-                        align="center"
-                        fw={500}
-                        style={{
-                            transition: 'font-size 0.1s ease-in-out',
-                        }}
-                    >
+                    <BigNumberText fz={labelFontSize}>
                         {bigNumberLabel || defaultLabel}
-                    </Text>
+                    </BigNumberText>
                 </Flex>
             ) : null}
 
             {showComparison ? (
-                <Flex style={{ flexShrink: 1 }} mt="lg">
-                    <Text
-                        fz={comparisonFontSize}
-                        c="gray.6"
-                        align="center"
-                        fw={500}
-                        style={{
-                            transition: 'font-size 0.1s ease-in-out',
-                        }}
-                    >
-                        <Tooltip withinPortal label={comparisonTooltip}>
-                            <Text
-                                span
-                                fz={comparisonFontSize}
-                                c={comparisonValueColor}
-                                align="center"
-                                fw={500}
-                                style={{
-                                    transition: 'font-size 0.1s ease-in-out',
-                                }}
-                            >
-                                {comparisonValue}
+                <Flex
+                    justify="center"
+                    display="inline-flex"
+                    wrap="wrap"
+                    style={{ flexShrink: 1 }}
+                    mt="lg"
+                >
+                    <Tooltip withinPortal label={comparisonTooltip}>
+                        <BigNumberText
+                            span
+                            fz={comparisonFontSize}
+                            c={comparisonValueColor}
+                        >
+                            {comparisonValue}
 
-                                {comparisonDiff ===
-                                ComparisonDiffTypes.POSITIVE ? (
-                                    <MantineIcon
-                                        icon={IconArrowUpRight}
-                                        size={18}
-                                        style={{
-                                            display: 'inline',
-                                            margin: '0 7px 0 0',
-                                        }}
-                                    />
-                                ) : comparisonDiff ===
-                                  ComparisonDiffTypes.NEGATIVE ? (
-                                    <MantineIcon
-                                        icon={IconArrowDownRight}
-                                        size={18}
-                                        style={{
-                                            display: 'inline',
-                                            margin: '0 7px 0 0',
-                                        }}
-                                    />
-                                ) : (
-                                    <span style={{ margin: '0 7px 0 0' }} />
-                                )}
-                            </Text>
-                        </Tooltip>
+                            {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
+                                <MantineIcon
+                                    icon={IconArrowUpRight}
+                                    size={18}
+                                    style={{
+                                        display: 'inline',
+                                        margin: '0 7px 0 0',
+                                    }}
+                                />
+                            ) : comparisonDiff ===
+                              ComparisonDiffTypes.NEGATIVE ? (
+                                <MantineIcon
+                                    icon={IconArrowDownRight}
+                                    size={18}
+                                    style={{
+                                        display: 'inline',
+                                        margin: '0 7px 0 0',
+                                    }}
+                                />
+                            ) : (
+                                <span style={{ margin: '0 7px 0 0' }} />
+                            )}
+                        </BigNumberText>
+                    </Tooltip>
 
-                        {comparisonLabel ?? null}
-                    </Text>
+                    {comparisonLabel ? (
+                        <BigNumberText span fz={comparisonFontSize} c="gray.6">
+                            {comparisonLabel}
+                        </BigNumberText>
+                    ) : null}
                 </Flex>
             ) : null}
         </Center>
