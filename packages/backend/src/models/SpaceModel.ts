@@ -1104,7 +1104,7 @@ export class SpaceModel {
     async addSpaceAccess(
         spaceUuid: string,
         userUuid: string,
-        spaceRole: string,
+        spaceRole: SpaceMemberRole,
     ): Promise<void> {
         await this.database(SpaceUserAccessTableName)
             .insert({

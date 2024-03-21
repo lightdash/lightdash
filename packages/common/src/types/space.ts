@@ -73,5 +73,5 @@ export type ApiSpaceResponse = {
 
 export type AddSpaceUserAccess = {
     userUuid: string;
-    spaceRole: string;
+    spaceRole: SpaceMemberRole;
 };

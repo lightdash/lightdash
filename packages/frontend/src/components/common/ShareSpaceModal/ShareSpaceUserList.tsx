@@ -50,7 +50,7 @@ const UserAccessOptions: AccessOption[] = [
     },
     {
         title: 'Admin',
-        selectDescription: `Manage space access.`,
+        selectDescription: `Manage space access and content.`,
         value: UserAccessAction.ADMIN,
     },
     {
@@ -210,7 +210,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                                     ) {
                                                         showToastError({
                                                             title: `Failed to share space`,
-                                                            subtitle: `User with ${sharedUser.inheritedRole} can not be set to space ${userAccessOption}`,
+                                                            subtitle: `Project ${sharedUser.inheritedRole} can not be a space ${userAccessOption}`,
                                                         });
                                                         return;
                                                     }

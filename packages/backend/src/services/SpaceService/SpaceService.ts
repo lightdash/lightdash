@@ -226,7 +226,7 @@ export class SpaceService {
         user: SessionUser,
         spaceUuid: string,
         shareWithUserUuid: string,
-        spaceRole: string,
+        spaceRole: SpaceMemberRole,
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const spaceAccess = await this.spaceModel.getUserSpaceAccess(

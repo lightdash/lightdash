@@ -223,7 +223,7 @@ export const useAddSpaceShareMutation = (
                 ]);
 
                 showToastSuccess({
-                    title: `Success! Space Access Updated!`,
+                    title: `Success! Space access updated!`,
                 });
             },
             onError: (error) => {
