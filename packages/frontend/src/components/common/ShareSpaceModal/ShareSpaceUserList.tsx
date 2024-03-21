@@ -3,7 +3,6 @@ import {
     type LightdashUser,
     type Space,
     type SpaceShare,
-    type SpaceMemberRole,
 } from '@lightdash/common';
 import {
     Avatar,
