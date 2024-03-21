@@ -76,12 +76,17 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     if (isCustomDimension(field)) return <></>;
     if (isDateItem(field)) {
         if (isDimension(field) && field.timeInterval) {
+            // Uses the current date if the provided value is invalid
+            const parsedDate = dayjs(value).isValid()
+                ? dayjs(value).toDate()
+                : new Date();
+
             switch (field.timeInterval.toUpperCase()) {
                 case TimeFrames.WEEK:
                     return (
                         <FilterWeekPicker
                             size="sm"
-                            value={dayjs(value).toDate()}
+                            value={parsedDate}
                             firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                             onChange={(dateValue) => {
                                 if (!dateValue) return;
@@ -100,7 +105,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <FilterMonthAndYearPicker
                             size="sm"
-                            value={dayjs(value).toDate()}
+                            value={parsedDate}
                             onChange={(dateValue: Date) => {
                                 onChange(
                                     formatDate(
@@ -117,7 +122,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <FilterYearPicker
                             size="sm"
-                            value={dayjs(value).toDate()}
+                            value={parsedDate}
                             onChange={(dateValue: Date) => {
                                 onChange(
                                     formatDate(
@@ -134,7 +139,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             return (
                 <FilterDatePicker
                     size="sm"
-                    value={dayjs(value).toDate()}
+                    value={parsedDate}
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     onChange={(newValue) => {
                         onChange(formatDate(newValue, TimeFrames.DAY, false));
