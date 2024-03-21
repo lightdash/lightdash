@@ -1095,7 +1095,7 @@ export class ProjectModel {
                 `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
             );
             const spaceIds = dbSpaces.map((s) => s.space_id);
-            const spaceUuids = spaces.map((s) => s.uuid);
+            const spaceUuids = dbSpaces.map((s) => s.space_uuid);
 
             const newSpaces =
                 spaces.length > 0

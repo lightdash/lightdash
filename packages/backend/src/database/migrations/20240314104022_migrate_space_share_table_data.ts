@@ -338,16 +338,16 @@ export async function down(knex: Knex): Promise<void> {
                 tableBuilder.unique(['user_id', 'space_id']);
             });
         }
-        const rows = knex(SPACE_SHARE_TABLE)
+        const rows = knex(SPACE_USER_ACCESS)
             .leftJoin(
                 USER_TABLE,
-                `${SPACE_SHARE_TABLE}.user_id`,
-                `${USER_TABLE}.user_id`,
+                `${SPACE_USER_ACCESS}.user_uuid`,
+                `${USER_TABLE}.user_uuid`,
             )
             .leftJoin(
                 SPACE_TABEL,
-                `${SPACE_SHARE_TABLE}.space_id`,
-                `${SPACE_TABEL}.space_id`,
+                `${SPACE_USER_ACCESS}.space_uuid`,
+                `${SPACE_TABEL}.space_uuid`,
             )
             .select<
                 {
