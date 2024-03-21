@@ -32,6 +32,30 @@ type StopPreviewHandlerOptions = {
     verbose: boolean;
 };
 
+const deletePreviewProject = async (
+    projectUuid: string | undefined,
+): Promise<void> => {
+    /**
+     * projectUuid may be undefined here if a command fails early enough
+     * that a project was never created, or we were otherwise unable to
+     * retrieve a UUID. We know `undefined` will always fail, so we avoid
+     * the round-trip.
+     */
+    if (typeof projectUuid === 'undefined') {
+        GlobalState.debug(
+            'no projectUuid available to delete, may not have been ready yet - skipping',
+        );
+
+        return;
+    }
+
+    await lightdashApi({
+        method: 'DELETE',
+        url: `/api/v1/org/projects/${projectUuid}`,
+        body: undefined,
+    });
+};
+
 const cleanupProject = async (
     executionId: string,
     projectUuid: string,
@@ -39,11 +63,7 @@ const cleanupProject = async (
     const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
 
     try {
-        await lightdashApi({
-            method: 'DELETE',
-            url: `/api/v1/org/projects/${projectUuid}`,
-            body: undefined,
-        });
+        await deletePreviewProject(projectUuid);
         await LightdashAnalytics.track({
             event: 'preview.stopped',
             properties: {
@@ -237,12 +257,8 @@ export const previewHandler = async (
         pressToShutdown.clear();
     } catch (e) {
         spinner.fail('Error creating developer preview');
-        await lightdashApi({
-            method: 'DELETE',
-            url: `/api/v1/org/projects/${project.projectUuid}`,
-            body: undefined,
-        });
 
+        await deletePreviewProject(project.projectUuid);
         unsetPreviewProject();
 
         await LightdashAnalytics.track({
@@ -387,11 +403,7 @@ export const stopPreviewHandler = async (
             },
         });
 
-        await lightdashApi({
-            method: 'DELETE',
-            url: `/api/v1/org/projects/${previewProject.projectUuid}`,
-            body: undefined,
-        });
+        await deletePreviewProject(previewProject.projectUuid);
         console.error(
             `Successfully deleted preview project named ${projectName}`,
         );
