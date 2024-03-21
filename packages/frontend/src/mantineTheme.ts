@@ -87,6 +87,23 @@ export const getMantineThemeOverride = (overrides?: {
                 },
             }),
         },
+
+        ScrollArea: {
+            variants: {
+                primary: (theme) => ({
+                    scrollbar: {
+                        '&, &:hover': {
+                            background: 'transparent',
+                        },
+
+                        '&[data-orientation="vertical"] .mantine-ScrollArea-thumb':
+                            {
+                                backgroundColor: theme.colors.gray['5'],
+                            },
+                    },
+                }),
+            },
+        },
         ...overrides?.components,
     },
 
