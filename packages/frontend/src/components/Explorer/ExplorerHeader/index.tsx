@@ -6,15 +6,11 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
-import ExploreFromHereButton from '../../ExploreFromHereButton';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
 
 const ExplorerHeader: FC = memo(() => {
-    const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
-    );
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
@@ -48,55 +44,46 @@ const ExplorerHeader: FC = memo(() => {
         };
     }, [getHasDashboardChanges]);
 
-    if (isEditMode) {
-        return (
-            <Group position="apart">
-                <Box>
-                    <RefreshDbtButton />
-                </Box>
-
-                <Group spacing="xs">
-                    {showLimitWarning && (
-                        <Tooltip
-                            width={400}
-                            label={`Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`}
-                            multiline
-                            position={'bottom'}
-                        >
-                            <Badge
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconAlertCircle}
-                                        size={'sm'}
-                                    />
-                                }
-                                color="yellow"
-                                variant="outline"
-                                tt="none"
-                                sx={{ cursor: 'help' }}
-                            >
-                                Results may be incomplete
-                            </Badge>
-                        </Tooltip>
-                    )}
-
-                    <RefreshButton size="xs" />
-
-                    {!savedChart && (
-                        <Can I="manage" a="SavedChart">
-                            <SaveChartButton isExplorer />
-                        </Can>
-                    )}
-                    <ShareShortLinkButton disabled={!isValidQuery} />
-                </Group>
-            </Group>
-        );
-    }
-
     return (
-        <Group position="right" spacing="xs">
-            <ExploreFromHereButton />
-            <ShareShortLinkButton disabled={!isValidQuery} />
+        <Group position="apart">
+            <Box>
+                <RefreshDbtButton />
+            </Box>
+
+            <Group spacing="xs">
+                {showLimitWarning && (
+                    <Tooltip
+                        width={400}
+                        label={`Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`}
+                        multiline
+                        position={'bottom'}
+                    >
+                        <Badge
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconAlertCircle}
+                                    size={'sm'}
+                                />
+                            }
+                            color="yellow"
+                            variant="outline"
+                            tt="none"
+                            sx={{ cursor: 'help' }}
+                        >
+                            Results may be incomplete
+                        </Badge>
+                    </Tooltip>
+                )}
+
+                <RefreshButton size="xs" />
+
+                {!savedChart && (
+                    <Can I="manage" a="SavedChart">
+                        <SaveChartButton isExplorer />
+                    </Can>
+                )}
+                <ShareShortLinkButton disabled={!isValidQuery} />
+            </Group>
         </Group>
     );
 });

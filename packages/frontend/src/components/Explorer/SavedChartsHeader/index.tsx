@@ -77,6 +77,8 @@ import SpaceAndDashboardInfo from '../../common/PageHeader/SpaceAndDashboardInfo
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import ViewInfo from '../../common/PageHeader/ViewInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
+import ShareShortLinkButton from '../../common/ShareShortLinkButton';
+import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SaveChartButton from '../SaveChartButton';
 
@@ -178,6 +180,9 @@ const SavedChartsHeader: FC = () => {
 
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
+    );
+    const isValidQuery = useExplorerContext(
+        (context) => context.state.isValidQuery,
     );
 
     const itemsMap = useMemo(() => {
@@ -465,6 +470,7 @@ const SavedChartsHeader: FC = () => {
                             <>
                                 {!isEditMode ? (
                                     <>
+                                        <ExploreFromHereButton />
                                         <Button
                                             variant="default"
                                             size="xs"
@@ -481,6 +487,9 @@ const SavedChartsHeader: FC = () => {
                                         >
                                             Edit chart
                                         </Button>
+                                        <ShareShortLinkButton
+                                            disabled={!isValidQuery}
+                                        />
                                     </>
                                 ) : (
                                     <>
