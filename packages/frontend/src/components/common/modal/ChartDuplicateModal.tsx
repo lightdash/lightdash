@@ -28,31 +28,34 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
-    const { mutateAsync: duplicateChart, isLoading } =
+    const { mutateAsync: duplicateChart, isLoading: isUpdating } =
         useDuplicateChartMutation({
             showRedirectButton: true,
         });
-    const { data: chart, isInitialLoading } = useSavedQuery({ id: uuid });
+    const { data: savedQuery, isInitialLoading } = useSavedQuery({ id: uuid });
 
-    const form = useForm<FormState>({
-        initialValues: { name: '', description: '' },
-    });
+    const form = useForm<FormState>();
 
     useEffect(() => {
-        if (!chart) return;
+        if (!savedQuery) return;
+
         const initialValues = {
-            name: 'Copy - ' + chart.name,
-            description: chart.description,
+            name: 'Copy - ' + savedQuery.name,
+            description: savedQuery.description,
         };
-        form.setInitialValues(initialValues);
-        form.setValues(initialValues);
+
+        if (!form.initialized) {
+            form.initialize(initialValues);
+        } else {
+            form.setInitialValues(initialValues);
+            form.setValues(initialValues);
+        }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chart]);
+    }, [savedQuery]);
 
-    if (isInitialLoading || !chart) {
-        return null;
-    }
+    const isLoading =
+        isInitialLoading || !savedQuery || !form.initialized || isUpdating;
 
     const handleConfirm = form.onSubmit(async (data) => {
         await duplicateChart({
@@ -73,6 +76,7 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
                         placeholder="eg. How many weekly active users do we have?"
                         disabled={isLoading}
                         {...form.getInputProps('name')}
+                        value={form.values.name ?? ''}
                     />
 
                     <Textarea
@@ -82,6 +86,7 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
                         autosize
                         maxRows={3}
                         {...form.getInputProps('description')}
+                        value={form.values.description ?? ''}
                     />
 
                     <Group position="right" mt="sm">
