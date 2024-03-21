@@ -261,8 +261,8 @@ const MetricFlowPage = () => {
                                         semanticLayerMetricsQuery.isFetching
                                     }
                                     onClick={() => {
-                                        semanticLayerDimensionsQuery.refetch();
-                                        semanticLayerMetricsQuery.refetch();
+                                        void semanticLayerDimensionsQuery.refetch();
+                                        void semanticLayerMetricsQuery.refetch();
                                     }}
                                 >
                                     <IconRefresh size={12} />

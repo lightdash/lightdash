@@ -81,10 +81,12 @@ export const useValidationMutation = (
         onSuccess: (data) => {
             // Wait until validation is complete
             pollJobStatus(data.jobId)
-                .then(() => {
+                .then(async () => {
                     onComplete();
                     // Invalidate validation to get latest results
-                    queryClient.invalidateQueries({ queryKey: ['validation'] });
+                    await queryClient.invalidateQueries({
+                        queryKey: ['validation'],
+                    });
                     showToastSuccess({ title: 'Validation completed' });
                 })
                 .catch((error: Error) => {

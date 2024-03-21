@@ -76,7 +76,7 @@ export const CommentForm: FC<Props> = ({
     const handleSubmit = commentForm.onSubmit(async () => {
         if (editor === null || editor.getText().trim() === '') return;
 
-        onSubmit(
+        await onSubmit(
             editor.getText(),
             editor.getHTML(),
             parseMentions(editor.getJSON()),

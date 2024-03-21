@@ -17,13 +17,15 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const tableTabStyles = useTableTabStyles();
     const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
+
     const handleRefresh = async () => {
-        queryClient.invalidateQueries(['schedulerLogs']).then(() =>
-            showToastSuccess({
-                title: 'Scheduled deliveries refreshed successfully',
-            }),
-        );
+        await queryClient.invalidateQueries(['schedulerLogs']);
+
+        showToastSuccess({
+            title: 'Scheduled deliveries refreshed successfully',
+        });
     };
+
     if (isInitialLoading) {
         return <LoadingState title="Loading scheduled deliveries" />;
     }

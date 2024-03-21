@@ -23,10 +23,10 @@ export const useActiveProject = () => {
     );
 };
 
-const clearProjectCache = (queryClient: QueryClient) => {
+const clearProjectCache = async (queryClient: QueryClient) => {
     queryClient.removeQueries(['project']);
     queryClient.removeQueries(['projects']);
-    queryClient.invalidateQueries();
+    await queryClient.invalidateQueries();
 };
 
 export const useUpdateActiveProjectMutation = () => {
@@ -38,7 +38,7 @@ export const useUpdateActiveProjectMutation = () => {
                 localStorage.setItem(LAST_PROJECT_KEY, projectUuid),
             ),
         onSuccess: async () => {
-            clearProjectCache(queryClient);
+            await clearProjectCache(queryClient);
             await queryClient.invalidateQueries(['validations']);
             await queryClient.invalidateQueries(['activeProject']);
         },

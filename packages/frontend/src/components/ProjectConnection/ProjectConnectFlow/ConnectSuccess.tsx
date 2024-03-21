@@ -52,7 +52,7 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
 
                             const rect = el.getBoundingClientRect();
 
-                            confetti({
+                            void confetti({
                                 disableForReducedMotion: true,
                                 startVelocity: 30,
                                 particleCount: 100,
