@@ -1,3 +1,10 @@
+# [0.1039.0](https://github.com/lightdash/lightdash/compare/0.1038.5...0.1039.0) (2024-03-21)
+
+
+### Features
+
+* show modal before chart, dashboard duplication ([#9345](https://github.com/lightdash/lightdash/issues/9345)) ([4721b50](https://github.com/lightdash/lightdash/commit/4721b503642098832f3e530d273ea63dd5d72b36))
+
 ## [0.1038.5](https://github.com/lightdash/lightdash/compare/0.1038.4...0.1038.5) (2024-03-21)
 
 
