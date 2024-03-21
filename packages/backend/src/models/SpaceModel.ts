@@ -766,10 +766,17 @@ export class SpaceModel {
                     return acc;
                 }
 
-                const publicSpaceRole =
-                    space_role !== null
-                        ? space_role
-                        : convertProjectRoleToSpaceRole(highestRole.role);
+                let spaceRole;
+
+                if (highestRole.role === ProjectMemberRole.ADMIN) {
+                    spaceRole = SpaceMemberRole.ADMIN;
+                } else if (user_with_direct_access) {
+                    spaceRole = space_role;
+                } else if (!is_private && !user_with_direct_access) {
+                    spaceRole = convertProjectRoleToSpaceRole(highestRole.role);
+                } else {
+                    return acc;
+                }
 
                 return [
                     ...acc,
@@ -778,7 +785,7 @@ export class SpaceModel {
                         firstName: first_name,
                         lastName: last_name,
                         email,
-                        role: is_private ? space_role : publicSpaceRole,
+                        role: spaceRole,
                         hasDirectAccess: !!user_with_direct_access,
                         inheritedRole: highestRole.role,
                         inheritedFrom: highestRole.type,

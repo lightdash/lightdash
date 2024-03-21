@@ -148,7 +148,7 @@ const convertProjectRoleToSpaceRole = (
         case ProjectMemberRole.DEVELOPER:
             return SpaceMemberRole.EDITOR;
         case ProjectMemberRole.ADMIN:
-            return SpaceMemberRole.EDITOR;
+            return SpaceMemberRole.ADMIN;
         default:
             return assertUnreachable(
                 projectRole,
