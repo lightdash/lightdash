@@ -171,6 +171,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                             </Highlight>
                         </HoverCard.Target>
                         <HoverCard.Dropdown
+                            hidden={!isHover}
                             p="xs"
                             /**
                              * Takes up space to the right, so it's OK to go fairly wide in the interest
