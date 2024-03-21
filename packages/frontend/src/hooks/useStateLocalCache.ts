@@ -20,7 +20,7 @@ interface StateCacheData<CacheDataT> {
  * v4 UUID segments.
  */
 export const generateStateCacheKey = () => {
-    return crypto.randomUUID().split('-').slice(0, 2).join();
+    return crypto.randomUUID().split('-').slice(0, 2).join('');
 };
 
 /**
