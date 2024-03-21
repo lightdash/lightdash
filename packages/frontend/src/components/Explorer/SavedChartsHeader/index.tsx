@@ -468,6 +468,7 @@ const SavedChartsHeader: FC = () => {
                     <PageActionsContainer>
                         {userCanManageChart && (
                             <>
+                                {/* TODO: Extract this into a separate component, depending on the mode: viewing or editing */}
                                 {!isEditMode ? (
                                     <>
                                         <ExploreFromHereButton />
@@ -526,6 +527,7 @@ const SavedChartsHeader: FC = () => {
                                 )}
                             </>
                         )}
+                        {/* TODO: Refactor this into its own component */}
                         <Menu
                             position="bottom"
                             withArrow
