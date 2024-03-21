@@ -1,3 +1,10 @@
+## [0.1038.5](https://github.com/lightdash/lightdash/compare/0.1038.4...0.1038.5) (2024-03-21)
+
+
+### Bug Fixes
+
+* **cli:** preview deployment delete could cause error/log noise ([#9485](https://github.com/lightdash/lightdash/issues/9485)) ([5683213](https://github.com/lightdash/lightdash/commit/5683213d650b3f7f1f3c25d5b0c63a5422300b68))
+
 ## [0.1038.4](https://github.com/lightdash/lightdash/compare/0.1038.3...0.1038.4) (2024-03-21)
 
 
