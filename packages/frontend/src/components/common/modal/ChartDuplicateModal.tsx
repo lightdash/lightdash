@@ -18,7 +18,7 @@ import {
 
 interface ChartDuplicateModalProps extends ModalProps {
     uuid: string;
-    onConfirm?: () => void;
+    onConfirm?: (savedChart: SavedChart) => void;
 }
 
 type FormState = Pick<SavedChart, 'name' | 'description'>;
@@ -40,7 +40,7 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
         if (!savedQuery) return;
 
         const initialValues = {
-            name: 'Copy - ' + savedQuery.name,
+            name: `Copy of ${savedQuery.name}`,
             description: savedQuery.description,
         };
 
@@ -58,12 +58,13 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
         isInitialLoading || !savedQuery || !form.initialized || isUpdating;
 
     const handleConfirm = form.onSubmit(async (data) => {
-        await duplicateChart({
+        const updatedChart = await duplicateChart({
             uuid: uuid,
             name: data.name,
             description: data.description,
         });
-        onConfirm?.();
+
+        onConfirm?.(updatedChart);
     });
 
     return (

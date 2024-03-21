@@ -18,7 +18,7 @@ import {
 
 interface DashboardDuplicateModalProps extends ModalProps {
     uuid: string;
-    onConfirm?: () => void;
+    onConfirm?: (dashboard: Dashboard) => void;
 }
 
 type FormState = Pick<Dashboard, 'name' | 'description'>;
@@ -28,40 +28,44 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
-    const { mutateAsync: duplicateDashboard, isLoading } =
+    const { mutateAsync: duplicateDashboard, isLoading: isUpdating } =
         useDuplicateDashboardMutation({
             showRedirectButton: true,
         });
     const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
 
-    const form = useForm<FormState>({
-        initialValues: { name: '', description: '' },
-    });
+    const form = useForm<FormState>();
 
     useEffect(() => {
         if (!dashboard) return;
+
         const initialValues = {
-            name: 'Copy - ' + dashboard.name,
+            name: `Copy of ${dashboard.name}`,
             description: dashboard.description ?? '',
         };
-        form.setInitialValues(initialValues);
-        form.setValues(initialValues);
+
+        if (!form.initialized) {
+            form.initialize(initialValues);
+        } else {
+            form.setInitialValues(initialValues);
+            form.setValues(initialValues);
+        }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dashboard]);
 
-    if (isInitialLoading || !dashboard) {
-        return null;
-    }
-
     const handleConfirm = form.onSubmit(async (data) => {
-        await duplicateDashboard({
+        const updatedDashboard = await duplicateDashboard({
             uuid: uuid,
             name: data.name,
             description: data.description,
         });
-        onConfirm?.();
+
+        onConfirm?.(updatedDashboard);
     });
+
+    const isLoading =
+        isInitialLoading || !dashboard || !form.initialized || isUpdating;
 
     return (
         <Modal
@@ -76,6 +80,7 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
                         placeholder="eg. KPI Dashboards"
                         disabled={isLoading}
                         {...form.getInputProps('name')}
+                        value={form.values.name ?? ''}
                     />
 
                     <Textarea
@@ -85,6 +90,7 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
                         autosize
                         maxRows={3}
                         {...form.getInputProps('description')}
+                        value={form.values.description ?? ''}
                     />
 
                     <Group position="right" mt="sm">

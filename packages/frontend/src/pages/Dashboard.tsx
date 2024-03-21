@@ -6,6 +6,7 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
@@ -25,6 +26,7 @@ import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
+import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -38,7 +40,6 @@ import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
 import {
     appendNewTilesToBottom,
-    useDuplicateDashboardMutation,
     useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
@@ -192,11 +193,12 @@ const Dashboard: FC = () => {
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
     const { mutate: moveDashboardToSpace } = useMoveDashboardMutation();
-    const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
-        showRedirectButton: true,
-    });
 
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleteModalOpen, deleteModalHandlers] = useDisclosure();
+    const [isDuplicateModalOpen, duplicateModalHandlers] = useDisclosure();
+    const [isExportDashboardModalOpen, exportDashboardModalHandlers] =
+        useDisclosure();
+    const [isSaveWarningModalOpen, saveWarningModalHandlers] = useDisclosure();
 
     const layouts = useMemo(
         () => ({
@@ -425,42 +427,19 @@ const Dashboard: FC = () => {
         setHaveTilesChanged,
     ]);
 
-    const handleMoveDashboardToSpace = (spaceUuid: string) => {
-        if (!dashboard) return;
+    const handleMoveDashboardToSpace = useCallback(
+        (spaceUuid: string) => {
+            if (!dashboard) return;
 
-        moveDashboardToSpace({
-            uuid: dashboard.uuid,
-            name: dashboard.name,
-            spaceUuid,
-        });
-    };
+            moveDashboardToSpace({
+                uuid: dashboard.uuid,
+                name: dashboard.name,
+                spaceUuid,
+            });
+        },
+        [dashboard, moveDashboardToSpace],
+    );
 
-    const handleDuplicateDashboard = () => {
-        if (!dashboard) return;
-        // FIXME: show a Duplicate Dashboard modal here like when duplicating from the resource list menu
-        duplicateDashboard({
-            uuid: dashboard.uuid,
-            name: dashboard.name,
-            description: dashboard.description,
-        });
-    };
-
-    const handleDeleteDashboard = () => {
-        if (!dashboard) return;
-        setIsDeleteModalOpen(true);
-    };
-
-    const [isExportDashboardModalOpen, setIsExportDashboardModalOpen] =
-        useState(false);
-
-    const handleExportDashboard = () => {
-        if (!dashboard) return;
-
-        setIsExportDashboardModalOpen(true);
-    };
-
-    const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
-        useState<boolean>(false);
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
 
@@ -493,7 +472,7 @@ const Dashboard: FC = () => {
                     // Set the blocked navigation location to navigate on confirming from user
                     setBlockedNavigationLocation(prompt.pathname);
                     // Open a warning modal before blocking navigation
-                    setIsSaveWarningModalOpen(true);
+                    saveWarningModalHandlers.open();
                     // Return false to block history navigation
                     return false;
                 }
@@ -513,6 +492,7 @@ const Dashboard: FC = () => {
         isEditMode,
         history,
         haveTilesChanged,
+        saveWarningModalHandlers,
         haveFiltersChanged,
         projectUuid,
         dashboardUuid,
@@ -548,7 +528,7 @@ const Dashboard: FC = () => {
         <>
             <Modal
                 opened={isSaveWarningModalOpen}
-                onClose={() => setIsSaveWarningModalOpen(false)}
+                onClose={saveWarningModalHandlers.close}
                 title={null}
                 withCloseButton={false}
                 closeOnClickOutside={false}
@@ -567,9 +547,7 @@ const Dashboard: FC = () => {
                     </Group>
 
                     <Group position="right">
-                        <Button
-                            onClick={() => setIsSaveWarningModalOpen(false)}
-                        >
+                        <Button onClick={saveWarningModalHandlers.close}>
                             Stay
                         </Button>
                         <Button
@@ -634,9 +612,9 @@ const Dashboard: FC = () => {
                         }
                         onCancel={handleCancel}
                         onMoveToSpace={handleMoveDashboardToSpace}
-                        onDuplicate={handleDuplicateDashboard}
-                        onDelete={handleDeleteDashboard}
-                        onExport={handleExportDashboard}
+                        onDuplicate={duplicateModalHandlers.open}
+                        onDelete={deleteModalHandlers.open}
+                        onExport={exportDashboardModalHandlers.open}
                     />
                 }
             >
@@ -686,7 +664,7 @@ const Dashboard: FC = () => {
                     <DashboardDeleteModal
                         opened
                         uuid={dashboard.uuid}
-                        onClose={() => setIsDeleteModalOpen(false)}
+                        onClose={deleteModalHandlers.close}
                         onConfirm={() => {
                             history.replace(
                                 `/projects/${projectUuid}/dashboards`,
@@ -694,12 +672,21 @@ const Dashboard: FC = () => {
                         }}
                     />
                 )}
+
                 {isExportDashboardModalOpen && (
                     <DashboardExportModal
                         opened={isExportDashboardModalOpen}
-                        onClose={() => setIsExportDashboardModalOpen(false)}
+                        onClose={exportDashboardModalHandlers.close}
                         dashboard={dashboard}
                         gridWidth={gridWidth}
+                    />
+                )}
+
+                {isDuplicateModalOpen && (
+                    <DashboardDuplicateModal
+                        opened={isDuplicateModalOpen}
+                        uuid={dashboard.uuid}
+                        onClose={duplicateModalHandlers.close}
                     />
                 )}
             </Page>
