@@ -6,6 +6,7 @@ models:
         description: ""
         meta:
           dimension:
+            label: 'Timestamp (with timezone)'
             type: timestamp
             time_intervals:
               - RAW

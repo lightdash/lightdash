@@ -12,7 +12,7 @@ export const dateDayDimension: Dimension = {
     type: DimensionType.DATE,
     timeInterval: TimeFrames.DAY,
     name: 'date',
-    label: 'date',
+    label: 'date day',
     table: 'table',
     tableLabel: 'tableLabel',
     sql: 'sql',
@@ -21,12 +21,20 @@ export const dateDayDimension: Dimension = {
 export const dateMonthDimension: Dimension = {
     ...dateDayDimension,
     timeInterval: TimeFrames.MONTH,
+    label: 'date month',
 };
 
 export const dateYearDimension: Dimension = {
     ...dateDayDimension,
     timeInterval: TimeFrames.YEAR,
+    label: 'date year',
 };
+
+export const dateDayDimensionWithGroup: Dimension = {
+    ...dateDayDimension,
+    group: 'date group',
+};
+
 export const emptyValueFilter: FilterRule = {
     id: '1234',
     target: { fieldId: 'table.date' },

@@ -113,6 +113,7 @@ import {
 import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { type ValidationResponse } from './types/validation';
 
+import { TimeFrames } from './types/timeFrames';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
@@ -770,9 +771,23 @@ export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
     if (
         isDimension(axisItem) &&
         [DimensionType.DATE, DimensionType.TIMESTAMP].includes(axisItem.type) &&
-        axisItem.group
-    )
-        return friendlyName(axisItem.group);
+        axisItem.group &&
+        axisItem.label &&
+        axisItem.timeInterval
+    ) {
+        const timeFrame =
+            TimeFrames[axisItem.timeInterval]?.toLowerCase() || '';
+
+        if (timeFrame && axisItem.label.endsWith(` ${timeFrame}`)) {
+            // Remove the time frame from the end of the label - e.g. from 'Order created day' to 'Order created'.
+            return getItemLabelWithoutTableName(axisItem).replace(
+                new RegExp(`\\s+${timeFrame}$`),
+                '',
+            );
+        }
+
+        return friendlyName(axisItem.label);
+    }
 
     return undefined;
 };
