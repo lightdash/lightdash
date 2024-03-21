@@ -121,7 +121,7 @@ const useCreatePullRequestForChartFieldsMutation = (
     /* useMutation<GitIntegrationConfiguration, ApiError>(
         ['git-integration', 'pull-request'],
         () => createPullRequestForChartFields(projectUuid, chartUuid!),
-        
+
     );*/
     const { showToastSuccess, showToastError } = useToaster();
 
@@ -220,7 +220,6 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const { mutate: duplicateChart } = useDuplicateChartMutation();
-    const chartId = savedChart?.uuid || '';
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
 
     const hasGoogleDriveEnabled =
@@ -345,6 +344,17 @@ const SavedChartsHeader: FC = () => {
             history.push({
                 pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
             });
+    };
+
+    const handleDuplicateChart = () => {
+        if (!savedChart) return;
+
+        // TODO: ideally this should open ChartDuplicateModal instead of calling the mutation directly
+        duplicateChart({
+            uuid: savedChart.uuid,
+            name: `Copy - ${savedChart.name}`,
+            description: savedChart.description,
+        });
     };
 
     return (
@@ -548,9 +558,7 @@ const SavedChartsHeader: FC = () => {
                                             icon={
                                                 <MantineIcon icon={IconCopy} />
                                             }
-                                            onClick={() => {
-                                                duplicateChart(chartId);
-                                            }}
+                                            onClick={handleDuplicateChart}
                                         >
                                             Duplicate
                                         </Menu.Item>
