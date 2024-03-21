@@ -67,7 +67,7 @@ const cleanupExpiredStateCacheData = (): string[] => {
  *
  * setMyStateData({ ...myStateData, someNewValue: 'foo' });
  */
-export const useStateCache = <CacheDataT>(
+export const useStateCache = <CacheDataT = Record<string, unknown>>(
     /**
      * Unique identifier for a state cache. Should be reasonably unique, like
      * a UUID, but can also be a partial UUID if we treat state caches as
