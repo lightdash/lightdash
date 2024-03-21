@@ -1,3 +1,10 @@
+## [0.1039.1](https://github.com/lightdash/lightdash/compare/0.1039.0...0.1039.1) (2024-03-21)
+
+
+### Bug Fixes
+
+* bignumber comparison label layout ([#9472](https://github.com/lightdash/lightdash/issues/9472)) ([925ccb4](https://github.com/lightdash/lightdash/commit/925ccb4d5c9e036819ea825ecf80abf1e5fced81))
+
 # [0.1039.0](https://github.com/lightdash/lightdash/compare/0.1038.5...0.1039.0) (2024-03-21)
 
 
