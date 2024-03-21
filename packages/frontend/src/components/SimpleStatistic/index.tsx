@@ -180,6 +180,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     return validData ? (
         <Center
             w="100%"
+            h="100%"
             component={Stack}
             spacing={0}
             pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
