@@ -687,6 +687,7 @@ const Dashboard: FC = () => {
                         opened={isDuplicateModalOpen}
                         uuid={dashboard.uuid}
                         onClose={duplicateModalHandlers.close}
+                        onConfirm={duplicateModalHandlers.close}
                     />
                 )}
             </Page>
