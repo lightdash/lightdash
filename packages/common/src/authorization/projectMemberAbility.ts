@@ -109,11 +109,6 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
-        // should not check space access & role when creating a space
-        // allow interactive to create a space
-        can('create', 'Space', {
-            projectUuid: member.projectUuid,
-        });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
             access: {
@@ -133,6 +128,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
             isPrivate: false,
+        });
+        can('create', 'Space', {
+            projectUuid: member.projectUuid,
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {

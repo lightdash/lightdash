@@ -1359,7 +1359,7 @@ describe('Organization member permissions', () => {
                             ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'create',

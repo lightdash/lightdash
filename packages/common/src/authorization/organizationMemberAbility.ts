@@ -131,10 +131,6 @@ export const organizationMemberAbilities: Record<
                 },
             },
         });
-        // should not check space access when creating a space
-        can('create', 'Space', {
-            organizationUuid: member.organizationUuid,
-        });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             access: {
@@ -154,6 +150,9 @@ export const organizationMemberAbilities: Record<
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
+        });
+        can('create', 'Space', {
+            organizationUuid: member.organizationUuid,
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
