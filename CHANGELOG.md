@@ -1,3 +1,10 @@
+## [0.1038.3](https://github.com/lightdash/lightdash/compare/0.1038.2...0.1038.3) (2024-03-21)
+
+
+### Bug Fixes
+
+* reference lines breaking axis ranges ([#9458](https://github.com/lightdash/lightdash/issues/9458)) ([0c12b41](https://github.com/lightdash/lightdash/commit/0c12b41150828c328a9a8961cd1ed234e4fd0b2a))
+
 ## [0.1038.2](https://github.com/lightdash/lightdash/compare/0.1038.1...0.1038.2) (2024-03-21)
 
 
