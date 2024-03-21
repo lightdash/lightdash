@@ -98,31 +98,31 @@ describe('Explore', () => {
 
         // open chart menu and change chart types
         cy.findByText('Configure').click();
-        cy.wait(500); // wait for the select to fully update - this tries to ensure that stores have fully finished mutating
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Bar chart').click();
 
         cy.get('[role="menuitem"]').contains('Bar chart').click();
-        cy.wait(500); // wait for the select to fully update - this tries to ensure that stores have fully finished mutating
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Bar chart').click();
 
         cy.get('[role="menuitem"]').contains('Horizontal bar chart').click();
-        cy.wait(500); // wait for the select to fully update - this tries to ensure that stores have fully finished mutating
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Horizontal bar chart').click();
 
         cy.get('[role="menuitem"]').contains('Line chart').click();
-        cy.wait(500); // wait for the select to fully update - this tries to ensure that stores have fully finished mutating
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Line chart').click();
 
         cy.get('[role="menuitem"]').contains('Area chart').click();
-        cy.wait(500); // wait for the select to fully update - this tries to ensure that stores have fully finished mutating
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Area chart').click();
 
         cy.get('[role="menuitem"]').contains('Scatter chart').click();
-        cy.wait(500); // wait for the select to fully update - this tries to ensure that stores have fully finished mutating
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Scatter chart').click();
 
         cy.get('[role="menuitem"]').contains('Pie chart').click();
-        cy.wait(500); // wait for the select to fully update - this tries to ensure that stores have fully finished mutating
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Pie chart').click();
 
         cy.get('[role="menuitem"]').contains('Table').click();
