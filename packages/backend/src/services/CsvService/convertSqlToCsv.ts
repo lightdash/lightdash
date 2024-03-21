@@ -7,16 +7,14 @@ type Args = {
     customLabels: Record<string, string> | undefined;
 };
 
-function run() {
+(async () => {
     const { results, customLabels }: Args = workerData;
 
-    convertSqlToCsv(results, customLabels)
-        .then((csv) => {
-            if (parentPort) parentPort.postMessage(csv);
-        })
-        .catch((_error) => {
-            // TODO: not implemented
-        });
-}
-
-run();
+    try {
+        const csv = await convertSqlToCsv(results, customLabels);
+        if (parentPort) parentPort.postMessage(csv);
+    } catch (e) {
+        console.error(e);
+        throw e;
+    }
+})();
