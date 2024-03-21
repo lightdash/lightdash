@@ -7,7 +7,7 @@ import {
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Select, Text } from '@mantine/core';
+import { ActionIcon, Box, Menu, Select, Switch, Text } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';
@@ -140,6 +140,29 @@ const FilterRuleForm: FC<Props> = ({
                     {filterRule.target.fieldId}
                 </Text>
             )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+                <Text size="sm" color="dimmed">
+                    Required:{' '}
+                </Text>
+                <Switch
+                    disabled={!isEditMode}
+                    checked={filterRule.settings.required}
+                    onLabel="ON"
+                    offLabel="OFF"
+                    size="sm"
+                    labelPosition="left"
+                    onChange={(value) => {
+                        onChange({
+                            ...filterRule,
+                            settings: {
+                                ...filterRule.settings,
+                                required: value.target.checked,
+                            },
+                        });
+                    }}
+                />
+            </div>
 
             {isEditMode &&
                 (!onConvertToGroup ? (

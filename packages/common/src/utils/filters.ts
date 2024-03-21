@@ -20,7 +20,9 @@ import {
     FilterType,
     isAndFilterGroup,
     isFilterGroup,
+    isFilterRule,
     UnitOfTime,
+    type AndFilterGroup,
     type DashboardFieldTarget,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -30,6 +32,7 @@ import {
     type FilterGroupItem,
     type FilterRule,
     type Filters,
+    type OrFilterGroup,
 } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
@@ -179,6 +182,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                     filterRuleDefaults.settings = {
                         unitOfTime: UnitOfTime.days,
                         completed: false,
+                        required: true,
                     } as DateFilterRule['settings'];
                 } else if (isTimestamp) {
                     const valueIsDate =
@@ -241,7 +245,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     return {
         ...filterRule,
         values: values !== undefined && values !== null ? values : [],
-        settings: undefined,
+        settings: { required: true },
         ...filterRuleDefaults,
     };
 };
@@ -520,12 +524,53 @@ export const addFiltersToMetricQuery = (
     },
 });
 
+const findAndOverrideChartFilter = (
+    item: FilterGroupItem,
+    filterRulesList: FilterRule[],
+): FilterGroupItem => {
+    const overridableDashboardFilter = isFilterRule(item)
+        ? filterRulesList.find(
+              (filterRule) =>
+                  filterRule.target.fieldId === item.target.fieldId &&
+                  filterRule.operator === item.operator &&
+                  !item.settings.required,
+          )
+        : undefined;
+    return overridableDashboardFilter
+        ? {
+              ...item,
+              values: overridableDashboardFilter.values,
+          }
+        : item;
+};
+
+export const overrideChartFilter = (
+    filterGroup: AndFilterGroup | OrFilterGroup,
+    filterRules: FilterRule[],
+): FilterGroup =>
+    isAndFilterGroup(filterGroup)
+        ? {
+              id: filterGroup.id,
+              and: filterGroup.and.map((item) =>
+                  findAndOverrideChartFilter(item, filterRules),
+              ),
+          }
+        : {
+              id: filterGroup.id,
+              or: filterGroup.or.map((item) =>
+                  findAndOverrideChartFilter(item, filterRules),
+              ),
+          };
+
 const combineFilterGroupWithFilterRules = (
     filterGroup: FilterGroup | undefined,
     filterRules: FilterRule[],
 ): FilterGroup => ({
     id: uuidv4(),
-    and: [...(filterGroup ? [filterGroup] : []), ...filterRules],
+    and: [
+        ...(filterGroup ? [overrideChartFilter(filterGroup, filterRules)] : []),
+        ...filterRules,
+    ],
 });
 
 export const addDashboardFiltersToMetricQuery = (
