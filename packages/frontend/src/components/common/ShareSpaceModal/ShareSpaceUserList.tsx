@@ -157,18 +157,16 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 </Text>
                             </Group>
                             <Tooltip
-                                disabled={
-                                    isYou ||
-                                    space.isPrivate ||
-                                    sharedUser.hasDirectAccess
-                                }
+                                disabled={isYou || sharedUser.hasDirectAccess}
                                 label={
                                     <Text>
                                         {`This user has ${sharedUser.role} role for this space because they are an ${sharedUser.inheritedFrom} ${sharedUser.inheritedRole}`}
                                     </Text>
                                 }
                             >
-                                {isYou ? (
+                                {isYou ||
+                                sharedUser.inheritedRole ===
+                                    ProjectMemberRole.ADMIN ? (
                                     <Badge size="md" color="gray.6" radius="xs">
                                         {sharedUser.role}
                                     </Badge>
