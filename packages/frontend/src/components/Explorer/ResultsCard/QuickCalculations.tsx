@@ -66,8 +66,7 @@ const isCalculationAvailable = (
         MetricType.COUNT,
         MetricType.COUNT_DISTINCT,
         MetricType.SUM,
-        MetricType.MIN,
-        MetricType.MAX,
+        // MIN and MAX can be of non-numeric types, like dates
     ];
     switch (quickCalculation) {
         case QuickCalculation.PERCENT_CHANGE_FROM_PREVIOUS:
