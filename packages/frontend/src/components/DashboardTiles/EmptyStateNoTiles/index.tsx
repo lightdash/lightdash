@@ -33,9 +33,12 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     const savedCharts = savedChartsRequest.data || [];
     const hasSavedCharts = savedCharts.length > 0;
 
-    const userCanManageDashboard = user.data?.ability.can(
-        'manage',
-        'Dashboard',
+    const userCanCreateDashboard = user.data?.ability.can(
+        'create',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
     );
 
     return (
@@ -45,12 +48,12 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                     <SuboptimalState
                         icon={IconLayoutDashboard}
                         title={
-                            userCanManageDashboard
+                            userCanCreateDashboard
                                 ? 'Start building your dashboard!'
                                 : 'Dashboard is empty.'
                         }
                         action={
-                            userCanManageDashboard && isEditMode ? (
+                            userCanCreateDashboard && isEditMode ? (
                                 <AddTileButton onAddTiles={onAddTiles} />
                             ) : undefined
                         }
