@@ -3,6 +3,7 @@ import {
     DashboardTileTypes,
     type Dashboard,
     type DashboardLoomTileProperties,
+    type DashboardMarkdownTile,
     type DashboardMarkdownTileProperties,
 } from '@lightdash/common';
 import {
@@ -18,7 +19,9 @@ import { IconMarkdown, IconVideo } from '@tabler/icons-react';
 import produce from 'immer';
 import MantineIcon from '../../common/MantineIcon';
 import LoomTileForm, { getLoomId } from './LoomTileForm';
-import MarkdownTileForm from './MarkdownTileForm';
+import MarkdownTileForm, {
+    markdownTileContentTransform,
+} from './MarkdownTileForm';
 
 type Tile = Dashboard['tiles'][number];
 type TileProperties = Tile['properties'];
@@ -53,6 +56,15 @@ const TileUpdateModal = <T extends Tile>({
         initialValues: { ...tile.properties },
         validate: getValidators(),
         validateInputOnChange: ['title', 'url'],
+        transformValues(values) {
+            if (tile.type === DashboardTileTypes.MARKDOWN) {
+                return markdownTileContentTransform(
+                    values as DashboardMarkdownTile['properties'],
+                );
+            }
+
+            return values;
+        },
     });
 
     const handleConfirm = form.onSubmit(({ ...properties }) => {
