@@ -7,7 +7,7 @@ import {
     type Explore,
     type Metric,
 } from '@lightdash/common';
-import { ActionIcon, Box, Center, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Center, ScrollArea, Text, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -93,7 +93,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 onChange={(e) => setSearch(e.target.value)}
             />
 
-            <Box style={{ flexGrow: 1, overflowY: 'auto' }}>
+            <ScrollArea variant="primary" offsetScrollbars scrollbarSize={8}>
                 {tableTrees.length > 0 ? (
                     tableTrees.map((table, index) => (
                         <TableTree
@@ -122,7 +122,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                         <Text color="dimmed">No fields found...</Text>
                     </Center>
                 )}
-            </Box>
+            </ScrollArea>
         </>
     );
 };

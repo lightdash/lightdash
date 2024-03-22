@@ -1,3 +1,59 @@
+# [0.1040.0](https://github.com/lightdash/lightdash/compare/0.1039.2...0.1040.0) (2024-03-22)
+
+
+### Features
+
+* move ctas in view mode saved chart ([#9488](https://github.com/lightdash/lightdash/issues/9488)) ([ccdb7ff](https://github.com/lightdash/lightdash/commit/ccdb7ffee58c9ffc78d538d23f9449ae12272b71))
+
+## [0.1039.2](https://github.com/lightdash/lightdash/compare/0.1039.1...0.1039.2) (2024-03-22)
+
+
+### Bug Fixes
+
+* divide by zero in quick calculations ([#9489](https://github.com/lightdash/lightdash/issues/9489)) ([d1657fd](https://github.com/lightdash/lightdash/commit/d1657fd982af3a783f67813ffbd41c30257f02c6))
+
+## [0.1039.1](https://github.com/lightdash/lightdash/compare/0.1039.0...0.1039.1) (2024-03-21)
+
+
+### Bug Fixes
+
+* bignumber comparison label layout ([#9472](https://github.com/lightdash/lightdash/issues/9472)) ([925ccb4](https://github.com/lightdash/lightdash/commit/925ccb4d5c9e036819ea825ecf80abf1e5fced81))
+
+# [0.1039.0](https://github.com/lightdash/lightdash/compare/0.1038.5...0.1039.0) (2024-03-21)
+
+
+### Features
+
+* show modal before chart, dashboard duplication ([#9345](https://github.com/lightdash/lightdash/issues/9345)) ([4721b50](https://github.com/lightdash/lightdash/commit/4721b503642098832f3e530d273ea63dd5d72b36))
+
+## [0.1038.5](https://github.com/lightdash/lightdash/compare/0.1038.4...0.1038.5) (2024-03-21)
+
+
+### Bug Fixes
+
+* **cli:** preview deployment delete could cause error/log noise ([#9485](https://github.com/lightdash/lightdash/issues/9485)) ([5683213](https://github.com/lightdash/lightdash/commit/5683213d650b3f7f1f3c25d5b0c63a5422300b68))
+
+## [0.1038.4](https://github.com/lightdash/lightdash/compare/0.1038.3...0.1038.4) (2024-03-21)
+
+
+### Bug Fixes
+
+* flaky e2e profile test ([#9466](https://github.com/lightdash/lightdash/issues/9466)) ([ef9060c](https://github.com/lightdash/lightdash/commit/ef9060cfae2f364f7027da35c0dd396003c53ca3))
+
+## [0.1038.3](https://github.com/lightdash/lightdash/compare/0.1038.2...0.1038.3) (2024-03-21)
+
+
+### Bug Fixes
+
+* reference lines breaking axis ranges ([#9458](https://github.com/lightdash/lightdash/issues/9458)) ([0c12b41](https://github.com/lightdash/lightdash/commit/0c12b41150828c328a9a8961cd1ed234e4fd0b2a))
+
+## [0.1038.2](https://github.com/lightdash/lightdash/compare/0.1038.1...0.1038.2) (2024-03-21)
+
+
+### Bug Fixes
+
+* display label and if so remove time interval ([#9453](https://github.com/lightdash/lightdash/issues/9453)) ([c07d4bd](https://github.com/lightdash/lightdash/commit/c07d4bde58e26479b1df77ba70b67e9726167175))
+
 ## [0.1038.1](https://github.com/lightdash/lightdash/compare/0.1038.0...0.1038.1) (2024-03-20)
 
 

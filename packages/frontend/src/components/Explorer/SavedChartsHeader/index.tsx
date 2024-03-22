@@ -16,6 +16,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconArrowBack,
@@ -40,7 +41,6 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { useToggle } from 'react-use';
 import { lightdashApi } from '../../../api';
 import { ChartSchedulersModal } from '../../../features/scheduler';
 import {
@@ -52,7 +52,6 @@ import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
-    useDuplicateChartMutation,
     useMoveChartMutation,
     useUpdateMutation,
 } from '../../../hooks/useSavedQuery';
@@ -65,6 +64,7 @@ import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
+import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartThatBelongsToDashboardModal';
 import PageHeader from '../../common/Page/PageHeader';
@@ -77,6 +77,8 @@ import SpaceAndDashboardInfo from '../../common/PageHeader/SpaceAndDashboardInfo
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import ViewInfo from '../../common/PageHeader/ViewInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
+import ShareShortLinkButton from '../../common/ShareShortLinkButton';
+import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SaveChartButton from '../SaveChartButton';
 
@@ -121,7 +123,7 @@ const useCreatePullRequestForChartFieldsMutation = (
     /* useMutation<GitIntegrationConfiguration, ApiError>(
         ['git-integration', 'pull-request'],
         () => createPullRequestForChartFields(projectUuid, chartUuid!),
-        
+
     );*/
     const { showToastSuccess, showToastError } = useToaster();
 
@@ -179,6 +181,9 @@ const SavedChartsHeader: FC = () => {
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
+    const isValidQuery = useExplorerContext(
+        (context) => context.state.isValidQuery,
+    );
 
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -189,23 +194,23 @@ const SavedChartsHeader: FC = () => {
 
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
-    const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
-        useState<boolean>(false);
     const [isRenamingChart, setIsRenamingChart] = useState(false);
-    const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isMovingChart, setIsMovingChart] = useState(false);
-    const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
-        useToggle(false);
-    const [isThresholdAlertsModalOpen, toggleThresholdAlertsModal] =
-        useToggle(false);
-    const [
-        isSyncWithGoogleSheetsModalOpen,
-        toggleSyncWithGoogleSheetsModalOpen,
-    ] = useToggle(false);
-    const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
-        useState<boolean>(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
-        useState<boolean>(false);
+
+    const [isSaveWarningModalOpen, saveWarningModalHandlers] = useDisclosure();
+    const [isQueryModalOpen, queryModalHandlers] = useDisclosure();
+    const [isDeleteModalOpen, deleteModalHandlers] = useDisclosure();
+    const [isScheduledDeliveriesModalOpen, scheduledDeliveriesModalHandlers] =
+        useDisclosure();
+    const [isThresholdAlertsModalOpen, thresholdAlertsModalHandlers] =
+        useDisclosure();
+    const [isSyncWithGoogleSheetsModalOpen, syncWithGoogleSheetsModalHandlers] =
+        useDisclosure();
+    const [isAddToDashboardModalOpen, addToDashboardModalHandlers] =
+        useDisclosure();
+    const [isChartDuplicateModalOpen, chartDuplicateModalHandlers] =
+        useDisclosure();
+
     const { user, health } = useApp();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
@@ -219,8 +224,6 @@ const SavedChartsHeader: FC = () => {
         projectUuid,
         savedChart?.uuid,
     );
-    const { mutate: duplicateChart } = useDuplicateChartMutation();
-    const chartId = savedChart?.uuid || '';
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
 
     const hasGoogleDriveEnabled =
@@ -234,13 +237,15 @@ const SavedChartsHeader: FC = () => {
 
         if (schedulerUuidFromUrlParams) {
             if (isSync) {
-                toggleSyncWithGoogleSheetsModalOpen(true);
-            } else toggleScheduledDeliveriesModal(true);
+                syncWithGoogleSheetsModalHandlers.open();
+            } else {
+                scheduledDeliveriesModalHandlers.open();
+            }
         }
     }, [
         search,
-        toggleScheduledDeliveriesModal,
-        toggleSyncWithGoogleSheetsModalOpen,
+        syncWithGoogleSheetsModalHandlers,
+        scheduledDeliveriesModalHandlers,
     ]);
 
     useEffect(() => {
@@ -270,7 +275,7 @@ const SavedChartsHeader: FC = () => {
                 )
             ) {
                 setBlockedNavigationLocation(prompt.pathname);
-                setIsSaveWarningModalOpen(true);
+                saveWarningModalHandlers.open();
                 return false; //blocks history
             }
             return undefined; // allow history
@@ -285,7 +290,7 @@ const SavedChartsHeader: FC = () => {
         projectUuid,
         savedChart,
         hasUnsavedChanges,
-        setIsSaveWarningModalOpen,
+        saveWarningModalHandlers,
         isEditMode,
         isQueryModalOpen,
     ]);
@@ -328,7 +333,7 @@ const SavedChartsHeader: FC = () => {
         if (hasUnsavedChanges && isEditMode) {
             history.block((prompt) => {
                 setBlockedNavigationLocation(prompt.pathname);
-                setIsSaveWarningModalOpen(true);
+                saveWarningModalHandlers.open();
                 return false; //blocks history
             });
         }
@@ -353,7 +358,7 @@ const SavedChartsHeader: FC = () => {
                 opened={isSaveWarningModalOpen}
                 withCloseButton={false}
                 closeOnClickOutside={false}
-                onClose={() => setIsSaveWarningModalOpen(false)}
+                onClose={saveWarningModalHandlers.close}
             >
                 <Alert
                     icon={<MantineIcon size="xl" icon={IconAlertTriangle} />}
@@ -366,7 +371,7 @@ const SavedChartsHeader: FC = () => {
                     <Button
                         color="dark"
                         variant="outline"
-                        onClick={() => setIsSaveWarningModalOpen(false)}
+                        onClick={saveWarningModalHandlers.close}
                     >
                         Stay
                     </Button>
@@ -463,8 +468,10 @@ const SavedChartsHeader: FC = () => {
                     <PageActionsContainer>
                         {userCanManageChart && (
                             <>
+                                {/* TODO: Extract this into a separate component, depending on the mode: viewing or editing */}
                                 {!isEditMode ? (
                                     <>
+                                        <ExploreFromHereButton />
                                         <Button
                                             variant="default"
                                             size="xs"
@@ -481,6 +488,9 @@ const SavedChartsHeader: FC = () => {
                                         >
                                             Edit chart
                                         </Button>
+                                        <ShareShortLinkButton
+                                            disabled={!isValidQuery}
+                                        />
                                     </>
                                 ) : (
                                     <>
@@ -517,6 +527,7 @@ const SavedChartsHeader: FC = () => {
                                 )}
                             </>
                         )}
+                        {/* TODO: Refactor this into its own component */}
                         <Menu
                             position="bottom"
                             withArrow
@@ -534,9 +545,7 @@ const SavedChartsHeader: FC = () => {
                                                 icon={IconCirclePlus}
                                             />
                                         }
-                                        onClick={() => {
-                                            setIsQueryModalOpen(true);
-                                        }}
+                                        onClick={queryModalHandlers.open}
                                     >
                                         Save chart as
                                     </Menu.Item>
@@ -548,9 +557,9 @@ const SavedChartsHeader: FC = () => {
                                             icon={
                                                 <MantineIcon icon={IconCopy} />
                                             }
-                                            onClick={() => {
-                                                duplicateChart(chartId);
-                                            }}
+                                            onClick={
+                                                chartDuplicateModalHandlers.open
+                                            }
                                         >
                                             Duplicate
                                         </Menu.Item>
@@ -563,10 +572,8 @@ const SavedChartsHeader: FC = () => {
                                                     icon={IconLayoutGridAdd}
                                                 />
                                             }
-                                            onClick={() =>
-                                                setIsAddToDashboardModalOpen(
-                                                    true,
-                                                )
+                                            onClick={
+                                                addToDashboardModalHandlers.open
                                             }
                                         >
                                             Add to dashboard
@@ -741,8 +748,8 @@ const SavedChartsHeader: FC = () => {
                                 {userCanCreateDeliveriesAndAlerts && (
                                     <Menu.Item
                                         icon={<MantineIcon icon={IconSend} />}
-                                        onClick={() =>
-                                            toggleScheduledDeliveriesModal(true)
+                                        onClick={
+                                            scheduledDeliveriesModalHandlers.open
                                         }
                                     >
                                         Scheduled deliveries
@@ -751,8 +758,8 @@ const SavedChartsHeader: FC = () => {
                                 {userCanCreateDeliveriesAndAlerts && (
                                     <Menu.Item
                                         icon={<MantineIcon icon={IconBell} />}
-                                        onClick={() =>
-                                            toggleThresholdAlertsModal(true)
+                                        onClick={
+                                            thresholdAlertsModalHandlers.open
                                         }
                                     >
                                         Alerts
@@ -765,10 +772,8 @@ const SavedChartsHeader: FC = () => {
                                                 icon={IconCirclesRelation}
                                             />
                                         }
-                                        onClick={() =>
-                                            toggleSyncWithGoogleSheetsModalOpen(
-                                                true,
-                                            )
+                                        onClick={
+                                            syncWithGoogleSheetsModalHandlers.open
                                         }
                                     >
                                         Google Sheets Sync
@@ -807,10 +812,8 @@ const SavedChartsHeader: FC = () => {
                                                     }
                                                     color="red"
                                                     disabled={getIsEditingDashboardChart()}
-                                                    onClick={() =>
-                                                        setIsDeleteDialogOpen(
-                                                            true,
-                                                        )
+                                                    onClick={
+                                                        deleteModalHandlers.open
                                                     }
                                                 >
                                                     Delete
@@ -837,8 +840,8 @@ const SavedChartsHeader: FC = () => {
                 <ChartCreateModal
                     isOpen={isQueryModalOpen}
                     savedData={unsavedChartVersion}
-                    onClose={() => setIsQueryModalOpen(false)}
-                    onConfirm={() => setIsQueryModalOpen(false)}
+                    onClose={queryModalHandlers.close}
+                    onConfirm={queryModalHandlers.close}
                     defaultSpaceUuid={spaceUuid ?? undefined}
                 />
             )}
@@ -847,14 +850,14 @@ const SavedChartsHeader: FC = () => {
                     isOpen={isAddToDashboardModalOpen}
                     projectUuid={projectUuid}
                     savedChartUuid={savedChart.uuid}
-                    onClose={() => setIsAddToDashboardModalOpen(false)}
+                    onClose={addToDashboardModalHandlers.close}
                 />
             )}
-            {isDeleteDialogOpen && savedChart?.uuid && (
+            {isDeleteModalOpen && savedChart?.uuid && (
                 <ChartDeleteModal
                     uuid={savedChart.uuid}
-                    opened={isDeleteDialogOpen}
-                    onClose={() => setIsDeleteDialogOpen(false)}
+                    opened={isDeleteModalOpen}
+                    onClose={deleteModalHandlers.close}
                     onConfirm={() => {
                         history.listen((location, action) => {
                             if (action === 'POP') {
@@ -868,7 +871,7 @@ const SavedChartsHeader: FC = () => {
 
                         history.push('/');
 
-                        setIsDeleteDialogOpen(false);
+                        deleteModalHandlers.close();
                     }}
                 />
             )}
@@ -876,7 +879,7 @@ const SavedChartsHeader: FC = () => {
                 <GoogleSheetsSyncModal
                     chartUuid={savedChart.uuid}
                     opened={isSyncWithGoogleSheetsModalOpen}
-                    onClose={() => toggleSyncWithGoogleSheetsModalOpen(false)}
+                    onClose={syncWithGoogleSheetsModalHandlers.close}
                 />
             )}
             {isScheduledDeliveriesModalOpen && savedChart?.uuid && (
@@ -884,7 +887,7 @@ const SavedChartsHeader: FC = () => {
                     chartUuid={savedChart.uuid}
                     name={savedChart.name}
                     isOpen={isScheduledDeliveriesModalOpen}
-                    onClose={() => toggleScheduledDeliveriesModal(false)}
+                    onClose={scheduledDeliveriesModalHandlers.close}
                 />
             )}
             {isThresholdAlertsModalOpen && savedChart?.uuid && (
@@ -894,7 +897,7 @@ const SavedChartsHeader: FC = () => {
                     isThresholdAlert
                     itemsMap={itemsMap}
                     isOpen={isThresholdAlertsModalOpen}
-                    onClose={() => toggleThresholdAlertsModal(false)}
+                    onClose={thresholdAlertsModalHandlers.close}
                 />
             )}
             {savedChart && (
@@ -912,6 +915,15 @@ const SavedChartsHeader: FC = () => {
                             `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
                         );
                     }}
+                />
+            )}
+
+            {isChartDuplicateModalOpen && savedChart?.uuid && (
+                <ChartDuplicateModal
+                    opened={isChartDuplicateModalOpen}
+                    uuid={savedChart.uuid}
+                    onClose={chartDuplicateModalHandlers.close}
+                    onConfirm={chartDuplicateModalHandlers.close}
                 />
             )}
         </TrackSection>

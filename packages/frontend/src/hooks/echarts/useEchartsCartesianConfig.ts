@@ -316,63 +316,61 @@ const maxDate = (a: number | string, b: string) => {
 };
 
 export const getMinAndMaxValues = (
-    axis: string | undefined,
+    series: string[] | undefined,
     rows: ResultRow[],
 ): (string | number)[] => {
-    if (!axis) return [];
+    if (!series || series.length === 0) return [];
 
-    return rows
-        .map((row) => row[axis]?.value.raw)
-        .reduce<(string | number)[]>(
-            (acc, value) => {
-                if (
-                    typeof value === 'string' &&
-                    dayjs(value, 'YYYY-MM-DD', false).isValid()
-                ) {
-                    // is date
-                    const min = minDate(acc[0], value);
-                    const max = maxDate(acc[1], value);
+    let rawValues = [];
+    for (const s of series) {
+        for (const row of rows) {
+            rawValues.push(row[s]?.value.raw);
+        }
+    }
+
+    return rawValues.reduce<(string | number)[]>(
+        (acc, value) => {
+            if (
+                typeof value === 'string' &&
+                dayjs(value, 'YYYY-MM-DD', false).isValid()
+            ) {
+                // is date
+                const min = minDate(acc[0], value);
+                const max = maxDate(acc[1], value);
+
+                return [min, max];
+            } else if (typeof value === 'string' || typeof value === 'number') {
+                // is number or numeric string
+                const currentNumber =
+                    typeof value === 'string' ? parseFloat(value) : value;
+                const currentMin =
+                    typeof acc[0] === 'string' ? parseFloat(acc[0]) : acc[0];
+                const currentMax =
+                    typeof acc[1] === 'string' ? parseFloat(acc[1]) : acc[1];
+
+                if (!isNaN(currentNumber)) {
+                    const min =
+                        currentNumber < currentMin ? currentNumber : currentMin;
+                    const max =
+                        currentNumber > currentMax ? currentNumber : currentMax;
 
                     return [min, max];
-                } else if (
-                    typeof value === 'string' ||
-                    typeof value === 'number'
-                ) {
-                    // is number or numeric string
-                    const currentNumber =
-                        typeof value === 'string' ? parseFloat(value) : value;
-                    const currentMin =
-                        typeof acc[0] === 'string'
-                            ? parseFloat(acc[0])
-                            : acc[0];
-                    const currentMax =
-                        typeof acc[1] === 'string'
-                            ? parseFloat(acc[1])
-                            : acc[1];
-
-                    if (!isNaN(currentNumber)) {
-                        const min =
-                            currentNumber < currentMin
-                                ? currentNumber
-                                : currentMin;
-                        const max =
-                            currentNumber > currentMax
-                                ? currentNumber
-                                : currentMax;
-
-                        return [min, max];
-                    }
                 }
-                return acc;
-            },
-            [0, 0],
-        );
+            } else {
+                // TODO: this case comes up more than it should given that
+                // this 'else' wasn't here before. We should maybe use getAxisType
+                // for this function
+            }
+            return acc;
+        },
+        [0, 0],
+    );
 };
 
 const getMinAndMaxReferenceLines = (
-    leftAxisYId: string | undefined,
-    rightAxisYId: string | undefined,
-    bottomAxisXId: string | undefined,
+    leftAxisFieldYIds: string[] | undefined,
+    rightAxisYFieldIds: string[] | undefined,
+    bottomAxisXFieldIds: string[] | undefined,
     resultsData: ApiQueryResults | undefined,
     series: Series[] | undefined,
     items: ItemsMap,
@@ -389,12 +387,12 @@ const getMinAndMaxReferenceLines = (
 
     const getMinAndMaxReferenceLineValues = (
         axis: string,
-        fieldId: string | undefined,
+        fieldIds: (string | undefined)[] | undefined,
     ): (string | number)[] => {
         const values = series.flatMap<string | number>((serie) => {
             const serieFieldId =
                 axis === 'yAxis' ? serie.encode.yRef : serie.encode.xRef;
-            if (serieFieldId.field !== fieldId) return [];
+            if (!fieldIds || !fieldIds.includes(serieFieldId.field)) return [];
 
             if (!serie.markLine) return [];
             const field = items[serieFieldId.field];
@@ -486,24 +484,24 @@ const getMinAndMaxReferenceLines = (
     };
 
     const [minValueLeftY, maxValueLeftY] = getMinAndMaxValues(
-        leftAxisYId,
+        leftAxisFieldYIds,
         resultsData.rows,
     );
     const [minValueRightY, maxValueRightY] = getMinAndMaxValues(
-        rightAxisYId,
+        rightAxisYFieldIds,
         resultsData.rows,
     );
     const [minValueX, maxValueX] = getMinAndMaxValues(
-        bottomAxisXId,
+        bottomAxisXFieldIds,
         resultsData.rows,
     );
 
     const [minReferenceLineX, maxReferenceLineX] =
-        getMinAndMaxReferenceLineValues('xAxis', bottomAxisXId);
+        getMinAndMaxReferenceLineValues('xAxis', bottomAxisXFieldIds);
     const [minReferenceLineLeftY, maxReferenceLineLeftY] =
-        getMinAndMaxReferenceLineValues('yAxis', leftAxisYId);
+        getMinAndMaxReferenceLineValues('yAxis', leftAxisFieldYIds);
     const [minReferenceLineRightY, maxReferenceLineRightY] =
-        getMinAndMaxReferenceLineValues('yAxis', rightAxisYId);
+        getMinAndMaxReferenceLineValues('yAxis', rightAxisYFieldIds);
 
     return {
         referenceLineMinX:
@@ -967,16 +965,21 @@ const getEchartAxes = ({
             : true;
 
     // There is no Top x axis when no flipped
-    const topAxisXId = validCartesianConfig.layout.flipAxes
-        ? validCartesianConfig.eChartsConfig.series?.find(
-              (serie) => serie.yAxisIndex === 1,
-          )?.encode.yRef.field
+    const topAxisXFieldIds = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig.series
+              ?.filter((serie) => serie.yAxisIndex === 1)
+              .map((s) => s.encode.yRef.field)
         : undefined;
-    const bottomAxisXId = validCartesianConfig.layout.flipAxes
-        ? validCartesianConfig.eChartsConfig.series?.find(
-              (serie) => serie.yAxisIndex === 0,
-          )?.encode.yRef.field
-        : xAxisItemId;
+
+    const topAxisXId = topAxisXFieldIds?.[0] || undefined;
+
+    const bottomAxisXFieldIds = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig.series
+              ?.filter((serie) => serie.yAxisIndex === 0)
+              .map((s) => s.encode.yRef.field)
+        : [];
+
+    const bottomAxisXId = bottomAxisXFieldIds?.[0] || xAxisItemId;
 
     const longestValueXAxisTop: string | undefined = getLongestLabel({
         resultsData,
@@ -988,16 +991,23 @@ const getEchartAxes = ({
         axisId: bottomAxisXId,
     });
 
-    const leftAxisYId = validCartesianConfig.layout.flipAxes
+    const leftAxisYFieldIds = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.xField
-        : validCartesianConfig.eChartsConfig.series?.find(
-              (serie) => serie.yAxisIndex === 0,
-          )?.encode.yRef.field || yAxisItemId;
+            ? [validCartesianConfig.layout?.xField]
+            : []
+        : validCartesianConfig.eChartsConfig.series
+              ?.filter((serie) => serie.yAxisIndex === 0)
+              .map((s) => s.encode.yRef.field);
+
+    const leftAxisYId = leftAxisYFieldIds?.[0] || yAxisItemId;
+
     // There is no right Y axis when flipped
+    const rightAxisYFieldIds = validCartesianConfig.eChartsConfig.series
+        ?.filter((serie) => serie.yAxisIndex === 1)
+        .map((s) => s.encode.yRef.field);
+
     const rightAxisYId =
-        validCartesianConfig.eChartsConfig.series?.find(
-            (serie) => serie.yAxisIndex === 1,
-        )?.encode.yRef.field || validCartesianConfig.layout?.yField?.[1];
+        rightAxisYFieldIds?.[0] || validCartesianConfig.layout?.yField?.[1];
 
     const longestValueYAxisLeft: string | undefined = getLongestLabel({
         resultsData,
@@ -1036,9 +1046,9 @@ const getEchartAxes = ({
         referenceLineMinRightY,
         referenceLineMaxRightY,
     } = getMinAndMaxReferenceLines(
-        leftAxisYId,
-        rightAxisYId,
-        bottomAxisXId,
+        leftAxisYFieldIds,
+        rightAxisYFieldIds,
+        bottomAxisXFieldIds,
         resultsData,
         validCartesianConfig.eChartsConfig.series,
         itemsMap,

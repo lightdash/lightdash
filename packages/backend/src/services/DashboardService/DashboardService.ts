@@ -318,6 +318,7 @@ export class DashboardService {
         user: SessionUser,
         projectUuid: string,
         dashboardUuid: string,
+        data: { dashboardName: string; dashboardDesc: string },
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
         const space = await this.spaceModel.getSpaceSummary(
@@ -341,7 +342,8 @@ export class DashboardService {
 
         const duplicatedDashboard = {
             ...dashboard,
-            name: `Copy of ${dashboard.name}`,
+            description: data.dashboardDesc,
+            name: data.dashboardName,
         };
 
         const newDashboard = await this.dashboardModel.create(

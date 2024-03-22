@@ -1,5 +1,13 @@
 import { ComparisonDiffTypes } from '@lightdash/common';
-import { Tooltip, useMantineTheme } from '@mantine/core';
+import {
+    Center,
+    Flex,
+    Stack,
+    Text,
+    Tooltip,
+    useMantineTheme,
+    type TextProps,
+} from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
 import { useMemo, type FC, type HTMLAttributes } from 'react';
@@ -10,12 +18,6 @@ import { isBigNumberVisualizationConfig } from '../LightdashVisualization/Visual
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
-import {
-    BigNumber,
-    BigNumberContainer,
-    BigNumberHalf,
-    BigNumberLabel,
-} from './SimpleStatistics.styles';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
@@ -58,6 +60,23 @@ const calculateFontSize = (
     );
 
     return fontSize;
+};
+
+const BigNumberText: FC<TextProps> = ({ children, ...textProps }) => {
+    return (
+        <Text
+            c="dark.4"
+            align="center"
+            fw={500}
+            {...textProps}
+            style={{
+                transition: 'font-size 0.1s ease-in-out',
+                ...textProps.style,
+            }}
+        >
+            {children}
+        </Text>
+    );
 };
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
@@ -159,49 +178,56 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     if (isLoading) return <LoadingChart />;
 
     return validData ? (
-        <BigNumberContainer
-            $paddingBottom={
-                isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT
-            }
+        <Center
+            w="100%"
+            h="100%"
+            component={Stack}
+            spacing={0}
+            pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
             ref={(elem) => setRef(elem)}
             {...wrapperProps}
         >
-            <BigNumberHalf>
+            <Flex style={{ flexShrink: 1 }}>
                 {minimal || isSqlRunner ? (
-                    <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
+                    <BigNumberText fz={valueFontSize}>
+                        {bigNumber}
+                    </BigNumberText>
                 ) : (
                     <BigNumberContextMenu>
-                        <BigNumber $interactive $fontSize={valueFontSize}>
+                        <BigNumberText
+                            fz={valueFontSize}
+                            style={{ cursor: 'pointer' }}
+                        >
                             {bigNumber}
-                        </BigNumber>
+                        </BigNumberText>
                     </BigNumberContextMenu>
                 )}
-            </BigNumberHalf>
+            </Flex>
 
             {showBigNumberLabel ? (
-                <BigNumberHalf>
-                    <BigNumberLabel $fontSize={labelFontSize}>
+                <Flex style={{ flexShrink: 1 }}>
+                    <BigNumberText fz={labelFontSize}>
                         {bigNumberLabel || defaultLabel}
-                    </BigNumberLabel>
-                </BigNumberHalf>
+                    </BigNumberText>
+                </Flex>
             ) : null}
 
             {showComparison ? (
-                <BigNumberHalf
-                    style={{
-                        marginTop: 10,
-                    }}
+                <Flex
+                    justify="center"
+                    display="inline-flex"
+                    wrap="wrap"
+                    style={{ flexShrink: 1 }}
+                    mt="lg"
                 >
                     <Tooltip withinPortal label={comparisonTooltip}>
-                        <BigNumber
-                            $fontSize={comparisonFontSize}
-                            style={{
-                                color: comparisonValueColor,
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
+                        <BigNumberText
+                            span
+                            fz={comparisonFontSize}
+                            c={comparisonValueColor}
                         >
                             {comparisonValue}
+
                             {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
                                 <MantineIcon
                                     icon={IconArrowUpRight}
@@ -224,14 +250,17 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             ) : (
                                 <span style={{ margin: '0 7px 0 0' }} />
                             )}
-                        </BigNumber>
+                        </BigNumberText>
                     </Tooltip>
-                    <BigNumberLabel $fontSize={comparisonFontSize}>
-                        {comparisonLabel ?? null}
-                    </BigNumberLabel>
-                </BigNumberHalf>
+
+                    {comparisonLabel ? (
+                        <BigNumberText span fz={comparisonFontSize} c="gray.6">
+                            {comparisonLabel}
+                        </BigNumberText>
+                    ) : null}
+                </Flex>
             ) : null}
-        </BigNumberContainer>
+        </Center>
     ) : (
         <EmptyChart />
     );

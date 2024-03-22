@@ -60,8 +60,13 @@ const isCalculationAvailable = (
 ) => {
     const numericTypes: string[] = [
         MetricType.NUMBER,
+        MetricType.PERCENTILE,
+        MetricType.MEDIAN,
+        MetricType.AVERAGE,
         MetricType.COUNT,
+        MetricType.COUNT_DISTINCT,
         MetricType.SUM,
+        // MIN and MAX can be of non-numeric types, like dates
     ];
     switch (quickCalculation) {
         case QuickCalculation.PERCENT_CHANGE_FROM_PREVIOUS:
@@ -98,15 +103,15 @@ const getSqlForQuickCalculation = (
     switch (quickCalculation) {
         case QuickCalculation.PERCENT_CHANGE_FROM_PREVIOUS:
             return `(
-              \${${fieldReference}} / LAG(\${${fieldReference}}) OVER(${orderSql}) 
+              \${${fieldReference}} / NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql}) ,0)
             ) - 1`;
         case QuickCalculation.PERCENT_OF_PREVIOUS_VALUE:
             return `(
-              \${${fieldReference}} / LAG(\${${fieldReference}}) OVER(${orderSql})
+              \${${fieldReference}} / NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql}),0)
             )`;
         case QuickCalculation.PERCENT_OF_COLUMN_TOTAL:
             return `(
-              \${${fieldReference}} / SUM(\${${fieldReference}}) OVER()
+              \${${fieldReference}} / NULLIF(SUM(\${${fieldReference}}) OVER(),0) 
             )`;
         case QuickCalculation.RANK_IN_COLUMN:
             return `RANK() OVER(ORDER BY \${${fieldReference}} ASC)`;

@@ -122,19 +122,19 @@ describe('getAxisDefaultMaxValue', () => {
 });
 
 describe('getMinAndMaxValues', () => {
-    test('should return min/max values for numbers', () => {
-        const axis = 'axis';
+    test('should return min/max values for numbers in a single series', () => {
+        const axes = ['axis1'];
         const values = [
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, -1, -2, -3, -100, 0,
         ];
         const resultRow: ResultRow[] = values.map((v) => ({
-            [axis]: { value: { raw: v, formatted: v.toString() } },
+            [axes[0]]: { value: { raw: v, formatted: v.toString() } },
         }));
-        expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([-100, 50]);
+        expect(getMinAndMaxValues(axes, resultRow)).toStrictEqual([-100, 50]);
     });
 
-    test('should return min/max values for dates', () => {
-        const axis = 'axis';
+    test('should return min/max values for dates in a single series', () => {
+        const axes = ['axis1'];
         const time = ':00:00.000Z';
         const values = [
             '2018-02-28',
@@ -145,16 +145,16 @@ describe('getMinAndMaxValues', () => {
             '2019-01-15',
         ];
         const resultRow: ResultRow[] = values.map((v) => ({
-            [axis]: { value: { raw: `${v}${time}`, formatted: v } },
+            [axes[0]]: { value: { raw: `${v}${time}`, formatted: v } },
         }));
-        expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([
+        expect(getMinAndMaxValues(axes, resultRow)).toStrictEqual([
             `2017-03-29${time}`,
             `2019-01-15${time}`,
         ]);
     });
 
-    test('should return min/max values for floats', () => {
-        const axis = 'axis';
+    test('should return min/max values for floats in a single series', () => {
+        const axes = ['axis1'];
         const values = [
             '1.000',
             '2.000',
@@ -165,17 +165,116 @@ describe('getMinAndMaxValues', () => {
             '0.000',
         ];
         const resultRow: ResultRow[] = values.map((v) => ({
-            [axis]: { value: { raw: v, formatted: v } },
+            [axes[0]]: { value: { raw: v, formatted: v } },
         }));
-        expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([-5.0, 50.0]);
+        expect(getMinAndMaxValues(axes, resultRow)).toStrictEqual([-5.0, 50.0]);
     });
 
-    test('string values should return invalid min/max', () => {
-        const axis = 'axis';
+    test('string values should return invalid min/max in a single series', () => {
+        const axes = ['axis1'];
+
         const values = ['a', 'b', 'c', 'z'];
         const resultRow: ResultRow[] = values.map((v) => ({
-            [axis]: { value: { raw: v, formatted: v } },
+            [axes[0]]: { value: { raw: v, formatted: v } },
         }));
-        expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([0, 0]);
+        expect(getMinAndMaxValues(axes, resultRow)).toStrictEqual([0, 0]);
+    });
+
+    test('should return min/max values for numbers in multiple series', () => {
+        const axes = ['axis1', 'axis2'];
+        const values = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, -1, -2, -3, -100, 0,
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: v, formatted: v.toString() } },
+        }));
+        const values2 = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 70, -1, -2, -3, -10, 0,
+        ];
+        const resultRow2: ResultRow[] = values2.map((v) => ({
+            [axes[1]]: { value: { raw: v, formatted: v.toString() } },
+        }));
+        expect(
+            getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
+        ).toStrictEqual([-100, 70]);
+    });
+
+    test('should return min/max values for dates in multiple series', () => {
+        const axes = ['axis1', 'axis2'];
+        const time = ':00:00.000Z';
+        const values = [
+            '2018-02-28',
+            '2018-02-29',
+            '2018-02-30',
+            '2018-01-29',
+            '2017-03-29',
+            '2019-01-15', // max
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: `${v}${time}`, formatted: v } },
+        }));
+
+        const values2 = [
+            '2018-02-28',
+            '2018-02-29',
+            '2018-02-30',
+            '2018-01-29',
+            '2016-03-29', // min
+            '2019-01-15',
+        ];
+        const resultRow2: ResultRow[] = values2.map((v) => ({
+            [axes[1]]: { value: { raw: `${v}${time}`, formatted: v } },
+        }));
+        expect(
+            getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
+        ).toStrictEqual([`2016-03-29${time}`, `2019-01-15${time}`]);
+    });
+
+    test('should return min/max values for floats in multiple series', () => {
+        const axes = ['axis1', 'axis2'];
+        const values = [
+            '1.000',
+            '2.000',
+            '5.000',
+            '8.000',
+            '50.000', // max
+            '-5.000',
+            '0.000',
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: v, formatted: v } },
+        }));
+        const values2 = [
+            '1.000',
+            '2.000',
+            '5.000',
+            '8.000',
+            '50.000',
+            '-10.000', // min
+            '0.000',
+        ];
+        const resultRow2: ResultRow[] = values2.map((v) => ({
+            [axes[1]]: { value: { raw: v, formatted: v } },
+        }));
+        expect(
+            getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
+        ).toStrictEqual([-10.0, 50.0]);
+    });
+
+    test('string values should return invalid min/max in multiple series', () => {
+        const axes = ['axis1', 'axis2'];
+
+        const values = ['a', 'b', 'c', 'z'];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axes[0]]: { value: { raw: v, formatted: v } },
+        }));
+
+        const values2 = ['y', 'x', 'c', 'z'];
+        const resultRow2: ResultRow[] = values2.map((v) => ({
+            [axes[1]]: { value: { raw: v, formatted: v } },
+        }));
+        expect(
+            getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
+        ).toStrictEqual([0, 0]);
     });
 });
