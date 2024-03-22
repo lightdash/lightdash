@@ -143,14 +143,6 @@ export const organizationMemberAbilities: Record<
     },
     editor(member, { can }) {
         organizationMemberAbilities.interactive_viewer(member, { can });
-        can('manage', 'SavedChart', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
-        });
-        can('manage', 'Dashboard', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
-        });
         can('create', 'Space', {
             organizationUuid: member.organizationUuid,
         });

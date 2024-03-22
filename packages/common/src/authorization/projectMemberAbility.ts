@@ -121,14 +121,6 @@ export const projectMemberAbilities: Record<
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
-        can('manage', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
-        can('manage', 'Dashboard', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
         can('create', 'Space', {
             projectUuid: member.projectUuid,
         });

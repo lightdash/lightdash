@@ -399,7 +399,7 @@ describe('Project member permissions', () => {
                         isPrivate: false,
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'view',
@@ -499,7 +499,7 @@ describe('Project member permissions', () => {
                         isPrivate: false,
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'view',
