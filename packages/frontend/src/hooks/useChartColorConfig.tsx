@@ -105,11 +105,32 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
     const pivotValuesSubPath =
         yPivotValues && yPivotValues.length > 0 ? `${yPivotValues[0]}` : null;
 
+    /**
+     * When dealing with flipped axis, Echarts will include the pivot value as
+     * part of the field identifier - we want to remove it for the purposes of
+     * color mapping if that's the case, so that we continue to have a mapping
+     * that looks like:
+     *
+     *  basefield->pivot_value
+     *
+     * instead of:
+     *
+     *  basefield.pivot_value -> pivot_value
+     *
+     * (which would be a grouping of 1 per pivot value, causing all values to
+     * be assigned the first color)
+     */
+    const baseFieldPathParts = baseField.split('.');
+    const baseFieldPath =
+        pivotValuesSubPath && baseFieldPathParts.at(-1) === pivotValuesSubPath
+            ? baseFieldPathParts.slice(0, -1).join('.')
+            : baseField;
+
     const completeIdentifier = pivotValuesSubPath
         ? pivotValuesSubPath
-        : baseField;
+        : baseFieldPath;
 
-    return [baseField, completeIdentifier];
+    return [baseFieldPath, completeIdentifier];
 };
 
 export const useChartColorConfig = ({
