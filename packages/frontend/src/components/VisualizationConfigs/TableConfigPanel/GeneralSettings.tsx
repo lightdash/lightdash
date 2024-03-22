@@ -266,7 +266,7 @@ const GeneralSettings: FC = () => {
                     <Box>
                         <Checkbox
                             label="Show subtotals"
-                            checked={showSubtotals}
+                            checked={!isPivotTableEnabled && showSubtotals}
                             onChange={() => {
                                 setShowSubtotals(!showSubtotals);
                             }}

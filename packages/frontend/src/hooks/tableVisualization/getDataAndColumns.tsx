@@ -81,8 +81,9 @@ const getDataAndColumns = ({
                       _leafRows: Row<ResultRow>[],
                       childRows: Row<ResultRow>[],
                   ) => {
-                      const aggregatedValue = childRows.reduce((sum, next) => {
-                          const valueObj = next.getValue(columnId);
+                      let aggregatedValue = 0;
+                      const allNumberValues = childRows.some((childRow) => {
+                          const valueObj = childRow.getValue(columnId);
                           const val =
                               typeof valueObj === 'object' &&
                               valueObj &&
@@ -93,16 +94,17 @@ const getDataAndColumns = ({
                               typeof val === 'object' && val && 'raw' in val
                                   ? val.raw
                                   : null;
-                          const numVal = Number(raw);
-                          const adder = isNaN(numVal) ? 0 : numVal;
-                          const precision = getDecimalPrecision(numVal, sum);
-                          const result =
-                              (sum * precision + adder * precision) / precision;
-
-                          return result;
-                      }, 0);
-
-                      return <b>{formatItemValue(item, aggregatedValue)}</b>;
+                          if (raw === null)
+                              return false;
+                          const adder = Number(raw);
+                          if (isNaN(adder))
+                              return false;
+                          const precision = getDecimalPrecision(adder, aggregatedValue);
+                          const result = (aggregatedValue * precision + adder * precision) / precision;
+                          aggregatedValue = result;
+                          return true;
+                      });
+                      return <b>{formatItemValue(item, allNumberValues ? aggregatedValue : '')}</b>;
                   }
                 : undefined;
 
