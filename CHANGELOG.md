@@ -1,3 +1,10 @@
+## [0.1041.2](https://github.com/lightdash/lightdash/compare/0.1041.1...0.1041.2) (2024-03-22)
+
+
+### Bug Fixes
+
+* improve behavior when ordering non-grouped series, cleanup temporary color assignment code  ([#9475](https://github.com/lightdash/lightdash/issues/9475)) ([0fa9891](https://github.com/lightdash/lightdash/commit/0fa9891a5e46a9fe124c5234f9f4ebd313acd24d))
+
 ## [0.1041.1](https://github.com/lightdash/lightdash/compare/0.1041.0...0.1041.1) (2024-03-22)
 
 
