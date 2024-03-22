@@ -255,8 +255,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
                             <Text weight={500} ta="center">
                                 Our login page looks different! We’ve made
                                 changes to login to improve your experience.
-                                Please provide your email below or login with
-                                your SSO provider.
+                                Please provide your email below.
                             </Text>
                         </Center>
                     </Header>
