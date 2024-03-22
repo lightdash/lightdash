@@ -1,3 +1,10 @@
+## [0.1041.1](https://github.com/lightdash/lightdash/compare/0.1041.0...0.1041.1) (2024-03-22)
+
+
+### Bug Fixes
+
+* page crash when setting date to invalid value ([#9491](https://github.com/lightdash/lightdash/issues/9491)) ([6c67214](https://github.com/lightdash/lightdash/commit/6c672140d836e6d2094056990e631c9d9caec074))
+
 # [0.1041.0](https://github.com/lightdash/lightdash/compare/0.1040.2...0.1041.0) (2024-03-22)
 
 
