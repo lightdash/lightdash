@@ -938,7 +938,9 @@ export const GenericDashboardChartTile: FC<
         dashboardUuid: string;
     }>();
     const { user } = useApp();
-    const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
+    const userCanManageChart =
+        data?.chart &&
+        user.data?.ability?.can('manage', subject('SavedChart', data.chart));
 
     if (isLoading) {
         return (

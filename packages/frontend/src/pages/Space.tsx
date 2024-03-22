@@ -74,10 +74,6 @@ const Space: FC = () => {
         [pinSpace],
     );
 
-    if (user.data?.ability?.cannot('view', 'SavedChart')) {
-        return <ForbiddenPanel />;
-    }
-
     if (isInitialLoading || chartsLoading || dashboardsLoading) {
         return <LoadingState title="Loading space" />;
     }
@@ -95,6 +91,10 @@ const Space: FC = () => {
                 />
             </div>
         );
+    }
+
+    if (user.data?.ability?.cannot('view', subject('Space', { ...space }))) {
+        return <ForbiddenPanel />;
     }
 
     const userCanCreateDashboards = user.data?.ability?.can(

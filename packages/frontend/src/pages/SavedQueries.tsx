@@ -29,12 +29,11 @@ const SavedQueries: FC = () => {
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
     // test if user can managed charts for this project & org when given chart access
-    const userCanManageCharts = user.data?.ability?.can(
-        'manage',
+    const userCanCreateCharts = user.data?.ability?.can(
+        'create',
         subject('SavedChart', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
-            isPrivate: false,
         }),
     );
 
@@ -59,7 +58,7 @@ const SavedQueries: FC = () => {
 
                     {savedQueries.length > 0 &&
                     !isDemo &&
-                    userCanManageCharts ? (
+                    userCanCreateCharts ? (
                         <Button
                             leftIcon={<IconPlus size={18} />}
                             onClick={handleCreateChart}
@@ -81,7 +80,7 @@ const SavedQueries: FC = () => {
                         icon: <IconChartBar size={30} />,
                         title: 'No charts added yet',
                         action:
-                            !isDemo && userCanManageCharts ? (
+                            !isDemo && userCanCreateCharts ? (
                                 <Button onClick={handleCreateChart}>
                                     Create chart
                                 </Button>

@@ -1069,7 +1069,7 @@ export class ProjectModel {
     async duplicateContent(
         projectUuid: string,
         previewProjectUuid: string,
-        spaces: SpaceSummary[],
+        spaces: Pick<SpaceSummary, 'uuid'>[],
     ) {
         Logger.debug(
             `Duplicating content from ${projectUuid} to ${previewProjectUuid}`,

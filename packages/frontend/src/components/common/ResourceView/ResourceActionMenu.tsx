@@ -69,7 +69,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
 
     const spacesSharedWithMe = useMemo(() => {
         return spaces.filter((space) => {
-            return user.data && space.access.includes(user.data.userUuid);
+            return user.data && space.userAccess?.hasDirectAccess;
         });
     }, [spaces, user.data]);
 
@@ -90,30 +90,57 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     }, [spacesSharedWithMe, spacesAdminsCanSee]);
 
     switch (item.type) {
-        case ResourceViewItemType.CHART:
-            if (user.data?.ability?.cannot('manage', 'SavedChart')) {
-                return null;
-            }
-            break;
-        case ResourceViewItemType.DASHBOARD:
-            if (user.data?.ability?.cannot('manage', 'Dashboard')) {
-                return null;
-            }
-            break;
-        case ResourceViewItemType.SPACE:
+        case ResourceViewItemType.CHART: {
+            const userAccess = spaces.find(
+                (space) => space.uuid === item.data.spaceUuid,
+            )?.userAccess;
             if (
                 user.data?.ability?.cannot(
                     'manage',
-                    subject('Space', {
-                        organizationUuid: item.data.organizationUuid,
-                        projectUuid,
-                        isPrivate: false,
+                    subject('SavedChart', {
+                        ...item.data,
+                        access: userAccess ? [userAccess] : [],
                     }),
                 )
             ) {
                 return null;
             }
             break;
+        }
+        case ResourceViewItemType.DASHBOARD: {
+            const userAccess = spaces.find(
+                (space) => space.uuid === item.data.spaceUuid,
+            )?.userAccess;
+            if (
+                user.data?.ability?.cannot(
+                    'manage',
+                    subject('Dashboard', {
+                        ...item.data,
+                        access: userAccess ? [userAccess] : [],
+                    }),
+                )
+            ) {
+                return null;
+            }
+            break;
+        }
+        case ResourceViewItemType.SPACE: {
+            const userAccess = spaces.find(
+                (space) => space.uuid === item.data.uuid,
+            )?.userAccess;
+            if (
+                user.data?.ability?.cannot(
+                    'manage',
+                    subject('Space', {
+                        ...item.data,
+                        access: userAccess ? [userAccess] : [],
+                    }),
+                )
+            ) {
+                return null;
+            }
+            break;
+        }
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }
