@@ -175,6 +175,12 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                         const newFilter: DashboardFilterRule = {
                                             ...filterRule,
                                             disabled: !e.currentTarget.checked,
+                                            required:
+                                                filterRule.required &&
+                                                !e.currentTarget.checked
+                                                    ? // If the filter is required and the user is disabling it, we should also disable the required flag
+                                                      false
+                                                    : filterRule.required,
                                         };
 
                                         onChangeFilterRule(
