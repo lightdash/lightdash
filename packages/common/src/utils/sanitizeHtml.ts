@@ -20,10 +20,15 @@ export const HTML_SANITIZE_DEFAULT_RULES: sanitize.IOptions = {
  */
 export const HTML_SANITIZE_MARKDOWN_TILE_RULES: sanitize.IOptions = {
     ...HTML_SANITIZE_DEFAULT_RULES,
-    allowedTags: [...(HTML_SANITIZE_DEFAULT_RULES.allowedTags || []), 'iframe'],
+    allowedTags: [
+        ...(HTML_SANITIZE_DEFAULT_RULES.allowedTags || []),
+        'iframe',
+        'img',
+    ],
     allowedAttributes: {
         ...HTML_SANITIZE_DEFAULT_RULES.allowedAttributes,
         iframe: ['width', 'height', 'src', 'name'],
+        img: ['src', 'width', 'height', 'alt', 'style'],
     },
 };
 
