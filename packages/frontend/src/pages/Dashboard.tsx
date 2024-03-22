@@ -5,7 +5,17 @@ import {
     type Dashboard as IDashboard,
     type DashboardTile,
 } from '@lightdash/common';
-import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import {
+    Alert,
+    Box,
+    Button,
+    Grid,
+    Group,
+    Modal,
+    Skeleton,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -157,6 +167,9 @@ const Dashboard: FC = () => {
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
+    );
+    const requiredDashboardFilters = useDashboardContext(
+        (c) => c.requiredDashboardFilters,
     );
     const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
@@ -654,7 +667,6 @@ const Dashboard: FC = () => {
                         isEditMode={isEditMode}
                     />
                 )}
-
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened
@@ -667,7 +679,6 @@ const Dashboard: FC = () => {
                         }}
                     />
                 )}
-
                 {isExportDashboardModalOpen && (
                     <DashboardExportModal
                         opened={isExportDashboardModalOpen}
@@ -676,7 +687,6 @@ const Dashboard: FC = () => {
                         gridWidth={gridWidth}
                     />
                 )}
-
                 {isDuplicateModalOpen && (
                     <DashboardDuplicateModal
                         opened={isDuplicateModalOpen}
