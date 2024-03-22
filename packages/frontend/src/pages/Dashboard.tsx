@@ -5,17 +5,7 @@ import {
     type Dashboard as IDashboard,
     type DashboardTile,
 } from '@lightdash/common';
-import {
-    Alert,
-    Box,
-    Button,
-    Grid,
-    Group,
-    Modal,
-    Skeleton,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -101,6 +91,7 @@ const GridTile: FC<
         isLazyLoadEnabled: boolean;
         index: number;
         onAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
+        locked: boolean;
     }
 > = memo((props) => {
     const { tile, isLazyLoadEnabled, index } = props;
@@ -125,6 +116,14 @@ const GridTile: FC<
         return (
             <Box ref={ref} h="100%">
                 <TileBase isLoading {...props} title={''} />
+            </Box>
+        );
+    }
+
+    if (props.locked) {
+        return (
+            <Box ref={ref} h="100%">
+                <TileBase isLoading={false} title={''} {...props} />
             </Box>
         );
     }
@@ -631,7 +630,6 @@ const Dashboard: FC = () => {
                     )}
                     {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>
-
                 <ResponsiveGridLayout
                     {...getResponsiveGridLayoutProps()}
                     className="react-grid-layout-dashboard"
@@ -639,12 +637,21 @@ const Dashboard: FC = () => {
                     onResizeStop={handleUpdateTiles}
                     onWidthChange={(cw) => setGridWidth(cw)}
                     layouts={layouts}
+                    style={{
+                        filter:
+                            requiredDashboardFilters.length > 0
+                                ? 'blur(5px)'
+                                : 'none',
+                    }}
                 >
                     {sortedTiles?.map((tile, idx) => {
                         return (
                             <div key={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
                                     <GridTile
+                                        locked={
+                                            requiredDashboardFilters.length > 0
+                                        }
                                         isLazyLoadEnabled={
                                             isLazyLoadEnabled ?? true
                                         }
@@ -660,6 +667,39 @@ const Dashboard: FC = () => {
                         );
                     })}
                 </ResponsiveGridLayout>
+
+                {requiredDashboardFilters.length > 0 && (
+                    <Modal
+                        opened
+                        withCloseButton={false}
+                        centered
+                        withinPortal
+                        withOverlay={false}
+                        onClose={() => {}}
+                        styles={(theme) => ({
+                            content: {
+                                border: `1px solid ${theme.colors.gray[2]}`,
+                                boxShadow: 'none',
+                            },
+                        })}
+                    >
+                        <Text fw={600} fz="lg" ta="center" mb="lg">
+                            Ready to view your dashboard?
+                        </Text>
+                        <Stack spacing="xs">
+                            <Text fw={500}>
+                                To reveal this dashboard's insights, simply
+                                unlock it by setting values to filters that are
+                                required.
+                            </Text>
+                            <Text>
+                                Your organization has chosen these specific
+                                filters to ensure you get precisely the data you
+                                need.
+                            </Text>
+                        </Stack>
+                    </Modal>
+                )}
 
                 {!hasDashboardTiles && (
                     <EmptyStateNoTiles
