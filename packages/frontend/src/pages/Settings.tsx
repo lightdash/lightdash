@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Box, Stack, Text, Title } from '@mantine/core';
+import { Box, ScrollArea, Stack, Text, Title } from '@mantine/core';
 import {
     IconBuildingSkyscraper,
     IconCalendarStats,
@@ -133,274 +133,310 @@ const Settings: FC = () => {
                     <PageBreadcrumbs
                         items={[{ title: 'Settings', active: true }]}
                     />
-
-                    <Stack spacing="lg" sx={{ flexGrow: 1, overflow: 'auto' }}>
-                        <Box>
-                            <Title order={6} fw={600} mb="xs">
-                                Your settings
-                            </Title>
-
-                            <RouterNavLink
-                                exact
-                                to="/generalSettings"
-                                label="Profile"
-                                icon={<MantineIcon icon={IconUserCircle} />}
-                            />
-
-                            {allowPasswordAuthentication && (
-                                <RouterNavLink
-                                    label={
-                                        hasSocialLogin
-                                            ? 'Password & Social Logins'
-                                            : 'Password'
-                                    }
-                                    exact
-                                    to="/generalSettings/password"
-                                    icon={<MantineIcon icon={IconLock} />}
-                                />
-                            )}
-
-                            {isPassthroughLoginFeatureEnabled && (
-                                <RouterNavLink
-                                    label="My warehouse connections"
-                                    exact
-                                    to="/generalSettings/myWarehouseConnections"
-                                    icon={
-                                        <MantineIcon icon={IconDatabaseCog} />
-                                    }
-                                />
-                            )}
-                            <RouterNavLink
-                                label="Personal access tokens"
-                                exact
-                                to="/generalSettings/personalAccessTokens"
-                                icon={<MantineIcon icon={IconKey} />}
-                            />
-                        </Box>
-
-                        <Can
-                            I="create"
-                            this={subject('Project', {
-                                organizationUuid: organization.organizationUuid,
-                            })}
-                        >
+                    <ScrollArea
+                        variant="primary"
+                        offsetScrollbars
+                        scrollbarSize={8}
+                    >
+                        <Stack spacing="lg">
                             <Box>
                                 <Title order={6} fw={600} mb="xs">
-                                    Organization settings
+                                    Your settings
                                 </Title>
 
-                                {user.ability.can('manage', 'Organization') && (
+                                <RouterNavLink
+                                    exact
+                                    to="/generalSettings"
+                                    label="Profile"
+                                    icon={<MantineIcon icon={IconUserCircle} />}
+                                />
+
+                                {allowPasswordAuthentication && (
                                     <RouterNavLink
-                                        label="General"
-                                        to="/generalSettings/organization"
+                                        label={
+                                            hasSocialLogin
+                                                ? 'Password & Social Logins'
+                                                : 'Password'
+                                        }
                                         exact
+                                        to="/generalSettings/password"
+                                        icon={<MantineIcon icon={IconLock} />}
+                                    />
+                                )}
+
+                                {isPassthroughLoginFeatureEnabled && (
+                                    <RouterNavLink
+                                        label="My warehouse connections"
+                                        exact
+                                        to="/generalSettings/myWarehouseConnections"
                                         icon={
                                             <MantineIcon
-                                                icon={IconBuildingSkyscraper}
+                                                icon={IconDatabaseCog}
                                             />
                                         }
                                     />
                                 )}
+                                <RouterNavLink
+                                    label="Personal access tokens"
+                                    exact
+                                    to="/generalSettings/personalAccessTokens"
+                                    icon={<MantineIcon icon={IconKey} />}
+                                />
+                            </Box>
 
-                                {user.ability.can(
-                                    'update',
-                                    'OrganizationMemberProfile',
-                                ) && (
-                                    <RouterNavLink
-                                        label={
-                                            isGroupManagementEnabled
-                                                ? 'Users & groups'
-                                                : 'User management'
-                                        }
-                                        to="/generalSettings/userManagement"
-                                        exact
-                                        icon={
-                                            <MantineIcon icon={IconUserPlus} />
-                                        }
-                                    />
-                                )}
-                                {user.ability.can(
-                                    'manage',
-                                    subject('Organization', {
-                                        organizationUuid:
-                                            organization.organizationUuid,
-                                    }),
-                                ) && (
-                                    <RouterNavLink
-                                        label={
-                                            isGroupManagementEnabled
-                                                ? 'User & group attributes'
-                                                : 'User attributes'
-                                        }
-                                        to="/generalSettings/userAttributes"
-                                        exact
-                                        icon={
-                                            <MantineIcon
-                                                icon={IconUserShield}
-                                            />
-                                        }
-                                    />
-                                )}
+                            <Can
+                                I="create"
+                                this={subject('Project', {
+                                    organizationUuid:
+                                        organization.organizationUuid,
+                                })}
+                            >
+                                <Box>
+                                    <Title order={6} fw={600} mb="xs">
+                                        Organization settings
+                                    </Title>
 
-                                {user.ability.can('update', 'Organization') && (
-                                    <RouterNavLink
-                                        label="Appearance"
-                                        exact
-                                        to="/generalSettings/appearance"
-                                        icon={
-                                            <MantineIcon icon={IconPalette} />
-                                        }
-                                    />
-                                )}
-
-                                {user.ability.can('manage', 'Organization') && (
-                                    <RouterNavLink
-                                        label="Integrations"
-                                        exact
-                                        to="/generalSettings/integrations"
-                                        icon={<MantineIcon icon={IconPlug} />}
-                                    />
-                                )}
-
-                                {organization &&
-                                    !organization.needsProject &&
-                                    user.ability.can('view', 'Project') && (
+                                    {user.ability.can(
+                                        'manage',
+                                        'Organization',
+                                    ) && (
                                         <RouterNavLink
-                                            label="All projects"
-                                            to="/generalSettings/projectManagement"
+                                            label="General"
+                                            to="/generalSettings/organization"
                                             exact
                                             icon={
                                                 <MantineIcon
-                                                    icon={IconDatabase}
+                                                    icon={
+                                                        IconBuildingSkyscraper
+                                                    }
                                                 />
                                             }
                                         />
                                     )}
-                            </Box>
-                        </Can>
 
-                        {organization &&
-                        !organization.needsProject &&
-                        project &&
-                        user.ability.can(
-                            'update',
-                            subject('Project', {
-                                organizationUuid: organization.organizationUuid,
-                                projectUuid: project.projectUuid,
-                            }),
-                        ) ? (
-                            <Box>
-                                <Title order={6} fw={600} mb="xs">
-                                    Current project ({project?.name})
-                                </Title>
+                                    {user.ability.can(
+                                        'update',
+                                        'OrganizationMemberProfile',
+                                    ) && (
+                                        <RouterNavLink
+                                            label={
+                                                isGroupManagementEnabled
+                                                    ? 'Users & groups'
+                                                    : 'User management'
+                                            }
+                                            to="/generalSettings/userManagement"
+                                            exact
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconUserPlus}
+                                                />
+                                            }
+                                        />
+                                    )}
+                                    {user.ability.can(
+                                        'manage',
+                                        subject('Organization', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                        }),
+                                    ) && (
+                                        <RouterNavLink
+                                            label={
+                                                isGroupManagementEnabled
+                                                    ? 'User & group attributes'
+                                                    : 'User attributes'
+                                            }
+                                            to="/generalSettings/userAttributes"
+                                            exact
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconUserShield}
+                                                />
+                                            }
+                                        />
+                                    )}
 
-                                <RouterNavLink
-                                    label="Connection settings"
-                                    exact
-                                    to={`/generalSettings/projectManagement/${project.projectUuid}/settings`}
-                                    icon={
-                                        <MantineIcon icon={IconDatabaseCog} />
-                                    }
-                                />
+                                    {user.ability.can(
+                                        'update',
+                                        'Organization',
+                                    ) && (
+                                        <RouterNavLink
+                                            label="Appearance"
+                                            exact
+                                            to="/generalSettings/appearance"
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconPalette}
+                                                />
+                                            }
+                                        />
+                                    )}
 
-                                <RouterNavLink
-                                    label="Tables configuration"
-                                    exact
-                                    to={`/generalSettings/projectManagement/${project.projectUuid}/tablesConfiguration`}
-                                    icon={
-                                        <MantineIcon icon={IconTableOptions} />
-                                    }
-                                />
+                                    {user.ability.can(
+                                        'manage',
+                                        'Organization',
+                                    ) && (
+                                        <RouterNavLink
+                                            label="Integrations"
+                                            exact
+                                            to="/generalSettings/integrations"
+                                            icon={
+                                                <MantineIcon icon={IconPlug} />
+                                            }
+                                        />
+                                    )}
 
-                                <RouterNavLink
-                                    label="Project access"
-                                    exact
-                                    to={`/generalSettings/projectManagement/${project.projectUuid}/projectAccess`}
-                                    icon={<MantineIcon icon={IconUsers} />}
-                                />
-                                {user.ability?.can(
-                                    'manage',
-                                    subject('Project', {
-                                        organizationUuid:
-                                            project.organizationUuid,
-                                        projectUuid: project.projectUuid,
-                                    }),
-                                ) ? (
+                                    {organization &&
+                                        !organization.needsProject &&
+                                        user.ability.can('view', 'Project') && (
+                                            <RouterNavLink
+                                                label="All projects"
+                                                to="/generalSettings/projectManagement"
+                                                exact
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconDatabase}
+                                                    />
+                                                }
+                                            />
+                                        )}
+                                </Box>
+                            </Can>
+
+                            {organization &&
+                            !organization.needsProject &&
+                            project &&
+                            user.ability.can(
+                                'update',
+                                subject('Project', {
+                                    organizationUuid:
+                                        organization.organizationUuid,
+                                    projectUuid: project.projectUuid,
+                                }),
+                            ) ? (
+                                <Box>
+                                    <Title order={6} fw={600} mb="xs">
+                                        Current project ({project?.name})
+                                    </Title>
+
                                     <RouterNavLink
-                                        label="dbt Semantic Layer"
+                                        label="Connection settings"
                                         exact
-                                        to={`/generalSettings/projectManagement/${project.projectUuid}/integrations/dbtCloud`}
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/settings`}
                                         icon={
                                             <MantineIcon
-                                                icon={IconCloudSearch}
+                                                icon={IconDatabaseCog}
                                             />
                                         }
                                     />
-                                ) : null}
 
-                                {user.ability.can(
-                                    'view',
-                                    subject('Analytics', {
-                                        organizationUuid:
-                                            organization.organizationUuid,
-                                        projectUuid: project.projectUuid,
-                                    }),
-                                ) ? (
                                     <RouterNavLink
-                                        label="Usage analytics"
+                                        label="Tables configuration"
                                         exact
-                                        to={`/generalSettings/projectManagement/${project.projectUuid}/usageAnalytics`}
-                                        onClick={() => {
-                                            track({
-                                                name: EventName.USAGE_ANALYTICS_CLICKED,
-                                            });
-                                        }}
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/tablesConfiguration`}
                                         icon={
                                             <MantineIcon
-                                                icon={IconReportAnalytics}
+                                                icon={IconTableOptions}
                                             />
                                         }
                                     />
-                                ) : null}
 
-                                <RouterNavLink
-                                    label="Syncs & Scheduled deliveries"
-                                    exact
-                                    to={`/generalSettings/projectManagement/${project.projectUuid}/scheduledDeliveries`}
-                                    icon={
-                                        <MantineIcon icon={IconCalendarStats} />
-                                    }
-                                />
-
-                                {user.ability?.can(
-                                    'manage',
-                                    subject('Validation', {
-                                        organizationUuid:
-                                            project.organizationUuid,
-                                        projectUuid: project.projectUuid,
-                                    }),
-                                ) ? (
                                     <RouterNavLink
-                                        label="Validator"
+                                        label="Project access"
                                         exact
-                                        to={`/generalSettings/projectManagement/${project.projectUuid}/validator`}
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/projectAccess`}
+                                        icon={<MantineIcon icon={IconUsers} />}
+                                    />
+                                    {user.ability?.can(
+                                        'manage',
+                                        subject('Project', {
+                                            organizationUuid:
+                                                project.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        }),
+                                    ) ? (
+                                        <RouterNavLink
+                                            label="dbt Semantic Layer"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/integrations/dbtCloud`}
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconCloudSearch}
+                                                />
+                                            }
+                                        />
+                                    ) : null}
+
+                                    {user.ability.can(
+                                        'view',
+                                        subject('Analytics', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        }),
+                                    ) ? (
+                                        <RouterNavLink
+                                            label="Usage analytics"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/usageAnalytics`}
+                                            onClick={() => {
+                                                track({
+                                                    name: EventName.USAGE_ANALYTICS_CLICKED,
+                                                });
+                                            }}
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconReportAnalytics}
+                                                />
+                                            }
+                                        />
+                                    ) : null}
+
+                                    <RouterNavLink
+                                        label="Syncs & Scheduled deliveries"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/scheduledDeliveries`}
                                         icon={
-                                            <MantineIcon icon={IconChecklist} />
+                                            <MantineIcon
+                                                icon={IconCalendarStats}
+                                            />
                                         }
                                     />
-                                ) : null}
 
-                                {isCustomSQLEnabled && (
-                                    <RouterNavLink
-                                        label="Custom SQL"
-                                        exact
-                                        to={`/generalSettings/projectManagement/${project.projectUuid}/customSql`}
-                                        icon={<MantineIcon icon={IconSql} />}
-                                    />
-                                )}
-                            </Box>
-                        ) : null}
-                    </Stack>
+                                    {user.ability?.can(
+                                        'manage',
+                                        subject('Validation', {
+                                            organizationUuid:
+                                                project.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        }),
+                                    ) ? (
+                                        <RouterNavLink
+                                            label="Validator"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/validator`}
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconChecklist}
+                                                />
+                                            }
+                                        />
+                                    ) : null}
+
+                                    {isCustomSQLEnabled && (
+                                        <RouterNavLink
+                                            label="Custom SQL"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/customSql`}
+                                            icon={
+                                                <MantineIcon icon={IconSql} />
+                                            }
+                                        />
+                                    )}
+                                </Box>
+                            ) : null}
+                        </Stack>
+                    </ScrollArea>
                 </Stack>
             }
         >
