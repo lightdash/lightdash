@@ -5,17 +5,7 @@ import {
     type Dashboard as IDashboard,
     type DashboardTile,
 } from '@lightdash/common';
-import {
-    Alert,
-    Box,
-    Button,
-    Grid,
-    Group,
-    Modal,
-    Skeleton,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -100,6 +90,7 @@ const GridTile: FC<
     > & {
         isLazyLoadEnabled: boolean;
         index: number;
+        locked: boolean;
     }
 > = memo((props) => {
     const { tile, isLazyLoadEnabled, index } = props;
@@ -124,6 +115,14 @@ const GridTile: FC<
         return (
             <Box ref={ref} h="100%">
                 <TileBase isLoading {...props} title={''} />
+            </Box>
+        );
+    }
+
+    if (props.locked) {
+        return (
+            <Box ref={ref} h="100%">
+                <TileBase isLoading={false} title={''} {...props} />
             </Box>
         );
     }
@@ -637,82 +636,76 @@ const Dashboard: FC = () => {
                     )}
                     {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>
-                {requiredDashboardFilters.length ? (
-                    <Stack spacing="md">
-                        <Alert
-                            icon={<IconAlertCircle size="1rem" />}
-                            title="First apply a value to filter(s)"
-                            color="yellow"
-                        >
-                            <Stack spacing="one">
-                                {requiredDashboardFilters.map((f) => {
-                                    return <Text key={f.id}>{f.label}</Text>;
-                                })}
-                            </Stack>
-                        </Alert>
+                <ResponsiveGridLayout
+                    {...getResponsiveGridLayoutProps()}
+                    className="react-grid-layout-dashboard"
+                    onDragStop={handleUpdateTiles}
+                    onResizeStop={handleUpdateTiles}
+                    onWidthChange={(cw) => setGridWidth(cw)}
+                    layouts={layouts}
+                    style={{
+                        filter:
+                            requiredDashboardFilters.length > 0
+                                ? 'blur(5px)'
+                                : 'none',
+                    }}
+                >
+                    {sortedTiles?.map((tile, idx) => {
+                        return (
+                            <div key={tile.uuid}>
+                                <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                    <GridTile
+                                        locked={
+                                            requiredDashboardFilters.length > 0
+                                        }
+                                        isLazyLoadEnabled={
+                                            isLazyLoadEnabled ?? true
+                                        }
+                                        index={idx}
+                                        isEditMode={isEditMode}
+                                        tile={tile}
+                                        onDelete={handleDeleteTile}
+                                        onEdit={handleEditTiles}
+                                    />
+                                </TrackSection>
+                            </div>
+                        );
+                    })}
+                </ResponsiveGridLayout>
 
-                        <Grid>
-                            {Array.from({ length: 12 }).map((_, index) => {
-                                // Determine the span size based on the tile position or any other logic
-                                let spanSize;
-                                if (index % 4 === 0 || index % 4 === 2) {
-                                    spanSize = 4;
-                                } else {
-                                    spanSize = 2;
-                                }
-
-                                return (
-                                    <Grid.Col span={spanSize} key={index}>
-                                        {/* Main tile skeleton */}
-                                        <Skeleton
-                                            animate={false}
-                                            height={200}
-                                            radius="md"
-                                            mb="xl"
-                                        />
-
-                                        <Skeleton
-                                            animate={false}
-                                            height={20}
-                                            width="60%"
-                                            radius="md"
-                                        />
-                                    </Grid.Col>
-                                );
-                            })}
-                        </Grid>
-                    </Stack>
-                ) : (
-                    <ResponsiveGridLayout
-                        {...getResponsiveGridLayoutProps()}
-                        className="react-grid-layout-dashboard"
-                        onDragStop={handleUpdateTiles}
-                        onResizeStop={handleUpdateTiles}
-                        onWidthChange={(cw) => setGridWidth(cw)}
-                        layouts={layouts}
-                    >
-                        {sortedTiles?.map((tile, idx) => {
-                            return (
-                                <div key={tile.uuid}>
-                                    <TrackSection
-                                        name={SectionName.DASHBOARD_TILE}
-                                    >
-                                        <GridTile
-                                            isLazyLoadEnabled={
-                                                isLazyLoadEnabled ?? true
-                                            }
-                                            index={idx}
-                                            isEditMode={isEditMode}
-                                            tile={tile}
-                                            onDelete={handleDeleteTile}
-                                            onEdit={handleEditTiles}
-                                        />
-                                    </TrackSection>
-                                </div>
-                            );
+                {requiredDashboardFilters.length > 0 && (
+                    <Modal
+                        opened
+                        withCloseButton={false}
+                        centered
+                        withinPortal
+                        withOverlay={false}
+                        onClose={() => {}}
+                        styles={(theme) => ({
+                            content: {
+                                border: `1px solid ${theme.colors.gray[2]}`,
+                                boxShadow: 'none',
+                            },
                         })}
-                    </ResponsiveGridLayout>
+                    >
+                        <Text fw={600} fz="lg" ta="center" mb="lg">
+                            Ready to view your dashboard?
+                        </Text>
+                        <Stack spacing="xs">
+                            <Text fw={500}>
+                                To reveal this dashboard's insights, simply
+                                unlock it by setting values to filters that are
+                                required.
+                            </Text>
+                            <Text>
+                                Your organization has chosen these specific
+                                filters to ensure you get precisely the data you
+                                need.
+                            </Text>
+                        </Stack>
+                    </Modal>
                 )}
+
                 {!hasDashboardTiles && (
                     <EmptyStateNoTiles
                         onAddTiles={handleAddTiles}
