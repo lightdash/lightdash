@@ -78,9 +78,9 @@ const SeriesTab: FC<Props> = ({ items }) => {
             const reorderedSeries = reorderedSeriesGroups.reduce<Series[]>(
                 (acc, seriesGroup) => [
                     ...acc,
-                    ...seriesGroup.value.map((s, i) => ({
+                    ...seriesGroup.value.map((s) => ({
                         ...s,
-                        color: getSeriesColor(s, i),
+                        color: getSeriesColor(s),
                     })),
                 ],
                 [],
@@ -182,7 +182,6 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                     <BasicSeriesConfiguration
                                                         item={field}
                                                         layout={dirtyLayout}
-                                                        seriesIndex={i}
                                                         isSingle={
                                                             seriesGroupedByField.length <=
                                                             1

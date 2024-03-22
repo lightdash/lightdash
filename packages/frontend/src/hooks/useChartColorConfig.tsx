@@ -91,6 +91,48 @@ export const isGroupedSeries = (series: SeriesLike) => {
     );
 };
 
+export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
+    const baseField =
+        (series as Series).encode.yRef?.field ??
+        (series as EChartSeries).encode?.x;
+
+    const yPivotValues = (
+        (series as EChartSeries)?.pivotReference?.pivotValues ??
+        (series as Series)?.encode.yRef.pivotValues ??
+        []
+    ).map(({ value }) => `${value}`);
+
+    const pivotValuesSubPath =
+        yPivotValues && yPivotValues.length > 0 ? `${yPivotValues[0]}` : null;
+
+    /**
+     * When dealing with flipped axis, Echarts will include the pivot value as
+     * part of the field identifier - we want to remove it for the purposes of
+     * color mapping if that's the case, so that we continue to have a mapping
+     * that looks like:
+     *
+     *  basefield->pivot_value
+     *
+     * instead of:
+     *
+     *  basefield.pivot_value -> pivot_value
+     *
+     * (which would be a grouping of 1 per pivot value, causing all values to
+     * be assigned the first color)
+     */
+    const baseFieldPathParts = baseField.split('.');
+    const baseFieldPath =
+        pivotValuesSubPath && baseFieldPathParts.at(-1) === pivotValuesSubPath
+            ? baseFieldPathParts.slice(0, -1).join('.')
+            : baseField;
+
+    const completeIdentifier = pivotValuesSubPath
+        ? pivotValuesSubPath
+        : baseFieldPath;
+
+    return [baseFieldPath, completeIdentifier];
+};
+
 export const useChartColorConfig = ({
     colorPalette,
 }: {
@@ -98,6 +140,7 @@ export const useChartColorConfig = ({
 }) => {
     const theme = useMantineTheme();
     const { colorMappings } = useChartColorMappingContext();
+
     /**
      * Given the org's color palette, and an identifier, return the color palette value
      * for said identifier.
@@ -157,30 +200,9 @@ export const useChartColorConfig = ({
 
     const calculateSeriesColorAssignment = useCallback(
         (series: SeriesLike) => {
-            const baseField =
-                (series as Series).encode.yRef?.field ??
-                (series as EChartSeries).encode?.x;
+            const [baseField, completeIdentifier] =
+                calculateSeriesLikeIdentifier(series);
 
-            const yPivotValues = (
-                (series as EChartSeries)?.pivotReference?.pivotValues ??
-                (series as Series)?.encode.yRef.pivotValues ??
-                []
-            ).map(({ value }) => `${value}`);
-
-            const pivotValuesSubPath =
-                yPivotValues && yPivotValues.length > 0
-                    ? `${yPivotValues[0]}`
-                    : null;
-
-            const completeIdentifier = pivotValuesSubPath
-                ? pivotValuesSubPath
-                : baseField;
-
-            /**
-             * Always includes the base field + the pivot sub path. This can be tweaked
-             * to allow 'reuse' across different fields, but is also more likely to lead
-             * to collision issues.
-             */
             return calculateKeyColorAssignment(baseField, completeIdentifier);
         },
         [calculateKeyColorAssignment],
