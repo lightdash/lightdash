@@ -79,7 +79,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             // Uses the current date if the provided value is invalid
             const parsedDate = dayjs(value).isValid()
                 ? dayjs(value).toDate()
-                : new Date();
+                : dayjs().toDate();
 
             switch (field.timeInterval.toUpperCase()) {
                 case TimeFrames.WEEK:
