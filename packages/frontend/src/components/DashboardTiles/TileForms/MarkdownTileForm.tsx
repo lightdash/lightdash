@@ -12,6 +12,9 @@ interface MarkdownTileFormProps {
     form: UseFormReturnType<DashboardMarkdownTileProperties['properties']>;
 }
 
+/**
+ * Helper that can be used as a value transformer with Mantine's `useForm` hook.
+ */
 export const markdownTileContentTransform = (
     values: DashboardMarkdownTile['properties'],
 ) => ({
