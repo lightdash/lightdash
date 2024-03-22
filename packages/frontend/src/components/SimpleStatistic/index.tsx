@@ -2,6 +2,7 @@ import { ComparisonDiffTypes } from '@lightdash/common';
 import {
     Center,
     Flex,
+    Group,
     Stack,
     Text,
     Tooltip,
@@ -218,39 +219,35 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     display="inline-flex"
                     wrap="wrap"
                     style={{ flexShrink: 1 }}
-                    mt="lg"
+                    mt={labelFontSize / 2}
                 >
                     <Tooltip withinPortal label={comparisonTooltip}>
-                        <BigNumberText
-                            span
-                            fz={comparisonFontSize}
-                            c={comparisonValueColor}
-                        >
-                            {comparisonValue}
+                        <Group spacing="two" mr={comparisonLabel ? 'xs' : '0'}>
+                            <BigNumberText
+                                span
+                                fz={comparisonFontSize}
+                                c={comparisonValueColor}
+                            >
+                                {comparisonValue}
+                            </BigNumberText>
 
                             {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
                                 <MantineIcon
                                     icon={IconArrowUpRight}
-                                    size={18}
-                                    style={{
-                                        display: 'inline',
-                                        margin: '0 7px 0 0',
-                                    }}
+                                    display="inline"
+                                    color={comparisonValueColor}
+                                    size={comparisonFontSize}
                                 />
                             ) : comparisonDiff ===
                               ComparisonDiffTypes.NEGATIVE ? (
                                 <MantineIcon
                                     icon={IconArrowDownRight}
-                                    size={18}
-                                    style={{
-                                        display: 'inline',
-                                        margin: '0 7px 0 0',
-                                    }}
+                                    display="inline"
+                                    color={comparisonValueColor}
+                                    size={comparisonFontSize}
                                 />
-                            ) : (
-                                <span style={{ margin: '0 7px 0 0' }} />
-                            )}
-                        </BigNumberText>
+                            ) : null}
+                        </Group>
                     </Tooltip>
 
                     {comparisonLabel ? (
