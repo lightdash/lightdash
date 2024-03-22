@@ -60,8 +60,14 @@ const isCalculationAvailable = (
 ) => {
     const numericTypes: string[] = [
         MetricType.NUMBER,
+        MetricType.PERCENTILE,
+        MetricType.MEDIAN,
+        MetricType.AVERAGE,
         MetricType.COUNT,
+        MetricType.COUNT_DISTINCT,
         MetricType.SUM,
+        MetricType.MIN,
+        MetricType.MAX,
     ];
     switch (quickCalculation) {
         case QuickCalculation.PERCENT_CHANGE_FROM_PREVIOUS:
