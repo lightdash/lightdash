@@ -1,3 +1,10 @@
+## [0.1040.1](https://github.com/lightdash/lightdash/compare/0.1040.0...0.1040.1) (2024-03-22)
+
+
+### Bug Fixes
+
+* missing spinner when automatically logged in ([#9507](https://github.com/lightdash/lightdash/issues/9507)) ([51cd50d](https://github.com/lightdash/lightdash/commit/51cd50dd95c1a11727f80a9f81d3004493ac6c51))
+
 # [0.1040.0](https://github.com/lightdash/lightdash/compare/0.1039.2...0.1040.0) (2024-03-22)
 
 
