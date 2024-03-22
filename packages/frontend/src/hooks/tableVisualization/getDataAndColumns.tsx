@@ -94,17 +94,29 @@ const getDataAndColumns = ({
                               typeof val === 'object' && val && 'raw' in val
                                   ? val.raw
                                   : null;
-                          if (raw === null)
-                              return false;
+                          if (raw === null) return false;
                           const adder = Number(raw);
-                          if (isNaN(adder))
-                              return false;
-                          const precision = getDecimalPrecision(adder, aggregatedValue);
-                          const result = (aggregatedValue * precision + adder * precision) / precision;
+                          if (isNaN(adder)) return false;
+                          const precision = getDecimalPrecision(
+                              adder,
+                              aggregatedValue,
+                          );
+                          const result =
+                              (aggregatedValue * precision +
+                                  adder * precision) /
+                              precision;
                           aggregatedValue = result;
                           return true;
                       });
-                      return <b>{formatItemValue(item, allNumberValues ? aggregatedValue : '')}</b>;
+
+                      return (
+                          <b>
+                              {formatItemValue(
+                                  item,
+                                  allNumberValues ? aggregatedValue : '',
+                              )}
+                          </b>
+                      );
                   }
                 : undefined;
 

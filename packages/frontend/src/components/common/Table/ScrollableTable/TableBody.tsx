@@ -99,7 +99,10 @@ const TableRow: FC<TableRowProps> = ({
                         ? 'white'
                         : undefined;
 
-                const suppressContextMenu = cell.getValue() === undefined || cell.getIsPlaceholder() || cell.getIsAggregated();
+                const suppressContextMenu =
+                    cell.getValue() === undefined ||
+                    cell.getIsPlaceholder() ||
+                    cell.getIsAggregated();
 
                 return (
                     <BodyCell
@@ -113,7 +116,9 @@ const TableRow: FC<TableRowProps> = ({
                         cell={cell}
                         isNumericItem={isNumericItem(meta?.item)}
                         hasData={!!meta?.item}
-                        cellContextMenu={suppressContextMenu ? undefined : cellContextMenu}
+                        cellContextMenu={
+                            suppressContextMenu ? undefined : cellContextMenu
+                        }
                         isLargeText={
                             (cellValue?.value?.formatted || '').length >
                             SMALL_TEXT_LENGTH
