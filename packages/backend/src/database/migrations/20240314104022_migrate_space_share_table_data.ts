@@ -313,7 +313,9 @@ export async function up(knex: Knex): Promise<void> {
             [],
         );
 
-        await knex(SPACE_USER_ACCESS).insert(spaceAccessRows);
+        if (spaceAccessRows.length > 0) {
+            await knex(SPACE_USER_ACCESS).insert(spaceAccessRows);
+        }
         await knex(SPACE_SHARE_TABLE).del();
         await knex.schema.dropTableIfExists(SPACE_SHARE_TABLE);
     }

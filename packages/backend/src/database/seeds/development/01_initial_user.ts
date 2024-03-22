@@ -165,18 +165,11 @@ export async function seed(knex: Knex): Promise<void> {
         })
         .returning(['space_id', 'space_uuid']);
 
-    if (await knex.schema.hasTable('space_share')) {
-        await knex('space_share').insert({
-            user_id: user.user_id,
-            space_id: spaceId,
-        });
-    } else {
-        await knex('space_user_access').insert({
-            user_uuid: user.user_uuid,
-            space_uuid: spaceUuid,
-            space_role: 'admin',
-        });
-    }
+    await knex('space_user_access').insert({
+        user_uuid: user.user_uuid,
+        space_uuid: spaceUuid,
+        space_role: 'admin',
+    });
 
     try {
         const adapter = await projectAdapterFromConfig(
