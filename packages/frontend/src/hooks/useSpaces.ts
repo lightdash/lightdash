@@ -228,7 +228,7 @@ export const useAddSpaceShareMutation = (
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to share space`,
+                    title: `Failed to update space access`,
                     subtitle: error.error.message,
                 });
             },
@@ -267,12 +267,12 @@ export const useDeleteSpaceShareMutation = (
                 ]);
 
                 showToastSuccess({
-                    title: `Success! Space was unshared.`,
+                    title: `Success! Space access updated!`,
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to unshare space`,
+                    title: `Failed to update space access`,
                     subtitle: error.error.message,
                 });
             },

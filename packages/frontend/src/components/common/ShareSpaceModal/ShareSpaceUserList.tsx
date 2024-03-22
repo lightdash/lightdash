@@ -30,7 +30,6 @@ export interface ShareSpaceUserListProps {
 }
 
 const enum UserAccessAction {
-    KEEP = 'keep',
     DELETE = 'delete',
     VIEWER = 'viewer',
     EDITOR = 'editor',
@@ -110,14 +109,19 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     const isYou = userIsYou(sharedUser);
                     const role = upperFirst(sharedUser.role?.toString() || '');
 
-                    const userAccessTypes = UserAccessOptions.map(
+                    const userAccessTypes = UserAccessOptions.filter(
                         (accessType) =>
-                            accessType.value === UserAccessAction.KEEP
-                                ? {
-                                      ...accessType,
-                                      title: role,
-                                  }
-                                : accessType,
+                            accessType.value !== UserAccessAction.DELETE ||
+                            sharedUser.hasDirectAccess,
+                    ).map((accessType) =>
+                        accessType.value === UserAccessAction.DELETE &&
+                        !space.isPrivate
+                            ? {
+                                  ...accessType,
+                                  title: 'Reset access',
+                                  selectDescription: `Reset user's access`,
+                              }
+                            : accessType,
                     );
 
                     const roleType = userAccessTypes.find(
