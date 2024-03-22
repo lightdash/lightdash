@@ -1,3 +1,10 @@
+## [0.1039.2](https://github.com/lightdash/lightdash/compare/0.1039.1...0.1039.2) (2024-03-22)
+
+
+### Bug Fixes
+
+* divide by zero in quick calculations ([#9489](https://github.com/lightdash/lightdash/issues/9489)) ([d1657fd](https://github.com/lightdash/lightdash/commit/d1657fd982af3a783f67813ffbd41c30257f02c6))
+
 ## [0.1039.1](https://github.com/lightdash/lightdash/compare/0.1039.0...0.1039.1) (2024-03-21)
 
 
