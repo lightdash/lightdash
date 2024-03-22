@@ -135,7 +135,10 @@ const Login: FC<{}> = () => {
     }, [form.values, formStage, isEmailLoginAvailable, mutate]);
 
     const disableControls =
-        (loginOptionsLoading && loginOptionsFetched) || isLoading || isSuccess;
+        (loginOptionsLoading && loginOptionsFetched) ||
+        (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
+        isLoading ||
+        isSuccess;
 
     const googleAuthAvailable = health.data?.auth.google.enabled;
 
@@ -218,7 +221,9 @@ const Login: FC<{}> = () => {
                             loading={disableControls}
                             data-cy="signin-button"
                         >
-                            {formStage === 'login' ? 'Sign in' : 'Continue'}
+                            {formStage === 'login' && !loginOptionsFetched
+                                ? 'Sign in'
+                                : 'Continue'}
                         </Button>
                         {(googleAuthAvailable || otherSsoLogins.length > 0) && (
                             <Divider
