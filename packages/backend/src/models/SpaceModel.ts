@@ -286,7 +286,8 @@ export class SpaceModel {
     async find(filters: {
         projectUuid?: string;
         spaceUuid?: string;
-    }): Promise<SpaceSummary[]> {
+        spaceUuids?: string[];
+    }): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -363,6 +364,9 @@ export class SpaceModel {
             }
             if (filters.spaceUuid) {
                 query.where('spaces.space_uuid', filters.spaceUuid);
+            }
+            if (filters.spaceUuids) {
+                query.whereIn('spaces.space_uuid', filters.spaceUuids);
             }
             return await query;
         } finally {
@@ -946,7 +950,9 @@ export class SpaceModel {
         }));
     }
 
-    async getSpaceSummary(spaceUuid: string): Promise<SpaceSummary> {
+    async getSpaceSummary(
+        spaceUuid: string,
+    ): Promise<Omit<SpaceSummary, 'userAccess'>> {
         return wrapOtelSpan('SpaceModel.getSpaceSummary', {}, async () => {
             const [space] = await this.find({ spaceUuid });
             if (space === undefined)
@@ -962,48 +968,17 @@ export class SpaceModel {
     ): Promise<
         Map<
             string,
-            Pick<
-                SpaceSummary | Space,
-                'isPrivate' | 'access' | 'organizationUuid' | 'projectUuid'
-            >
+            Pick<SpaceSummary, 'isPrivate' | 'organizationUuid' | 'projectUuid'>
         >
     > {
-        const spaces = await this.database('spaces')
-            .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
-            .innerJoin(
-                'organizations',
-                'organizations.organization_id',
-                'projects.organization_id',
-            )
-            .leftJoin('space_share', 'space_share.space_id', 'spaces.space_id')
-            .leftJoin(
-                'users as shared_with',
-                'space_share.user_id',
-                'shared_with.user_id',
-            )
-            .whereIn('spaces.space_uuid', spaceUuids)
-            .select({
-                spaceUuid: 'spaces.space_uuid',
-                organizationUuid: 'organizations.organization_uuid',
-                projectUuid: 'projects.project_uuid',
-                isPrivate: this.database.raw('bool_or(spaces.is_private)'),
-                access: this.database.raw(
-                    "COALESCE(json_agg(shared_with.user_uuid) FILTER (WHERE shared_with.user_uuid IS NOT NULL), '[]')",
-                ),
-            })
-            .groupBy(
-                'spaces.space_uuid',
-                'organizations.organization_uuid',
-                'projects.project_uuid',
-            );
+        const spaces = await this.find({ spaceUuids });
 
         const spaceAccessMap = new Map();
         spaces.forEach((space) => {
-            spaceAccessMap.set(space.spaceUuid, {
+            spaceAccessMap.set(space.uuid, {
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
                 isPrivate: space.isPrivate,
-                access: space.access,
             });
         });
 

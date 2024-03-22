@@ -28,6 +28,7 @@ export type SpaceSummary = Pick<
     | 'pinnedListUuid'
     | 'pinnedListOrder'
 > & {
+    userAccess: SpaceShare | undefined;
     access: string[];
     chartCount: number;
     dashboardCount: number;
