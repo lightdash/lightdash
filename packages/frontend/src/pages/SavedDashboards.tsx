@@ -41,7 +41,6 @@ const SavedDashboards = () => {
         subject('Dashboard', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
-            isPrivate: false,
         }),
     );
 

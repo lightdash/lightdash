@@ -570,14 +570,7 @@ const Dashboard: FC = () => {
                 header={
                     <DashboardHeader
                         spaces={spaces}
-                        dashboardName={dashboard.name}
-                        dashboardDescription={dashboard.description}
-                        dashboardUpdatedByUser={dashboard.updatedByUser}
-                        dashboardUpdatedAt={dashboard.updatedAt}
-                        dashboardSpaceName={dashboard.spaceName}
-                        dashboardSpaceUuid={dashboard.spaceUuid}
-                        dashboardViews={dashboard.views}
-                        dashboardFirstViewedAt={dashboard.firstViewedAt}
+                        dashboard={dashboard}
                         organizationUuid={organization?.organizationUuid}
                         isEditMode={isEditMode}
                         isSaving={isSaving}

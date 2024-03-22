@@ -22,7 +22,6 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
-import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../MantineIcon';
 
 interface DashboardCreateModalProps extends ModalProps {
@@ -42,7 +41,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         useCreateMutation(projectUuid);
     const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
-    const { user } = useApp();
 
     const form = useForm({
         initialValues: {
@@ -126,8 +124,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         },
         [createDashboard, createSpace, onConfirm, form],
     );
-
-    if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;
 
     if (isLoadingSpaces || !spaces) return null;
 
