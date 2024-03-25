@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     LightdashMode,
     ResourceViewItemType,
@@ -15,6 +14,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useCharts } from '../hooks/useCharts';
+import useCreateInAnySpaceAccess from '../hooks/user/useCreateInAnySpaceAccess';
 import { useApp } from '../providers/AppProvider';
 
 const SavedQueries: FC = () => {
@@ -28,13 +28,9 @@ const SavedQueries: FC = () => {
     const history = useHistory();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
-    // test if user can managed charts for this project & org when given chart access
-    const userCanCreateCharts = user.data?.ability?.can(
-        'create',
-        subject('SavedChart', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
+    const userCanCreateCharts = useCreateInAnySpaceAccess(
+        projectUuid,
+        'SavedChart',
     );
 
     if (isInitialLoading && !cannotView) {

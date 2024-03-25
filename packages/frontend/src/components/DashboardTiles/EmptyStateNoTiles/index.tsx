@@ -8,6 +8,7 @@ import {
 import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
+import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useApp } from '../../../providers/AppProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -33,12 +34,9 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     const savedCharts = savedChartsRequest.data || [];
     const hasSavedCharts = savedCharts.length > 0;
 
-    const userCanCreateDashboard = user.data?.ability.can(
-        'create',
-        subject('Dashboard', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
+    const userCanCreateDashboard = useCreateInAnySpaceAccess(
+        projectUuid,
+        'Dashboard',
     );
 
     return (
