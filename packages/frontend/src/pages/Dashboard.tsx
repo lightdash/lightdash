@@ -170,6 +170,8 @@ const Dashboard: FC = () => {
     const requiredDashboardFilters = useDashboardContext(
         (c) => c.requiredDashboardFilters,
     );
+    const hasRequiredDashboardFiltersToSet =
+        requiredDashboardFilters.length > 0;
     const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
@@ -638,37 +640,32 @@ const Dashboard: FC = () => {
                     onWidthChange={(cw) => setGridWidth(cw)}
                     layouts={layouts}
                     style={{
-                        filter:
-                            requiredDashboardFilters.length > 0
-                                ? 'blur(5px)'
-                                : 'none',
+                        filter: hasRequiredDashboardFiltersToSet
+                            ? 'blur(5px)'
+                            : 'none',
                     }}
                 >
-                    {sortedTiles?.map((tile, idx) => {
-                        return (
-                            <div key={tile.uuid}>
-                                <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                    <GridTile
-                                        locked={
-                                            requiredDashboardFilters.length > 0
-                                        }
-                                        isLazyLoadEnabled={
-                                            isLazyLoadEnabled ?? true
-                                        }
-                                        index={idx}
-                                        isEditMode={isEditMode}
-                                        tile={tile}
-                                        onDelete={handleDeleteTile}
-                                        onEdit={handleEditTiles}
-                                        onAddTiles={handleAddTiles}
-                                    />
-                                </TrackSection>
-                            </div>
-                        );
-                    })}
+                    {sortedTiles?.map((tile, idx) => (
+                        <div key={tile.uuid}>
+                            <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                <GridTile
+                                    locked={hasRequiredDashboardFiltersToSet}
+                                    isLazyLoadEnabled={
+                                        isLazyLoadEnabled ?? true
+                                    }
+                                    index={idx}
+                                    isEditMode={isEditMode}
+                                    tile={tile}
+                                    onDelete={handleDeleteTile}
+                                    onEdit={handleEditTiles}
+                                    onAddTiles={handleAddTiles}
+                                />
+                            </TrackSection>
+                        </div>
+                    ))}
                 </ResponsiveGridLayout>
 
-                {requiredDashboardFilters.length > 0 && (
+                {hasRequiredDashboardFiltersToSet && (
                     <Modal
                         opened
                         withCloseButton={false}
