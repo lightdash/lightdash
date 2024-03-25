@@ -298,6 +298,26 @@ const useCartesianChartConfig = ({
     }, []);
 
     const removeSingleSeries = useCallback((index: number) => {
+        setDirtyEchartsConfig((prev) => {
+            /**
+             * Clean up any color data assigned to this series, to prevent confusing
+             * behaviors around reordering and deleting/re-adding series.
+             */
+            if (prev?.series && prev.series[index]) {
+                const newSeries = [...prev.series];
+                newSeries[index] = {
+                    ...newSeries[index],
+                    color: undefined,
+                };
+
+                return {
+                    ...prev,
+                    series: newSeries,
+                };
+            }
+
+            return prev;
+        });
         setDirtyLayout((prev) => ({
             ...prev,
             yField: prev?.yField

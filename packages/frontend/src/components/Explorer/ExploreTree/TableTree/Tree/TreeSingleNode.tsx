@@ -13,8 +13,8 @@ import {
 import {
     Group,
     Highlight,
+    HoverCard,
     NavLink,
-    Popover,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -149,8 +149,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             onMouseLeave={() => toggleHover(false)}
             label={
                 <Group noWrap>
-                    <Popover
-                        opened={isHover}
+                    <HoverCard
+                        openDelay={300}
                         keepMounted={false}
                         shadow="sm"
                         withinPortal
@@ -160,7 +160,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         /** Ensures the hover card does not overlap with the right-hand menu. */
                         offset={isFiltered ? 80 : 40}
                     >
-                        <Popover.Target>
+                        <HoverCard.Target>
                             <Highlight
                                 component={Text}
                                 truncate
@@ -169,8 +169,9 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                             >
                                 {label}
                             </Highlight>
-                        </Popover.Target>
-                        <Popover.Dropdown
+                        </HoverCard.Target>
+                        <HoverCard.Dropdown
+                            hidden={!isHover}
                             p="xs"
                             /**
                              * Takes up space to the right, so it's OK to go fairly wide in the interest
@@ -191,8 +192,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                                     description={description}
                                 />
                             )}
-                        </Popover.Dropdown>
-                    </Popover>
+                        </HoverCard.Dropdown>
+                    </HoverCard>
 
                     {isFiltered ? (
                         <Tooltip withinPortal label="This field is filtered">

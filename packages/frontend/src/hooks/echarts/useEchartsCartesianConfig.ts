@@ -1415,12 +1415,10 @@ const useEchartsCartesianConfig = (
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
 
-        const seriesWithValidStack = series.map<EChartSeries>((serie, i) => {
-            const color = getSeriesColor(serie, i);
-
+        const seriesWithValidStack = series.map<EChartSeries>((serie) => {
             return {
                 ...serie,
-                color,
+                color: getSeriesColor(serie),
                 stack: getValidStack(serie),
             };
         });

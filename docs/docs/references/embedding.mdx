@@ -3,6 +3,12 @@ import EmbedAddDashboard from '../guides/assets/embed-add-dashboard.png';
 import EmbedDeveloper from '../guides/assets/embed-developer.png';
 import EmbedPreview from '../guides/assets/embed-preview.png';
 import CreateUserAttribute from '../guides/assets/create-user-attribute.png';
+import EmbeddingSettingsAllFilters from '../guides/assets/embedding-settings-all-filters.png';
+import EmbeddingSettingsSomeFilters from '../guides/assets/embedding-settings-some-filters.png';
+import EmbeddingSettingsNoFilters from '../guides/assets/embedding-settings-no-filters.png';
+import EmbeddingPreviewAllFilters from '../guides/assets/embedding-preview-all-filters.png';
+import EmbeddingPreviewSomeFilters from '../guides/assets/embedding-preview-some-filters.png';
+import EmbeddingPreviewNoFilters from '../guides/assets/embedding-preview-no-filters.png';
 
 # Embedding
 
@@ -82,9 +88,63 @@ There are options to enable certain dashboard interactivity features on your emb
 
 #### Allow users to change dashboard filters
 
-When disabled, if your dashboard in Lightdash has filters, they will be applied, but won't be shown in the embedded dashboard.
+You can choose which filters are displayed in your embedded dashboard.
 
-When enabled, if your dashboard in Lightdash has filters, they will appear in the embedded dashboard like they do in Lightdash. Users interacting with the embedded dashboard will be able to change the value and operator of your filters. They cannot add new filters, remove existing filters, change the field used in the filter, or change the tiles the filter is applied to.
+The filters shown in the embedded dashboard will act like they do in Lightdash. Users interacting with the embedded dashboard will be able to change the value and operator of your filters. They cannot add new filters, remove existing filters, change the field used in the filter, or change the tiles the filter is applied to.
+
+- **No filters**
+
+  <img
+    src={EmbeddingSettingsNoFilters}
+    width="668"
+    height="466"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  />
+
+  No filters will be shown in the embedded dashboard. All dashboard filters are still applied.
+
+  <img
+    src={EmbeddingPreviewNoFilters}
+    width="668"
+    height="466"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  />
+
+- **Some filters**
+
+  <img
+    src={EmbeddingSettingsSomeFilters}
+    width="668"
+    height="466"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  />
+
+  Only the filters you select will be shown in the embedded dashboard. All dashboard filters are still applied.
+
+  <img
+    src={EmbeddingPreviewSomeFilters}
+    width="668"
+    height="466"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  />
+
+- **All filters**
+
+  <img
+    src={EmbeddingSettingsAllFilters}
+    width="668"
+    height="466"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  />
+
+  All dashboard filters will be shown in the embedded dashboard.
+
+  <img
+    src={EmbeddingPreviewAllFilters}
+    width="668"
+    height="466"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  />
 
 ### Preview
 

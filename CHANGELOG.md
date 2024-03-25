@@ -1,3 +1,45 @@
+# [0.1042.0](https://github.com/lightdash/lightdash/compare/0.1041.2...0.1042.0) (2024-03-25)
+
+
+### Features
+
+* use hovercard instead of popover ([#9487](https://github.com/lightdash/lightdash/issues/9487)) ([3b28a20](https://github.com/lightdash/lightdash/commit/3b28a203d67432a3fd2c115c620f48102a0f9a00))
+
+## [0.1041.2](https://github.com/lightdash/lightdash/compare/0.1041.1...0.1041.2) (2024-03-22)
+
+
+### Bug Fixes
+
+* improve behavior when ordering non-grouped series, cleanup temporary color assignment code  ([#9475](https://github.com/lightdash/lightdash/issues/9475)) ([0fa9891](https://github.com/lightdash/lightdash/commit/0fa9891a5e46a9fe124c5234f9f4ebd313acd24d))
+
+## [0.1041.1](https://github.com/lightdash/lightdash/compare/0.1041.0...0.1041.1) (2024-03-22)
+
+
+### Bug Fixes
+
+* page crash when setting date to invalid value ([#9491](https://github.com/lightdash/lightdash/issues/9491)) ([6c67214](https://github.com/lightdash/lightdash/commit/6c672140d836e6d2094056990e631c9d9caec074))
+
+# [0.1041.0](https://github.com/lightdash/lightdash/compare/0.1040.2...0.1041.0) (2024-03-22)
+
+
+### Features
+
+* new login banner ([#9503](https://github.com/lightdash/lightdash/issues/9503)) ([0835484](https://github.com/lightdash/lightdash/commit/08354843c00ad432bd0c16dbc9e3f1011c2befaa))
+
+## [0.1040.2](https://github.com/lightdash/lightdash/compare/0.1040.1...0.1040.2) (2024-03-22)
+
+
+### Bug Fixes
+
+* ui layout issues with big number comparison label ([#9508](https://github.com/lightdash/lightdash/issues/9508)) ([f30ab5e](https://github.com/lightdash/lightdash/commit/f30ab5e69a4a6328a6baecc1e427c3be50b22c80))
+
+## [0.1040.1](https://github.com/lightdash/lightdash/compare/0.1040.0...0.1040.1) (2024-03-22)
+
+
+### Bug Fixes
+
+* missing spinner when automatically logged in ([#9507](https://github.com/lightdash/lightdash/issues/9507)) ([51cd50d](https://github.com/lightdash/lightdash/commit/51cd50dd95c1a11727f80a9f81d3004493ac6c51))
+
 # [0.1040.0](https://github.com/lightdash/lightdash/compare/0.1039.2...0.1040.0) (2024-03-22)
 
 
