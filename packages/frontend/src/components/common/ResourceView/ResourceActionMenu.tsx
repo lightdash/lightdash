@@ -49,7 +49,7 @@ enum SpaceType {
 
 const SpaceTypeLabels = {
     [SpaceType.SharedWithMe]: 'Shared with me',
-    [SpaceType.AdminContentView]: 'Admin content view',
+    [SpaceType.AdminContentView]: 'Public content view',
 };
 
 const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
