@@ -20,11 +20,12 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, type UseFormReturnType } from '@mantine/form';
+import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
+import { z } from 'zod';
 import {
     appendNewTilesToBottom,
     useDashboardQuery,
@@ -173,6 +174,21 @@ type SaveToSpaceOrDashboardProps = {
     onClose: () => void;
 };
 
+const validationSchema = z.object({
+    name: z.string().nonempty(),
+    spaceUuid: z.string(),
+
+    dashboardUuid: z.string(),
+    dashboardName: z.string(),
+    description: z.string(),
+    newSpaceName: z.string().or(z.null()),
+    saveDestination: z
+        .nativeEnum(SaveDestination)
+        .default(SaveDestination.Space),
+});
+
+type FormValues = z.infer<typeof validationSchema>;
+
 export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     savedData,
     defaultSpaceUuid,
@@ -184,10 +200,9 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
 
     const { mutateAsync: createChart } = useCreateMutation();
 
-    const [, setShouldCreateNewSpace] = useState(false);
     const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
 
-    const form = useForm<ChartCreateModalFormValues>({
+    const form = useForm<FormValues>({
         initialValues: {
             name: '',
             spaceUuid: '',
@@ -198,9 +213,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
             saveDestination: SaveDestination.Space,
         },
 
-        validate: {
-            name: (value) => (value.length > 0 ? null : 'Name is required'),
-        },
+        validate: zodResolver(validationSchema),
     });
 
     const { data: dashboards, isInitialLoading: isLoadingDashboards } =
@@ -236,8 +249,6 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                         ? data.find((space) => space.uuid === defaultSpaceUuid)
                         : data[0];
                     form.setFieldValue('spaceUuid', currentSpace?.uuid || '');
-                } else {
-                    setShouldCreateNewSpace(true);
                 }
             },
         });
@@ -309,7 +320,6 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
             }
 
             if (savedQuery) {
-                setShouldCreateNewSpace(false);
                 onConfirm(savedQuery);
                 return savedQuery;
             }

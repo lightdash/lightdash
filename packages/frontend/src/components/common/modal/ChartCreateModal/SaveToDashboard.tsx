@@ -6,10 +6,11 @@ import {
     type CreateSavedChartVersion,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import { z } from 'zod';
 import { appendNewTilesToBottom } from '../../../../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -24,6 +25,13 @@ type Props = {
 };
 
 type SaveToDashboardFormValues = { name: string; description: string };
+
+const validationSchema = z.object({
+    name: z.string().nonempty(),
+    description: z.string(),
+});
+
+type FormValues = z.infer<typeof validationSchema>;
 
 export const SaveToDashboard: FC<Props> = ({
     savedData,
@@ -70,15 +78,12 @@ export const SaveToDashboard: FC<Props> = ({
         setUnsavedDashboardTiles,
     } = useDashboardStorage();
     const unsavedDashboardTiles = getUnsavedDashboardTiles();
-    const form = useForm<SaveToDashboardFormValues>({
+    const form = useForm<FormValues>({
         initialValues: {
             name: '',
             description: '',
         },
-
-        validate: {
-            name: (value) => (value.length > 0 ? null : 'Name is required'),
-        },
+        validate: zodResolver(validationSchema),
     });
 
     const handleSaveChartInDashboard = useCallback(
