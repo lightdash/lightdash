@@ -678,18 +678,12 @@ const Dashboard: FC = () => {
                         })}
                     >
                         <Text fw={600} fz="lg" ta="center" mb="lg">
-                            Ready to view your dashboard?
+                            Set filter values to get started
                         </Text>
                         <Stack spacing="xs">
-                            <Text fw={500}>
-                                To reveal this dashboard's insights, simply
-                                unlock it by setting values to filters that are
-                                required.
-                            </Text>
                             <Text>
-                                Your organization has chosen these specific
-                                filters to ensure you get precisely the data you
-                                need.
+                                This dashboard cannot be run without setting the
+                                filter values above.
                             </Text>
                         </Stack>
                     </Modal>
