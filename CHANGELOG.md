@@ -1,3 +1,10 @@
+## [0.1042.1](https://github.com/lightdash/lightdash/compare/0.1042.0...0.1042.1) (2024-03-25)
+
+
+### Bug Fixes
+
+* bignumber context menu position ([#9517](https://github.com/lightdash/lightdash/issues/9517)) ([0bfc45f](https://github.com/lightdash/lightdash/commit/0bfc45fcec7f9d13e94669708776b302bf68e47c))
+
 # [0.1042.0](https://github.com/lightdash/lightdash/compare/0.1041.2...0.1042.0) (2024-03-25)
 
 
