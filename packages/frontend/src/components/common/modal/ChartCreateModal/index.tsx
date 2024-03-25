@@ -17,8 +17,8 @@ interface ChartCreateModalProps {
 }
 
 enum SaveMode {
-    Default = 'default',
-    ToDashboard = 'toDashboard',
+    DEFAULT = 'DEFAULT',
+    TO_DASHBOARD = 'TO_DASHBOARD',
 }
 
 const ChartCreateModal: FC<ChartCreateModalProps> = ({
@@ -33,15 +33,15 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
     const saveMode = useMemo(() => {
         if (editingDashboardInfo.name && editingDashboardInfo.dashboardUuid) {
-            return SaveMode.ToDashboard;
+            return SaveMode.TO_DASHBOARD;
         }
-        return SaveMode.Default;
+        return SaveMode.DEFAULT;
     }, [editingDashboardInfo]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const getModalTitle = useCallback(() => {
-        if (saveMode === SaveMode.ToDashboard) {
+        if (saveMode === SaveMode.TO_DASHBOARD) {
             return `Save chart "${editingDashboardInfo.name}"`;
         }
         return 'Save chart';
@@ -63,7 +63,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                 body: { padding: 0 },
             })}
         >
-            {saveMode === SaveMode.ToDashboard && (
+            {saveMode === SaveMode.TO_DASHBOARD && (
                 <SaveToDashboard
                     projectUuid={projectUuid}
                     dashboardName={editingDashboardInfo.name}
@@ -73,7 +73,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                 />
             )}
 
-            {saveMode === SaveMode.Default && (
+            {saveMode === SaveMode.DEFAULT && (
                 <SaveToSpaceOrDashboard
                     savedData={savedData}
                     onConfirm={onConfirm}
