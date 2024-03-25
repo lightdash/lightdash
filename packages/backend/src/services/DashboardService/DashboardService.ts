@@ -616,23 +616,37 @@ export class DashboardService {
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
         const userHasAccessToDashboards = await Promise.all(
-            dashboards.map(async (dashboard) => {
-                const dashboardSpace = await this.spaceModel.getSpaceSummary(
-                    dashboard.spaceUuid,
+            dashboards.map(async (dashboardToUpdate) => {
+                const dashboard = await this.dashboardModel.getById(
+                    dashboardToUpdate.uuid,
                 );
-                const dashboardSpaceAccess =
-                    await this.spaceModel.getUserSpaceAccess(
-                        user.userUuid,
-                        dashboard.spaceUuid,
-                    );
-                return user.ability.can(
+                const canUpdateDashboardInCurrentSpace = user.ability.can(
                     'update',
                     subject('Dashboard', {
-                        organizationUuid: dashboardSpace.organizationUuid,
-                        projectUuid,
-                        isPrivate: dashboardSpace.isPrivate,
-                        access: dashboardSpaceAccess,
+                        ...(await this.spaceModel.getSpaceSummary(
+                            dashboard.spaceUuid,
+                        )),
+                        access: await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            dashboard.spaceUuid,
+                        ),
                     }),
+                );
+                const canUpdateDashboardInNewSpace = user.ability.can(
+                    'update',
+                    subject('Dashboard', {
+                        ...(await this.spaceModel.getSpaceSummary(
+                            dashboardToUpdate.spaceUuid,
+                        )),
+                        access: await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            dashboardToUpdate.spaceUuid,
+                        ),
+                    }),
+                );
+                return (
+                    canUpdateDashboardInCurrentSpace &&
+                    canUpdateDashboardInNewSpace
                 );
             }),
         );
