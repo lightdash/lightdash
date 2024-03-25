@@ -12,7 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import { IconEditCircle, IconFilter } from '@tabler/icons-react';
+import { IconFilter, IconPencil } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
@@ -193,9 +193,9 @@ const Filter: FC<Props> = ({
                                 label="Set a value to run this dashboard"
                             >
                                 <MantineIcon
-                                    size={16}
+                                    size={14}
                                     color="white"
-                                    icon={IconEditCircle}
+                                    icon={IconPencil}
                                 />
                             </Tooltip>
                         }
