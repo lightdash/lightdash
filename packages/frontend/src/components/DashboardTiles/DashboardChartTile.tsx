@@ -63,6 +63,7 @@ import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -379,6 +380,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         showToastSuccess({ title: 'Copied to clipboard!' });
     }, [viewUnderlyingDataOptions, clipboard, showToastSuccess]);
 
+    const { data: duplicatedChart, mutateAsync: duplicateChart } =
+        useDuplicateChartMutation({
+            showRedirectButton: true,
+        });
+    const [isDuplicating, setIsDuplicating] = useState(false);
+
+    useEffect(() => {
+        if (isDuplicating && duplicatedChart) {
+            // We duplicated a chart, we add it to the dashboard
+            console.debug('duplicateChart', duplicatedChart);
+            setIsDuplicating(false);
+        }
+    }, [duplicatedChart, isDuplicating, setIsDuplicating]);
     const handleAddFilter = useCallback(
         (filter: DashboardFilterRule) => {
             track({
@@ -737,6 +751,22 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                         disabled={isEditMode}
                                     >
                                         Move to space
+                                    </Menu.Item>
+                                )}
+
+                                {userCanManageChart && (
+                                    <Menu.Item
+                                        icon={<MantineIcon icon={IconCopy} />}
+                                        onClick={() => {
+                                            duplicateChart({
+                                                uuid: savedChartUuid,
+                                                name: chart.name,
+                                                description: chart.description,
+                                            });
+                                        }}
+                                        disabled={!isEditMode}
+                                    >
+                                        Duplicate chart
                                     </Menu.Item>
                                 )}
                             </Box>
