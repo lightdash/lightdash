@@ -154,7 +154,11 @@ const DashboardHeader = ({
     );
 
     return (
-        <PageHeader h="auto">
+        <PageHeader
+            cardProps={{
+                h: 'auto',
+            }}
+        >
             <PageTitleAndDetailsContainer>
                 <Group spacing="xs">
                     <Title order={4} fw={600}>

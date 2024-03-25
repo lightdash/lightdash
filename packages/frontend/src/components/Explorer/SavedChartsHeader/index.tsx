@@ -24,7 +24,6 @@ import {
     IconBell,
     IconCheck,
     IconChevronRight,
-    IconCircleFilled,
     IconCirclePlus,
     IconCirclesRelation,
     IconCodePlus,
@@ -70,17 +69,15 @@ import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartTh
 import PageHeader from '../../common/Page/PageHeader';
 import {
     PageActionsContainer,
-    PageDetailsContainer,
     PageTitleAndDetailsContainer,
 } from '../../common/PageHeader';
-import SpaceAndDashboardInfo from '../../common/PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
-import ViewInfo from '../../common/PageHeader/ViewInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SaveChartButton from '../SaveChartButton';
+import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
 enum SpaceType {
     SharedWithMe,
@@ -388,25 +385,29 @@ const SavedChartsHeader: FC = () => {
                 </Group>
             </Modal>
 
-            <PageHeader>
+            <PageHeader
+                cardProps={{
+                    py: 'xs',
+                }}
+            >
                 <PageTitleAndDetailsContainer>
                     {savedChart && (
                         <>
                             <Group spacing="xs">
-                                <Title order={4} fw={600}>
+                                <TitleBreadCrumbs
+                                    projectUuid={projectUuid}
+                                    spaceUuid={savedChart.spaceUuid}
+                                    spaceName={savedChart.spaceName}
+                                    dashboardUuid={savedChart.dashboardUuid}
+                                    dashboardName={savedChart.dashboardName}
+                                />
+                                <Title c="dark.6" order={5} fz="sm" fw={600}>
                                     {savedChart.name}
                                 </Title>
-
-                                <ResourceInfoPopup
-                                    resourceUuid={savedChart.uuid}
-                                    projectUuid={projectUuid}
-                                    description={savedChart.description}
-                                    withChartData={true}
-                                />
-
                                 {isEditMode && userCanManageChart && (
                                     <ActionIcon
-                                        color="gray.7"
+                                        size="xs"
+                                        color="gray.6"
                                         disabled={updateSavedChart.isLoading}
                                         onClick={() => setIsRenamingChart(true)}
                                     >
@@ -421,45 +422,23 @@ const SavedChartsHeader: FC = () => {
                                 />
                             </Group>
 
-                            <PageDetailsContainer>
+                            <Group spacing="xs">
                                 <UpdatedInfo
                                     updatedAt={savedChart.updatedAt}
                                     user={savedChart.updatedByUser}
+                                    partiallyBold={false}
                                 />
-
-                                <MantineIcon
-                                    icon={IconCircleFilled}
-                                    size={3}
-                                    style={{ margin: '0 11px' }}
-                                />
-                                <ViewInfo
-                                    views={chartViewStats.data?.views}
+                                <ResourceInfoPopup
+                                    resourceUuid={savedChart.uuid}
+                                    projectUuid={projectUuid}
+                                    description={savedChart.description}
+                                    viewStats={chartViewStats.data?.views}
                                     firstViewedAt={
                                         chartViewStats.data?.firstViewedAt
                                     }
+                                    withChartData={true}
                                 />
-
-                                <MantineIcon
-                                    icon={IconCircleFilled}
-                                    size={3}
-                                    style={{ margin: '0 11px' }}
-                                />
-                                <SpaceAndDashboardInfo
-                                    space={{
-                                        link: `/projects/${projectUuid}/spaces/${savedChart.spaceUuid}`,
-                                        name: savedChart.spaceName,
-                                    }}
-                                    dashboard={
-                                        savedChart.dashboardUuid &&
-                                        savedChart.dashboardName
-                                            ? {
-                                                  link: `/projects/${projectUuid}/dashboards/${savedChart.dashboardUuid}`,
-                                                  name: savedChart.dashboardName,
-                                              }
-                                            : undefined
-                                    }
-                                />
-                            </PageDetailsContainer>
+                            </Group>
                         </>
                     )}
                 </PageTitleAndDetailsContainer>
