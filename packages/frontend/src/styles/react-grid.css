@@ -50,3 +50,7 @@
     box-sizing: border-box;
     cursor: se-resize;
 }
+
+.react-grid-layout-dashboard.locked {
+    filter: blur(3px);
+}

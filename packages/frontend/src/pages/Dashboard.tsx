@@ -634,16 +634,13 @@ const Dashboard: FC = () => {
                 </Group>
                 <ResponsiveGridLayout
                     {...getResponsiveGridLayoutProps()}
-                    className="react-grid-layout-dashboard"
+                    className={`react-grid-layout-dashboard ${
+                        hasRequiredDashboardFiltersToSet ? 'locked' : ''
+                    }`}
                     onDragStop={handleUpdateTiles}
                     onResizeStop={handleUpdateTiles}
                     onWidthChange={(cw) => setGridWidth(cw)}
                     layouts={layouts}
-                    style={{
-                        filter: hasRequiredDashboardFiltersToSet
-                            ? 'blur(5px)'
-                            : 'none',
-                    }}
                 >
                     {sortedTiles?.map((tile, idx) => (
                         <div key={tile.uuid}>
