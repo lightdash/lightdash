@@ -26,6 +26,7 @@ import {
     type SavedChart,
     type SortField,
     type TableCalculation,
+    type TableCalculationMetadata,
     type TableChartConfig,
 } from '@lightdash/common';
 import produce from 'immer';
@@ -216,6 +217,9 @@ type Action =
 export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
+    metadata?: {
+        tableCalculations?: TableCalculationMetadata[];
+    };
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
     modals: {
@@ -473,6 +477,32 @@ const updateChartConfigWithTableCalc = (
     }
 
     return newConfig;
+};
+
+const getTableCalculationsMetadata = (
+    state: ExplorerReduceState,
+    oldTableCalculationName: string,
+    newTableCalculationName: string,
+) => {
+    const tcMetadataIndex =
+        state.metadata?.tableCalculations?.findIndex((tc) => {
+            return tc.name === oldTableCalculationName;
+        }) ?? -1;
+
+    if (tcMetadataIndex >= 0) {
+        return [
+            ...(state.metadata?.tableCalculations?.slice(0, tcMetadataIndex) ??
+                []),
+            { name: newTableCalculationName, oldName: oldTableCalculationName },
+            ...(state.metadata?.tableCalculations?.slice(tcMetadataIndex + 1) ??
+                []),
+        ];
+    }
+
+    return [
+        ...(state.metadata?.tableCalculations ?? []),
+        { name: newTableCalculationName, oldName: oldTableCalculationName },
+    ];
 };
 
 function reducer(
@@ -1107,6 +1137,13 @@ function reducer(
         case ActionType.UPDATE_TABLE_CALCULATION: {
             return {
                 ...state,
+                metadata: {
+                    tableCalculations: getTableCalculationsMetadata(
+                        state,
+                        action.payload.oldName,
+                        action.payload.tableCalculation.name,
+                    ),
+                },
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {
@@ -1157,6 +1194,12 @@ function reducer(
                 );
             return {
                 ...state,
+                metadata: {
+                    tableCalculations:
+                        state.metadata?.tableCalculations?.filter(
+                            (tc) => tc.name !== action.payload,
+                        ),
+                },
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {

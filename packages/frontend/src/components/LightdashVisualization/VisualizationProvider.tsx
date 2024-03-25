@@ -6,6 +6,7 @@ import {
     type ChartConfig,
     type DashboardFilters,
     type ItemsMap,
+    type TableCalculationMetadata,
 } from '@lightdash/common';
 import type EChartsReact from 'echarts-for-react';
 import isEqual from 'lodash/isEqual';
@@ -122,6 +123,7 @@ type Props = {
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     colorPalette: string[];
+    tableCalculationsMetadata?: TableCalculationMetadata[];
 };
 
 const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -142,6 +144,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
     dashboardFilters,
     invalidateCache,
     colorPalette,
+    tableCalculationsMetadata,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -297,6 +300,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                     setPivotDimensions={setPivotDimensions}
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
+                    tableCalculationsMetadata={tableCalculationsMetadata}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

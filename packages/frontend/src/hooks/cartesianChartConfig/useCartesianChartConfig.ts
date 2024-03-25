@@ -12,8 +12,10 @@ import {
     type ItemsMap,
     type MarkLineData,
     type Series,
+    type TableCalculationMetadata,
 } from '@lightdash/common';
 
+import { isEqual } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getMarkLineAxis,
@@ -45,6 +47,7 @@ type Args = {
     stacking: boolean | undefined;
     cartesianType: CartesianTypeOptions | undefined;
     colorPalette: string[];
+    tableCalculationsMetadata?: TableCalculationMetadata[];
 };
 
 const applyReferenceLines = (
@@ -119,6 +122,7 @@ const useCartesianChartConfig = ({
     itemsMap,
     stacking,
     cartesianType,
+    tableCalculationsMetadata,
 }: Args) => {
     // FIXME: this might not be necessary
     const hasInitialValue =
@@ -482,6 +486,59 @@ const useCartesianChartConfig = ({
         ];
     }, [resultsData, sortedDimensions]);
 
+    const isFieldValidTableCalculation = useCallback(
+        (fieldName: string) => {
+            return (
+                tableCalculationsMetadata?.some(
+                    (tc) => tc.name === fieldName || tc.oldName === fieldName,
+                ) ?? false
+            );
+        },
+        [tableCalculationsMetadata],
+    );
+
+    useEffect(() => {
+        if (!tableCalculationsMetadata) return;
+
+        const xFieldTcIndex = tableCalculationsMetadata?.findIndex(
+            (tc) => tc.oldName === dirtyLayout?.xField,
+        );
+
+        if (xFieldTcIndex !== -1) {
+            setDirtyLayout((prev) => {
+                return {
+                    ...prev,
+                    xField: tableCalculationsMetadata[xFieldTcIndex].name,
+                };
+            });
+        }
+    }, [dirtyLayout?.xField, tableCalculationsMetadata]);
+
+    useEffect(() => {
+        if (!tableCalculationsMetadata) return;
+
+        const newYFields = dirtyLayout?.yField?.map((yField) => {
+            const yFieldTcIndex = tableCalculationsMetadata.findIndex(
+                (tc) => tc.oldName === yField,
+            );
+
+            if (yFieldTcIndex !== -1) {
+                return tableCalculationsMetadata[yFieldTcIndex].name;
+            }
+
+            return yField;
+        });
+
+        if (!newYFields || isEqual(dirtyLayout?.yField, newYFields)) return;
+
+        setDirtyLayout((prev) => {
+            return {
+                ...prev,
+                yField: newYFields,
+            };
+        });
+    }, [dirtyLayout?.yField, tableCalculationsMetadata]);
+
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
@@ -489,9 +546,15 @@ const useCartesianChartConfig = ({
             setDirtyLayout((prev) => {
                 const isCurrentXFieldValid: boolean =
                     prev?.xField === EMPTY_X_AXIS ||
-                    (!!prev?.xField && availableFields.includes(prev.xField));
+                    (!!prev?.xField &&
+                        (availableFields.includes(prev.xField) ||
+                            isFieldValidTableCalculation(prev.xField)));
                 const currentValidYFields = prev?.yField
-                    ? prev.yField.filter((y) => availableFields.includes(y))
+                    ? prev.yField.filter(
+                          (y) =>
+                              availableFields.includes(y) ||
+                              isFieldValidTableCalculation(y),
+                      )
                     : [];
                 const isCurrentYFieldsValid: boolean =
                     currentValidYFields.length > 0;
@@ -624,6 +687,8 @@ const useCartesianChartConfig = ({
         itemsMap,
         setPivotDimensions,
         setType,
+        isFieldValidTableCalculation,
+        tableCalculationsMetadata,
     ]);
 
     const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
