@@ -22,6 +22,7 @@ import { Fragment, useMemo, type FC } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
+import { Can } from '../Authorization';
 import MantineIcon from '../MantineIcon';
 import {
     ResourceViewItemAction,
@@ -63,31 +64,34 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const location = useLocation();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const organizationUuid = user.data?.organizationUuid;
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 
-    const spacesSharedWithMe = useMemo(() => {
-        return spaces.filter((space) => {
+    const spacesByType = useMemo(() => {
+        const spacesUserCanCreateIn = spaces.filter((space) => {
+            return user.data?.ability?.can(
+                'create',
+                subject('SavedChart', {
+                    ...space,
+                    access: space.userAccess ? [space.userAccess] : [],
+                }),
+            );
+        });
+        const spacesSharedWithMe = spacesUserCanCreateIn.filter((space) => {
             return user.data && space.userAccess?.hasDirectAccess;
         });
-    }, [spaces, user.data]);
-
-    const spacesAdminsCanSee = useMemo(() => {
-        return spaces.filter((space) => {
+        const spacesAdminsCanSee = spacesUserCanCreateIn.filter((space) => {
             return (
                 spacesSharedWithMe.find((s) => s.uuid === space.uuid) ===
                 undefined
             );
         });
-    }, [spaces, spacesSharedWithMe]);
-
-    const spacesByType = useMemo(() => {
         return {
             [SpaceType.SharedWithMe]: spacesSharedWithMe,
             [SpaceType.AdminContentView]: spacesAdminsCanSee,
         };
-    }, [spacesSharedWithMe, spacesAdminsCanSee]);
+    }, [spaces, user.data]);
 
     switch (item.type) {
         case ResourceViewItemType.CHART: {
@@ -286,12 +290,13 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     SpaceType.AdminContentView,
                                 ].map((spaceType) => (
                                     <Fragment key={spaceType}>
-                                        {spacesByType[
-                                            SpaceType.AdminContentView
-                                        ].length > 0 ? (
+                                        {spacesByType[spaceType].length > 0 ? (
                                             <>
                                                 {spaceType ===
-                                                SpaceType.AdminContentView ? (
+                                                    SpaceType.AdminContentView &&
+                                                spacesByType[
+                                                    SpaceType.SharedWithMe
+                                                ].length > 0 ? (
                                                     <Menu.Divider />
                                                 ) : null}
 
@@ -349,26 +354,36 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     </Fragment>
                                 ))}
 
-                                {spaces.length > 0 ? <Menu.Divider /> : null}
-
-                                <Menu.Item
-                                    component="button"
-                                    role="menuitem"
-                                    icon={
-                                        <MantineIcon
-                                            icon={IconPlus}
-                                            size={18}
-                                        />
-                                    }
-                                    onClick={() => {
-                                        onAction({
-                                            type: ResourceViewItemAction.CREATE_SPACE,
-                                            item,
-                                        });
-                                    }}
+                                <Can
+                                    I="create"
+                                    this={subject('Space', {
+                                        organizationUuid:
+                                            user.data?.organizationUuid,
+                                        projectUuid,
+                                    })}
                                 >
-                                    Create new space
-                                </Menu.Item>
+                                    {spaces.length > 0 ? (
+                                        <Menu.Divider />
+                                    ) : null}
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconPlus}
+                                                size={18}
+                                            />
+                                        }
+                                        onClick={() => {
+                                            onAction({
+                                                type: ResourceViewItemAction.CREATE_SPACE,
+                                                item,
+                                            });
+                                        }}
+                                    >
+                                        Create new space
+                                    </Menu.Item>
+                                </Can>
                             </Menu.Dropdown>
                         </Menu>
                     </>
