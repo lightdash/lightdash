@@ -282,7 +282,7 @@ interface DashboardChartTileMainProps
     > {
     tile: IDashboardChartTile;
     chartAndResults: ApiChartAndResults;
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
@@ -972,7 +972,6 @@ type DashboardChartTileProps = Omit<
     'chartAndResults'
 > & {
     minimal?: boolean;
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
 };
 
 // Abstraction needed for enterprise version
