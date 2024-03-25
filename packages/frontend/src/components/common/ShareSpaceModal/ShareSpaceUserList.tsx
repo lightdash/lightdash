@@ -1,4 +1,5 @@
 import {
+    ProjectMemberRole,
     SpaceMemberRole,
     type LightdashUser,
     type Space,
