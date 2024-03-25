@@ -43,14 +43,14 @@ export const hasDirectAccessToSpace = (
     return hasAccess;
 };
 
-export const hasViewAccessToSpace = async (
+export const hasViewAccessToSpace = (
     user: SessionUser,
     space: Pick<
         Space | SpaceSummary,
         'projectUuid' | 'organizationUuid' | 'isPrivate'
     >,
     access: SpaceShare[],
-): Promise<boolean> =>
+): boolean =>
     user.ability.can(
         'view',
         subject('Space', {
