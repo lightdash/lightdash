@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
-import { useMemo, type FC, type HTMLAttributes } from 'react';
+import { forwardRef, useMemo, type FC, type HTMLAttributes } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import MantineIcon from '../common/MantineIcon';
 import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/TileBase.styles';
@@ -63,22 +63,25 @@ const calculateFontSize = (
     return fontSize;
 };
 
-const BigNumberText: FC<TextProps> = ({ children, ...textProps }) => {
-    return (
-        <Text
-            c="dark.4"
-            align="center"
-            fw={500}
-            {...textProps}
-            style={{
-                transition: 'font-size 0.1s ease-in-out',
-                ...textProps.style,
-            }}
-        >
-            {children}
-        </Text>
-    );
-};
+const BigNumberText: FC<TextProps> = forwardRef<HTMLDivElement, TextProps>(
+    ({ children, ...textProps }, ref) => {
+        return (
+            <Text
+                ref={ref}
+                c="dark.4"
+                align="center"
+                fw={500}
+                {...textProps}
+                style={{
+                    transition: 'font-size 0.1s ease-in-out',
+                    ...textProps.style,
+                }}
+            >
+                {children}
+            </Text>
+        );
+    },
+);
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
