@@ -191,8 +191,10 @@ describe('useCartesianChartConfig', () => {
 
         const series = result.current.validConfig!.eChartsConfig.series!;
 
+        expect(series.length).toBeGreaterThan(0);
         series.forEach((serie) => expect(serie.yAxisIndex).toBe(0));
     });
+
     test('should set undefined yAxisIndex to 0', () => {
         const seriesFromOldChart = [
             {
