@@ -15,7 +15,7 @@ import {
     type TableCalculationMetadata,
 } from '@lightdash/common';
 
-import { isEqual } from 'lodash';
+import { isEqual, sortBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getMarkLineAxis,
@@ -529,7 +529,11 @@ const useCartesianChartConfig = ({
             return yField;
         });
 
-        if (!newYFields || isEqual(dirtyLayout?.yField, newYFields)) return;
+        if (
+            !newYFields ||
+            isEqual(sortBy(dirtyLayout?.yField), sortBy(newYFields))
+        )
+            return;
 
         setDirtyLayout((prev) => {
             return {
