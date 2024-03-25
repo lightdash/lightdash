@@ -319,6 +319,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
+                    tableCalculationsMetadata={tableCalculationsMetadata}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
