@@ -5,7 +5,7 @@ import {
     isNumericItem,
     type ResultRow,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, Group } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -124,11 +124,21 @@ const TableRow: FC<TableRowProps> = ({
                         tooltipContent={tooltipContent}
                     >
                         {cell.getIsGrouped() ? (
-                            <>
+                            <Group spacing="xxs">
                                 <Button
                                     compact
                                     size="xs"
+                                    ff="Inter"
                                     variant="subtle"
+                                    styles={(theme) => ({
+                                        root: {
+                                            paddingLeft: theme.spacing.two,
+                                            paddingRight: theme.spacing.xxs,
+                                        },
+                                        leftIcon: {
+                                            marginRight: 0,
+                                        },
+                                    })}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
@@ -136,22 +146,16 @@ const TableRow: FC<TableRowProps> = ({
                                     }}
                                     leftIcon={
                                         <MantineIcon
-                                            size="lg"
+                                            size={14}
                                             icon={
                                                 row.getIsExpanded()
                                                     ? IconChevronDown
                                                     : IconChevronRight
                                             }
-                                            style={{
-                                                margin: -6,
-                                            }}
                                         />
                                     }
                                     style={{
-                                        color: fontColor || 'inherit',
-                                        float: 'left',
-                                        marginBottom: -2,
-                                        marginTop: -2,
+                                        color: fontColor ?? 'inherit',
                                     }}
                                 >
                                     ({countSubRows(row)})
@@ -160,7 +164,7 @@ const TableRow: FC<TableRowProps> = ({
                                     cell.column.columnDef.cell,
                                     cell.getContext(),
                                 )}
-                            </>
+                            </Group>
                         ) : cell.getIsAggregated() ? (
                             flexRender(
                                 cell.column.columnDef.aggregatedCell ??
