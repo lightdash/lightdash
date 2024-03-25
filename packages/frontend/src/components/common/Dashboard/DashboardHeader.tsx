@@ -40,6 +40,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import { Can } from '../Authorization';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
@@ -368,8 +369,24 @@ const DashboardHeader = ({
                                                     </Flex>
                                                 </Menu.Target>
                                                 <Menu.Dropdown>
-                                                    {spaces?.map(
-                                                        (spaceToMove) => {
+                                                    {spaces
+                                                        ?.filter((space) => {
+                                                            return user.data?.ability.can(
+                                                                'create',
+                                                                subject(
+                                                                    'Dashboard',
+                                                                    {
+                                                                        ...space,
+                                                                        access: space.userAccess
+                                                                            ? [
+                                                                                  space.userAccess,
+                                                                              ]
+                                                                            : [],
+                                                                    },
+                                                                ),
+                                                            );
+                                                        })
+                                                        .map((spaceToMove) => {
                                                             const isDisabled =
                                                                 dashboard.spaceUuid ===
                                                                 spaceToMove.uuid;
@@ -413,27 +430,37 @@ const DashboardHeader = ({
                                                                     }
                                                                 </Menu.Item>
                                                             );
-                                                        },
-                                                    )}
-
-                                                    <Menu.Divider />
-
-                                                    <Menu.Item
-                                                        icon={
-                                                            <MantineIcon
-                                                                icon={IconPlus}
-                                                            />
-                                                        }
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setIsCreatingNewSpace(
-                                                                true,
-                                                            );
-                                                        }}
+                                                        })}
+                                                    <Can
+                                                        I="create"
+                                                        this={subject('Space', {
+                                                            organizationUuid:
+                                                                user.data
+                                                                    ?.organizationUuid,
+                                                            projectUuid,
+                                                        })}
                                                     >
-                                                        Create new space
-                                                    </Menu.Item>
+                                                        <Menu.Divider />
+
+                                                        <Menu.Item
+                                                            icon={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconPlus
+                                                                    }
+                                                                />
+                                                            }
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setIsCreatingNewSpace(
+                                                                    true,
+                                                                );
+                                                            }}
+                                                        >
+                                                            Create new space
+                                                        </Menu.Item>
+                                                    </Can>
                                                 </Menu.Dropdown>
                                             </Menu>
                                         </Menu.Item>
