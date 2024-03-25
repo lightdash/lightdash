@@ -575,6 +575,7 @@ export const DashboardProvider: React.FC<
         [resultsCacheTimes],
     );
 
+    // Filters that are required to have a value set
     const requiredDashboardFilters = useMemo(
         () =>
             dashboardFilters.dimensions
