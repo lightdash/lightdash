@@ -23,7 +23,7 @@ import {
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { z } from 'zod';
 import {
@@ -203,55 +203,66 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
 
     const form = useForm<FormValues>({
-        initialValues: {
-            name: '',
-            spaceUuid: '',
-            dashboardUuid: '',
-            dashboardName: '',
-            description: '',
-            newSpaceName: null,
-            saveDestination: SaveDestination.Space,
-        },
-
         validate: zodResolver(validationSchema),
     });
 
-    const { data: dashboards, isInitialLoading: isLoadingDashboards } =
-        useDashboards(
-            projectUuid,
-            {
-                staleTime: 0,
-                onSuccess: () => {
-                    if (
-                        dashboardInfoFromSavedData.dashboardUuid &&
-                        dashboardInfoFromSavedData.dashboardName
-                    ) {
-                        form.setFieldValue(
-                            'dashboardUuid',
-                            dashboardInfoFromSavedData.dashboardUuid,
-                        );
-                        form.setFieldValue(
-                            'dashboardName',
-                            dashboardInfoFromSavedData.dashboardName,
-                        );
-                    }
-                },
-            },
-            true, // includePrivateSpaces
-        );
-
-    const { data: spaces, isInitialLoading: isLoadingSpaces } =
-        useSpaceSummaries(projectUuid, true, {
+    const {
+        data: dashboards,
+        isInitialLoading: isLoadingDashboards,
+        isSuccess: isDashboardsSuccess,
+    } = useDashboards(
+        projectUuid,
+        {
             staleTime: 0,
-            onSuccess: (data) => {
-                if (data.length > 0) {
-                    const currentSpace = defaultSpaceUuid
-                        ? data.find((space) => space.uuid === defaultSpaceUuid)
-                        : data[0];
-                    form.setFieldValue('spaceUuid', currentSpace?.uuid || '');
-                }
-            },
-        });
+        },
+        true, // includePrivateSpaces
+    );
+
+    const {
+        data: spaces,
+        isInitialLoading: isLoadingSpaces,
+        isSuccess: isSpacesSuccess,
+    } = useSpaceSummaries(projectUuid, true, {
+        staleTime: 0,
+    });
+
+    useEffect(() => {
+        if (form.initialized) return;
+
+        if (isSpacesSuccess && isDashboardsSuccess) {
+            let initialSpaceUuid;
+
+            const isValidDefaultSpaceUuid = spaces.some(
+                (space) => space.uuid === defaultSpaceUuid,
+            );
+
+            if (spaces && spaces.length > 0) {
+                initialSpaceUuid = isValidDefaultSpaceUuid
+                    ? defaultSpaceUuid
+                    : spaces[0].uuid;
+            }
+
+            let initialValues = {
+                name: '',
+                description: '',
+                saveDestination: SaveDestination.Space,
+                newSpaceName: null,
+                dashboardUuid: dashboardInfoFromSavedData.dashboardUuid ?? '',
+                dashboardName: dashboardInfoFromSavedData.dashboardName ?? '',
+                spaceUuid: initialSpaceUuid ?? '',
+            };
+
+            form.initialize(initialValues);
+        }
+    }, [
+        dashboardInfoFromSavedData.dashboardName,
+        dashboardInfoFromSavedData.dashboardUuid,
+        defaultSpaceUuid,
+        form,
+        isDashboardsSuccess,
+        isSpacesSuccess,
+        spaces,
+    ]);
 
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         form.values.dashboardUuid,
