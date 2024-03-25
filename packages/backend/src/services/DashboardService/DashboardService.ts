@@ -179,9 +179,10 @@ export class DashboardService {
             const hasAbility = user.ability.can(
                 'view',
                 subject('Dashboard', {
-                    ...dashboard,
+                    organizationUuid: dashboardSpace?.organizationUuid,
+                    projectUuid: dashboardSpace?.projectUuid,
                     isPrivate: dashboardSpace?.isPrivate,
-                    access: spaceAccess,
+                    access: spaceAccess?.access,
                 }),
             );
             return (
