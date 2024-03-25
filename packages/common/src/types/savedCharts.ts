@@ -143,7 +143,9 @@ export type MarkLineData = {
     };
     label?: {
         formatter?: string;
+        position?: 'start' | 'middle' | 'end';
     };
+    useAverage?: boolean;
 };
 export type MarkLine = {
     data: MarkLineData[];

@@ -17,7 +17,7 @@ import MantineIcon from '../../../common/MantineIcon';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { ReferenceLine } from './ReferenceLine';
+import { ReferenceLine, type ReferenceLineProps } from './ReferenceLine';
 
 type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
@@ -34,84 +34,85 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
         () => project.data?.warehouseConnection?.startOfWeek,
         [project],
     );
-    const updateReferenceLine = useCallback(
-        (
-            updateValue: string,
-            updateField:
-                | Field
-                | TableCalculation
-                | CompiledDimension
-                | CustomDimension,
-            updateLabel: string | undefined,
-            updateColor: string,
-            lineId: string,
-        ) => {
-            if (!isCartesianChart) return;
+    const updateReferenceLine: ReferenceLineProps['updateReferenceLine'] =
+        useCallback(
+            ({
+                value,
+                field,
+                label,
+                lineColor,
+                useAverage,
+                labelPosition,
+                lineId,
+            }) => {
+                if (!isCartesianChart) return;
 
-            const {
-                dirtyEchartsConfig,
-                dirtyLayout,
-                referenceLines,
-                setReferenceLines,
-            } = visualizationConfig.chartConfig;
+                const {
+                    dirtyEchartsConfig,
+                    dirtyLayout,
+                    referenceLines,
+                    setReferenceLines,
+                } = visualizationConfig.chartConfig;
 
-            if (updateValue && updateField) {
-                const fieldId = isField(updateField)
-                    ? getFieldId(updateField)
-                    : updateField.name;
+                if (field) {
+                    const fieldId = isField(field)
+                        ? getFieldId(field)
+                        : field.name;
 
-                if (dirtyEchartsConfig?.series) {
-                    const selectedSeries = dirtyEchartsConfig?.series.find(
-                        (serie: Series) =>
-                            (dirtyLayout?.xField === fieldId
-                                ? serie.encode.xRef
-                                : serie.encode.yRef
-                            ).field === fieldId,
-                    );
-                    if (selectedSeries === undefined) return;
+                    if (dirtyEchartsConfig?.series) {
+                        const selectedSeries = dirtyEchartsConfig?.series.find(
+                            (serie: Series) =>
+                                (dirtyLayout?.xField === fieldId
+                                    ? serie.encode.xRef
+                                    : serie.encode.yRef
+                                ).field === fieldId,
+                        );
+                        if (selectedSeries === undefined) return;
 
-                    const useAverage = updateValue === 'average';
+                        const dataWithAxis = {
+                            name: label,
+                            type: useAverage ? 'average' : undefined,
+                            uuid: lineId,
+                            lineStyle: { color: lineColor },
+                            label: {
+                                position: labelPosition || 'end',
+                                formatter: label
+                                    ? `${label}${useAverage ? ': {c}' : ''}`
+                                    : undefined,
+                            },
+                            xAxis:
+                                dirtyLayout?.xField === fieldId
+                                    ? value
+                                    : undefined,
+                            yAxis:
+                                dirtyLayout?.xField === fieldId
+                                    ? undefined
+                                    : useAverage
+                                    ? undefined
+                                    : value || '',
+                        };
 
-                    const dataWithAxis = {
-                        name: updateLabel,
-                        type: useAverage ? 'average' : undefined,
-                        uuid: lineId,
-                        lineStyle: { color: updateColor },
-                        label: updateLabel
-                            ? { formatter: updateLabel }
-                            : useAverage
-                            ? { formatter: 'ave: {c}' }
-                            : {},
-                        xAxis:
-                            dirtyLayout?.xField === fieldId
-                                ? updateValue
-                                : undefined,
-                        yAxis:
-                            dirtyLayout?.xField === fieldId
-                                ? undefined
-                                : useAverage
-                                ? undefined
-                                : updateValue,
-                    };
+                        const updatedReferenceLines: ReferenceLineField[] =
+                            referenceLines.map((line) => {
+                                // Check uuid, .value and .name for backwards compatibility
+                                if (
+                                    line.data.uuid === lineId ||
+                                    line.data.value === lineId ||
+                                    line.data.name === lineId
+                                )
+                                    return {
+                                        fieldId: fieldId,
+                                        data: dataWithAxis,
+                                    };
+                                else return line;
+                            });
 
-                    const updatedReferenceLines: ReferenceLineField[] =
-                        referenceLines.map((line) => {
-                            // Check uuid, .value and .name for backwards compatibility
-                            if (
-                                line.data.uuid === lineId ||
-                                line.data.value === lineId ||
-                                line.data.name === lineId
-                            )
-                                return { fieldId: fieldId, data: dataWithAxis };
-                            else return line;
-                        });
-
-                    setReferenceLines(updatedReferenceLines);
+                        setReferenceLines(updatedReferenceLines);
+                    }
                 }
-            }
-        },
-        [isCartesianChart, visualizationConfig],
-    );
+            },
+            [isCartesianChart, visualizationConfig],
+        );
 
     const addReferenceLine = useCallback(() => {
         if (!isCartesianChart) return;
