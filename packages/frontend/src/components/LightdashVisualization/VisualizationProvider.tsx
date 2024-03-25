@@ -337,6 +337,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
+                    tableCalculationsMetadata={tableCalculationsMetadata}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

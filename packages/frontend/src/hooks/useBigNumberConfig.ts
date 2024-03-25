@@ -17,6 +17,7 @@ import {
     type BigNumber,
     type CompactOrAlias,
     type ItemsMap,
+    type TableCalculationMetadata,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -111,6 +112,7 @@ const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
     resultsData: ApiQueryResults | undefined,
     itemsMap: ItemsMap | undefined,
+    tableCalculationsMetadata?: TableCalculationMetadata[],
 ) => {
     const availableFieldsIds = useMemo(() => {
         const itemsSortedByType = Object.values(itemsMap || {}).sort((a, b) => {
@@ -131,6 +133,22 @@ const useBigNumberConfig = (
 
     useEffect(() => {
         if (itemsMap && availableFieldsIds.length > 0 && bigNumberConfigData) {
+            // check if selectedField is table calculation and if it has oldName
+            if (tableCalculationsMetadata) {
+                const selectedFieldTcIndex =
+                    tableCalculationsMetadata.findIndex(
+                        (tc) =>
+                            bigNumberConfigData?.selectedField === tc.oldName,
+                    );
+
+                if (selectedFieldTcIndex !== -1) {
+                    setSelectedField(
+                        tableCalculationsMetadata[selectedFieldTcIndex].name,
+                    );
+                    return;
+                }
+            }
+
             const selectedFieldExists =
                 bigNumberConfigData?.selectedField &&
                 getField(bigNumberConfigData?.selectedField) !== undefined;
@@ -150,6 +168,7 @@ const useBigNumberConfig = (
         selectedField,
         availableFieldsIds,
         getField,
+        tableCalculationsMetadata,
     ]);
 
     const item = useMemo(() => {
