@@ -378,6 +378,7 @@ export type DownloadCsvPayload = {
     columnOrder: string[];
     customLabels: Record<string, string> | undefined;
     hiddenFields: string[] | undefined;
+    chartName: string | undefined;
 };
 
 export type ApiCsvUrlResponse = {

@@ -141,6 +141,7 @@ export class ExploreController extends BaseController {
             customLabels?: { [key: string]: string };
             columnOrder: string[];
             hiddenFields?: string[];
+            chartName?: string;
         },
     ): Promise<{ status: 'ok'; results: { jobId: string } }> {
         this.setStatus(200);
@@ -176,6 +177,7 @@ export class ExploreController extends BaseController {
                 customLabels,
                 columnOrder,
                 hiddenFields,
+                chartName: body.chartName,
             });
 
         return {

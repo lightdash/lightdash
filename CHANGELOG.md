@@ -1,3 +1,24 @@
+## [0.1042.3](https://github.com/lightdash/lightdash/compare/0.1042.2...0.1042.3) (2024-03-26)
+
+
+### Bug Fixes
+
+* download csv from dashbaord with chart filename ([#9495](https://github.com/lightdash/lightdash/issues/9495)) ([1edbfc1](https://github.com/lightdash/lightdash/commit/1edbfc1ef9e22669940e2368ff288914c5cce7a3))
+
+## [0.1042.2](https://github.com/lightdash/lightdash/compare/0.1042.1...0.1042.2) (2024-03-26)
+
+
+### Bug Fixes
+
+* preprocess markdown tile content (backend/frontend) ([#9510](https://github.com/lightdash/lightdash/issues/9510)) ([6ad577e](https://github.com/lightdash/lightdash/commit/6ad577e92643a7e901f4bd981ee0f6ac8cf9fd0e))
+
+## [0.1042.1](https://github.com/lightdash/lightdash/compare/0.1042.0...0.1042.1) (2024-03-25)
+
+
+### Bug Fixes
+
+* bignumber context menu position ([#9517](https://github.com/lightdash/lightdash/issues/9517)) ([0bfc45f](https://github.com/lightdash/lightdash/commit/0bfc45fcec7f9d13e94669708776b302bf68e47c))
+
 # [0.1042.0](https://github.com/lightdash/lightdash/compare/0.1041.2...0.1042.0) (2024-03-25)
 
 

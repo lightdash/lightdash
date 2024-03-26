@@ -6,6 +6,7 @@ import {
     Group,
     Title,
     Tooltip,
+    type ActionIconProps,
     type ButtonProps,
     type PopoverProps,
 } from '@mantine/core';
@@ -16,6 +17,14 @@ import MantineIcon from './MantineIcon';
 export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
     variant: 'default',
     size: 'xs',
+};
+
+export const COLLAPSABLE_CARD_ACTION_ICON_PROPS: Pick<
+    ActionIconProps,
+    'variant' | 'size'
+> = {
+    ...COLLAPSABLE_CARD_BUTTON_PROPS,
+    size: 'md',
 };
 
 export const COLLAPSABLE_CARD_POPOVER_PROPS: Omit<PopoverProps, 'children'> = {

@@ -1,4 +1,7 @@
-import { sanitizeHtml } from './sanitizeHtml';
+import {
+    HTML_SANITIZE_MARKDOWN_TILE_RULES,
+    sanitizeHtml,
+} from './sanitizeHtml';
 
 describe('sanitizeHtml', () => {
     test('empty input', () => {
@@ -27,6 +30,31 @@ describe('sanitizeHtml', () => {
         expect(
             sanitizeHtml('<a href="https://www.lightdash.com/">Lightdash</a>'),
         ).toEqual('<a href="https://www.lightdash.com/">Lightdash</a>');
+    });
+
+    test('markdown tile rule set', () => {
+        expect(
+            sanitizeHtml(
+                '<iframe src="https://google.com" width=400 height="300"></iframe>',
+                HTML_SANITIZE_MARKDOWN_TILE_RULES,
+            ),
+        ).toEqual(
+            '<iframe src="https://google.com" width="400" height="300"></iframe>',
+        );
+
+        expect(
+            sanitizeHtml(
+                '<img src="https://google.com" width=400 height="300" />',
+                HTML_SANITIZE_MARKDOWN_TILE_RULES,
+            ),
+        ).toEqual('<img src="https://google.com" width="400" height="300" />');
+
+        expect(
+            sanitizeHtml(
+                '<style>body { content: "hello this is ur bank"; }</style>',
+                HTML_SANITIZE_MARKDOWN_TILE_RULES,
+            ),
+        ).toEqual('');
     });
 
     test('style tag in span is preserved', () => {
