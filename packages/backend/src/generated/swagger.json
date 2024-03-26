@@ -3469,6 +3469,55 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "SpaceMemberRole": {
+                "enum": ["viewer", "editor", "admin"],
+                "type": "string"
+            },
+            "SpaceShare": {
+                "properties": {
+                    "inheritedFrom": {
+                        "type": "string",
+                        "enum": ["organization", "project", "group"]
+                    },
+                    "inheritedRole": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ]
+                    },
+                    "hasDirectAccess": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hasDirectAccess",
+                    "role",
+                    "email",
+                    "lastName",
+                    "firstName",
+                    "userUuid"
+                ],
+                "type": "object"
+            },
             "SpaceSummary": {
                 "allOf": [
                     {
@@ -3489,6 +3538,9 @@
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            "userAccess": {
+                                "$ref": "#/components/schemas/SpaceShare"
                             }
                         },
                         "required": ["dashboardCount", "chartCount", "access"],
@@ -4681,55 +4733,6 @@
                     }
                 ]
             },
-            "SpaceMemberRole": {
-                "enum": ["viewer", "editor", "admin"],
-                "type": "string"
-            },
-            "SpaceShare": {
-                "properties": {
-                    "inheritedFrom": {
-                        "type": "string",
-                        "enum": ["organization", "project", "group"]
-                    },
-                    "inheritedRole": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/OrganizationMemberRole"
-                            },
-                            {
-                                "$ref": "#/components/schemas/ProjectMemberRole"
-                            }
-                        ]
-                    },
-                    "hasDirectAccess": {
-                        "type": "boolean"
-                    },
-                    "role": {
-                        "$ref": "#/components/schemas/SpaceMemberRole"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "hasDirectAccess",
-                    "role",
-                    "email",
-                    "lastName",
-                    "firstName",
-                    "userUuid"
-                ],
-                "type": "object"
-            },
             "SavedChart": {
                 "properties": {
                     "access": {
@@ -5837,7 +5840,7 @@
             "AddSpaceUserAccess": {
                 "properties": {
                     "spaceRole": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/SpaceMemberRole"
                     },
                     "userUuid": {
                         "type": "string"
