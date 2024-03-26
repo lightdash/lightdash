@@ -1,3 +1,10 @@
+## [0.1042.2](https://github.com/lightdash/lightdash/compare/0.1042.1...0.1042.2) (2024-03-26)
+
+
+### Bug Fixes
+
+* preprocess markdown tile content (backend/frontend) ([#9510](https://github.com/lightdash/lightdash/issues/9510)) ([6ad577e](https://github.com/lightdash/lightdash/commit/6ad577e92643a7e901f4bd981ee0f6ac8cf9fd0e))
+
 ## [0.1042.1](https://github.com/lightdash/lightdash/compare/0.1042.0...0.1042.1) (2024-03-25)
 
 
