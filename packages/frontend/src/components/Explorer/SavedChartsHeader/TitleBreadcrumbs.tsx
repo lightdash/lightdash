@@ -1,5 +1,5 @@
-import { Anchor, Group, Text, Tooltip } from '@mantine/core';
-import { IconFolder, IconLayoutDashboard } from '@tabler/icons-react';
+import { ActionIcon, Anchor, Group, Text, Tooltip } from '@mantine/core';
+import { IconFolder } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 import MantineIcon from '../../common/MantineIcon';
@@ -26,25 +26,83 @@ export const TitleBreadCrumbs: FC<Props> = ({
     spaceName,
     dashboardUuid,
     dashboardName,
-}) => (
-    <>
-        {spaceName && spaceUuid ? (
-            <>
-                <Group spacing="xs">
+}) => {
+    const isChartWithinDashboard = !!(dashboardUuid && dashboardName);
+    return (
+        <>
+            {spaceName && spaceUuid ? (
+                <>
+                    <Group spacing="xs">
+                        <Tooltip
+                            maw={300}
+                            multiline
+                            withinPortal
+                            position="bottom"
+                            label={
+                                <Text fz="xs">
+                                    Space:{' '}
+                                    <Text span fw={500}>
+                                        {spaceName}
+                                    </Text>
+                                </Text>
+                            }
+                        >
+                            {isChartWithinDashboard ? (
+                                <ActionIcon
+                                    variant="subtle"
+                                    component={Link}
+                                    to={`/projects/${projectUuid}/dashboards/${dashboardUuid}`}
+                                >
+                                    <MantineIcon
+                                        color="dark.2"
+                                        icon={IconFolder}
+                                    />
+                                </ActionIcon>
+                            ) : (
+                                <Anchor
+                                    fw={500}
+                                    fz="md"
+                                    c="dark.2"
+                                    component={Link}
+                                    to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
+                                    sx={{
+                                        maxWidth: `${MAX_WIDTH_TITLE_PX}px`,
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        display: 'inline-block',
+                                    }}
+                                >
+                                    {spaceName}
+                                </Anchor>
+                            )}
+                        </Tooltip>
+                    </Group>
+                    <SlashDivider />
+                </>
+            ) : null}
+            {isChartWithinDashboard ? (
+                <>
                     <Tooltip
+                        maw={300}
+                        multiline
                         withinPortal
-                        disabled={!(dashboardUuid && dashboardName)}
-                        label={spaceName}
+                        position="bottom"
+                        label={
+                            <Text fz="xs">
+                                Dashboard:{' '}
+                                <Text span fw={500}>
+                                    {dashboardName}
+                                </Text>
+                            </Text>
+                        }
                     >
-                        <MantineIcon color="dark.2" icon={IconFolder} />
-                    </Tooltip>
-                    {dashboardUuid && dashboardName ? null : (
                         <Anchor
-                            title={spaceName}
-                            fw={600}
+                            fw={500}
                             c="dark.2"
+                            fz="md"
                             component={Link}
-                            to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
+                            to={`/projects/${projectUuid}/dashboards/${dashboardUuid}`}
                             sx={{
                                 maxWidth: `${MAX_WIDTH_TITLE_PX}px`,
                                 whiteSpace: 'nowrap',
@@ -53,37 +111,13 @@ export const TitleBreadCrumbs: FC<Props> = ({
                                 display: 'inline-block',
                             }}
                         >
-                            {spaceName}
+                            {dashboardName}
                         </Anchor>
-                    )}
-                </Group>
-                <SlashDivider />
-            </>
-        ) : null}
-        {dashboardUuid && dashboardName ? (
-            <>
-                <Group spacing="xs">
-                    <MantineIcon color="dark.2" icon={IconLayoutDashboard} />
-                    <Anchor
-                        title={dashboardName}
-                        fw={600}
-                        c="dark.2"
-                        component={Link}
-                        to={`/projects/${projectUuid}/dashboards/${dashboardUuid}`}
-                        sx={{
-                            maxWidth: `${MAX_WIDTH_TITLE_PX}px`,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: 'inline-block',
-                        }}
-                    >
-                        {dashboardName}
-                    </Anchor>
-                </Group>
+                    </Tooltip>
 
-                <SlashDivider />
-            </>
-        ) : null}
-    </>
-);
+                    <SlashDivider />
+                </>
+            ) : null}
+        </>
+    );
+};

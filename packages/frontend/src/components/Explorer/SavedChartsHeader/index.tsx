@@ -393,7 +393,7 @@ const SavedChartsHeader: FC = () => {
                 <PageTitleAndDetailsContainer>
                     {savedChart && (
                         <>
-                            <Group spacing="xs">
+                            <Group spacing={4}>
                                 <TitleBreadCrumbs
                                     projectUuid={projectUuid}
                                     spaceUuid={savedChart.spaceUuid}
@@ -401,7 +401,7 @@ const SavedChartsHeader: FC = () => {
                                     dashboardUuid={savedChart.dashboardUuid}
                                     dashboardName={savedChart.dashboardName}
                                 />
-                                <Title c="dark.6" order={5} fz="sm" fw={600}>
+                                <Title c="dark.6" order={5} fw={600}>
                                     {savedChart.name}
                                 </Title>
                                 {isEditMode && userCanManageChart && (
@@ -414,13 +414,14 @@ const SavedChartsHeader: FC = () => {
                                         <MantineIcon icon={IconPencil} />
                                     </ActionIcon>
                                 )}
-                                <ChartUpdateModal
-                                    opened={isRenamingChart}
-                                    uuid={savedChart.uuid}
-                                    onClose={() => setIsRenamingChart(false)}
-                                    onConfirm={() => setIsRenamingChart(false)}
-                                />
                             </Group>
+
+                            <ChartUpdateModal
+                                opened={isRenamingChart}
+                                uuid={savedChart.uuid}
+                                onClose={() => setIsRenamingChart(false)}
+                                onConfirm={() => setIsRenamingChart(false)}
+                            />
 
                             <Group spacing="xs">
                                 <UpdatedInfo
