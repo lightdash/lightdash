@@ -7,10 +7,13 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine/core';
+import { Box, Group } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
-import React, { type FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import ColorSelector from '../../ColorSelector';
+import { ConfigGroup } from '../common/ConfigGroup';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
@@ -30,8 +33,10 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     updateSingleSeries,
     dragHandleProps,
 }) => {
+    const { colorPalette, getSeriesColor } = useVisualizationContext();
+
     return (
-        <Stack spacing="xs">
+        <ConfigGroup>
             <Group noWrap spacing="two">
                 <Box
                     {...dragHandleProps}
@@ -42,7 +47,21 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                 >
                     <MantineIcon icon={IconGripVertical} />
                 </Box>
-                <Text fw={500}> {getItemLabelWithoutTableName(item)} </Text>
+                <Group spacing="sm">
+                    <ConfigGroup.Label>
+                        {getItemLabelWithoutTableName(item)}
+                    </ConfigGroup.Label>
+                    <ColorSelector
+                        color={getSeriesColor(series)}
+                        swatches={colorPalette}
+                        onColorChange={(color) => {
+                            updateSingleSeries({
+                                ...series,
+                                color,
+                            });
+                        }}
+                    />
+                </Group>
             </Group>
             <SingleSeriesConfiguration
                 layout={layout}
@@ -51,7 +70,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                 seriesLabel={getItemLabelWithoutTableName(item)}
                 updateSingleSeries={updateSingleSeries}
             />
-        </Stack>
+        </ConfigGroup>
     );
 };
 
