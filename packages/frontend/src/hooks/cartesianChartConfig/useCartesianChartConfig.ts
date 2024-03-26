@@ -501,7 +501,7 @@ const useCartesianChartConfig = ({
 
     /**
      * When table calculations update, their name changes, so we need to update the selected fields
-     * If the xField is a table calculation in the metadata, return the current name otherwise return xField
+     * If the xField is a table calculation with the old name in the metadata, return the current name otherwise return xField
      */
     const getXField = useCallback(
         (xField?: string) => {
@@ -518,7 +518,7 @@ const useCartesianChartConfig = ({
 
     /**
      * When table calculations update, their name changes, so we need to update the selected fields
-     * If any yFields are a table calculation in the metadata, return the current name otherwise return yField
+     * If any yField is a table calculation with the old name in the metadata, return the current name otherwise return yField
      */
     const getYFields = useCallback(
         (yFields?: string[]) => {
@@ -541,8 +541,10 @@ const useCartesianChartConfig = ({
     useEffect(() => {
         if (availableFields.length > 0) {
             setDirtyLayout((prev) => {
-                // Get the fields with the current table calculation names when they are table calculation with old name
-                // otherwise keep the field as it is
+                /**
+                 * Get the fields with the current table calculation names when they are a table calculation with the old name
+                 * otherwise keep the fields as they are
+                 */
                 const xField = getXField(prev?.xField);
                 const yFields = getYFields(prev?.yField);
 

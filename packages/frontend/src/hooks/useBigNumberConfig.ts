@@ -133,8 +133,11 @@ const useBigNumberConfig = (
 
     useEffect(() => {
         if (itemsMap && availableFieldsIds.length > 0 && bigNumberConfigData) {
-            // check if selectedField is table calculation and if it has oldName
             if (tableCalculationsMetadata) {
+                /**
+                 * When table calculations update, their name changes, so we need to update the selected fields
+                 * If the selected field is a table calculation with the old name in the metadata, set it to the new name
+                 */
                 const selectedFieldTcIndex =
                     tableCalculationsMetadata.findIndex(
                         (tc) =>

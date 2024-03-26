@@ -195,7 +195,10 @@ const usePieChartConfig: PieChartConfigFn = (
         if (isLoading || allNumericMetricIds.length === 0) return;
         if (metricId && allNumericMetricIds.includes(metricId)) return;
 
-        // If the metric is a table calculation, we need to find the new name
+        /**
+         * When table calculations update, their name changes, so we need to update the selected fields
+         * If the selected field is a table calculation with the old name in the metadata, set it to the new name
+         */
         if (tableCalculationsMetadata) {
             const metricTcIndex = tableCalculationsMetadata.findIndex(
                 (tc) => tc.oldName === metricId,
