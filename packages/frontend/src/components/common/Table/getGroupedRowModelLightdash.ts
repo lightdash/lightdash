@@ -18,7 +18,7 @@ function groupBy<TData extends RowData>(rows: Row<TData>[], columnId: string) {
     return rows.reduce((map, row) => {
         // This line changed from original since getGroupingValue does not exist here as it should.
         // const resKey = `${row.getGroupingValue(columnId)}`
-        const resKey = (row.original as any)[columnId].value.raw;
+        const resKey = (row.original as unknown)[columnId].value.raw;
 
         const previous = map.get(resKey);
         if (!previous) {
@@ -48,10 +48,6 @@ export function getGroupedRowModelLightdash<TData extends RowData>(): (
 
                 const groupedFlatRows: Row<TData>[] = [];
                 const groupedRowsById: Record<string, Row<TData>> = {};
-                // const onlyGroupedFlatRows: Row[] = [];
-                // const onlyGroupedRowsById: Record<RowId, Row> = {};
-                // const nonGroupedFlatRows: Row[] = [];
-                // const nonGroupedRowsById: Record<RowId, Row> = {};
 
                 // Recursively group the data
                 const groupUpRecursively = (
@@ -174,13 +170,6 @@ export function getGroupedRowModelLightdash<TData extends RowData>(): (
                         subRows.forEach((subRow) => {
                             groupedFlatRows.push(subRow);
                             groupedRowsById[subRow.id] = subRow;
-                            // if (subRow.getIsGrouped?.()) {
-                            //   onlyGroupedFlatRows.push(subRow);
-                            //   onlyGroupedRowsById[subRow.id] = subRow;
-                            // } else {
-                            //   nonGroupedFlatRows.push(subRow);
-                            //   nonGroupedRowsById[subRow.id] = subRow;
-                            // }
                         });
 
                         return row;
@@ -194,13 +183,6 @@ export function getGroupedRowModelLightdash<TData extends RowData>(): (
                 groupedRows.forEach((subRow) => {
                     groupedFlatRows.push(subRow);
                     groupedRowsById[subRow.id] = subRow;
-                    // if (subRow.getIsGrouped?.()) {
-                    //   onlyGroupedFlatRows.push(subRow);
-                    //   onlyGroupedRowsById[subRow.id] = subRow;
-                    // } else {
-                    //   nonGroupedFlatRows.push(subRow);
-                    //   nonGroupedRowsById[subRow.id] = subRow;
-                    // }
                 });
 
                 return {

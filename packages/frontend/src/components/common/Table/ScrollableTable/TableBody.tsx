@@ -100,9 +100,7 @@ const TableRow: FC<TableRowProps> = ({
                         : undefined;
 
                 const suppressContextMenu =
-                    cell.getValue() === undefined ||
-                    cell.getIsPlaceholder() ||
-                    cell.getIsAggregated();
+                    cell.getIsPlaceholder() || cell.getIsAggregated();
 
                 return (
                     <BodyCell

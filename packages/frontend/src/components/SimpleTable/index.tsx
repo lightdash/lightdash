@@ -134,20 +134,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 }}
                 cellContextMenu={(props) => {
                     if (isSqlRunner) return <>{props.children}</>;
-                    if (isDashboard && tileUuid)
+                    if (isDashboard && tileUuid) {
                         return (
                             <DashboardCellContextMenu
                                 {...props}
                                 itemsMap={itemsMap}
                             />
                         );
-                    const cell = props.cell;
-                    if (
-                        cell.getValue() === undefined ||
-                        cell.getIsAggregated() ||
-                        cell.getIsPlaceholder()
-                    )
-                        return null;
+                    }
                     return <CellContextMenu {...props} />;
                 }}
                 pagination={{ showResultsTotal }}

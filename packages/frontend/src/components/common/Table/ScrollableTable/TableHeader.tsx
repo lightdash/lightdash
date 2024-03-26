@@ -43,6 +43,9 @@ const TableHeader: FC<TableHeaderProps> = ({
                     if (groupedColumns.includes(sortedId)) acc.push(sortedId);
                     return acc;
                 }, []);
+
+            // The last dimension column essentially groups rows for each unique value in that column.
+            // Grouping on it would result in many useless expandable groups containing just one item.
             sortedColumns.pop();
 
             if (!isEqual(sortedColumns, table.getState().grouping))
