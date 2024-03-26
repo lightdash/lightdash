@@ -117,6 +117,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
                 savedChart.chartConfig.config,
             ),
             hiddenFields: getHiddenTableFields(savedChart.chartConfig),
+            chartName: savedChart.name,
         });
     };
 
