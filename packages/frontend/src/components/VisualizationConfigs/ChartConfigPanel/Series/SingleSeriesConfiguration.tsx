@@ -21,10 +21,9 @@ import {
     IconEyeOff,
     IconGripVertical,
 } from '@tabler/icons-react';
-import React, { type FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import ColorSelector from '../../ColorSelector';
+import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {
     isCollapsable?: boolean;
@@ -51,110 +50,74 @@ const SingleSeriesConfiguration: FC<Props> = ({
     toggleIsOpen,
     dragHandleProps,
 }) => {
-    const { colorPalette, getSeriesColor } = useVisualizationContext();
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
             : series.type;
 
-    const wrapExtraComponents =
-        (isGrouped && !isSingle) || (!isGrouped && !isSingle);
     return (
-        <Group noWrap={!wrapExtraComponents} spacing={0}>
-            <Group
-                noWrap
-                spacing="xs"
-                sx={
-                    // TODO: this is here to position the color
-                    // picker correctly in the grouped vs ungrouped cases.
-                    // This isn't a great answer and we probably could
-                    // clean up the layout in this file after the other parts
-                    // of this panel are also migrated.
-                    wrapExtraComponents
-                        ? { justifyContent: 'flex-end' }
-                        : { alignSelf: 'flex-start', marginTop: 32 }
-                }
-            >
-                {isGrouped && (
-                    <Box
-                        {...dragHandleProps}
-                        sx={{
-                            opacity: 0.6,
-                            '&:hover': { opacity: 1 },
-                        }}
-                    >
-                        <MantineIcon icon={IconGripVertical} />
-                    </Box>
-                )}
-                <ColorSelector
-                    color={getSeriesColor(series)}
-                    swatches={colorPalette}
-                    onColorChange={(color) => {
-                        updateSingleSeries({
-                            ...series,
-                            color,
-                        });
-                    }}
-                />
-                {!isSingle && (
-                    <TextInput
-                        disabled={series.hidden}
-                        defaultValue={series.name || seriesLabel}
-                        onBlur={(e) => {
-                            updateSingleSeries({
-                                ...series,
-                                name: e.currentTarget.value,
-                            });
-                        }}
-                    />
-                )}
-                {isGrouped && (
-                    <ActionIcon
-                        onClick={() => {
-                            updateSingleSeries({
-                                ...series,
-                                hidden: !series.hidden,
-                            });
-                        }}
-                    >
-                        <MantineIcon
-                            icon={series.hidden ? IconEye : IconEyeOff}
+        <Stack spacing="two">
+            <Group noWrap spacing="xs" position={isGrouped ? 'apart' : 'left'}>
+                <Group spacing="two">
+                    {isGrouped && (
+                        <Box
+                            {...dragHandleProps}
+                            sx={{
+                                opacity: 0.6,
+                                '&:hover': { opacity: 1 },
+                            }}
+                        >
+                            <MantineIcon icon={IconGripVertical} />
+                        </Box>
+                    )}
+
+                    {!isSingle && (
+                        <TextInput
+                            size="xs"
+                            disabled={series.hidden}
+                            defaultValue={series.name || seriesLabel}
+                            onBlur={(e) => {
+                                updateSingleSeries({
+                                    ...series,
+                                    name: e.currentTarget.value,
+                                });
+                            }}
                         />
-                    </ActionIcon>
-                )}
-                {isCollapsable && (
-                    <ActionIcon onClick={toggleIsOpen}>
-                        <MantineIcon
-                            icon={isOpen ? IconChevronUp : IconChevronDown}
-                        />
-                    </ActionIcon>
-                )}
+                    )}
+                </Group>
+
+                <Group spacing="one">
+                    {isGrouped && (
+                        <ActionIcon
+                            onClick={() => {
+                                updateSingleSeries({
+                                    ...series,
+                                    hidden: !series.hidden,
+                                });
+                            }}
+                        >
+                            <MantineIcon
+                                icon={series.hidden ? IconEye : IconEyeOff}
+                            />
+                        </ActionIcon>
+                    )}
+                    {isCollapsable && (
+                        <ActionIcon onClick={toggleIsOpen}>
+                            <MantineIcon
+                                color="gray.7"
+                                icon={isOpen ? IconChevronUp : IconChevronDown}
+                            />
+                        </ActionIcon>
+                    )}
+                </Group>
             </Group>
             <Collapse in={!isCollapsable || isOpen || false}>
-                <Box ml={isGrouped ? 'xl' : 'xs'} mt="xs" mr="sm" mb="md">
+                <Stack ml={isGrouped ? 'lg' : 'none'} spacing="xs">
                     <Group spacing="xs" noWrap>
-                        <Select
-                            value={type}
-                            size="xs"
-                            label={!isGrouped && 'Chart type'}
-                            data={[
-                                {
-                                    value: CartesianSeriesType.BAR,
-                                    label: 'Bar',
-                                },
-                                {
-                                    value: CartesianSeriesType.LINE,
-                                    label: 'Line',
-                                },
-                                {
-                                    value: CartesianSeriesType.AREA,
-                                    label: 'Area',
-                                },
-                                {
-                                    value: CartesianSeriesType.SCATTER,
-                                    label: 'Scatter',
-                                },
-                            ]}
+                        <ChartTypeSelect
+                            showLabel={!isGrouped}
+                            chartValue={type}
+                            showMixed={false}
                             onChange={(value) => {
                                 const newType =
                                     value === CartesianSeriesType.AREA
@@ -170,6 +133,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 });
                             }}
                         />
+
                         <Select
                             label={!isGrouped && 'Axis'}
                             size="xs"
@@ -219,8 +183,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     </Group>
                     {(type === CartesianSeriesType.LINE ||
                         type === CartesianSeriesType.AREA) && (
-                        <Stack spacing="xs" mt="xs">
+                        <Group spacing="xs">
                             <Checkbox
+                                size="xs"
                                 checked={series.showSymbol ?? true}
                                 label="Show symbol"
                                 onChange={() => {
@@ -233,6 +198,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 }}
                             />
                             <Checkbox
+                                size="xs"
                                 checked={series.smooth}
                                 label="Smooth"
                                 onChange={() => {
@@ -242,11 +208,11 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     });
                                 }}
                             />
-                        </Stack>
+                        </Group>
                     )}
-                </Box>
+                </Stack>
             </Collapse>
-        </Group>
+        </Stack>
     );
 };
 
