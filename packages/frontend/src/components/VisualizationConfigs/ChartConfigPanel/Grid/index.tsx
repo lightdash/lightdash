@@ -41,9 +41,10 @@ const GridPanel: FC = () => {
     };
 
     return (
-        <SimpleGrid cols={2} spacing="md">
+        <SimpleGrid cols={2} spacing="xs">
             {POSITIONS.map((position) => (
                 <UnitInput
+                    size="xs"
                     key={position}
                     name={position}
                     label={startCase(position)}
