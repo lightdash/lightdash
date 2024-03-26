@@ -996,11 +996,15 @@ export class SpaceModel {
                 'organizations.organization_id',
                 'projects.organization_id',
             )
-            .leftJoin('space_share', 'space_share.space_id', 'spaces.space_id')
+            .leftJoin(
+                'space_user_access',
+                'space_user_access.space_uuid',
+                'spaces.space_uuid',
+            )
             .leftJoin(
                 'users as shared_with',
-                'space_share.user_id',
-                'shared_with.user_id',
+                'space_user_access.user_uuid',
+                'shared_with.user_uuid',
             )
             .whereIn('spaces.space_uuid', spaceUuids)
             .select({
