@@ -131,6 +131,11 @@ export type TableCalculation = {
     format?: CustomFormat;
 };
 
+export type TableCalculationMetadata = {
+    oldName: string;
+    name: string;
+};
+
 export interface TableCalculationField extends Field {
     fieldType: FieldType.TABLE_CALCULATION;
     type: CustomFormatType;
