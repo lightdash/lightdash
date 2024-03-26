@@ -468,6 +468,7 @@ const models: TsoaRoute.Models = {
                 schema: { dataType: 'string', required: true },
                 database: { dataType: 'string', required: true },
                 description: { dataType: 'string' },
+                originalName: { dataType: 'string' },
                 label: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
             },
@@ -6758,6 +6759,7 @@ export function RegisterRoutes(app: express.Router) {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                chartName: { dataType: 'string' },
                                 hiddenFields: {
                                     dataType: 'array',
                                     array: { dataType: 'string' },
