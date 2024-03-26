@@ -1138,6 +1138,7 @@ function reducer(
             return {
                 ...state,
                 metadata: {
+                    ...state.metadata,
                     tableCalculations: getTableCalculationsMetadata(
                         state,
                         action.payload.oldName,
@@ -1195,6 +1196,7 @@ function reducer(
             return {
                 ...state,
                 metadata: {
+                    ...state.metadata,
                     tableCalculations:
                         state.metadata?.tableCalculations?.filter(
                             (tc) => tc.name !== action.payload,
