@@ -182,8 +182,7 @@ const TableCalculationModal: FC<Props> = ({
                                 type="submit"
                                 data-testid="table-calculation-save-button"
                             >
-                                {' '}
-                                Save{' '}
+                                Save
                             </Button>
                         </Group>
                     </Group>
