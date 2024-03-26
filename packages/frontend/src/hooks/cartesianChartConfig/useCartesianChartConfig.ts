@@ -15,7 +15,6 @@ import {
     type TableCalculationMetadata,
 } from '@lightdash/common';
 
-import { isEqual, sortBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getMarkLineAxis,
@@ -124,11 +123,6 @@ const useCartesianChartConfig = ({
     cartesianType,
     tableCalculationsMetadata,
 }: Args) => {
-    // FIXME: this might not be necessary
-    const hasInitialValue =
-        !!initialChartConfig &&
-        isCompleteLayout(initialChartConfig.layout) &&
-        isCompleteEchartsConfig(initialChartConfig.eChartsConfig);
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
     >(initialChartConfig?.layout);
@@ -456,110 +450,116 @@ const useCartesianChartConfig = ({
         );
     }, [resultsData?.metricQuery.dimensions, itemsMap, columnOrder]);
 
-    const [
-        availableFields,
-        availableDimensions,
-        availableMetrics,
-        availableTableCalculations,
-        availableCustomDimensions,
-    ] = useMemo(() => {
-        const metrics = resultsData?.metricQuery.metrics || [];
-        const tableCalculations =
-            resultsData?.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ) || [];
-        const customDimensions =
-            resultsData?.metricQuery.customDimensions?.map(
-                getCustomDimensionId,
-            ) || [];
-        return [
-            [
-                ...sortedDimensions,
-                ...metrics,
-                ...tableCalculations,
-                ...customDimensions,
-            ],
-            [...sortedDimensions, ...customDimensions],
-            metrics,
-            tableCalculations,
-            customDimensions,
-        ];
-    }, [resultsData, sortedDimensions]);
+    const [availableFields, availableDimensions, availableMetrics] =
+        useMemo(() => {
+            const metrics = resultsData?.metricQuery.metrics || [];
+            const tableCalculations =
+                resultsData?.metricQuery.tableCalculations.map(
+                    ({ name }) => name,
+                ) || [];
+            const customDimensions =
+                resultsData?.metricQuery.customDimensions?.map(
+                    getCustomDimensionId,
+                ) || [];
+            return [
+                [
+                    ...sortedDimensions,
+                    ...metrics,
+                    ...tableCalculations,
+                    ...customDimensions,
+                ],
+                [...sortedDimensions, ...customDimensions],
+                metrics,
+            ];
+        }, [resultsData, sortedDimensions]);
 
+    /**
+     * Is valid when the field is a table calculation in the metadata with the current name
+     */
     const isFieldValidTableCalculation = useCallback(
         (fieldName: string) => {
-            return (
-                tableCalculationsMetadata?.some(
-                    (tc) => tc.name === fieldName || tc.oldName === fieldName,
-                ) ?? false
+            return Boolean(
+                tableCalculationsMetadata?.some((tc) => tc.name === fieldName),
             );
         },
         [tableCalculationsMetadata],
     );
 
-    useEffect(() => {
-        if (!tableCalculationsMetadata) return;
-
-        const xFieldTcIndex = tableCalculationsMetadata?.findIndex(
-            (tc) => tc.oldName === dirtyLayout?.xField,
-        );
-
-        if (xFieldTcIndex !== -1) {
-            setDirtyLayout((prev) => {
-                return {
-                    ...prev,
-                    xField: tableCalculationsMetadata[xFieldTcIndex].name,
-                };
-            });
-        }
-    }, [dirtyLayout?.xField, tableCalculationsMetadata]);
-
-    useEffect(() => {
-        if (!tableCalculationsMetadata) return;
-
-        const newYFields = dirtyLayout?.yField?.map((yField) => {
-            const yFieldTcIndex = tableCalculationsMetadata.findIndex(
-                (tc) => tc.oldName === yField,
+    /**
+     * Returns the index of the table calculation metadata with the old name
+     */
+    const getOldTableCalculationMetadataIndex = useCallback(
+        (fieldName: string) => {
+            return (
+                tableCalculationsMetadata?.findIndex(
+                    (tc) => tc.oldName === fieldName,
+                ) ?? -1
             );
+        },
+        [tableCalculationsMetadata],
+    );
 
-            if (yFieldTcIndex !== -1) {
-                return tableCalculationsMetadata[yFieldTcIndex].name;
-            }
+    /**
+     * When table calculations update, their name changes, so we need to update the selected fields
+     * If the xField is a table calculation in the metadata, return the current name otherwise return xField
+     */
+    const getXField = useCallback(
+        (xField?: string) => {
+            if (!tableCalculationsMetadata || !xField) return xField;
 
-            return yField;
-        });
+            const xFieldTcIndex = getOldTableCalculationMetadataIndex(xField);
 
-        if (
-            !newYFields ||
-            isEqual(sortBy(dirtyLayout?.yField), sortBy(newYFields))
-        )
-            return;
+            return xFieldTcIndex !== -1
+                ? tableCalculationsMetadata[xFieldTcIndex].name
+                : xField;
+        },
+        [getOldTableCalculationMetadataIndex, tableCalculationsMetadata],
+    );
 
-        setDirtyLayout((prev) => {
-            return {
-                ...prev,
-                yField: newYFields,
-            };
-        });
-    }, [dirtyLayout?.yField, tableCalculationsMetadata]);
+    /**
+     * When table calculations update, their name changes, so we need to update the selected fields
+     * If any yFields are a table calculation in the metadata, return the current name otherwise return yField
+     */
+    const getYFields = useCallback(
+        (yFields?: string[]) => {
+            if (!tableCalculationsMetadata || !yFields) return yFields;
+
+            return yFields.map((yField) => {
+                const yFieldTcIndex =
+                    getOldTableCalculationMetadataIndex(yField);
+
+                return yFieldTcIndex !== -1
+                    ? tableCalculationsMetadata[yFieldTcIndex].name
+                    : yField;
+            });
+        },
+        [getOldTableCalculationMetadataIndex, tableCalculationsMetadata],
+    );
 
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
         if (availableFields.length > 0) {
             setDirtyLayout((prev) => {
+                // Get the fields with the current table calculation names when they are table calculation with old name
+                // otherwise keep the field as it is
+                const xField = getXField(prev?.xField);
+                const yFields = getYFields(prev?.yField);
+
                 const isCurrentXFieldValid: boolean =
-                    prev?.xField === EMPTY_X_AXIS ||
-                    (!!prev?.xField &&
-                        (availableFields.includes(prev.xField) ||
-                            isFieldValidTableCalculation(prev.xField)));
-                const currentValidYFields = prev?.yField
-                    ? prev.yField.filter(
+                    xField === EMPTY_X_AXIS ||
+                    (!!xField &&
+                        (availableFields.includes(xField) ||
+                            isFieldValidTableCalculation(xField)));
+
+                const currentValidYFields = yFields
+                    ? yFields.filter(
                           (y) =>
                               availableFields.includes(y) ||
                               isFieldValidTableCalculation(y),
                       )
                     : [];
+
                 const isCurrentYFieldsValid: boolean =
                     currentValidYFields.length > 0;
 
@@ -567,7 +567,7 @@ const useCartesianChartConfig = ({
                 if (isCurrentXFieldValid && isCurrentYFieldsValid) {
                     return {
                         ...prev,
-                        xField: prev?.xField,
+                        xField,
                         yField: currentValidYFields,
                     };
                 }
@@ -579,9 +579,10 @@ const useCartesianChartConfig = ({
                 ) {
                     const usedFields: string[] = [];
 
-                    if (isCurrentXFieldValid && prev?.xField) {
-                        usedFields.push(prev?.xField);
+                    if (isCurrentXFieldValid && xField) {
+                        usedFields.push(xField);
                     }
+
                     if (isCurrentYFieldsValid) {
                         usedFields.push(...currentValidYFields);
                     }
@@ -606,6 +607,7 @@ const useCartesianChartConfig = ({
                     if (!isCurrentYFieldsValid && fallbackYFields) {
                         return {
                             ...prev,
+                            xField,
                             yField: [fallbackYFields],
                         };
                     }
@@ -682,17 +684,14 @@ const useCartesianChartConfig = ({
             });
         }
     }, [
-        availableFields,
         availableDimensions,
+        availableFields,
         availableMetrics,
-        availableTableCalculations,
-        availableCustomDimensions,
-        hasInitialValue,
+        getXField,
+        getYFields,
+        isFieldValidTableCalculation,
         itemsMap,
         setPivotDimensions,
-        setType,
-        isFieldValidTableCalculation,
-        tableCalculationsMetadata,
     ]);
 
     const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
