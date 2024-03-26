@@ -9,14 +9,12 @@ import {
 } from '@lightdash/common';
 import { useCallback, useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-
-import { Button, Stack, Text } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
 import { useProject } from '../../../../hooks/useProject';
-import MantineIcon from '../../../common/MantineIcon';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { ConfigGroup } from '../common/ConfigGroup';
+import { AddButton } from '../FieldLayoutOptions';
 import { ReferenceLine } from './ReferenceLine';
 
 type Props = {
@@ -159,34 +157,25 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const { referenceLines } = visualizationConfig.chartConfig;
 
     return (
-        <Stack spacing="xs">
-            <Text fw={600}>Reference lines</Text>
+        <ConfigGroup>
+            <ConfigGroup.LabelGroup>
+                <ConfigGroup.Label>Reference lines</ConfigGroup.Label>
+                <AddButton onClick={addReferenceLine} />
+            </ConfigGroup.LabelGroup>
+
             {referenceLines &&
-                referenceLines.map((line, index) => {
-                    return (
-                        <ReferenceLine
-                            key={line.data.value}
-                            index={index + 1}
-                            isDefaultOpen={referenceLines.length <= 1}
-                            items={items}
-                            startOfWeek={startOfWeek ?? undefined}
-                            referenceLine={line}
-                            updateReferenceLine={updateReferenceLine}
-                            removeReferenceLine={removeReferenceLine}
-                        />
-                    );
-                })}
-            <Button
-                sx={{
-                    alignSelf: 'start',
-                }}
-                variant="subtle"
-                compact
-                leftIcon={<MantineIcon icon={IconPlus} />}
-                onClick={addReferenceLine}
-            >
-                Add
-            </Button>
-        </Stack>
+                referenceLines.map((line, index) => (
+                    <ReferenceLine
+                        key={line.data.value}
+                        index={index + 1}
+                        isDefaultOpen={referenceLines.length <= 1}
+                        items={items}
+                        startOfWeek={startOfWeek ?? undefined}
+                        referenceLine={line}
+                        updateReferenceLine={updateReferenceLine}
+                        removeReferenceLine={removeReferenceLine}
+                    />
+                ))}
+        </ConfigGroup>
     );
 };

@@ -32,7 +32,7 @@ type Props = {
 };
 
 // TODO: Refactor this component to use the ConfigGroup component ?
-const AddButton = ({ onClick }: { onClick: () => void }) => (
+export const AddButton = ({ onClick }: { onClick: () => void }) => (
     <Button
         size="sm"
         p={0}
