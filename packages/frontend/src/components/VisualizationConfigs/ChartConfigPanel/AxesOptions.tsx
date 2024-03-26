@@ -12,15 +12,17 @@ import {
     SegmentedControl,
     Stack,
     Switch,
-    Text,
     TextInput,
 } from '@mantine/core';
+import { IconSortAscending, IconSortDescending } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { ConfigGroup } from './common/ConfigGroup';
 
 interface MinMaxProps {
     label: string;
@@ -43,11 +45,15 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
     }, [isAuto, setMin, setMax]);
 
     return (
-        <>
+        <Group noWrap spacing="xs">
             <Switch
-                label={label}
-                checked={isAuto}
                 size="xs"
+                label={
+                    isAuto && (
+                        <ConfigGroup.SubLabel>{label}</ConfigGroup.SubLabel>
+                    )
+                }
+                checked={isAuto}
                 onChange={() => {
                     toggleAuto((prev: boolean) => !prev);
                     clearRange();
@@ -58,25 +64,31 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
                         },
                     });
                 }}
+                styles={{
+                    label: {
+                        paddingLeft: 4,
+                    },
+                }}
             />
             {!isAuto && (
                 <Group noWrap spacing="xs">
+                    <ConfigGroup.SubLabel>Min</ConfigGroup.SubLabel>
                     <TextInput
-                        label="Min"
+                        size="xs"
                         placeholder="Min"
                         defaultValue={min || undefined}
                         onBlur={(e) => setMin(e.currentTarget.value)}
                     />
-
+                    <ConfigGroup.SubLabel>Max</ConfigGroup.SubLabel>
                     <TextInput
-                        label="Max"
+                        size="xs"
                         placeholder="Max"
                         defaultValue={max || undefined}
                         onBlur={(e) => setMax(e.currentTarget.value)}
                     />
                 </Group>
             )}
-        </>
+        </Group>
     );
 };
 type Props = {
@@ -132,167 +144,220 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
     );
 
     return (
-        <Stack spacing="xs" mb="xl">
-            <TextInput
-                label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis label`}
-                placeholder="Enter axis label"
-                defaultValue={
-                    dirtyEchartsConfig?.xAxis?.[0]?.name ||
-                    (xAxisField &&
-                        (getDateGroupLabel(xAxisField) ||
-                            getItemLabelWithoutTableName(xAxisField)))
-                }
-                onBlur={(e) => setXAxisName(e.currentTarget.value)}
-            />
-            {isNumericItem(xAxisField) && (
-                <AxisMinMax
-                    label={`Auto ${
-                        dirtyLayout?.flipAxes ? 'y' : 'x'
-                    }-axis range (${
-                        dirtyLayout?.flipAxes ? 'left' : 'bottom'
-                    })`}
-                    min={dirtyEchartsConfig?.xAxis?.[0]?.min}
-                    max={dirtyEchartsConfig?.xAxis?.[0]?.max}
-                    setMin={(newValue) => setXMinValue(0, newValue)}
-                    setMax={(newValue) => setXMaxValue(0, newValue)}
-                />
-            )}
-            <Group noWrap spacing="xs">
-                <Text fw={600}> Sort </Text>
-                <SegmentedControl
+        <Stack>
+            <ConfigGroup>
+                <ConfigGroup.Label>{`${
+                    dirtyLayout?.flipAxes ? 'Y' : 'X'
+                }-axis label`}</ConfigGroup.Label>
+                <TextInput
                     size="xs"
-                    color="blue"
+                    placeholder="Enter axis label"
                     defaultValue={
-                        dirtyEchartsConfig?.xAxis?.[0]?.inverse
-                            ? 'descending'
-                            : 'ascending'
+                        dirtyEchartsConfig?.xAxis?.[0]?.name ||
+                        (xAxisField &&
+                            (getDateGroupLabel(xAxisField) ||
+                                getItemLabelWithoutTableName(xAxisField)))
                     }
-                    data={[
-                        {
-                            value: 'ascending',
-                            label: 'Ascending',
-                        },
-                        {
-                            value: 'descending',
-                            label: 'Descending',
-                        },
-                    ]}
-                    onChange={(value) => {
-                        setInverseX(value === 'descending');
-                    }}
+                    onBlur={(e) => setXAxisName(e.currentTarget.value)}
                 />
-            </Group>
-            {!dirtyLayout?.flipAxes && (
-                <Group noWrap spacing="xs" align="baseline">
-                    <Text fw={600} mt="sm">
-                        Rotation
-                    </Text>
-                    <NumberInput
-                        defaultValue={
-                            dirtyEchartsConfig?.xAxis?.[0].rotate || 0
+
+                {isNumericItem(xAxisField) && (
+                    <AxisMinMax
+                        label={`Auto ${
+                            dirtyLayout?.flipAxes ? 'y' : 'x'
+                        }-axis range (${
+                            dirtyLayout?.flipAxes ? 'left' : 'bottom'
+                        })`}
+                        min={dirtyEchartsConfig?.xAxis?.[0]?.min}
+                        max={dirtyEchartsConfig?.xAxis?.[0]?.max}
+                        setMin={(newValue) => setXMinValue(0, newValue)}
+                        setMax={(newValue) => setXMaxValue(0, newValue)}
+                    />
+                )}
+                <Group spacing="xs">
+                    <Group spacing="xs">
+                        <ConfigGroup.SubLabel>Sort</ConfigGroup.SubLabel>
+                        <SegmentedControl
+                            size="xs"
+                            color="gray"
+                            defaultValue={
+                                dirtyEchartsConfig?.xAxis?.[0]?.inverse
+                                    ? 'descending'
+                                    : 'ascending'
+                            }
+                            data={[
+                                {
+                                    value: 'ascending',
+                                    label: (
+                                        <MantineIcon icon={IconSortAscending} />
+                                    ),
+                                },
+                                {
+                                    value: 'descending',
+                                    label: (
+                                        <MantineIcon
+                                            icon={IconSortDescending}
+                                        />
+                                    ),
+                                },
+                            ]}
+                            onChange={(value) => {
+                                setInverseX(value === 'descending');
+                            }}
+                        />
+                    </Group>
+                    {!dirtyLayout?.flipAxes && (
+                        <Group noWrap spacing="xs" align="baseline">
+                            <ConfigGroup.SubLabel>
+                                Rotation
+                            </ConfigGroup.SubLabel>
+                            <NumberInput
+                                type="number"
+                                defaultValue={
+                                    dirtyEchartsConfig?.xAxis?.[0].rotate || 0
+                                }
+                                min={0}
+                                max={90}
+                                step={15}
+                                size="xs"
+                                maw={54}
+                                rightSection="°"
+                                onChange={(value) => {
+                                    setXAxisLabelRotation(Number(value));
+                                }}
+                            />
+                        </Group>
+                    )}
+                </Group>
+            </ConfigGroup>
+
+            <ConfigGroup>
+                <ConfigGroup.Label>{`${
+                    dirtyLayout?.flipAxes ? 'X' : 'Y'
+                }-axis label (${
+                    dirtyLayout?.flipAxes ? 'bottom' : 'left'
+                })`}</ConfigGroup.Label>
+
+                <TextInput
+                    size="xs"
+                    placeholder="Enter axis label"
+                    defaultValue={
+                        dirtyEchartsConfig?.yAxis?.[0]?.name ||
+                        getAxisName({
+                            isAxisTheSameForAllSeries,
+                            selectedAxisIndex,
+                            axisReference: 'yRef',
+                            axisIndex: 0,
+                            series: dirtyEchartsConfig?.series,
+                            itemsMap,
+                        })
+                    }
+                    onBlur={(e) => setYAxisName(0, e.currentTarget.value)}
+                />
+                {showFirstAxisRange && (
+                    <AxisMinMax
+                        label={`Auto ${
+                            dirtyLayout?.flipAxes ? 'x' : 'y'
+                        }-axis range (${
+                            dirtyLayout?.flipAxes ? 'bottom' : 'left'
+                        })`}
+                        min={dirtyEchartsConfig?.yAxis?.[0]?.min}
+                        max={dirtyEchartsConfig?.yAxis?.[0]?.max}
+                        setMin={(newValue) => setYMinValue(0, newValue)}
+                        setMax={(newValue) => setYMaxValue(0, newValue)}
+                    />
+                )}
+            </ConfigGroup>
+
+            <ConfigGroup>
+                <ConfigGroup.Label>{`${
+                    dirtyLayout?.flipAxes ? 'X' : 'Y'
+                }-axis label (${
+                    dirtyLayout?.flipAxes ? 'top' : 'right'
+                })`}</ConfigGroup.Label>
+
+                <TextInput
+                    size="xs"
+                    placeholder="Enter axis label"
+                    defaultValue={
+                        dirtyEchartsConfig?.yAxis?.[1]?.name ||
+                        getAxisName({
+                            isAxisTheSameForAllSeries,
+                            selectedAxisIndex,
+                            axisReference: 'yRef',
+                            axisIndex: 1,
+                            series: dirtyEchartsConfig?.series,
+                            itemsMap,
+                        })
+                    }
+                    onBlur={(e) => setYAxisName(1, e.currentTarget.value)}
+                />
+
+                {showSecondAxisRange && (
+                    <AxisMinMax
+                        label={`Auto ${
+                            dirtyLayout?.flipAxes ? 'x' : 'y'
+                        }-axis range? (${
+                            dirtyLayout?.flipAxes ? 'top' : 'right'
+                        })`}
+                        min={dirtyEchartsConfig?.yAxis?.[1]?.min}
+                        max={dirtyEchartsConfig?.yAxis?.[1]?.max}
+                        setMin={(newValue) => setYMinValue(1, newValue)}
+                        setMax={(newValue) => setYMaxValue(1, newValue)}
+                    />
+                )}
+            </ConfigGroup>
+
+            <ConfigGroup>
+                <ConfigGroup.Label>Show grid</ConfigGroup.Label>
+
+                <Stack spacing="xs">
+                    <Checkbox
+                        label={
+                            <ConfigGroup.SubLabel>{`${
+                                dirtyLayout?.flipAxes ? 'Y' : 'X'
+                            }-axis`}</ConfigGroup.SubLabel>
                         }
-                        min={0}
-                        max={90}
-                        step={15}
-                        size="xs"
-                        w={80}
-                        onChange={(value) => {
-                            setXAxisLabelRotation(Number(value));
+                        checked={!!dirtyLayout?.showGridX}
+                        onChange={() => {
+                            setShowGridX(!dirtyLayout?.showGridX);
+                        }}
+                        styles={{
+                            label: {
+                                paddingLeft: 10,
+                            },
                         }}
                     />
-                </Group>
-            )}
-            <TextInput
-                label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
-                    dirtyLayout?.flipAxes ? 'bottom' : 'left'
-                })`}
-                mt="sm"
-                placeholder="Enter axis label"
-                defaultValue={
-                    dirtyEchartsConfig?.yAxis?.[0]?.name ||
-                    getAxisName({
-                        isAxisTheSameForAllSeries,
-                        selectedAxisIndex,
-                        axisReference: 'yRef',
-                        axisIndex: 0,
-                        series: dirtyEchartsConfig?.series,
-                        itemsMap,
-                    })
-                }
-                onBlur={(e) => setYAxisName(0, e.currentTarget.value)}
-            />
-            {showFirstAxisRange && (
-                <AxisMinMax
-                    label={`Auto ${
-                        dirtyLayout?.flipAxes ? 'x' : 'y'
-                    }-axis range (${
-                        dirtyLayout?.flipAxes ? 'bottom' : 'left'
-                    })`}
-                    min={dirtyEchartsConfig?.yAxis?.[0]?.min}
-                    max={dirtyEchartsConfig?.yAxis?.[0]?.max}
-                    setMin={(newValue) => setYMinValue(0, newValue)}
-                    setMax={(newValue) => setYMaxValue(0, newValue)}
-                />
-            )}
 
-            <TextInput
-                label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
-                    dirtyLayout?.flipAxes ? 'top' : 'right'
-                })`}
-                mt="sm"
-                placeholder="Enter axis label"
-                defaultValue={
-                    dirtyEchartsConfig?.yAxis?.[1]?.name ||
-                    getAxisName({
-                        isAxisTheSameForAllSeries,
-                        selectedAxisIndex,
-                        axisReference: 'yRef',
-                        axisIndex: 1,
-                        series: dirtyEchartsConfig?.series,
-                        itemsMap,
-                    })
-                }
-                onBlur={(e) => setYAxisName(1, e.currentTarget.value)}
-            />
-
-            {showSecondAxisRange && (
-                <AxisMinMax
-                    label={`Auto ${
-                        dirtyLayout?.flipAxes ? 'x' : 'y'
-                    }-axis range? (${dirtyLayout?.flipAxes ? 'top' : 'right'})`}
-                    min={dirtyEchartsConfig?.yAxis?.[1]?.min}
-                    max={dirtyEchartsConfig?.yAxis?.[1]?.max}
-                    setMin={(newValue) => setYMinValue(1, newValue)}
-                    setMax={(newValue) => setYMaxValue(1, newValue)}
-                />
-            )}
-
-            <Text fw={600} mt="sm">
-                Show grid
-            </Text>
-            <Checkbox
-                label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
-                checked={!!dirtyLayout?.showGridX}
-                onChange={() => {
-                    setShowGridX(!dirtyLayout?.showGridX);
-                }}
-            />
-
-            <Checkbox
-                label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis`}
-                checked={
-                    dirtyLayout?.showGridY !== undefined
-                        ? dirtyLayout?.showGridY
-                        : true
-                }
-                onChange={() => {
-                    setShowGridY(
-                        dirtyLayout?.showGridY !== undefined
-                            ? !dirtyLayout?.showGridY
-                            : false,
-                    );
-                }}
-            />
+                    <Checkbox
+                        label={
+                            <ConfigGroup.SubLabel>{`${
+                                dirtyLayout?.flipAxes ? 'X' : 'Y'
+                            }-axis`}</ConfigGroup.SubLabel>
+                        }
+                        checked={
+                            dirtyLayout?.showGridY !== undefined
+                                ? dirtyLayout?.showGridY
+                                : true
+                        }
+                        onChange={() => {
+                            setShowGridY(
+                                dirtyLayout?.showGridY !== undefined
+                                    ? !dirtyLayout?.showGridY
+                                    : false,
+                            );
+                        }}
+                        styles={{
+                            body: {
+                                alignItems: 'center',
+                            },
+                            label: {
+                                paddingLeft: 10,
+                            },
+                        }}
+                    />
+                </Stack>
+            </ConfigGroup>
         </Stack>
     );
 };
