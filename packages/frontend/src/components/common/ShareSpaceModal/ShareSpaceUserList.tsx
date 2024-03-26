@@ -97,22 +97,18 @@ const ListCollapse: FC<React.PropsWithChildren<ListCollapseProps>> = ({
     const theme = useMantineTheme();
     const [isOpen, { toggle }] = useDisclosure(false);
     return (
-        <Paper withBorder>
+        <Paper withBorder={isOpen}>
             <Group
                 ref={ref}
                 position="apart"
                 spacing="sm"
                 noWrap
-                bg={
-                    hovered
-                        ? theme.fn.rgba(theme.colors.gray[0], 0.5)
-                        : theme.fn.rgba(theme.colors.gray[0], 1)
-                }
+                bg={hovered || isOpen ? theme.colors.gray[0] : undefined}
                 sx={{ cursor: 'pointer' }}
                 onClick={toggle}
             >
                 <Group spacing="xs">
-                    <Avatar size={'sm'} radius="sm" color="gray">
+                    <Avatar size={'sm'} radius="xl" color="gray">
                         <MantineIcon icon={icon} size={'sm'} radius="xl" />
                     </Avatar>
                     <Text fw={600} fz="sm">
