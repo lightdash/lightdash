@@ -210,7 +210,7 @@ const getAllSpaces = async (
                 ps.order,
                 MAX(s.name) as name,
                 BOOL_OR(s.is_private) as is_private,
-                COUNT(DISTINCT ss.user_id) as access_list_length,
+                COUNT(DISTINCT sua.user_uuid) as access_list_length,
                 COALESCE(json_agg(distinct u.user_uuid) FILTER (WHERE u.user_uuid is not null), '[]') as access,
                 COUNT(DISTINCT d.dashboard_id) as dashboard_count,
                 COUNT(DISTINCT sq.saved_query_id) as chart_count
@@ -221,8 +221,8 @@ const getAllSpaces = async (
             inner join pinned_space ps on pl.pinned_list_uuid = ps.pinned_list_uuid
                 and ps.pinned_list_uuid = :pinnedListUuid
             inner join spaces s on ps.space_uuid = s.space_uuid
-            left join space_share ss on s.space_id = ss.space_id
-            left join users u on ss.user_id = u.user_id
+            left join space_user_access sua on s.space_uuid = sua.space_uuid
+            left join users u on sua.user_uuid = u.user_uuid
             left join dashboards d on s.space_id = d.space_id
             left join saved_queries sq on s.space_id = sq.space_id
             group by 1, 2, 3, 4, 5

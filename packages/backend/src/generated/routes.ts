@@ -3131,6 +3131,46 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceMemberRole: {
+        dataType: 'refEnum',
+        enums: ['viewer', 'editor', 'admin'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceShare: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                inheritedFrom: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['organization'] },
+                        { dataType: 'enum', enums: ['project'] },
+                        { dataType: 'enum', enums: ['group'] },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                inheritedRole: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OrganizationMemberRole' },
+                        { ref: 'ProjectMemberRole' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                hasDirectAccess: { dataType: 'boolean', required: true },
+                role: { ref: 'SpaceMemberRole', required: true },
+                email: { dataType: 'string', required: true },
+                lastName: { dataType: 'string', required: true },
+                firstName: { dataType: 'string', required: true },
+                userUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpaceSummary: {
         dataType: 'refAlias',
         type: {
@@ -3147,6 +3187,14 @@ const models: TsoaRoute.Models = {
                         access: {
                             dataType: 'array',
                             array: { dataType: 'string' },
+                            required: true,
+                        },
+                        userAccess: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'SpaceShare' },
+                                { dataType: 'undefined' },
+                            ],
                             required: true,
                         },
                     },
@@ -4245,46 +4293,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SpaceMemberRole: {
-        dataType: 'refEnum',
-        enums: ['viewer', 'editor'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SpaceShare: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                inheritedFrom: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['organization'] },
-                        { dataType: 'enum', enums: ['project'] },
-                        { dataType: 'enum', enums: ['group'] },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                inheritedRole: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'OrganizationMemberRole' },
-                        { ref: 'ProjectMemberRole' },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                hasDirectAccess: { dataType: 'boolean', required: true },
-                role: { ref: 'SpaceMemberRole', required: true },
-                email: { dataType: 'string', required: true },
-                lastName: { dataType: 'string', required: true },
-                firstName: { dataType: 'string', required: true },
-                userUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SavedChart: {
         dataType: 'refAlias',
         type: {
@@ -5171,12 +5179,13 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SpaceShare.userUuid_': {
+    'Pick_SpaceShare.userUuid-or-role_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 userUuid: { dataType: 'string', required: true },
+                role: { ref: 'SpaceMemberRole', required: true },
             },
             validators: {},
         },
@@ -5191,7 +5200,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'Pick_SpaceShare.userUuid_',
+                        ref: 'Pick_SpaceShare.userUuid-or-role_',
                     },
                 },
                 isPrivate: { dataType: 'boolean' },
@@ -5213,11 +5222,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AddSpaceShare: {
+    AddSpaceUserAccess: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                spaceRole: { ref: 'SpaceMemberRole', required: true },
                 userUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -11450,10 +11460,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
         ...fetchMiddlewares<RequestHandler>(
-            SpaceController.prototype.addSpaceShare,
+            SpaceController.prototype.addSpaceUserAccess,
         ),
 
-        async function SpaceController_addSpaceShare(
+        async function SpaceController_addSpaceUserAccess(
             request: any,
             response: any,
             next: any,
@@ -11475,7 +11485,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'AddSpaceShare',
+                    ref: 'AddSpaceUserAccess',
                 },
                 req: {
                     in: 'request',
@@ -11503,7 +11513,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.addSpaceShare.apply(
+                const promise = controller.addSpaceUserAccess.apply(
                     controller,
                     validatedArgs as any,
                 );

@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     DashboardTileTypes,
     getDefaultChartTileSize,
@@ -29,6 +30,8 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
+import { useApp } from '../../../providers/AppProvider';
+import { Can } from '../Authorization';
 import MantineIcon from '../MantineIcon';
 
 interface ChartCreateModalProps {
@@ -53,6 +56,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     defaultSpaceUuid,
     onConfirm,
 }) => {
+    const { user } = useApp();
     const fromDashboard = sessionStorage.getItem('fromDashboard');
     const dashboardUuid = sessionStorage.getItem('dashboardUuid');
     const unsavedDashboardTiles = JSON.parse(
@@ -86,6 +90,18 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const { data: spaces, isInitialLoading: isLoadingSpaces } =
         useSpaceSummaries(projectUuid, true, {
             staleTime: 0,
+            select: (data) => {
+                // Only get spaces that the user can create charts to
+                return data.filter((space) =>
+                    user.data?.ability.can(
+                        'create',
+                        subject('SavedChart', {
+                            ...space,
+                            access: space.userAccess ? [space.userAccess] : [],
+                        }),
+                    ),
+                );
+            },
             onSuccess: (data) => {
                 if (data.length > 0) {
                     const currentSpace = defaultSpaceUuid
@@ -241,15 +257,26 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                                 }))}
                                 {...form.getInputProps('spaceUuid')}
                             />
-                            <Anchor
-                                component="span"
-                                onClick={() => setShouldCreateNewSpace(true)}
+                            <Can
+                                I="create"
+                                this={subject('Space', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
                             >
-                                <Group spacing="two">
-                                    <MantineIcon icon={IconPlus} />
-                                    Create new space
-                                </Group>
-                            </Anchor>
+                                <Anchor
+                                    component="span"
+                                    onClick={() =>
+                                        setShouldCreateNewSpace(true)
+                                    }
+                                >
+                                    <Group spacing="two">
+                                        <MantineIcon icon={IconPlus} />
+                                        Create new space
+                                    </Group>
+                                </Anchor>
+                            </Can>
                         </Stack>
                     )}
                     {showSpaceInput && (

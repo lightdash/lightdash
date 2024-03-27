@@ -91,33 +91,38 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
-    },
-    editor(member, { can }) {
-        projectMemberAbilities.interactive_viewer(member, { can });
-        can('manage', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
-            isPrivate: false,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
         });
-        // should not check space access when creating a space
-        can('create', 'Space', {
+        can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
-        });
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
         });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
             access: {
                 $elemMatch: {
                     userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
+                    role: SpaceMemberRole.ADMIN,
                 },
             },
+        });
+    },
+    editor(member, { can }) {
+        projectMemberAbilities.interactive_viewer(member, { can });
+        can('create', 'Space', {
+            projectUuid: member.projectUuid,
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
