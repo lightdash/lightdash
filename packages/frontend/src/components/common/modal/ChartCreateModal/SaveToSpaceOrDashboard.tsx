@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     DashboardTileTypes,
     getDefaultChartTileSize,
@@ -37,6 +38,8 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
+import { useApp } from '../../../../providers/AppProvider';
+import { Can } from '../../Authorization';
 import MantineIcon from '../../MantineIcon';
 
 type ChartCreateModalFormValues = {
@@ -57,9 +60,11 @@ enum SaveDestination {
 type SaveToSpaceProps = {
     form: UseFormReturnType<ChartCreateModalFormValues>;
     spaces: SpaceSummary[] | undefined;
+    projectUuid: string;
 };
 
-const SaveToSpace: FC<SaveToSpaceProps> = ({ form, spaces }) => {
+const SaveToSpace: FC<SaveToSpaceProps> = ({ form, spaces, projectUuid }) => {
+    const { user } = useApp();
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
     const isCreatingNewSpace =
         shouldCreateNewSpace || !spaces || spaces.length === 0;
@@ -106,16 +111,24 @@ const SaveToSpace: FC<SaveToSpaceProps> = ({ form, spaces }) => {
                 {...form.getInputProps('spaceUuid')}
                 required={form.values.saveDestination === SaveDestination.Space}
             />
-            <Button
-                size="xs"
-                variant="default"
-                mr="auto"
-                compact
-                leftIcon={<MantineIcon icon={IconPlus} />}
-                onClick={() => setShouldCreateNewSpace(true)}
+            <Can
+                I="create"
+                this={subject('Space', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid,
+                })}
             >
-                Create new space
-            </Button>
+                <Button
+                    size="xs"
+                    variant="default"
+                    mr="auto"
+                    compact
+                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setShouldCreateNewSpace(true)}
+                >
+                    Create new space
+                </Button>
+            </Can>
         </Stack>
     );
 };
@@ -164,6 +177,7 @@ const SaveToDashboard: FC<SaveToDashboardProps> = ({
 };
 
 type SaveToSpaceOrDashboardProps = {
+    projectUuid: string;
     savedData: CreateSavedChartVersion;
     defaultSpaceUuid: string | undefined;
     dashboardInfoFromSavedData: {
@@ -196,6 +210,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     onConfirm,
     onClose,
 }) => {
+    const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { mutateAsync: createChart } = useCreateMutation();
@@ -210,19 +225,26 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
         data: dashboards,
         isInitialLoading: isLoadingDashboards,
         isSuccess: isDashboardsSuccess,
-    } = useDashboards(
-        projectUuid,
-        {
-            staleTime: 0,
-        },
-        true, // includePrivateSpaces
-    );
+    } = useDashboards(projectUuid, {
+        staleTime: 0,
+    });
 
     const {
         data: spaces,
         isInitialLoading: isLoadingSpaces,
         isSuccess: isSpacesSuccess,
     } = useSpaceSummaries(projectUuid, true, {
+        select: (data) =>
+            data.filter((space) =>
+                // Only get spaces that the user can create charts to
+                user.data?.ability.can(
+                    'create',
+                    subject('SavedChart', {
+                        ...space,
+                        access: space.userAccess ? [space.userAccess] : [],
+                    }),
+                ),
+            ),
         staleTime: 0,
     });
 
@@ -401,7 +423,11 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                         </Group>
                         {form.values.saveDestination ===
                             SaveDestination.Space && (
-                            <SaveToSpace form={form} spaces={spaces} />
+                            <SaveToSpace
+                                projectUuid={projectUuid}
+                                form={form}
+                                spaces={spaces}
+                            />
                         )}
                         {form.values.saveDestination ===
                             SaveDestination.Dashboard && (
