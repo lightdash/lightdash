@@ -324,6 +324,14 @@ const SavedChartsHeader: FC = () => {
         savedChart &&
         user.data?.ability?.can('manage', subject('SavedChart', savedChart));
 
+    const userCanManageExplore = user.data?.ability.can(
+        'manage',
+        subject('Explore', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: savedChart?.projectUuid,
+        }),
+    );
+
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
         subject('ScheduledDeliveries', {
@@ -467,14 +475,18 @@ const SavedChartsHeader: FC = () => {
                     )}
                 </PageTitleAndDetailsContainer>
 
-                {(userCanManageChart || userCanCreateDeliveriesAndAlerts) && (
+                {(userCanManageChart ||
+                    userCanCreateDeliveriesAndAlerts ||
+                    userCanManageExplore) && (
                     <PageActionsContainer>
+                        {userCanManageExplore && !isEditMode && (
+                            <ExploreFromHereButton />
+                        )}
                         {userCanManageChart && (
                             <>
                                 {/* TODO: Extract this into a separate component, depending on the mode: viewing or editing */}
                                 {!isEditMode ? (
                                     <>
-                                        <ExploreFromHereButton />
                                         <Button
                                             variant="default"
                                             size="xs"
