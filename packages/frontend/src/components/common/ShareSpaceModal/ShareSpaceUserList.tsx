@@ -207,8 +207,9 @@ const UserAccessList: FC<UserAccessListProps> = ({
                                 </Text>
                             </Group>
                             {isSessionUser ||
-                            sharedUser.inheritedRole ===
-                                ProjectMemberRole.ADMIN ? (
+                            (!sharedUser.hasDirectAccess &&
+                                sharedUser.inheritedRole ===
+                                    ProjectMemberRole.ADMIN) ? (
                                 <Badge
                                     size="xs"
                                     color="gray.6"
