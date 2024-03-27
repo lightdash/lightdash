@@ -57,15 +57,17 @@ copy spaces/charts/dashboards from the source project they have access to.
 
 ### Space Roles
 
-Space permissions are inherited from a user's project permissions. For example, if I'm a project viewer, I will get `viewer` access to a Space.
+Users who have `full access` to a space can adjust other users' space permissions. They can reduce a user’s inherited project permissions in a space (e.g. you can make project editors into `can view` in a space). They can also give `interactive viewers` permissions to `can edit` in a space so they can save content to a space (but nowhere else in the project). 
 
-| Action                                                   | Spaces Admin | Spaces Editor | Spaces Viewer |
-| :------------------------------------------------------- | :----------: | :-----------: | :-----------: |
-| Edit a Space's access (from Full to Restricted)          |      ✅      |      ✅       |      ❌       |
-| Invite users to a Restricted Space they have access to   |      ✅      |      ✅       |      ❌       |
-| Remove users from a Restricted Space they have access to |      ✅      |      ✅       |      ❌       |
-| Add/Remove content from the Space                        |      ✅      |      ✅       |      ❌       |
-| Edit the Space details (name, description, etc.)         |      ✅      |      ✅       |      ❌       |
+| Action                                                        | Full Access  | Can Edit | Can View |
+| :------------------------------------------------------------ | :----------: | :------: | :------: |
+| Edit a Space's access (from Public to Restricted)             |      ✅      |     ❌    |    ❌    |
+| Change the permissions of a user that has access to the space |      ✅      |     ❌    |    ❌    |
+| Invite users to a Restricted Space they have access to        |      ✅      |     ❌    |    ❌    |
+| Remove users from a Restricted Space they have access to      |      ✅      |     ❌    |    ❌    |
+| Edit the Space details (name, description, etc.)              |      ✅      |     ❌    |    ❌    |
+| Add/Remove content from the Space                             |      ✅      |     ✅    |    ❌    |
+| Edit content in the Space (charts, dashboards)                |      ✅      |     ✅    |    ❌    |
 
 ## Allowed email domains to join organization automatically
 
