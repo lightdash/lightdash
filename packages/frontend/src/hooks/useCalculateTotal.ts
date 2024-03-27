@@ -5,7 +5,7 @@ import {
     type ApiCalculateTotalResponse,
     type ApiError,
     type CalculateTotalFromQuery,
-    type DashboardFilters,
+    type DashboardFiltersForTile,
     type ItemsMap,
     type MetricQuery,
     type MetricQueryRequest,
@@ -46,7 +46,7 @@ const calculateTotalFromQuery = async (
 
 const calculateTotalFromSavedChart = async (
     savedChartUuid: string,
-    dashboardFilters?: DashboardFilters,
+    dashboardFilters?: DashboardFiltersForTile,
     invalidateCache?: boolean,
 ): Promise<ApiCalculateTotalResponse['results']> => {
     const timezoneFixFilters =
@@ -93,7 +93,7 @@ export const useCalculateTotal = ({
     metricQuery?: MetricQueryRequest;
     explore?: string;
     savedChartUuid?: string;
-    dashboardFilters?: DashboardFilters;
+    dashboardFilters?: DashboardFiltersForTile;
     invalidateCache?: boolean;
     itemsMap: ItemsMap | undefined;
     fieldIds?: string[];

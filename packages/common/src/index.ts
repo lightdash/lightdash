@@ -64,7 +64,7 @@ import { type ApiSuccessEmpty } from './types/api/success';
 import { type DbtExposure } from './types/dbt';
 import { type EmailStatusExpiring } from './types/email';
 import { type FieldValueSearchResult } from './types/fieldMatch';
-import { type DashboardFilters } from './types/filter';
+import { type DashboardFiltersForTile } from './types/filter';
 import {
     type GitIntegrationConfiguration,
     type GitRepo,
@@ -378,7 +378,7 @@ export type ApiQueryResults = {
 export type ApiChartAndResults = {
     chart: SavedChart;
     explore: Explore;
-    appliedDashboardFilters: DashboardFilters | undefined;
+    appliedDashboardFilters: DashboardFiltersForTile | undefined;
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
