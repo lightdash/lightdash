@@ -670,6 +670,7 @@ const Dashboard: FC = () => {
                 {hasRequiredDashboardFiltersToSet && (
                     <Modal
                         opened
+                        lockScroll={false}
                         withCloseButton={false}
                         centered
                         withinPortal
@@ -688,7 +689,7 @@ const Dashboard: FC = () => {
                         <Stack spacing="xs">
                             <Text>
                                 This dashboard cannot be run without setting the
-                                filter values above.
+                                filter values that are required
                             </Text>
                         </Stack>
                     </Modal>
