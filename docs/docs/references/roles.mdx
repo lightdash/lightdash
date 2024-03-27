@@ -57,13 +57,20 @@ copy spaces/charts/dashboards from the source project they have access to.
 
 ### Space Roles
 
-By default, in public spaces, a user's space permissions are inherited from their project permissions. For example, if I'm a project viewer, I will get `Can View` access to a Space.
-
 There are three space roles: `Full Access`, `Can Edit`, `Can View`
 
-Users who have `full access` to a space can adjust other users' space permissions, except for admins.
+Users with `Full Access` to a space can restrict and increase a user’s inherited project permissions in a space (e.g. you can make project editors into `can view` in a space). Space permissions determine which users can edit space contents (charts and dashboards), view the contents in a space, and change a space's settings:
 
-They can restrict a user’s inherited project permissions in a space (e.g. you can make project editors into `can view` in a space). They can also give `interactive viewers` permissions to `can edit` in a space so they can save content to a space (but nowhere else in the project). 
+- A user needs to have at least the `Can view` access level to a space to see that the space exists and to see the charts and dashboards inside it.
+- A user needs to have the `Can edit` access level to a space to edit the content in the space (add/delete/rename charts and dashboards).
+- A user needs to have the `Full access` access level to a space to manage access to the space and to edit the space details (name, description, etc.).
+
+Space permissions don't otherwise control what users can do, or which data they can use to build their own content.
+
+This means:
+- a project viewer who has `Can edit` space permissions cannot get access to build or edit charts because Viewers don't have access to the Explore view
+- an interactive viewer who is given `Can edit` space permissions can save content in that space but not in any other space (unless given `edit` access to another space)
+- an editor who is given `Can view` space permissions cannot edit the content in that space, but they can create/edit content in other parts of the project (unless they're given `view` access).
 
 | Action                                                        | Full Access  | Can Edit | Can View |
 | :------------------------------------------------------------ | :----------: | :------: | :------: |
