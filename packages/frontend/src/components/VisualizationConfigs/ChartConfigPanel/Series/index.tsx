@@ -96,6 +96,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
         dirtyEchartsConfig,
         dirtyLayout,
         updateSeries,
+        getSingleSeries,
         updateSingleSeries,
         updateAllGroupedSeries,
     } = visualizationConfig.chartConfig;
@@ -187,6 +188,9 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                             1
                                                         }
                                                         series={seriesEntry}
+                                                        getSingleSeries={
+                                                            getSingleSeries
+                                                        }
                                                         updateSingleSeries={
                                                             updateSingleSeries
                                                         }

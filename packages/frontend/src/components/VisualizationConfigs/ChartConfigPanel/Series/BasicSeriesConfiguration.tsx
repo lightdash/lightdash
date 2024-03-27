@@ -8,12 +8,15 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Box, Group } from '@mantine/core';
+import { useDebouncedState } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
 import { type FC } from 'react';
+import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
 import { ConfigGroup } from '../common/ConfigGroup';
+import { EditableText } from '../common/EditableText';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
@@ -21,19 +24,26 @@ type BasicSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
     series: Series;
     item: Field | TableCalculation | CustomDimension;
-    updateSingleSeries: (series: Series) => void;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
-};
+} & Pick<
+    ReturnType<typeof useCartesianChartConfig>,
+    'updateSingleSeries' | 'getSingleSeries'
+>;
 
 const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     isSingle,
     layout,
     series,
     item,
+    getSingleSeries,
     updateSingleSeries,
     dragHandleProps,
 }) => {
     const { colorPalette, getSeriesColor } = useVisualizationContext();
+    const [value, setValue] = useDebouncedState(
+        getSingleSeries(series)?.name || getItemLabelWithoutTableName(item),
+        500,
+    );
 
     return (
         <ConfigGroup>
@@ -47,10 +57,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                 >
                     <MantineIcon icon={IconGripVertical} />
                 </Box>
-                <Group spacing="sm">
-                    <ConfigGroup.Label>
-                        {getItemLabelWithoutTableName(item)}
-                    </ConfigGroup.Label>
+                <Group spacing="xs">
                     <ColorSelector
                         color={getSeriesColor(series)}
                         swatches={colorPalette}
@@ -61,6 +68,24 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                             });
                         }}
                     />
+                    {isSingle ? (
+                        <ConfigGroup.Label>
+                            {getItemLabelWithoutTableName(item)}
+                        </ConfigGroup.Label>
+                    ) : (
+                        <EditableText
+                            size="sm"
+                            fw={600}
+                            defaultValue={value}
+                            onChange={(event) => {
+                                setValue(event.currentTarget.value);
+                                updateSingleSeries({
+                                    ...series,
+                                    name: event.currentTarget.value,
+                                });
+                            }}
+                        />
+                    )}
                 </Group>
             </Group>
             <SingleSeriesConfiguration

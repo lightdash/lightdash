@@ -11,7 +11,6 @@ import {
     SimpleGrid,
     Stack,
     Switch,
-    Text,
 } from '@mantine/core';
 import startCase from 'lodash/startCase';
 import { type FC } from 'react';
@@ -61,74 +60,49 @@ const LegendPanel: FC<Props> = ({ items }) => {
     const showDefault = (dirtyEchartsConfig?.series || []).length > 1;
     return (
         <Stack>
-            <Switch
-                size="xs"
-                label="Show legend"
-                checked={legendConfig.show ?? showDefault}
-                onChange={(e) => handleChange('show', e.currentTarget.checked)}
-                styles={{
-                    label: {
-                        paddingLeft: 4,
-                    },
-                }}
-            />
-            <Collapse in={legendConfig.show ?? showDefault}>
-                <Stack>
-                    <Group spacing="xs">
-                        <ConfigGroup.SubLabel>
-                            Legend scroll behaviour
-                        </ConfigGroup.SubLabel>
-                        <SegmentedControl
-                            size="xs"
-                            value={dirtyEchartsConfig?.legend?.type}
-                            data={[
-                                { label: 'Default', value: 'plain' },
-                                { label: 'Scroll', value: 'scroll' },
-                            ]}
-                            onChange={(value) => handleChange('type', value)}
-                        />
-                    </Group>
+            <ConfigGroup>
+                <ConfigGroup.LabelGroup>
+                    <ConfigGroup.Label>Legend</ConfigGroup.Label>
+                    <Switch
+                        size="xs"
+                        label="Show"
+                        labelPosition="left"
+                        checked={legendConfig.show ?? showDefault}
+                        onChange={(e) =>
+                            handleChange('show', e.currentTarget.checked)
+                        }
+                        styles={{
+                            label: {
+                                paddingLeft: 4,
+                            },
+                        }}
+                    />
+                </ConfigGroup.LabelGroup>
 
-                    <Group position="apart" noWrap align="start">
-                        <ConfigGroup>
-                            <ConfigGroup.Label>Position</ConfigGroup.Label>
-                            {[
-                                [Positions.Top, Positions.Bottom],
-                                [Positions.Left, Positions.Right],
-                            ].map((positionGroup) => (
-                                <SimpleGrid
-                                    cols={2}
-                                    spacing="md"
-                                    key={positionGroup.join(',')}
-                                >
-                                    {positionGroup.map((position) => (
-                                        <UnitInput
-                                            key={position}
-                                            size="xs"
-                                            label={
-                                                <Text fw={400}>
-                                                    {startCase(position)}{' '}
-                                                </Text>
-                                            }
-                                            name={position}
-                                            units={units}
-                                            value={
-                                                legendConfig[position] ?? 'auto'
-                                            }
-                                            defaultValue="auto"
-                                            onChange={(e) =>
-                                                handleChange(position, e)
-                                            }
-                                        />
-                                    ))}
-                                </SimpleGrid>
-                            ))}
-                        </ConfigGroup>
-                        <ConfigGroup>
-                            <ConfigGroup.Label>Orientation</ConfigGroup.Label>
+                <Collapse in={legendConfig.show ?? showDefault}>
+                    <Stack spacing="xs">
+                        <Group spacing="xs">
+                            <ConfigGroup.SubLabel>
+                                Scroll behavior
+                            </ConfigGroup.SubLabel>
+                            <SegmentedControl
+                                size="xs"
+                                value={dirtyEchartsConfig?.legend?.type}
+                                data={[
+                                    { label: 'Default', value: 'plain' },
+                                    { label: 'Scroll', value: 'scroll' },
+                                ]}
+                                onChange={(value) =>
+                                    handleChange('type', value)
+                                }
+                            />
+                        </Group>
+                        <Group spacing="xs">
+                            <ConfigGroup.SubLabel>
+                                Orientation
+                            </ConfigGroup.SubLabel>
                             <SegmentedControl
                                 name="orient"
-                                orientation="vertical"
                                 size="xs"
                                 value={legendConfig.orient ?? 'horizontal'}
                                 onChange={(val) => handleChange('orient', val)}
@@ -140,79 +114,40 @@ const LegendPanel: FC<Props> = ({ items }) => {
                                     { label: 'Vertical', value: 'vertical' },
                                 ]}
                             />
-                        </ConfigGroup>
-                    </Group>
-                </Stack>
-                {/* <Center
-                        display="grid"
-                        sx={{
-                            gridTemplateRows: 'auto 1fr auto',
-                            gridTemplateColumns: '1fr auto 1fr',
-                        }}
-                    >
-                        {[
-                            {
-                                position: Positions.Top,
-                                gridColumn: '2 / 3',
-                                gridRow: '1 / 2',
-                            },
-                            {
-                                position: Positions.Left,
-                                gridColumn: '1 / 2',
-                                gridRow: '2 / 3',
-                            },
-                            {
-                                gridColumn: '2 / 2',
-                                gridRow: '2 / 2',
-                            },
-                            {
-                                position: Positions.Right,
-                                gridColumn: '3 / 4',
-                                gridRow: '2 / 3',
-                            },
+                        </Group>
 
-                            {
-                                position: Positions.Bottom,
-                                gridColumn: '2 / 3',
-                                gridRow: '3 / 4',
-                            },
-                        ].map((row) => (
-                            <Flex
-                                key={row.position}
-                                justify="center"
-                                align="center"
-                                sx={{
-                                    gridColumn: row.gridColumn,
-                                    gridRow: row.gridRow,
-                                }}
-                            >
-                                {row.position ? (
+                        {[
+                            [
+                                Positions.Top,
+                                Positions.Right,
+                                Positions.Bottom,
+                                Positions.Left,
+                            ],
+                        ].map((positionGroup) => (
+                            <SimpleGrid cols={4} key={positionGroup.join(',')}>
+                                {positionGroup.map((position) => (
                                     <UnitInput
+                                        key={position}
                                         size="xs"
-                                        labelProps={{
-                                            fw: 400,
-                                        }}
-                                        label={startCase(row.position)}
-                                        name={row.position}
-                                        units={units}
-                                        value={
-                                            legendConfig[row.position] ?? 'auto'
+                                        label={
+                                            <ConfigGroup.SubLabel>
+                                                {startCase(position)}{' '}
+                                            </ConfigGroup.SubLabel>
                                         }
+                                        name={position}
+                                        units={units}
+                                        value={legendConfig[position] ?? 'auto'}
                                         defaultValue="auto"
                                         onChange={(e) =>
-                                            handleChange(row.position, e)
+                                            handleChange(position, e)
                                         }
                                     />
-                                ) : (
-                                    <Text mx="xl" fw={500}>
-                                        Position
-                                    </Text>
-                                )}
-                            </Flex>
+                                ))}
+                            </SimpleGrid>
                         ))}
-                    </Center> */}
-            </Collapse>
-
+                    </Stack>
+                </Collapse>
+            </ConfigGroup>
             <ReferenceLines items={items} projectUuid={projectUuid} />
         </Stack>
     );
