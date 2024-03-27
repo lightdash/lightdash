@@ -579,6 +579,7 @@ export const DashboardProvider: React.FC<
     const requiredDashboardFilters = useMemo(
         () =>
             dashboardFilters.dimensions
+                // Get filters that are required to have a value set (required) and that have no default value set (disabled)
                 .filter((f) => f.required && f.disabled)
                 .reduce<Pick<DashboardFilterRule, 'id' | 'label'>[]>(
                     (acc, f) => {
