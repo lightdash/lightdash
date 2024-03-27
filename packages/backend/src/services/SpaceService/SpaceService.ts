@@ -274,13 +274,6 @@ export class SpaceService {
             throw new ForbiddenError();
         }
 
-        if (
-            space.access.filter((userUuid) => userUuid !== shareWithUserUuid)
-                .length === 0
-        ) {
-            throw new Error('There must be at least 1 user in this space');
-        }
-
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
     }
 
