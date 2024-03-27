@@ -2,7 +2,7 @@ import {
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
     isFilterGroup,
-    type DashboardFilters,
+    type DashboardFiltersForTile,
     type FilterGroup,
     type FilterGroupItem,
     type FilterRule,
@@ -46,8 +46,8 @@ export const convertDateFilters = (filters: Filters): Filters => {
 };
 
 export const convertDateDashboardFilters = (
-    filters: DashboardFilters,
-): DashboardFilters => {
+    filters: DashboardFiltersForTile,
+): DashboardFiltersForTile => {
     // Fix original date time values on filters instead of converting dates into UTC when using JSON.stringify on API request
     return {
         dimensions: filters.dimensions.map(convertFilterRule),

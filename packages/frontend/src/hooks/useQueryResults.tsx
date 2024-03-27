@@ -3,7 +3,7 @@ import {
     type ApiChartAndResults,
     type ApiError,
     type ApiQueryResults,
-    type DashboardFilters,
+    type DashboardFiltersForTile,
     type DateGranularity,
     type MetricQuery,
     type SortField,
@@ -55,7 +55,7 @@ const getChartAndResults = async ({
 }: {
     chartUuid?: string;
     dashboardUuid: string;
-    dashboardFilters: DashboardFilters;
+    dashboardFilters: DashboardFiltersForTile;
     invalidateCache?: boolean;
     dashboardSorts: SortField[];
     granularity?: DateGranularity;
@@ -207,7 +207,7 @@ export const useUnderlyingDataResults = (
 export const useChartAndResults = (
     chartUuid: string | null,
     dashboardUuid: string | null,
-    dashboardFilters: DashboardFilters,
+    dashboardFilters: DashboardFiltersForTile,
     dashboardSorts: SortField[],
     invalidateCache?: boolean,
     granularity?: DateGranularity,
