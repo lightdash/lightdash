@@ -70,13 +70,13 @@ export type DashboardFilterRule<
 };
 
 /**
- * DashboardFilterRuleForTile is a DashboardFilterRule without the `tileTargets`, `label`, and `required` fields.
+ * DashboardFilterRuleForTile is a DashboardFilterRule without properties that are unknown to FilterRule: e.g. `tileTargets`, `label`, and `required` fields
  * This is used to represent the filter rules that are applied to a specific tile.
  * This is also to ensure we don't polute the filters on a chart tile with unnecessary fields that can't be used when viewing a chart in isolation.
  */
-export type DashboardFilterRuleForTile = Omit<
+export type DashboardFilterRuleForTile = Pick<
     DashboardFilterRule,
-    'tileTargets' | 'required' | 'label'
+    'id' | 'target' | 'operator' | 'values' | 'settings' | 'disabled'
 >;
 
 export type FilterDashboardToRule = DashboardFilterRule & {
