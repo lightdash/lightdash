@@ -6,21 +6,7 @@ import {
 import produce from 'immer';
 import isEqual from 'lodash/isEqual';
 
-export const isFilterEnabled = (
-    filterRule?: DashboardFilterRule,
-    isEditMode?: boolean,
-    isCreatingNew?: boolean,
-) => {
-    if (!filterRule) return false;
-
-    const isFilterRuleDisabled = filterRule.disabled;
-    if (
-        (isFilterRuleDisabled && isEditMode) ||
-        (isFilterRuleDisabled && !isCreatingNew)
-    ) {
-        return true;
-    }
-
+export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {
     switch (filterRule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
@@ -50,6 +36,24 @@ export const isFilterEnabled = (
         default:
             return assertUnreachable(filterRule.operator, 'unknown operator');
     }
+};
+
+export const isFilterEnabled = (
+    filterRule?: DashboardFilterRule,
+    isEditMode?: boolean,
+    isCreatingNew?: boolean,
+) => {
+    if (!filterRule) return false;
+
+    const isFilterRuleDisabled = filterRule.disabled;
+    if (
+        (isFilterRuleDisabled && isEditMode) ||
+        (isFilterRuleDisabled && !isCreatingNew)
+    ) {
+        return true;
+    }
+
+    return hasFilterValueSet(filterRule);
 };
 
 export const getFilterRuleRevertableObject = (

@@ -90,6 +90,7 @@ const GridTile: FC<
     > & {
         isLazyLoadEnabled: boolean;
         index: number;
+        locked: boolean;
     }
 > = memo((props) => {
     const { tile, isLazyLoadEnabled, index } = props;
@@ -114,6 +115,14 @@ const GridTile: FC<
         return (
             <Box ref={ref} h="100%">
                 <TileBase isLoading {...props} title={''} />
+            </Box>
+        );
+    }
+
+    if (props.locked) {
+        return (
+            <Box ref={ref} h="100%">
+                <TileBase isLoading={false} title={''} {...props} />
             </Box>
         );
     }
@@ -157,6 +166,11 @@ const Dashboard: FC = () => {
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
     );
+    const requiredDashboardFilters = useDashboardContext(
+        (c) => c.requiredDashboardFilters,
+    );
+    const hasRequiredDashboardFiltersToSet =
+        requiredDashboardFilters.length > 0;
     const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
@@ -617,34 +631,61 @@ const Dashboard: FC = () => {
                     )}
                     {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>
-
                 <ResponsiveGridLayout
                     {...getResponsiveGridLayoutProps()}
-                    className="react-grid-layout-dashboard"
+                    className={`react-grid-layout-dashboard ${
+                        hasRequiredDashboardFiltersToSet ? 'locked' : ''
+                    }`}
                     onDragStop={handleUpdateTiles}
                     onResizeStop={handleUpdateTiles}
                     onWidthChange={(cw) => setGridWidth(cw)}
                     layouts={layouts}
                 >
-                    {sortedTiles?.map((tile, idx) => {
-                        return (
-                            <div key={tile.uuid}>
-                                <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                    <GridTile
-                                        isLazyLoadEnabled={
-                                            isLazyLoadEnabled ?? true
-                                        }
-                                        index={idx}
-                                        isEditMode={isEditMode}
-                                        tile={tile}
-                                        onDelete={handleDeleteTile}
-                                        onEdit={handleEditTiles}
-                                    />
-                                </TrackSection>
-                            </div>
-                        );
-                    })}
+                    {sortedTiles?.map((tile, idx) => (
+                        <div key={tile.uuid}>
+                            <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                <GridTile
+                                    locked={hasRequiredDashboardFiltersToSet}
+                                    isLazyLoadEnabled={
+                                        isLazyLoadEnabled ?? true
+                                    }
+                                    index={idx}
+                                    isEditMode={isEditMode}
+                                    tile={tile}
+                                    onDelete={handleDeleteTile}
+                                    onEdit={handleEditTiles}
+                                />
+                            </TrackSection>
+                        </div>
+                    ))}
                 </ResponsiveGridLayout>
+
+                {hasRequiredDashboardFiltersToSet && (
+                    <Modal
+                        opened
+                        withCloseButton={false}
+                        centered
+                        withinPortal
+                        withOverlay={false}
+                        onClose={() => {}}
+                        styles={(theme) => ({
+                            content: {
+                                border: `1px solid ${theme.colors.gray[2]}`,
+                                boxShadow: 'none',
+                            },
+                        })}
+                    >
+                        <Text fw={600} fz="lg" ta="center" mb="lg">
+                            Set filter values to get started
+                        </Text>
+                        <Stack spacing="xs">
+                            <Text>
+                                This dashboard cannot be run without setting the
+                                filter values above.
+                            </Text>
+                        </Stack>
+                    </Modal>
+                )}
 
                 {!hasDashboardTiles && (
                     <EmptyStateNoTiles
@@ -652,7 +693,6 @@ const Dashboard: FC = () => {
                         isEditMode={isEditMode}
                     />
                 )}
-
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened
@@ -665,7 +705,6 @@ const Dashboard: FC = () => {
                         }}
                     />
                 )}
-
                 {isExportDashboardModalOpen && (
                     <DashboardExportModal
                         opened={isExportDashboardModalOpen}
@@ -674,7 +713,6 @@ const Dashboard: FC = () => {
                         gridWidth={gridWidth}
                     />
                 )}
-
                 {isDuplicateModalOpen && (
                     <DashboardDuplicateModal
                         opened={isDuplicateModalOpen}

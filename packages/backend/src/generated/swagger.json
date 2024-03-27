@@ -690,6 +690,9 @@
                     "settings": {},
                     "disabled": {
                         "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -896,6 +899,9 @@
                     },
                     "settings": {},
                     "disabled": {
+                        "type": "boolean"
+                    },
+                    "required": {
                         "type": "boolean"
                     }
                 },
@@ -5113,6 +5119,9 @@
                     },
                     "settings": {},
                     "disabled": {
+                        "type": "boolean"
+                    },
+                    "required": {
                         "type": "boolean"
                     }
                 },
