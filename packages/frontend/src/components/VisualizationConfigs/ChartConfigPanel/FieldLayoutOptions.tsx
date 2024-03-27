@@ -10,6 +10,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     CloseButton,
     Group,
@@ -17,7 +18,7 @@ import {
     Stack,
     Tooltip,
 } from '@mantine/core';
-import { IconAlertCircle, IconPlus } from '@tabler/icons-react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../common/FieldSelect';
@@ -35,10 +36,9 @@ type Props = {
 export const AddButton = ({ onClick }: { onClick: () => void }) => (
     <Button
         size="sm"
-        p={0}
         variant="subtle"
         compact
-        leftIcon={<MantineIcon size={12} icon={IconPlus} />}
+        leftIcon="+"
         onClick={onClick}
         styles={{
             leftIcon: {
@@ -270,26 +270,32 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         withinPortal
                         disabled={chartHasMetricOrTableCalc}
                     >
-                        <ConfigGroup.LabelGroup>
-                            <Group spacing="one">
-                                <ConfigGroup.Label>Group</ConfigGroup.Label>
-                                {!chartHasMetricOrTableCalc && (
-                                    <MantineIcon icon={IconAlertCircle} />
+                        <Box>
+                            <ConfigGroup.LabelGroup>
+                                <Group spacing="one">
+                                    <ConfigGroup.Label>Group</ConfigGroup.Label>
+                                    {!chartHasMetricOrTableCalc && (
+                                        <Tooltip label="Select a field to group by">
+                                            <MantineIcon
+                                                icon={IconAlertCircle}
+                                            />
+                                        </Tooltip>
+                                    )}
+                                </Group>
+                                {canAddPivot && (
+                                    <AddButton
+                                        onClick={() =>
+                                            setPivotDimensions([
+                                                ...(pivotDimensions || []),
+                                                getItemId(
+                                                    availableGroupByDimensions[0],
+                                                ),
+                                            ])
+                                        }
+                                    />
                                 )}
-                            </Group>
-                            {canAddPivot && (
-                                <AddButton
-                                    onClick={() =>
-                                        setPivotDimensions([
-                                            ...(pivotDimensions || []),
-                                            getItemId(
-                                                availableGroupByDimensions[0],
-                                            ),
-                                        ])
-                                    }
-                                />
-                            )}
-                        </ConfigGroup.LabelGroup>
+                            </ConfigGroup.LabelGroup>
+                        </Box>
                     </Tooltip>
                     <Stack spacing="xs">
                         {pivotDimensions &&

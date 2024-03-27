@@ -12,7 +12,6 @@ import {
     Group,
     Select,
     Stack,
-    TextInput,
 } from '@mantine/core';
 import {
     IconChevronDown,
@@ -22,7 +21,10 @@ import {
     IconGripVertical,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import MantineIcon from '../../../common/MantineIcon';
+import { ConfigGroup } from '../common/ConfigGroup';
+import { EditableText } from '../common/EditableText';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {
@@ -32,11 +34,10 @@ type Props = {
     series: Series;
     isSingle?: boolean;
     isGrouped?: boolean;
-    updateSingleSeries: (updatedSeries: Series) => void;
     isOpen?: boolean;
     toggleIsOpen?: () => void;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
-};
+} & Pick<ReturnType<typeof useCartesianChartConfig>, 'updateSingleSeries'>;
 
 const SingleSeriesConfiguration: FC<Props> = ({
     layout,
@@ -58,22 +59,21 @@ const SingleSeriesConfiguration: FC<Props> = ({
     return (
         <Stack spacing="two">
             <Group noWrap spacing="xs" position={isGrouped ? 'apart' : 'left'}>
-                <Group spacing="two">
+                <Group spacing="xs">
                     {isGrouped && (
                         <Box
                             {...dragHandleProps}
                             sx={{
                                 opacity: 0.6,
+                                cursor: 'grab',
                                 '&:hover': { opacity: 1 },
                             }}
                         >
                             <MantineIcon icon={IconGripVertical} />
                         </Box>
                     )}
-
-                    {!isSingle && (
-                        <TextInput
-                            size="xs"
+                    {!isSingle && isGrouped && (
+                        <EditableText
                             disabled={series.hidden}
                             defaultValue={series.name || seriesLabel}
                             onBlur={(e) => {
@@ -81,6 +81,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     ...series,
                                     name: e.currentTarget.value,
                                 });
+                            }}
+                            style={{
+                                flexGrow: 1,
                             }}
                         />
                     )}
@@ -135,7 +138,13 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
 
                         <Select
-                            label={!isGrouped && 'Axis'}
+                            label={
+                                !isGrouped && (
+                                    <ConfigGroup.SubLabel>
+                                        Axis
+                                    </ConfigGroup.SubLabel>
+                                )
+                            }
                             size="xs"
                             value={String(series.yAxisIndex)}
                             data={[
@@ -156,7 +165,13 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                         <Select
-                            label={!isGrouped && 'Value labels'}
+                            label={
+                                !isGrouped && (
+                                    <ConfigGroup.SubLabel>
+                                        Value labels
+                                    </ConfigGroup.SubLabel>
+                                )
+                            }
                             size="xs"
                             value={series.label?.position || 'hidden'}
                             data={[

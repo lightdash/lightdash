@@ -165,9 +165,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     <AxisMinMax
                         label={`Auto ${
                             dirtyLayout?.flipAxes ? 'y' : 'x'
-                        }-axis range (${
-                            dirtyLayout?.flipAxes ? 'left' : 'bottom'
-                        })`}
+                        }-axis range`}
                         min={dirtyEchartsConfig?.xAxis?.[0]?.min}
                         max={dirtyEchartsConfig?.xAxis?.[0]?.max}
                         setMin={(newValue) => setXMinValue(0, newValue)}
@@ -179,7 +177,6 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                         <ConfigGroup.SubLabel>Sort</ConfigGroup.SubLabel>
                         <SegmentedControl
                             size="xs"
-                            color="gray"
                             defaultValue={
                                 dirtyEchartsConfig?.xAxis?.[0]?.inverse
                                     ? 'descending'
@@ -258,9 +255,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     <AxisMinMax
                         label={`Auto ${
                             dirtyLayout?.flipAxes ? 'x' : 'y'
-                        }-axis range (${
-                            dirtyLayout?.flipAxes ? 'bottom' : 'left'
-                        })`}
+                        }-axis range`}
                         min={dirtyEchartsConfig?.yAxis?.[0]?.min}
                         max={dirtyEchartsConfig?.yAxis?.[0]?.max}
                         setMin={(newValue) => setYMinValue(0, newValue)}
@@ -297,9 +292,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     <AxisMinMax
                         label={`Auto ${
                             dirtyLayout?.flipAxes ? 'x' : 'y'
-                        }-axis range? (${
-                            dirtyLayout?.flipAxes ? 'top' : 'right'
-                        })`}
+                        }-axis range`}
                         min={dirtyEchartsConfig?.yAxis?.[1]?.min}
                         max={dirtyEchartsConfig?.yAxis?.[1]?.max}
                         setMin={(newValue) => setYMinValue(1, newValue)}
@@ -313,6 +306,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
 
                 <Stack spacing="xs">
                     <Checkbox
+                        size="xs"
                         label={
                             <ConfigGroup.SubLabel>{`${
                                 dirtyLayout?.flipAxes ? 'Y' : 'X'
@@ -330,6 +324,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     />
 
                     <Checkbox
+                        size="xs"
                         label={
                             <ConfigGroup.SubLabel>{`${
                                 dirtyLayout?.flipAxes ? 'X' : 'Y'

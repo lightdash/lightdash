@@ -246,28 +246,27 @@ export const ReferenceLine: FC<Props> = ({
                         />
                     </ActionIcon>
 
+                    <ColorSelector
+                        color={lineColor}
+                        swatches={colorPalette}
+                        onColorChange={(color) => {
+                            setLineColor(color);
+                            if (
+                                value !== undefined &&
+                                selectedField !== undefined
+                            )
+                                updateReferenceLine(
+                                    value,
+                                    selectedField,
+                                    label,
+                                    color,
+                                    referenceLine.data.value ||
+                                        referenceLine.data.name,
+                                );
+                        }}
+                    />
+
                     <Text fw={500}>Line {index}</Text>
-                    {isOpen && (
-                        <ColorSelector
-                            color={lineColor}
-                            swatches={colorPalette}
-                            onColorChange={(color) => {
-                                setLineColor(color);
-                                if (
-                                    value !== undefined &&
-                                    selectedField !== undefined
-                                )
-                                    updateReferenceLine(
-                                        value,
-                                        selectedField,
-                                        label,
-                                        color,
-                                        referenceLine.data.value ||
-                                            referenceLine.data.name,
-                                    );
-                            }}
-                        />
-                    )}
                 </Group>
 
                 <Tooltip
@@ -318,7 +317,7 @@ export const ReferenceLine: FC<Props> = ({
                         }}
                     />
 
-                    <Group noWrap>
+                    <Group noWrap grow>
                         <Box>
                             <Text fz="xs" fw={500}>
                                 Value

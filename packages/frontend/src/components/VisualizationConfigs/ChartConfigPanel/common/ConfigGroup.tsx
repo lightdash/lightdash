@@ -12,7 +12,7 @@ export const ConfigGroup: ConfigGroupComponent = ({ children }) => (
 );
 
 const Label: FC<PropsWithChildren> = ({ children }) => (
-    <Text c="gray.8" fz="sm" fw={500}>
+    <Text c="gray.8" fz="sm" fw={600}>
         {children}
     </Text>
 );
