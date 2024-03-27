@@ -78,18 +78,22 @@ Deleting a Space will delete all of the content in that Space.
 
 ## Managing access to a Space
 
-By default, when you create a Space, it is restricted so only you can access it. You can edit a Space to make it Restricted Access or Full Access.
+By default, when you create a Space, it is restricted so only you can access it. You can edit a Space to make it Restricted Access or Public.
 
-To edit access to a Space, navigate into the Space, then click the `share` button. From there, you can choose to make a space `Restricted Access` or `Full Access`.
+To edit access to a Space, navigate into the Space, then click the `share` button. From there, you can choose to make a space `Restricted Access` or `Public`.
 
 <img
   src={EditSpaceAccess}
-  width="2249"
-  height="445"
+  width="1611"
+  height="397"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-Users inherit their space permissions from their project permissions. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
+By default, in public spaces, a user's space permissions are inherited from their project permissions. For example, if I'm a project viewer, I will get `Can View` access to a Space.
+
+There are three space roles: `Full Access`, `Can Edit`, `Can View`
+
+For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
 
 ### Restricted Access Spaces
 
