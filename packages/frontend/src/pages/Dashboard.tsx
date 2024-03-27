@@ -90,6 +90,7 @@ const GridTile: FC<
     > & {
         isLazyLoadEnabled: boolean;
         index: number;
+        onAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
     }
 > = memo((props) => {
     const { tile, isLazyLoadEnabled, index } = props;
@@ -639,6 +640,7 @@ const Dashboard: FC = () => {
                                         tile={tile}
                                         onDelete={handleDeleteTile}
                                         onEdit={handleEditTiles}
+                                        onAddTiles={handleAddTiles}
                                     />
                                 </TrackSection>
                             </div>
