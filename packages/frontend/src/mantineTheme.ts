@@ -113,6 +113,11 @@ export const getMantineThemeOverride = (overrides?: {
                                 ),
                             },
                     },
+                    viewport: {
+                        '.only-vertical & > div': {
+                            display: 'block !important', // Only way to override the display value (from `table`) of the Viewport's child element
+                        },
+                    },
                 }),
             },
         },
