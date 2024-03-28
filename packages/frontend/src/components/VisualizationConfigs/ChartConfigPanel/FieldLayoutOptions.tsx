@@ -10,19 +10,17 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import {
-    Box,
     Button,
     CloseButton,
     Group,
     SegmentedControl,
     Stack,
+    Text,
     Tooltip,
 } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../common/FieldSelect';
-import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
@@ -264,39 +262,36 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 </ConfigGroup>
 
                 <ConfigGroup>
-                    <Tooltip
-                        label="You need at least one metric in your chart to add a group"
-                        position="top-start"
-                        withinPortal
-                        disabled={chartHasMetricOrTableCalc}
-                    >
-                        <Box>
-                            <ConfigGroup.LabelGroup>
-                                <Group spacing="one">
-                                    <ConfigGroup.Label>Group</ConfigGroup.Label>
-                                    {!chartHasMetricOrTableCalc && (
-                                        <Tooltip label="Select a field to group by">
-                                            <MantineIcon
-                                                icon={IconAlertCircle}
-                                            />
-                                        </Tooltip>
-                                    )}
-                                </Group>
-                                {canAddPivot && (
-                                    <AddButton
-                                        onClick={() =>
-                                            setPivotDimensions([
-                                                ...(pivotDimensions || []),
-                                                getItemId(
-                                                    availableGroupByDimensions[0],
-                                                ),
-                                            ])
-                                        }
-                                    />
-                                )}
-                            </ConfigGroup.LabelGroup>
-                        </Box>
-                    </Tooltip>
+                    <Stack spacing="xs">
+                        <ConfigGroup.LabelGroup>
+                            <Group spacing="one">
+                                <ConfigGroup.Label>Group</ConfigGroup.Label>
+                            </Group>
+                            {canAddPivot && (
+                                <AddButton
+                                    onClick={() =>
+                                        setPivotDimensions([
+                                            ...(pivotDimensions || []),
+                                            getItemId(
+                                                availableGroupByDimensions[0],
+                                            ),
+                                        ])
+                                    }
+                                />
+                            )}
+                        </ConfigGroup.LabelGroup>
+                        {!chartHasMetricOrTableCalc &&
+                            !(pivotDimensions && !!pivotDimensions.length) && (
+                                <FieldSelect
+                                    items={[]}
+                                    onChange={() => {}}
+                                    size="xs"
+                                    disabled
+                                    placeholder="You need at least one metric in your chart to add a group"
+                                />
+                            )}
+                    </Stack>
+
                     <Stack spacing="xs">
                         {pivotDimensions &&
                             pivotDimensions.map((pivotKey) => {
@@ -363,7 +358,12 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         pivotDimensions.length > 0 &&
                         canBeStacked && (
                             <Tooltip
-                                label="x-axis must be non-numeric to enable stacking"
+                                label={
+                                    <Text fz="xs">
+                                        x-axis must be non-numeric to enable
+                                        stacking
+                                    </Text>
+                                }
                                 withinPortal
                                 position="top-start"
                                 disabled={!isXAxisFieldNumeric}
@@ -383,7 +383,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                         }
                                         data={[
                                             {
-                                                label: 'No stacking',
+                                                label: 'None',
                                                 value: 'noStacking',
                                             },
                                             { label: 'Stack', value: 'stack' },
