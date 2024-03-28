@@ -10,6 +10,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     CloseButton,
     Group,
@@ -18,18 +19,37 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { Config } from '../common/Config';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
 };
+
+// TODO: Refactor this component to use the ConfigGroup component ?
+export const AddButton = ({ onClick }: { onClick: () => void }) => (
+    <Button
+        size="sm"
+        variant="subtle"
+        compact
+        leftIcon="+"
+        onClick={onClick}
+        styles={{
+            leftIcon: {
+                marginRight: 2,
+            },
+        }}
+    >
+        Add
+    </Button>
+);
 
 const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
@@ -148,8 +168,8 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         validConfig,
         dirtyLayout,
         setXField,
-        setFlipAxis,
         setStacking,
+        setFlipAxis,
         isStacked,
         updateYField,
         removeSingleSeries,
@@ -157,41 +177,41 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     } = visualizationConfig.chartConfig;
 
     return (
-        <>
-            <Stack spacing="xs" mb="lg">
-                <Group position="apart">
-                    <Text fw={500} sx={{ alignSelf: 'end' }}>
-                        {`${validConfig?.layout.flipAxes ? 'Y' : 'X'}-axis`}
-                    </Text>
-                    <Button
-                        variant="subtle"
-                        compact
-                        onClick={() => setFlipAxis(!dirtyLayout?.flipAxes)}
-                    >
-                        Flip axes
-                    </Button>
-                </Group>
-                {dirtyLayout?.xField === EMPTY_X_AXIS ? (
-                    <Button
-                        variant="subtle"
-                        compact
-                        sx={{
-                            alignSelf: 'start',
-                        }}
-                        leftIcon={<MantineIcon icon={IconPlus} />}
-                        onClick={() => setXField(getItemId(items[0]))}
-                    >
-                        Add
-                    </Button>
-                ) : (
-                    <Group spacing="xs">
+        <Stack>
+            <Config.Group>
+                <Config.LabelGroup>
+                    <Config.Label>{`${
+                        validConfig?.layout.flipAxes ? 'Y' : 'X'
+                    }-axis`}</Config.Label>
+                    <Group spacing="two">
+                        <Tooltip label={<Text fz="xs">Flip Axes</Text>}>
+                            <ActionIcon
+                                onClick={() =>
+                                    setFlipAxis(!dirtyLayout?.flipAxes)
+                                }
+                                color="blue.4"
+                            >
+                                <MantineIcon icon={IconRotate360} />
+                            </ActionIcon>
+                        </Tooltip>
+                        {dirtyLayout?.xField === EMPTY_X_AXIS && (
+                            <AddButton
+                                onClick={() => setXField(getItemId(items[0]))}
+                            />
+                        )}
+                    </Group>
+                </Config.LabelGroup>
+                {dirtyLayout?.xField !== EMPTY_X_AXIS && (
+                    <Group>
                         <FieldSelect
+                            data-testid="x-axis-field-select"
+                            size="xs"
                             item={xAxisField}
                             items={items}
                             onChange={handleOnChangeOfXAxisField}
-                            data-testid="x-axis-field-select"
                             rightSection={
                                 <CloseButton
+                                    size="xs"
                                     onClick={() => {
                                         setXField(EMPTY_X_AXIS);
                                     }}
@@ -200,11 +220,21 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         />
                     </Group>
                 )}
-            </Stack>
-            <Stack spacing="xs" mb="md">
-                <Text fw={500}>
-                    {`${validConfig?.layout.flipAxes ? 'X' : 'Y'}-axis`}
-                </Text>
+            </Config.Group>
+
+            <Config.Group>
+                <Config.LabelGroup>
+                    <Config.Label>{`${
+                        validConfig?.layout.flipAxes ? 'X' : 'Y'
+                    }-axis`}</Config.Label>
+                    {availableYFields.length > 0 && (
+                        <AddButton
+                            onClick={() =>
+                                addSingleSeries(getItemId(availableYFields[0]))
+                            }
+                        />
+                    )}
+                </Config.LabelGroup>
 
                 {yFields.map((field, index) => {
                     const activeField = yActiveField(field);
@@ -214,6 +244,8 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     return (
                         <Group spacing="xs" key={`${field}-y-axis`}>
                             <FieldSelect
+                                data-testid="y-axis-field-select"
+                                size="xs"
                                 item={activeField}
                                 items={yFieldsOptions}
                                 onChange={(newValue) => {
@@ -222,10 +254,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                         newValue ? getItemId(newValue) : '',
                                     );
                                 }}
-                                data-testid="y-axis-field-select"
                                 rightSection={
                                     yFields?.length !== 1 && (
                                         <CloseButton
+                                            size="xs"
                                             onClick={() => {
                                                 removeSingleSeries(index);
                                             }}
@@ -236,31 +268,40 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         </Group>
                     );
                 })}
-                {availableYFields.length > 0 && (
-                    <Button
-                        variant="subtle"
-                        compact
-                        sx={{
-                            alignSelf: 'start',
-                        }}
-                        leftIcon={<MantineIcon icon={IconPlus} />}
-                        onClick={() =>
-                            addSingleSeries(getItemId(availableYFields[0]))
-                        }
-                    >
-                        Add
-                    </Button>
-                )}
-            </Stack>
+            </Config.Group>
 
-            <Tooltip
-                label="You need at least one metric in your chart to add a group"
-                position="top-start"
-                withinPortal
-                disabled={chartHasMetricOrTableCalc}
-            >
-                <Stack spacing="xs" mb="md">
-                    <Text fw={500}>Group</Text>
+            <Config.Group>
+                <Stack spacing="xs">
+                    <Config.LabelGroup>
+                        <Group spacing="one">
+                            <Config.Label>Group</Config.Label>
+                        </Group>
+                        {canAddPivot && (
+                            <AddButton
+                                onClick={() =>
+                                    setPivotDimensions([
+                                        ...(pivotDimensions || []),
+                                        getItemId(
+                                            availableGroupByDimensions[0],
+                                        ),
+                                    ])
+                                }
+                            />
+                        )}
+                    </Config.LabelGroup>
+                    {!chartHasMetricOrTableCalc &&
+                        !(pivotDimensions && !!pivotDimensions.length) && (
+                            <FieldSelect
+                                items={[]}
+                                onChange={() => {}}
+                                size="xs"
+                                disabled
+                                placeholder="You need at least one metric in your chart to add a group"
+                            />
+                        )}
+                </Stack>
+
+                <Stack spacing="xs">
                     {pivotDimensions &&
                         pivotDimensions.map((pivotKey) => {
                             // Group series logic
@@ -279,6 +320,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             return (
                                 <Group spacing="xs" key={pivotKey}>
                                     <FieldSelect
+                                        size="xs"
                                         disabled={!chartHasMetricOrTableCalc}
                                         placeholder="Select a field to group by"
                                         item={activeField}
@@ -298,6 +340,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                         rightSection={
                                             groupSelectedField && (
                                                 <CloseButton
+                                                    size="xs"
                                                     onClick={() => {
                                                         setPivotDimensions(
                                                             pivotDimensions.filter(
@@ -314,51 +357,40 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                 </Group>
                             );
                         })}
-                    {canAddPivot && (
-                        <Button
-                            variant="subtle"
-                            compact
-                            sx={{
-                                alignSelf: 'start',
-                            }}
-                            leftIcon={<MantineIcon icon={IconPlus} />}
-                            onClick={() =>
-                                setPivotDimensions([
-                                    ...(pivotDimensions || []),
-                                    getItemId(availableGroupByDimensions[0]),
-                                ])
-                            }
-                        >
-                            Add
-                        </Button>
-                    )}
                 </Stack>
-            </Tooltip>
-
-            {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
-                <Tooltip
-                    label="x-axis must be non-numeric to enable stacking"
-                    withinPortal
-                    position="top-start"
-                    disabled={!isXAxisFieldNumeric}
-                >
-                    <Stack spacing="xs">
-                        <Text fw={500}>Stacking</Text>
-                        <SegmentedControl
-                            disabled={isXAxisFieldNumeric}
-                            fullWidth
-                            color="blue"
-                            value={isStacked ? 'stack' : 'noStacking'}
-                            onChange={(value) => setStacking(value === 'stack')}
-                            data={[
-                                { label: 'No stacking', value: 'noStacking' },
-                                { label: 'Stack', value: 'stack' },
-                            ]}
-                        />
-                    </Stack>
-                </Tooltip>
-            )}
-        </>
+                {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
+                    <Tooltip
+                        label={
+                            <Text fz="xs">
+                                x-axis must be non-numeric to enable stacking
+                            </Text>
+                        }
+                        withinPortal
+                        position="top-start"
+                        disabled={!isXAxisFieldNumeric}
+                    >
+                        <Group spacing="xs">
+                            <Config.SubLabel>Stacking</Config.SubLabel>
+                            <SegmentedControl
+                                size="xs"
+                                disabled={isXAxisFieldNumeric}
+                                value={isStacked ? 'stack' : 'noStacking'}
+                                onChange={(value) =>
+                                    setStacking(value === 'stack')
+                                }
+                                data={[
+                                    {
+                                        label: 'None',
+                                        value: 'noStacking',
+                                    },
+                                    { label: 'Stack', value: 'stack' },
+                                ]}
+                            />
+                        </Group>
+                    </Tooltip>
+                )}
+            </Config.Group>
+        </Stack>
     );
 };
 

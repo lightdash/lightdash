@@ -35,6 +35,8 @@ import {
 import { IconGripVertical } from '@tabler/icons-react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../../common/MantineIcon';
+import { Config } from '../../common/Config';
+import { ChartTypeSelect } from './ChartTypeSelect';
 
 const VALUE_LABELS_OPTIONS = [
     { value: 'hidden', label: 'Hidden' },
@@ -53,13 +55,6 @@ const AXIS_OPTIONS = [
 const FLIPPED_AXIS_OPTIONS = [
     { value: '0', label: 'Bottom' },
     { value: '1', label: 'Top' },
-];
-
-const CHART_TYPE_OPTIONS = [
-    { value: CartesianSeriesType.BAR, label: 'Bar' },
-    { value: CartesianSeriesType.LINE, label: 'Line' },
-    { value: CartesianSeriesType.AREA, label: 'Area' },
-    { value: CartesianSeriesType.SCATTER, label: 'Scatter' },
 ];
 
 const getFormatterValue = (
@@ -159,37 +154,26 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     );
 
     return (
-        <Stack spacing="xs">
+        <Config.Group>
             <Group noWrap spacing="two">
                 <Box
                     {...dragHandleProps}
                     sx={{
                         opacity: 0.6,
+                        cursor: 'grab',
                         '&:hover': { opacity: 1 },
                     }}
                 >
                     <MantineIcon icon={IconGripVertical} />
                 </Box>
-                <Text fw={600}>
+                <Config.Label>
                     {getItemLabelWithoutTableName(item)} (grouped)
-                </Text>
+                </Config.Label>
             </Group>
             <Group noWrap spacing="xs" align="start">
-                <Select
-                    label="Chart type"
-                    size="xs"
-                    value={chartValue}
-                    data={
-                        isChartTypeTheSameForAllSeries
-                            ? CHART_TYPE_OPTIONS
-                            : [
-                                  ...CHART_TYPE_OPTIONS,
-                                  {
-                                      value: 'mixed',
-                                      label: 'Mixed',
-                                  },
-                              ]
-                    }
+                <ChartTypeSelect
+                    chartValue={chartValue}
+                    showMixed={!isChartTypeTheSameForAllSeries}
                     onChange={(value) => {
                         const newType =
                             value === CartesianSeriesType.AREA
@@ -204,8 +188,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         });
                     }}
                 />
+
                 <Select
-                    label="Axis"
+                    label={<Config.SubLabel>Axis</Config.SubLabel>}
                     size="xs"
                     value={
                         isAxisTheSameForAllSeries
@@ -234,7 +219,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     }}
                 />
                 <Select
-                    label="Value labels"
+                    label={<Config.SubLabel>Value labels</Config.SubLabel>}
                     size="xs"
                     value={
                         isLabelTheSameForAllSeries
@@ -287,10 +272,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
             </Group>
             {(chartValue === CartesianSeriesType.LINE ||
                 chartValue === CartesianSeriesType.AREA) && (
-                <Stack spacing="xs">
+                <Group spacing="xs">
                     <Checkbox
+                        size="xs"
                         checked={seriesGroup[0].showSymbol ?? true}
-                        label="Show symbol"
+                        label={<Config.SubLabel>Show symbol</Config.SubLabel>}
                         onChange={() => {
                             updateAllGroupedSeries(fieldKey, {
                                 showSymbol: !(
@@ -298,17 +284,28 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 ),
                             });
                         }}
+                        sx={{
+                            label: {
+                                paddingLeft: 4,
+                            },
+                        }}
                     />
                     <Checkbox
+                        size="xs"
                         checked={seriesGroup[0].smooth}
-                        label="Smooth"
+                        label={<Config.SubLabel>Smooth</Config.SubLabel>}
                         onChange={() => {
                             updateAllGroupedSeries(fieldKey, {
                                 smooth: !(seriesGroup[0].smooth ?? true),
                             });
                         }}
+                        sx={{
+                            label: {
+                                paddingLeft: 4,
+                            },
+                        }}
                     />
-                </Stack>
+                </Group>
             )}
             <Box
                 bg="gray.1"
@@ -423,7 +420,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     </Droppable>
                 </DragDropContext>
             </Box>
-        </Stack>
+        </Config.Group>
     );
 };
 export default GroupedSeriesConfiguration;
