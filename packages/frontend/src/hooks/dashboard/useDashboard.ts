@@ -184,10 +184,7 @@ export const useUpdateDashboard = (
                 await queryClient.invalidateQueries([
                     'dashboards-containing-chart',
                 ]);
-                await queryClient.invalidateQueries([
-                    'saved_dashboard_query',
-                    id,
-                ]);
+                await queryClient.resetQueries(['saved_dashboard_query', id]);
                 const onlyUpdatedName: boolean =
                     Object.keys(variables).length === 1 &&
                     Object.keys(variables).includes('name');

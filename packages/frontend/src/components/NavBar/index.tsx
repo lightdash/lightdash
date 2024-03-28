@@ -6,7 +6,7 @@ import {
     MantineProvider,
     type MantineTheme,
 } from '@mantine/core';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -31,19 +31,13 @@ const defaultNavbarStyles = {
 };
 
 const useNavBarMode = () => {
-    const { getIsEditingDashboardChart } = useDashboardStorage();
+    const { isEditingDashboardChart } = useDashboardStorage();
 
-    const isEditingDashboardChart = getIsEditingDashboardChart();
-
-    const navBarMode = useMemo(
-        () =>
-            isEditingDashboardChart
-                ? NavBarMode.EDITING_DASHBOARD_CHART
-                : NavBarMode.DEFAULT,
-        [isEditingDashboardChart],
-    );
-
-    return { navBarMode };
+    return {
+        navBarMode: isEditingDashboardChart
+            ? NavBarMode.EDITING_DASHBOARD_CHART
+            : NavBarMode.DEFAULT,
+    };
 };
 
 const NavBar = memo(() => {
