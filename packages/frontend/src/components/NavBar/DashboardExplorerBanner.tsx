@@ -1,3 +1,4 @@
+import { assertUnreachable } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -13,7 +14,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     const history = useHistory();
     const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;
-        mode?: string;
+        mode?: 'edit' | 'view';
     }>();
     const [isCancelling, setIsCancelling] = useState(false);
 
@@ -33,6 +34,33 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
                 return 'viewing';
         }
     }, [savedQueryUuid, mode]);
+
+    const cancelButtonText = useMemo(() => {
+        switch (action) {
+            case 'viewing':
+                return 'Return to dashboard';
+            case 'creating':
+            case 'editing':
+                return 'Cancel';
+            default:
+                assertUnreachable(action, `${action} is not a valid action`);
+                break;
+        }
+    }, [action]);
+
+    const cancelButtonTooltipText = useMemo(() => {
+        switch (action) {
+            case 'creating':
+                return 'Cancel chart creation and return to dashboard';
+            case 'editing':
+                return 'Cancel chart editing and return to dashboard';
+            case 'viewing':
+                return '';
+            default:
+                assertUnreachable(action, `${action} is not a valid action`);
+                break;
+        }
+    }, [action]);
 
     const handleOnCancel = useCallback(() => {
         setIsCancelling(true);
@@ -71,7 +99,9 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
 
             <Tooltip
                 withinPortal
-                label="Cancel chart creation and return to dashboard"
+                // Hide tooltip when viewing the chart because the button copy is sufficient
+                disabled={action === 'viewing'}
+                label={cancelButtonTooltipText}
                 position="bottom"
                 maw={350}
             >
@@ -82,7 +112,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
                     variant="white"
                     compact
                 >
-                    Cancel
+                    {cancelButtonText}
                 </Button>
             </Tooltip>
         </>
