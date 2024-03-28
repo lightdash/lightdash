@@ -29,6 +29,8 @@ const useDashboardStorage = () => {
     const clearIsEditingDashboardChart = useCallback(() => {
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
+        // Trigger storage event to update NavBar
+        window.dispatchEvent(new Event('storage'));
     }, []);
 
     const getEditingDashboardInfo = useCallback(() => {
