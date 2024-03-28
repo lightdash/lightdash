@@ -161,7 +161,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             onChange={(e) => {
                 onChange(e.target.value);
             }}
-            placeholder="Add value for the reference line"
+            placeholder="Add value"
         />
     );
 };
@@ -246,6 +246,7 @@ export const ReferenceLine: FC<Props> = ({
                         />
                     </ActionIcon>
 
+                    <Text fw={500}>Line {index}</Text>
                     <ColorSelector
                         color={lineColor}
                         swatches={colorPalette}
@@ -265,8 +266,6 @@ export const ReferenceLine: FC<Props> = ({
                                 );
                         }}
                     />
-
-                    <Text fw={500}>Line {index}</Text>
                 </Group>
 
                 <Tooltip
@@ -291,6 +290,7 @@ export const ReferenceLine: FC<Props> = ({
                 <Stack
                     bg={'gray.0'}
                     p="sm"
+                    pb="md" // Visually, it looks better with a bit more padding on the bottom
                     spacing="xs"
                     sx={(theme) => ({
                         borderRadius: theme.radius.sm,
@@ -317,7 +317,7 @@ export const ReferenceLine: FC<Props> = ({
                         }}
                     />
 
-                    <Group noWrap grow>
+                    <Group noWrap grow align="baseline">
                         <Box>
                             <Text fz="xs" fw={500}>
                                 Value
@@ -345,7 +345,7 @@ export const ReferenceLine: FC<Props> = ({
                             size="xs"
                             disabled={!value}
                             value={label}
-                            placeholder={value}
+                            placeholder={value ?? 'Untitled'}
                             onChange={(e) => {
                                 setLabel(e.target.value);
                             }}
