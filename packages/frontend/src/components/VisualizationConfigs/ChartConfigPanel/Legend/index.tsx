@@ -16,9 +16,9 @@ import {
     Stack,
     Switch,
 } from '@mantine/core';
-import startCase from 'lodash/startCase';
 import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
+import { useToggle } from 'react-use';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
@@ -44,105 +44,119 @@ type MarginConfigurationProps = {
     handleChange: (prop: string, newValue: string | undefined) => void;
 };
 
-const MarginConfiguration: FC<MarginConfigurationProps> = ({
+// TODO: to be used accross Display & Margins tab
+const PositionConfiguration: FC<MarginConfigurationProps> = ({
     legendConfig,
     handleChange,
 }) => {
+    const hasPositionConfigChanged = (
+        config: MarginConfigurationProps['legendConfig'],
+    ) => {
+        const positionValues = Object.values(Positions);
+
+        return Object.keys(config).some((key) =>
+            positionValues.includes(key as Positions),
+        );
+    };
+
+    const [isAutoPosition, toggleAuto] = useToggle(
+        !hasPositionConfigChanged(legendConfig),
+    );
+
     const EmptySpace = () => <div></div>;
 
     return (
-        <SimpleGrid
-            cols={3}
-            spacing="one"
-            sx={{
-                border: '1px solid #E6E6E6',
-                paddingBottom: '10px',
-                borderRadius: '4px',
-                backgroundColor: '#fafafa',
-            }}
-        >
-            {/* Row 1 */}
-            <EmptySpace />
-            <Flex justify="center" align="end">
-                <UnitInput
-                    key="top"
-                    size="xs"
-                    w={70}
-                    label={
-                        <ConfigGroup.SubLabel>
-                            {startCase(Positions.Top)}
-                        </ConfigGroup.SubLabel>
-                    }
-                    name="top"
-                    units={units}
-                    value={legendConfig.top ?? 'auto'}
-                    defaultValue="auto"
-                    onChange={(e) => handleChange('top', e)}
-                />
-            </Flex>
-            <EmptySpace />
-            {/* Row 2 */}
-            <Flex justify="end" align="start">
-                <UnitInput
-                    key="left"
-                    size="xs"
-                    w={70}
-                    label={
-                        <ConfigGroup.SubLabel>
-                            {startCase(Positions.Left)}
-                        </ConfigGroup.SubLabel>
-                    }
-                    name="left"
-                    units={units}
-                    value={legendConfig.left ?? 'auto'}
-                    defaultValue="auto"
-                    onChange={(e) => handleChange('left', e)}
-                />
-            </Flex>
+        <ConfigGroup>
+            <ConfigGroup.Label>Position</ConfigGroup.Label>
 
-            <Center pt="lg" px="sm" pb={0}>
-                <Badge color="blue" radius={'xs'} fullWidth h="100%">
-                    Margin
-                </Badge>
-            </Center>
-            <Flex justify="start" align="center">
-                <UnitInput
-                    key="right"
-                    size="xs"
-                    w={70}
-                    label={
-                        <ConfigGroup.SubLabel>
-                            {startCase(Positions.Right)}
-                        </ConfigGroup.SubLabel>
-                    }
-                    name="right"
-                    units={units}
-                    value={legendConfig.right ?? 'auto'}
-                    defaultValue="auto"
-                    onChange={(e) => handleChange('right', e)}
-                />
-            </Flex>
-            {/* Row 3 */}
-            <EmptySpace />
-            <Flex justify="center" align="start">
-                <UnitInput
-                    key="bottom"
-                    size="xs"
-                    w={70}
-                    label={
-                        <ConfigGroup.SubLabel>
-                            {startCase(Positions.Bottom)}
-                        </ConfigGroup.SubLabel>
-                    }
-                    name="bottom"
-                    units={units}
-                    value={legendConfig.bottom ?? 'auto'}
-                    defaultValue="auto"
-                    onChange={(e) => handleChange('bottom', e)}
-                />
-            </Flex>
-            <EmptySpace />
-        </SimpleGrid>
+            <Switch
+                size="xs"
+                label={
+                    <ConfigGroup.SubLabel>
+                        {isAutoPosition ? `Auto-position` : `Custom`}
+                    </ConfigGroup.SubLabel>
+                }
+                checked={!isAutoPosition}
+                onChange={toggleAuto}
+                styles={{ label: { paddingLeft: 4 } }}
+            />
+
+            {!isAutoPosition && (
+                <SimpleGrid
+                    cols={3}
+                    spacing="xs"
+                    py="xs"
+                    sx={{
+                        border: '1px solid #E6E6E6',
+                        borderRadius: '4px',
+                        backgroundColor: '#fafafa',
+                    }}
+                    mx="auto"
+                >
+                    {/* Row 1 */}
+                    <EmptySpace />
+                    <Flex justify="center" align="end">
+                        <UnitInput
+                            key="top"
+                            size="xs"
+                            w={70}
+                            name="top"
+                            units={units}
+                            value={legendConfig.top ?? 'auto'}
+                            defaultValue="auto"
+                            onChange={(e) => handleChange('top', e)}
+                        />
+                    </Flex>
+                    <EmptySpace />
+                    {/* Row 2 */}
+                    <Flex justify="end" align="start">
+                        <UnitInput
+                            key="left"
+                            size="xs"
+                            w={70}
+                            name="left"
+                            units={units}
+                            value={legendConfig.left ?? 'auto'}
+                            defaultValue="auto"
+                            onChange={(e) => handleChange('left', e)}
+                        />
+                    </Flex>
+
+                    <Center px="xs" py="one">
+                        <Badge color="blue" radius={'xs'} fullWidth h="100%">
+                            Position
+                        </Badge>
+                    </Center>
+                    <Flex justify="start" align="center">
+                        <UnitInput
+                            key="right"
+                            size="xs"
+                            w={70}
+                            name="right"
+                            units={units}
+                            value={legendConfig.right ?? 'auto'}
+                            defaultValue="auto"
+                            onChange={(e) => handleChange('right', e)}
+                        />
+                    </Flex>
+                    {/* Row 3 */}
+                    <EmptySpace />
+                    <Flex justify="center" align="start">
+                        <UnitInput
+                            key="bottom"
+                            size="xs"
+                            w={70}
+                            name="bottom"
+                            units={units}
+                            value={legendConfig.bottom ?? 'auto'}
+                            defaultValue="auto"
+                            onChange={(e) => handleChange('bottom', e)}
+                        />
+                    </Flex>
+                    <EmptySpace />
+                </SimpleGrid>
+            )}
+        </ConfigGroup>
     );
 };
 
@@ -161,6 +175,8 @@ const LegendPanel: FC<Props> = ({ items }) => {
 
     const legendConfig = dirtyEchartsConfig?.legend ?? {};
 
+    console.log('legendConfig', legendConfig);
+
     const handleChange = (
         prop: string,
         newValue: string | boolean | undefined,
@@ -178,7 +194,6 @@ const LegendPanel: FC<Props> = ({ items }) => {
                     <ConfigGroup.Label>Legend</ConfigGroup.Label>
                     <Switch
                         size="xs"
-                        label="Show"
                         labelPosition="left"
                         checked={legendConfig.show ?? showDefault}
                         onChange={(e) =>
@@ -228,8 +243,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
                                 ]}
                             />
                         </Group>
-
-                        <MarginConfiguration
+                        <PositionConfiguration
                             legendConfig={legendConfig}
                             handleChange={handleChange}
                         />
