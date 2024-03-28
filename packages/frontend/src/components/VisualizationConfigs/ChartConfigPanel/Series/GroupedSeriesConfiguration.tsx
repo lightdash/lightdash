@@ -32,6 +32,7 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../../common/MantineIcon';
@@ -102,8 +103,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSeries,
     series,
 }) => {
-    console.log('im here');
-
+    const { hovered, ref } = useHover();
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
     >();
@@ -157,16 +157,18 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
     return (
         <ConfigGroup>
-            <Group noWrap spacing="two">
-                <Box
-                    {...dragHandleProps}
-                    sx={{
-                        opacity: 0.6,
-                        '&:hover': { opacity: 1 },
-                    }}
-                >
-                    <MantineIcon icon={IconGripVertical} />
-                </Box>
+            <Group noWrap spacing="two" ref={ref}>
+                {hovered && (
+                    <Box
+                        {...dragHandleProps}
+                        sx={{
+                            opacity: 0.6,
+                            '&:hover': { opacity: 1 },
+                        }}
+                    >
+                        <MantineIcon icon={IconGripVertical} />
+                    </Box>
+                )}
                 <ConfigGroup.Label>
                     {getItemLabelWithoutTableName(item)} (grouped)
                 </ConfigGroup.Label>
@@ -191,7 +193,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 />
 
                 <Select
-                    label="Axis"
+                    label={<ConfigGroup.SubLabel>Axis</ConfigGroup.SubLabel>}
                     size="xs"
                     value={
                         isAxisTheSameForAllSeries
@@ -220,7 +222,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     }}
                 />
                 <Select
-                    label="Value labels"
+                    label={
+                        <ConfigGroup.SubLabel>
+                            Value labels
+                        </ConfigGroup.SubLabel>
+                    }
                     size="xs"
                     value={
                         isLabelTheSameForAllSeries
@@ -273,10 +279,15 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
             </Group>
             {(chartValue === CartesianSeriesType.LINE ||
                 chartValue === CartesianSeriesType.AREA) && (
-                <Stack spacing="xs">
+                <Group spacing="xs">
                     <Checkbox
+                        size="xs"
                         checked={seriesGroup[0].showSymbol ?? true}
-                        label="Show symbol"
+                        label={
+                            <ConfigGroup.SubLabel>
+                                Show symbol
+                            </ConfigGroup.SubLabel>
+                        }
                         onChange={() => {
                             updateAllGroupedSeries(fieldKey, {
                                 showSymbol: !(
@@ -284,17 +295,30 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 ),
                             });
                         }}
+                        sx={{
+                            label: {
+                                paddingLeft: 4,
+                            },
+                        }}
                     />
                     <Checkbox
+                        size="xs"
                         checked={seriesGroup[0].smooth}
-                        label="Smooth"
+                        label={
+                            <ConfigGroup.SubLabel>Smooth</ConfigGroup.SubLabel>
+                        }
                         onChange={() => {
                             updateAllGroupedSeries(fieldKey, {
                                 smooth: !(seriesGroup[0].smooth ?? true),
                             });
                         }}
+                        sx={{
+                            label: {
+                                paddingLeft: 4,
+                            },
+                        }}
                     />
-                </Stack>
+                </Group>
             )}
             <Box
                 bg="gray.1"

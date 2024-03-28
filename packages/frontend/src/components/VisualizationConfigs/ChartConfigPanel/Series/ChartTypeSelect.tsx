@@ -83,7 +83,7 @@ export const ChartTypeSelect: FC<Props> = ({
             styles={{
                 input: {
                     color: 'transparent',
-                    width: '8px',
+                    width: '4px',
                 },
             }}
         />
