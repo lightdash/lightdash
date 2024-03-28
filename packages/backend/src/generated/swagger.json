@@ -448,6 +448,9 @@
                     "description": {
                         "type": "string"
                     },
+                    "originalName": {
+                        "type": "string"
+                    },
                     "label": {
                         "type": "string"
                     },
@@ -4629,6 +4632,9 @@
                     "columns": {
                         "$ref": "#/components/schemas/Record_string.ColumnProperties_"
                     },
+                    "showSubtotals": {
+                        "type": "boolean"
+                    },
                     "showResultsTotal": {
                         "type": "boolean"
                     },
@@ -6702,7 +6708,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1035.0",
+        "version": "0.1038.5",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
