@@ -399,7 +399,7 @@ describe('Organization member permissions', () => {
                         isPrivate: false,
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'view',
@@ -499,7 +499,7 @@ describe('Organization member permissions', () => {
                         isPrivate: false,
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'view',
@@ -609,7 +609,7 @@ describe('Organization member permissions', () => {
                         isPrivate: false,
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'view',
@@ -685,6 +685,21 @@ describe('Organization member permissions', () => {
                             {
                                 userUuid: ORGANIZATION_EDITOR.userUuid,
                                 role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                        isPrivate: true,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                                role: SpaceMemberRole.ADMIN,
                             },
                         ],
                     }),
@@ -702,7 +717,7 @@ describe('Organization member permissions', () => {
                         access: [],
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
         });
         it('cannot manage public dashboards from another organization', () => {
             expect(

@@ -6,6 +6,7 @@ import {
     type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Popover,
     SegmentedControl,
@@ -21,7 +22,7 @@ import useEchartsCartesianConfig from '../hooks/echarts/useEchartsCartesianConfi
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
 import {
-    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from './common/CollapsableCard';
 import MantineIcon from './common/MantineIcon';
@@ -279,14 +280,13 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                     position="bottom-end"
                 >
                     <Popover.Target>
-                        <Button
+                        <ActionIcon
                             data-testid="export-csv-button"
-                            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
                             disabled={disabled}
-                            px="xs"
                         >
                             <MantineIcon icon={IconShare2} color="gray" />
-                        </Button>
+                        </ActionIcon>
                     </Popover.Target>
 
                     <Popover.Dropdown>
@@ -337,14 +337,13 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 position="bottom-end"
             >
                 <Popover.Target>
-                    <Button
+                    <ActionIcon
                         data-testid="export-csv-button"
-                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                        {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
                         disabled={disabled}
-                        px="xs"
                     >
                         <MantineIcon icon={IconShare2} color="gray" />
-                    </Button>
+                    </ActionIcon>
                 </Popover.Target>
 
                 <Popover.Dropdown>

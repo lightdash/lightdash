@@ -3340,7 +3340,7 @@ export class ProjectService {
     }
 
     async getMostPopular(
-        allowedSpaces: SpaceSummary[],
+        allowedSpaces: Pick<SpaceSummary, 'uuid'>[],
     ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
         const mostPopularCharts = await this.spaceModel.getSpaceQueries(
             allowedSpaces.map(({ uuid }) => uuid),
@@ -3360,7 +3360,7 @@ export class ProjectService {
     }
 
     async getRecentlyUpdated(
-        allowedSpaces: SpaceSummary[],
+        allowedSpaces: Pick<SpaceSummary, 'uuid'>[],
     ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
         const recentlyUpdatedCharts = await this.spaceModel.getSpaceQueries(
             allowedSpaces.map(({ uuid }) => uuid),
@@ -3398,21 +3398,25 @@ export class ProjectService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
 
-        const allowedSpacesBooleans = await Promise.all(
-            spaces.map(async (space) =>
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    await this.spaceModel.getUserSpaceAccess(
-                        user.userUuid,
-                        space.uuid,
-                    ),
-                ),
-            ),
+        const spacesWithUserAccess = await Promise.all(
+            spaces.map(async (spaceSummary) => {
+                const [userAccess] = await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
+                    spaceSummary.uuid,
+                );
+                return {
+                    ...spaceSummary,
+                    userAccess,
+                };
+            }),
         );
 
-        const allowedSpaces = spaces.filter(
-            (_, index) => allowedSpacesBooleans[index],
+        const allowedSpaces = spacesWithUserAccess.filter((space) =>
+            hasViewAccessToSpace(
+                user,
+                space,
+                space.userAccess ? [space.userAccess] : [],
+            ),
         );
 
         return allowedSpaces;

@@ -100,7 +100,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             this={subject('Dashboard', {
                                 organizationUuid: user.data?.organizationUuid,
                                 projectUuid,
-                                isPrivate: false,
                             })}
                         >
                             <LargeMenuItem

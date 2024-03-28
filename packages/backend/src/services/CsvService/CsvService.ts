@@ -687,6 +687,7 @@ export class CsvService {
             customLabels,
             columnOrder,
             hiddenFields,
+            chartName,
         }: DownloadMetricCsv,
     ) {
         const user = await this.userModel.findSessionUserByUUID(userUuid);
@@ -762,7 +763,7 @@ export class CsvService {
                 metricQuery,
                 itemMap,
                 showTableNames,
-                exploreId,
+                chartName || exploreId, // fileName
                 truncated,
                 customLabels,
                 columnOrder || [],

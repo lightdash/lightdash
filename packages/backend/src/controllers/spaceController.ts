@@ -1,5 +1,5 @@
 import {
-    AddSpaceShare,
+    AddSpaceUserAccess,
     ApiErrorPayload,
     ApiSpaceResponse,
     ApiSuccessEmpty,
@@ -161,18 +161,23 @@ export class SpaceController extends BaseController {
     ])
     @SuccessResponse('200', 'Success')
     @Post('{spaceUuid}/share')
-    @OperationId('AddSpaceShareToUser')
+    @OperationId('AddSpaceUserAccess')
     @Tags('Roles & Permissions')
-    async addSpaceShare(
+    async addSpaceUserAccess(
         @Path() projectUuid: string,
         @Path() spaceUuid: string,
-        @Body() body: AddSpaceShare,
+        @Body() body: AddSpaceUserAccess,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await this.services
             .getSpaceService()
-            .addSpaceShare(req.user!, spaceUuid, body.userUuid);
+            .addSpaceUserAccess(
+                req.user!,
+                spaceUuid,
+                body.userUuid,
+                body.spaceRole,
+            );
         return {
             status: 'ok',
             results: undefined,
@@ -204,7 +209,7 @@ export class SpaceController extends BaseController {
         this.setStatus(200);
         await this.services
             .getSpaceService()
-            .removeSpaceShare(req.user!, spaceUuid, userUuid);
+            .removeSpaceUserAccess(req.user!, spaceUuid, userUuid);
         return {
             status: 'ok',
             results: undefined,

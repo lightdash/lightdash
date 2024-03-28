@@ -36,8 +36,8 @@ import {
     useChartHistory,
     useChartVersion,
     useChartVersionRollbackMutation,
+    useSavedQuery,
 } from '../hooks/useSavedQuery';
-import { useApp } from '../providers/AppProvider';
 import {
     ExplorerProvider,
     ExplorerSection,
@@ -46,13 +46,15 @@ import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
 const ChartHistory = () => {
     const history = useHistory();
-    const { user } = useApp();
     const { savedQueryUuid, projectUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
     }>();
     const [selectedVersionUuid, selectVersionUuid] = useState<string>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
+    const chartQuery = useSavedQuery({
+        id: savedQueryUuid,
+    });
     const historyQuery = useChartHistory(savedQueryUuid);
 
     useEffect(() => {
@@ -80,15 +82,19 @@ const ChartHistory = () => {
         },
     });
 
-    if (historyQuery.isInitialLoading) {
+    if (historyQuery.isInitialLoading || chartQuery.isInitialLoading) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading..." loading />
             </div>
         );
     }
-    if (historyQuery.error) {
-        return <ErrorState error={historyQuery.error.error} />;
+    if (historyQuery.error || chartQuery.error) {
+        return (
+            <ErrorState
+                error={historyQuery.error?.error || chartQuery.error?.error}
+            />
+        );
     }
 
     return (
@@ -156,10 +162,7 @@ const ChartHistory = () => {
                                                     this={subject(
                                                         'SavedChart',
                                                         {
-                                                            organizationUuid:
-                                                                user.data
-                                                                    ?.organizationUuid,
-                                                            projectUuid,
+                                                            ...chartQuery.data,
                                                         },
                                                     )}
                                                 >

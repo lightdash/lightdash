@@ -1,8 +1,8 @@
-import { Button } from '@mantine/core';
+import { ActionIcon } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../common/CollapsableCard';
+import { COLLAPSABLE_CARD_ACTION_ICON_PROPS } from '../common/CollapsableCard';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {
@@ -14,11 +14,10 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
     const { showToastError } = useToaster();
 
     return (
-        <Button
+        <ActionIcon
             data-testid="export-csv-button"
-            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
             disabled={disabled}
-            px="xs"
             onClick={() => {
                 getCsvLink()
                     .then((url) => {
@@ -33,7 +32,7 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
             }}
         >
             <MantineIcon icon={IconShare2} color="gray" />
-        </Button>
+        </ActionIcon>
     );
 });
 
