@@ -1,8 +1,12 @@
-import { type CreateSavedChartVersion } from '@lightdash/common';
+import { type CreateSavedChartVersion, type ShareUrl } from '@lightdash/common';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { parseExplorerSearchParams } from './useExplorerRoute';
-import { useCreateShareMutation, useGetShare } from './useShare';
+import {
+    useCreateShareMutation,
+    useGetShare,
+    useUpdateShareMutation,
+} from './useShare';
 import { generateStateCacheKey, useStateCache } from './useStateCache';
 
 export type SqlRunnerState = {
@@ -27,7 +31,9 @@ export const useSqlRunnerRoute = () => {
         SqlRunnerSearchParam.SqlRunnerDraft,
     );
 
-    const { data: shareData } = useGetShare(sqlRunnerShareId);
+    const { data: shareData, isLoading: isLoadingShareData } =
+        useGetShare(sqlRunnerShareId);
+    const { mutate: updateShare } = useUpdateShareMutation(sqlRunnerShareId);
     const { mutate: createShare } = useCreateShareMutation();
 
     /**
@@ -92,6 +98,13 @@ export const useSqlRunnerRoute = () => {
     }, [shareData, setCachedState]);
 
     const flushSqlRunnerStateToShare = useCallback(() => {
+        /**
+         * Do not do anything until we've finished loading share data:
+         */
+        if (sqlRunnerShareId && isLoadingShareData) {
+            return;
+        }
+
         if (cachedState) {
             /**
              * Generate a new share with a subset of params, to avoid leaking
@@ -107,30 +120,53 @@ export const useSqlRunnerRoute = () => {
                     : '',
             });
 
-            createShare(
-                {
-                    params: shareParams.toString(),
-                    path: pathname,
-                },
-                {
-                    onSuccess: (shareUrl) => {
-                        searchParams.set(
-                            SqlRunnerSearchParam.SqlRunnerId,
-                            shareUrl.nanoid,
-                        );
+            const shareUrlParams = {
+                params: shareParams.toString(),
+                path: pathname,
+            };
 
-                        history.replace({
-                            pathname,
-                            search: searchParams.toString(),
-                        });
-                    },
-                },
-            );
+            const onCreateOrUpdateShare = (shareUrl: ShareUrl) => {
+                searchParams.set(
+                    SqlRunnerSearchParam.SqlRunnerId,
+                    shareUrl.nanoid,
+                );
+
+                history.replace({
+                    pathname,
+                    search: searchParams.toString(),
+                });
+            };
+
+            if (sqlRunnerShareId) {
+                updateShare(shareUrlParams, {
+                    onSuccess: onCreateOrUpdateShare,
+                });
+            } else {
+                createShare(shareUrlParams, {
+                    onSuccess: onCreateOrUpdateShare,
+                });
+            }
         }
-    }, [createShare, cachedState, pathname, searchParams, history]);
+    }, [
+        createShare,
+        updateShare,
+        cachedState,
+        pathname,
+        searchParams,
+        history,
+        sqlRunnerShareId,
+        isLoadingShareData,
+    ]);
 
     const updateSqlRunnerState = useCallback(
         (newState: SqlRunnerState) => {
+            /**
+             * Do not allow updating state until we've done loading things.
+             */
+            if (sqlRunnerShareId && isLoadingShareData) {
+                return;
+            }
+
             const updatedSearchParams = new URLSearchParams(search);
 
             /**
@@ -151,7 +187,15 @@ export const useSqlRunnerRoute = () => {
                 search: updatedSearchParams.toString(),
             });
         },
-        [setCachedState, search, cacheKeyOrGenerated, pathname, history],
+        [
+            setCachedState,
+            search,
+            cacheKeyOrGenerated,
+            pathname,
+            history,
+            isLoadingShareData,
+            sqlRunnerShareId,
+        ],
     );
 
     return {

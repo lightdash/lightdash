@@ -47,7 +47,7 @@ export const useCreateShareMutation = () => {
     );
 };
 
-export const useUpdateShareMutation = (shareNanoid?: string) => {
+export const useUpdateShareMutation = (shareNanoid: string | null) => {
     return useMutation<ShareUrl, ApiError, UpdateShareUrl>(
         (data) => {
             if (!shareNanoid) {
