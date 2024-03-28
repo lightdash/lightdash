@@ -49,17 +49,17 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     return (
         <ConfigGroup>
             <Group noWrap spacing="two" ref={ref}>
-                {hovered && (
-                    <Box
-                        {...dragHandleProps}
-                        sx={{
-                            opacity: 0.6,
-                            '&:hover': { opacity: 1 },
-                        }}
-                    >
-                        <MantineIcon icon={IconGripVertical} />
-                    </Box>
-                )}
+                <Box
+                    {...dragHandleProps}
+                    sx={{
+                        display: hovered ? 'block' : 'none',
+                        opacity: 0.6,
+                        '&:hover': { opacity: 1 },
+                    }}
+                >
+                    <MantineIcon icon={IconGripVertical} />
+                </Box>
+
                 <Group spacing="xs">
                     <ColorSelector
                         color={getSeriesColor(series)}
