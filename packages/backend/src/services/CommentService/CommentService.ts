@@ -58,7 +58,7 @@ export class CommentService {
         user: SessionUser,
         spaceUuid: string,
     ): Promise<boolean> {
-        let space: SpaceSummary;
+        let space: Omit<SpaceSummary, 'userAccess'>;
         let spaceAccess: SpaceShare[];
 
         try {

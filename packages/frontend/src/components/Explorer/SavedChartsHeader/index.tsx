@@ -89,7 +89,7 @@ enum SpaceType {
 
 const SpaceTypeLabels = {
     [SpaceType.SharedWithMe]: 'Shared with me',
-    [SpaceType.AdminContentView]: 'Admin content view',
+    [SpaceType.AdminContentView]: 'Public content view',
 };
 
 const getGitIntegration = async (projectUuid: string) =>
@@ -295,31 +295,42 @@ const SavedChartsHeader: FC = () => {
         isQueryModalOpen,
     ]);
 
-    const spacesSharedWithMe = useMemo(() => {
-        return spaces.filter((space) => {
+    const spacesByType = useMemo(() => {
+        const spacesUserCanCreateIn = spaces.filter((space) => {
+            return user.data?.ability?.can(
+                'create',
+                subject('SavedChart', {
+                    ...space,
+                    access: space.userAccess ? [space.userAccess] : [],
+                }),
+            );
+        });
+        const spacesSharedWithMe = spacesUserCanCreateIn.filter((space) => {
             return user.data && space.access.includes(user.data.userUuid);
         });
-    }, [spaces, user.data]);
-
-    const spacesAdminsCanSee = useMemo(() => {
-        return spaces.filter((space) => {
+        const spacesAdminsCanSee = spacesUserCanCreateIn.filter((space) => {
             return (
                 spacesSharedWithMe.find((s) => s.uuid === space.uuid) ===
                 undefined
             );
         });
-    }, [spaces, spacesSharedWithMe]);
-
-    const spacesByType = useMemo(() => {
         return {
             [SpaceType.SharedWithMe]: spacesSharedWithMe,
             [SpaceType.AdminContentView]: spacesAdminsCanSee,
         };
-    }, [spacesSharedWithMe, spacesAdminsCanSee]);
+    }, [spaces, user.data]);
 
     const userCanManageChart =
         savedChart &&
         user.data?.ability?.can('manage', subject('SavedChart', savedChart));
+
+    const userCanManageExplore = user.data?.ability.can(
+        'manage',
+        subject('Explore', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: savedChart?.projectUuid,
+        }),
+    );
 
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
@@ -464,14 +475,18 @@ const SavedChartsHeader: FC = () => {
                     )}
                 </PageTitleAndDetailsContainer>
 
-                {(userCanManageChart || userCanCreateDeliveriesAndAlerts) && (
+                {(userCanManageChart ||
+                    userCanCreateDeliveriesAndAlerts ||
+                    userCanManageExplore) && (
                     <PageActionsContainer>
+                        {userCanManageExplore && !isEditMode && (
+                            <ExploreFromHereButton />
+                        )}
                         {userCanManageChart && (
                             <>
                                 {/* TODO: Extract this into a separate component, depending on the mode: viewing or editing */}
                                 {!isEditMode ? (
                                     <>
-                                        <ExploreFromHereButton />
                                         <Button
                                             variant="default"
                                             size="xs"
@@ -646,12 +661,16 @@ const SavedChartsHeader: FC = () => {
                                                             key={spaceType}
                                                         >
                                                             {spacesByType[
-                                                                SpaceType
-                                                                    .AdminContentView
+                                                                spaceType
                                                             ].length > 0 ? (
                                                                 <>
                                                                     {spaceType ===
-                                                                    SpaceType.AdminContentView ? (
+                                                                        SpaceType.AdminContentView &&
+                                                                    spacesByType[
+                                                                        SpaceType
+                                                                            .SharedWithMe
+                                                                    ].length >
+                                                                        0 ? (
                                                                         <Menu.Divider />
                                                                     ) : null}
 

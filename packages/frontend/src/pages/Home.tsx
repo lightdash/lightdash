@@ -11,6 +11,7 @@ import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
 
+import { subject } from '@casl/ability';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import {
     useOnboardingStatus,
@@ -52,10 +53,6 @@ const Home: FC = () => {
 
     useUnmount(() => onboarding.remove());
 
-    if (user.data?.ability?.cannot('view', 'SavedChart')) {
-        return <ForbiddenPanel />;
-    }
-
     if (isLoading) {
         return <PageSpinner />;
     }
@@ -66,6 +63,10 @@ const Home: FC = () => {
 
     if (!project.data || !onboarding.data) {
         return <ErrorState />;
+    }
+
+    if (user.data?.ability?.cannot('view', subject('Project', project.data))) {
+        return <ForbiddenPanel />;
     }
 
     return (

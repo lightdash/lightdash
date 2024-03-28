@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { type Dashboard, type Space } from '@lightdash/common';
 import {
     ActionIcon,
@@ -38,11 +39,11 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     onClose,
     ...modalProps
 }) => {
+    const { user } = useApp();
     const { mutateAsync: createDashboard, isLoading: isCreatingDashboard } =
         useCreateMutation(projectUuid);
     const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
-    const { user } = useApp();
 
     const form = useForm({
         initialValues: {
@@ -65,6 +66,18 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         isSuccess,
     } = useSpaceSummaries(projectUuid, true, {
         staleTime: 0,
+        select: (data) => {
+            // Only get spaces that the user can create dashboards to
+            return data.filter((space) =>
+                user.data?.ability.can(
+                    'create',
+                    subject('Dashboard', {
+                        ...space,
+                        access: space.userAccess ? [space.userAccess] : [],
+                    }),
+                ),
+            );
+        },
         onSuccess: (data) => {
             if (data.length > 0) {
                 setSpacesOptions(
@@ -127,8 +140,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         [createDashboard, createSpace, onConfirm, form],
     );
 
-    if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;
-
     if (isLoadingSpaces || !spaces) return null;
 
     return (
@@ -166,7 +177,14 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             <Stack spacing="xs">
                                 <Select
                                     searchable
-                                    creatable
+                                    creatable={user.data?.ability.can(
+                                        'create',
+                                        subject('Space', {
+                                            organizationUuid:
+                                                user.data?.organizationUuid,
+                                            projectUuid,
+                                        }),
+                                    )}
                                     clearable
                                     withinPortal
                                     label={

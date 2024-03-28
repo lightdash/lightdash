@@ -8,6 +8,7 @@ import {
 import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
+import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useApp } from '../../../providers/AppProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -33,8 +34,8 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     const savedCharts = savedChartsRequest.data || [];
     const hasSavedCharts = savedCharts.length > 0;
 
-    const userCanManageDashboard = user.data?.ability.can(
-        'manage',
+    const userCanCreateDashboard = useCreateInAnySpaceAccess(
+        projectUuid,
         'Dashboard',
     );
 
@@ -45,12 +46,12 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                     <SuboptimalState
                         icon={IconLayoutDashboard}
                         title={
-                            userCanManageDashboard
+                            userCanCreateDashboard
                                 ? 'Start building your dashboard!'
                                 : 'Dashboard is empty.'
                         }
                         action={
-                            userCanManageDashboard && isEditMode ? (
+                            userCanCreateDashboard && isEditMode ? (
                                 <AddTileButton onAddTiles={onAddTiles} />
                             ) : undefined
                         }

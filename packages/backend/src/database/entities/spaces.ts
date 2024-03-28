@@ -20,16 +20,21 @@ export type CreateDbSpace = Pick<
 export type SpaceTable = Knex.CompositeTableType<DbSpace, CreateDbSpace>;
 export const SpaceTableName = 'spaces';
 
-export type DbSpaceShare = {
-    space_id: number;
-    user_id: number;
+export type DbSpaceUserAccess = {
+    user_uuid: string;
+    space_uuid: string;
+    space_role: string;
+    created_at: Date;
+    updated_at: Date;
 };
 
-type CreateDbSpaceShare = Pick<DbSpaceShare, 'space_id' | 'user_id'>;
-
-export type SpaceShareTable = Knex.CompositeTableType<
-    DbSpaceShare,
-    CreateDbSpaceShare
+export type CreateDbSpaceUserAccess = Pick<
+    DbSpaceUserAccess,
+    'user_uuid' | 'space_uuid' | 'space_role'
 >;
 
-export const SpaceShareTableName = 'space_share';
+export type SpaceUserAccessTable = Knex.CompositeTableType<
+    DbSpaceUserAccess | CreateDbSpaceUserAccess
+>;
+
+export const SpaceUserAccessTableName = 'space_user_access';
