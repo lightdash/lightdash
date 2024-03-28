@@ -1,3 +1,10 @@
+# [0.1045.0](https://github.com/lightdash/lightdash/compare/0.1044.1...0.1045.0) (2024-03-28)
+
+
+### Features
+
+* make save charts header changes ([#9518](https://github.com/lightdash/lightdash/issues/9518)) ([fe55c90](https://github.com/lightdash/lightdash/commit/fe55c90d52c13263e0b623f66ee6bc491ec6c916))
+
 ## [0.1044.1](https://github.com/lightdash/lightdash/compare/0.1044.0...0.1044.1) (2024-03-28)
 
 
