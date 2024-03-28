@@ -132,6 +132,7 @@ const TableRow: FC<TableRowProps> = ({
                                     variant="subtle"
                                     styles={(theme) => ({
                                         root: {
+                                            height: 'unset',
                                             paddingLeft: theme.spacing.two,
                                             paddingRight: theme.spacing.xxs,
                                         },
