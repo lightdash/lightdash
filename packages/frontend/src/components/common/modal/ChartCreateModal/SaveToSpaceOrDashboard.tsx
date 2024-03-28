@@ -42,23 +42,27 @@ import { useApp } from '../../../../providers/AppProvider';
 import { Can } from '../../Authorization';
 import MantineIcon from '../../MantineIcon';
 
-type ChartCreateModalFormValues = {
-    name: string;
-    spaceUuid: string;
-    dashboardUuid: string;
-    dashboardName: string;
-    description: string;
-    newSpaceName: string | null;
-    saveDestination: SaveDestination;
-};
-
 enum SaveDestination {
     Dashboard = 'dashboard',
     Space = 'space',
 }
 
+const validationSchema = z.object({
+    name: z.string().nonempty(),
+    spaceUuid: z.string().optional(),
+    dashboardUuid: z.string().optional(),
+    dashboardName: z.string().optional(),
+    description: z.string().optional(),
+    newSpaceName: z.string().or(z.null()).optional(),
+    saveDestination: z
+        .nativeEnum(SaveDestination)
+        .default(SaveDestination.Space),
+});
+
+type FormValues = z.infer<typeof validationSchema>;
+
 type SaveToSpaceProps = {
-    form: UseFormReturnType<ChartCreateModalFormValues>;
+    form: UseFormReturnType<FormValues>;
     spaces: SpaceSummary[] | undefined;
     projectUuid: string;
 };
@@ -86,7 +90,7 @@ const SaveToSpace: FC<SaveToSpaceProps> = ({ form, spaces, projectUuid }) => {
                     compact
                     onClick={() => {
                         setShouldCreateNewSpace(false);
-                        form.setFieldValue('newSpaceName', null);
+                        form.setFieldValue('newSpaceName', undefined);
                     }}
                     leftIcon={<MantineIcon icon={IconArrowLeft} />}
                 >
@@ -188,21 +192,6 @@ type SaveToSpaceOrDashboardProps = {
     onClose: () => void;
 };
 
-const validationSchema = z.object({
-    name: z.string().nonempty(),
-    spaceUuid: z.string(),
-
-    dashboardUuid: z.string(),
-    dashboardName: z.string(),
-    description: z.string(),
-    newSpaceName: z.string().or(z.null()),
-    saveDestination: z
-        .nativeEnum(SaveDestination)
-        .default(SaveDestination.Space),
-});
-
-type FormValues = z.infer<typeof validationSchema>;
-
 export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     savedData,
     defaultSpaceUuid,
@@ -266,12 +255,14 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
 
             let initialValues = {
                 name: '',
-                description: '',
                 saveDestination: SaveDestination.Space,
-                newSpaceName: null,
-                dashboardUuid: dashboardInfoFromSavedData.dashboardUuid ?? '',
-                dashboardName: dashboardInfoFromSavedData.dashboardName ?? '',
-                spaceUuid: initialSpaceUuid ?? '',
+                ...(dashboardInfoFromSavedData.dashboardUuid && {
+                    dashboardUuid: dashboardInfoFromSavedData.dashboardUuid,
+                }),
+                ...(dashboardInfoFromSavedData.dashboardName && {
+                    dashboardName: dashboardInfoFromSavedData.dashboardName,
+                }),
+                ...(initialSpaceUuid && { spaceUuid: initialSpaceUuid }),
             };
 
             form.initialize(initialValues);
@@ -294,7 +285,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     );
 
     const handleOnSubmit = useCallback(
-        async (values: ChartCreateModalFormValues) => {
+        async (values: FormValues) => {
             let savedQuery: SavedChart | undefined;
             /**
              * Create chart
