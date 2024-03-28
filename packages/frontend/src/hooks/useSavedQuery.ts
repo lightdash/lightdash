@@ -43,11 +43,12 @@ const createSavedQuery = async (
 const duplicateSavedQuery = async (
     projectUuid: string,
     chartUuid: string,
+    data: { chartName: string; chartDesc: string },
 ): Promise<SavedChart> =>
     lightdashApi<SavedChart>({
         url: `/projects/${projectUuid}/saved?duplicateFrom=${chartUuid}`,
         method: 'POST',
-        body: undefined,
+        body: JSON.stringify(data),
     });
 
 export const deleteSavedQuery = async (id: string) =>
@@ -398,6 +399,8 @@ export const useCreateMutation = () => {
 
 type DuplicateChartMutationOptions = {
     showRedirectButton?: boolean;
+    successMessage?: string;
+    autoRedirect?: boolean;
 };
 
 export const useDuplicateChartMutation = (
@@ -407,8 +410,16 @@ export const useDuplicateChartMutation = (
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<SavedChart, ApiError, SavedChart['uuid']>(
-        (chartUuid) => duplicateSavedQuery(projectUuid, chartUuid),
+    return useMutation<
+        SavedChart,
+        ApiError,
+        Pick<SavedChart, 'uuid' | 'name' | 'description'>
+    >(
+        ({ uuid, name, description }) =>
+            duplicateSavedQuery(projectUuid, uuid, {
+                chartName: name,
+                chartDesc: description ?? '',
+            }),
         {
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: async (data) => {
@@ -418,14 +429,19 @@ export const useDuplicateChartMutation = (
                     'most-popular-and-recently-updated',
                 ]);
 
-                if (!options?.showRedirectButton) {
+                if (
+                    !options?.showRedirectButton &&
+                    options?.autoRedirect !== false
+                ) {
                     history.push({
                         pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
                     });
                 }
 
                 showToastSuccess({
-                    title: `Chart successfully duplicated!`,
+                    title:
+                        options?.successMessage ||
+                        `Chart successfully duplicated!`,
                     action: options?.showRedirectButton
                         ? {
                               children: 'Open chart',

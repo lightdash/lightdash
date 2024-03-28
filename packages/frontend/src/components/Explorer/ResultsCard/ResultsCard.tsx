@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button, Popover } from '@mantine/core';
+import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
@@ -13,7 +13,7 @@ import {
 import AddColumnButton from '../../AddColumnButton';
 import { Can } from '../../common/Authorization';
 import CollapsableCard, {
-    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
@@ -120,17 +120,16 @@ const ResultsCard: FC = memo(() => {
                                 position="bottom-end"
                             >
                                 <Popover.Target>
-                                    <Button
+                                    <ActionIcon
                                         data-testid="export-csv-button"
-                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                        {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
                                         disabled={disabled}
-                                        px="xs"
                                     >
                                         <MantineIcon
                                             icon={IconShare2}
                                             color="gray"
                                         />
-                                    </Button>
+                                    </ActionIcon>
                                 </Popover.Target>
 
                                 <Popover.Dropdown>

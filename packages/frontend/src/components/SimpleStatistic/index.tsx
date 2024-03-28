@@ -1,8 +1,17 @@
 import { ComparisonDiffTypes } from '@lightdash/common';
-import { Tooltip, useMantineTheme } from '@mantine/core';
+import {
+    Center,
+    Flex,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+    useMantineTheme,
+    type TextProps,
+} from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
-import { useMemo, type FC, type HTMLAttributes } from 'react';
+import { forwardRef, useMemo, type FC, type HTMLAttributes } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import MantineIcon from '../common/MantineIcon';
 import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/TileBase.styles';
@@ -10,12 +19,6 @@ import { isBigNumberVisualizationConfig } from '../LightdashVisualization/Visual
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
-import {
-    BigNumber,
-    BigNumberContainer,
-    BigNumberHalf,
-    BigNumberLabel,
-} from './SimpleStatistics.styles';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
@@ -59,6 +62,26 @@ const calculateFontSize = (
 
     return fontSize;
 };
+
+const BigNumberText: FC<TextProps> = forwardRef<HTMLDivElement, TextProps>(
+    ({ children, ...textProps }, ref) => {
+        return (
+            <Text
+                ref={ref}
+                c="dark.4"
+                align="center"
+                fw={500}
+                {...textProps}
+                style={{
+                    transition: 'font-size 0.1s ease-in-out',
+                    ...textProps.style,
+                }}
+            >
+                {children}
+            </Text>
+        );
+    },
+);
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
@@ -159,79 +182,85 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     if (isLoading) return <LoadingChart />;
 
     return validData ? (
-        <BigNumberContainer
-            $paddingBottom={
-                isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT
-            }
+        <Center
+            w="100%"
+            h="100%"
+            component={Stack}
+            spacing={0}
+            pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
             ref={(elem) => setRef(elem)}
             {...wrapperProps}
         >
-            <BigNumberHalf>
+            <Flex style={{ flexShrink: 1 }}>
                 {minimal || isSqlRunner ? (
-                    <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
+                    <BigNumberText fz={valueFontSize}>
+                        {bigNumber}
+                    </BigNumberText>
                 ) : (
                     <BigNumberContextMenu>
-                        <BigNumber $interactive $fontSize={valueFontSize}>
+                        <BigNumberText
+                            fz={valueFontSize}
+                            style={{ cursor: 'pointer' }}
+                        >
                             {bigNumber}
-                        </BigNumber>
+                        </BigNumberText>
                     </BigNumberContextMenu>
                 )}
-            </BigNumberHalf>
+            </Flex>
 
             {showBigNumberLabel ? (
-                <BigNumberHalf>
-                    <BigNumberLabel $fontSize={labelFontSize}>
+                <Flex style={{ flexShrink: 1 }}>
+                    <BigNumberText fz={labelFontSize}>
                         {bigNumberLabel || defaultLabel}
-                    </BigNumberLabel>
-                </BigNumberHalf>
+                    </BigNumberText>
+                </Flex>
             ) : null}
 
             {showComparison ? (
-                <BigNumberHalf
-                    style={{
-                        marginTop: 10,
-                    }}
+                <Flex
+                    justify="center"
+                    display="inline-flex"
+                    wrap="wrap"
+                    style={{ flexShrink: 1 }}
+                    mt={labelFontSize / 2}
                 >
                     <Tooltip withinPortal label={comparisonTooltip}>
-                        <BigNumber
-                            $fontSize={comparisonFontSize}
-                            style={{
-                                color: comparisonValueColor,
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
-                        >
-                            {comparisonValue}
+                        <Group spacing="two" mr={comparisonLabel ? 'xs' : '0'}>
+                            <BigNumberText
+                                span
+                                fz={comparisonFontSize}
+                                c={comparisonValueColor}
+                            >
+                                {comparisonValue}
+                            </BigNumberText>
+
                             {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
                                 <MantineIcon
                                     icon={IconArrowUpRight}
-                                    size={18}
-                                    style={{
-                                        display: 'inline',
-                                        margin: '0 7px 0 0',
-                                    }}
+                                    display="inline"
+                                    color={comparisonValueColor}
+                                    size={comparisonFontSize}
                                 />
                             ) : comparisonDiff ===
                               ComparisonDiffTypes.NEGATIVE ? (
                                 <MantineIcon
                                     icon={IconArrowDownRight}
-                                    size={18}
-                                    style={{
-                                        display: 'inline',
-                                        margin: '0 7px 0 0',
-                                    }}
+                                    display="inline"
+                                    color={comparisonValueColor}
+                                    size={comparisonFontSize}
                                 />
-                            ) : (
-                                <span style={{ margin: '0 7px 0 0' }} />
-                            )}
-                        </BigNumber>
+                            ) : null}
+                        </Group>
                     </Tooltip>
-                    <BigNumberLabel $fontSize={comparisonFontSize}>
-                        {comparisonLabel ?? null}
-                    </BigNumberLabel>
-                </BigNumberHalf>
+
+                    {comparisonLabel ? (
+                        <BigNumberText span fz={comparisonFontSize} c="gray.6">
+                            {comparisonLabel}
+                        </BigNumberText>
+                    ) : null}
+                </Flex>
             ) : null}
-        </BigNumberContainer>
+        </Center>
     ) : (
         <EmptyChart />
     );

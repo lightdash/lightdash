@@ -1,4 +1,8 @@
-import { ChartType, type ItemsMap } from '@lightdash/common';
+import {
+    ChartType,
+    type ItemsMap,
+    type TableCalculationMetadata,
+} from '@lightdash/common';
 import { useEffect, type FC } from 'react';
 import useCartesianChartConfig, {
     type CartesianTypeOptions,
@@ -30,6 +34,7 @@ type VisualizationCartesianConfigProps =
             React.SetStateAction<string[] | undefined>
         >;
         colorPalette: string[];
+        tableCalculationsMetadata?: TableCalculationMetadata[];
     };
 
 const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
@@ -44,6 +49,7 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     cartesianType,
     colorPalette,
     children,
+    tableCalculationsMetadata,
 }) => {
     const cartesianConfig = useCartesianChartConfig({
         initialChartConfig,
@@ -55,6 +61,7 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         stacking,
         cartesianType,
         colorPalette,
+        tableCalculationsMetadata,
     });
 
     useEffect(() => {

@@ -179,9 +179,10 @@ export class DashboardService {
             const hasAbility = user.ability.can(
                 'view',
                 subject('Dashboard', {
-                    ...dashboard,
+                    organizationUuid: dashboardSpace?.organizationUuid,
+                    projectUuid: dashboardSpace?.projectUuid,
                     isPrivate: dashboardSpace?.isPrivate,
-                    access: spaceAccess,
+                    access: spaceAccess?.access,
                 }),
             );
             return (
@@ -318,6 +319,7 @@ export class DashboardService {
         user: SessionUser,
         projectUuid: string,
         dashboardUuid: string,
+        data: { dashboardName: string; dashboardDesc: string },
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
         const space = await this.spaceModel.getSpaceSummary(
@@ -341,7 +343,8 @@ export class DashboardService {
 
         const duplicatedDashboard = {
             ...dashboard,
-            name: `Copy of ${dashboard.name}`,
+            description: data.dashboardDesc,
+            name: data.dashboardName,
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -450,32 +453,45 @@ export class DashboardService {
         const existingDashboardDao = await this.dashboardModel.getById(
             dashboardUuid,
         );
-
-        const space = await this.spaceModel.getSpaceSummary(
-            existingDashboardDao.spaceUuid,
+        const canUpdateDashboardInCurrentSpace = user.ability.can(
+            'update',
+            subject('Dashboard', {
+                ...(await this.spaceModel.getSpaceSummary(
+                    existingDashboardDao.spaceUuid,
+                )),
+                access: await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
+                    existingDashboardDao.spaceUuid,
+                ),
+            }),
         );
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            existingDashboardDao.spaceUuid,
-        );
-        const existingDashboard = {
-            ...existingDashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
-        };
-
-        if (
-            user.ability.cannot(
-                'update',
-                subject('Dashboard', existingDashboard),
-            )
-        ) {
+        if (!canUpdateDashboardInCurrentSpace) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
         }
 
         if (isDashboardUnversionedFields(dashboard)) {
+            if (dashboard.spaceUuid) {
+                const canUpdateDashboardInNewSpace = user.ability.can(
+                    'update',
+                    subject('Dashboard', {
+                        ...(await this.spaceModel.getSpaceSummary(
+                            dashboard.spaceUuid,
+                        )),
+                        access: await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            dashboard.spaceUuid,
+                        ),
+                    }),
+                );
+                if (!canUpdateDashboardInNewSpace) {
+                    throw new ForbiddenError(
+                        "You don't have access to the space this dashboard is being moved to",
+                    );
+                }
+            }
+
             const updatedDashboard = await this.dashboardModel.update(
                 dashboardUuid,
                 {
@@ -515,7 +531,7 @@ export class DashboardService {
                     filters: dashboard.filters,
                 },
                 user,
-                existingDashboard.projectUuid,
+                existingDashboardDao.projectUuid,
             );
             this.analytics.track({
                 event: 'dashboard_version.created',
@@ -529,11 +545,18 @@ export class DashboardService {
         const updatedNewDashboard = await this.dashboardModel.getById(
             dashboardUuid,
         );
+        const space = await this.spaceModel.getSpaceSummary(
+            updatedNewDashboard.spaceUuid,
+        );
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            updatedNewDashboard.spaceUuid,
+        );
 
         return {
             ...updatedNewDashboard,
             isPrivate: space.isPrivate,
-            access: spaceAccess,
+            access,
         };
     }
 
@@ -613,23 +636,37 @@ export class DashboardService {
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
         const userHasAccessToDashboards = await Promise.all(
-            dashboards.map(async (dashboard) => {
-                const dashboardSpace = await this.spaceModel.getSpaceSummary(
-                    dashboard.spaceUuid,
+            dashboards.map(async (dashboardToUpdate) => {
+                const dashboard = await this.dashboardModel.getById(
+                    dashboardToUpdate.uuid,
                 );
-                const dashboardSpaceAccess =
-                    await this.spaceModel.getUserSpaceAccess(
-                        user.userUuid,
-                        dashboard.spaceUuid,
-                    );
-                return user.ability.can(
+                const canUpdateDashboardInCurrentSpace = user.ability.can(
                     'update',
                     subject('Dashboard', {
-                        organizationUuid: dashboardSpace.organizationUuid,
-                        projectUuid,
-                        isPrivate: dashboardSpace.isPrivate,
-                        access: dashboardSpaceAccess,
+                        ...(await this.spaceModel.getSpaceSummary(
+                            dashboard.spaceUuid,
+                        )),
+                        access: await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            dashboard.spaceUuid,
+                        ),
                     }),
+                );
+                const canUpdateDashboardInNewSpace = user.ability.can(
+                    'update',
+                    subject('Dashboard', {
+                        ...(await this.spaceModel.getSpaceSummary(
+                            dashboardToUpdate.spaceUuid,
+                        )),
+                        access: await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            dashboardToUpdate.spaceUuid,
+                        ),
+                    }),
+                );
+                return (
+                    canUpdateDashboardInCurrentSpace &&
+                    canUpdateDashboardInNewSpace
                 );
             }),
         );

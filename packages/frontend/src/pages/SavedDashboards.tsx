@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     LightdashMode,
     ResourceViewItemType,
@@ -16,6 +15,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
+import useCreateInAnySpaceAccess from '../hooks/user/useCreateInAnySpaceAccess';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
@@ -29,20 +29,15 @@ const SavedDashboards = () => {
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
 
-    const { user, health } = useApp();
+    const { health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: spaces, isInitialLoading: isLoadingSpaces } =
         useSpaceSummaries(projectUuid);
     const hasNoSpaces = spaces && spaces.length === 0;
 
-    // test if user can managed dashboards for this project & org when given chart access
-    const userCanCreateDashboards = user.data?.ability?.can(
-        'create',
-        subject('Dashboard', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-            isPrivate: false,
-        }),
+    const userCanCreateDashboards = useCreateInAnySpaceAccess(
+        projectUuid,
+        'Dashboard',
     );
 
     if (isInitialLoading || isLoadingSpaces) {

@@ -87,6 +87,35 @@ export const getMantineThemeOverride = (overrides?: {
                 },
             }),
         },
+
+        ScrollArea: {
+            variants: {
+                primary: (theme) => ({
+                    scrollbar: {
+                        '&, &:hover': {
+                            background: 'transparent',
+                        },
+                        '&[data-orientation="vertical"] .mantine-ScrollArea-thumb':
+                            {
+                                backgroundColor: theme.colors.gray['5'],
+                            },
+                        '&[data-orientation="vertical"][data-state="visible"] .mantine-ScrollArea-thumb':
+                            {
+                                // When visible, fade in
+                                animation: 'fadeIn 0.3s ease-in forwards',
+                            },
+
+                        '&[data-orientation="vertical"] .mantine-ScrollArea-thumb:hover':
+                            {
+                                backgroundColor: theme.fn.darken(
+                                    theme.colors.gray['5'],
+                                    0.1,
+                                ),
+                            },
+                    },
+                }),
+            },
+        },
         ...overrides?.components,
     },
 
@@ -122,6 +151,10 @@ export const getMantineThemeOverride = (overrides?: {
         '.ace_editor *': {
             fontFamily:
                 "Menlo, 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace",
+        },
+        '@keyframes fadeIn': {
+            from: { opacity: 0 },
+            to: { opacity: 1 },
         },
     }),
 });

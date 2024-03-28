@@ -7,6 +7,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
+import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
@@ -23,6 +24,8 @@ const SavedExplorer = () => {
 
     const isEditMode = mode === 'edit';
 
+    const { setDashboardChartInfo } = useDashboardStorage();
+
     const { data, isInitialLoading, error } = useSavedQuery({
         id: savedQueryUuid,
     });
@@ -33,11 +36,15 @@ const SavedExplorer = () => {
     });
 
     useEffect(() => {
+        // If the saved explore is part of a dashboard, set the dashboard chart info
+        // so we can show the banner + the user can navigate back to the dashboard easily
         if (data && data.dashboardUuid && data.dashboardName) {
-            sessionStorage.setItem('fromDashboard', data.dashboardName);
-            sessionStorage.setItem('dashboardUuid', data.dashboardUuid);
+            setDashboardChartInfo({
+                name: data.dashboardName,
+                dashboardUuid: data.dashboardUuid,
+            });
         }
-    }, [data]);
+    }, [data, setDashboardChartInfo]);
 
     if (isInitialLoading) {
         return (

@@ -117,9 +117,10 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 action: 'default',
             },
         });
-
         setFocusedItemIndex(undefined);
         closeOmnibar();
+
+        setQuery(undefined);
     };
 
     const handleItemClick = (item: SearchItem) => {

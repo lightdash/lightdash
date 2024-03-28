@@ -10,8 +10,10 @@ import {
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
+    HTML_SANITIZE_MARKDOWN_TILE_RULES,
     LightdashUser,
     NotFoundError,
+    sanitizeHtml,
     SavedChart,
     SessionUser,
     UnexpectedServerError,
@@ -169,7 +171,10 @@ export class DashboardModel {
                         dashboard_version_id: versionId.dashboard_version_id,
                         dashboard_tile_uuid: insertedTile.dashboard_tile_uuid,
                         title: tile.properties.title,
-                        content: tile.properties.content,
+                        content: sanitizeHtml(
+                            tile.properties.content,
+                            HTML_SANITIZE_MARKDOWN_TILE_RULES,
+                        ),
                     });
                     break;
                 case DashboardTileTypes.LOOM:

@@ -1,18 +1,19 @@
 import { Card, Flex, type CardProps } from '@mantine/core';
-import { type FC } from 'react';
+import { type FC, type PropsWithChildren } from 'react';
 
-export const PAGE_HEADER_HEIGHT = 80;
+export const PAGE_HEADER_HEIGHT = 64;
 
-const PageHeader: FC<React.PropsWithChildren<Pick<CardProps, 'h'>>> = ({
-    h,
-    children,
-}) => (
+type Props = PropsWithChildren<{
+    cardProps?: Omit<CardProps, 'children'>;
+}>;
+
+const PageHeader: FC<Props> = ({ cardProps, children }) => (
     <Card
         component={Flex}
         justify="flex-end"
         align="center"
         pos="relative"
-        h={h ?? PAGE_HEADER_HEIGHT}
+        h={PAGE_HEADER_HEIGHT}
         px="lg"
         py="md"
         bg="white"
@@ -23,6 +24,7 @@ const PageHeader: FC<React.PropsWithChildren<Pick<CardProps, 'h'>>> = ({
         shadow="0 0 0 1px #bec1c426"
         radius="unset"
         sx={{ zIndex: 1 }}
+        {...cardProps}
     >
         {children}
     </Card>

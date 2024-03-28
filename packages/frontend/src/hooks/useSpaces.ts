@@ -190,15 +190,16 @@ export const useCreateMutation = (
     );
 };
 
-const addSpaceShare = async (
+const addSpaceUserAccess = async (
     projectUuid: string,
     spaceUuid: string,
     userUuid: string,
+    spaceRole: string,
 ) =>
     lightdashApi<Space>({
         url: `/projects/${projectUuid}/spaces/${spaceUuid}/share`,
         method: 'POST',
-        body: JSON.stringify({ userUuid }),
+        body: JSON.stringify({ userUuid, spaceRole }),
     });
 
 export const useAddSpaceShareMutation = (
@@ -208,8 +209,9 @@ export const useAddSpaceShareMutation = (
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
-    return useMutation<Space, ApiError, string>(
-        (userUuid) => addSpaceShare(projectUuid, spaceUuid, userUuid),
+    return useMutation<Space, ApiError, [string, string]>(
+        ([userUuid, spaceRole]) =>
+            addSpaceUserAccess(projectUuid, spaceUuid, userUuid, spaceRole),
         {
             mutationKey: ['space_share', projectUuid, spaceUuid],
             onSuccess: async () => {
@@ -221,12 +223,12 @@ export const useAddSpaceShareMutation = (
                 ]);
 
                 showToastSuccess({
-                    title: `Success! Space was shared.`,
+                    title: `Success! Space access updated!`,
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to share space`,
+                    title: `Failed to update space access`,
                     subtitle: error.error.message,
                 });
             },
@@ -265,12 +267,12 @@ export const useDeleteSpaceShareMutation = (
                 ]);
 
                 showToastSuccess({
-                    title: `Success! Space was unshared.`,
+                    title: `Success! Space access updated!`,
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to unshare space`,
+                    title: `Failed to update space access`,
                     subtitle: error.error.message,
                 });
             },

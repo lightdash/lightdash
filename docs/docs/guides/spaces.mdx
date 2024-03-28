@@ -4,8 +4,8 @@ import MoveBetweenSpace from './assets/move-between-space.png';
 import AddModal from './assets/add-modal.png';
 import AccessSpaces from './assets/access-spaces.png';
 import RenameDeleteSpace from './assets/rename-delete-space.png';
-import RestrictedAccessSpace from './assets/restricted-access-space.png';
-import FullAccessSpace from './assets/full-access-space.png';
+import RestrictedAccessSpace from './assets/restricted-access-space.jpg';
+import PublicAccessSpace from './assets/public-access-space.png';
 import EditSpaceAccess from './assets/edit-space-access.jpg';
 
 # Spaces
@@ -78,53 +78,55 @@ Deleting a Space will delete all of the content in that Space.
 
 ## Managing access to a Space
 
-By default, when you create a Space, it is restricted so only you can access it. You can edit a Space to make it Restricted Access or Full Access.
+By default, when you create a Space, it is restricted so only you can access it. You can edit a Space to make it Restricted Access or Public Access.
 
-To edit access to a Space, navigate into the Space, then click the `share` button. From there, you can choose to make a space `Restricted Access` or `Full Access`.
+To edit access to a Space, navigate into the Space, then click the `share` button. From there, you can choose to make a space `Restricted Access` or `Public Access`.
 
 <img
   src={EditSpaceAccess}
-  width="2249"
-  height="445"
+  width="1611"
+  height="397"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-Users inherit their space permissions from their project permissions. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
+By default, in public spaces, a user's space permissions are inherited from their project permissions. For example, if I'm a project viewer, I will get `Can View` access to a Space.
+
+There are three space roles: `Full Access`, `Can Edit`, `Can View`
+
+For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
 
 ### Restricted Access Spaces
 
 **Only admins and members that are invited to a Space with Restricted Access have access to it.**
 
-For example, here I have a Space called `Finance` with Restricted Access. Only admins and the invited members (Katie, who created the space, and Hamzah, who was invited) have access to this Space. No one else in Lightdash can see or interact with the content in this Space unless they're invited or become an admin.
+For example, here I have a Space with Restricted Access. Only admins and the invited members have access to this Space. Katie, Filipe and Marshall have inherited `Full Access` because they are organization admins. Priyanka was invited to the space, so she has `Can View` access to the space. No one else in Lightdash can see or interact with the content in this Space unless they're invited or become an admin.
+
+Only users with `Full Access` permissions to a Restricted Space can invite other users to that Space.
 
 <img
   src={RestrictedAccessSpace}
-  width="540"
-  height="356"
+  width="1292"
+  height="495"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-**Anyone with editor or admin permissions in your project who have access to a Restricted Space can invite other users to that Space.**
+### Public Spaces
 
-So, in my `Finance` Space example, Hamzah could invite Priyanka and she would get access to the `Finance` Space. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
+**Everyone who has access to your project has access to a Public space.**
 
-**You inherit your space permissions from your project permissions.**
-
-So, in my example project, Hamzah is a project admin. This means when he's invited to the `Finance` Space, he inherits his project permissions and becomes an `admin` in that Space. If I invite Priyanka, who is a `viewer` in our project, then she will become a `viewer` in my `Finance` Space.
-
-### Full Access Spaces
-
-**Eveyone who has access to the project your Space is in gets access to a Full Access Space.**
-
-For example, here I have a Space called `Finance` with Full Access. Everyone who has access to my Project, "Lightdash analytics", will get access to the content in my `Finance` Space.
+For example, here I have a Space with Public access. Everyone who has access to my Project, "Lightdash analytics", will get access to the content in my public space.
 
 <img
-  src={RestrictedAccessSpace}
-  width="543"
-  height="175"
+  src={PublicAccessSpace}
+  width="506"
+  height="313"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-**You inherit your space permissions from your project permissions.**
+**By default, you inherit your space permissions in a public space from your project permissions.**
 
-So, if someone is an `editor` in my project, they will have `edit` permissions in my Space. If someone is a `viewer` in my project, they will have `view` permissions in my Space. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
+So, if someone is an `editor` in my project, they will have `Can Edit` permissions in my Space. If someone is a `viewer` in my project, they will have `Can View` permissions in my Space. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
+
+**Users with Full Access to the space can change a user's space permissions.**
+
+In Public spaces (just like in restricted spaces), users who have `Full Access` to the space can change other users' space permissions (except admins). Users cannot be removed from Public Spaces. To make a user have `no access` to a space, you must change the space from Public to Restricted.

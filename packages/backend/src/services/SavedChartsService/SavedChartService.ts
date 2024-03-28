@@ -36,6 +36,7 @@ import {
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -54,6 +55,7 @@ type SavedChartServiceArguments = {
     schedulerModel: SchedulerModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    dashboardModel: DashboardModel;
 };
 
 export class SavedChartService {
@@ -75,6 +77,8 @@ export class SavedChartService {
 
     private readonly slackClient: SlackClient;
 
+    private readonly dashboardModel: DashboardModel;
+
     constructor(args: SavedChartServiceArguments) {
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
@@ -85,6 +89,7 @@ export class SavedChartService {
         this.schedulerModel = args.schedulerModel;
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
+        this.dashboardModel = args.dashboardModel;
     }
 
     private async checkUpdateAccess(
@@ -153,7 +158,7 @@ export class SavedChartService {
                 user.userUuid,
                 space.uuid,
             );
-            return await hasViewAccessToSpace(user, space, access);
+            return hasViewAccessToSpace(user, space, access);
         } catch (e) {
             return false;
         }
@@ -643,6 +648,18 @@ export class SavedChartService {
                 user.userUuid,
                 savedChart.spaceUuid,
             );
+        } else if (savedChart.dashboardUuid) {
+            const dashboard = await this.dashboardModel.getById(
+                savedChart.dashboardUuid,
+            );
+            const space = await this.spaceModel.getSpaceSummary(
+                dashboard.spaceUuid,
+            );
+            isPrivate = space.isPrivate;
+            access = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                dashboard.spaceUuid,
+            );
         }
 
         if (
@@ -693,6 +710,7 @@ export class SavedChartService {
         user: SessionUser,
         projectUuid: string,
         chartUuid: string,
+        data: { chartName: string; chartDesc: string },
     ): Promise<SavedChart> {
         const chart = await this.savedChartModel.get(chartUuid);
         const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
@@ -719,7 +737,8 @@ export class SavedChartService {
         };
         const base = {
             ...chart,
-            name: `Copy of ${chart.name}`,
+            name: data.chartName,
+            description: data.chartDesc,
             updatedByUser: user,
         };
         if (chart.dashboardUuid) {

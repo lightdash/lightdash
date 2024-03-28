@@ -1,5 +1,6 @@
-import { HoverCard, Space, Text } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { Group, HoverCard, Stack, Text, Tooltip } from '@mantine/core';
+import { IconEye, IconInfoCircle } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
 import { DashboardList } from './DashboardList';
@@ -9,14 +10,25 @@ type Props = {
     withChartData?: boolean;
     description?: string;
     projectUuid: string;
+    viewStats?: number;
+    firstViewedAt?: Date | string | null;
 };
 
 export const ResourceInfoPopup: FC<Props> = ({
     resourceUuid,
     description,
     projectUuid,
+    viewStats,
+    firstViewedAt,
     withChartData = false,
 }) => {
+    const label =
+        firstViewedAt && viewStats
+            ? `${viewStats} views since ${dayjs(firstViewedAt).format(
+                  'MMM D, YYYY h:mm A',
+              )}`
+            : undefined;
+
     return (
         <HoverCard
             offset={-1}
@@ -29,19 +41,36 @@ export const ResourceInfoPopup: FC<Props> = ({
                 <MantineIcon icon={IconInfoCircle} color="gray.6" />
             </HoverCard.Target>
             <HoverCard.Dropdown maw={300}>
-                <div>
+                <Stack spacing="xs">
+                    {viewStats && (
+                        <Stack spacing="two">
+                            <Text fz="xs" fw={600} color="gray.6">
+                                Views:
+                            </Text>
+                            <Tooltip
+                                position="top-start"
+                                label={label}
+                                disabled={!viewStats || !firstViewedAt}
+                            >
+                                <Group spacing="two">
+                                    <MantineIcon size={12} icon={IconEye} />
+                                    <Text fz="xs">{viewStats || '0'}</Text>
+                                </Group>
+                            </Tooltip>
+                        </Stack>
+                    )}
                     {description && (
-                        <>
+                        <Stack spacing="two">
                             <Text fz="xs" fw={600} color="gray.6">
                                 Description:{' '}
                             </Text>
                             <Text fz="xs">{description}</Text>
-                        </>
+                        </Stack>
                     )}
+
                     <>
                         {withChartData && (
                             <>
-                                {description && <Space h={8} />}
                                 <DashboardList
                                     resourceItemId={resourceUuid}
                                     projectUuid={projectUuid}
@@ -49,7 +78,7 @@ export const ResourceInfoPopup: FC<Props> = ({
                             </>
                         )}
                     </>
-                </div>
+                </Stack>
             </HoverCard.Dropdown>
         </HoverCard>
     );

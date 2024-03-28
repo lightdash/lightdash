@@ -37,7 +37,6 @@ type Props = {
     isOpen?: boolean;
     toggleIsOpen?: () => void;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
-    seriesIndex: number;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
@@ -51,7 +50,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
     isOpen,
     toggleIsOpen,
     dragHandleProps,
-    seriesIndex,
 }) => {
     const { colorPalette, getSeriesColor } = useVisualizationContext();
     const type =
@@ -89,7 +87,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     </Box>
                 )}
                 <ColorSelector
-                    color={getSeriesColor(series, seriesIndex)}
+                    color={getSeriesColor(series)}
                     swatches={colorPalette}
                     onColorChange={(color) => {
                         updateSingleSeries({

@@ -13,21 +13,17 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-    useDuplicateDashboardMutation,
-    useMoveDashboardMutation,
-} from '../../../hooks/dashboard/useDashboard';
+import { useMoveDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
-import {
-    useDuplicateChartMutation,
-    useMoveChartMutation,
-} from '../../../hooks/useSavedQuery';
+import { useMoveChartMutation } from '../../../hooks/useSavedQuery';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
+import ChartDuplicateModal from '../modal/ChartDuplicateModal';
 import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
+import DashboardDuplicateModal from '../modal/DashboardDuplicateModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 
@@ -90,12 +86,6 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     const { mutate: pinChart } = useChartPinningMutation();
     const { mutate: pinDashboard } = useDashboardPinningMutation();
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
-    const { mutate: duplicateChart } = useDuplicateChartMutation({
-        showRedirectButton: true,
-    });
-    const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
-        showRedirectButton: true,
-    });
 
     const handleReset = useCallback(() => {
         onAction({ type: ResourceViewItemAction.CLOSE });
@@ -156,35 +146,12 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         }
     }, [action, pinChart, pinDashboard, pinSpace]);
 
-    const handleDuplicate = useCallback(() => {
-        if (action.type !== ResourceViewItemAction.DUPLICATE) return;
-
-        switch (action.item.type) {
-            case ResourceViewItemType.CHART:
-                return duplicateChart(action.item.data.uuid);
-            case ResourceViewItemType.DASHBOARD:
-                return duplicateDashboard(action.item.data.uuid);
-            default:
-                return assertUnreachable(
-                    action.item,
-                    'Resource type not supported',
-                );
-        }
-    }, [action, duplicateChart, duplicateDashboard]);
-
     useEffect(() => {
         if (action.type === ResourceViewItemAction.MOVE_TO_SPACE) {
             handleMoveToSpace();
             handleReset();
         }
     }, [action, handleMoveToSpace, handleReset]);
-
-    useEffect(() => {
-        if (action.type === ResourceViewItemAction.DUPLICATE) {
-            handleDuplicate();
-            handleReset();
-        }
-    }, [action, handleDuplicate, handleReset]);
 
     useEffect(() => {
         if (action.type === ResourceViewItemAction.PIN_TO_HOMEPAGE) {
@@ -296,8 +263,35 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     onSubmitForm={handleCreateSpace}
                 />
             );
-        case ResourceViewItemAction.CLOSE:
+
         case ResourceViewItemAction.DUPLICATE:
+            switch (action.item.type) {
+                case ResourceViewItemType.CHART:
+                    return (
+                        <ChartDuplicateModal
+                            opened
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                case ResourceViewItemType.DASHBOARD:
+                    return (
+                        <DashboardDuplicateModal
+                            opened
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                default:
+                    return assertUnreachable(
+                        action.item,
+                        'Resource type not supported',
+                    );
+            }
+
+        case ResourceViewItemAction.CLOSE:
         case ResourceViewItemAction.MOVE_TO_SPACE:
         case ResourceViewItemAction.PIN_TO_HOMEPAGE:
             return null;

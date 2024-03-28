@@ -74,12 +74,10 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             >
                 <>
                     <Stack p="md" pt={0}>
-                        {selectedAccess.value === SpaceAccessType.PRIVATE ? (
-                            <ShareSpaceAddUser
-                                space={space}
-                                projectUuid={projectUuid}
-                            />
-                        ) : null}
+                        <ShareSpaceAddUser
+                            space={space}
+                            projectUuid={projectUuid}
+                        />
 
                         <ShareSpaceAccessType
                             projectUuid={projectUuid}
