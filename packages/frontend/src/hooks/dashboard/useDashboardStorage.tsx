@@ -63,6 +63,8 @@ const useDashboardStorage = () => {
         sessionStorage.removeItem('unsavedDashboardTiles');
         sessionStorage.removeItem('unsavedDashboardFilters');
         sessionStorage.removeItem('hasDashboardChanges');
+        // Trigger storage event to update NavBar
+        window.dispatchEvent(new Event('storage'));
     }, []);
 
     const storeDashboard = useCallback(
