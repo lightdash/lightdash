@@ -1,6 +1,7 @@
 {
     "extends": "./../../tsconfig.json",
     "compilerOptions": {
+        "composite": true,
         "target": "es5",
         "lib": ["es5", "dom"],
         "types": [
@@ -9,7 +10,7 @@
             "node",
             "cypress-file-upload"
         ],
-        "strictNullChecks": true /* Enable strict null checks. */,
+        "strictNullChecks": true /* Enable strict null checks. */
     },
     "include": ["**/*.ts"],
     "references": [
