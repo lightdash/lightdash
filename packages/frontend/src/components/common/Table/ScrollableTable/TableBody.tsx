@@ -241,11 +241,11 @@ const NormalTableBody: FC = () => {
 
     return (
         <tbody>
-            {rows.map((row) => (
+            {rows.map((row, index) => (
                 <TableRow
-                    key={row.index}
+                    key={index}
                     minimal
-                    index={row.index}
+                    index={index}
                     row={row}
                     conditionalFormattings={conditionalFormattings}
                 />
