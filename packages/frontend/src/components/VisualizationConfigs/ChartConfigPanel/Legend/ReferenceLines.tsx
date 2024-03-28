@@ -82,7 +82,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                             },
                             xAxis:
                                 dirtyLayout?.xField === fieldId
-                                    ? value
+                                    ? value || ''
                                     : undefined,
                             yAxis:
                                 dirtyLayout?.xField === fieldId
