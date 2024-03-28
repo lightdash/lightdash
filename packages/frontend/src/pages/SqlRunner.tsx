@@ -6,7 +6,7 @@ import {
     NotFoundError,
 } from '@lightdash/common';
 import { Box, Group, Stack, Tabs } from '@mantine/core';
-import { getHotkeyHandler } from '@mantine/hooks';
+import { getHotkeyHandler, useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
@@ -63,7 +63,9 @@ const SqlRunnerPage = () => {
     const { isInitialLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
 
-    const sql = sqlRunnerState.sqlRunner?.sql ?? '';
+    const [sql, setSql] = useState<string>(sqlRunnerState.sqlRunner?.sql ?? '');
+    const [debouncedSql] = useDebouncedValue(sql, 250);
+
     const [lastSqlRan, setLastSqlRan] = useState<string>();
 
     const [expandedCards, setExpandedCards] = useState(
@@ -115,17 +117,14 @@ const SqlRunnerPage = () => {
 
     const catalogTree = useProjectCatalogTree(catalogData);
 
-    const setSql = useCallback(
-        (newSql: string) => {
-            updateSqlRunnerState({
-                createSavedChart: sqlRunnerState.createSavedChart,
-                sqlRunner: {
-                    sql: newSql,
-                },
-            });
-        },
-        [updateSqlRunnerState, sqlRunnerState],
-    );
+    useEffect(() => {
+        updateSqlRunnerState({
+            createSavedChart,
+            sqlRunner: {
+                sql: debouncedSql,
+            },
+        });
+    }, [updateSqlRunnerState, debouncedSql, createSavedChart]);
 
     const handleTableSelect = useCallback(
         (node: ProjectCatalogTreeNode) => {
