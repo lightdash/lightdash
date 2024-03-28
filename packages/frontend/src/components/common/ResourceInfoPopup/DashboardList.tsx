@@ -1,4 +1,4 @@
-import { Anchor, List, Loader, Text } from '@mantine/core';
+import { Anchor, Box, List, Loader, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 
@@ -13,7 +13,7 @@ export const DashboardList: FC<Props> = ({ resourceItemId, projectUuid }) => {
         resourceItemId,
     );
     return (
-        <>
+        <Box>
             {relatedDashboards ? (
                 <Text fw={600} fz="xs" color="gray.6">
                     Used in {relatedDashboards?.length ?? 0} dashboard
@@ -40,6 +40,6 @@ export const DashboardList: FC<Props> = ({ resourceItemId, projectUuid }) => {
                     ))}
                 </List>
             )}
-        </>
+        </Box>
     );
 };
