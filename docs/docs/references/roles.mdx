@@ -72,15 +72,12 @@ This means:
 - an interactive viewer who is given `Can edit` space permissions can save content in that space but not in any other space (unless given `edit` access to another space)
 - an editor who is given `Can view` space permissions cannot edit the content in that space, but they can create/edit content in other parts of the project (unless they're given `view` access).
 
-| Action                                                        | Full Access  | Can Edit | Can View |
-| :------------------------------------------------------------ | :----------: | :------: | :------: |
-| Edit a Space's access (from Public to Restricted)             |      ✅      |     ❌    |    ❌    |
-| Change the permissions of a user that has access to the space |      ✅      |     ❌    |    ❌    |
-| Invite users to a Restricted Space they have access to        |      ✅      |     ❌    |    ❌    |
-| Remove users from a Restricted Space they have access to      |      ✅      |     ❌    |    ❌    |
-| Edit the Space details (name, description, etc.)              |      ✅      |     ❌    |    ❌    |
-| Add/Remove content from the Space                             |      ✅      |     ✅    |    ❌    |
-| Edit content in the Space (charts, dashboards)                |      ✅      |     ✅    |    ❌    |
+| Action                   | Full Access  | Can Edit | Can View |
+| :----------------------- | :----------: | :------: | :------: |
+| View space content       |      ✅      |     ✅    |    ✅    |
+| Manage space content     |      ✅      |     ✅    |    ❌    |
+| Manage space access      |      ✅      |     ❌    |    ❌    |
+| Manage space details     |      ✅      |     ❌    |    ❌    |
 
 ## Allowed email domains to join organization automatically
 
