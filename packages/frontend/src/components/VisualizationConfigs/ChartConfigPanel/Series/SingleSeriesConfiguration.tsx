@@ -26,7 +26,7 @@ import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
-import { ConfigGroup } from '../common/ConfigGroup';
+import { Config } from '../../common/Config';
 import { EditableText } from '../common/EditableText';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
@@ -167,9 +167,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         <Select
                             label={
                                 !isGrouped && (
-                                    <ConfigGroup.SubLabel>
-                                        Axis
-                                    </ConfigGroup.SubLabel>
+                                    <Config.SubLabel>Axis</Config.SubLabel>
                                 )
                             }
                             size="xs"
@@ -194,9 +192,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         <Select
                             label={
                                 !isGrouped && (
-                                    <ConfigGroup.SubLabel>
+                                    <Config.SubLabel>
                                         Value labels
-                                    </ConfigGroup.SubLabel>
+                                    </Config.SubLabel>
                                 )
                             }
                             size="xs"
@@ -235,9 +233,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 }}
                                 checked={series.showSymbol ?? true}
                                 label={
-                                    <ConfigGroup.SubLabel>
+                                    <Config.SubLabel>
                                         Show symbol
-                                    </ConfigGroup.SubLabel>
+                                    </Config.SubLabel>
                                 }
                                 onChange={() => {
                                     updateSingleSeries({
@@ -252,9 +250,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 size="xs"
                                 checked={series.smooth}
                                 label={
-                                    <ConfigGroup.SubLabel>
-                                        Smooth
-                                    </ConfigGroup.SubLabel>
+                                    <Config.SubLabel>Smooth</Config.SubLabel>
                                 }
                                 sx={{
                                     label: {

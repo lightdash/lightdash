@@ -35,7 +35,7 @@ import {
 import { IconGripVertical } from '@tabler/icons-react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../../common/MantineIcon';
-import { ConfigGroup } from '../common/ConfigGroup';
+import { Config } from '../../common/Config';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 const VALUE_LABELS_OPTIONS = [
@@ -154,7 +154,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     );
 
     return (
-        <ConfigGroup>
+        <Config.Group>
             <Group noWrap spacing="two">
                 <Box
                     {...dragHandleProps}
@@ -166,9 +166,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 >
                     <MantineIcon icon={IconGripVertical} />
                 </Box>
-                <ConfigGroup.Label>
+                <Config.Label>
                     {getItemLabelWithoutTableName(item)} (grouped)
-                </ConfigGroup.Label>
+                </Config.Label>
             </Group>
             <Group noWrap spacing="xs" align="start">
                 <ChartTypeSelect
@@ -190,7 +190,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 />
 
                 <Select
-                    label={<ConfigGroup.SubLabel>Axis</ConfigGroup.SubLabel>}
+                    label={<Config.SubLabel>Axis</Config.SubLabel>}
                     size="xs"
                     value={
                         isAxisTheSameForAllSeries
@@ -219,11 +219,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     }}
                 />
                 <Select
-                    label={
-                        <ConfigGroup.SubLabel>
-                            Value labels
-                        </ConfigGroup.SubLabel>
-                    }
+                    label={<Config.SubLabel>Value labels</Config.SubLabel>}
                     size="xs"
                     value={
                         isLabelTheSameForAllSeries
@@ -280,11 +276,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     <Checkbox
                         size="xs"
                         checked={seriesGroup[0].showSymbol ?? true}
-                        label={
-                            <ConfigGroup.SubLabel>
-                                Show symbol
-                            </ConfigGroup.SubLabel>
-                        }
+                        label={<Config.SubLabel>Show symbol</Config.SubLabel>}
                         onChange={() => {
                             updateAllGroupedSeries(fieldKey, {
                                 showSymbol: !(
@@ -301,9 +293,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     <Checkbox
                         size="xs"
                         checked={seriesGroup[0].smooth}
-                        label={
-                            <ConfigGroup.SubLabel>Smooth</ConfigGroup.SubLabel>
-                        }
+                        label={<Config.SubLabel>Smooth</Config.SubLabel>}
                         onChange={() => {
                             updateAllGroupedSeries(fieldKey, {
                                 smooth: !(seriesGroup[0].smooth ?? true),
@@ -430,7 +420,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     </Droppable>
                 </DragDropContext>
             </Box>
-        </ConfigGroup>
+        </Config.Group>
     );
 };
 export default GroupedSeriesConfiguration;
