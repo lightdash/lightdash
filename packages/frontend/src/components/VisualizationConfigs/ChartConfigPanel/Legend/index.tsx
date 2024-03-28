@@ -1,11 +1,15 @@
 import {
     type CompiledDimension,
     type CustomDimension,
+    type EchartsLegend,
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
 import {
+    Badge,
+    Center,
     Collapse,
+    Flex,
     Group,
     SegmentedControl,
     SimpleGrid,
@@ -34,9 +38,117 @@ enum Units {
 }
 
 const units = Object.values(Units);
+
+type MarginConfigurationProps = {
+    legendConfig: EchartsLegend;
+    handleChange: (prop: string, newValue: string | undefined) => void;
+};
+
+const MarginConfiguration: FC<MarginConfigurationProps> = ({
+    legendConfig,
+    handleChange,
+}) => {
+    const EmptySpace = () => <div></div>;
+
+    return (
+        <SimpleGrid
+            cols={3}
+            spacing="one"
+            sx={{
+                border: '1px solid #E6E6E6',
+                paddingBottom: '10px',
+                borderRadius: '4px',
+            }}
+        >
+            {/* Row 1 */}
+            <EmptySpace />
+            <Flex justify="center" align="end">
+                <UnitInput
+                    key="top"
+                    size="xs"
+                    w={70}
+                    label={
+                        <ConfigGroup.SubLabel>
+                            {startCase(Positions.Top)}
+                        </ConfigGroup.SubLabel>
+                    }
+                    name="top"
+                    units={units}
+                    value={legendConfig.top ?? 'auto'}
+                    defaultValue="auto"
+                    onChange={(e) => handleChange('top', e)}
+                />
+            </Flex>
+            <EmptySpace />
+            {/* Row 2 */}
+            <Flex justify="end" align="start">
+                <UnitInput
+                    key="left"
+                    size="xs"
+                    w={70}
+                    label={
+                        <ConfigGroup.SubLabel>
+                            {startCase(Positions.Left)}
+                        </ConfigGroup.SubLabel>
+                    }
+                    name="left"
+                    units={units}
+                    value={legendConfig.left ?? 'auto'}
+                    defaultValue="auto"
+                    onChange={(e) => handleChange('left', e)}
+                />
+            </Flex>
+
+            <Center pt="lg" px="xs" pb={0}>
+                <Badge color="gray" radius={'xs'} fullWidth h="100%">
+                    Margin
+                </Badge>
+            </Center>
+            <Flex justify="start" align="center">
+                <UnitInput
+                    key="right"
+                    size="xs"
+                    w={70}
+                    label={
+                        <ConfigGroup.SubLabel>
+                            {startCase(Positions.Right)}
+                        </ConfigGroup.SubLabel>
+                    }
+                    name="right"
+                    units={units}
+                    value={legendConfig.right ?? 'auto'}
+                    defaultValue="auto"
+                    onChange={(e) => handleChange('right', e)}
+                />
+            </Flex>
+            {/* Row 3 */}
+            <EmptySpace />
+            <Flex justify="center" align="start">
+                <UnitInput
+                    key="bottom"
+                    size="xs"
+                    w={70}
+                    label={
+                        <ConfigGroup.SubLabel>
+                            {startCase(Positions.Bottom)}
+                        </ConfigGroup.SubLabel>
+                    }
+                    name="bottom"
+                    units={units}
+                    value={legendConfig.bottom ?? 'auto'}
+                    defaultValue="auto"
+                    onChange={(e) => handleChange('bottom', e)}
+                />
+            </Flex>
+            <EmptySpace />
+        </SimpleGrid>
+    );
+};
+
 type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
 };
+
 const LegendPanel: FC<Props> = ({ items }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -116,35 +228,10 @@ const LegendPanel: FC<Props> = ({ items }) => {
                             />
                         </Group>
 
-                        {[
-                            [
-                                Positions.Top,
-                                Positions.Right,
-                                Positions.Bottom,
-                                Positions.Left,
-                            ],
-                        ].map((positionGroup) => (
-                            <SimpleGrid cols={4} key={positionGroup.join(',')}>
-                                {positionGroup.map((position) => (
-                                    <UnitInput
-                                        key={position}
-                                        size="xs"
-                                        label={
-                                            <ConfigGroup.SubLabel>
-                                                {startCase(position)}{' '}
-                                            </ConfigGroup.SubLabel>
-                                        }
-                                        name={position}
-                                        units={units}
-                                        value={legendConfig[position] ?? 'auto'}
-                                        defaultValue="auto"
-                                        onChange={(e) =>
-                                            handleChange(position, e)
-                                        }
-                                    />
-                                ))}
-                            </SimpleGrid>
-                        ))}
+                        <MarginConfiguration
+                            legendConfig={legendConfig}
+                            handleChange={handleChange}
+                        />
                     </Stack>
                 </Collapse>
             </ConfigGroup>
