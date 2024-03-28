@@ -207,8 +207,9 @@ const UserAccessList: FC<UserAccessListProps> = ({
                                 </Text>
                             </Group>
                             {isSessionUser ||
-                            sharedUser.inheritedRole ===
-                                ProjectMemberRole.ADMIN ? (
+                            (!sharedUser.hasDirectAccess &&
+                                sharedUser.inheritedRole ===
+                                    ProjectMemberRole.ADMIN) ? (
                                 <Badge
                                     size="xs"
                                     color="gray.6"
@@ -282,16 +283,30 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                 unshareSpaceMutation(sharedUser.userUuid);
             } else {
                 if (
-                    sharedUser.inheritedRole === 'member' ||
-                    sharedUser.inheritedRole === 'viewer'
+                    sharedUser.inheritedRole === ProjectMemberRole.ADMIN &&
+                    userAccessOption !== UserAccessAction.ADMIN
                 ) {
+                    showToastError({
+                        title: `Failed to update user access`,
+                        subtitle: `An admin can not be a space ${userAccessOption}`,
+                    });
+                    return;
+                }
+
+                if (sharedUser.inheritedRole === ProjectMemberRole.VIEWER) {
                     if (
-                        userAccessOption == 'editor' ||
-                        userAccessOption == 'admin'
+                        userAccessOption === UserAccessAction.EDITOR ||
+                        userAccessOption === UserAccessAction.ADMIN
                     ) {
                         showToastError({
-                            title: `Failed to share space`,
-                            subtitle: `Project ${sharedUser.inheritedRole} can not be a space ${userAccessOption}`,
+                            title: `Failed to update user access`,
+                            subtitle: `A${
+                                sharedUser.inheritedFrom === 'organization'
+                                    ? 'n'
+                                    : ''
+                            } ${sharedUser.inheritedFrom} ${
+                                sharedUser.inheritedRole
+                            } can not be a space ${userAccessOption}`,
                         });
                         return;
                     }
