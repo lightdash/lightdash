@@ -101,8 +101,6 @@ const SqlRunnerPage = () => {
 
         mutate(sql);
         setLastSqlRan(sql);
-
-        // TODO: Flush changes to URL
     }, [mutate, sql]);
 
     useMount(() => {

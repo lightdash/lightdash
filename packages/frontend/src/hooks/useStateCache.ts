@@ -104,19 +104,20 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
     );
 
     /**
-     * Annoyingly, mantine v6 is quite lazy as far as reading cached state during
-     * rendering, so for now we have to handle the first/initial read ourselves:
+     * Annoyingly, mantine v6's version of this hook is quite lazy as far as reading
+     * cached state during rendering, so for now we have to handle the first/initial read ourselves:
      */
-    const defaultValue = useMemo<StateCacheData<CacheDataT>>(() => {
-        const item = localStorage.getItem(fullKey);
-        return item ? JSON.parse(item) : initialData;
-    }, [fullKey, initialData]);
+    const initialStoredValue =
+        useMemo<StateCacheData<CacheDataT> | null>(() => {
+            const item = localStorage.getItem(fullKey);
+            return item ? JSON.parse(item) : null;
+        }, [fullKey]);
 
     const [localStorageCacheData, setCacheDataInLocalStorage] = useLocalStorage<
         StateCacheData<CacheDataT>
     >({
         key: fullKey,
-        defaultValue,
+        defaultValue: initialStoredValue ?? createCacheEntry(initialData),
     });
 
     const setCacheData = useCallback(
@@ -141,7 +142,7 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
     }, [fullKey]);
 
     return [
-        localStorageCacheData.value ?? defaultValue.value,
+        localStorageCacheData.value,
         setCacheData,
 
         /**
