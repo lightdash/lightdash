@@ -163,6 +163,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     sx={{
                         display: hovered ? 'block' : 'none',
                         opacity: 0.6,
+                        cursor: 'grab',
                         '&:hover': { opacity: 1 },
                     }}
                 >

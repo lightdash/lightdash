@@ -24,6 +24,8 @@ import {
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import MantineIcon from '../../../common/MantineIcon';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import ColorSelector from '../../ColorSelector';
 import { ConfigGroup } from '../common/ConfigGroup';
 import { EditableText } from '../common/EditableText';
 import { ChartTypeSelect } from './ChartTypeSelect';
@@ -52,6 +54,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     toggleIsOpen,
     dragHandleProps,
 }) => {
+    const { colorPalette, getSeriesColor } = useVisualizationContext();
     const { hovered, ref } = useHover();
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
@@ -74,6 +77,18 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         >
                             <MantineIcon icon={IconGripVertical} />
                         </Box>
+                    )}
+                    {isGrouped && (
+                        <ColorSelector
+                            color={getSeriesColor(series)}
+                            swatches={colorPalette}
+                            onColorChange={(color) => {
+                                updateSingleSeries({
+                                    ...series,
+                                    color,
+                                });
+                            }}
+                        />
                     )}
                     {!isSingle && isGrouped && (
                         <EditableText

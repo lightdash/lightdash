@@ -61,7 +61,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
     return (
         <Stack>
             <ConfigGroup>
-                <ConfigGroup.LabelGroup>
+                <Group spacing="xs" align="center">
                     <ConfigGroup.Label>Legend</ConfigGroup.Label>
                     <Switch
                         size="xs"
@@ -77,7 +77,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
                             },
                         }}
                     />
-                </ConfigGroup.LabelGroup>
+                </Group>
 
                 <Collapse in={legendConfig.show ?? showDefault}>
                     <Stack spacing="xs">
