@@ -32,7 +32,6 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../../common/MantineIcon';
@@ -103,7 +102,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSeries,
     series,
 }) => {
-    const { hovered, ref } = useHover();
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
     >();
@@ -157,11 +155,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
     return (
         <ConfigGroup>
-            <Group noWrap spacing="two" ref={ref}>
+            <Group noWrap spacing="two">
                 <Box
                     {...dragHandleProps}
                     sx={{
-                        display: hovered ? 'block' : 'none',
                         opacity: 0.6,
                         cursor: 'grab',
                         '&:hover': { opacity: 1 },

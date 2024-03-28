@@ -8,7 +8,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Box, Group } from '@mantine/core';
-import { useDebouncedState, useHover } from '@mantine/hooks';
+import { useDebouncedState } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -39,7 +39,6 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     updateSingleSeries,
     dragHandleProps,
 }) => {
-    const { hovered, ref } = useHover();
     const { colorPalette, getSeriesColor } = useVisualizationContext();
     const [value, setValue] = useDebouncedState(
         getSingleSeries(series)?.name || getItemLabelWithoutTableName(item),
@@ -48,11 +47,11 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
 
     return (
         <ConfigGroup>
-            <Group noWrap spacing="two" ref={ref}>
+            <Group noWrap spacing="two">
                 <Box
                     {...dragHandleProps}
+                    // TODO: add reusable component
                     sx={{
-                        display: hovered ? 'block' : 'none',
                         opacity: 0.6,
                         cursor: 'grab',
                         '&:hover': { opacity: 1 },
