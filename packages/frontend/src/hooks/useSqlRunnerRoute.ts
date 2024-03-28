@@ -9,6 +9,12 @@ export type SqlRunnerState = {
     sqlRunner: { sql: string } | undefined;
 };
 
+enum SqlRunnerSearchParam {
+    CreateSavedChartVersion = 'create_saved_chart_version',
+    SqlRunnerState = 'sql_runner',
+    SqlRunnerKey = 'sql_runner_id',
+}
+
 const getSqlRunnerUrlFromCreateSavedChartVersion = (
     projectUuid: string,
     sqlRunnerState: SqlRunnerState,
@@ -16,12 +22,15 @@ const getSqlRunnerUrlFromCreateSavedChartVersion = (
     const newParams = new URLSearchParams();
     if (sqlRunnerState.createSavedChart) {
         newParams.set(
-            'create_saved_chart_version',
+            SqlRunnerSearchParam.CreateSavedChartVersion,
             JSON.stringify(sqlRunnerState.createSavedChart),
         );
     }
     if (sqlRunnerState.sqlRunner) {
-        newParams.set('sql_runner', JSON.stringify(sqlRunnerState.sqlRunner));
+        newParams.set(
+            SqlRunnerSearchParam.SqlRunnerState,
+            JSON.stringify(sqlRunnerState.sqlRunner),
+        );
     }
     return {
         pathname: `/projects/${projectUuid}/sqlRunner`,
@@ -54,7 +63,9 @@ export const useSqlRunnerUrlState = (): SqlRunnerState | undefined => {
     return useMemo(() => {
         try {
             const searchParams = new URLSearchParams(search);
-            const sqlRunnerSearchParam = searchParams.get('sql_runner');
+            const sqlRunnerSearchParam = searchParams.get(
+                SqlRunnerSearchParam.SqlRunnerState,
+            );
             const sqlRunner = sqlRunnerSearchParam
                 ? JSON.parse(sqlRunnerSearchParam)
                 : undefined;

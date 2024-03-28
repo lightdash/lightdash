@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Stack, Tabs } from '@mantine/core';
 import { getHotkeyHandler } from '@mantine/hooks';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 
@@ -38,10 +38,6 @@ import {
 } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
-import {
-    useSqlRunnerRoute,
-    useSqlRunnerUrlState,
-} from '../hooks/useSqlRunnerRoute';
 import { useApp } from '../providers/AppProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
@@ -60,12 +56,11 @@ const SqlRunnerPage = () => {
     const { user, health } = useApp();
     const { data: org } = useOrganization();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const initialState = useSqlRunnerUrlState();
     const sqlQueryMutation = useSqlQueryMutation();
     const { isInitialLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
 
-    const [sql, setSql] = useState<string>(initialState?.sqlRunner?.sql || '');
+    const [sql, setSql] = useState<string>('');
     const [lastSqlRan, setLastSqlRan] = useState<string>();
 
     const [expandedCards, setExpandedCards] = useState(
@@ -92,19 +87,10 @@ const SqlRunnerPage = () => {
         setChartConfig,
         setPivotFields,
     } = useSqlQueryVisualization({
-        initialState: initialState?.createSavedChart,
+        // TODO ---
+        initialState: undefined,
         sqlQueryMutation,
     });
-
-    const sqlRunnerState = useMemo(
-        () => ({
-            createSavedChart,
-            sqlRunner: lastSqlRan ? { sql: lastSqlRan } : undefined,
-        }),
-        [createSavedChart, lastSqlRan],
-    );
-
-    useSqlRunnerRoute(sqlRunnerState);
 
     const handleSubmit = useCallback(() => {
         if (!sql) return;
