@@ -10,6 +10,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     CloseButton,
     Group,
@@ -18,9 +19,11 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../common/FieldSelect';
+import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
@@ -166,6 +169,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         dirtyLayout,
         setXField,
         setStacking,
+        setFlipAxis,
         isStacked,
         updateYField,
         removeSingleSeries,
@@ -180,7 +184,17 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         <ConfigGroup.Label>{`${
                             validConfig?.layout.flipAxes ? 'Y' : 'X'
                         }-axis`}</ConfigGroup.Label>
-                        <Group spacing="xs">
+                        <Group spacing="two">
+                            <Tooltip label={<Text fz="xs">Flip Axes</Text>}>
+                                <ActionIcon
+                                    onClick={() =>
+                                        setFlipAxis(!dirtyLayout?.flipAxes)
+                                    }
+                                    color="blue.4"
+                                >
+                                    <MantineIcon icon={IconRotate360} />
+                                </ActionIcon>
+                            </Tooltip>
                             {dirtyLayout?.xField === EMPTY_X_AXIS && (
                                 <AddButton
                                     onClick={() =>
