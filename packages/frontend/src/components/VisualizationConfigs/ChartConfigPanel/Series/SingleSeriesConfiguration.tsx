@@ -63,13 +63,19 @@ const SingleSeriesConfiguration: FC<Props> = ({
 
     return (
         <Box>
-            <Group noWrap spacing="xs" position={isGrouped ? 'apart' : 'left'}>
-                <Group spacing="xs" ref={ref}>
+            <Group position="apart">
+                <Group
+                    spacing="two"
+                    ref={ref}
+                    sx={{
+                        flexGrow: 1,
+                    }}
+                >
                     {isGrouped && (
                         <Box
                             {...dragHandleProps}
                             sx={{
-                                display: hovered ? 'block' : 'none',
+                                visibility: hovered ? 'visible' : 'hidden',
                                 opacity: 0.6,
                                 cursor: 'grab',
                                 '&:hover': { opacity: 1 },
@@ -91,19 +97,22 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     )}
                     {!isSingle && isGrouped && (
-                        <EditableText
-                            disabled={series.hidden}
-                            defaultValue={series.name || seriesLabel}
-                            onBlur={(e) => {
-                                updateSingleSeries({
-                                    ...series,
-                                    name: e.currentTarget.value,
-                                });
-                            }}
+                        <Box
                             style={{
                                 flexGrow: 1,
                             }}
-                        />
+                        >
+                            <EditableText
+                                disabled={series.hidden}
+                                defaultValue={series.name || seriesLabel}
+                                onBlur={(e) => {
+                                    updateSingleSeries({
+                                        ...series,
+                                        name: e.currentTarget.value,
+                                    });
+                                }}
+                            />
+                        </Box>
                     )}
                 </Group>
 
