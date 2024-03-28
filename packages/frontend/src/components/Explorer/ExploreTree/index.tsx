@@ -93,7 +93,12 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 onChange={(e) => setSearch(e.target.value)}
             />
 
-            <ScrollArea variant="primary" offsetScrollbars scrollbarSize={8}>
+            <ScrollArea
+                variant="primary"
+                className="only-vertical"
+                offsetScrollbars
+                scrollbarSize={8}
+            >
                 {tableTrees.length > 0 ? (
                     tableTrees.map((table, index) => (
                         <TableTree
