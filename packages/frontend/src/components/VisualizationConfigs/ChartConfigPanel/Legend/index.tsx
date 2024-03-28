@@ -76,7 +76,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                         {isAutoPosition ? `Auto-position` : `Custom`}
                     </ConfigGroup.SubLabel>
                 }
-                checked={!isAutoPosition}
+                checked={isAutoPosition}
                 onChange={toggleAuto}
                 styles={{ label: { paddingLeft: 4 } }}
             />
