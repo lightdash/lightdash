@@ -1,3 +1,10 @@
+## [0.1045.1](https://github.com/lightdash/lightdash/compare/0.1045.0...0.1045.1) (2024-03-28)
+
+
+### Bug Fixes
+
+* TS project configuration errors ([#9543](https://github.com/lightdash/lightdash/issues/9543)) ([1eb7970](https://github.com/lightdash/lightdash/commit/1eb797085bd95edfcc527129ce5a8e034017191c))
+
 # [0.1045.0](https://github.com/lightdash/lightdash/compare/0.1044.1...0.1045.0) (2024-03-28)
 
 
