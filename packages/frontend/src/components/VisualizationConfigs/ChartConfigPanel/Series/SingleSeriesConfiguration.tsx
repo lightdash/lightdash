@@ -62,10 +62,11 @@ const SingleSeriesConfiguration: FC<Props> = ({
         <Box>
             <Group noWrap spacing="xs" position={isGrouped ? 'apart' : 'left'}>
                 <Group spacing="xs" ref={ref}>
-                    {isGrouped && hovered && (
+                    {isGrouped && (
                         <Box
                             {...dragHandleProps}
                             sx={{
+                                display: hovered ? 'block' : 'none',
                                 opacity: 0.6,
                                 cursor: 'grab',
                                 '&:hover': { opacity: 1 },

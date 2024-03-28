@@ -16,6 +16,7 @@ export const EditableText: FC<TextInputProps> = ({ ...props }) => {
                         style={{
                             visibility: hovered ? 'initial' : 'hidden',
                         }}
+                        color="gray.6"
                         icon={IconPencil}
                     />
                 }
@@ -26,7 +27,7 @@ export const EditableText: FC<TextInputProps> = ({ ...props }) => {
                             ? theme.colors.gray['2']
                             : 'transparent',
                         fontWeight: 500,
-                        paddingLeft: 0,
+                        paddingLeft: 4,
                     },
                 })}
             />
