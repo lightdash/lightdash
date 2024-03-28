@@ -58,6 +58,7 @@ const MarginConfiguration: FC<MarginConfigurationProps> = ({
                 border: '1px solid #E6E6E6',
                 paddingBottom: '10px',
                 borderRadius: '4px',
+                backgroundColor: '#fafafa',
             }}
         >
             {/* Row 1 */}
@@ -99,8 +100,8 @@ const MarginConfiguration: FC<MarginConfigurationProps> = ({
                 />
             </Flex>
 
-            <Center pt="lg" px="xs" pb={0}>
-                <Badge color="gray" radius={'xs'} fullWidth h="100%">
+            <Center pt="lg" px="sm" pb={0}>
+                <Badge color="blue" radius={'xs'} fullWidth h="100%">
                     Margin
                 </Badge>
             </Center>
