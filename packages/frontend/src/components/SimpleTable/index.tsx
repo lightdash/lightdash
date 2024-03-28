@@ -49,6 +49,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         getFieldLabel,
         getField,
         showResultsTotal,
+        showSubtotals,
     } = visualizationConfig.chartConfig;
 
     if (isLoading) return <LoadingChart />;
@@ -116,6 +117,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 columnOrder={columnOrder}
                 hideRowNumbers={hideRowNumbers}
                 showColumnCalculation={showColumnCalculation}
+                showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
                 footer={{
                     show: showColumnCalculation,
@@ -139,6 +141,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 itemsMap={itemsMap}
                             />
                         );
+                    const cell = props.cell;
+                    if (
+                        cell.getValue() === undefined ||
+                        cell.getIsAggregated() ||
+                        cell.getIsPlaceholder()
+                    )
+                        return null;
                     return <CellContextMenu {...props} />;
                 }}
                 pagination={{ showResultsTotal }}

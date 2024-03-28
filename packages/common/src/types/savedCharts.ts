@@ -104,6 +104,7 @@ export type TableChart = {
     showTableNames?: boolean;
     hideRowNumbers?: boolean;
     showResultsTotal?: boolean;
+    showSubtotals?: boolean;
     columns?: Record<string, ColumnProperties>;
     conditionalFormattings?: ConditionalFormattingConfig[];
     metricsAsRows?: boolean;
