@@ -22,7 +22,7 @@ import { useToggle } from 'react-use';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { ConfigGroup } from '../common/ConfigGroup';
+import { Config } from '../../common/Config';
 import { ReferenceLines } from './ReferenceLines';
 
 enum Positions {
@@ -66,15 +66,15 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
     const EmptySpace = () => <div></div>;
 
     return (
-        <ConfigGroup>
-            <ConfigGroup.Label>Position</ConfigGroup.Label>
+        <Config.Group>
+            <Config.Label>Position</Config.Label>
 
             <Switch
                 size="xs"
                 label={
-                    <ConfigGroup.SubLabel>
+                    <Config.SubLabel>
                         {isAutoPosition ? `Auto-position` : `Custom`}
-                    </ConfigGroup.SubLabel>
+                    </Config.SubLabel>
                 }
                 checked={isAutoPosition}
                 onChange={toggleAuto}
@@ -156,7 +156,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                     <EmptySpace />
                 </SimpleGrid>
             )}
-        </ConfigGroup>
+        </Config.Group>
     );
 };
 
@@ -189,9 +189,9 @@ const LegendPanel: FC<Props> = ({ items }) => {
     const showDefault = (dirtyEchartsConfig?.series || []).length > 1;
     return (
         <Stack>
-            <ConfigGroup>
+            <Config.Group>
                 <Group spacing="xs" align="center">
-                    <ConfigGroup.Label>Legend</ConfigGroup.Label>
+                    <Config.Label>Legend</Config.Label>
                     <Switch
                         size="xs"
                         labelPosition="left"
@@ -210,9 +210,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
                 <Collapse in={legendConfig.show ?? showDefault}>
                     <Stack spacing="xs">
                         <Group spacing="xs">
-                            <ConfigGroup.SubLabel>
-                                Scroll behavior
-                            </ConfigGroup.SubLabel>
+                            <Config.SubLabel>Scroll behavior</Config.SubLabel>
                             <SegmentedControl
                                 size="xs"
                                 value={dirtyEchartsConfig?.legend?.type}
@@ -226,9 +224,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
                             />
                         </Group>
                         <Group spacing="xs">
-                            <ConfigGroup.SubLabel>
-                                Orientation
-                            </ConfigGroup.SubLabel>
+                            <Config.SubLabel>Orientation</Config.SubLabel>
                             <SegmentedControl
                                 name="orient"
                                 size="xs"
@@ -249,7 +245,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
                         />
                     </Stack>
                 </Collapse>
-            </ConfigGroup>
+            </Config.Group>
             <ReferenceLines items={items} projectUuid={projectUuid} />
         </Stack>
     );

@@ -13,7 +13,7 @@ import { useProject } from '../../../../hooks/useProject';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { ConfigGroup } from '../common/ConfigGroup';
+import { Config } from '../../common/Config';
 import { AddButton } from '../FieldLayoutOptions';
 import { ReferenceLine } from './ReferenceLine';
 
@@ -157,11 +157,11 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const { referenceLines } = visualizationConfig.chartConfig;
 
     return (
-        <ConfigGroup>
-            <ConfigGroup.LabelGroup>
-                <ConfigGroup.Label>Reference lines</ConfigGroup.Label>
+        <Config.Group>
+            <Config.LabelGroup>
+                <Config.Label>Reference lines</Config.Label>
                 <AddButton onClick={addReferenceLine} />
-            </ConfigGroup.LabelGroup>
+            </Config.LabelGroup>
 
             {referenceLines &&
                 referenceLines.map((line, index) => (
@@ -176,6 +176,6 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         removeReferenceLine={removeReferenceLine}
                     />
                 ))}
-        </ConfigGroup>
+        </Config.Group>
     );
 };

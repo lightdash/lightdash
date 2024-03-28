@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { forwardRef, useMemo, type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
-import { ConfigGroup } from '../common/ConfigGroup';
+import { Config } from '../../common/Config';
 
 const CHART_TYPE_OPTIONS = [
     { value: CartesianSeriesType.BAR, label: 'Bar', icon: IconChartBar },
@@ -67,9 +67,7 @@ export const ChartTypeSelect: FC<Props> = ({
 
     return (
         <Select
-            label={
-                showLabel && <ConfigGroup.SubLabel>Type</ConfigGroup.SubLabel>
-            }
+            label={showLabel && <Config.SubLabel>Type</Config.SubLabel>}
             size="xs"
             value={chartValue}
             data={options}

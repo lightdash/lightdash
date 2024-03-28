@@ -15,7 +15,7 @@ import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
-import { ConfigGroup } from '../common/ConfigGroup';
+import { Config } from '../../common/Config';
 import { EditableText } from '../common/EditableText';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
@@ -46,7 +46,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     );
 
     return (
-        <ConfigGroup>
+        <Config.Group>
             <Group noWrap spacing="two">
                 <Box
                     {...dragHandleProps}
@@ -72,9 +72,9 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                         }}
                     />
                     {isSingle ? (
-                        <ConfigGroup.Label>
+                        <Config.Label>
                             {getItemLabelWithoutTableName(item)}
-                        </ConfigGroup.Label>
+                        </Config.Label>
                     ) : (
                         <EditableText
                             size="sm"
@@ -98,7 +98,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                 seriesLabel={getItemLabelWithoutTableName(item)}
                 updateSingleSeries={updateSingleSeries}
             />
-        </ConfigGroup>
+        </Config.Group>
     );
 };
 

@@ -22,7 +22,7 @@ import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { ConfigGroup } from './common/ConfigGroup';
+import { Config } from '../common/Config';
 
 interface MinMaxProps {
     label: string;
@@ -48,11 +48,7 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
         <Group noWrap spacing="xs">
             <Switch
                 size="xs"
-                label={
-                    isAuto && (
-                        <ConfigGroup.SubLabel>{label}</ConfigGroup.SubLabel>
-                    )
-                }
+                label={isAuto && <Config.SubLabel>{label}</Config.SubLabel>}
                 checked={isAuto}
                 onChange={() => {
                     toggleAuto((prev: boolean) => !prev);
@@ -72,14 +68,14 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
             />
             {!isAuto && (
                 <Group noWrap spacing="xs">
-                    <ConfigGroup.SubLabel>Min</ConfigGroup.SubLabel>
+                    <Config.SubLabel>Min</Config.SubLabel>
                     <TextInput
                         size="xs"
                         placeholder="Min"
                         defaultValue={min || undefined}
                         onBlur={(e) => setMin(e.currentTarget.value)}
                     />
-                    <ConfigGroup.SubLabel>Max</ConfigGroup.SubLabel>
+                    <Config.SubLabel>Max</Config.SubLabel>
                     <TextInput
                         size="xs"
                         placeholder="Max"
@@ -145,10 +141,10 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
 
     return (
         <Stack>
-            <ConfigGroup>
-                <ConfigGroup.Label>{`${
+            <Config.Group>
+                <Config.Label>{`${
                     dirtyLayout?.flipAxes ? 'Y' : 'X'
-                }-axis label`}</ConfigGroup.Label>
+                }-axis label`}</Config.Label>
                 <TextInput
                     size="xs"
                     placeholder="Enter axis label"
@@ -174,7 +170,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                 )}
                 <Group spacing="xs">
                     <Group spacing="xs">
-                        <ConfigGroup.SubLabel>Sort</ConfigGroup.SubLabel>
+                        <Config.SubLabel>Sort</Config.SubLabel>
                         <SegmentedControl
                             size="xs"
                             defaultValue={
@@ -205,9 +201,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     </Group>
                     {!dirtyLayout?.flipAxes && (
                         <Group noWrap spacing="xs" align="baseline">
-                            <ConfigGroup.SubLabel>
-                                Rotation
-                            </ConfigGroup.SubLabel>
+                            <Config.SubLabel>Rotation</Config.SubLabel>
                             <NumberInput
                                 type="number"
                                 defaultValue={
@@ -226,14 +220,14 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                         </Group>
                     )}
                 </Group>
-            </ConfigGroup>
+            </Config.Group>
 
-            <ConfigGroup>
-                <ConfigGroup.Label>{`${
+            <Config.Group>
+                <Config.Label>{`${
                     dirtyLayout?.flipAxes ? 'X' : 'Y'
                 }-axis label (${
                     dirtyLayout?.flipAxes ? 'bottom' : 'left'
-                })`}</ConfigGroup.Label>
+                })`}</Config.Label>
 
                 <TextInput
                     size="xs"
@@ -262,14 +256,14 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                         setMax={(newValue) => setYMaxValue(0, newValue)}
                     />
                 )}
-            </ConfigGroup>
+            </Config.Group>
 
-            <ConfigGroup>
-                <ConfigGroup.Label>{`${
+            <Config.Group>
+                <Config.Label>{`${
                     dirtyLayout?.flipAxes ? 'X' : 'Y'
                 }-axis label (${
                     dirtyLayout?.flipAxes ? 'top' : 'right'
-                })`}</ConfigGroup.Label>
+                })`}</Config.Label>
 
                 <TextInput
                     size="xs"
@@ -299,18 +293,18 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                         setMax={(newValue) => setYMaxValue(1, newValue)}
                     />
                 )}
-            </ConfigGroup>
+            </Config.Group>
 
-            <ConfigGroup>
-                <ConfigGroup.Label>Show grid</ConfigGroup.Label>
+            <Config.Group>
+                <Config.Label>Show grid</Config.Label>
 
                 <Stack spacing="xs">
                     <Checkbox
                         size="xs"
                         label={
-                            <ConfigGroup.SubLabel>{`${
+                            <Config.SubLabel>{`${
                                 dirtyLayout?.flipAxes ? 'Y' : 'X'
-                            }-axis`}</ConfigGroup.SubLabel>
+                            }-axis`}</Config.SubLabel>
                         }
                         checked={!!dirtyLayout?.showGridX}
                         onChange={() => {
@@ -326,9 +320,9 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     <Checkbox
                         size="xs"
                         label={
-                            <ConfigGroup.SubLabel>{`${
+                            <Config.SubLabel>{`${
                                 dirtyLayout?.flipAxes ? 'X' : 'Y'
-                            }-axis`}</ConfigGroup.SubLabel>
+                            }-axis`}</Config.SubLabel>
                         }
                         checked={
                             dirtyLayout?.showGridY !== undefined
@@ -352,7 +346,7 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                         }}
                     />
                 </Stack>
-            </ConfigGroup>
+            </Config.Group>
         </Stack>
     );
 };
