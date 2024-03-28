@@ -1,3 +1,4 @@
+import { type ResultRow } from '@lightdash/common';
 import { createRow } from '@tanstack/table-core/src/core/row';
 import {
     type Row,
@@ -18,7 +19,7 @@ function groupBy<TData extends RowData>(rows: Row<TData>[], columnId: string) {
     return rows.reduce((map, row) => {
         // This line changed from original since getGroupingValue does not exist here as it should.
         // const resKey = `${row.getGroupingValue(columnId)}`
-        const resKey = (row.original as unknown)[columnId].value.raw;
+        const resKey = (row.original as ResultRow)[columnId].value.raw;
 
         const previous = map.get(resKey);
         if (!previous) {
