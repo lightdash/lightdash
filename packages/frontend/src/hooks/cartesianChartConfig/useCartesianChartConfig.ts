@@ -407,13 +407,10 @@ const useCartesianChartConfig = ({
     }, []);
 
     const getSingleSeries = useCallback(
-        (series: Series) => {
-            console.log(dirtyEchartsConfig?.series);
-
-            return dirtyEchartsConfig?.series?.find(
+        (series: Series) =>
+            dirtyEchartsConfig?.series?.find(
                 (s) => getSeriesId(s) === getSeriesId(series),
-            );
-        },
+            ),
         [dirtyEchartsConfig?.series],
     );
 
