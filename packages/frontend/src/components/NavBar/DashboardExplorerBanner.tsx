@@ -43,8 +43,10 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             case 'editing':
                 return 'Cancel';
             default:
-                assertUnreachable(action, `${action} is not a valid action`);
-                break;
+                return assertUnreachable(
+                    action,
+                    `${action} is not a valid action`,
+                );
         }
     }, [action]);
 
@@ -57,8 +59,10 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             case 'viewing':
                 return '';
             default:
-                assertUnreachable(action, `${action} is not a valid action`);
-                break;
+                return assertUnreachable(
+                    action,
+                    `${action} is not a valid action`,
+                );
         }
     }, [action]);
 
