@@ -137,7 +137,6 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
     );
 
     useEffect(() => {
-        console.log('FLUSH!');
         setCacheDataInLocalStorage(createCacheEntry(debouncedCacheData));
 
         /**
