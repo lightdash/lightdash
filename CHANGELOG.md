@@ -1,3 +1,47 @@
+## [0.1044.1](https://github.com/lightdash/lightdash/compare/0.1044.0...0.1044.1) (2024-03-28)
+
+
+### Bug Fixes
+
+* can remove all users access from space ([#9561](https://github.com/lightdash/lightdash/issues/9561)) ([402883b](https://github.com/lightdash/lightdash/commit/402883bf295705cc8cb3c284eb29b744bc43e581))
+* show explore from here button to interactive viewers ([#9556](https://github.com/lightdash/lightdash/issues/9556)) ([59b6312](https://github.com/lightdash/lightdash/commit/59b6312280f954fa06e6f9dc8f49de4f3d0f8172))
+* space admins can update other space admins access ([#9558](https://github.com/lightdash/lightdash/issues/9558)) ([d4bd373](https://github.com/lightdash/lightdash/commit/d4bd373e71e925e8ce8cf4cf3cbcd40761f4f38e))
+
+# [0.1044.0](https://github.com/lightdash/lightdash/compare/0.1043.0...0.1044.0) (2024-03-27)
+
+
+### Features
+
+* duplicate chart dashboard ([#9512](https://github.com/lightdash/lightdash/issues/9512)) ([db33eb1](https://github.com/lightdash/lightdash/commit/db33eb17349dfb0bd6f38c584eb84154eb95d0ca))
+
+# [0.1043.0](https://github.com/lightdash/lightdash/compare/0.1042.5...0.1043.0) (2024-03-27)
+
+
+### Features
+
+* add admin space role + allow edit space role ([#9438](https://github.com/lightdash/lightdash/issues/9438)) ([a9cb962](https://github.com/lightdash/lightdash/commit/a9cb9629d1bf87504335ebbeda4923754629f410))
+
+## [0.1042.5](https://github.com/lightdash/lightdash/compare/0.1042.4...0.1042.5) (2024-03-27)
+
+
+### Bug Fixes
+
+* reset search on exit ([#9521](https://github.com/lightdash/lightdash/issues/9521)) ([ffcae07](https://github.com/lightdash/lightdash/commit/ffcae0753e2c8e6a100ac70b910a93bed620bbb1))
+
+## [0.1042.4](https://github.com/lightdash/lightdash/compare/0.1042.3...0.1042.4) (2024-03-26)
+
+
+### Bug Fixes
+
+* chart config resetting on table calculation update ([#9514](https://github.com/lightdash/lightdash/issues/9514)) ([673cdcf](https://github.com/lightdash/lightdash/commit/673cdcf9507e8f6bdf950deddced1b0e8f630769))
+
+## [0.1042.3](https://github.com/lightdash/lightdash/compare/0.1042.2...0.1042.3) (2024-03-26)
+
+
+### Bug Fixes
+
+* download csv from dashbaord with chart filename ([#9495](https://github.com/lightdash/lightdash/issues/9495)) ([1edbfc1](https://github.com/lightdash/lightdash/commit/1edbfc1ef9e22669940e2368ff288914c5cce7a3))
+
 ## [0.1042.2](https://github.com/lightdash/lightdash/compare/0.1042.1...0.1042.2) (2024-03-26)
 
 

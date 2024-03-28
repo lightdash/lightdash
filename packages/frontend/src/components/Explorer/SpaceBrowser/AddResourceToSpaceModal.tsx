@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { assertUnreachable } from '@lightdash/common';
 import {
     Button,
@@ -20,6 +21,7 @@ import {
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
 import { useSpace, useSpaceSummaries } from '../../../hooks/useSpaces';
+import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
 export enum AddToSpaceResources {
@@ -86,12 +88,46 @@ const AddResourceToSpaceModal: FC<Props> = ({ resourceType, onClose }) => {
         projectUuid: string;
         spaceUuid: string;
     }>();
-
+    const { user } = useApp();
     const { data: space } = useSpace(projectUuid, spaceUuid);
     const { data: spaces } = useSpaceSummaries(projectUuid);
 
-    const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
-    const { data: dashboards } = useDashboards(projectUuid);
+    const { data: savedCharts, isLoading } = useChartSummaries(projectUuid, {
+        select: (data) => {
+            return data.filter((chart) => {
+                const chartSpace = spaces?.find(
+                    ({ uuid }) => uuid === chart.spaceUuid,
+                );
+                return user.data?.ability.can(
+                    'update',
+                    subject('SavedChart', {
+                        ...chartSpace,
+                        access: chartSpace?.userAccess
+                            ? [chartSpace?.userAccess]
+                            : [],
+                    }),
+                );
+            });
+        },
+    });
+    const { data: dashboards } = useDashboards(projectUuid, {
+        select: (data) => {
+            return data.filter((dashboard) => {
+                const dashboardSpace = spaces?.find(
+                    ({ uuid }) => uuid === dashboard.spaceUuid,
+                );
+                return user.data?.ability.can(
+                    'update',
+                    subject('Dashboard', {
+                        ...dashboardSpace,
+                        access: dashboardSpace?.userAccess
+                            ? [dashboardSpace?.userAccess]
+                            : [],
+                    }),
+                );
+            });
+        },
+    });
 
     const { mutate: chartMutation } = useUpdateMultipleMutation(projectUuid);
     const { mutate: dashboardMutation } =

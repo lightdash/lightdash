@@ -189,6 +189,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             item={xAxisField}
                             items={items}
                             onChange={handleOnChangeOfXAxisField}
+                            data-testid="x-axis-field-select"
                             rightSection={
                                 <CloseButton
                                     onClick={() => {
@@ -221,6 +222,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                         newValue ? getItemId(newValue) : '',
                                     );
                                 }}
+                                data-testid="y-axis-field-select"
                                 rightSection={
                                     yFields?.length !== 1 && (
                                         <CloseButton

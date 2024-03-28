@@ -69,6 +69,9 @@ const VisualizationCard: FC<{
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
+    const tableCalculationsMetadata = useExplorerContext(
+        (context) => context.state.metadata?.tableCalculations,
+    );
 
     const isOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
@@ -172,6 +175,7 @@ const VisualizationCard: FC<{
             onChartTypeChange={setChartType}
             onPivotDimensionsChange={setPivotFields}
             colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
+            tableCalculationsMetadata={tableCalculationsMetadata}
         >
             <CollapsableCard
                 title="Chart"

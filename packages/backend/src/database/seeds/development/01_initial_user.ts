@@ -157,17 +157,18 @@ export async function seed(knex: Knex): Promise<void> {
         warehouse_type: 'postgres',
     });
 
-    const [{ space_id: spaceId }] = await knex('spaces')
+    const [{ space_id: spaceId, space_uuid: spaceUuid }] = await knex('spaces')
         .insert({
             ...SEED_SPACE,
             is_private: false,
             project_id: projectId,
         })
-        .returning('space_id');
+        .returning(['space_id', 'space_uuid']);
 
-    await knex('space_share').insert({
-        user_id: user.user_id,
-        space_id: spaceId,
+    await knex('space_user_access').insert({
+        user_uuid: user.user_uuid,
+        space_uuid: spaceUuid,
+        space_role: 'admin',
     });
 
     try {

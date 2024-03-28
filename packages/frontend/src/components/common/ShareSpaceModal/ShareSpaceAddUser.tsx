@@ -1,6 +1,7 @@
 import { OrganizationMemberRole, type Space } from '@lightdash/common';
 import {
     Avatar,
+    Badge,
     Button,
     Group,
     MultiSelect,
@@ -12,6 +13,7 @@ import { forwardRef, useMemo, useState, type FC } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
+import { UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 interface ShareSpaceAddUserProps {
@@ -53,34 +55,49 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
             if (!user) return null;
 
+            const spaceAccess = space.access.find(
+                (access) => access.userUuid === user.userUuid,
+            );
+            const currentSpaceRoleTitle = spaceAccess
+                ? UserAccessOptions.find(
+                      (option) => option.value === spaceAccess.role,
+                  )?.title ?? 'No access'
+                : 'No access';
+
             return (
-                <Group ref={ref} {...props}>
-                    <Avatar radius="xl" color="blue">
-                        {getInitials(
-                            user.userUuid,
-                            user.firstName,
-                            user.lastName,
-                            user.email,
-                        )}
-                    </Avatar>
+                <Group ref={ref} {...props} position={'apart'}>
+                    <Group>
+                        <Avatar size="md" radius="xl" color="blue">
+                            {getInitials(
+                                user.userUuid,
+                                user.firstName,
+                                user.lastName,
+                                user.email,
+                            )}
+                        </Avatar>
+                        <Stack spacing="two">
+                            {user.firstName || user.lastName ? (
+                                <>
+                                    <Text fw={500}>
+                                        {user.firstName} {user.lastName}
+                                    </Text>
 
-                    <Stack spacing="two">
-                        {user.firstName || user.lastName ? (
-                            <>
-                                <Text fw={500}>
-                                    {user.firstName} {user.lastName}
-                                </Text>
-
-                                <Text color="dimmed">{user.email}</Text>
-                            </>
-                        ) : (
-                            <Text>{user.email}</Text>
-                        )}
-                    </Stack>
+                                    <Text size={'xs'} color="dimmed">
+                                        {user.email}
+                                    </Text>
+                                </>
+                            ) : (
+                                <Text fw={500}>{user.email}</Text>
+                            )}
+                        </Stack>
+                    </Group>
+                    <Badge size="xs" color="gray.6" radius="xs">
+                        {currentSpaceRoleTitle}
+                    </Badge>
                 </Group>
             );
         });
-    }, [organizationUsers]);
+    }, [organizationUsers, space.access]);
 
     const data = useMemo(() => {
         return userUuids
@@ -133,7 +150,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 disabled={usersSelected.length === 0}
                 onClick={async () => {
                     for (const userUuid of usersSelected) {
-                        if (userUuid) await shareSpaceMutation(userUuid);
+                        if (userUuid)
+                            await shareSpaceMutation([userUuid, 'viewer']);
                     }
                     setUsersSelected([]);
                 }}

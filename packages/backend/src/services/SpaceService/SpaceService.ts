@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     SessionUser,
     Space,
+    SpaceMemberRole,
     SpaceShare,
     SpaceSummary,
     UpdateSpace,
@@ -42,14 +43,14 @@ export const hasDirectAccessToSpace = (
     return hasAccess;
 };
 
-export const hasViewAccessToSpace = async (
+export const hasViewAccessToSpace = (
     user: SessionUser,
     space: Pick<
         Space | SpaceSummary,
         'projectUuid' | 'organizationUuid' | 'isPrivate'
     >,
     access: SpaceShare[],
-): Promise<boolean> =>
+): boolean =>
     user.ability.can(
         'view',
         subject('Space', {
@@ -128,10 +129,15 @@ export class SpaceService {
                     this.spaceModel.addSpaceAccess(
                         newSpace.uuid,
                         access.userUuid,
+                        access.role,
                     ),
                 ),
             );
-        await this.spaceModel.addSpaceAccess(newSpace.uuid, user.userUuid);
+        await this.spaceModel.addSpaceAccess(
+            newSpace.uuid,
+            user.userUuid,
+            SpaceMemberRole.ADMIN,
+        ); // user who created the space by default would be set to space admin
         this.analytics.track({
             event: 'space.created',
             userId: user.userUuid,
@@ -152,7 +158,7 @@ export class SpaceService {
         updateSpace: UpdateSpace,
     ): Promise<Space> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+        const userSpaceAccess = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,
             spaceUuid,
         );
@@ -161,20 +167,13 @@ export class SpaceService {
                 'manage',
                 subject('Space', {
                     ...space,
-                    access: spaceAccess,
+                    access: userSpaceAccess,
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        if (space.isPrivate !== updateSpace.isPrivate) {
-            // Switching public and private spaces switches between their defaults
-            // it will remove access to all users except for this `user.userUuid`
-
-            await this.spaceModel.clearSpaceAccess(spaceUuid, user.userUuid);
-            await this.spaceModel.addSpaceAccess(spaceUuid, user.userUuid);
-        }
         const updatedSpace = await this.spaceModel.update(
             spaceUuid,
             updateSpace,
@@ -223,10 +222,11 @@ export class SpaceService {
         });
     }
 
-    async addSpaceShare(
+    async addSpaceUserAccess(
         user: SessionUser,
         spaceUuid: string,
         shareWithUserUuid: string,
+        spaceRole: SpaceMemberRole,
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const spaceAccess = await this.spaceModel.getUserSpaceAccess(
@@ -245,10 +245,14 @@ export class SpaceService {
             throw new ForbiddenError();
         }
 
-        await this.spaceModel.addSpaceAccess(spaceUuid, shareWithUserUuid);
+        await this.spaceModel.addSpaceAccess(
+            spaceUuid,
+            shareWithUserUuid,
+            spaceRole,
+        );
     }
 
-    async removeSpaceShare(
+    async removeSpaceUserAccess(
         user: SessionUser,
         spaceUuid: string,
         shareWithUserUuid: string,
@@ -268,13 +272,6 @@ export class SpaceService {
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        if (
-            space.access.filter((userUuid) => userUuid !== shareWithUserUuid)
-                .length === 0
-        ) {
-            throw new Error('There must be at least 1 user in this space');
         }
 
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);

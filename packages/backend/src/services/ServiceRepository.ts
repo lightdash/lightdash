@@ -444,6 +444,7 @@ export class ServiceRepository
                     schedulerModel: this.models.getSchedulerModel(),
                     schedulerClient: this.clients.schedulerClient,
                     slackClient: this.clients.slackClient,
+                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }
