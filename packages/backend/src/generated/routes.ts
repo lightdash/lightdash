@@ -4605,6 +4605,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        required: { dataType: 'boolean' },
                         label: {
                             dataType: 'union',
                             subSchemas: [

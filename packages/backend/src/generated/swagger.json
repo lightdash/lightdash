@@ -5132,6 +5132,9 @@
                     },
                     {
                         "properties": {
+                            "required": {
+                                "type": "boolean"
+                            },
                             "label": {
                                 "type": "string"
                             },

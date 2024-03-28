@@ -4,7 +4,7 @@ import {
     getCustomDimensionId,
     type ApiQueryResults,
     type ChartConfig,
-    type DashboardFilters,
+    type DashboardFiltersForTile,
     type ItemsMap,
     type TableCalculationMetadata,
 } from '@lightdash/common';
@@ -120,7 +120,7 @@ type Props = {
     isSqlRunner?: boolean;
     pivotTableMaxColumnLimit: number;
     savedChartUuid?: string;
-    dashboardFilters?: DashboardFilters;
+    dashboardFilters?: DashboardFiltersForTile;
     invalidateCache?: boolean;
     colorPalette: string[];
     tableCalculationsMetadata?: TableCalculationMetadata[];

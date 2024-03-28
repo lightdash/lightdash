@@ -66,7 +66,18 @@ export type DashboardFilterRule<
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
+    required?: boolean;
 };
+
+/**
+ * DashboardFilterRuleForTile is a DashboardFilterRule without properties that are unknown to FilterRule: e.g. `tileTargets`, `label`, and `required` fields
+ * This is used to represent the filter rules that are applied to a specific tile.
+ * This is also to ensure we don't polute the filters on a chart tile with unnecessary fields that can't be used when viewing a chart in isolation.
+ */
+export type DashboardFilterRuleForTile = Pick<
+    DashboardFilterRule,
+    'id' | 'target' | 'operator' | 'values' | 'settings' | 'disabled'
+>;
 
 export type FilterDashboardToRule = DashboardFilterRule & {
     target: {
@@ -114,6 +125,15 @@ export type DashboardFilters = {
     dimensions: DashboardFilterRule[];
     metrics: DashboardFilterRule[];
     tableCalculations: DashboardFilterRule[];
+};
+
+/**
+ * See DashboardFilterRuleForTile for details on the structure of individual filter rules.
+ */
+export type DashboardFiltersForTile = {
+    dimensions: DashboardFilterRuleForTile[];
+    metrics: DashboardFilterRuleForTile[];
+    tableCalculations: DashboardFilterRuleForTile[];
 };
 
 export type DashboardFiltersFromSearchParam = {

@@ -25,7 +25,7 @@ import {
     CustomFormatType,
     DashboardAvailableFilters,
     DashboardBasicDetails,
-    DashboardFilters,
+    DashboardFiltersForTile,
     DateGranularity,
     DbtExposure,
     DbtExposureType,
@@ -1304,7 +1304,7 @@ export class ProjectService {
         user: SessionUser;
         chartUuid: string;
         dashboardUuid: string;
-        dashboardFilters: DashboardFilters;
+        dashboardFilters: DashboardFiltersForTile;
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
         granularity?: DateGranularity;
@@ -3580,7 +3580,7 @@ export class ProjectService {
     async calculateTotalFromSavedChart(
         user: SessionUser,
         chartUuid: string,
-        dashboardFilters: DashboardFilters,
+        dashboardFilters: DashboardFiltersForTile,
         invalidateCache: boolean = false,
     ) {
         if (!isUserWithOrg(user)) {
