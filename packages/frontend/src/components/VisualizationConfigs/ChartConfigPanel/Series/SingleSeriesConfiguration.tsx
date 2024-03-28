@@ -13,6 +13,7 @@ import {
     Select,
     Stack,
 } from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -51,16 +52,17 @@ const SingleSeriesConfiguration: FC<Props> = ({
     toggleIsOpen,
     dragHandleProps,
 }) => {
+    const { hovered, ref } = useHover();
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
             : series.type;
 
     return (
-        <Stack spacing="two">
+        <Box>
             <Group noWrap spacing="xs" position={isGrouped ? 'apart' : 'left'}>
-                <Group spacing="xs">
-                    {isGrouped && (
+                <Group spacing="xs" ref={ref}>
+                    {isGrouped && hovered && (
                         <Box
                             {...dragHandleProps}
                             sx={{
@@ -201,8 +203,17 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         <Group spacing="xs">
                             <Checkbox
                                 size="xs"
+                                sx={{
+                                    label: {
+                                        paddingLeft: 4,
+                                    },
+                                }}
                                 checked={series.showSymbol ?? true}
-                                label="Show symbol"
+                                label={
+                                    <ConfigGroup.SubLabel>
+                                        Show symbol
+                                    </ConfigGroup.SubLabel>
+                                }
                                 onChange={() => {
                                     updateSingleSeries({
                                         ...series,
@@ -215,7 +226,16 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             <Checkbox
                                 size="xs"
                                 checked={series.smooth}
-                                label="Smooth"
+                                label={
+                                    <ConfigGroup.SubLabel>
+                                        Smooth
+                                    </ConfigGroup.SubLabel>
+                                }
+                                sx={{
+                                    label: {
+                                        paddingLeft: 4,
+                                    },
+                                }}
                                 onChange={() => {
                                     updateSingleSeries({
                                         ...series,
@@ -227,7 +247,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     )}
                 </Stack>
             </Collapse>
-        </Stack>
+        </Box>
     );
 };
 
