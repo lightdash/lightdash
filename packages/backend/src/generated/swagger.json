@@ -5573,6 +5573,23 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Partial_CreateShareUrl_": {
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "The URL path of the full URL"
+                    },
+                    "params": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateShareUrl": {
+                "$ref": "#/components/schemas/Partial_CreateShareUrl_",
+                "description": "Same as above, but allows partial submission for updates."
+            },
             "Pick_ShareUrl.path-or-params_": {
                 "properties": {
                     "path": {
@@ -6714,7 +6731,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1042.4",
+        "version": "0.1045.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -10725,6 +10742,56 @@
                         }
                     }
                 ]
+            },
+            "patch": {
+                "operationId": "UpdateShareUrl",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiShareResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Updates a single share, by its NanoID. All parameters are optional.",
+                "tags": ["Share links"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "nanoId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "a full URL used to generate a short url id",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateShareUrl",
+                                "description": "a full URL used to generate a short url id"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/share": {

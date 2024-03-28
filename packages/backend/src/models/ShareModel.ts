@@ -33,6 +33,17 @@ export class ShareModel {
         return shareUrl;
     }
 
+    async updateShareUrl(shareUrl: ShareUrl): Promise<ShareUrl> {
+        await this.database(ShareTableName)
+            .where('nanoid', shareUrl.nanoid)
+            .update({
+                path: shareUrl.path ? shareUrl.path : undefined,
+                params: shareUrl.params ? shareUrl.params : undefined,
+            });
+
+        return shareUrl;
+    }
+
     async getSharedUrl(nanoid: string): Promise<ShareUrl> {
         const [row] = await this.database(ShareTableName)
             .leftJoin(

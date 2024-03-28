@@ -4,6 +4,7 @@ import {
     isUserWithOrg,
     SessionUser,
     ShareUrl,
+    UpdateShareUrl,
 } from '@lightdash/common';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -64,6 +65,31 @@ export class ShareService {
             },
         });
         return this.shareUrlWithHost(shareUrl);
+    }
+
+    async updateShareUrl(
+        user: SessionUser,
+        nanoid: string,
+        updateParams: UpdateShareUrl,
+    ): Promise<ShareUrl> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const shareUrl = await this.getShareUrl(user, nanoid);
+
+        if (shareUrl.createdByUserUuid !== user.userUuid) {
+            throw new ForbiddenError(
+                'User is not original creator of share url',
+            );
+        }
+
+        const updatedShareUrl: ShareUrl = {
+            ...shareUrl,
+            ...updateParams,
+        };
+
+        return this.shareModel.updateShareUrl(updatedShareUrl);
     }
 
     async createShareUrl(

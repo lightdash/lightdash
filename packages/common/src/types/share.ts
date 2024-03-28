@@ -30,3 +30,8 @@ export type ShareUrl = {
  * Contains the detail of a full URL to generate a short URL id
  */
 export type CreateShareUrl = Pick<ShareUrl, 'path' | 'params'>;
+
+/**
+ * Same as above, but allows partial submission for updates.
+ */
+export type UpdateShareUrl = Partial<CreateShareUrl>;

@@ -2,6 +2,7 @@ import {
     type ApiError,
     type CreateShareUrl,
     type ShareUrl,
+    type UpdateShareUrl,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
@@ -13,11 +14,12 @@ const getShare = async (shareNanoid: string) =>
         body: undefined,
     });
 
-export const useGetShare = (shareNanoid: string) =>
+export const useGetShare = (shareNanoid: string | null) =>
     useQuery<ShareUrl, ApiError>({
-        queryKey: ['share', shareNanoid],
-        queryFn: () => getShare(shareNanoid),
+        queryKey: ['share', shareNanoid!],
+        queryFn: () => getShare(shareNanoid!),
         retry: false,
+        enabled: shareNanoid != null,
     });
 
 const createShareUrl = async (data: CreateShareUrl) =>
@@ -27,9 +29,35 @@ const createShareUrl = async (data: CreateShareUrl) =>
         body: JSON.stringify(data),
     });
 
+const updateShareUrl = async (shareNanoid: string, data: UpdateShareUrl) =>
+    lightdashApi<ShareUrl>({
+        url: `/share/${shareNanoid}`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
 export const useCreateShareMutation = () => {
     return useMutation<ShareUrl, ApiError, CreateShareUrl>(
         (data) => createShareUrl(data),
+        {
+            //mutationKey: ['share'],
+            onSuccess: async () => {},
+            onError: () => {},
+        },
+    );
+};
+
+export const useUpdateShareMutation = (shareNanoid?: string) => {
+    return useMutation<ShareUrl, ApiError, UpdateShareUrl>(
+        (data) => {
+            if (!shareNanoid) {
+                throw new Error(
+                    `useUpdateShareMutation mutation called without a nullish shareNanoId`,
+                );
+            }
+
+            return updateShareUrl(shareNanoid, data);
+        },
         {
             //mutationKey: ['share'],
             onSuccess: async () => {},

@@ -59,7 +59,8 @@ const SqlRunnerPage = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const sqlQueryMutation = useSqlQueryMutation();
 
-    const { sqlRunnerState, updateSqlRunnerState } = useSqlRunnerRoute();
+    const { sqlRunnerState, updateSqlRunnerState, flushSqlRunnerStateToShare } =
+        useSqlRunnerRoute();
     const { isInitialLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
 
@@ -101,7 +102,8 @@ const SqlRunnerPage = () => {
 
         mutate(sql);
         setLastSqlRan(sql);
-    }, [mutate, sql]);
+        flushSqlRunnerStateToShare();
+    }, [mutate, sql, flushSqlRunnerStateToShare]);
 
     useMount(() => {
         handleSubmit();

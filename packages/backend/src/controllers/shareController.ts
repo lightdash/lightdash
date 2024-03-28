@@ -2,12 +2,14 @@ import {
     ApiErrorPayload,
     ApiShareResponse,
     CreateShareUrl,
+    UpdateShareUrl,
 } from '@lightdash/common';
 import {
     Body,
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,
@@ -42,6 +44,30 @@ export class ShareController extends BaseController {
             results: await this.services
                 .getShareService()
                 .getShareUrl(req.user!, nanoId),
+        };
+    }
+
+    /**
+     * Updates a single share, by its NanoID. All parameters are optional.
+     * @param body a full URL used to generate a short url id
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'OK')
+    @Patch('{nanoId}')
+    @OperationId('UpdateShareUrl')
+    async update(
+        @Path() nanoId: string,
+        @Body() body: UpdateShareUrl,
+        @Request() req: express.Request,
+    ): Promise<ApiShareResponse> {
+        this.setStatus(201);
+        const shareUrl = await this.services
+            .getShareService()
+            .updateShareUrl(req.user!, nanoId, body);
+        return {
+            status: 'ok',
+            results: shareUrl,
         };
     }
 
