@@ -1,8 +1,8 @@
 import { type CreateSavedChartVersion } from '@lightdash/common';
-import { useEffect, useMemo } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
-import useToaster from './toaster/useToaster';
+import { useCallback, useMemo } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 import { parseExplorerSearchParams } from './useExplorerRoute';
+import { generateStateCacheKey, useStateCache } from './useStateCache';
 
 export type SqlRunnerState = {
     createSavedChart: CreateSavedChartVersion | undefined;
@@ -15,68 +15,78 @@ enum SqlRunnerSearchParam {
     SqlRunnerKey = 'sql_runner_id',
 }
 
-const getSqlRunnerUrlFromCreateSavedChartVersion = (
-    projectUuid: string,
-    sqlRunnerState: SqlRunnerState,
-): { pathname: string; search: string } => {
-    const newParams = new URLSearchParams();
-    if (sqlRunnerState.createSavedChart) {
-        newParams.set(
-            SqlRunnerSearchParam.CreateSavedChartVersion,
-            JSON.stringify(sqlRunnerState.createSavedChart),
-        );
-    }
-    if (sqlRunnerState.sqlRunner) {
-        newParams.set(
-            SqlRunnerSearchParam.SqlRunnerState,
-            JSON.stringify(sqlRunnerState.sqlRunner),
-        );
-    }
-    return {
-        pathname: `/projects/${projectUuid}/sqlRunner`,
-        search: newParams.toString(),
-    };
-};
-
-export const useSqlRunnerRoute = (sqlRunnerState: SqlRunnerState) => {
+export const useSqlRunnerRoute = () => {
+    const { search, pathname } = useLocation();
     const history = useHistory();
-    const pathParams = useParams<{
-        projectUuid: string;
-    }>();
+    const searchParams = useMemo(() => new URLSearchParams(search), [search]);
 
-    useEffect(() => {
-        if (sqlRunnerState) {
-            history.replace(
-                getSqlRunnerUrlFromCreateSavedChartVersion(
-                    pathParams.projectUuid,
-                    sqlRunnerState,
-                ),
+    const sqlRunnerCacheId = searchParams.get(
+        SqlRunnerSearchParam.SqlRunnerKey,
+    );
+
+    /**
+     * If we don't have a cache key, we generate a brand new one:
+     */
+    const cacheKeyOrGenerated = useMemo(
+        () => sqlRunnerCacheId ?? generateStateCacheKey(),
+        [sqlRunnerCacheId],
+    );
+
+    const legacyRunnerState = searchParams.get(
+        SqlRunnerSearchParam.SqlRunnerState,
+    );
+
+    const hasLegacyCreateSavedChartVersion = searchParams.has(
+        SqlRunnerSearchParam.CreateSavedChartVersion,
+    );
+
+    /**
+     * If we're handling legacy search params, we process them as the initial state,
+     * and discard them as soon as we receive a new state update.
+     */
+    const initialData = useMemo<Partial<SqlRunnerState>>(() => {
+        return {
+            createSavedChart: hasLegacyCreateSavedChartVersion
+                ? parseExplorerSearchParams(search)
+                : undefined,
+            sqlRunner: legacyRunnerState
+                ? JSON.parse(legacyRunnerState)
+                : undefined,
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const [cachedState, setCachedState] = useStateCache(cacheKeyOrGenerated, {
+        initialData,
+    });
+
+    const updateSqlRunnerState = useCallback(
+        (newState: SqlRunnerState) => {
+            const updatedSearchParams = new URLSearchParams(search);
+
+            /**
+             * Delete legacy search params, and add the current cache key to the url:
+             */
+            updatedSearchParams.delete(
+                SqlRunnerSearchParam.CreateSavedChartVersion,
             );
-        }
-    }, [sqlRunnerState, history, pathParams.projectUuid]);
-};
-
-export const useSqlRunnerUrlState = (): SqlRunnerState | undefined => {
-    const { showToastError } = useToaster();
-    const { search } = useLocation();
-
-    return useMemo(() => {
-        try {
-            const searchParams = new URLSearchParams(search);
-            const sqlRunnerSearchParam = searchParams.get(
-                SqlRunnerSearchParam.SqlRunnerState,
+            updatedSearchParams.delete(SqlRunnerSearchParam.SqlRunnerState);
+            updatedSearchParams.set(
+                SqlRunnerSearchParam.SqlRunnerKey,
+                cacheKeyOrGenerated,
             );
-            const sqlRunner = sqlRunnerSearchParam
-                ? JSON.parse(sqlRunnerSearchParam)
-                : undefined;
-            const createSavedChart = parseExplorerSearchParams(search);
 
-            return {
-                createSavedChart,
-                sqlRunner,
-            };
-        } catch (e: any) {
-            showToastError({ title: 'Error parsing url', subtitle: e });
-        }
-    }, [search, showToastError]);
+            setCachedState(newState);
+            history.replace({
+                pathname,
+                search: updatedSearchParams.toString(),
+            });
+        },
+        [setCachedState, search, cacheKeyOrGenerated, pathname, history],
+    );
+
+    return {
+        sqlRunnerState: cachedState,
+        updateSqlRunnerState,
+    };
 };

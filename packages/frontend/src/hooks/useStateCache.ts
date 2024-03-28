@@ -1,5 +1,5 @@
-import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, useMemo } from 'react';
+import { useDebouncedValue, useLocalStorage } from '@mantine/hooks';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 /**
  * Static cache key prefix. The number value can be incremented
@@ -80,9 +80,13 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
 
         /* A value in minutes after which this state cache is eligible for deletion. */
         expireAfterMinutes = 1440, // 24 hours
+
+        /* Debounce amount in ms to flush changes to local storage */
+        localStorageDebounceDelay = 250,
     }: {
         initialData: CacheDataT;
         expireAfterMinutes?: number;
+        localStorageDebounceDelay?: number;
     },
 ) => {
     const fullKey = useMemo(
@@ -102,30 +106,46 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
         [expireAfterMinutes],
     );
 
-    const [cacheData, setCacheDataInLocalStorage] = useLocalStorage<
+    /**
+     * This next section can be a bit confusing, so here's a quick explainer:
+     *
+     * - We get a handle to the local storage data for the current key, if any exists. We also
+     *   initialise it with a default value (based on initialData) if needed.
+     * - We use a regular useState for in-flight data, which is what's actually mutated during
+     *   regular component operations.
+     * - We create a debounced reference to that in-flight state using mantine's useDebounced value.
+     * - When changes are flushed to our debounced state, we trigger (using a useEffect hook) a call
+     *   to finally serialize and flush data to localStorage.
+     *
+     * This somewhat convoluted setup allows us to use this hook as state for e.g controlled/high-throughput
+     * components, while still flushing stuff to local storage very frequently.
+     */
+    const [localStorageCacheData, setCacheDataInLocalStorage] = useLocalStorage<
         StateCacheData<CacheDataT>
     >({
         key: fullKey,
         defaultValue: createCacheEntry(initialData),
     });
 
-    /**
-     * Thin wrapper around mantine's local storage setter which calls
-     * createCacheEntry on the data first, and runs the cache cleanup
-     * process.
-     */
-    const setCacheData = useCallback(
-        (data: CacheDataT) => {
-            setCacheDataInLocalStorage(createCacheEntry(data));
-
-            /**
-             * Push this task into a future loop since it's not critical
-             * nor tied to render state:
-             */
-            setTimeout(() => cleanupExpiredStateCacheData(), 0);
-        },
-        [setCacheDataInLocalStorage, createCacheEntry],
+    const [cacheDataInFlight, setCacheData] = useState<CacheDataT>(
+        localStorageCacheData.value,
     );
+
+    const [debouncedCacheData] = useDebouncedValue<CacheDataT>(
+        cacheDataInFlight,
+        localStorageDebounceDelay,
+    );
+
+    useEffect(() => {
+        console.log('FLUSH!');
+        setCacheDataInLocalStorage(createCacheEntry(debouncedCacheData));
+
+        /**
+         * Push this task into a future loop since it's not critical
+         * nor tied to render state:
+         */
+        setTimeout(() => cleanupExpiredStateCacheData(), 0);
+    }, [debouncedCacheData, setCacheDataInLocalStorage, createCacheEntry]);
 
     /**
      * Deletes the underlying local storage entry. Using `setCacheData` with
@@ -136,15 +156,16 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
     }, [fullKey]);
 
     return [
-        cacheData.value,
+        cacheDataInFlight,
         setCacheData,
 
         /**
          * Contains metadata that is probably not usually useful to the caller:
          */
         {
-            expireAt: cacheData.expireAt,
+            expireAt: localStorageCacheData.expireAt,
             clearCacheData,
+            hashKey,
         },
     ] as const;
 };

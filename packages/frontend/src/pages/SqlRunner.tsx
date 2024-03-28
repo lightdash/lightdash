@@ -38,6 +38,7 @@ import {
 } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
+import { useSqlRunnerRoute } from '../hooks/useSqlRunnerRoute';
 import { useApp } from '../providers/AppProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
@@ -57,10 +58,12 @@ const SqlRunnerPage = () => {
     const { data: org } = useOrganization();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const sqlQueryMutation = useSqlQueryMutation();
+
+    const { sqlRunnerState, updateSqlRunnerState } = useSqlRunnerRoute();
     const { isInitialLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
 
-    const [sql, setSql] = useState<string>('');
+    const sql = sqlRunnerState.sqlRunner?.sql ?? '';
     const [lastSqlRan, setLastSqlRan] = useState<string>();
 
     const [expandedCards, setExpandedCards] = useState(
@@ -87,8 +90,7 @@ const SqlRunnerPage = () => {
         setChartConfig,
         setPivotFields,
     } = useSqlQueryVisualization({
-        // TODO ---
-        initialState: undefined,
+        initialState: sqlRunnerState.createSavedChart,
         sqlQueryMutation,
     });
 
@@ -97,6 +99,8 @@ const SqlRunnerPage = () => {
 
         mutate(sql);
         setLastSqlRan(sql);
+
+        // TODO: Flush changes to URL
     }, [mutate, sql]);
 
     useMount(() => {
@@ -111,12 +115,23 @@ const SqlRunnerPage = () => {
 
     const catalogTree = useProjectCatalogTree(catalogData);
 
+    const setSql = useCallback(
+        (newSql: string) => {
+            updateSqlRunnerState({
+                createSavedChart: sqlRunnerState.createSavedChart,
+                sqlRunner: {
+                    sql: newSql,
+                },
+            });
+        },
+        [updateSqlRunnerState, sqlRunnerState],
+    );
+
     const handleTableSelect = useCallback(
         (node: ProjectCatalogTreeNode) => {
             if (!node.sqlTable) return;
 
             const query = generateBasicSqlQuery(node.sqlTable);
-
             setSql(query);
             handleCardExpand(SqlRunnerCards.SQL, true);
         },
