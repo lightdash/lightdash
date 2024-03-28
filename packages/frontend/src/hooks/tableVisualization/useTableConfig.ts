@@ -1,4 +1,5 @@
 import {
+    FieldType,
     getItemLabel,
     isDimension,
     isField,
@@ -59,6 +60,9 @@ const useTableConfig = (
     );
     const [showResultsTotal, setShowResultsTotal] = useState<boolean>(
         tableChartConfig?.showResultsTotal ?? false,
+    );
+    const [showSubtotals, setShowSubtotals] = useState<boolean>(
+        tableChartConfig?.showSubtotals ?? false,
     );
     const [hideRowNumbers, setHideRowNumbers] = useState<boolean>(
         tableChartConfig?.hideRowNumbers === undefined
@@ -158,12 +162,25 @@ const useTableConfig = (
         [columnProperties],
     );
 
-    const canUsePivotTable =
+    const isPivotTableEnabled =
         resultsData?.metricQuery &&
         resultsData.metricQuery.metrics.length > 0 &&
         resultsData.rows.length &&
         pivotDimensions &&
         pivotDimensions.length > 0;
+
+    const dimensions = useMemo(() => {
+        if (!itemsMap) return [];
+
+        return columnOrder.filter((fieldId) => {
+            const item = itemsMap[fieldId];
+            return item && isField(item)
+                ? item.fieldType === FieldType.DIMENSION
+                : false;
+        });
+    }, [columnOrder, itemsMap]);
+
+    const canUseSubtotals = dimensions.length > 1;
 
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
@@ -385,6 +402,7 @@ const useTableConfig = (
             showRowCalculation,
             showTableNames,
             showResultsTotal,
+            showSubtotals,
             columns: columnProperties,
             hideRowNumbers,
             conditionalFormattings,
@@ -396,6 +414,7 @@ const useTableConfig = (
             hideRowNumbers,
             showTableNames,
             showResultsTotal,
+            showSubtotals,
             columnProperties,
             conditionalFormattings,
             metricsAsRows,
@@ -416,6 +435,8 @@ const useTableConfig = (
         setHideRowNumbers,
         showResultsTotal,
         setShowResultsTotal,
+        showSubtotals,
+        setShowSubtotals,
         columnProperties,
         setColumnProperties,
         updateColumnProperty,
@@ -433,7 +454,8 @@ const useTableConfig = (
         pivotTableData,
         metricsAsRows,
         setMetricsAsRows,
-        canUsePivotTable,
+        isPivotTableEnabled,
+        canUseSubtotals,
     };
 };
 

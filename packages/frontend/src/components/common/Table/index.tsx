@@ -16,6 +16,7 @@ type Props = ComponentProps<typeof TableProvider> & {
     emptyState?: FC<React.PropsWithChildren<{}>>;
     className?: string;
     minimal?: boolean;
+    showSubtotals?: boolean;
     $shouldExpand?: boolean;
     $padding?: number;
     'data-testid'?: string;
@@ -30,6 +31,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
     emptyState,
     className,
     minimal = false,
+    showSubtotals = true,
     'data-testid': dataTestId,
     ...rest
 }) => {
@@ -47,7 +49,10 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                 $padding={$padding}
                 data-testid={dataTestId}
             >
-                <ScrollableTable minimal={minimal} />
+                <ScrollableTable
+                    minimal={minimal}
+                    showSubtotals={showSubtotals}
+                />
 
                 {status === 'loading' && <LoadingState />}
                 {status === 'idle' && <IdleState />}

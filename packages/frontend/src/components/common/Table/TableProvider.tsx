@@ -4,9 +4,11 @@ import {
 } from '@lightdash/common';
 import {
     getCoreRowModel,
+    getExpandedRowModel,
     getPaginationRowModel,
     useReactTable,
     type ColumnOrderState,
+    type GroupingState,
     type Table,
 } from '@tanstack/react-table';
 import React, {
@@ -17,6 +19,7 @@ import React, {
     useState,
     type FC,
 } from 'react';
+import { getGroupedRowModelLightdash } from './getGroupedRowModelLightdash';
 import {
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
@@ -37,6 +40,7 @@ type Props = {
         defaultScroll?: boolean;
         showResultsTotal?: boolean;
     };
+    showSubtotals?: boolean;
     hideRowNumbers?: boolean;
     showColumnCalculation?: boolean;
     conditionalFormattings?: ConditionalFormattingConfig[];
@@ -61,6 +65,7 @@ const rowColumn: TableColumn = {
     meta: {
         width: 30,
     },
+    enableGrouping: false,
 };
 
 const calculateColumnVisibility = (columns: Props['columns']) =>
@@ -78,10 +83,12 @@ const calculateColumnVisibility = (columns: Props['columns']) =>
 export const TableProvider: FC<React.PropsWithChildren<Props>> = ({
     hideRowNumbers,
     showColumnCalculation,
+    showSubtotals,
     children,
     ...rest
 }) => {
     const { data, columns, columnOrder, pagination } = rest;
+    const [grouping, setGrouping] = useState<GroupingState>([]);
     const [columnVisibility, setColumnVisibility] = useState({});
 
     useEffect(() => {
@@ -154,6 +161,7 @@ export const TableProvider: FC<React.PropsWithChildren<Props>> = ({
         data,
         columns: visibleColumns,
         state: {
+            grouping,
             columnVisibility,
             columnOrder: tempColumnOrder,
             columnPinning: {
@@ -168,6 +176,10 @@ export const TableProvider: FC<React.PropsWithChildren<Props>> = ({
         onColumnOrderChange: setTempColumnOrder,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        onGroupingChange: setGrouping,
+        groupedColumnMode: false,
+        getExpandedRowModel: getExpandedRowModel(),
+        getGroupedRowModel: getGroupedRowModelLightdash(),
     });
 
     const { setPageSize } = table;
