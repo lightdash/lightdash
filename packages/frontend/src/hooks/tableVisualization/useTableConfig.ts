@@ -170,7 +170,7 @@ const useTableConfig = (
             ? {
                   savedChartUuid,
                   fieldIds: selectedItemIds,
-                  dashboardFilters: dashboardFilters,
+                  dashboardFilters,
                   invalidateCache,
                   itemsMap,
                   showColumnCalculation:

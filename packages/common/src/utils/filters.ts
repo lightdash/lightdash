@@ -435,7 +435,6 @@ export const getDashboardFilterRulesForTile = (
             if (tileConfig === false) {
                 return null;
             }
-
             // If the tile isn't in the tileTarget overrides,
             // we return the filter and don't treat this tile
             // differently.
@@ -528,6 +527,23 @@ const combineFilterGroupWithFilterRules = (
     and: [...(filterGroup ? [filterGroup] : []), ...filterRules],
 });
 
+const convertDashboardFilterRuleToFilterRule = (
+    dashboardFilterRule: DashboardFilterRule,
+): FilterRule => ({
+    id: dashboardFilterRule.id,
+    target: {
+        fieldId: dashboardFilterRule.target.fieldId,
+    },
+    operator: dashboardFilterRule.operator,
+    values: dashboardFilterRule.values,
+    ...(dashboardFilterRule.settings && {
+        settings: dashboardFilterRule.settings,
+    }),
+    ...(dashboardFilterRule.disabled && {
+        disabled: dashboardFilterRule.disabled,
+    }),
+});
+
 export const addDashboardFiltersToMetricQuery = (
     metricQuery: MetricQuery,
     dashboardFilters: DashboardFilters,
@@ -536,15 +552,21 @@ export const addDashboardFiltersToMetricQuery = (
     filters: {
         dimensions: combineFilterGroupWithFilterRules(
             metricQuery.filters?.dimensions,
-            dashboardFilters.dimensions,
+            dashboardFilters.dimensions.map(
+                convertDashboardFilterRuleToFilterRule,
+            ),
         ),
         metrics: combineFilterGroupWithFilterRules(
             metricQuery.filters?.metrics,
-            dashboardFilters.metrics,
+            dashboardFilters.metrics.map(
+                convertDashboardFilterRuleToFilterRule,
+            ),
         ),
         tableCalculations: combineFilterGroupWithFilterRules(
             metricQuery.filters?.tableCalculations,
-            dashboardFilters.tableCalculations,
+            dashboardFilters.tableCalculations.map(
+                convertDashboardFilterRuleToFilterRule,
+            ),
         ),
     },
 });
