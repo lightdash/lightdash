@@ -78,7 +78,7 @@ const getLabel = (item: Item, hasGrouping: boolean) => {
         ? getItemLabelWithoutTableName(item)
         : getItemLabel(item);
 };
-// TODO: not primary blue
+
 const FieldSelect = <T extends Item = Item>({
     item,
     items,

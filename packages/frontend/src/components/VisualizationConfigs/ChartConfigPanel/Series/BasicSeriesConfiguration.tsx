@@ -50,12 +50,6 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                 <Group noWrap spacing="two">
                     <GrabIcon dragHandleProps={dragHandleProps} />
 
-                    {/* <Group
-                        spacing="two"
-                        sx={{
-                            flexGrow: 1,
-                        }}
-                    > */}
                     <ColorSelector
                         color={getSeriesColor(series)}
                         swatches={colorPalette}
@@ -92,7 +86,6 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                             />
                         </Box>
                     )}
-                    {/* </Group> */}
                 </Group>
                 <SingleSeriesConfiguration
                     layout={layout}
