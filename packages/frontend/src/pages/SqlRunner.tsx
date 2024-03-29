@@ -63,6 +63,7 @@ const SqlRunnerPage = () => {
         sqlRunnerState,
         updateSqlRunnerState,
         flushSqlRunnerStateToShare,
+        shareNanoId,
         isLoading: isLoadingRouteData,
     } = useSqlRunnerRoute();
     const { isInitialLoading: isCatalogLoading, data: catalogData } =
@@ -243,6 +244,7 @@ const SqlRunnerPage = () => {
                         />
                         <ShareShortLinkButton
                             disabled={lastSqlRan === undefined}
+                            shareNanoId={shareNanoId}
                         />
                     </Group>
                 </Group>

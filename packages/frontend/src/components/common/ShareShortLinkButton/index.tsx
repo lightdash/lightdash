@@ -1,27 +1,49 @@
 import { ActionIcon } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCheck, IconLink } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useCreateShareMutation } from '../../../hooks/useShare';
+import { useCreateShareMutation, useGetShare } from '../../../hooks/useShare';
 import MantineIcon from '../MantineIcon';
 
-const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
+const ShareShortLinkButton: FC<{
+    disabled?: boolean;
+    shareNanoId?: string;
+}> = ({ disabled, shareNanoId }) => {
     const clipboard = useClipboard({ timeout: 500 });
     const { showToastSuccess } = useToaster();
 
     const location = useLocation();
     const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
 
-    const isDisabled = disabled || isLoading;
+    /**
+     * If we have a shareNanoId, we load it (likely from cache), and use that instead
+     * of creating a new one.
+     */
+    const { data: existingShareUrl, isLoading: isLoadingExistingShareUrl } =
+        useGetShare(shareNanoId);
 
-    const handleCopyClick = async () => {
+    /**
+     * If we have a shareNanoId to reuse here, we disable the button until we finish
+     * loading it.
+     */
+    const isDisabled =
+        disabled || isLoading || !!(shareNanoId && isLoadingExistingShareUrl);
+
+    const createShare = useCallback(async () => {
         const { shareUrl } = await createShareUrl({
             path: location.pathname,
             params: location.search,
         });
-        clipboard.copy(shareUrl || '');
+
+        return shareUrl;
+    }, [location, createShareUrl]);
+
+    const handleCopyClick = async () => {
+        const url = existingShareUrl?.shareUrl ?? (await createShare());
+
+        clipboard.copy(url || '');
         showToastSuccess({
             title: 'Link copied to clipboard',
         });

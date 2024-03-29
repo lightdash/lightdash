@@ -235,5 +235,6 @@ export const useSqlRunnerRoute = () => {
         flushSqlRunnerStateToShare,
         updateSqlRunnerState,
         isLoading,
+        shareNanoId: shareData?.nanoid,
     };
 };
