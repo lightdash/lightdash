@@ -72,7 +72,7 @@ export const UnitInputsGrid: FC<Props> = ({
                     w={80}
                     name="top"
                     units={units}
-                    value={config.top || ''}
+                    value={config.top || defaultConfig.top}
                     defaultValue={defaultConfig.top}
                     onChange={(value) => handleUpdate(Positions.Top, value)}
                 />
@@ -86,7 +86,7 @@ export const UnitInputsGrid: FC<Props> = ({
                     w={80}
                     name="left"
                     units={units}
-                    value={config.left || ''}
+                    value={config.left || defaultConfig.left}
                     defaultValue={defaultConfig.left}
                     onChange={(value) => handleUpdate(Positions.Left, value)}
                 />
@@ -104,7 +104,7 @@ export const UnitInputsGrid: FC<Props> = ({
                     w={80}
                     name="right"
                     units={units}
-                    value={config.right || ''}
+                    value={config.right || defaultConfig.right}
                     defaultValue={defaultConfig.right}
                     onChange={(value) => handleUpdate(Positions.Right, value)}
                 />
@@ -118,7 +118,7 @@ export const UnitInputsGrid: FC<Props> = ({
                     w={80}
                     name="bottom"
                     units={units}
-                    value={config.bottom || ''}
+                    value={config.bottom || defaultConfig.bottom}
                     defaultValue={defaultConfig.bottom}
                     onChange={(value) => handleUpdate(Positions.Bottom, value)}
                 />
