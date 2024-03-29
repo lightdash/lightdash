@@ -12,7 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import { IconFilter, IconPencil } from '@tabler/icons-react';
+import { IconFilter } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
@@ -178,27 +178,34 @@ const Filter: FC<Props> = ({
                     </Tooltip>
                 ) : (
                     <Indicator
-                        size={24}
+                        inline
                         position="top-end"
+                        size={16}
                         disabled={
                             !(
                                 filterRule?.required &&
                                 !hasFilterValueSet(filterRule)
                             )
                         }
-                        offset={2}
                         label={
                             <Tooltip
                                 fz="xs"
                                 label="Set a value to run this dashboard"
                             >
-                                <MantineIcon
-                                    size={14}
-                                    color="white"
-                                    icon={IconPencil}
-                                />
+                                <Text fz="9px" fw={500}>
+                                    Required
+                                </Text>
                             </Tooltip>
                         }
+                        styles={(theme) => ({
+                            common: {
+                                top: -5,
+                                right: 24,
+                                borderRadius: theme.radius.xs,
+                                borderBottomRightRadius: 0,
+                                borderBottomLeftRadius: 0,
+                            },
+                        })}
                     >
                         <Button
                             pos="relative"
