@@ -438,7 +438,7 @@ export const getDashboardFilterRulesForTile = (
                 return acc;
             }
 
-            const dashboardFilterRuleForTile = filter;
+            const dashboardFilterRuleForTile = { ...filter };
 
             // Delete properties that are not needed for filters on tiles
             if ('tileTargets' in dashboardFilterRuleForTile)
