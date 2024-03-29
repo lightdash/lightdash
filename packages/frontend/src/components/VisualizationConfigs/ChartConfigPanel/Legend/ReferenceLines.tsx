@@ -8,13 +8,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
-import {
-    useCallback,
-    useMemo,
-    useState,
-    type FC,
-    type SetStateAction,
-} from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useProject } from '../../../../hooks/useProject';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
@@ -29,26 +23,29 @@ type Props = {
     projectUuid: string;
 };
 
-export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
-    const [openItems, setOpenItems] = useState<string[]>([]);
+const useControlledAccordion = (defaultOpenItems = []) => {
+    const [openItems, setOpenItems] = useState<string[]>(defaultOpenItems);
 
-    const handleAccordionChange = (itemValues: SetStateAction<string[]>) => {
+    const handleAccordionChange = useCallback((itemValues: string[]) => {
         setOpenItems(itemValues);
-    };
+    }, []);
 
-    const addNewItem = useCallback(
-        (index: string) => {
-            console.log('onAddNewItem', index);
+    const addNewItem = useCallback((index: string) => {
+        setOpenItems((prevOpenItems) => [...prevOpenItems, index]);
+    }, []);
 
-            const newOpenItems = [...openItems, index];
-            setOpenItems(newOpenItems);
-        },
-        [openItems],
-    );
-    const removeItem = (index: string) => {
-        const newOpenItems = openItems.filter((item) => item !== index);
-        setOpenItems(newOpenItems);
-    };
+    const removeItem = useCallback((index: string) => {
+        setOpenItems((prevOpenItems) =>
+            prevOpenItems.filter((item) => item !== index),
+        );
+    }, []);
+
+    return { openItems, handleAccordionChange, addNewItem, removeItem };
+};
+
+export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
+    const { openItems, handleAccordionChange, addNewItem, removeItem } =
+        useControlledAccordion();
 
     const { visualizationConfig } = useVisualizationContext();
     const isCartesianChart =
@@ -184,8 +181,6 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
 
     const { referenceLines } = visualizationConfig.chartConfig;
 
-    console.log({ referenceLines });
-
     return (
         <Config>
             <Config.Group>
@@ -214,7 +209,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     >
                         {referenceLines.map((line, index) => (
                             <ReferenceLine
-                                isOpen={openItems.includes(`Line ${index + 1}`)}
+                                isOpen={openItems.includes(line.data.value)}
                                 addNewItem={addNewItem}
                                 removeItem={removeItem}
                                 key={line.data.value}

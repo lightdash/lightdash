@@ -101,8 +101,6 @@ const LegendPanel: FC<Props> = ({ items }) => {
 
     const legendConfig = dirtyEchartsConfig?.legend ?? {};
 
-    console.log('legendConfig', legendConfig);
-
     const handleChange = (
         prop: string,
         newValue: string | boolean | undefined,
