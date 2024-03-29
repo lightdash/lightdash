@@ -20,8 +20,8 @@ import { useProject } from '../../../../hooks/useProject';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
-import { AddButton } from '../FieldLayoutOptions';
 import { ReferenceLine } from './ReferenceLine';
 
 type Props = {

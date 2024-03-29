@@ -11,7 +11,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Button,
     CloseButton,
     Group,
     SegmentedControl,
@@ -26,30 +25,13 @@ import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
 };
-
-// TODO: Refactor this component to use the ConfigGroup component ?
-export const AddButton = ({ onClick }: { onClick: () => void }) => (
-    <Button
-        size="sm"
-        variant="subtle"
-        compact
-        leftIcon="+"
-        onClick={onClick}
-        styles={{
-            leftIcon: {
-                marginRight: 2,
-            },
-        }}
-    >
-        Add
-    </Button>
-);
 
 const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
