@@ -45,15 +45,13 @@ export const convertDateFilters = (filters: Filters): Filters => {
     };
 };
 
-/**
- * Convert date time values on filters into UTC when using JSON.stringify on API request
- * @param filters
- * @returns DashboardFilters
- */
 export const convertDateDashboardFilters = (
     filters: DashboardFilters,
-): DashboardFilters => ({
-    dimensions: filters.dimensions.map(convertFilterRule),
-    metrics: filters.metrics.map(convertFilterRule),
-    tableCalculations: filters.tableCalculations.map(convertFilterRule),
-});
+): DashboardFilters => {
+    // Fix original date time values on filters instead of converting dates into UTC when using JSON.stringify on API request
+    return {
+        dimensions: filters.dimensions.map(convertFilterRule),
+        metrics: filters.metrics.map(convertFilterRule),
+        tableCalculations: filters.tableCalculations.map(convertFilterRule),
+    };
+};
