@@ -200,7 +200,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                     />
                                                 )}
                                                 {hasDivider && (
-                                                    <Divider mt="md" mb="lg" />
+                                                    <Divider my="md" />
                                                 )}
                                             </div>
                                         </DraggablePortalHandler>

@@ -7,7 +7,14 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { useCallback, useMemo, type FC } from 'react';
+import { Accordion } from '@mantine/core';
+import {
+    useCallback,
+    useMemo,
+    useState,
+    type FC,
+    type SetStateAction,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useProject } from '../../../../hooks/useProject';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
@@ -23,6 +30,26 @@ type Props = {
 };
 
 export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
+    const [openItems, setOpenItems] = useState<string[]>([]);
+
+    const handleAccordionChange = (itemValues: SetStateAction<string[]>) => {
+        setOpenItems(itemValues);
+    };
+
+    const addNewItem = useCallback(
+        (index: string) => {
+            console.log('onAddNewItem', index);
+
+            const newOpenItems = [...openItems, index];
+            setOpenItems(newOpenItems);
+        },
+        [openItems],
+    );
+    const removeItem = (index: string) => {
+        const newOpenItems = openItems.filter((item) => item !== index);
+        setOpenItems(newOpenItems);
+    };
+
     const { visualizationConfig } = useVisualizationContext();
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -110,7 +137,8 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             },
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
-    }, [isCartesianChart, visualizationConfig]);
+        addNewItem(newReferenceLine.data.value);
+    }, [addNewItem, isCartesianChart, visualizationConfig.chartConfig]);
 
     const removeReferenceLine = useCallback(
         (markLineId: string) => {
@@ -156,6 +184,8 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
 
     const { referenceLines } = visualizationConfig.chartConfig;
 
+    console.log({ referenceLines });
+
     return (
         <Config>
             <Config.Group>
@@ -164,19 +194,41 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     <AddButton onClick={addReferenceLine} />
                 </Config.LabelGroup>
 
-                {referenceLines &&
-                    referenceLines.map((line, index) => (
-                        <ReferenceLine
-                            key={line.data.value}
-                            index={index + 1}
-                            isDefaultOpen={referenceLines.length <= 1}
-                            items={items}
-                            startOfWeek={startOfWeek ?? undefined}
-                            referenceLine={line}
-                            updateReferenceLine={updateReferenceLine}
-                            removeReferenceLine={removeReferenceLine}
-                        />
-                    ))}
+                {referenceLines && (
+                    <Accordion
+                        multiple
+                        variant="contained"
+                        value={openItems}
+                        onChange={handleAccordionChange}
+                        styles={(theme) => ({
+                            control: {
+                                padding: theme.spacing.xs,
+                            },
+                            label: {
+                                padding: 0,
+                            },
+                            panel: {
+                                padding: 0,
+                            },
+                        })}
+                    >
+                        {referenceLines.map((line, index) => (
+                            <ReferenceLine
+                                isOpen={openItems.includes(`Line ${index + 1}`)}
+                                addNewItem={addNewItem}
+                                removeItem={removeItem}
+                                key={line.data.value}
+                                index={index + 1}
+                                isDefaultOpen={referenceLines.length <= 1}
+                                items={items}
+                                startOfWeek={startOfWeek ?? undefined}
+                                referenceLine={line}
+                                updateReferenceLine={updateReferenceLine}
+                                removeReferenceLine={removeReferenceLine}
+                            />
+                        ))}
+                    </Accordion>
+                )}
             </Config.Group>
         </Config>
     );

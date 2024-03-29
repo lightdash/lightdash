@@ -19,7 +19,6 @@ import {
     IconChevronUp,
     IconEye,
     IconEyeOff,
-    IconGripVertical,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -27,6 +26,7 @@ import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
 import { EditableText } from '../common/EditableText';
+import { GrabIcon } from '../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {
@@ -71,17 +71,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     }}
                 >
                     {isGrouped && (
-                        <Box
-                            {...dragHandleProps}
-                            sx={{
-                                visibility: hovered ? 'visible' : 'hidden',
-                                opacity: 0.6,
-                                cursor: 'grab',
-                                '&:hover': { opacity: 1 },
-                            }}
-                        >
-                            <MantineIcon icon={IconGripVertical} />
-                        </Box>
+                        <GrabIcon
+                            dragHandleProps={dragHandleProps}
+                            hovered={hovered}
+                        />
                     )}
                     {isGrouped && (
                         <ColorSelector

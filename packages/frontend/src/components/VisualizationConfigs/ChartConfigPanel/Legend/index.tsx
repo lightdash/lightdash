@@ -67,12 +67,16 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
 
     return (
         <Config.Group>
-            <Config.Label>Position</Config.Label>
-
             <Switch
-                label={isAutoPosition ? `Auto-position` : `Custom`}
+                labelPosition="left"
+                label={isAutoPosition ? `Auto-position` : `Custom position`}
                 checked={isAutoPosition}
                 onChange={toggleAuto}
+                styles={{
+                    label: {
+                        paddingLeft: 0,
+                    },
+                }}
             />
 
             {!isAutoPosition && (
@@ -85,7 +89,6 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                         borderRadius: '4px',
                         backgroundColor: '#fafafa',
                     }}
-                    mx="auto"
                 >
                     {/* Row 1 */}
                     <EmptySpace />
@@ -93,7 +96,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                         <UnitInput
                             key="top"
                             size="xs"
-                            w={70}
+                            w={80}
                             name="top"
                             units={units}
                             value={legendConfig.top ?? 'auto'}
@@ -107,7 +110,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                         <UnitInput
                             key="left"
                             size="xs"
-                            w={70}
+                            w={80}
                             name="left"
                             units={units}
                             value={legendConfig.left ?? 'auto'}
@@ -125,7 +128,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                         <UnitInput
                             key="right"
                             size="xs"
-                            w={70}
+                            w={80}
                             name="right"
                             units={units}
                             value={legendConfig.right ?? 'auto'}
@@ -139,7 +142,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                         <UnitInput
                             key="bottom"
                             size="xs"
-                            w={70}
+                            w={80}
                             name="bottom"
                             units={units}
                             value={legendConfig.bottom ?? 'auto'}

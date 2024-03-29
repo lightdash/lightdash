@@ -9,14 +9,13 @@ import {
 } from '@lightdash/common';
 import { Box, Group } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
-import { IconGripVertical } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
 import { Config } from '../../common/Config';
 import { EditableText } from '../common/EditableText';
+import { GrabIcon } from '../common/GrabIcon';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
@@ -49,37 +48,39 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
         <Config>
             <Config.Group>
                 <Group noWrap spacing="two">
-                    <Box
-                        {...dragHandleProps}
-                        // TODO: add reusable component
-                        sx={{
-                            opacity: 0.6,
-                            cursor: 'grab',
-                            '&:hover': { opacity: 1 },
-                        }}
-                    >
-                        <MantineIcon icon={IconGripVertical} />
-                    </Box>
+                    <GrabIcon dragHandleProps={dragHandleProps} />
 
-                    <Group spacing="xs">
-                        <ColorSelector
-                            color={getSeriesColor(series)}
-                            swatches={colorPalette}
-                            onColorChange={(color) => {
-                                updateSingleSeries({
-                                    ...series,
-                                    color,
-                                });
+                    {/* <Group
+                        spacing="two"
+                        sx={{
+                            flexGrow: 1,
+                        }}
+                    > */}
+                    <ColorSelector
+                        color={getSeriesColor(series)}
+                        swatches={colorPalette}
+                        onColorChange={(color) => {
+                            updateSingleSeries({
+                                ...series,
+                                color,
+                            });
+                        }}
+                    />
+                    {isSingle ? (
+                        <Config.Label>
+                            {getItemLabelWithoutTableName(item)}
+                        </Config.Label>
+                    ) : (
+                        <Box
+                            style={{
+                                flexGrow: 1,
                             }}
-                        />
-                        {isSingle ? (
-                            <Config.Label>
-                                {getItemLabelWithoutTableName(item)}
-                            </Config.Label>
-                        ) : (
+                        >
                             <EditableText
-                                size="sm"
+                                sx={{ flexGrow: 1 }}
                                 fw={600}
+                                size="sm"
+                                lighter
                                 defaultValue={value}
                                 onChange={(event) => {
                                     setValue(event.currentTarget.value);
@@ -89,8 +90,9 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                                     });
                                 }}
                             />
-                        )}
-                    </Group>
+                        </Box>
+                    )}
+                    {/* </Group> */}
                 </Group>
                 <SingleSeriesConfiguration
                     layout={layout}

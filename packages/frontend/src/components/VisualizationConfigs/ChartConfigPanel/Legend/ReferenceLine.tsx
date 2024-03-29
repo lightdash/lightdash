@@ -14,16 +14,17 @@ import {
     type WeekDay,
 } from '@lightdash/common';
 import {
+    Accordion,
     ActionIcon,
     Box,
-    Collapse,
     Group,
     Stack,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
+import { useHover } from '@mantine/hooks';
+import { IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../common/FieldSelect';
@@ -39,6 +40,9 @@ import { useVisualizationContext } from '../../../LightdashVisualization/Visuali
 import ColorSelector from '../../ColorSelector';
 
 type Props = {
+    isOpen: boolean;
+    addNewItem: (index: string) => void;
+    removeItem: (index: string) => void;
     index: number;
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
     referenceLine: ReferenceLineField;
@@ -169,8 +173,10 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
 export const ReferenceLine: FC<Props> = ({
     index,
     items,
+    isOpen,
+    addNewItem,
+    removeItem,
     referenceLine,
-    isDefaultOpen,
     startOfWeek,
     updateReferenceLine,
     removeReferenceLine,
@@ -213,9 +219,7 @@ export const ReferenceLine: FC<Props> = ({
     const [label, setLabel] = useState<string | undefined>(
         referenceLine.data.label?.formatter,
     );
-    const [isOpen, setIsOpen] = useState<boolean>(
-        isDefaultOpen || referenceLine.fieldId === undefined,
-    );
+
     const [lineColor, setLineColor] = useState<string>(
         referenceLine.data.lineStyle?.color || '#000',
     );
@@ -236,61 +240,72 @@ export const ReferenceLine: FC<Props> = ({
         | undefined
     >(selectedFieldDefault);
 
+    const controlLabel = `Line ${index}`;
+
+    const accordionValue = referenceLine.data.value;
+
+    const { ref, hovered } = useHover<HTMLButtonElement>();
+
     return (
-        <Stack spacing="xs">
-            <Group noWrap position="apart">
-                <Group spacing="xs">
-                    <ActionIcon onClick={() => setIsOpen(!isOpen)}>
-                        <MantineIcon
-                            icon={isOpen ? IconChevronUp : IconChevronDown}
+        <Accordion.Item value={accordionValue}>
+            <Accordion.Control
+                onClick={() =>
+                    isOpen
+                        ? removeItem(accordionValue)
+                        : addNewItem(accordionValue)
+                }
+                ref={ref}
+            >
+                <Group spacing="xs" position="apart">
+                    <Group spacing="xs">
+                        <ColorSelector
+                            color={lineColor}
+                            swatches={colorPalette}
+                            onColorChange={(color) => {
+                                setLineColor(color);
+                                if (
+                                    value !== undefined &&
+                                    selectedField !== undefined
+                                )
+                                    updateReferenceLine(
+                                        value,
+                                        selectedField,
+                                        label,
+                                        color,
+                                        referenceLine.data.value ||
+                                            referenceLine.data.name,
+                                    );
+                            }}
                         />
-                    </ActionIcon>
-
-                    <Text fw={500}>Line {index}</Text>
-                    <ColorSelector
-                        color={lineColor}
-                        swatches={colorPalette}
-                        onColorChange={(color) => {
-                            setLineColor(color);
-                            if (
-                                value !== undefined &&
-                                selectedField !== undefined
-                            )
-                                updateReferenceLine(
-                                    value,
-                                    selectedField,
-                                    label,
-                                    color,
-                                    referenceLine.data.value ||
-                                        referenceLine.data.name,
-                                );
-                        }}
-                    />
+                        <Text fw={500} size="xs">
+                            {controlLabel}
+                        </Text>
+                        <Tooltip
+                            variant="xs"
+                            label="Remove reference line"
+                            position="left"
+                            withinPortal
+                        >
+                            <ActionIcon
+                                onClick={() =>
+                                    removeReferenceLine(
+                                        referenceLine.data.value ||
+                                            referenceLine.data.name,
+                                    )
+                                }
+                                sx={{
+                                    visibility: hovered ? 'visible' : 'hidden',
+                                }}
+                            >
+                                <MantineIcon icon={IconTrash} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Group>
                 </Group>
-
-                <Tooltip
-                    variant="xs"
-                    label="Remove reference line"
-                    position="left"
-                    withinPortal
-                >
-                    <ActionIcon
-                        onClick={() =>
-                            removeReferenceLine(
-                                referenceLine.data.value ||
-                                    referenceLine.data.name,
-                            )
-                        }
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
-            <Collapse in={isOpen}>
+            </Accordion.Control>
+            <Accordion.Panel>
                 <Stack
                     bg={'gray.0'}
-                    p="sm"
-                    pb="md" // Visually, it looks better with a bit more padding on the bottom
                     spacing="xs"
                     sx={(theme) => ({
                         borderRadius: theme.radius.sm,
@@ -361,7 +376,7 @@ export const ReferenceLine: FC<Props> = ({
                         />
                     </Group>
                 </Stack>
-            </Collapse>
-        </Stack>
+            </Accordion.Panel>
+        </Accordion.Item>
     );
 };

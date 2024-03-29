@@ -4,7 +4,9 @@ import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
 
-export const EditableText: FC<TextInputProps> = ({ ...props }) => {
+type Props = TextInputProps & { lighter?: boolean };
+
+export const EditableText: FC<Props> = ({ lighter, ...props }) => {
     const { hovered, ref } = useHover();
     return (
         <Box ref={ref}>
@@ -23,12 +25,21 @@ export const EditableText: FC<TextInputProps> = ({ ...props }) => {
                 styles={(theme) => ({
                     input: {
                         border: 'none',
-                        background: hovered
-                            ? theme.colors.gray['2']
-                            : 'transparent',
+                        background: 'transparent',
                         fontWeight: 500,
                         paddingLeft: 4,
+
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+
+                        ':hover': {
+                            whiteSpace: 'normal',
+                            overflow: 'visible',
+                            background: theme.colors.gray[lighter ? '1' : '2'],
+                        },
                     },
+                    rightSection: {},
                 })}
             />
         </Box>

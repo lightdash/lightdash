@@ -1,4 +1,12 @@
 import {
+    DragDropContext,
+    Draggable,
+    Droppable,
+    type DraggableProvidedDragHandleProps,
+    type DraggableStateSnapshot,
+    type DropResult,
+} from '@hello-pangea/dnd';
+import {
     CartesianSeriesType,
     formatItemValue,
     getItemId,
@@ -12,31 +20,13 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
+import { Box, Checkbox, Group, Select, Stack, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
-import SingleSeriesConfiguration from './SingleSeriesConfiguration';
-
-import {
-    DragDropContext,
-    Draggable,
-    Droppable,
-    type DraggableProvidedDragHandleProps,
-    type DraggableStateSnapshot,
-    type DropResult,
-} from '@hello-pangea/dnd';
-import {
-    Box,
-    Checkbox,
-    Group,
-    Select,
-    Stack,
-    Switch,
-    Text,
-} from '@mantine/core';
-import { IconGripVertical } from '@tabler/icons-react';
 import { createPortal } from 'react-dom';
-import MantineIcon from '../../../common/MantineIcon';
 import { Config } from '../../common/Config';
+import { GrabIcon } from '../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
+import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 const VALUE_LABELS_OPTIONS = [
     { value: 'hidden', label: 'Hidden' },
@@ -157,21 +147,13 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
         <Config>
             <Config.Group>
                 <Group noWrap spacing="two">
-                    <Box
-                        {...dragHandleProps}
-                        sx={{
-                            opacity: 0.6,
-                            cursor: 'grab',
-                            '&:hover': { opacity: 1 },
-                        }}
-                    >
-                        <MantineIcon icon={IconGripVertical} />
-                    </Box>
+                    <GrabIcon dragHandleProps={dragHandleProps} />
+
                     <Config.Label>
                         {getItemLabelWithoutTableName(item)} (grouped)
                     </Config.Label>
                 </Group>
-                <Group noWrap spacing="xs" align="start">
+                <Group ml="md" noWrap spacing="xs" align="start">
                     <ChartTypeSelect
                         chartValue={chartValue}
                         showMixed={!isChartTypeTheSameForAllSeries}
@@ -251,9 +233,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     {seriesGroup[0].stack &&
                         chartValue === CartesianSeriesType.BAR && (
                             <Stack spacing="xs" mt="two">
-                                <Text size="xs" fw={500}>
-                                    Total
-                                </Text>
+                                <Config.SubLabel>Total</Config.SubLabel>
                                 <Switch
                                     checked={seriesGroup[0].stackLabel?.show}
                                     onChange={() => {
@@ -296,6 +276,8 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 <Box
                     bg="gray.1"
                     p="xxs"
+                    ml="md"
+                    py="xs"
                     sx={(theme) => ({ borderRadius: theme.radius.sm })}
                 >
                     <DragDropContext onDragEnd={onDragEnd}>
