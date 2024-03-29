@@ -53,4 +53,5 @@
 
 .react-grid-layout-dashboard.locked {
     filter: blur(3px);
+    pointer-events: none;
 }
