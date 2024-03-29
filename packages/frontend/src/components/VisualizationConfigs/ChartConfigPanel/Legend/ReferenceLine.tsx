@@ -258,25 +258,27 @@ export const ReferenceLine: FC<Props> = ({
             >
                 <Group spacing="xs" position="apart">
                     <Group spacing="xs">
-                        <ColorSelector
-                            color={lineColor}
-                            swatches={colorPalette}
-                            onColorChange={(color) => {
-                                setLineColor(color);
-                                if (
-                                    value !== undefined &&
-                                    selectedField !== undefined
-                                )
-                                    updateReferenceLine(
-                                        value,
-                                        selectedField,
-                                        label,
-                                        color,
-                                        referenceLine.data.value ||
-                                            referenceLine.data.name,
-                                    );
-                            }}
-                        />
+                        <Box onClick={(e) => e.stopPropagation()}>
+                            <ColorSelector
+                                color={lineColor}
+                                swatches={colorPalette}
+                                onColorChange={(color) => {
+                                    setLineColor(color);
+                                    if (
+                                        value !== undefined &&
+                                        selectedField !== undefined
+                                    )
+                                        updateReferenceLine(
+                                            value,
+                                            selectedField,
+                                            label,
+                                            color,
+                                            referenceLine.data.value ||
+                                                referenceLine.data.name,
+                                        );
+                                }}
+                            />
+                        </Box>
                         <Text fw={500} size="xs">
                             {controlLabel}
                         </Text>
