@@ -1,5 +1,6 @@
-import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, useMemo } from 'react';
+import { useDebouncedValue, useLocalStorage } from '@mantine/hooks';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useToggle } from 'react-use';
 
 /**
  * Static cache key prefix. The number value can be incremented
@@ -86,6 +87,8 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
         localStorageDebounceDelay?: number;
     },
 ) => {
+    const [isInitialData, toggleIsInitialData] = useToggle(true);
+
     const fullKey = useMemo(
         () => `${stateCacheKeyPrefix.join('-')}/${hashKey}`,
         [hashKey],
@@ -120,9 +123,18 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
         defaultValue: initialStoredValue ?? createCacheEntry(initialData),
     });
 
-    const setCacheData = useCallback(
+    const [activeCacheData, setActiveCacheData] = useState<CacheDataT>(
+        localStorageCacheData?.value,
+    );
+
+    const [debouncedCacheData] = useDebouncedValue(activeCacheData, 200);
+
+    const flushCacheData = useCallback(
         (newData: CacheDataT) => {
             setCacheDataInLocalStorage(createCacheEntry(newData));
+
+            // Allow the caller to determine if state has been mutated beyond the default value:
+            toggleIsInitialData(false);
 
             /**
              * Push this task into a future loop since it's not critical
@@ -130,7 +142,18 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
              */
             setTimeout(() => cleanupExpiredStateCacheData(), 0);
         },
-        [setCacheDataInLocalStorage, createCacheEntry],
+        [setCacheDataInLocalStorage, createCacheEntry, toggleIsInitialData],
+    );
+
+    useEffect(() => {
+        flushCacheData(debouncedCacheData);
+    }, [debouncedCacheData, flushCacheData]);
+
+    const setCacheData = useCallback(
+        (newData: CacheDataT) => {
+            setActiveCacheData(newData);
+        },
+        [setActiveCacheData],
     );
 
     /**
@@ -142,7 +165,7 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
     }, [fullKey]);
 
     return [
-        localStorageCacheData.value,
+        activeCacheData,
         setCacheData,
 
         /**
@@ -152,6 +175,7 @@ export const useStateCache = <CacheDataT = Record<string, unknown>>(
             expireAt: localStorageCacheData.expireAt,
             clearCacheData,
             hashKey,
+            isInitialData,
         },
     ] as const;
 };

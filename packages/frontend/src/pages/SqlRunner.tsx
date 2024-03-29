@@ -6,7 +6,7 @@ import {
     NotFoundError,
 } from '@lightdash/common';
 import { Box, Group, Stack, Tabs } from '@mantine/core';
-import { getHotkeyHandler, useDebouncedValue } from '@mantine/hooks';
+import { getHotkeyHandler } from '@mantine/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
@@ -59,13 +59,16 @@ const SqlRunnerPage = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const sqlQueryMutation = useSqlQueryMutation();
 
-    const { sqlRunnerState, updateSqlRunnerState, flushSqlRunnerStateToShare } =
-        useSqlRunnerRoute();
+    const {
+        sqlRunnerState,
+        updateSqlRunnerState,
+        flushSqlRunnerStateToShare,
+        isLoading: isLoadingRouteData,
+    } = useSqlRunnerRoute();
     const { isInitialLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
 
-    const [sql, setSql] = useState<string>(sqlRunnerState.sqlRunner?.sql ?? '');
-    const [debouncedSql] = useDebouncedValue(sql, 250);
+    const sql = sqlRunnerState.sqlRunner?.sql ?? '';
 
     const [lastSqlRan, setLastSqlRan] = useState<string>();
 
@@ -81,7 +84,18 @@ const SqlRunnerPage = () => {
         setExpandedCards((prev) => new Map(prev).set(card, value));
     };
 
-    const { isLoading, mutate } = sqlQueryMutation;
+    const setSql = useCallback(
+        (newSql: string) => {
+            updateSqlRunnerState((current) => ({
+                ...current,
+                sqlRunner: {
+                    sql: newSql,
+                },
+            }));
+        },
+        [updateSqlRunnerState],
+    );
+    const { isLoading: isLoadingQuery, mutate } = sqlQueryMutation;
     const {
         initialPivotDimensions,
         resultsData,
@@ -116,15 +130,7 @@ const SqlRunnerPage = () => {
     }, [handleSubmit]);
 
     const catalogTree = useProjectCatalogTree(catalogData);
-
-    useEffect(() => {
-        updateSqlRunnerState({
-            createSavedChart,
-            sqlRunner: {
-                sql: debouncedSql,
-            },
-        });
-    }, [updateSqlRunnerState, debouncedSql, createSavedChart]);
+    const isLoading = isLoadingQuery || isLoadingRouteData;
 
     const handleTableSelect = useCallback(
         (node: ProjectCatalogTreeNode) => {

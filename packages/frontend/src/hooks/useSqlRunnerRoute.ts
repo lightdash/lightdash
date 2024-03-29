@@ -36,12 +36,17 @@ export const useSqlRunnerRoute = () => {
     const { mutate: updateShare } = useUpdateShareMutation(sqlRunnerShareId);
     const { mutate: createShare } = useCreateShareMutation();
 
+    const isLoading = !!(sqlRunnerShareId && isLoadingShareData);
+
     /**
-     * If we don't have a cache key, we generate a brand new one:
+     * If we don't have a cache key, we generate a brand new one. We memoize
+     * these separately so we can reuse the same cache key for a single component,
+     * even if we drop the key from the param.
      */
+    const generatedCacheKey = useMemo(() => generateStateCacheKey(), []);
     const cacheKeyOrGenerated = useMemo(
-        () => sqlRunnerCacheId ?? generateStateCacheKey(),
-        [sqlRunnerCacheId],
+        () => sqlRunnerCacheId ?? generatedCacheKey,
+        [sqlRunnerCacheId, generatedCacheKey],
     );
 
     const legacyRunnerState = searchParams.get(
@@ -71,12 +76,19 @@ export const useSqlRunnerRoute = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const [cachedState, setCachedState] = useStateCache(cacheKeyOrGenerated, {
-        initialData,
-    });
+    const [cachedState, setCachedState, { isInitialData }] = useStateCache(
+        cacheKeyOrGenerated,
+        {
+            initialData,
+        },
+    );
 
     useEffect(() => {
-        if (shareData) {
+        /**
+         * Ignore fetched data if we already have a draft key, so we don't override
+         * the user's cached or active state with a late load.
+         */
+        if (shareData && !sqlRunnerCacheId) {
             const shareParams = new URLSearchParams(shareData.params);
 
             const hasCreateSavedChartFromParam = shareParams.get(
@@ -95,7 +107,7 @@ export const useSqlRunnerRoute = () => {
                     : undefined,
             });
         }
-    }, [shareData, setCachedState]);
+    }, [shareData, setCachedState, sqlRunnerCacheId]);
 
     const flushSqlRunnerStateToShare = useCallback(() => {
         /**
@@ -131,6 +143,13 @@ export const useSqlRunnerRoute = () => {
                     shareUrl.nanoid,
                 );
 
+                /**
+                 * We need to know if we need to trust the cache data, or the share URL data -
+                 * the easiest way is to track the presence of a cache param at all, so we delete
+                 * the entry from the url.
+                 */
+                searchParams.delete(SqlRunnerSearchParam.SqlRunnerDraft);
+
                 history.replace({
                     pathname,
                     search: searchParams.toString(),
@@ -159,7 +178,11 @@ export const useSqlRunnerRoute = () => {
     ]);
 
     const updateSqlRunnerState = useCallback(
-        (newState: SqlRunnerState) => {
+        (
+            updater: (
+                currentState: Partial<SqlRunnerState>,
+            ) => Partial<SqlRunnerState>,
+        ) => {
             /**
              * Do not allow updating state until we've done loading things.
              */
@@ -176,18 +199,27 @@ export const useSqlRunnerRoute = () => {
                 SqlRunnerSearchParam.CreateSavedChartVersion,
             );
             updatedSearchParams.delete(SqlRunnerSearchParam.SqlRunnerState);
-            updatedSearchParams.set(
-                SqlRunnerSearchParam.SqlRunnerDraft,
-                cacheKeyOrGenerated,
-            );
 
-            setCachedState(newState);
+            /**
+             * Do not append the draft parameter until we've made changes to the cached
+             * data:
+             */
+            if (!isInitialData) {
+                updatedSearchParams.set(
+                    SqlRunnerSearchParam.SqlRunnerDraft,
+                    cacheKeyOrGenerated,
+                );
+            }
+
+            setCachedState(updater(cachedState));
             history.replace({
                 pathname,
                 search: updatedSearchParams.toString(),
             });
         },
         [
+            cachedState,
+            isInitialData,
             setCachedState,
             search,
             cacheKeyOrGenerated,
@@ -202,5 +234,6 @@ export const useSqlRunnerRoute = () => {
         sqlRunnerState: cachedState,
         flushSqlRunnerStateToShare,
         updateSqlRunnerState,
+        isLoading,
     };
 };

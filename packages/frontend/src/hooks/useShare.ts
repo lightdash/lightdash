@@ -4,7 +4,7 @@ import {
     type ShareUrl,
     type UpdateShareUrl,
 } from '@lightdash/common';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
 const getShare = async (shareNanoid: string) =>
@@ -48,6 +48,8 @@ export const useCreateShareMutation = () => {
 };
 
 export const useUpdateShareMutation = (shareNanoid: string | null) => {
+    const client = useQueryClient();
+
     return useMutation<ShareUrl, ApiError, UpdateShareUrl>(
         (data) => {
             if (!shareNanoid) {
@@ -60,7 +62,13 @@ export const useUpdateShareMutation = (shareNanoid: string | null) => {
         },
         {
             //mutationKey: ['share'],
-            onSuccess: async () => {},
+            onSuccess: async (result) => {
+                /**
+                 * Override the local share state, without having to fetch it again. This allows us
+                 * to close the loop with `useGetShare` as the source of truth.
+                 */
+                client.setQueryData(['share', shareNanoid], result);
+            },
             onError: () => {},
         },
     );
