@@ -1,6 +1,6 @@
 import {
     ChartType,
-    type DashboardFiltersForTile,
+    type DashboardFilters,
     type ItemsMap,
 } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
@@ -28,7 +28,7 @@ type VisualizationTableConfigProps =
         validPivotDimensions: string[] | undefined;
         pivotTableMaxColumnLimit: number;
         savedChartUuid: string | undefined;
-        dashboardFilters: DashboardFiltersForTile | undefined;
+        dashboardFilters: DashboardFilters | undefined;
         invalidateCache: boolean | undefined;
     };
 

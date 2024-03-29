@@ -1,13 +1,11 @@
 import {
     getDashboardFilterRulesForTile,
-    type DashboardFiltersForTile,
+    type DashboardFilters,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 
-const useDashboardFiltersForTile = (
-    tileUuid: string,
-): DashboardFiltersForTile => {
+const useDashboardFiltersForTile = (tileUuid: string): DashboardFilters => {
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,

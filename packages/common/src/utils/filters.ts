@@ -23,9 +23,7 @@ import {
     UnitOfTime,
     type DashboardFieldTarget,
     type DashboardFilterRule,
-    type DashboardFilterRuleForTile,
     type DashboardFilters,
-    type DashboardFiltersForTile,
     type DateFilterRule,
     type FilterDashboardToRule,
     type FilterGroup,
@@ -427,57 +425,44 @@ export const getFilterRulesByFieldType = (
 export const getDashboardFilterRulesForTile = (
     tileUuid: string,
     rules: DashboardFilterRule[],
-): DashboardFilterRuleForTile[] =>
+): DashboardFilterRule[] =>
     rules
         .filter((rule) => !rule.disabled)
-        .reduce<DashboardFilterRuleForTile[]>((acc, filter) => {
+        .map((filter) => {
             const tileConfig = filter.tileTargets?.[tileUuid];
 
             // If the config is false, we remove this filter
             if (tileConfig === false) {
-                return acc;
+                return null;
             }
-
-            const dashboardFilterRuleForTile = { ...filter };
-
-            // Delete properties that are not needed for filters on tiles
-            if ('tileTargets' in dashboardFilterRuleForTile)
-                delete dashboardFilterRuleForTile.tileTargets;
-            if ('required' in dashboardFilterRuleForTile)
-                delete dashboardFilterRuleForTile.required;
-            if ('label' in dashboardFilterRuleForTile)
-                delete dashboardFilterRuleForTile.label;
-
             // If the tile isn't in the tileTarget overrides,
             // we return the filter and don't treat this tile
             // differently.
             if (tileConfig === undefined) {
-                return [dashboardFilterRuleForTile, ...acc];
+                return filter;
             }
 
-            return [
-                {
-                    ...dashboardFilterRuleForTile,
-                    target: {
-                        fieldId: tileConfig.fieldId,
-                        tableName: tileConfig.tableName,
-                    },
+            return {
+                ...filter,
+                target: {
+                    fieldId: tileConfig.fieldId,
+                    tableName: tileConfig.tableName,
                 },
-                ...acc,
-            ];
-        }, []);
+            };
+        })
+        .filter((f): f is DashboardFilterRule => f !== null);
 
 export const getDashboardFilterRulesForTables = (
     tables: string[],
-    rules: DashboardFilterRuleForTile[],
-): DashboardFilterRuleForTile[] =>
+    rules: DashboardFilterRule[],
+): DashboardFilterRule[] =>
     rules.filter((f) => tables.includes(f.target.tableName));
 
 export const getDashboardFilterRulesForTileAndTables = (
     tileUuid: string,
     tables: string[],
     rules: DashboardFilterRule[],
-): DashboardFilterRuleForTile[] =>
+): DashboardFilterRule[] =>
     getDashboardFilterRulesForTables(
         tables,
         getDashboardFilterRulesForTile(tileUuid, rules),
@@ -487,7 +472,7 @@ export const getDashboardFiltersForTileAndTables = (
     tileUuid: string,
     tables: string[],
     dashboardFilters: DashboardFilters,
-): DashboardFiltersForTile => ({
+): DashboardFilters => ({
     dimensions: getDashboardFilterRulesForTileAndTables(
         tileUuid,
         tables,
@@ -542,23 +527,46 @@ const combineFilterGroupWithFilterRules = (
     and: [...(filterGroup ? [filterGroup] : []), ...filterRules],
 });
 
+const convertDashboardFilterRuleToFilterRule = (
+    dashboardFilterRule: DashboardFilterRule,
+): FilterRule => ({
+    id: dashboardFilterRule.id,
+    target: {
+        fieldId: dashboardFilterRule.target.fieldId,
+    },
+    operator: dashboardFilterRule.operator,
+    values: dashboardFilterRule.values,
+    ...(dashboardFilterRule.settings && {
+        settings: dashboardFilterRule.settings,
+    }),
+    ...(dashboardFilterRule.disabled && {
+        disabled: dashboardFilterRule.disabled,
+    }),
+});
+
 export const addDashboardFiltersToMetricQuery = (
     metricQuery: MetricQuery,
-    dashboardFilters: DashboardFiltersForTile,
+    dashboardFilters: DashboardFilters,
 ): MetricQuery => ({
     ...metricQuery,
     filters: {
         dimensions: combineFilterGroupWithFilterRules(
             metricQuery.filters?.dimensions,
-            dashboardFilters.dimensions,
+            dashboardFilters.dimensions.map(
+                convertDashboardFilterRuleToFilterRule,
+            ),
         ),
         metrics: combineFilterGroupWithFilterRules(
             metricQuery.filters?.metrics,
-            dashboardFilters.metrics,
+            dashboardFilters.metrics.map(
+                convertDashboardFilterRuleToFilterRule,
+            ),
         ),
         tableCalculations: combineFilterGroupWithFilterRules(
             metricQuery.filters?.tableCalculations,
-            dashboardFilters.tableCalculations,
+            dashboardFilters.tableCalculations.map(
+                convertDashboardFilterRuleToFilterRule,
+            ),
         ),
     },
 });

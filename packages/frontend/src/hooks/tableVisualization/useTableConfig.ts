@@ -8,7 +8,7 @@ import {
     type ApiQueryResults,
     type ColumnProperties,
     type ConditionalFormattingConfig,
-    type DashboardFiltersForTile,
+    type DashboardFilters,
     type ItemsMap,
     type PivotData,
     type ResultRow,
@@ -37,7 +37,7 @@ const useTableConfig = (
     pivotDimensions: string[] | undefined,
     pivotTableMaxColumnLimit: number,
     savedChartUuid?: string,
-    dashboardFilters?: DashboardFiltersForTile,
+    dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
 ) => {
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
