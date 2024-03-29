@@ -14,9 +14,9 @@ import { flattenBy, memo } from '@tanstack/table-core/src/utils';
 // https://tanstack.com/table/v8/docs/guide/row-models#customizefork-row-models
 
 function groupBy<TData extends RowData>(rows: Row<TData>[], columnId: string) {
-    const groupMap = new Map<any, Row<TData>[]>();
+    const groupMap = new Map<unknown, Row<TData>[]>();
 
-    return rows.reduce((map, row) => {
+    return rows.reduce<typeof groupMap>((map, row) => {
         // This line changed from original since getGroupingValue does not exist here as it should.
         // const resKey = `${row.getGroupingValue(columnId)}`
         const resKey = (row.original as ResultRow)[columnId].value.raw;
