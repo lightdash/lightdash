@@ -37,25 +37,27 @@ const TableHeader: FC<TableHeaderProps> = ({
                         : false;
                 })
                 .map((col) => col.id);
+
             const sortedColumns = table
                 .getState()
-                .columnOrder.reduce((acc: string[], sortedId) => {
-                    if (groupedColumns.includes(sortedId)) acc.push(sortedId);
-                    return acc;
-                }, []);
+                .columnOrder.reduce<string[]>((acc, sortedId) => {
+                    return groupedColumns.includes(sortedId)
+                        ? [...acc, sortedId]
+                        : acc;
+                }, [])
+                // The last dimension column essentially groups rows for each unique value in that column.
+                // Grouping on it would result in many useless expandable groups containing just one item.
+                .slice(0, -1);
 
-            // The last dimension column essentially groups rows for each unique value in that column.
-            // Grouping on it would result in many useless expandable groups containing just one item.
-            sortedColumns.pop();
-
-            if (!isEqual(sortedColumns, table.getState().grouping))
+            if (!isEqual(sortedColumns, table.getState().grouping)) {
                 table.setGrouping(sortedColumns);
+            }
+        } else {
+            if (table.getState().grouping.length > 0) {
+                table.resetGrouping();
+            }
         }
     }, [showSubtotals, columns, headerContextMenu, table]);
-
-    useEffect(() => {
-        if (!showSubtotals) table.resetGrouping();
-    }, [showSubtotals, table]);
 
     if (columns.length <= 0) {
         return null;
