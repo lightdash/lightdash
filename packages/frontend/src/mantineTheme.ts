@@ -128,9 +128,6 @@ export const getMantineThemeOverride = (overrides?: {
                 }),
             },
         },
-        // TODO: add variant for sublabel Text
-        // TODO: add default styles for Checkbox on padding of label
-        // TODO: add default styles for Switch on padding of label
         ...overrides?.components,
     },
 
