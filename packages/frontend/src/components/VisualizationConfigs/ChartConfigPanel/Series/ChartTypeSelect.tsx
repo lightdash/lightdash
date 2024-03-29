@@ -68,7 +68,6 @@ export const ChartTypeSelect: FC<Props> = ({
     return (
         <Select
             label={showLabel && <Config.SubLabel>Type</Config.SubLabel>}
-            size="xs"
             value={chartValue}
             data={options}
             onChange={onChange}

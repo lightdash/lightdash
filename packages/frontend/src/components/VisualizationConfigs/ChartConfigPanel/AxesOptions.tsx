@@ -47,7 +47,6 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
     return (
         <Group noWrap spacing="xs">
             <Switch
-                size="xs"
                 label={isAuto && <Config.SubLabel>{label}</Config.SubLabel>}
                 checked={isAuto}
                 onChange={() => {
@@ -70,14 +69,12 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
                 <Group noWrap spacing="xs">
                     <Config.SubLabel>Min</Config.SubLabel>
                     <TextInput
-                        size="xs"
                         placeholder="Min"
                         defaultValue={min || undefined}
                         onBlur={(e) => setMin(e.currentTarget.value)}
                     />
                     <Config.SubLabel>Max</Config.SubLabel>
                     <TextInput
-                        size="xs"
                         placeholder="Max"
                         defaultValue={max || undefined}
                         onBlur={(e) => setMax(e.currentTarget.value)}
@@ -146,7 +143,6 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     dirtyLayout?.flipAxes ? 'Y' : 'X'
                 }-axis label`}</Config.Label>
                 <TextInput
-                    size="xs"
                     placeholder="Enter axis label"
                     defaultValue={
                         dirtyEchartsConfig?.xAxis?.[0]?.name ||
@@ -172,7 +168,6 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     <Group spacing="xs">
                         <Config.SubLabel>Sort</Config.SubLabel>
                         <SegmentedControl
-                            size="xs"
                             defaultValue={
                                 dirtyEchartsConfig?.xAxis?.[0]?.inverse
                                     ? 'descending'
@@ -210,7 +205,6 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                                 min={0}
                                 max={90}
                                 step={15}
-                                size="xs"
                                 maw={54}
                                 rightSection="°"
                                 onChange={(value) => {
@@ -230,7 +224,6 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                 })`}</Config.Label>
 
                 <TextInput
-                    size="xs"
                     placeholder="Enter axis label"
                     defaultValue={
                         dirtyEchartsConfig?.yAxis?.[0]?.name ||
@@ -266,7 +259,6 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                 })`}</Config.Label>
 
                 <TextInput
-                    size="xs"
                     placeholder="Enter axis label"
                     defaultValue={
                         dirtyEchartsConfig?.yAxis?.[1]?.name ||
@@ -300,7 +292,6 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
 
                 <Stack spacing="xs">
                     <Checkbox
-                        size="xs"
                         label={
                             <Config.SubLabel>{`${
                                 dirtyLayout?.flipAxes ? 'Y' : 'X'
@@ -318,7 +309,6 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
                     />
 
                     <Checkbox
-                        size="xs"
                         label={
                             <Config.SubLabel>{`${
                                 dirtyLayout?.flipAxes ? 'X' : 'Y'

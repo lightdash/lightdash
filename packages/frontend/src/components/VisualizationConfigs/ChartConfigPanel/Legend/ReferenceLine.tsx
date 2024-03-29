@@ -240,7 +240,7 @@ export const ReferenceLine: FC<Props> = ({
         <Stack spacing="xs">
             <Group noWrap position="apart">
                 <Group spacing="xs">
-                    <ActionIcon onClick={() => setIsOpen(!isOpen)} size="sm">
+                    <ActionIcon onClick={() => setIsOpen(!isOpen)}>
                         <MantineIcon
                             icon={isOpen ? IconChevronUp : IconChevronDown}
                         />
@@ -280,7 +280,6 @@ export const ReferenceLine: FC<Props> = ({
                                     referenceLine.data.name,
                             )
                         }
-                        size="sm"
                     >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
@@ -297,7 +296,6 @@ export const ReferenceLine: FC<Props> = ({
                     })}
                 >
                     <FieldSelect
-                        size="xs"
                         label="Field"
                         item={selectedField}
                         items={fieldsInAxes}
@@ -342,7 +340,6 @@ export const ReferenceLine: FC<Props> = ({
                         </Box>
                         <TextInput
                             label="Label"
-                            size="xs"
                             disabled={!value}
                             value={label}
                             placeholder={value ?? 'Untitled'}

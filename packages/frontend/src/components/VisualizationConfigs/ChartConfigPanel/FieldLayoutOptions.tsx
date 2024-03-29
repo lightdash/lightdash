@@ -202,23 +202,19 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     </Group>
                 </Config.LabelGroup>
                 {dirtyLayout?.xField !== EMPTY_X_AXIS && (
-                    <Group>
-                        <FieldSelect
-                            data-testid="x-axis-field-select"
-                            size="xs"
-                            item={xAxisField}
-                            items={items}
-                            onChange={handleOnChangeOfXAxisField}
-                            rightSection={
-                                <CloseButton
-                                    size="xs"
-                                    onClick={() => {
-                                        setXField(EMPTY_X_AXIS);
-                                    }}
-                                />
-                            }
-                        />
-                    </Group>
+                    <FieldSelect
+                        data-testid="x-axis-field-select"
+                        item={xAxisField}
+                        items={items}
+                        onChange={handleOnChangeOfXAxisField}
+                        rightSection={
+                            <CloseButton
+                                onClick={() => {
+                                    setXField(EMPTY_X_AXIS);
+                                }}
+                            />
+                        }
+                    />
                 )}
             </Config.Group>
 
@@ -242,30 +238,27 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         ? [activeField, ...availableYFields]
                         : availableYFields;
                     return (
-                        <Group spacing="xs" key={`${field}-y-axis`}>
-                            <FieldSelect
-                                data-testid="y-axis-field-select"
-                                size="xs"
-                                item={activeField}
-                                items={yFieldsOptions}
-                                onChange={(newValue) => {
-                                    updateYField(
-                                        index,
-                                        newValue ? getItemId(newValue) : '',
-                                    );
-                                }}
-                                rightSection={
-                                    yFields?.length !== 1 && (
-                                        <CloseButton
-                                            size="xs"
-                                            onClick={() => {
-                                                removeSingleSeries(index);
-                                            }}
-                                        />
-                                    )
-                                }
-                            />
-                        </Group>
+                        <FieldSelect
+                            key={`${field}-y-axis`}
+                            data-testid="y-axis-field-select"
+                            item={activeField}
+                            items={yFieldsOptions}
+                            onChange={(newValue) => {
+                                updateYField(
+                                    index,
+                                    newValue ? getItemId(newValue) : '',
+                                );
+                            }}
+                            rightSection={
+                                yFields?.length !== 1 && (
+                                    <CloseButton
+                                        onClick={() => {
+                                            removeSingleSeries(index);
+                                        }}
+                                    />
+                                )
+                            }
+                        />
                     );
                 })}
             </Config.Group>
@@ -294,7 +287,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             <FieldSelect
                                 items={[]}
                                 onChange={() => {}}
-                                size="xs"
                                 disabled
                                 placeholder="You need at least one metric in your chart to add a group"
                             />
@@ -320,7 +312,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             return (
                                 <Group spacing="xs" key={pivotKey}>
                                     <FieldSelect
-                                        size="xs"
                                         disabled={!chartHasMetricOrTableCalc}
                                         placeholder="Select a field to group by"
                                         item={activeField}
@@ -340,7 +331,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                         rightSection={
                                             groupSelectedField && (
                                                 <CloseButton
-                                                    size="xs"
                                                     onClick={() => {
                                                         setPivotDimensions(
                                                             pivotDimensions.filter(
@@ -360,11 +350,8 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 </Stack>
                 {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
                     <Tooltip
-                        label={
-                            <Text fz="xs">
-                                x-axis must be non-numeric to enable stacking
-                            </Text>
-                        }
+                        variant="xs"
+                        label="x-axis must be non-numeric to enable stacking"
                         withinPortal
                         position="top-start"
                         disabled={!isXAxisFieldNumeric}
@@ -372,7 +359,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         <Group spacing="xs">
                             <Config.SubLabel>Stacking</Config.SubLabel>
                             <SegmentedControl
-                                size="xs"
                                 disabled={isXAxisFieldNumeric}
                                 value={isStacked ? 'stack' : 'noStacking'}
                                 onChange={(value) =>

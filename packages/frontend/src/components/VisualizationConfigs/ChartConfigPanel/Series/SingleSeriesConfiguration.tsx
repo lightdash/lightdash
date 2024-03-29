@@ -170,7 +170,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     <Config.SubLabel>Axis</Config.SubLabel>
                                 )
                             }
-                            size="xs"
                             value={String(series.yAxisIndex)}
                             data={[
                                 {
@@ -197,7 +196,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     </Config.SubLabel>
                                 )
                             }
-                            size="xs"
                             value={series.label?.position || 'hidden'}
                             data={[
                                 { value: 'hidden', label: 'Hidden' },
@@ -225,7 +223,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         type === CartesianSeriesType.AREA) && (
                         <Group spacing="xs">
                             <Checkbox
-                                size="xs"
                                 sx={{
                                     label: {
                                         paddingLeft: 4,
@@ -247,7 +244,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 }}
                             />
                             <Checkbox
-                                size="xs"
                                 checked={series.smooth}
                                 label={
                                     <Config.SubLabel>Smooth</Config.SubLabel>

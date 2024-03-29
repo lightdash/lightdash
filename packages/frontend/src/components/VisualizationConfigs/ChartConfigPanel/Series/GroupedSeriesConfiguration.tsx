@@ -191,7 +191,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
                 <Select
                     label={<Config.SubLabel>Axis</Config.SubLabel>}
-                    size="xs"
                     value={
                         isAxisTheSameForAllSeries
                             ? String(seriesGroup[0].yAxisIndex)
@@ -220,7 +219,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 />
                 <Select
                     label={<Config.SubLabel>Value labels</Config.SubLabel>}
-                    size="xs"
                     value={
                         isLabelTheSameForAllSeries
                             ? seriesGroup[0].label?.position || 'hidden'
@@ -256,7 +254,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 Total
                             </Text>
                             <Switch
-                                size="xs"
                                 checked={seriesGroup[0].stackLabel?.show}
                                 onChange={() => {
                                     updateAllGroupedSeries(fieldKey, {
@@ -274,7 +271,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 chartValue === CartesianSeriesType.AREA) && (
                 <Group spacing="xs">
                     <Checkbox
-                        size="xs"
                         checked={seriesGroup[0].showSymbol ?? true}
                         label={<Config.SubLabel>Show symbol</Config.SubLabel>}
                         onChange={() => {
@@ -291,7 +287,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         }}
                     />
                     <Checkbox
-                        size="xs"
                         checked={seriesGroup[0].smooth}
                         label={<Config.SubLabel>Smooth</Config.SubLabel>}
                         onChange={() => {

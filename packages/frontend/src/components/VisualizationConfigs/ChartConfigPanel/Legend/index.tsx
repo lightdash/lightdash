@@ -70,7 +70,6 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
             <Config.Label>Position</Config.Label>
 
             <Switch
-                size="xs"
                 label={
                     <Config.SubLabel>
                         {isAutoPosition ? `Auto-position` : `Custom`}
@@ -193,7 +192,6 @@ const LegendPanel: FC<Props> = ({ items }) => {
                 <Group spacing="xs" align="center">
                     <Config.Label>Legend</Config.Label>
                     <Switch
-                        size="xs"
                         labelPosition="left"
                         checked={legendConfig.show ?? showDefault}
                         onChange={(e) =>
@@ -212,7 +210,6 @@ const LegendPanel: FC<Props> = ({ items }) => {
                         <Group spacing="xs">
                             <Config.SubLabel>Scroll behavior</Config.SubLabel>
                             <SegmentedControl
-                                size="xs"
                                 value={dirtyEchartsConfig?.legend?.type}
                                 data={[
                                     { label: 'Default', value: 'plain' },
@@ -227,7 +224,6 @@ const LegendPanel: FC<Props> = ({ items }) => {
                             <Config.SubLabel>Orientation</Config.SubLabel>
                             <SegmentedControl
                                 name="orient"
-                                size="xs"
                                 value={legendConfig.orient ?? 'horizontal'}
                                 onChange={(val) => handleChange('orient', val)}
                                 data={[
