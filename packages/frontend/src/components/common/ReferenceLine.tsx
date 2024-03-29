@@ -7,7 +7,7 @@ export type ReferenceLineField = {
 
 export const getMarkLineAxis = (
     xField: string | undefined,
-    flipAxes: boolean,
+    flipAxes: boolean | undefined,
     fieldId: string,
 ): string => {
     const isDefaultXAxis = xField === fieldId;

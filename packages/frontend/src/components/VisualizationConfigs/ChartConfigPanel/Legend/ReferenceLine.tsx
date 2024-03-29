@@ -270,6 +270,13 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
         lineId: lineId,
     };
 
+    const isDateField =
+        selectedField &&
+        !isCustomDimension(selectedField) &&
+        isDateItem(selectedField);
+
+    const averageAvailable = !isDateField && markLineKey === 'yAxis';
+
     return (
         <Stack spacing="xs">
             <Group noWrap position="apart">
@@ -330,7 +337,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                                     field={selectedField}
                                     startOfWeek={startOfWeek}
                                     value={value}
-                                    disabled={useAverage}
+                                    disabled={useAverage && averageAvailable}
                                     onChange={(newValue: string) => {
                                         setValue(newValue);
                                         if (selectedField !== undefined)
@@ -350,6 +357,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             <Checkbox
                                 style={{ flex: 4 }}
                                 label="Use series average"
+                                disabled={!averageAvailable}
                                 checked={useAverage}
                                 onChange={(newState) => {
                                     setUseAverage(newState.target.checked);

@@ -1,5 +1,7 @@
 import {
     fieldId as getFieldId,
+    isCustomDimension,
+    isDateItem,
     isField,
     type CompiledDimension,
     type CustomDimension,
@@ -14,7 +16,10 @@ import { Button, Stack, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useProject } from '../../../../hooks/useProject';
 import MantineIcon from '../../../common/MantineIcon';
-import { type ReferenceLineField } from '../../../common/ReferenceLine';
+import {
+    getMarkLineAxis,
+    type ReferenceLineField,
+} from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { ReferenceLine, type ReferenceLineProps } from './ReferenceLine';
@@ -59,19 +64,34 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         ? getFieldId(field)
                         : field.name;
 
+                    const axis = getMarkLineAxis(
+                        dirtyLayout?.xField,
+                        dirtyLayout?.flipAxes,
+                        fieldId,
+                    );
+
+                    const isDateField =
+                        field && !isCustomDimension(field) && isDateItem(field);
+
                     if (dirtyEchartsConfig?.series) {
                         const selectedSeries = dirtyEchartsConfig?.series.find(
                             (serie: Series) =>
-                                (dirtyLayout?.xField === fieldId
+                                (axis === 'xAxis'
                                     ? serie.encode.xRef
                                     : serie.encode.yRef
                                 ).field === fieldId,
                         );
                         if (selectedSeries === undefined) return;
 
+                        const averageAvailable =
+                            !isDateField && axis === 'yAxis';
+
                         const dataWithAxis = {
                             name: label,
-                            type: useAverage ? 'average' : undefined,
+                            type:
+                                useAverage && averageAvailable
+                                    ? 'average'
+                                    : undefined,
                             uuid: lineId,
                             lineStyle: { color: lineColor },
                             label: {
@@ -80,12 +100,9 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                     ? `${label}${useAverage ? ': {c}' : ''}`
                                     : undefined,
                             },
-                            xAxis:
-                                dirtyLayout?.xField === fieldId
-                                    ? value || ''
-                                    : undefined,
+                            xAxis: axis === 'xAxis' ? value || '' : undefined,
                             yAxis:
-                                dirtyLayout?.xField === fieldId
+                                axis === 'xAxis'
                                     ? undefined
                                     : useAverage
                                     ? undefined
