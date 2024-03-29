@@ -1,13 +1,14 @@
 import {
-    FieldType,
     formatItemValue,
     friendlyName,
     isField,
+    isMetric,
     MetricType,
     type ApiQueryResults,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
+import { Text } from '@mantine/core';
 import { type Row } from '@tanstack/react-table';
 import {
     TableHeaderBoldLabel,
@@ -70,52 +71,39 @@ const getDataAndColumns = ({
             const shouldAggregate =
                 item &&
                 isField(item) &&
-                item.fieldType === FieldType.METRIC &&
-                [
-                    MetricType.SUM.toString(),
-                    MetricType.COUNT.toString(),
-                ].includes(item.type);
+                isMetric(item) &&
+                [MetricType.SUM, MetricType.COUNT].includes(item.type);
+
             const aggregationFunction = shouldAggregate
                 ? (
                       columnId: string,
                       _leafRows: Row<ResultRow>[],
                       childRows: Row<ResultRow>[],
                   ) => {
-                      let aggregatedValue = 0;
-                      const allNumberValues = childRows.some((childRow) => {
-                          const valueObj = childRow.getValue(columnId);
-                          const val =
-                              typeof valueObj === 'object' &&
-                              valueObj &&
-                              'value' in valueObj
-                                  ? valueObj.value
-                                  : null;
-                          const raw =
-                              typeof val === 'object' && val && 'raw' in val
-                                  ? val.raw
-                                  : null;
-                          if (raw === null) return false;
-                          const adder = Number(raw);
-                          if (isNaN(adder)) return false;
-                          const precision = getDecimalPrecision(
-                              adder,
-                              aggregatedValue,
-                          );
-                          const result =
-                              (aggregatedValue * precision +
-                                  adder * precision) /
-                              precision;
-                          aggregatedValue = result;
-                          return true;
-                      });
+                      const aggregatedValue = childRows.reduce<number>(
+                          (agg, childRow) => {
+                              const cellValue = childRow.getValue(columnId) as
+                                  | ResultRow[number]
+                                  | undefined;
+                              const rawValue = cellValue?.value?.raw;
+
+                              if (rawValue === null) return agg;
+                              const adder = Number(rawValue);
+                              if (isNaN(adder)) return agg;
+
+                              const precision = getDecimalPrecision(adder, agg);
+                              return (
+                                  (agg * precision + adder * precision) /
+                                  precision
+                              );
+                          },
+                          0,
+                      );
 
                       return (
-                          <b>
-                              {formatItemValue(
-                                  item,
-                                  allNumberValues ? aggregatedValue : '',
-                              )}
-                          </b>
+                          <Text span fw={600}>
+                              {formatItemValue(item, aggregatedValue)}
+                          </Text>
                       );
                   }
                 : undefined;
