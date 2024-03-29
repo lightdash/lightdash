@@ -1,3 +1,10 @@
+## [0.1045.4](https://github.com/lightdash/lightdash/compare/0.1045.3...0.1045.4) (2024-03-29)
+
+
+### Bug Fixes
+
+* add migration to add delete cascade ([#9580](https://github.com/lightdash/lightdash/issues/9580)) ([89c3998](https://github.com/lightdash/lightdash/commit/89c3998a7b848e4d55c8b74b0549a4ad49730156))
+
 ## [0.1045.3](https://github.com/lightdash/lightdash/compare/0.1045.2...0.1045.3) (2024-03-29)
 
 
