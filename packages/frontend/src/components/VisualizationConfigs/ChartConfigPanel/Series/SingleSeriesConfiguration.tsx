@@ -135,7 +135,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
             </Group>
             <Collapse in={!isCollapsable || isOpen || false}>
                 <Stack ml={isGrouped ? 'lg' : 'none'} spacing="xs">
-                    <Group spacing="xs" noWrap>
+                    <Group ml="lg" spacing="xs" noWrap>
                         <ChartTypeSelect
                             showLabel={!isGrouped}
                             chartValue={type}

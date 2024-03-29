@@ -69,8 +69,8 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
         <Config.Group>
             <Switch
                 labelPosition="left"
-                label={isAutoPosition ? `Auto-position` : `Custom position`}
-                checked={isAutoPosition}
+                label={`Custom position`}
+                checked={!isAutoPosition}
                 onChange={toggleAuto}
                 styles={{
                     label: {
