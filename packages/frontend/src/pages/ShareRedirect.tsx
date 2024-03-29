@@ -1,13 +1,9 @@
+import { Box } from '@mantine/core';
 import { IconLinkOff } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import styled from 'styled-components';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { useGetShare } from '../hooks/useShare';
-
-const SharePanel = styled.div`
-    margin-top: 50px;
-`;
 
 const ShareRedirect: FC = () => {
     const { shareNanoid } = useParams<{ shareNanoid: string }>();
@@ -22,18 +18,18 @@ const ShareRedirect: FC = () => {
 
     if (error) {
         return (
-            <SharePanel>
+            <Box mt={50}>
                 <SuboptimalState
                     title={`Shared link does not exist`}
                     icon={IconLinkOff}
                 />
-            </SharePanel>
+            </Box>
         );
     }
     return (
-        <SharePanel>
+        <Box mt={50}>
             <SuboptimalState title="Loading..." loading />
-        </SharePanel>
+        </Box>
     );
 };
 
