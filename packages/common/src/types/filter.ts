@@ -127,9 +127,6 @@ export type DashboardFilters = {
     tableCalculations: DashboardFilterRule[];
 };
 
-/**
- * See DashboardFilterRuleForTile for details on the structure of individual filter rules.
- */
 export type DashboardFiltersForTile = {
     dimensions: DashboardFilterRuleForTile[];
     metrics: DashboardFilterRuleForTile[];
