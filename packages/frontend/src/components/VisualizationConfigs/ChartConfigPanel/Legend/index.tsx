@@ -70,14 +70,9 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
             <Config.Label>Position</Config.Label>
 
             <Switch
-                label={
-                    <Config.SubLabel>
-                        {isAutoPosition ? `Auto-position` : `Custom`}
-                    </Config.SubLabel>
-                }
+                label={isAutoPosition ? `Auto-position` : `Custom`}
                 checked={isAutoPosition}
                 onChange={toggleAuto}
-                styles={{ label: { paddingLeft: 4 } }}
             />
 
             {!isAutoPosition && (
@@ -188,60 +183,63 @@ const LegendPanel: FC<Props> = ({ items }) => {
     const showDefault = (dirtyEchartsConfig?.series || []).length > 1;
     return (
         <Stack>
-            <Config.Group>
-                <Group spacing="xs" align="center">
-                    <Config.Label>Legend</Config.Label>
-                    <Switch
-                        labelPosition="left"
-                        checked={legendConfig.show ?? showDefault}
-                        onChange={(e) =>
-                            handleChange('show', e.currentTarget.checked)
-                        }
-                        styles={{
-                            label: {
-                                paddingLeft: 4,
-                            },
-                        }}
-                    />
-                </Group>
-
-                <Collapse in={legendConfig.show ?? showDefault}>
-                    <Stack spacing="xs">
-                        <Group spacing="xs">
-                            <Config.SubLabel>Scroll behavior</Config.SubLabel>
-                            <SegmentedControl
-                                value={dirtyEchartsConfig?.legend?.type}
-                                data={[
-                                    { label: 'Default', value: 'plain' },
-                                    { label: 'Scroll', value: 'scroll' },
-                                ]}
-                                onChange={(value) =>
-                                    handleChange('type', value)
-                                }
-                            />
-                        </Group>
-                        <Group spacing="xs">
-                            <Config.SubLabel>Orientation</Config.SubLabel>
-                            <SegmentedControl
-                                name="orient"
-                                value={legendConfig.orient ?? 'horizontal'}
-                                onChange={(val) => handleChange('orient', val)}
-                                data={[
-                                    {
-                                        label: 'Horizontal',
-                                        value: 'horizontal',
-                                    },
-                                    { label: 'Vertical', value: 'vertical' },
-                                ]}
-                            />
-                        </Group>
-                        <PositionConfiguration
-                            legendConfig={legendConfig}
-                            handleChange={handleChange}
+            <Config>
+                <Config.Group>
+                    <Group spacing="xs" align="center">
+                        <Config.Label>Legend</Config.Label>
+                        <Switch
+                            checked={legendConfig.show ?? showDefault}
+                            onChange={(e) =>
+                                handleChange('show', e.currentTarget.checked)
+                            }
                         />
-                    </Stack>
-                </Collapse>
-            </Config.Group>
+                    </Group>
+
+                    <Collapse in={legendConfig.show ?? showDefault}>
+                        <Stack spacing="xs">
+                            <Group spacing="xs">
+                                <Config.SubLabel>
+                                    Scroll behavior
+                                </Config.SubLabel>
+                                <SegmentedControl
+                                    value={dirtyEchartsConfig?.legend?.type}
+                                    data={[
+                                        { label: 'Default', value: 'plain' },
+                                        { label: 'Scroll', value: 'scroll' },
+                                    ]}
+                                    onChange={(value) =>
+                                        handleChange('type', value)
+                                    }
+                                />
+                            </Group>
+                            <Group spacing="xs">
+                                <Config.SubLabel>Orientation</Config.SubLabel>
+                                <SegmentedControl
+                                    name="orient"
+                                    value={legendConfig.orient ?? 'horizontal'}
+                                    onChange={(val) =>
+                                        handleChange('orient', val)
+                                    }
+                                    data={[
+                                        {
+                                            label: 'Horizontal',
+                                            value: 'horizontal',
+                                        },
+                                        {
+                                            label: 'Vertical',
+                                            value: 'vertical',
+                                        },
+                                    ]}
+                                />
+                            </Group>
+                            <PositionConfiguration
+                                legendConfig={legendConfig}
+                                handleChange={handleChange}
+                            />
+                        </Stack>
+                    </Collapse>
+                </Config.Group>
+            </Config>
             <ReferenceLines items={items} projectUuid={projectUuid} />
         </Stack>
     );

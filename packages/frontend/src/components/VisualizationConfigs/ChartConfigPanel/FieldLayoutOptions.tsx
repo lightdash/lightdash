@@ -178,204 +178,223 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
     return (
         <Stack>
-            <Config.Group>
-                <Config.LabelGroup>
-                    <Config.Label>{`${
-                        validConfig?.layout.flipAxes ? 'Y' : 'X'
-                    }-axis`}</Config.Label>
-                    <Group spacing="two">
-                        <Tooltip label={<Text fz="xs">Flip Axes</Text>}>
-                            <ActionIcon
-                                onClick={() =>
-                                    setFlipAxis(!dirtyLayout?.flipAxes)
-                                }
-                                color="blue.4"
-                            >
-                                <MantineIcon icon={IconRotate360} />
-                            </ActionIcon>
-                        </Tooltip>
-                        {dirtyLayout?.xField === EMPTY_X_AXIS && (
-                            <AddButton
-                                onClick={() => setXField(getItemId(items[0]))}
-                            />
-                        )}
-                    </Group>
-                </Config.LabelGroup>
-                {dirtyLayout?.xField !== EMPTY_X_AXIS && (
-                    <FieldSelect
-                        data-testid="x-axis-field-select"
-                        item={xAxisField}
-                        items={items}
-                        onChange={handleOnChangeOfXAxisField}
-                        rightSection={
-                            <CloseButton
-                                onClick={() => {
-                                    setXField(EMPTY_X_AXIS);
-                                }}
-                            />
-                        }
-                    />
-                )}
-            </Config.Group>
-
-            <Config.Group>
-                <Config.LabelGroup>
-                    <Config.Label>{`${
-                        validConfig?.layout.flipAxes ? 'X' : 'Y'
-                    }-axis`}</Config.Label>
-                    {availableYFields.length > 0 && (
-                        <AddButton
-                            onClick={() =>
-                                addSingleSeries(getItemId(availableYFields[0]))
+            <Config>
+                <Config.Group>
+                    <Config.LabelGroup>
+                        <Config.Label>{`${
+                            validConfig?.layout.flipAxes ? 'Y' : 'X'
+                        }-axis`}</Config.Label>
+                        <Group spacing="two">
+                            <Tooltip label={<Text fz="xs">Flip Axes</Text>}>
+                                <ActionIcon
+                                    onClick={() =>
+                                        setFlipAxis(!dirtyLayout?.flipAxes)
+                                    }
+                                    color="blue.4"
+                                >
+                                    <MantineIcon icon={IconRotate360} />
+                                </ActionIcon>
+                            </Tooltip>
+                            {dirtyLayout?.xField === EMPTY_X_AXIS && (
+                                <AddButton
+                                    onClick={() =>
+                                        setXField(getItemId(items[0]))
+                                    }
+                                />
+                            )}
+                        </Group>
+                    </Config.LabelGroup>
+                    {dirtyLayout?.xField !== EMPTY_X_AXIS && (
+                        <FieldSelect
+                            data-testid="x-axis-field-select"
+                            item={xAxisField}
+                            items={items}
+                            onChange={handleOnChangeOfXAxisField}
+                            rightSection={
+                                <CloseButton
+                                    onClick={() => {
+                                        setXField(EMPTY_X_AXIS);
+                                    }}
+                                />
                             }
                         />
                     )}
-                </Config.LabelGroup>
+                </Config.Group>
+            </Config>
 
-                {yFields.map((field, index) => {
-                    const activeField = yActiveField(field);
-                    const yFieldsOptions = activeField
-                        ? [activeField, ...availableYFields]
-                        : availableYFields;
-                    return (
-                        <FieldSelect
-                            key={`${field}-y-axis`}
-                            data-testid="y-axis-field-select"
-                            item={activeField}
-                            items={yFieldsOptions}
-                            onChange={(newValue) => {
-                                updateYField(
-                                    index,
-                                    newValue ? getItemId(newValue) : '',
-                                );
-                            }}
-                            rightSection={
-                                yFields?.length !== 1 && (
-                                    <CloseButton
-                                        onClick={() => {
-                                            removeSingleSeries(index);
-                                        }}
-                                    />
-                                )
-                            }
-                        />
-                    );
-                })}
-            </Config.Group>
-
-            <Config.Group>
-                <Stack spacing="xs">
+            <Config>
+                <Config.Group>
                     <Config.LabelGroup>
-                        <Group spacing="one">
-                            <Config.Label>Group</Config.Label>
-                        </Group>
-                        {canAddPivot && (
+                        <Config.Label>{`${
+                            validConfig?.layout.flipAxes ? 'X' : 'Y'
+                        }-axis`}</Config.Label>
+                        {availableYFields.length > 0 && (
                             <AddButton
                                 onClick={() =>
-                                    setPivotDimensions([
-                                        ...(pivotDimensions || []),
-                                        getItemId(
-                                            availableGroupByDimensions[0],
-                                        ),
-                                    ])
+                                    addSingleSeries(
+                                        getItemId(availableYFields[0]),
+                                    )
                                 }
                             />
                         )}
                     </Config.LabelGroup>
-                    {!chartHasMetricOrTableCalc &&
-                        !(pivotDimensions && !!pivotDimensions.length) && (
-                            <FieldSelect
-                                items={[]}
-                                onChange={() => {}}
-                                disabled
-                                placeholder="You need at least one metric in your chart to add a group"
-                            />
-                        )}
-                </Stack>
 
-                <Stack spacing="xs">
+                    {yFields.map((field, index) => {
+                        const activeField = yActiveField(field);
+                        const yFieldsOptions = activeField
+                            ? [activeField, ...availableYFields]
+                            : availableYFields;
+                        return (
+                            <FieldSelect
+                                key={`${field}-y-axis`}
+                                data-testid="y-axis-field-select"
+                                item={activeField}
+                                items={yFieldsOptions}
+                                onChange={(newValue) => {
+                                    updateYField(
+                                        index,
+                                        newValue ? getItemId(newValue) : '',
+                                    );
+                                }}
+                                rightSection={
+                                    yFields?.length !== 1 && (
+                                        <CloseButton
+                                            onClick={() => {
+                                                removeSingleSeries(index);
+                                            }}
+                                        />
+                                    )
+                                }
+                            />
+                        );
+                    })}
+                </Config.Group>
+            </Config>
+
+            <Config>
+                <Config.Group>
+                    <Stack spacing="xs">
+                        <Config.LabelGroup>
+                            <Group spacing="one">
+                                <Config.Label>Group</Config.Label>
+                            </Group>
+                            {canAddPivot && (
+                                <AddButton
+                                    onClick={() =>
+                                        setPivotDimensions([
+                                            ...(pivotDimensions || []),
+                                            getItemId(
+                                                availableGroupByDimensions[0],
+                                            ),
+                                        ])
+                                    }
+                                />
+                            )}
+                        </Config.LabelGroup>
+                        {!chartHasMetricOrTableCalc &&
+                            !(pivotDimensions && !!pivotDimensions.length) && (
+                                <FieldSelect
+                                    items={[]}
+                                    onChange={() => {}}
+                                    disabled
+                                    placeholder="You need at least one metric in your chart to add a group"
+                                />
+                            )}
+                    </Stack>
+
+                    <Stack spacing="xs">
+                        {pivotDimensions &&
+                            pivotDimensions.map((pivotKey) => {
+                                // Group series logic
+                                const groupSelectedField =
+                                    availableDimensions.find(
+                                        (item) => getItemId(item) === pivotKey,
+                                    );
+                                const fieldOptions = groupSelectedField
+                                    ? [
+                                          groupSelectedField,
+                                          ...availableGroupByDimensions,
+                                      ]
+                                    : availableGroupByDimensions;
+                                const activeField = chartHasMetricOrTableCalc
+                                    ? groupSelectedField
+                                    : undefined;
+                                return (
+                                    <Group spacing="xs" key={pivotKey}>
+                                        <FieldSelect
+                                            disabled={
+                                                !chartHasMetricOrTableCalc
+                                            }
+                                            placeholder="Select a field to group by"
+                                            item={activeField}
+                                            items={fieldOptions}
+                                            onChange={(newValue) => {
+                                                if (!newValue) return;
+                                                setPivotDimensions(
+                                                    pivotDimensions
+                                                        ? replaceStringInArray(
+                                                              pivotDimensions,
+                                                              pivotKey,
+                                                              getItemId(
+                                                                  newValue,
+                                                              ),
+                                                          )
+                                                        : [getItemId(newValue)],
+                                                );
+                                            }}
+                                            rightSection={
+                                                groupSelectedField && (
+                                                    <CloseButton
+                                                        onClick={() => {
+                                                            setPivotDimensions(
+                                                                pivotDimensions.filter(
+                                                                    (key) =>
+                                                                        key !==
+                                                                        pivotKey,
+                                                                ),
+                                                            );
+                                                        }}
+                                                    />
+                                                )
+                                            }
+                                        />
+                                    </Group>
+                                );
+                            })}
+                    </Stack>
                     {pivotDimensions &&
-                        pivotDimensions.map((pivotKey) => {
-                            // Group series logic
-                            const groupSelectedField = availableDimensions.find(
-                                (item) => getItemId(item) === pivotKey,
-                            );
-                            const fieldOptions = groupSelectedField
-                                ? [
-                                      groupSelectedField,
-                                      ...availableGroupByDimensions,
-                                  ]
-                                : availableGroupByDimensions;
-                            const activeField = chartHasMetricOrTableCalc
-                                ? groupSelectedField
-                                : undefined;
-                            return (
-                                <Group spacing="xs" key={pivotKey}>
-                                    <FieldSelect
-                                        disabled={!chartHasMetricOrTableCalc}
-                                        placeholder="Select a field to group by"
-                                        item={activeField}
-                                        items={fieldOptions}
-                                        onChange={(newValue) => {
-                                            if (!newValue) return;
-                                            setPivotDimensions(
-                                                pivotDimensions
-                                                    ? replaceStringInArray(
-                                                          pivotDimensions,
-                                                          pivotKey,
-                                                          getItemId(newValue),
-                                                      )
-                                                    : [getItemId(newValue)],
-                                            );
-                                        }}
-                                        rightSection={
-                                            groupSelectedField && (
-                                                <CloseButton
-                                                    onClick={() => {
-                                                        setPivotDimensions(
-                                                            pivotDimensions.filter(
-                                                                (key) =>
-                                                                    key !==
-                                                                    pivotKey,
-                                                            ),
-                                                        );
-                                                    }}
-                                                />
-                                            )
+                        pivotDimensions.length > 0 &&
+                        canBeStacked && (
+                            <Tooltip
+                                variant="xs"
+                                label="x-axis must be non-numeric to enable stacking"
+                                withinPortal
+                                position="top-start"
+                                disabled={!isXAxisFieldNumeric}
+                            >
+                                <Group spacing="xs">
+                                    <Config.SubLabel>Stacking</Config.SubLabel>
+                                    <SegmentedControl
+                                        disabled={isXAxisFieldNumeric}
+                                        value={
+                                            isStacked ? 'stack' : 'noStacking'
                                         }
+                                        onChange={(value) =>
+                                            setStacking(value === 'stack')
+                                        }
+                                        data={[
+                                            {
+                                                label: 'None',
+                                                value: 'noStacking',
+                                            },
+                                            { label: 'Stack', value: 'stack' },
+                                        ]}
                                     />
                                 </Group>
-                            );
-                        })}
-                </Stack>
-                {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
-                    <Tooltip
-                        variant="xs"
-                        label="x-axis must be non-numeric to enable stacking"
-                        withinPortal
-                        position="top-start"
-                        disabled={!isXAxisFieldNumeric}
-                    >
-                        <Group spacing="xs">
-                            <Config.SubLabel>Stacking</Config.SubLabel>
-                            <SegmentedControl
-                                disabled={isXAxisFieldNumeric}
-                                value={isStacked ? 'stack' : 'noStacking'}
-                                onChange={(value) =>
-                                    setStacking(value === 'stack')
-                                }
-                                data={[
-                                    {
-                                        label: 'None',
-                                        value: 'noStacking',
-                                    },
-                                    { label: 'Stack', value: 'stack' },
-                                ]}
-                            />
-                        </Group>
-                    </Tooltip>
-                )}
-            </Config.Group>
+                            </Tooltip>
+                        )}
+                </Config.Group>
+            </Config>
         </Stack>
     );
 };

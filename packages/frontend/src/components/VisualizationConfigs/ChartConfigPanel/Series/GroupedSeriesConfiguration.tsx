@@ -154,268 +154,262 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     );
 
     return (
-        <Config.Group>
-            <Group noWrap spacing="two">
-                <Box
-                    {...dragHandleProps}
-                    sx={{
-                        opacity: 0.6,
-                        cursor: 'grab',
-                        '&:hover': { opacity: 1 },
-                    }}
-                >
-                    <MantineIcon icon={IconGripVertical} />
-                </Box>
-                <Config.Label>
-                    {getItemLabelWithoutTableName(item)} (grouped)
-                </Config.Label>
-            </Group>
-            <Group noWrap spacing="xs" align="start">
-                <ChartTypeSelect
-                    chartValue={chartValue}
-                    showMixed={!isChartTypeTheSameForAllSeries}
-                    onChange={(value) => {
-                        const newType =
-                            value === CartesianSeriesType.AREA
-                                ? CartesianSeriesType.LINE
-                                : value;
-                        updateAllGroupedSeries(fieldKey, {
-                            type: newType as Series['type'],
-                            areaStyle:
-                                value === CartesianSeriesType.AREA
-                                    ? {}
-                                    : undefined,
-                        });
-                    }}
-                />
-
-                <Select
-                    label={<Config.SubLabel>Axis</Config.SubLabel>}
-                    value={
-                        isAxisTheSameForAllSeries
-                            ? String(seriesGroup[0].yAxisIndex)
-                            : 'mixed'
-                    }
-                    data={
-                        isAxisTheSameForAllSeries
-                            ? layout?.flipAxes
-                                ? FLIPPED_AXIS_OPTIONS
-                                : AXIS_OPTIONS
-                            : [
-                                  ...(layout?.flipAxes
-                                      ? FLIPPED_AXIS_OPTIONS
-                                      : AXIS_OPTIONS),
-                                  {
-                                      value: 'mixed',
-                                      label: 'Mixed',
-                                  },
-                              ]
-                    }
-                    onChange={(value) => {
-                        updateAllGroupedSeries(fieldKey, {
-                            yAxisIndex: parseInt(value || '0', 10),
-                        });
-                    }}
-                />
-                <Select
-                    label={<Config.SubLabel>Value labels</Config.SubLabel>}
-                    value={
-                        isLabelTheSameForAllSeries
-                            ? seriesGroup[0].label?.position || 'hidden'
-                            : 'mixed'
-                    }
-                    data={
-                        isLabelTheSameForAllSeries
-                            ? VALUE_LABELS_OPTIONS
-                            : [
-                                  ...VALUE_LABELS_OPTIONS,
-                                  {
-                                      value: 'mixed',
-                                      label: 'Mixed',
-                                  },
-                              ]
-                    }
-                    onChange={(value) => {
-                        updateAllGroupedSeries(fieldKey, {
-                            label:
-                                value === 'hidden'
-                                    ? { show: false }
-                                    : {
-                                          show: true,
-                                          position: value as any,
-                                      },
-                        });
-                    }}
-                />
-                {seriesGroup[0].stack &&
-                    chartValue === CartesianSeriesType.BAR && (
-                        <Stack spacing="xs" mt="two">
-                            <Text size="xs" fw={500}>
-                                Total
-                            </Text>
-                            <Switch
-                                checked={seriesGroup[0].stackLabel?.show}
-                                onChange={() => {
-                                    updateAllGroupedSeries(fieldKey, {
-                                        stackLabel: {
-                                            show: !seriesGroup[0].stackLabel
-                                                ?.show,
-                                        },
-                                    });
-                                }}
-                            />
-                        </Stack>
-                    )}
-            </Group>
-            {(chartValue === CartesianSeriesType.LINE ||
-                chartValue === CartesianSeriesType.AREA) && (
-                <Group spacing="xs">
-                    <Checkbox
-                        checked={seriesGroup[0].showSymbol ?? true}
-                        label={<Config.SubLabel>Show symbol</Config.SubLabel>}
-                        onChange={() => {
-                            updateAllGroupedSeries(fieldKey, {
-                                showSymbol: !(
-                                    seriesGroup[0].showSymbol ?? true
-                                ),
-                            });
-                        }}
+        <Config>
+            <Config.Group>
+                <Group noWrap spacing="two">
+                    <Box
+                        {...dragHandleProps}
                         sx={{
-                            label: {
-                                paddingLeft: 4,
-                            },
+                            opacity: 0.6,
+                            cursor: 'grab',
+                            '&:hover': { opacity: 1 },
                         }}
-                    />
-                    <Checkbox
-                        checked={seriesGroup[0].smooth}
-                        label={<Config.SubLabel>Smooth</Config.SubLabel>}
-                        onChange={() => {
-                            updateAllGroupedSeries(fieldKey, {
-                                smooth: !(seriesGroup[0].smooth ?? true),
-                            });
-                        }}
-                        sx={{
-                            label: {
-                                paddingLeft: 4,
-                            },
-                        }}
-                    />
+                    >
+                        <MantineIcon icon={IconGripVertical} />
+                    </Box>
+                    <Config.Label>
+                        {getItemLabelWithoutTableName(item)} (grouped)
+                    </Config.Label>
                 </Group>
-            )}
-            <Box
-                bg="gray.1"
-                p="xxs"
-                sx={(theme) => ({ borderRadius: theme.radius.sm })}
-            >
-                <DragDropContext onDragEnd={onDragEnd}>
-                    <Droppable droppableId="grouped-series-sort-fields">
-                        {(dropProps) => (
-                            <div
-                                {...dropProps.droppableProps}
-                                ref={dropProps.innerRef}
-                            >
-                                {seriesGroup?.map((singleSeries, i) => {
-                                    const pivotLabel =
-                                        singleSeries.encode.yRef.pivotValues!.reduce(
-                                            (acc, { field, value }) => {
-                                                const formattedValue =
-                                                    getFormatterValue(
-                                                        value,
-                                                        field,
-                                                        items,
-                                                    );
-                                                return acc
-                                                    ? `${acc} - ${formattedValue}`
-                                                    : formattedValue;
+                <Group noWrap spacing="xs" align="start">
+                    <ChartTypeSelect
+                        chartValue={chartValue}
+                        showMixed={!isChartTypeTheSameForAllSeries}
+                        onChange={(value) => {
+                            const newType =
+                                value === CartesianSeriesType.AREA
+                                    ? CartesianSeriesType.LINE
+                                    : value;
+                            updateAllGroupedSeries(fieldKey, {
+                                type: newType as Series['type'],
+                                areaStyle:
+                                    value === CartesianSeriesType.AREA
+                                        ? {}
+                                        : undefined,
+                            });
+                        }}
+                    />
+
+                    <Select
+                        label="Axis"
+                        value={
+                            isAxisTheSameForAllSeries
+                                ? String(seriesGroup[0].yAxisIndex)
+                                : 'mixed'
+                        }
+                        data={
+                            isAxisTheSameForAllSeries
+                                ? layout?.flipAxes
+                                    ? FLIPPED_AXIS_OPTIONS
+                                    : AXIS_OPTIONS
+                                : [
+                                      ...(layout?.flipAxes
+                                          ? FLIPPED_AXIS_OPTIONS
+                                          : AXIS_OPTIONS),
+                                      {
+                                          value: 'mixed',
+                                          label: 'Mixed',
+                                      },
+                                  ]
+                        }
+                        onChange={(value) => {
+                            updateAllGroupedSeries(fieldKey, {
+                                yAxisIndex: parseInt(value || '0', 10),
+                            });
+                        }}
+                    />
+                    <Select
+                        label="Value labels"
+                        value={
+                            isLabelTheSameForAllSeries
+                                ? seriesGroup[0].label?.position || 'hidden'
+                                : 'mixed'
+                        }
+                        data={
+                            isLabelTheSameForAllSeries
+                                ? VALUE_LABELS_OPTIONS
+                                : [
+                                      ...VALUE_LABELS_OPTIONS,
+                                      {
+                                          value: 'mixed',
+                                          label: 'Mixed',
+                                      },
+                                  ]
+                        }
+                        onChange={(value) => {
+                            updateAllGroupedSeries(fieldKey, {
+                                label:
+                                    value === 'hidden'
+                                        ? { show: false }
+                                        : {
+                                              show: true,
+                                              position: value as any,
+                                          },
+                            });
+                        }}
+                    />
+                    {seriesGroup[0].stack &&
+                        chartValue === CartesianSeriesType.BAR && (
+                            <Stack spacing="xs" mt="two">
+                                <Text size="xs" fw={500}>
+                                    Total
+                                </Text>
+                                <Switch
+                                    checked={seriesGroup[0].stackLabel?.show}
+                                    onChange={() => {
+                                        updateAllGroupedSeries(fieldKey, {
+                                            stackLabel: {
+                                                show: !seriesGroup[0].stackLabel
+                                                    ?.show,
                                             },
-                                            '',
-                                        );
-                                    return (
-                                        <Draggable
-                                            key={getSeriesId(singleSeries)}
-                                            draggableId={getSeriesId(
-                                                singleSeries,
-                                            )}
-                                            index={i}
-                                        >
-                                            {(
-                                                {
-                                                    draggableProps,
-                                                    dragHandleProps:
-                                                        groupedDragHandleProps,
-                                                    innerRef,
-                                                },
-                                                snapshot,
-                                            ) => (
-                                                <DraggablePortalHandler
-                                                    snapshot={snapshot}
-                                                >
-                                                    <div
-                                                        ref={innerRef}
-                                                        {...draggableProps}
-                                                    >
-                                                        <Box
-                                                            mb="xxs"
-                                                            key={getSeriesId(
-                                                                singleSeries,
-                                                            )}
-                                                        >
-                                                            <SingleSeriesConfiguration
-                                                                dragHandleProps={
-                                                                    groupedDragHandleProps
-                                                                }
-                                                                isCollapsable
-                                                                layout={layout}
-                                                                series={
-                                                                    singleSeries
-                                                                }
-                                                                seriesLabel={
-                                                                    layout?.yField &&
-                                                                    layout
-                                                                        .yField
-                                                                        .length >
-                                                                        1
-                                                                        ? `[${pivotLabel}] ${getItemLabelWithoutTableName(
-                                                                              item,
-                                                                          )}`
-                                                                        : pivotLabel
-                                                                }
-                                                                updateSingleSeries={
-                                                                    updateSingleSeries
-                                                                }
-                                                                isGrouped
-                                                                isOpen={
-                                                                    openSeriesId ===
-                                                                    getSeriesId(
-                                                                        singleSeries,
-                                                                    )
-                                                                }
-                                                                toggleIsOpen={() =>
-                                                                    setOpenSeriesId(
-                                                                        openSeriesId ===
-                                                                            getSeriesId(
-                                                                                singleSeries,
-                                                                            )
-                                                                            ? undefined
-                                                                            : getSeriesId(
-                                                                                  singleSeries,
-                                                                              ),
-                                                                    )
-                                                                }
-                                                            />
-                                                        </Box>
-                                                    </div>
-                                                </DraggablePortalHandler>
-                                            )}
-                                        </Draggable>
-                                    );
-                                })}
-                            </div>
+                                        });
+                                    }}
+                                />
+                            </Stack>
                         )}
-                    </Droppable>
-                </DragDropContext>
-            </Box>
-        </Config.Group>
+                </Group>
+                {(chartValue === CartesianSeriesType.LINE ||
+                    chartValue === CartesianSeriesType.AREA) && (
+                    <Group spacing="xs">
+                        <Checkbox
+                            checked={seriesGroup[0].showSymbol ?? true}
+                            label="Show symbol"
+                            onChange={() => {
+                                updateAllGroupedSeries(fieldKey, {
+                                    showSymbol: !(
+                                        seriesGroup[0].showSymbol ?? true
+                                    ),
+                                });
+                            }}
+                        />
+                        <Checkbox
+                            checked={seriesGroup[0].smooth}
+                            label="Smooth"
+                            onChange={() => {
+                                updateAllGroupedSeries(fieldKey, {
+                                    smooth: !(seriesGroup[0].smooth ?? true),
+                                });
+                            }}
+                        />
+                    </Group>
+                )}
+                <Box
+                    bg="gray.1"
+                    p="xxs"
+                    sx={(theme) => ({ borderRadius: theme.radius.sm })}
+                >
+                    <DragDropContext onDragEnd={onDragEnd}>
+                        <Droppable droppableId="grouped-series-sort-fields">
+                            {(dropProps) => (
+                                <div
+                                    {...dropProps.droppableProps}
+                                    ref={dropProps.innerRef}
+                                >
+                                    {seriesGroup?.map((singleSeries, i) => {
+                                        const pivotLabel =
+                                            singleSeries.encode.yRef.pivotValues!.reduce(
+                                                (acc, { field, value }) => {
+                                                    const formattedValue =
+                                                        getFormatterValue(
+                                                            value,
+                                                            field,
+                                                            items,
+                                                        );
+                                                    return acc
+                                                        ? `${acc} - ${formattedValue}`
+                                                        : formattedValue;
+                                                },
+                                                '',
+                                            );
+                                        return (
+                                            <Draggable
+                                                key={getSeriesId(singleSeries)}
+                                                draggableId={getSeriesId(
+                                                    singleSeries,
+                                                )}
+                                                index={i}
+                                            >
+                                                {(
+                                                    {
+                                                        draggableProps,
+                                                        dragHandleProps:
+                                                            groupedDragHandleProps,
+                                                        innerRef,
+                                                    },
+                                                    snapshot,
+                                                ) => (
+                                                    <DraggablePortalHandler
+                                                        snapshot={snapshot}
+                                                    >
+                                                        <div
+                                                            ref={innerRef}
+                                                            {...draggableProps}
+                                                        >
+                                                            <Box
+                                                                mb="xxs"
+                                                                key={getSeriesId(
+                                                                    singleSeries,
+                                                                )}
+                                                            >
+                                                                <SingleSeriesConfiguration
+                                                                    dragHandleProps={
+                                                                        groupedDragHandleProps
+                                                                    }
+                                                                    isCollapsable
+                                                                    layout={
+                                                                        layout
+                                                                    }
+                                                                    series={
+                                                                        singleSeries
+                                                                    }
+                                                                    seriesLabel={
+                                                                        layout?.yField &&
+                                                                        layout
+                                                                            .yField
+                                                                            .length >
+                                                                            1
+                                                                            ? `[${pivotLabel}] ${getItemLabelWithoutTableName(
+                                                                                  item,
+                                                                              )}`
+                                                                            : pivotLabel
+                                                                    }
+                                                                    updateSingleSeries={
+                                                                        updateSingleSeries
+                                                                    }
+                                                                    isGrouped
+                                                                    isOpen={
+                                                                        openSeriesId ===
+                                                                        getSeriesId(
+                                                                            singleSeries,
+                                                                        )
+                                                                    }
+                                                                    toggleIsOpen={() =>
+                                                                        setOpenSeriesId(
+                                                                            openSeriesId ===
+                                                                                getSeriesId(
+                                                                                    singleSeries,
+                                                                                )
+                                                                                ? undefined
+                                                                                : getSeriesId(
+                                                                                      singleSeries,
+                                                                                  ),
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </Box>
+                                                        </div>
+                                                    </DraggablePortalHandler>
+                                                )}
+                                            </Draggable>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </Droppable>
+                    </DragDropContext>
+                </Box>
+            </Config.Group>
+        </Config>
     );
 };
 export default GroupedSeriesConfiguration;

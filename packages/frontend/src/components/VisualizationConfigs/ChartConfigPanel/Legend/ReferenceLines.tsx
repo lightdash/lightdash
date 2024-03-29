@@ -157,25 +157,27 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const { referenceLines } = visualizationConfig.chartConfig;
 
     return (
-        <Config.Group>
-            <Config.LabelGroup>
-                <Config.Label>Reference lines</Config.Label>
-                <AddButton onClick={addReferenceLine} />
-            </Config.LabelGroup>
+        <Config>
+            <Config.Group>
+                <Config.LabelGroup>
+                    <Config.Label>Reference lines</Config.Label>
+                    <AddButton onClick={addReferenceLine} />
+                </Config.LabelGroup>
 
-            {referenceLines &&
-                referenceLines.map((line, index) => (
-                    <ReferenceLine
-                        key={line.data.value}
-                        index={index + 1}
-                        isDefaultOpen={referenceLines.length <= 1}
-                        items={items}
-                        startOfWeek={startOfWeek ?? undefined}
-                        referenceLine={line}
-                        updateReferenceLine={updateReferenceLine}
-                        removeReferenceLine={removeReferenceLine}
-                    />
-                ))}
-        </Config.Group>
+                {referenceLines &&
+                    referenceLines.map((line, index) => (
+                        <ReferenceLine
+                            key={line.data.value}
+                            index={index + 1}
+                            isDefaultOpen={referenceLines.length <= 1}
+                            items={items}
+                            startOfWeek={startOfWeek ?? undefined}
+                            referenceLine={line}
+                            updateReferenceLine={updateReferenceLine}
+                            removeReferenceLine={removeReferenceLine}
+                        />
+                    ))}
+            </Config.Group>
+        </Config>
     );
 };

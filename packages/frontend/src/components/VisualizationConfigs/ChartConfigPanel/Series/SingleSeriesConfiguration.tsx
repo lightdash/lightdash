@@ -26,7 +26,6 @@ import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
-import { Config } from '../../common/Config';
 import { EditableText } from '../common/EditableText';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
@@ -165,11 +164,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
 
                         <Select
-                            label={
-                                !isGrouped && (
-                                    <Config.SubLabel>Axis</Config.SubLabel>
-                                )
-                            }
+                            label={!isGrouped && 'Axis'}
                             value={String(series.yAxisIndex)}
                             data={[
                                 {
@@ -189,13 +184,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                         <Select
-                            label={
-                                !isGrouped && (
-                                    <Config.SubLabel>
-                                        Value labels
-                                    </Config.SubLabel>
-                                )
-                            }
+                            label={!isGrouped && 'Value labels'}
                             value={series.label?.position || 'hidden'}
                             data={[
                                 { value: 'hidden', label: 'Hidden' },
@@ -223,17 +212,8 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         type === CartesianSeriesType.AREA) && (
                         <Group spacing="xs">
                             <Checkbox
-                                sx={{
-                                    label: {
-                                        paddingLeft: 4,
-                                    },
-                                }}
                                 checked={series.showSymbol ?? true}
-                                label={
-                                    <Config.SubLabel>
-                                        Show symbol
-                                    </Config.SubLabel>
-                                }
+                                label="Show symbol"
                                 onChange={() => {
                                     updateSingleSeries({
                                         ...series,
@@ -245,14 +225,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             />
                             <Checkbox
                                 checked={series.smooth}
-                                label={
-                                    <Config.SubLabel>Smooth</Config.SubLabel>
-                                }
-                                sx={{
-                                    label: {
-                                        paddingLeft: 4,
-                                    },
-                                }}
+                                label="Smooth"
                                 onChange={() => {
                                     updateSingleSeries({
                                         ...series,

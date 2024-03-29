@@ -11,24 +11,36 @@ import SeriesTab from './Series';
 const themeOverride = getMantineThemeOverride({
     components: {
         Select: {
+            styles: (theme) => ({
+                label: {
+                    fontSize: theme.fontSizes.xs,
+                    fontWeight: 500,
+                    color: theme.colors.gray['6'],
+                },
+            }),
             defaultProps: {
                 size: 'xs',
             },
         },
-        // Text: {
-        //     variants: {
-        //         sub: (theme) => ({
-        //             color: theme.colors.gray['6'],
-        //         }),
-        //     },
-        //     }
-        // },
+        Label: {
+            defaultProps: {
+                color: 'red',
+            },
+        },
         TextInput: {
             defaultProps: {
                 size: 'xs',
             },
         },
         Switch: {
+            styles: (theme) => ({
+                label: {
+                    fontSize: theme.fontSizes.xs,
+                    fontWeight: 500,
+                    color: theme.colors.gray['6'],
+                    paddingLeft: 4,
+                },
+            }),
             defaultProps: {
                 size: 'xs',
             },
@@ -54,6 +66,14 @@ const themeOverride = getMantineThemeOverride({
             },
         },
         Checkbox: {
+            styles: (theme) => ({
+                label: {
+                    fontSize: theme.fontSizes.xs,
+                    fontWeight: 500,
+                    color: theme.colors.gray['6'],
+                    paddingLeft: 4,
+                },
+            }),
             defaultProps: {
                 size: 'xs',
             },

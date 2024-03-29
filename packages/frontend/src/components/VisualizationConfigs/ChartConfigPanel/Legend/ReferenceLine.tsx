@@ -269,6 +269,7 @@ export const ReferenceLine: FC<Props> = ({
                 </Group>
 
                 <Tooltip
+                    variant="xs"
                     label="Remove reference line"
                     position="left"
                     withinPortal

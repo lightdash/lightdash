@@ -46,59 +46,61 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     );
 
     return (
-        <Config.Group>
-            <Group noWrap spacing="two">
-                <Box
-                    {...dragHandleProps}
-                    // TODO: add reusable component
-                    sx={{
-                        opacity: 0.6,
-                        cursor: 'grab',
-                        '&:hover': { opacity: 1 },
-                    }}
-                >
-                    <MantineIcon icon={IconGripVertical} />
-                </Box>
-
-                <Group spacing="xs">
-                    <ColorSelector
-                        color={getSeriesColor(series)}
-                        swatches={colorPalette}
-                        onColorChange={(color) => {
-                            updateSingleSeries({
-                                ...series,
-                                color,
-                            });
+        <Config>
+            <Config.Group>
+                <Group noWrap spacing="two">
+                    <Box
+                        {...dragHandleProps}
+                        // TODO: add reusable component
+                        sx={{
+                            opacity: 0.6,
+                            cursor: 'grab',
+                            '&:hover': { opacity: 1 },
                         }}
-                    />
-                    {isSingle ? (
-                        <Config.Label>
-                            {getItemLabelWithoutTableName(item)}
-                        </Config.Label>
-                    ) : (
-                        <EditableText
-                            size="sm"
-                            fw={600}
-                            defaultValue={value}
-                            onChange={(event) => {
-                                setValue(event.currentTarget.value);
+                    >
+                        <MantineIcon icon={IconGripVertical} />
+                    </Box>
+
+                    <Group spacing="xs">
+                        <ColorSelector
+                            color={getSeriesColor(series)}
+                            swatches={colorPalette}
+                            onColorChange={(color) => {
                                 updateSingleSeries({
                                     ...series,
-                                    name: event.currentTarget.value,
+                                    color,
                                 });
                             }}
                         />
-                    )}
+                        {isSingle ? (
+                            <Config.Label>
+                                {getItemLabelWithoutTableName(item)}
+                            </Config.Label>
+                        ) : (
+                            <EditableText
+                                size="sm"
+                                fw={600}
+                                defaultValue={value}
+                                onChange={(event) => {
+                                    setValue(event.currentTarget.value);
+                                    updateSingleSeries({
+                                        ...series,
+                                        name: event.currentTarget.value,
+                                    });
+                                }}
+                            />
+                        )}
+                    </Group>
                 </Group>
-            </Group>
-            <SingleSeriesConfiguration
-                layout={layout}
-                series={series}
-                isSingle={isSingle}
-                seriesLabel={getItemLabelWithoutTableName(item)}
-                updateSingleSeries={updateSingleSeries}
-            />
-        </Config.Group>
+                <SingleSeriesConfiguration
+                    layout={layout}
+                    series={series}
+                    isSingle={isSingle}
+                    seriesLabel={getItemLabelWithoutTableName(item)}
+                    updateSingleSeries={updateSingleSeries}
+                />
+            </Config.Group>
+        </Config>
     );
 };
 
