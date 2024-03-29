@@ -242,16 +242,12 @@ export const useTableCellStyles = createStyles<
         return {
             root: {
                 position: 'relative',
-                overflow: 'visible',
 
                 paddingLeft: theme.spacing.sm,
                 paddingRight: theme.spacing.sm,
 
                 height: CELL_HEIGHT,
 
-                maxWidth: '300px',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
                 textAlign: 'left',
 
                 fontFamily: "'Inter', sans-serif",
@@ -269,8 +265,11 @@ export const useTableCellStyles = createStyles<
                 width: '1%',
             },
 
-            withLargeContainer: {
-                minWidth: '300px',
+            withLargeContent: {
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                maxWidth: '300px',
             },
 
             withAlignRight: {
@@ -323,20 +322,6 @@ export const useTableCellStyles = createStyles<
                           },
                       }
                 : {},
-
-            withLargeText: {
-                ...(isSelected
-                    ? {
-                          wordBreak: 'break-all',
-                          whiteSpace: 'normal',
-                      }
-                    : {}),
-
-                '&:hover': {
-                    wordBreak: 'break-all',
-                    whiteSpace: 'normal',
-                },
-            },
 
             withSticky: {
                 position: 'sticky',

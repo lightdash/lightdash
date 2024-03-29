@@ -26,7 +26,7 @@ import {
     useTableStyles,
 } from './styles';
 
-const SMALL_TEXT_LENGTH = 20;
+const SMALL_TEXT_LENGTH = 10;
 
 type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
 
@@ -366,12 +366,13 @@ const BaseCell = (cellType: CellType) => {
                 withBackground,
             });
 
-            const hasLargeText = useMemo(() => {
+            const cellHasLargeContent = useMemo(() => {
                 return (
+                    sectionType === SectionType.Body &&
                     typeof children === 'string' &&
                     children.length > SMALL_TEXT_LENGTH
                 );
-            }, [children]);
+            }, [sectionType, children]);
 
             const component = useMemo(() => {
                 switch (cellType) {
@@ -387,19 +388,6 @@ const BaseCell = (cellType: CellType) => {
                 }
             }, []);
 
-            const truncatedText = useMemo(() => {
-                return (
-                    <Text
-                        truncate
-                        className={cx({
-                            [classes.withLargeText]: hasLargeText,
-                        })}
-                    >
-                        {children}
-                    </Text>
-                );
-            }, [children, cx, classes.withLargeText, hasLargeText]);
-
             const cellElement = useMemo(
                 () => (
                     <Box
@@ -408,7 +396,7 @@ const BaseCell = (cellType: CellType) => {
                         {...rest}
                         className={cx(classes.root, rest.className, {
                             [classes.withSticky]: withSticky,
-                            [classes.withLargeContainer]: hasLargeText,
+                            [classes.withLargeContent]: cellHasLargeContent,
                             [classes.withMinimalWidth]: withMinimalWidth,
                             [classes.withAlignRight]: withAlignRight,
                             [classes.withBoldFont]: withBoldFont,
@@ -434,10 +422,10 @@ const BaseCell = (cellType: CellType) => {
                                 multiline
                                 label={withTooltip}
                             >
-                                {truncatedText}
+                                {children}
                             </Tooltip>
                         ) : (
-                            truncatedText
+                            <>{children}</>
                         )}
                     </Box>
                 ),
@@ -448,7 +436,7 @@ const BaseCell = (cellType: CellType) => {
                     cx,
                     classes.root,
                     classes.withSticky,
-                    classes.withLargeContainer,
+                    classes.withLargeContent,
                     classes.withMinimalWidth,
                     classes.withAlignRight,
                     classes.withBoldFont,
@@ -457,7 +445,7 @@ const BaseCell = (cellType: CellType) => {
                     classes.withBackground,
                     classes.withCopying,
                     withSticky,
-                    hasLargeText,
+                    cellHasLargeContent,
                     withMinimalWidth,
                     withAlignRight,
                     withBoldFont,
@@ -467,9 +455,9 @@ const BaseCell = (cellType: CellType) => {
                     clipboard.copied,
                     withTooltip,
                     isSelected,
-                    truncatedText,
                     toggleCell,
                     cellId,
+                    children,
                 ],
             );
 
