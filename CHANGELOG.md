@@ -1,3 +1,10 @@
+## [0.1045.3](https://github.com/lightdash/lightdash/compare/0.1045.2...0.1045.3) (2024-03-29)
+
+
+### Bug Fixes
+
+* apply viewport child block display ([#9562](https://github.com/lightdash/lightdash/issues/9562)) ([710d80c](https://github.com/lightdash/lightdash/commit/710d80c0ff916acf099f83e4e6fcfd4244b6996e))
+
 ## [0.1045.2](https://github.com/lightdash/lightdash/compare/0.1045.1...0.1045.2) (2024-03-28)
 
 
