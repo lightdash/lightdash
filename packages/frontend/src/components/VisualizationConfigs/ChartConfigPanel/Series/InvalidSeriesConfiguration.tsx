@@ -1,5 +1,5 @@
 import { Stack, Text } from '@mantine/core';
-import React, { type FC } from 'react';
+import { type FC } from 'react';
 
 const InvalidSeriesConfiguration: FC<{ itemId: string }> = ({ itemId }) => {
     return (

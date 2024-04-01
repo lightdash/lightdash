@@ -2,7 +2,7 @@ import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { Box } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../common/MantineIcon';
+import MantineIcon from '../../common/MantineIcon';
 
 type Props = {
     dragHandleProps?: DraggableProvidedDragHandleProps | null;

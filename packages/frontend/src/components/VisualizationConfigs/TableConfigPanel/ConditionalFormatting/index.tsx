@@ -6,17 +6,20 @@ import {
     type ConditionalFormattingConfig,
     type FilterableItem,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { Accordion } from '@mantine/core';
 import produce from 'immer';
-import { useCallback, useMemo, useState } from 'react';
-import MantineIcon from '../../../common/MantineIcon';
+import { useCallback, useMemo } from 'react';
 import { isTableVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { AddButton } from '../../common/AddButton';
+import { Config } from '../../common/Config';
+import { useControlledAccordion } from '../../common/hooks/useControlledAccordion';
 import { ConditionalFormattingItem } from './ConditionalFormattingItem';
 
 export const ConditionalFormatting = ({}) => {
-    const [isAddingNew, setIsAddingNew] = useState(false);
+    const { openItems, handleAccordionChange, addNewItem, removeItem } =
+        useControlledAccordion();
+
     const { itemsMap, resultsData, visualizationConfig, colorPalette } =
         useVisualizationContext();
 
@@ -63,7 +66,6 @@ export const ConditionalFormatting = ({}) => {
 
         const { onSetConditionalFormattings } = chartConfig;
 
-        setIsAddingNew(true);
         onSetConditionalFormattings(
             produce(activeConfigs, (draft) => {
                 draft.push(
@@ -106,29 +108,36 @@ export const ConditionalFormatting = ({}) => {
     );
 
     return (
-        <Stack spacing="xs">
-            {activeConfigs.map((conditionalFormatting, index) => (
-                <ConditionalFormattingItem
-                    key={index}
-                    colorPalette={colorPalette}
-                    isDefaultOpen={activeConfigs.length === 1 || isAddingNew}
-                    index={index}
-                    fields={visibleActiveNumericFields}
-                    value={conditionalFormatting}
-                    onChange={(newConfig) => handleChange(index, newConfig)}
-                    onRemove={() => handleRemove(index)}
-                />
-            ))}
-
-            <Button
-                sx={{ alignSelf: 'start' }}
-                size="xs"
-                variant="outline"
-                leftIcon={<MantineIcon icon={IconPlus} />}
-                onClick={handleAdd}
-            >
-                Add new rule
-            </Button>
-        </Stack>
+        <Config>
+            <Config.Group>
+                <Config.LabelGroup>
+                    <Config.Label>Rules and Conditions</Config.Label>
+                    <AddButton onClick={handleAdd} />
+                </Config.LabelGroup>
+                <Accordion
+                    multiple
+                    variant="contained"
+                    value={openItems}
+                    onChange={handleAccordionChange}
+                >
+                    {activeConfigs.map((conditionalFormatting, index) => (
+                        <ConditionalFormattingItem
+                            key={index}
+                            isOpen={openItems.includes(String(index))}
+                            addNewItem={addNewItem}
+                            removeItem={removeItem}
+                            colorPalette={colorPalette}
+                            index={index}
+                            fields={visibleActiveNumericFields}
+                            value={conditionalFormatting}
+                            onChange={(newConfig) =>
+                                handleChange(index, newConfig)
+                            }
+                            onRemove={() => handleRemove(index)}
+                        />
+                    ))}
+                </Accordion>
+            </Config.Group>
+        </Config>
     );
 };
