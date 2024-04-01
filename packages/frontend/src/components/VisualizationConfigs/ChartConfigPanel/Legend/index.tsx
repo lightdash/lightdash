@@ -59,30 +59,32 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
     };
 
     return (
-        <Config.Group>
-            <Switch
-                labelPosition="left"
-                label={`Custom position`}
-                checked={!isAutoPosition}
-                onChange={toggleAuto}
-                styles={{
-                    label: {
-                        paddingLeft: 0,
-                    },
-                }}
-            />
-
-            {!isAutoPosition && (
-                <UnitInputsGrid
-                    centerLabel="Position"
-                    config={legendConfig}
-                    onChange={(position, newValue) =>
-                        handleChange(position, newValue)
-                    }
-                    defaultConfig={defaultConfig}
+        <Config>
+            <Config.Group>
+                <Switch
+                    labelPosition="left"
+                    label={`Custom position`}
+                    checked={!isAutoPosition}
+                    onChange={toggleAuto}
+                    styles={{
+                        label: {
+                            paddingLeft: 0,
+                        },
+                    }}
                 />
-            )}
-        </Config.Group>
+
+                {!isAutoPosition && (
+                    <UnitInputsGrid
+                        centerLabel="Position"
+                        config={legendConfig}
+                        onChange={(position, newValue) =>
+                            handleChange(position, newValue)
+                        }
+                        defaultConfig={defaultConfig}
+                    />
+                )}
+            </Config.Group>
+        </Config>
     );
 };
 
