@@ -1,3 +1,10 @@
+# [0.1046.0](https://github.com/lightdash/lightdash/compare/0.1045.4...0.1046.0) (2024-04-01)
+
+
+### Features
+
+* table grouping and subtotals ([#9160](https://github.com/lightdash/lightdash/issues/9160)) ([88f0d83](https://github.com/lightdash/lightdash/commit/88f0d838f488aa65e6940d439f00cdfbfccba210))
+
 ## [0.1045.4](https://github.com/lightdash/lightdash/compare/0.1045.3...0.1045.4) (2024-03-29)
 
 
