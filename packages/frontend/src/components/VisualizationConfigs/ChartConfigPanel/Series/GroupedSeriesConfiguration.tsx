@@ -23,6 +23,7 @@ import {
 import { Box, Checkbox, Group, Select, Stack, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { Config } from '../common/Config';
 import { GrabIcon } from '../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
@@ -76,16 +77,18 @@ type GroupedSeriesConfigurationProps = {
     items: Array<Field | TableCalculation | CustomDimension>;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
-    updateSingleSeries: (series: Series) => void;
-    updateSeries: (series: Series[]) => void;
     series: Series[];
-};
+} & Pick<
+    ReturnType<typeof useCartesianChartConfig>,
+    'updateSingleSeries' | 'getSingleSeries' | 'updateSeries'
+>;
 
 const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     layout,
     seriesGroup,
     item,
     items,
+    getSingleSeries,
     updateSingleSeries,
     updateAllGroupedSeries,
     dragHandleProps,
@@ -357,6 +360,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                                     }
                                                                     updateSingleSeries={
                                                                         updateSingleSeries
+                                                                    }
+                                                                    getSingleSeries={
+                                                                        getSingleSeries
                                                                     }
                                                                     isGrouped
                                                                     isOpen={

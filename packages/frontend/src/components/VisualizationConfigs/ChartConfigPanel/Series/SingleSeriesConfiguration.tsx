@@ -13,7 +13,7 @@ import {
     Select,
     Stack,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -39,13 +39,17 @@ type Props = {
     isOpen?: boolean;
     toggleIsOpen?: () => void;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
-} & Pick<ReturnType<typeof useCartesianChartConfig>, 'updateSingleSeries'>;
+} & Pick<
+    ReturnType<typeof useCartesianChartConfig>,
+    'updateSingleSeries' | 'getSingleSeries'
+>;
 
 const SingleSeriesConfiguration: FC<Props> = ({
     layout,
     isCollapsable,
     seriesLabel,
     series,
+    getSingleSeries,
     updateSingleSeries,
     isGrouped,
     isSingle,
@@ -59,6 +63,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
             : series.type;
+    const [seriesValue, setSeriesValue] = useDebouncedState(
+        getSingleSeries(series)?.name || seriesLabel,
+        200,
+    );
 
     return (
         <Box>
@@ -96,11 +104,12 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         >
                             <EditableText
                                 disabled={series.hidden}
-                                defaultValue={series.name || seriesLabel}
-                                onBlur={(e) => {
+                                defaultValue={seriesValue}
+                                onChange={(event) => {
+                                    setSeriesValue(event.currentTarget.value);
                                     updateSingleSeries({
                                         ...series,
-                                        name: e.currentTarget.value,
+                                        name: event.currentTarget.value,
                                     });
                                 }}
                             />

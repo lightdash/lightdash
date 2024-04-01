@@ -93,6 +93,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     isSingle={isSingle}
                     seriesLabel={getItemLabelWithoutTableName(item)}
                     updateSingleSeries={updateSingleSeries}
+                    getSingleSeries={getSingleSeries}
                 />
             </Config.Group>
         </Config>

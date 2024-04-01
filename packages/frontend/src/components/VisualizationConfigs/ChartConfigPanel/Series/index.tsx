@@ -15,7 +15,7 @@ import {
 } from '@lightdash/common';
 import { Divider } from '@mantine/core';
 import produce from 'immer';
-import React, { useCallback, useMemo, type FC } from 'react';
+import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
@@ -120,7 +120,7 @@ export const Series: FC<Props> = ({ items }) => {
 
                             if (!field) {
                                 return (
-                                    <>
+                                    <Fragment key={i}>
                                         <InvalidSeriesConfiguration
                                             itemId={
                                                 seriesEntry.encode.yRef.field
@@ -129,7 +129,7 @@ export const Series: FC<Props> = ({ items }) => {
                                         {hasDivider && (
                                             <Divider mt="md" mb="lg" />
                                         )}
-                                    </>
+                                    </Fragment>
                                 );
                             }
 
@@ -173,6 +173,9 @@ export const Series: FC<Props> = ({ items }) => {
                                                         }
                                                         updateSeries={
                                                             updateSeries
+                                                        }
+                                                        getSingleSeries={
+                                                            getSingleSeries
                                                         }
                                                         series={
                                                             dirtyEchartsConfig?.series ||
