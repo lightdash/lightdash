@@ -445,7 +445,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             </ValueCellMenu>
                                         )}
                                     >
-                                        {value?.formatted.repeat(10)}
+                                        {value?.formatted}
                                     </Table.Cell>
                                 );
                             })}

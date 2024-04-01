@@ -26,7 +26,7 @@ import {
     useTableStyles,
 } from './styles';
 
-const SMALL_TEXT_LENGTH = 10;
+const SMALL_TEXT_LENGTH = 35;
 
 type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
 
@@ -361,7 +361,6 @@ const BaseCell = (cellType: CellType) => {
                 sectionType,
                 cellType,
                 index,
-                isSelected,
                 withColor,
                 withBackground,
             });
@@ -394,6 +393,7 @@ const BaseCell = (cellType: CellType) => {
                         component={component}
                         ref={ref}
                         {...rest}
+                        data-is-selected={isSelected}
                         className={cx(classes.root, rest.className, {
                             [classes.withSticky]: withSticky,
                             [classes.withLargeContent]: cellHasLargeContent,
@@ -413,7 +413,7 @@ const BaseCell = (cellType: CellType) => {
                                 : undefined
                         }
                     >
-                        {withTooltip ? (
+                        {children && withTooltip ? (
                             <Tooltip
                                 position="top"
                                 disabled={isSelected}
@@ -422,7 +422,7 @@ const BaseCell = (cellType: CellType) => {
                                 multiline
                                 label={withTooltip}
                             >
-                                {children}
+                                <Text span>{children}</Text>
                             </Tooltip>
                         ) : (
                             <>{children}</>
