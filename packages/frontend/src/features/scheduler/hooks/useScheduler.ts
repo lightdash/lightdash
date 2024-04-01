@@ -84,13 +84,13 @@ const getJobStatus = async (
 };
 
 export const pollJobStatus = async (jobId: string) => {
-    return new Promise<void>((resolve, reject) => {
-        void getJobStatus(
+    return new Promise<void>((resolve, reject) =>
+        getJobStatus(
             jobId,
             () => resolve(),
             (error) => reject(error),
-        );
-    });
+        ),
+    );
 };
 
 export const useSendNowScheduler = () => {

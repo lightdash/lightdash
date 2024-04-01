@@ -10,11 +10,6 @@ type Args = {
 (async () => {
     const { results, customLabels }: Args = workerData;
 
-    try {
-        const csv = await convertSqlToCsv(results, customLabels);
-        if (parentPort) parentPort.postMessage(csv);
-    } catch (e) {
-        console.error(e);
-        throw e;
-    }
+    const csv = await convertSqlToCsv(results, customLabels);
+    if (parentPort) parentPort.postMessage(csv);
 })();

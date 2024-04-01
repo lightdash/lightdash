@@ -77,12 +77,12 @@ const CustomVisConfigTabs: React.FC = memo(() => {
         if (!isCustomConfig) return;
         const fields = visualizationConfig.chartConfig.fields || [];
 
-        (async () => {
-            const vegaSchemas = await initVegaLazySchema(fields);
-            schemas.current = vegaSchemas;
-
+        async function initVegaAsync() {
+            schemas.current = await initVegaLazySchema(fields);
             setIsLoading(false);
-        })();
+        }
+
+        void initVegaAsync();
     }, [isCustomConfig, visualizationConfig.chartConfig]);
 
     if (isLoading) {
