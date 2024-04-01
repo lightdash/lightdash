@@ -15,7 +15,6 @@ import {
     Group,
     SegmentedControl,
     Stack,
-    Text,
     Tooltip,
 } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
@@ -167,7 +166,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             validConfig?.layout.flipAxes ? 'Y' : 'X'
                         }-axis`}</Config.Label>
                         <Group spacing="two">
-                            <Tooltip label={<Text fz="xs">Flip Axes</Text>}>
+                            <Tooltip variant="xs" label="Flip Axes">
                                 <ActionIcon
                                     onClick={() =>
                                         setFlipAxis(!dirtyLayout?.flipAxes)

@@ -11,74 +11,16 @@ import {
     NumberInput,
     SegmentedControl,
     Stack,
-    Switch,
     TextInput,
 } from '@mantine/core';
 import { IconSortAscending, IconSortDescending } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
-import { useToggle } from 'react-use';
-import { useTracking } from '../../../providers/TrackingProvider';
-import { EventName } from '../../../types/Events';
-import MantineIcon from '../../common/MantineIcon';
-import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { Config } from '../common/Config';
+import { type FC } from 'react';
+import MantineIcon from '../../../common/MantineIcon';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { Config } from '../../common/Config';
+import { AxisMinMax } from './AxisMinMax';
 
-interface MinMaxProps {
-    label: string;
-    min: string | undefined;
-    max: string | undefined;
-    setMin: (value: string | undefined) => void;
-    setMax: (value: string | undefined) => void;
-}
-
-const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
-    const [isAuto, toggleAuto] = useToggle(!(min || max));
-    const { track } = useTracking();
-
-    const clearRange = useCallback(() => {
-        if (!isAuto) {
-            setMin(undefined);
-            setMax(undefined);
-        }
-        return;
-    }, [isAuto, setMin, setMax]);
-
-    return (
-        <Group noWrap spacing="xs">
-            <Switch
-                label={isAuto && label}
-                checked={isAuto}
-                onChange={() => {
-                    toggleAuto((prev: boolean) => !prev);
-                    clearRange();
-                    track({
-                        name: EventName.CUSTOM_AXIS_RANGE_TOGGLE_CLICKED,
-                        properties: {
-                            custom_axis_range: isAuto,
-                        },
-                    });
-                }}
-            />
-            {!isAuto && (
-                <Group noWrap spacing="xs">
-                    <Config.SubLabel>Min</Config.SubLabel>
-                    <TextInput
-                        placeholder="Min"
-                        defaultValue={min || undefined}
-                        onBlur={(e) => setMin(e.currentTarget.value)}
-                    />
-                    <Config.SubLabel>Max</Config.SubLabel>
-                    <TextInput
-                        placeholder="Max"
-                        defaultValue={max || undefined}
-                        onBlur={(e) => setMax(e.currentTarget.value)}
-                    />
-                </Group>
-            )}
-        </Group>
-    );
-};
 type Props = {
     itemsMap: ItemsMap | undefined;
 };

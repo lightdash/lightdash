@@ -2,7 +2,7 @@ import { MantineProvider, Tabs } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { getMantineThemeOverride } from '../../../mantineTheme';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import AxesOptions from './AxesOptions';
+import AxesOptions from './Axes/AxesOptions';
 import FieldLayoutOptions from './FieldLayoutOptions';
 import GridPanel from './Grid';
 import LegendPanel from './Legend';
