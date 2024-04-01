@@ -231,7 +231,9 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         />
                     )}
                 </Config.Group>
+            </Config>
 
+            <Config>
                 <Config.Group>
                     <Config.Label>Show grid</Config.Label>
 
