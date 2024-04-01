@@ -1,3 +1,10 @@
+## [0.1046.1](https://github.com/lightdash/lightdash/compare/0.1046.0...0.1046.1) (2024-04-01)
+
+
+### Bug Fixes
+
+* pivot table cell overflow ([#9585](https://github.com/lightdash/lightdash/issues/9585)) ([aab1378](https://github.com/lightdash/lightdash/commit/aab13785e03fdb66477a931b2e9516dbe94c5ffd))
+
 # [0.1046.0](https://github.com/lightdash/lightdash/compare/0.1045.4...0.1046.0) (2024-04-01)
 
 
