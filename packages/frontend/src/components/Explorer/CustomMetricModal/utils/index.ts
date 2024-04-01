@@ -40,8 +40,17 @@ export const addFieldIdToMetricFilterRule = (
     },
 });
 
-export const getCustomMetricName = (label: string, dimensionName: string) =>
-    `${dimensionName}_${snakeCaseName(label)}`;
+export const getCustomMetricName = (
+    table: string,
+    label: string,
+    dimensionName: string,
+) => {
+    // Some warehouses don't support long names, so we need to truncate these custom metrics
+    return `${dimensionName}_${snakeCaseName(label)}`.slice(
+        0,
+        62 - table.length,
+    );
+};
 
 const getCustomMetricDescription = (
     metricType: MetricType,
@@ -166,6 +175,7 @@ export const prepareCustomMetricData = ({
         filters: customMetricFilters.length > 0 ? customMetricFilters : [],
         label: customMetricLabel,
         name: getCustomMetricName(
+            item.table,
             customMetricLabel,
             isEditingCustomMetric &&
                 isAdditionalMetric(item) &&
