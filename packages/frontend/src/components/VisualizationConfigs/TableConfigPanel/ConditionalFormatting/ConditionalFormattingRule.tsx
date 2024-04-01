@@ -18,8 +18,8 @@ import { useState, type FC } from 'react';
 import {
     FilterInputComponent,
     getFilterOperatorOptions,
-} from '../../common/Filters/FilterInputs';
-import MantineIcon from '../../common/MantineIcon';
+} from '../../../common/Filters/FilterInputs';
+import MantineIcon from '../../../common/MantineIcon';
 
 // conditional formatting only supports number filters
 const filterType = FilterType.NUMBER;

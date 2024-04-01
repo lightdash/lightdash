@@ -7,7 +7,7 @@ import { Box, Group, Text } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
-import MantineIcon from '../../common/MantineIcon';
+import MantineIcon from '../../../common/MantineIcon';
 import ColumnConfiguration from './ColumnConfiguration';
 
 type DraggablePortalHandlerProps = {

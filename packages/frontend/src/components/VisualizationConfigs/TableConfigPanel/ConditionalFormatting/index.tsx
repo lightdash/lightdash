@@ -10,12 +10,12 @@ import { Button, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
-import MantineIcon from '../../common/MantineIcon';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import ConditionalFormatting from './ConditionalFormatting';
+import MantineIcon from '../../../common/MantineIcon';
+import { isTableVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigTable';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { ConditionalFormattingItem } from './ConditionalFormattingItem';
 
-const ConditionalFormattingList = ({}) => {
+export const ConditionalFormatting = ({}) => {
     const [isAddingNew, setIsAddingNew] = useState(false);
     const { itemsMap, resultsData, visualizationConfig, colorPalette } =
         useVisualizationContext();
@@ -108,7 +108,7 @@ const ConditionalFormattingList = ({}) => {
     return (
         <Stack spacing="xs">
             {activeConfigs.map((conditionalFormatting, index) => (
-                <ConditionalFormatting
+                <ConditionalFormattingItem
                     key={index}
                     colorPalette={colorPalette}
                     isDefaultOpen={activeConfigs.length === 1 || isAddingNew}
@@ -132,5 +132,3 @@ const ConditionalFormattingList = ({}) => {
         </Stack>
     );
 };
-
-export default ConditionalFormattingList;
