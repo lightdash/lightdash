@@ -185,7 +185,6 @@ export const useTableCellStyles = createStyles<
         sectionType: SectionType;
         cellType: CellType;
         index: number;
-        isSelected: boolean;
         withColor: string | false;
         withBackground: string | false;
     }
@@ -196,7 +195,6 @@ export const useTableCellStyles = createStyles<
             sectionType,
             cellType,
             index,
-            isSelected = false,
             withColor = false,
             withBackground = false,
         },
@@ -242,17 +240,14 @@ export const useTableCellStyles = createStyles<
         return {
             root: {
                 position: 'relative',
-                overflow: 'visible',
 
                 paddingLeft: theme.spacing.sm,
                 paddingRight: theme.spacing.sm,
 
                 height: CELL_HEIGHT,
 
-                maxWidth: '300px',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
                 textAlign: 'left',
+                whiteSpace: 'nowrap',
 
                 fontFamily: "'Inter', sans-serif",
                 fontFeatureSettings: '"tnum"',
@@ -269,8 +264,17 @@ export const useTableCellStyles = createStyles<
                 width: '1%',
             },
 
-            withLargeContainer: {
-                minWidth: '300px',
+            withLargeContent: {
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                maxWidth: '300px',
+
+                '&:hover, &[data-is-selected="true"]': {
+                    overflow: 'visible',
+                    whiteSpace: 'normal',
+                    wordWrap: 'break-word',
+                    minWidth: '300px',
+                },
             },
 
             withAlignRight: {
@@ -295,48 +299,23 @@ export const useTableCellStyles = createStyles<
             withInteractions: {
                 cursor: 'pointer',
 
-                ...(isSelected
-                    ? {
-                          backgroundColor: selectedDefaultBackground,
-                          boxShadow: `inset 0 0 0 1px ${selectedDefaultBorder}, inset 0 0 1px 0 ${selectedDefaultBorder} !important`,
-                      }
-                    : {
-                          '&:hover': {
-                              backgroundColor: selectedDefaultBackground,
-                              boxShadow: `inset 0 0 0 1px ${selectedDefaultBorder}, inset 0 0 1px 0 ${selectedDefaultBorder} !important`,
-                          },
-                      }),
+                '&:hover, &[data-is-selected="true"]': {
+                    backgroundColor: selectedDefaultBackground,
+                    boxShadow: `inset 0 0 0 1px ${selectedDefaultBorder}, inset 0 0 1px 0 ${selectedDefaultBorder} !important`,
+                },
             },
 
             withBackground: withBackground
-                ? isSelected
-                    ? {
+                ? {
+                      backgroundColor: withBackground,
+                      boxShadow: `inset 0 0 0 1px ${withBackgroundBorder}, inset 0 0 1px 0 ${withBackgroundBorderSelected} !important`,
+
+                      '&:hover, &[data-is-selected="true"]': {
                           backgroundColor: withBackgroundSelected,
                           boxShadow: `inset 0 0 0 1px ${withBackgroundBorderSelected}, inset 0 0 1px 0 ${withBackgroundBorderSelected} !important`,
-                      }
-                    : {
-                          backgroundColor: withBackground,
-                          boxShadow: `inset 0 0 0 1px ${withBackgroundBorder}, inset 0 0 1px 0 ${withBackgroundBorderSelected} !important`,
-                          '&:hover': {
-                              backgroundColor: withBackgroundSelected,
-                              boxShadow: `inset 0 0 0 1px ${withBackgroundBorderSelected}, inset 0 0 1px 0 ${withBackgroundBorderSelected} !important`,
-                          },
-                      }
+                      },
+                  }
                 : {},
-
-            withLargeText: {
-                ...(isSelected
-                    ? {
-                          wordBreak: 'break-all',
-                          whiteSpace: 'normal',
-                      }
-                    : {}),
-
-                '&:hover': {
-                    wordBreak: 'break-all',
-                    whiteSpace: 'normal',
-                },
-            },
 
             withSticky: {
                 position: 'sticky',
