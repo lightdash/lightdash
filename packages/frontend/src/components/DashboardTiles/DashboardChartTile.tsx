@@ -795,13 +795,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             {userCanManageChart && isEditMode && (
                                 <Menu.Item
                                     icon={<MantineIcon icon={IconCopy} />}
-                                    onClick={() => {
+                                    onClick={() =>
                                         duplicateChart({
                                             uuid: savedChartUuid,
                                             name: chart.name,
                                             description: chart.description,
-                                        });
-                                    }}
+                                        })
+                                    }
                                     disabled={!isEditMode}
                                 >
                                     Duplicate chart
