@@ -8,39 +8,20 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useProject } from '../../../../hooks/useProject';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { AddButton } from '../common/AddButton';
-import { Config } from '../common/Config';
+import { AddButton } from '../../common/AddButton';
+import { Config } from '../../common/Config';
+import { useControlledAccordion } from '../../common/hooks/useControlledAccordion';
 import { ReferenceLine } from './ReferenceLine';
 
 type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
     projectUuid: string;
-};
-
-const useControlledAccordion = (defaultOpenItems = []) => {
-    const [openItems, setOpenItems] = useState<string[]>(defaultOpenItems);
-
-    const handleAccordionChange = useCallback((itemValues: string[]) => {
-        setOpenItems(itemValues);
-    }, []);
-
-    const addNewItem = useCallback((index: string) => {
-        setOpenItems((prevOpenItems) => [...prevOpenItems, index]);
-    }, []);
-
-    const removeItem = useCallback((index: string) => {
-        setOpenItems((prevOpenItems) =>
-            prevOpenItems.filter((item) => item !== index),
-        );
-    }, []);
-
-    return { openItems, handleAccordionChange, addNewItem, removeItem };
 };
 
 export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
@@ -195,17 +176,6 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         variant="contained"
                         value={openItems}
                         onChange={handleAccordionChange}
-                        styles={(theme) => ({
-                            control: {
-                                padding: theme.spacing.xs,
-                            },
-                            label: {
-                                padding: 0,
-                            },
-                            panel: {
-                                padding: 0,
-                            },
-                        })}
                     >
                         {referenceLines.map((line, index) => (
                             <ReferenceLine
