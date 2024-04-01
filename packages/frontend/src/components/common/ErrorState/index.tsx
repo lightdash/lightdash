@@ -1,7 +1,6 @@
 import { type LightdashError } from '@lightdash/common';
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
 import { useMemo, type ComponentProps, type FC } from 'react';
-import styled from 'styled-components';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
 
 const DEFAULT_ERROR_PROPS: ComponentProps<typeof SuboptimalState> = {
@@ -9,12 +8,6 @@ const DEFAULT_ERROR_PROPS: ComponentProps<typeof SuboptimalState> = {
     title: 'Unexpected error',
     description: 'Please contact support',
 };
-
-const StyledSuboptimalState = styled(SuboptimalState)<{
-    $hasMarginTop?: boolean;
-}>`
-    ${({ $hasMarginTop }) => $hasMarginTop && 'margin-top: 20px;'}
-`;
 
 const ErrorState: FC<{
     error?: LightdashError | null;
@@ -56,7 +49,12 @@ const ErrorState: FC<{
         }
     }, [error]);
 
-    return <StyledSuboptimalState $hasMarginTop={hasMarginTop} {...props} />;
+    return (
+        <SuboptimalState
+            sx={{ marginTop: hasMarginTop ? '20px' : undefined }}
+            {...props}
+        />
+    );
 };
 
 export default ErrorState;
