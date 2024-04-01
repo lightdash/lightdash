@@ -1,9 +1,9 @@
 import { MantineProvider, Tabs } from '@mantine/core';
 import React, { memo } from 'react';
 import { themeOverride } from '../../theme';
-import { Display } from '../Display/Display';
-import { Layout } from '../Layout/Layout';
-import { Series } from '../Series/Series';
+import { Display } from '../Display';
+import { Layout } from '../Layout';
+import { Series } from '../Series';
 
 export const ConfigTabs: React.FC = memo(() => {
     return (
