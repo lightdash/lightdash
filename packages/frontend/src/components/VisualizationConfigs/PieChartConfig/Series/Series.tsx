@@ -29,10 +29,10 @@ import {
     IconGripVertical,
 } from '@tabler/icons-react';
 import { forwardRef, useCallback, type FC } from 'react';
-import MantineIcon from '../../common/MantineIcon';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import ColorSelector from '../ColorSelector';
+import MantineIcon from '../../../common/MantineIcon';
+import { isPieVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigPie';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import ColorSelector from '../../ColorSelector';
 
 type ValueOptionsProps = {
     isValueLabelOverriden?: boolean;
@@ -246,7 +246,7 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
     },
 );
 
-const PieChartSeriesConfig: FC = () => {
+export const Series: FC = () => {
     const { visualizationConfig, colorPalette, getGroupColor } =
         useVisualizationContext();
 
@@ -416,5 +416,3 @@ const PieChartSeriesConfig: FC = () => {
         </Stack>
     );
 };
-
-export default PieChartSeriesConfig;

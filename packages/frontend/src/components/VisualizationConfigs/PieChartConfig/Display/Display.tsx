@@ -4,10 +4,10 @@ import {
 } from '@lightdash/common';
 import { Collapse, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import React from 'react';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { isPieVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigPie';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
-const PieChartDisplayConfig: React.FC = () => {
+export const Display: React.FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isPieVisualizationConfig(visualizationConfig)) return null;
@@ -49,5 +49,3 @@ const PieChartDisplayConfig: React.FC = () => {
         </Stack>
     );
 };
-
-export default PieChartDisplayConfig;
