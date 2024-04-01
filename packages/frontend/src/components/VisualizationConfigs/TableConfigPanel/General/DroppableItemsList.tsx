@@ -4,10 +4,9 @@ import {
     type DraggableStateSnapshot,
 } from '@hello-pangea/dnd';
 import { Box, Group, Text } from '@mantine/core';
-import { IconGripVertical } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
-import MantineIcon from '../../../common/MantineIcon';
+import { GrabIcon } from '../../ChartConfigPanel/common/GrabIcon';
 import ColumnConfiguration from './ColumnConfiguration';
 
 type DraggablePortalHandlerProps = {
@@ -36,6 +35,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
     disableReorder,
     placeholder,
 }) => {
+    const hasItems = itemIds.length > 0;
     return (
         <Droppable droppableId={droppableId}>
             {(dropProps, droppableSnapshot) => (
@@ -43,7 +43,6 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                     {...dropProps.droppableProps}
                     ref={dropProps.innerRef}
                     mih={isDragging ? '30px' : undefined}
-                    p="xs"
                     bg={
                         droppableSnapshot.isDraggingOver
                             ? 'gray.1'
@@ -52,7 +51,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                             : undefined
                     }
                 >
-                    {!isDragging && itemIds.length <= 0 ? (
+                    {!isDragging && !hasItems ? (
                         <Text size="xs" color="gray.6" m="xs" ta="center">
                             {placeholder}
                         </Text>
@@ -71,7 +70,6 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                     <Group
                                         noWrap
                                         spacing="xs"
-                                        mb="xs"
                                         ref={innerRef}
                                         {...draggableProps}
                                         style={{
@@ -84,17 +82,9 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                             ...draggableProps.style,
                                         }}
                                     >
-                                        <Box
-                                            {...dragHandleProps}
-                                            sx={{
-                                                opacity: 0.6,
-                                                '&:hover': { opacity: 1 },
-                                            }}
-                                        >
-                                            <MantineIcon
-                                                icon={IconGripVertical}
-                                            />
-                                        </Box>
+                                        <GrabIcon
+                                            dragHandleProps={dragHandleProps}
+                                        />
 
                                         <ColumnConfiguration fieldId={itemId} />
                                     </Group>
