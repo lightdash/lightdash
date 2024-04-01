@@ -36,10 +36,10 @@ import {
 } from '@tabler/icons-react';
 import produce from 'immer';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
-import FieldSelect from '../../common/FieldSelect';
-import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
-import { FiltersProvider } from '../../common/Filters/FiltersProvider';
-import MantineIcon from '../../common/MantineIcon';
+import FieldSelect from '../../../common/FieldSelect';
+import FilterNumberInput from '../../../common/Filters/FilterInputs/FilterNumberInput';
+import { FiltersProvider } from '../../../common/Filters/FiltersProvider';
+import MantineIcon from '../../../common/MantineIcon';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
 interface ConditionalFormattingProps {
@@ -57,7 +57,7 @@ const ConditionalFormattingRuleLabels = {
     [ConditionalFormattingConfigType.Range]: 'Color range',
 };
 
-const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
+export const ConditionalFormattingItem: FC<ConditionalFormattingProps> = ({
     isDefaultOpen = true,
     colorPalette,
     index: configIndex,
@@ -458,4 +458,3 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         </FiltersProvider>
     );
 };
-export default ConditionalFormatting;

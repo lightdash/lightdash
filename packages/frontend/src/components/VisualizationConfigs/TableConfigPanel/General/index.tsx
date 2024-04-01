@@ -1,10 +1,10 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { getCustomDimensionId } from '@lightdash/common';
 import { Box, Checkbox, Stack, Title, Tooltip } from '@mantine/core';
-import React, { useCallback, useMemo, useState, type FC } from 'react';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useCallback, useMemo, useState, type FC } from 'react';
+import useToaster from '../../../../hooks/toaster/useToaster';
+import { isTableVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigTable';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
 import DroppableItemsList from './DroppableItemsList';
 
@@ -15,7 +15,7 @@ enum DroppableIds {
     ROWS = 'ROWS',
 }
 
-const GeneralSettings: FC = () => {
+export const General: FC = () => {
     const {
         resultsData,
         pivotDimensions,
@@ -282,5 +282,3 @@ const GeneralSettings: FC = () => {
         </Stack>
     );
 };
-
-export default GeneralSettings;
