@@ -40,6 +40,13 @@ export const themeOverride = getMantineThemeOverride({
             },
         },
         TextInput: {
+            styles: (theme) => ({
+                label: {
+                    fontSize: theme.fontSizes.xs,
+                    fontWeight: 500,
+                    color: theme.colors.gray['6'],
+                },
+            }),
             defaultProps: {
                 size: 'xs',
             },
