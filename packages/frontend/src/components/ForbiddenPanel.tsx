@@ -1,4 +1,4 @@
-import { Anchor } from '@mantine/core';
+import { Anchor, Box } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,7 +7,7 @@ import SuboptimalState from './common/SuboptimalState/SuboptimalState';
 
 const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
     return (
-        <div style={{ marginTop: '30vh' }}>
+        <Box mt="30vh">
             <SuboptimalState
                 title={`You don't have access${
                     subject ? ` to this ${subject}` : ''
@@ -34,7 +34,7 @@ const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
                 }
                 icon={IconLock}
             />
-        </div>
+        </Box>
     );
 };
 

@@ -51,7 +51,7 @@ const ErrorState: FC<{
 
     return (
         <SuboptimalState
-            style={{ marginTop: hasMarginTop ? '20px' : undefined }}
+            sx={{ marginTop: hasMarginTop ? '20px' : undefined }}
             {...props}
         />
     );
