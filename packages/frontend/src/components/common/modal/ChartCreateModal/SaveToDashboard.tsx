@@ -135,9 +135,9 @@ export const SaveToDashboard: FC<Props> = ({
     );
     return (
         <form
-            onSubmit={form.onSubmit((values) => {
-                handleSaveChartInDashboard(values);
-            })}
+            onSubmit={form.onSubmit((values) =>
+                handleSaveChartInDashboard(values),
+            )}
         >
             <Stack p="md">
                 <Stack spacing="xs">

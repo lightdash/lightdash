@@ -63,7 +63,8 @@ export class SlackBot {
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.unfurlService = unfurlService;
-        this.start();
+
+        void this.start();
     }
 
     async start() {
@@ -197,8 +198,9 @@ export class SlackBot {
                     }
                 }
             } catch (e) {
-                if (this.lightdashConfig.mode === LightdashMode.PR)
-                    notifySlackError(e, l.url, client, event);
+                if (this.lightdashConfig.mode === LightdashMode.PR) {
+                    void notifySlackError(e, l.url, client, event);
+                }
 
                 Sentry.captureException(e);
 

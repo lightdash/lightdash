@@ -629,7 +629,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.COMPLETED,
             });
             if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
-                this.schedulerClient.generateValidation({
+                void this.schedulerClient.generateValidation({
                     userUuid: payload.createdByUserUuid,
                     projectUuid: payload.projectUuid,
                     context: 'test_and_compile',
@@ -683,7 +683,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.COMPLETED,
             });
             if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
-                this.schedulerClient.generateValidation({
+                void this.schedulerClient.generateValidation({
                     projectUuid: payload.projectUuid,
                     context: 'dbt_refresh',
                     userUuid: payload.createdByUserUuid,
@@ -852,7 +852,7 @@ export default class SchedulerTask {
                     'Unable to upload Google Sheet from query, Google Drive is not enabled',
                 );
             }
-            this.schedulerService.logSchedulerJob({
+            await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 details: { createdByUserUuid: payload.userUuid },
                 status: SchedulerJobStatus.STARTED,
@@ -911,7 +911,7 @@ export default class SchedulerTask {
             );
             const truncated = this.csvService.couldBeTruncated(rows);
 
-            this.schedulerService.logSchedulerJob({
+            await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 details: {
                     fileUrl: spreadsheetUrl,
@@ -920,17 +920,19 @@ export default class SchedulerTask {
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });
+
             this.analytics.track({
                 event: 'download_results.completed',
                 userId: payload.userUuid,
                 properties: analyticsProperties,
             });
         } catch (e) {
-            this.schedulerService.logSchedulerJob({
+            await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
                 details: { createdByUserUuid: payload.userUuid, error: e },
             });
+
             this.analytics.track({
                 event: 'download_results.error',
                 userId: payload.userUuid,
@@ -1355,54 +1357,60 @@ export default class SchedulerTask {
                     `Uploading dashboard with ${chartUuids.length} charts to Google Sheets`,
                 );
                 // We want to process all charts in sequence, so we don't load all chart results in memory
-                chartUuids.reduce(async (promise, chartUuid) => {
-                    await promise;
-                    const chart =
-                        await this.schedulerService.savedChartModel.get(
-                            chartUuid,
-                        );
-                    const { rows } =
-                        await this.projectService.getResultsForChart(
+                chartUuids
+                    .reduce(async (promise, chartUuid) => {
+                        await promise;
+                        const chart =
+                            await this.schedulerService.savedChartModel.get(
+                                chartUuid,
+                            );
+                        const { rows } =
+                            await this.projectService.getResultsForChart(
+                                user,
+                                chartUuid,
+                            );
+                        const explore = await this.projectService.getExplore(
                             user,
-                            chartUuid,
+                            chart.projectUuid,
+                            chart.tableName,
                         );
-                    const explore = await this.projectService.getExplore(
-                        user,
-                        chart.projectUuid,
-                        chart.tableName,
-                    );
-                    const itemMap = getItemMap(
-                        explore,
-                        chart.metricQuery.additionalMetrics,
-                        chart.metricQuery.tableCalculations,
-                    );
-                    const showTableNames = isTableChartConfig(
-                        chart.chartConfig.config,
-                    )
-                        ? chart.chartConfig.config.showTableNames ?? false
-                        : true;
-                    const customLabels = getCustomLabelsFromTableConfig(
-                        chart.chartConfig.config,
-                    );
+                        const itemMap = getItemMap(
+                            explore,
+                            chart.metricQuery.additionalMetrics,
+                            chart.metricQuery.tableCalculations,
+                        );
+                        const showTableNames = isTableChartConfig(
+                            chart.chartConfig.config,
+                        )
+                            ? chart.chartConfig.config.showTableNames ?? false
+                            : true;
+                        const customLabels = getCustomLabelsFromTableConfig(
+                            chart.chartConfig.config,
+                        );
 
-                    const tabName = await this.googleDriveClient.createNewTab(
-                        refreshToken,
-                        gdriveId,
-                        chartNames[chartUuid] || chartUuid,
-                    );
+                        const tabName =
+                            await this.googleDriveClient.createNewTab(
+                                refreshToken,
+                                gdriveId,
+                                chartNames[chartUuid] || chartUuid,
+                            );
 
-                    await this.googleDriveClient.appendToSheet(
-                        refreshToken,
-                        gdriveId,
-                        rows,
-                        itemMap,
-                        showTableNames,
-                        tabName,
-                        chart.tableConfig.columnOrder,
-                        customLabels,
-                        getHiddenTableFields(chart.chartConfig),
-                    );
-                }, Promise.resolve());
+                        await this.googleDriveClient.appendToSheet(
+                            refreshToken,
+                            gdriveId,
+                            rows,
+                            itemMap,
+                            showTableNames,
+                            tabName,
+                            chart.tableConfig.columnOrder,
+                            customLabels,
+                            getHiddenTableFields(chart.chartConfig),
+                        );
+                    }, Promise.resolve())
+                    .catch((error) => {
+                        Logger.debug('Error processing charts:', error);
+                        throw error;
+                    });
             } else {
                 throw new Error('Not implemented');
             }
@@ -1621,16 +1629,18 @@ export default class SchedulerTask {
                 );
 
             // Create scheduled jobs for targets
-            scheduledJobs.map(async ({ target, jobId: targetJobId }) => {
-                this.logScheduledTarget(
-                    scheduler.format,
-                    target,
-                    targetJobId,
-                    schedulerUuid,
-                    jobId,
-                    scheduledTime,
-                );
-            });
+            await Promise.all(
+                scheduledJobs.map(({ target, jobId: targetJobId }) =>
+                    this.logScheduledTarget(
+                        scheduler.format,
+                        target,
+                        targetJobId,
+                        schedulerUuid,
+                        jobId,
+                        scheduledTime,
+                    ),
+                ),
+            );
 
             await this.schedulerService.logSchedulerJob({
                 task: 'handleScheduledDelivery',

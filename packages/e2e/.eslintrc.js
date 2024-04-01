@@ -11,5 +11,4 @@ module.exports = {
         'airbnb-typescript/base',
         'prettier',
     ],
-    plugins: ['@typescript-eslint'],
 };

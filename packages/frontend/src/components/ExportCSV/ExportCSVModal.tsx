@@ -54,10 +54,9 @@ const ExportCSVModal: FC<ExportCSVModalProps> = ({
 
                         <Button
                             loading={isExporting}
-                            onClick={() => {
-                                onExport().then(() => {
-                                    onConfirm?.();
-                                });
+                            onClick={async () => {
+                                await onExport();
+                                onConfirm?.();
                             }}
                         >
                             Export CSV
