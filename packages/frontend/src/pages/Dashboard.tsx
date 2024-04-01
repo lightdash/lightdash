@@ -28,6 +28,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
+import { LockedDashboardModal } from '../components/common/modal/LockedDashboardModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DashboardFilter from '../components/DashboardFilter';
@@ -662,34 +663,11 @@ const Dashboard: FC = () => {
                     ))}
                 </ResponsiveGridLayout>
 
-                {hasRequiredDashboardFiltersToSet && (
-                    <Modal
-                        opened
-                        lockScroll={false}
-                        withCloseButton={false}
-                        centered
-                        withinPortal
-                        withOverlay={false}
-                        onClose={() => {}}
-                        styles={(theme) => ({
-                            content: {
-                                border: `1px solid ${theme.colors.gray[2]}`,
-                                boxShadow: 'none',
-                            },
-                        })}
-                    >
-                        <Text fw={600} fz="lg" ta="center" mb="lg">
-                            Set filter values to get started
-                        </Text>
-                        <Stack spacing="xs">
-                            <Text>
-                                This dashboard cannot be run without setting the
-                                filter values that are required
-                            </Text>
-                        </Stack>
-                    </Modal>
-                )}
-
+                <LockedDashboardModal
+                    opened={
+                        hasRequiredDashboardFiltersToSet && !!hasDashboardTiles
+                    }
+                />
                 {!hasDashboardTiles && (
                     <EmptyStateNoTiles
                         onAddTiles={handleAddTiles}
