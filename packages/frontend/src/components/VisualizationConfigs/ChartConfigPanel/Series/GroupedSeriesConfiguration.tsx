@@ -23,7 +23,7 @@ import {
 import { Box, Checkbox, Group, Select, Stack, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
-import { Config } from '../../common/Config';
+import { Config } from '../common/Config';
 import { GrabIcon } from '../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
