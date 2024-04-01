@@ -11,7 +11,7 @@ export const defaultGrid = {
     bottom: '30px', // pixels from bottom (makes room for x-axis)
 } as const;
 
-const GridPanel: FC = () => {
+export const Grid: FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
@@ -38,5 +38,3 @@ const GridPanel: FC = () => {
         />
     );
 };
-
-export default GridPanel;

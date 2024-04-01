@@ -10,7 +10,7 @@ import {
     getSeriesId,
     type CustomDimension,
     type Field,
-    type Series,
+    type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
 import { Divider } from '@mantine/core';
@@ -39,7 +39,7 @@ type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
 };
 
-const SeriesTab: FC<Props> = ({ items }) => {
+export const Series: FC<Props> = ({ items }) => {
     const { visualizationConfig, getSeriesColor } = useVisualizationContext();
 
     const isCartesianChart =
@@ -75,7 +75,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
                     newState.splice(destinationIndex, 0, removed);
                 },
             );
-            const reorderedSeries = reorderedSeriesGroups.reduce<Series[]>(
+            const reorderedSeries = reorderedSeriesGroups.reduce<SeriesType[]>(
                 (acc, seriesGroup) => [
                     ...acc,
                     ...seriesGroup.value.map((s) => ({
@@ -215,5 +215,3 @@ const SeriesTab: FC<Props> = ({ items }) => {
         </DragDropContext>
     );
 };
-
-export default SeriesTab;

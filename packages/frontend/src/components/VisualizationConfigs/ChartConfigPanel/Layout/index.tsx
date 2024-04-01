@@ -19,20 +19,20 @@ import {
 } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import FieldSelect from '../../common/FieldSelect';
-import MantineIcon from '../../common/MantineIcon';
-import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { AddButton } from '../common/AddButton';
-import { Config } from '../common/Config';
-import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
+import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import FieldSelect from '../../../common/FieldSelect';
+import MantineIcon from '../../../common/MantineIcon';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { AddButton } from '../../common/AddButton';
+import { Config } from '../../common/Config';
+import { MAX_PIVOTS } from '../../TableConfigPanel/GeneralSettings';
 
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
 };
 
-const FieldLayoutOptions: FC<Props> = ({ items }) => {
+export const Layout: FC<Props> = ({ items }) => {
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
 
@@ -379,5 +379,3 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         </Stack>
     );
 };
-
-export default FieldLayoutOptions;

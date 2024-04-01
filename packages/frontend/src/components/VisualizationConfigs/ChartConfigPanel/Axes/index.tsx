@@ -25,7 +25,7 @@ type Props = {
     itemsMap: ItemsMap | undefined;
 };
 
-const AxesOptions: FC<Props> = ({ itemsMap }) => {
+export const Axes: FC<Props> = ({ itemsMap }) => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
@@ -265,5 +265,3 @@ const AxesOptions: FC<Props> = ({ itemsMap }) => {
         </Stack>
     );
 };
-
-export default AxesOptions;

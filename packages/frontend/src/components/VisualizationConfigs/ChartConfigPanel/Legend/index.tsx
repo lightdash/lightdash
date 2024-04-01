@@ -92,7 +92,7 @@ type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
 };
 
-const LegendPanel: FC<Props> = ({ items }) => {
+export const Legend: FC<Props> = ({ items }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { visualizationConfig } = useVisualizationContext();
@@ -176,5 +176,3 @@ const LegendPanel: FC<Props> = ({ items }) => {
         </Stack>
     );
 };
-
-export default LegendPanel;
