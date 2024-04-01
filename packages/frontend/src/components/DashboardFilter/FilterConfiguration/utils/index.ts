@@ -28,7 +28,6 @@ export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {
             return (
                 filterRule.settings &&
                 filterRule.settings.unitOfTime &&
-                filterRule.settings.completed &&
                 filterRule.values &&
                 filterRule.values.length > 0
             );
