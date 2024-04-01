@@ -14,11 +14,6 @@ export const themeOverride = getMantineThemeOverride({
                 size: 'xs',
             },
         },
-        Label: {
-            defaultProps: {
-                color: 'red',
-            },
-        },
         TextInput: {
             defaultProps: {
                 size: 'xs',
