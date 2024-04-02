@@ -124,8 +124,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const addReferenceLine = useCallback(() => {
         if (!isCartesianChart) return;
 
-        const { referenceLines, setReferenceLines } =
-            visualizationConfig.chartConfig;
+        const { setReferenceLines } = visualizationConfig.chartConfig;
 
         const newReferenceLine: ReferenceLineField = {
             data: {
@@ -133,8 +132,12 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                 value: uuidv4(),
             },
         };
-        setReferenceLines([...referenceLines, newReferenceLine]);
-        addNewItem(`${referenceLines.length + 1}`);
+        setReferenceLines((prev) => {
+            const newReferenceLines = [...prev, newReferenceLine];
+            addNewItem(`${newReferenceLines.length}`);
+
+            return newReferenceLines;
+        });
     }, [addNewItem, isCartesianChart, visualizationConfig.chartConfig]);
 
     const removeReferenceLine = useCallback(
