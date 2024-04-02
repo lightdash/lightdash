@@ -92,7 +92,15 @@ export const Comparison = () => {
                             />
 
                             <Grid gutter="xs">
-                                <Grid.Col span={7}>
+                                <Grid.Col
+                                    span={
+                                        showStyle &&
+                                        comparisonFormat ===
+                                            ComparisonFormatTypes.RAW
+                                            ? 7
+                                            : 12 // Mantine's default Grid system is 12 columns
+                                    }
+                                >
                                     <TextInput
                                         label="Comparison label"
                                         value={comparisonLabel ?? ''}
