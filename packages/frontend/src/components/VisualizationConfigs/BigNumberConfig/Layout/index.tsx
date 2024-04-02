@@ -1,5 +1,5 @@
 import { getItemId, type CompactOrAlias } from '@lightdash/common';
-import { ActionIcon, Group, Select, TextInput } from '@mantine/core';
+import { ActionIcon, Grid, Select, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldSelect from '../../../common/FieldSelect';
@@ -46,50 +46,59 @@ export const Layout: FC = () => {
                     }}
                 />
 
-                <Group grow>
-                    <TextInput
-                        label="Label"
-                        value={bigNumberLabel}
-                        placeholder={defaultLabel}
-                        onChange={(e) =>
-                            setBigNumberLabel(e.currentTarget.value)
-                        }
-                        rightSection={
-                            <ActionIcon
-                                onClick={() => {
-                                    setShowBigNumberLabel(!showBigNumberLabel);
-                                }}
-                            >
-                                {showBigNumberLabel ? (
-                                    <MantineIcon icon={IconEye} />
-                                ) : (
-                                    <MantineIcon icon={IconEyeOff} />
-                                )}
-                            </ActionIcon>
-                        }
-                    />
-
-                    {showStyle && (
-                        <Select
-                            label="Format"
-                            data={StyleOptions}
-                            value={bigNumberStyle ?? ''}
-                            onChange={(newValue) => {
-                                if (!newValue) {
-                                    setBigNumberStyle(undefined);
-                                    setBigNumberComparisonStyle(undefined);
-                                } else {
-                                    setBigNumberStyle(
-                                        newValue as CompactOrAlias,
-                                    );
-                                    setBigNumberComparisonStyle(
-                                        newValue as CompactOrAlias,
-                                    );
-                                }
-                            }}
+                <Grid gutter="xs">
+                    <Grid.Col span={7}>
+                        <TextInput
+                            variant={showBigNumberLabel ? 'default' : 'filled'}
+                            label="Label"
+                            value={bigNumberLabel}
+                            placeholder={defaultLabel}
+                            onChange={(e) =>
+                                setBigNumberLabel(e.currentTarget.value)
+                            }
+                            readOnly={!showBigNumberLabel}
+                            rightSection={
+                                <ActionIcon
+                                    onClick={() => {
+                                        setShowBigNumberLabel(
+                                            !showBigNumberLabel,
+                                        );
+                                    }}
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            showBigNumberLabel
+                                                ? IconEye
+                                                : IconEyeOff
+                                        }
+                                    />
+                                </ActionIcon>
+                            }
                         />
-                    )}
-                </Group>
+                    </Grid.Col>
+                    <Grid.Col span="auto">
+                        {showStyle && (
+                            <Select
+                                label="Format"
+                                data={StyleOptions}
+                                value={bigNumberStyle ?? ''}
+                                onChange={(newValue) => {
+                                    if (!newValue) {
+                                        setBigNumberStyle(undefined);
+                                        setBigNumberComparisonStyle(undefined);
+                                    } else {
+                                        setBigNumberStyle(
+                                            newValue as CompactOrAlias,
+                                        );
+                                        setBigNumberComparisonStyle(
+                                            newValue as CompactOrAlias,
+                                        );
+                                    }
+                                }}
+                            />
+                        )}
+                    </Grid.Col>
+                </Grid>
             </Config.Group>
         </Config>
     );
