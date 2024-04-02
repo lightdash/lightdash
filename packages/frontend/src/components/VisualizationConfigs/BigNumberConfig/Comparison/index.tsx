@@ -55,9 +55,9 @@ export const Comparison = () => {
                                     data={[
                                         {
                                             value: ComparisonFormatTypes.RAW,
-                                            label: startCase(
+                                            label: `${startCase(
                                                 ComparisonFormatTypes.RAW,
-                                            ),
+                                            )} value`,
                                         },
                                         {
                                             value: ComparisonFormatTypes.PERCENTAGE,
