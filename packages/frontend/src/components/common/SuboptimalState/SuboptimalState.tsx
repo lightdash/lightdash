@@ -1,8 +1,8 @@
-import { Loader, Stack, Text } from '@mantine/core';
+import { Loader, Stack, Text, type StackProps } from '@mantine/core';
 import React, { type FC } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 
-interface Props extends React.ComponentPropsWithoutRef<'div'> {
+interface Props extends StackProps {
     icon?: MantineIconProps['icon'];
     title?: string;
     description?: string | JSX.Element;
@@ -21,6 +21,7 @@ const SuboptimalState: FC<Props> = ({
     return (
         <Stack
             spacing="sm"
+            {...rest}
             sx={{
                 height: '100%',
                 width: '100%',
@@ -28,8 +29,8 @@ const SuboptimalState: FC<Props> = ({
                 justifyContent: 'center',
                 textAlign: 'center',
                 alignItems: 'center',
+                ...rest?.sx,
             }}
-            {...rest}
         >
             {loading && <Loader color="gray.6" />}
             {icon && !loading && (

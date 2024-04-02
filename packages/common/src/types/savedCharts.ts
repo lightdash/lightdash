@@ -104,6 +104,7 @@ export type TableChart = {
     showTableNames?: boolean;
     hideRowNumbers?: boolean;
     showResultsTotal?: boolean;
+    showSubtotals?: boolean;
     columns?: Record<string, ColumnProperties>;
     conditionalFormattings?: ConditionalFormattingConfig[];
     metricsAsRows?: boolean;
@@ -355,7 +356,9 @@ export type CreateSavedChartVersion = Omit<
     | 'colorPalette'
     | 'isPrivate'
     | 'access'
->;
+> &
+    // For Charts created within a dashboard
+    Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;
 
 export type UpdateSavedChart = Partial<
     Pick<SavedChart, 'name' | 'description' | 'spaceUuid'>

@@ -1715,11 +1715,12 @@ export const ExplorerProvider: FC<
     useEffect(() => {
         if (!state.shouldFetchResults) return;
 
-        mutateAsync().then(() => {
-            dispatch({
-                type: ActionType.SET_FETCH_RESULTS_FALSE,
-            });
-        });
+        async function fetchResults() {
+            await mutateAsync();
+            dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
+        }
+
+        void fetchResults();
     }, [mutateAsync, state.shouldFetchResults]);
 
     const clearExplore = useCallback(async () => {
@@ -1757,7 +1758,7 @@ export const ExplorerProvider: FC<
         if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
         } else {
-            mutateAsync();
+            return mutateAsync();
         }
     }, [defaultSort, mutateAsync, unsavedChartVersion, setSortFields]);
 

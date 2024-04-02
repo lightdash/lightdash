@@ -1,18 +1,13 @@
-import { Anchor } from '@mantine/core';
+import { Anchor, Box } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router-dom';
-import styled from 'styled-components';
 import { Can } from './common/Authorization';
 import SuboptimalState from './common/SuboptimalState/SuboptimalState';
 
-const ForbiddenPanelWrapper = styled.div`
-    margin-top: 30vh;
-`;
-
 const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
     return (
-        <ForbiddenPanelWrapper>
+        <Box mt="30vh">
             <SuboptimalState
                 title={`You don't have access${
                     subject ? ` to this ${subject}` : ''
@@ -39,7 +34,7 @@ const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
                 }
                 icon={IconLock}
             />
-        </ForbiddenPanelWrapper>
+        </Box>
     );
 };
 

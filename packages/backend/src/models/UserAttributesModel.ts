@@ -222,13 +222,13 @@ export class UserAttributesModel {
             .orderBy('created_at', 'desc');
 
         if (filters.organizationUuid) {
-            query.where(
+            void query.where(
                 `organizations.organization_uuid`,
                 filters.organizationUuid,
             );
         }
         if (filters.userAttributeUuid) {
-            query.where(
+            void query.where(
                 `${UserAttributesTable}.user_attribute_uuid`,
                 filters.userAttributeUuid,
             );

@@ -117,7 +117,7 @@ export async function down(knex: Knex): Promise<void> {
             FiltersColumnName,
         )
     ) {
-        knex(SavedChartVersionsTableName).update({
+        await knex(SavedChartVersionsTableName).update({
             [FiltersColumnName]: JSON.stringify([]),
         });
     }

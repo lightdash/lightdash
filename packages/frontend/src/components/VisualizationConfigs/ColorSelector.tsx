@@ -29,7 +29,7 @@ const ColorSelector: FC<Props> = ({
         <Popover shadow="md" withArrow>
             <Popover.Target>
                 <ColorSwatch
-                    size={24}
+                    size={20}
                     color={isValidHexColor ? color : defaultColor}
                     sx={{
                         cursor: 'pointer',
@@ -42,7 +42,7 @@ const ColorSelector: FC<Props> = ({
             <Popover.Dropdown p="xs">
                 <Stack spacing="xs">
                     <MantineColorPicker
-                        size="md"
+                        size="sm"
                         format="hex"
                         swatches={swatches}
                         swatchesPerRow={8}
@@ -51,6 +51,7 @@ const ColorSelector: FC<Props> = ({
                     />
 
                     <TextInput
+                        size="xs"
                         icon={<MantineIcon icon={IconHash} />}
                         placeholder="Type in a custom HEX color"
                         error={

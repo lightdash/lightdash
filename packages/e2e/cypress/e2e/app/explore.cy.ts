@@ -53,6 +53,9 @@ describe('Explore', () => {
         cy.findByTestId('Chart-card-expand').click();
 
         cy.findByText('Save chart').click();
+        cy.findByText('Select a space to save the chart directly to').should(
+            'exist',
+        );
         cy.findByTestId('ChartCreateModal/NameInput').type('My chart');
         cy.findByText('Save').click();
         cy.findByText('Success! Chart was saved.');

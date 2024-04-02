@@ -38,7 +38,7 @@ export class GroupsModel {
             )
             .select();
         if (filters.organizationUuid) {
-            query.where(
+            void query.where(
                 'organizations.organization_uuid',
                 filters.organizationUuid,
             );
@@ -129,11 +129,11 @@ export class GroupsModel {
         const memberProfilesQuery = membersQuery.clone();
 
         if (includeMembers !== undefined) {
-            memberProfilesQuery.limit(includeMembers);
+            void memberProfilesQuery.limit(includeMembers);
         }
 
         if (offset !== undefined) {
-            memberProfilesQuery.offset(offset);
+            void memberProfilesQuery.offset(offset);
         }
 
         const memberProfiles = await memberProfilesQuery.select(

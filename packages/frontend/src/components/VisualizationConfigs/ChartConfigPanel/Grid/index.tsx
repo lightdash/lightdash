@@ -1,9 +1,7 @@
-import { SimpleGrid } from '@mantine/core';
-import startCase from 'lodash/startCase';
 import { type FC } from 'react';
-import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { UnitInputsGrid } from '../common/UnitInputsGrid';
 
 export const defaultGrid = {
     containLabel: true,
@@ -13,16 +11,7 @@ export const defaultGrid = {
     bottom: '30px', // pixels from bottom (makes room for x-axis)
 } as const;
 
-const POSITIONS = ['left', 'right', 'top', 'bottom'] as const;
-
-enum Units {
-    Pixels = 'px',
-    Percentage = '%',
-}
-
-const units = Object.values(Units);
-
-const GridPanel: FC = () => {
+export const Grid: FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
@@ -41,20 +30,11 @@ const GridPanel: FC = () => {
     };
 
     return (
-        <SimpleGrid cols={2} spacing="md">
-            {POSITIONS.map((position) => (
-                <UnitInput
-                    key={position}
-                    name={position}
-                    label={startCase(position)}
-                    units={units}
-                    value={config[position] || ''}
-                    defaultValue={defaultGrid[position]}
-                    onChange={(value) => handleUpdate(position, value)}
-                />
-            ))}
-        </SimpleGrid>
+        <UnitInputsGrid
+            centerLabel="Margin"
+            config={config}
+            defaultConfig={defaultGrid}
+            onChange={(position, newValue) => handleUpdate(position, newValue)}
+        />
     );
 };
-
-export default GridPanel;

@@ -39,7 +39,7 @@ export function filterByCreatedAt<T extends {}, R>(
             throw new ParameterError('fromDate cannot be in the future');
         }
 
-        filteredQuery.whereRaw('Date(:createdAtColumn:) >= :date', {
+        void filteredQuery.whereRaw('Date(:createdAtColumn:) >= :date', {
             createdAtColumn: `${tableName}.created_at`,
             date: fromDateObj.startOf('day').toDate(),
         });
@@ -54,7 +54,7 @@ export function filterByCreatedAt<T extends {}, R>(
             throw new ParameterError('toDate cannot be in the future');
         }
 
-        filteredQuery.whereRaw('Date(:createdAtColumn:) <= :date', {
+        void filteredQuery.whereRaw('Date(:createdAtColumn:) <= :date', {
             createdAtColumn: `${tableName}.created_at`,
             date: toDateObj.endOf('day').toDate(),
         });
@@ -85,7 +85,7 @@ export function filterByCreatedByUuid<T extends {}, R>(
 
         // if entity doesn't have a user uuid, we need to join with the table that has it
         if (opts.join) {
-            filteredQuery
+            void filteredQuery
                 .innerJoin(
                     opts.join.joinTableName,
                     `${opts.join.joinTableName}.${opts.join.joinTableIdColumnName}`,

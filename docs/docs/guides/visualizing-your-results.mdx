@@ -32,6 +32,7 @@ import PieChartSeries from './assets/pie-chart-series.png';
 import PieChartDisplay from './assets/pie-chart-display.png';
 import PieChart from './assets/pie-chart.png';
 import ColorRangesExample from './assets/color-ranges-example.jpg';
+import Subtotals from './assets/subtotals.png';
 
 # Chart types
 
@@ -168,6 +169,21 @@ You can add column totals or row totals (in pivot tables) to your tables by sele
 Totals are not calculated for table calculations. Also, in pivot tables, totals are not shown for `count distinct`, `average`, `max`, `min`, and `median` metric types.
 
 If your total values are different to what you'd expect, check out our [FAQs page](https://intercom.help/lightdash-faqs/en/articles/8967771-why-don-t-my-totals-match-what-s-in-my-table) on "Why don't my totals match what's in my table?"
+
+#### Subtotals
+
+You can add subtotals to your tables by selecting `Show subtotals` in the chart configuration panel.
+
+<img
+  src={Subtotals}
+  width="487"
+  height="194"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Subtotals are only calculated for `count` and `sum` metrics. Other metric types or table calculations are not supported yet.
+
+To use subtotals, you need to have at least 2 or more dimensions in your table visualization. You cannot use subtotals on a pivoted table.
 
 #### Locking columns from scroll
 

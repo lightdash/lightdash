@@ -1,7 +1,6 @@
-import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
+import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import styled from 'styled-components';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
@@ -14,9 +13,6 @@ import {
     useExplorerContext,
 } from '../providers/ExplorerProvider';
 
-const StyledLightdashVisualization = styled(LightdashVisualization)`
-    min-height: inherit;
-`;
 const themeOverride: MantineThemeOverride = {
     globalStyles: () => ({
         'html, body': {
@@ -56,11 +52,13 @@ const MinimalExplorer: FC = () => {
             colorPalette={savedChart.colorPalette}
         >
             <MantineProvider inherit theme={themeOverride}>
-                <StyledLightdashVisualization
-                    // get rid of the classNames once you remove analytics providers
-                    className="sentry-block ph-no-capture"
-                    data-testid="visualization"
-                />
+                <Box mih="inherit" h="100%">
+                    <LightdashVisualization
+                        // get rid of the classNames once you remove analytics providers
+                        className="sentry-block ph-no-capture"
+                        data-testid="visualization"
+                    />
+                </Box>
             </MantineProvider>
         </VisualizationProvider>
     );

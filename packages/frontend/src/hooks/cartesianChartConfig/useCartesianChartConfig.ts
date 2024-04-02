@@ -406,6 +406,14 @@ const useCartesianChartConfig = ({
         });
     }, []);
 
+    const getSingleSeries = useCallback(
+        (series: Series) =>
+            dirtyEchartsConfig?.series?.find(
+                (s) => getSeriesId(s) === getSeriesId(series),
+            ),
+        [dirtyEchartsConfig?.series],
+    );
+
     const updateSeries = useCallback((series: Series[]) => {
         setDirtyEchartsConfig((prev) => {
             if (prev) {
@@ -827,6 +835,7 @@ const useCartesianChartConfig = ({
         isStacked,
         addSingleSeries,
         updateSingleSeries,
+        getSingleSeries,
         removeSingleSeries,
         updateAllGroupedSeries,
         updateYField,
