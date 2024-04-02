@@ -44,6 +44,7 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
         return (
             <EditableText
                 disabled={!isColumnVisible(fieldId) && !disableHidingDimensions}
+                placeholder={getFieldLabelDefault(fieldId)}
                 defaultValue={value}
                 onChange={(e) => {
                     setValue(e.currentTarget.value);
@@ -51,6 +52,10 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
                         name: e.currentTarget.value,
                     });
                 }}
+                sx={(theme) => ({
+                    border: `1px solid ${theme.colors.gray['4']}`,
+                    borderRadius: theme.radius.sm,
+                })}
             />
         );
 
