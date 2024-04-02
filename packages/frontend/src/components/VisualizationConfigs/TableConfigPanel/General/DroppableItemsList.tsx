@@ -41,7 +41,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
             spacing="xs"
             sx={(theme) => ({
                 padding: theme.spacing.xs,
-                backgroundColor: theme.colors.gray[1],
+                backgroundColor: theme.colors.gray['0'],
                 borderRadius: theme.radius.sm,
             })}
         >
@@ -49,7 +49,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                 {(dropProps, droppableSnapshot) => (
                     <Stack
                         {...dropProps.droppableProps}
-                        spacing="two    "
+                        spacing="xs"
                         ref={dropProps.innerRef}
                         mih={isDragging ? '30px' : undefined}
                         bg={
