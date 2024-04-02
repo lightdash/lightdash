@@ -176,7 +176,7 @@ export const General: FC = () => {
                             isDragging={isDragging}
                             disableReorder={false}
                             placeholder={
-                                'Move dimensions to columns to pivot your table'
+                                'Drag dimensions into this area to pivot your table'
                             }
                         />
 
@@ -187,7 +187,7 @@ export const General: FC = () => {
                             isDragging={isDragging}
                             disableReorder={true}
                             placeholder={
-                                'Move dimensions to rows to group your data'
+                                'Drag dimensions into this area to group your data'
                             }
                         />
                     </Config.Group>
