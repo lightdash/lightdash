@@ -282,21 +282,21 @@ const Dashboard: FC = () => {
         setHaveTilesChanged,
     ]);
 
-    const handleToggleFullscreen = () => {
+    const handleToggleFullscreen = useCallback(async () => {
         const willBeFullscreen = !isFullscreen;
 
         if (document.fullscreenElement && !willBeFullscreen) {
-            document.exitFullscreen();
+            await document.exitFullscreen();
         } else if (
             document.fullscreenEnabled &&
             !document.fullscreenElement &&
             willBeFullscreen
         ) {
-            document.documentElement.requestFullscreen();
+            await document.documentElement.requestFullscreen();
         }
 
         toggleFullscreen();
-    };
+    }, [isFullscreen, toggleFullscreen]);
 
     useEffect(() => {
         const onFullscreenChange = () => {

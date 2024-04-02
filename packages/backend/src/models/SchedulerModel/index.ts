@@ -609,7 +609,7 @@ export class SchedulerModel {
         const jobs = await this.database(SchedulerLogTableName)
             .where(`job_id`, jobId)
             .andWhere((query) => {
-                query
+                void query
                     .where('task', 'downloadCsv')
                     .orWhere('task', 'uploadGsheetFromQuery');
             })

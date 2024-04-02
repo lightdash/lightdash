@@ -455,6 +455,18 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         [],
     );
 
+    const handleCreateShareUrl = useCallback(
+        async (chartPathname: string, chartSearch: string) => {
+            const shareUrl = await createShareUrl({
+                path: chartPathname,
+                params: `?` + chartSearch,
+            });
+
+            window.open(`/share/${shareUrl.nanoid}`, '_blank');
+        },
+        [createShareUrl],
+    );
+
     const [dashboardTileFilterOptions, setDashboardTileFilterOptions] =
         useState<FilterDashboardToRule[]>([]);
 
@@ -726,17 +738,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 />
                                             }
                                             disabled={isEditMode}
-                                            onClick={() => {
-                                                createShareUrl({
-                                                    path: chartPathname,
-                                                    params: `?` + chartSearch,
-                                                }).then((shareUrl) => {
-                                                    window.open(
-                                                        `/share/${shareUrl.nanoid}`,
-                                                        '_blank',
-                                                    );
-                                                });
-                                            }}
+                                            onClick={() =>
+                                                handleCreateShareUrl(
+                                                    chartPathname,
+                                                    chartSearch,
+                                                )
+                                            }
                                         >
                                             Explore from here
                                         </Menu.Item>
@@ -788,13 +795,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             {userCanManageChart && isEditMode && (
                                 <Menu.Item
                                     icon={<MantineIcon icon={IconCopy} />}
-                                    onClick={() => {
+                                    onClick={() =>
                                         duplicateChart({
                                             uuid: savedChartUuid,
                                             name: chart.name,
                                             description: chart.description,
-                                        });
-                                    }}
+                                        })
+                                    }
                                     disabled={!isEditMode}
                                 >
                                     Duplicate chart

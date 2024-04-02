@@ -245,7 +245,7 @@ export class DashboardModel {
         const cteTableName = 'cte';
         const dashboardsQuery = this.database
             .with(cteTableName, (queryBuilder) => {
-                queryBuilder
+                void queryBuilder
                     .table(DashboardsTableName)
                     .leftJoin(
                         DashboardVersionsTableName,
@@ -305,8 +305,8 @@ export class DashboardModel {
                         this.database.raw(`
                             COALESCE(
                                 (
-                                    SELECT json_agg(validations.*) 
-                                    FROM validations 
+                                    SELECT json_agg(validations.*)
+                                    FROM validations
                                     WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
                                 ), '[]'
                             ) as validation_errors
@@ -327,7 +327,7 @@ export class DashboardModel {
             .select(`${cteTableName}.*`);
 
         if (chartUuid) {
-            dashboardsQuery
+            void dashboardsQuery
                 .leftJoin(
                     DashboardTilesTableName,
                     `${DashboardTilesTableName}.dashboard_version_id`,

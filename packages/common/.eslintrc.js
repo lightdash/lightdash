@@ -11,7 +11,6 @@ module.exports = {
         'prettier',
         'plugin:json/recommended',
     ],
-    plugins: ['@typescript-eslint'],
     rules: {
         'no-case-declarations': 'off',
         'no-template-curly-in-string': 'off',

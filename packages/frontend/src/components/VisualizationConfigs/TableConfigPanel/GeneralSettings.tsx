@@ -143,17 +143,20 @@ const GeneralSettings: FC = () => {
     if (!chartConfig) return null;
 
     const {
-        canUsePivotTable,
+        isPivotTableEnabled,
+        canUseSubtotals,
         hideRowNumbers,
         metricsAsRows,
         setHideRowNumbers,
         setShowColumnCalculation,
         setShowResultsTotal,
         setShowRowCalculation,
+        setShowSubtotals,
         setShowTableNames,
         showColumnCalculation,
         showResultsTotal,
         showRowCalculation,
+        showSubtotals,
         showTableNames,
     } = chartConfig;
 
@@ -184,7 +187,7 @@ const GeneralSettings: FC = () => {
 
             <Title order={6}>Metrics</Title>
             <Tooltip
-                disabled={!!canUsePivotTable}
+                disabled={!!isPivotTableEnabled}
                 label={
                     'To use metrics as rows, you need to move a dimension to "Columns"'
                 }
@@ -195,7 +198,7 @@ const GeneralSettings: FC = () => {
             >
                 <Box my="sm">
                     <Checkbox
-                        disabled={!canUsePivotTable}
+                        disabled={!isPivotTableEnabled}
                         label="Show metrics as rows"
                         checked={metricsAsRows}
                         onChange={() => handleToggleMetricsAsRows()}
@@ -225,7 +228,7 @@ const GeneralSettings: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
-                {canUsePivotTable ? (
+                {isPivotTableEnabled ? (
                     <Checkbox
                         label="Show row totals"
                         checked={showRowCalculation}
@@ -248,6 +251,33 @@ const GeneralSettings: FC = () => {
                         setShowResultsTotal(!showResultsTotal);
                     }}
                 />
+                <Tooltip
+                    disabled={!isPivotTableEnabled && canUseSubtotals}
+                    label={
+                        !canUseSubtotals
+                            ? 'Subtotals can only be used on tables with at least two dimensions'
+                            : "Subtotals can only be used on tables that aren't pivoted"
+                    }
+                    w={300}
+                    multiline
+                    withinPortal
+                    position="top-start"
+                >
+                    <Box>
+                        <Checkbox
+                            label="Show subtotals"
+                            checked={
+                                canUseSubtotals &&
+                                !isPivotTableEnabled &&
+                                showSubtotals
+                            }
+                            onChange={() => {
+                                setShowSubtotals(!showSubtotals);
+                            }}
+                            disabled={!!isPivotTableEnabled || !canUseSubtotals}
+                        />
+                    </Box>
+                </Tooltip>
             </Stack>
         </Stack>
     );

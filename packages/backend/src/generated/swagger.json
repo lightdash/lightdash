@@ -4684,6 +4684,9 @@
                     "columns": {
                         "$ref": "#/components/schemas/Record_string.ColumnProperties_"
                     },
+                    "showSubtotals": {
+                        "type": "boolean"
+                    },
                     "showResultsTotal": {
                         "type": "boolean"
                     },

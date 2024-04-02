@@ -359,11 +359,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     );
 
     return (
-        <form
-            onSubmit={form.onSubmit((values) => {
-                handleOnSubmit(values);
-            })}
-        >
+        <form onSubmit={form.onSubmit((values) => handleOnSubmit(values))}>
             <LoadingOverlay visible={isLoadingSpaces} />
             <Box p="md">
                 <Stack spacing="xs">
