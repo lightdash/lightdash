@@ -156,6 +156,51 @@ export const useExportDashboard = () => {
     );
 };
 
+const exportCsvDashboard = async (id: string, queryFilters: string) =>
+    lightdashApi<string>({
+        url: `/dashboards/${id}/exportCsv`,
+        method: 'POST',
+        body: JSON.stringify({ queryFilters }),
+    });
+
+export const useExportCsvDashboard = () => {
+    const { showToastSuccess, showToastError, showToastInfo } = useToaster();
+    return useMutation<
+        string,
+        ApiError,
+        {
+            dashboard: Dashboard;
+            queryFilters: string;
+        }
+    >((data) => exportCsvDashboard(data.dashboard.uuid, data.queryFilters), {
+        mutationKey: ['export_csv_dashboard'],
+        onMutate: (data) => {
+            showToastInfo({
+                key: 'dashboard_export_toast',
+                title: `${data.dashboard.name} is being exported. This might take a few seconds.`,
+                autoClose: false,
+                loading: true,
+            });
+        },
+        onSuccess: async (url, data) => {
+            if (url) {
+                window.open(url, '_blank');
+                showToastSuccess({
+                    key: 'dashboard_export_toast',
+                    title: `Success! ${data.dashboard.name} was exported.`,
+                });
+            }
+        },
+        onError: (error, data) => {
+            showToastError({
+                key: 'dashboard_export_toast',
+                title: `Failed to export ${data.dashboard.name}`,
+                subtitle: error.error.message,
+            });
+        },
+    });
+};
+
 export const useUpdateDashboard = (
     id?: string,
     showRedirectButton: boolean = false,

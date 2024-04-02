@@ -15,7 +15,10 @@ import { useCallback, useState, type FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../features/scheduler/constants';
-import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
+import {
+    useExportCsvDashboard,
+    useExportDashboard,
+} from '../../../hooks/dashboard/useDashboard';
 import MantineIcon from '../MantineIcon';
 
 type Props = {
@@ -27,7 +30,10 @@ type CsvExportProps = {
     dashboard: Dashboard;
 };
 
-const CsvExport: FC<CsvExportProps & ModalProps> = ({ onClose }) => {
+const CsvExport: FC<CsvExportProps & ModalProps> = ({ dashboard, onClose }) => {
+    const exportCsvDashboardMutation = useExportCsvDashboard();
+    const location = useLocation();
+
     return (
         <Group position="right" pb="md" px="md" spacing="lg">
             <Button variant="outline" onClick={onClose}>
@@ -41,7 +47,13 @@ const CsvExport: FC<CsvExportProps & ModalProps> = ({ onClose }) => {
                     label="Export results in table for all charts in a zip file"
                 >
                     <Button
-                        onClick={() => {}}
+                        onClick={() => {
+                            exportCsvDashboardMutation.mutate({
+                                dashboard,
+                                queryFilters: location.search,
+                            });
+                            onClose();
+                        }}
                         leftIcon={<MantineIcon icon={IconCsv} />}
                     >
                         Export CSV
@@ -52,8 +64,7 @@ const CsvExport: FC<CsvExportProps & ModalProps> = ({ onClose }) => {
     );
 };
 
-export const DashboardExportModal: FC<Props & ModalProps> = ({
-    opened,
+const ImageExport: FC<Props & ModalProps> = ({
     onClose,
     gridWidth,
     dashboard,
@@ -100,7 +111,51 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
         previewChoice,
         setPreviews,
     ]);
+    return (
+        <Stack>
+            <Box p="md">
+                <PreviewAndCustomizeScreenshot
+                    containerWidth={gridWidth}
+                    exportMutation={exportDashboardMutation}
+                    previews={previews}
+                    setPreviews={setPreviews}
+                    previewChoice={previewChoice}
+                    setPreviewChoice={setPreviewChoice}
+                    onPreviewClick={handlePreviewClick}
+                />
+            </Box>
 
+            <Group position="right" pb="md" px="md" spacing="lg">
+                <Button variant="outline" onClick={onClose}>
+                    Cancel
+                </Button>
+
+                <Group spacing="xs">
+                    <Button
+                        loading={exportDashboardMutation.isLoading}
+                        onClick={handleExportClick}
+                        leftIcon={
+                            <MantineIcon
+                                icon={
+                                    previewChoice ? IconEyeCog : IconFileExport
+                                }
+                            />
+                        }
+                    >
+                        Export dashboard
+                    </Button>
+                </Group>
+            </Group>
+        </Stack>
+    );
+};
+
+export const DashboardExportModal: FC<Props & ModalProps> = ({
+    opened,
+    onClose,
+    gridWidth,
+    dashboard,
+}) => {
     const [exportType, setExportType] = useState<string>('image');
 
     return (
@@ -131,6 +186,7 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                     ]}
                     w="50%"
                     mb="xs"
+                    defaultValue="image"
                     onChange={setExportType}
                 />
                 {exportType === 'csv' && (
@@ -142,43 +198,12 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                 )}
 
                 {exportType === 'image' && (
-                    <Stack>
-                        <Box p="md">
-                            <PreviewAndCustomizeScreenshot
-                                containerWidth={gridWidth}
-                                exportMutation={exportDashboardMutation}
-                                previews={previews}
-                                setPreviews={setPreviews}
-                                previewChoice={previewChoice}
-                                setPreviewChoice={setPreviewChoice}
-                                onPreviewClick={handlePreviewClick}
-                            />
-                        </Box>
-
-                        <Group position="right" pb="md" px="md" spacing="lg">
-                            <Button variant="outline" onClick={onClose}>
-                                Cancel
-                            </Button>
-
-                            <Group spacing="xs">
-                                <Button
-                                    loading={exportDashboardMutation.isLoading}
-                                    onClick={handleExportClick}
-                                    leftIcon={
-                                        <MantineIcon
-                                            icon={
-                                                previewChoice
-                                                    ? IconEyeCog
-                                                    : IconFileExport
-                                            }
-                                        />
-                                    }
-                                >
-                                    Export dashboard
-                                </Button>
-                            </Group>
-                        </Group>
-                    </Stack>
+                    <ImageExport
+                        dashboard={dashboard}
+                        onClose={onClose}
+                        opened={true}
+                        gridWidth={gridWidth}
+                    />
                 )}
             </Modal>
         </>
