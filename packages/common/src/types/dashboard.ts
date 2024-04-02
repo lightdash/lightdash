@@ -98,6 +98,7 @@ export type DashboardDAO = Omit<Dashboard, 'isPrivate' | 'access'>;
 export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
+    dashboardVersionId: number;
     uuid: string;
     name: string;
     description?: string;
@@ -113,6 +114,15 @@ export type Dashboard = {
     pinnedListOrder: number | null;
     isPrivate: boolean | null;
     access: SpaceShare[] | null;
+};
+
+export type DashboardSummary = {
+    dashboardSummaryUuid: string;
+    dashboardUuid: string;
+    dashboardVersionId: number;
+    context: string | undefined;
+    summary: string;
+    createdAt: Date;
 };
 
 export type DashboardBasicDetails = Pick<

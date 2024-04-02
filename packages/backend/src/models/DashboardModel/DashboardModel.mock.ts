@@ -227,6 +227,7 @@ export const dashboardChartTileEntry: GetChartTileQuery = {
 export const expectedDashboard: DashboardDAO = {
     organizationUuid: 'organizationUuid',
     projectUuid: projectEntry.project_uuid,
+    dashboardVersionId: dashboardVersionEntry.dashboard_version_id,
     uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
     description: dashboardEntry.description,

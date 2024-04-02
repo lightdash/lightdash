@@ -180,6 +180,7 @@ export const chartWithJoinedField: SavedChart = {
 export const dashboard: Dashboard = {
     organizationUuid: 'orgUuid',
     projectUuid: 'projectUuid',
+    dashboardVersionId: 1,
     uuid: 'dashboardUuid',
     name: 'test dashboard',
     updatedAt: new Date(),
