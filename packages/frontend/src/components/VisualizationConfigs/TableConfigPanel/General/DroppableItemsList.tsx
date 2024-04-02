@@ -3,7 +3,7 @@ import {
     Droppable,
     type DraggableStateSnapshot,
 } from '@hello-pangea/dnd';
-import { Box, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { GrabIcon } from '../../common/GrabIcon';
@@ -47,8 +47,9 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
         >
             <Droppable droppableId={droppableId}>
                 {(dropProps, droppableSnapshot) => (
-                    <Box
+                    <Stack
                         {...dropProps.droppableProps}
+                        spacing="two    "
                         ref={dropProps.innerRef}
                         mih={isDragging ? '30px' : undefined}
                         bg={
@@ -110,7 +111,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                             </Draggable>
                         ))}
                         {dropProps.placeholder}
-                    </Box>
+                    </Stack>
                 )}
             </Droppable>
         </Stack>
