@@ -8,6 +8,9 @@ import AddNewFilter from './assets/dashboard-add-new-filter.png';
 import AddNewFilterAndSetValue from './assets/dashboard-add-new-filter-and-select-value.png';
 import DashboardClickEditButton from './assets/dashboard-click-edit-button.png';
 import DashboardNewFilterApplied from './assets/dashboard-new-filter-applied.png';
+import RequiredFilters from './assets/required-filters.png';
+import DisabledFilters from './assets/disabled-filters.png';
+import LockedDashboard from './assets/locked-dashboard.png';
 
 # Creating Dashboards
 
@@ -134,8 +137,42 @@ Now that you've added a filter, you can see the filter applied to your dashboard
 
 Hit `Save` to save your dashboard with the new filter.
 
+### Leaving filters empty
+
 You might want to add an empty-value filter so that your dashboard viewers can choose their own value and explore the data based on their own criteria.
 Your dashboard viewers might also want to add their own filters to your dashboard.
+
+#### Adding an empty-value filter
+
+Just edit your filter and ensure that you don't provide a default value.
+
+<img
+  src={DisabledFilters}
+  width="400"
+  height="auto"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+#### Marking a filter as required for the dashboard to run
+
+You can mark a filter as required for the dashboard to run. This means that the dashboard will not run unless a value is selected for the filter.
+Just edit your filter and check the "Require value for dashboard to run" checkbox.
+
+<img
+  src={RequiredFilters}
+  width="400"
+  height="auto"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Until viewers have set a value for the filter, the dashboard will not run.
+
+<img
+  src={LockedDashboard}
+  width="600"
+  height="622"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 To learn more about adding filters to your dashboards, check out our guide on [using filters](/guides/limiting-data-using-filters).
 
