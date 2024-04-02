@@ -37,6 +37,7 @@ import {
 } from 'passport-openidconnect';
 import { Strategy } from 'passport-strategy';
 import { URL } from 'url';
+import { buildJwtKeySet } from '../config/jwtKeySet';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import type { UserService } from '../services/UserService';
@@ -583,20 +584,10 @@ export const azureAdPrivateKeyJksStrategy = async (): Promise<
         azuread.openIdConnectMetadataEndpoint!,
     );
 
-    /**
-     * Load the JWK from a file or directly from configuration:
-     */
-    const jwk =
-        (azuread.certificateKeyJwkJson &&
-            loadJWKFromConfig(azuread.certificateKeyJwkJson)) ||
-        (azuread.certificateKeyJwkPath &&
-            (await loadJWKFromPath(azuread.certificateKeyJwkPath)));
-
-    if (!jwk) {
-        throw new Error(
-            'invariant: Could not find a valid JWK when setting up private_key_jwt',
-        );
-    }
+    const [publicCert, jwk] = await buildJwtKeySet({
+        certificateFilePath: azuread.x509PublicKeyCertPath!,
+        keyFilePath: azuread.privateKeyFilePath!,
+    });
 
     /**
      * Azure expects the key's identifier (kid) to be the same value as the
@@ -607,22 +598,12 @@ export const azureAdPrivateKeyJksStrategy = async (): Promise<
      * can ignore it here and simply override whatever value we have from the
      * underlying private key, and node-openid-client will know to include it
      * as part of the jwt header.
-     */
-    const certificateIdentifier = Buffer.from(
-        azuread.certificateThumbprint!,
-        'hex',
-    ).toString('base64url');
-
-    /**
-     * Build the JWKS out of the single private key:
+     *
+     * buildJwtKeySet handles this part of the process, so we're left with
+     * building a jwks:
      */
     const jwks = {
-        keys: [
-            {
-                ...jwk,
-                kid: certificateIdentifier,
-            },
-        ],
+        keys: [jwk],
     };
 
     const client = new issuer.Client(
@@ -708,7 +689,8 @@ export const createAzureAdPassportStrategy = () => {
         /** We don't want to use this method if a secret is provided */
         !azuread.oauth2ClientSecret &&
         azuread.openIdConnectMetadataEndpoint &&
-        (azuread.certificateKeyJwkJson || azuread.certificateKeyJwkPath)
+        azuread.x509PublicKeyCertPath &&
+        azuread.privateKeyFilePath
     ) {
         return azureAdPrivateKeyJksStrategy();
     }

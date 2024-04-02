@@ -30,6 +30,7 @@ import EmailClient from './clients/EmailClient/EmailClient';
 import { GoogleDriveClient } from './clients/Google/GoogleDriveClient';
 import { SlackBot } from './clients/Slack/Slackbot';
 import { SlackClient } from './clients/Slack/SlackClient';
+import { buildJwtKeySet } from './config/jwtKeySet';
 import { LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,

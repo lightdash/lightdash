@@ -186,27 +186,22 @@ export type AuthAzureADConfig = {
     /**
      * OpenID Connect metadata endpoint, available under the Azure application's
      * Endpoints section.
+     *
+     * Inferred from the tenantID, if not specified (and the tenantID is available)
      */
     openIdConnectMetadataEndpoint: string | undefined;
 
     /**
-     * The SHA-1 thumbprint for the certificate to be used for client assertion
-     * with private_key_jwt. Can be found in the certificates section of the
-     * Azure portal.
+     * Path to the x509 pem-encoded public key certificate for use as part of
+     * private_key_jwt token auth,
      */
-    certificateThumbprint: string | undefined;
+    x509PublicKeyCertPath: string | undefined;
 
     /**
-     * JSON-encoded JWK representation of the private key to be used.
-     * Alternatively, see certificateKeyJwkPath to specify a json file
-     * instead.
+     * Path to the private key file used as part of private_key_jwt. Must be a
+     * valid key for x509PublicKeyCertPath defined above.
      */
-    certificateKeyJwkJson: string | undefined;
-
-    /**
-     * Path to a json file containing the private key JWK.
-     */
-    certificateKeyJwkPath: string | undefined;
+    privateKeyFilePath: string | undefined;
 };
 
 export type AuthGoogleConfig = {
@@ -393,12 +388,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 oauth2TenantId: process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID,
                 callbackPath: '/oauth/redirect/azuread',
                 loginPath: '/login/azuread',
-                certificateKeyJwkJson: process.env.AUTH_AZURE_AD_OAUTH_JWK_JSON,
-                certificateKeyJwkPath: process.env.AUTH_AZURE_AD_OAUTH_JWK_PATH,
-                certificateThumbprint:
-                    process.env.AUTH_AZURE_AD_OAUTH_JWK_THUMBPRINT,
+                x509PublicKeyCertPath: process.env.AUTH_AZURE_AD_X509_CERT_PATH,
+                privateKeyFilePath: process.env.AUTH_AZURE_AD_PRIVATE_KEY_PATH,
                 openIdConnectMetadataEndpoint:
-                    process.env.AUTH_AZURE_AD_OIDC_METADATA_ENDPOINT,
+                    process.env.AUTH_AZURE_AD_OIDC_METADATA_ENDPOINT ||
+                    process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID
+                        ? `https://login.microsoftonline.com/${process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID}/v2.0/.well-known/openid-configuration`
+                        : undefined,
             },
         },
         intercom: {
