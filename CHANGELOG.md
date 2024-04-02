@@ -1,3 +1,10 @@
+# [0.1048.0](https://github.com/lightdash/lightdash/compare/0.1047.2...0.1048.0) (2024-04-02)
+
+
+### Features
+
+* require some filters to have values before running dashboard  ([#9505](https://github.com/lightdash/lightdash/issues/9505)) ([cf396c3](https://github.com/lightdash/lightdash/commit/cf396c3bd260f26bbf3f2ef7d80c701f9559f797))
+
 ## [0.1047.2](https://github.com/lightdash/lightdash/compare/0.1047.1...0.1047.2) (2024-04-02)
 
 
