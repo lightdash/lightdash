@@ -70,6 +70,10 @@ export const lightdashConfigMock: LightdashConfig = {
             oauth2ClientSecret: undefined,
             oauth2ClientId: undefined,
             oauth2TenantId: '',
+            certificateKeyJwkJson: undefined,
+            certificateKeyJwkPath: undefined,
+            certificateThumbprint: undefined,
+            openIdConnectMetadataEndpoint: undefined,
         },
     },
     posthog: {
