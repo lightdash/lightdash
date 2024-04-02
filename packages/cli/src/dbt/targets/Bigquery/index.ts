@@ -101,7 +101,7 @@ export const convertBigquerySchema = async (
 
         return {
             type: WarehouseTypes.BIGQUERY,
-            project: target.project,
+            project: target.project || '',
             dataset: target.dataset || target.schema,
             timeoutSeconds: target.timeout_seconds,
             priority: target.priority,
