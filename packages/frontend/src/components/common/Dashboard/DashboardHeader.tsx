@@ -493,7 +493,6 @@ const DashboardHeader = ({
                                         Export dashboard{' '}
                                     </Menu.Item>
                                 )}
-
                                 {userCanManageDashboard && (
                                     <>
                                         <Menu.Divider />

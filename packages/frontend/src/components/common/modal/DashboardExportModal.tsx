@@ -4,11 +4,13 @@ import {
     Button,
     Group,
     Modal,
+    SegmentedControl,
     Stack,
     Title,
+    Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { IconEyeCog, IconFileExport } from '@tabler/icons-react';
+import { IconCsv, IconEyeCog, IconFileExport } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
@@ -19,6 +21,35 @@ import MantineIcon from '../MantineIcon';
 type Props = {
     gridWidth: number;
     dashboard: Dashboard;
+};
+
+type CsvExportProps = {
+    dashboard: Dashboard;
+};
+
+const CsvExport: FC<CsvExportProps & ModalProps> = ({ onClose }) => {
+    return (
+        <Group position="right" pb="md" px="md" spacing="lg">
+            <Button variant="outline" onClick={onClose}>
+                Cancel
+            </Button>
+
+            <Group spacing="xs">
+                <Tooltip
+                    withinPortal
+                    position="bottom"
+                    label="Export results in table for all charts in a zip file"
+                >
+                    <Button
+                        onClick={() => {}}
+                        leftIcon={<MantineIcon icon={IconCsv} />}
+                    >
+                        Export CSV
+                    </Button>
+                </Tooltip>
+            </Group>
+        </Group>
+    );
 };
 
 export const DashboardExportModal: FC<Props & ModalProps> = ({
@@ -70,6 +101,8 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
         setPreviews,
     ]);
 
+    const [exportType, setExportType] = useState<string>('image');
+
     return (
         <>
             <Modal
@@ -84,43 +117,69 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                     },
                 }}
             >
-                <Stack>
-                    <Box p="md">
-                        <PreviewAndCustomizeScreenshot
-                            containerWidth={gridWidth}
-                            exportMutation={exportDashboardMutation}
-                            previews={previews}
-                            setPreviews={setPreviews}
-                            previewChoice={previewChoice}
-                            setPreviewChoice={setPreviewChoice}
-                            onPreviewClick={handlePreviewClick}
-                        />
-                    </Box>
+                <SegmentedControl
+                    ml="md"
+                    data={[
+                        {
+                            label: '.csv',
+                            value: 'csv',
+                        },
+                        {
+                            label: 'Image',
+                            value: 'image',
+                        },
+                    ]}
+                    w="50%"
+                    mb="xs"
+                    onChange={setExportType}
+                />
+                {exportType === 'csv' && (
+                    <CsvExport
+                        dashboard={dashboard}
+                        onClose={onClose}
+                        opened={true}
+                    />
+                )}
 
-                    <Group position="right" pb="md" px="md" spacing="lg">
-                        <Button variant="outline" onClick={onClose}>
-                            Cancel
-                        </Button>
+                {exportType === 'image' && (
+                    <Stack>
+                        <Box p="md">
+                            <PreviewAndCustomizeScreenshot
+                                containerWidth={gridWidth}
+                                exportMutation={exportDashboardMutation}
+                                previews={previews}
+                                setPreviews={setPreviews}
+                                previewChoice={previewChoice}
+                                setPreviewChoice={setPreviewChoice}
+                                onPreviewClick={handlePreviewClick}
+                            />
+                        </Box>
 
-                        <Group spacing="xs">
-                            <Button
-                                loading={exportDashboardMutation.isLoading}
-                                onClick={handleExportClick}
-                                leftIcon={
-                                    <MantineIcon
-                                        icon={
-                                            previewChoice
-                                                ? IconEyeCog
-                                                : IconFileExport
-                                        }
-                                    />
-                                }
-                            >
-                                Export dashboard
+                        <Group position="right" pb="md" px="md" spacing="lg">
+                            <Button variant="outline" onClick={onClose}>
+                                Cancel
                             </Button>
+
+                            <Group spacing="xs">
+                                <Button
+                                    loading={exportDashboardMutation.isLoading}
+                                    onClick={handleExportClick}
+                                    leftIcon={
+                                        <MantineIcon
+                                            icon={
+                                                previewChoice
+                                                    ? IconEyeCog
+                                                    : IconFileExport
+                                            }
+                                        />
+                                    }
+                                >
+                                    Export dashboard
+                                </Button>
+                            </Group>
                         </Group>
-                    </Group>
-                </Stack>
+                    </Stack>
+                )}
             </Modal>
         </>
     );
