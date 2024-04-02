@@ -1,3 +1,10 @@
+## [0.1047.1](https://github.com/lightdash/lightdash/compare/0.1047.0...0.1047.1) (2024-04-02)
+
+
+### Bug Fixes
+
+* reference line accordion item index ([#9607](https://github.com/lightdash/lightdash/issues/9607)) ([a6df7e3](https://github.com/lightdash/lightdash/commit/a6df7e3873f1ff69fcf284b098cabb7a65a9ae18))
+
 # [0.1047.0](https://github.com/lightdash/lightdash/compare/0.1046.2...0.1047.0) (2024-04-02)
 
 
