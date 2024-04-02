@@ -14,7 +14,7 @@ import {
 } from './serviceAccount';
 
 type BigqueryTarget = {
-    project: string;
+    project?: string;
     dataset: string;
     schema: string;
     priority?: 'interactive' | 'batch';
