@@ -33,8 +33,9 @@ import { SlackClient } from './clients/Slack/SlackClient';
 import { LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,
-    azureAdPassportStrategy,
+    createAzureAdPassportStrategy,
     googlePassportStrategy,
+    isAzureAdPassportStrategyAvailableToUse,
     isOktaPassportStrategyAvailableToUse,
     localPassportStrategy,
     oneLoginPassportStrategy,
@@ -183,7 +184,7 @@ export default class App {
             App.initNodeProcessMonitor();
         }
 
-        const expressApp = this.initExpress();
+        const expressApp = await this.initExpress();
         this.initSentry(expressApp);
         this.initSlack();
         if (this.lightdashConfig.scheduler?.enabled) {
@@ -191,7 +192,7 @@ export default class App {
         }
     }
 
-    private initExpress() {
+    private async initExpress() {
         const expressApp = express();
 
         const KnexSessionStore = connectSessionKnex(expressSession);
@@ -375,9 +376,10 @@ export default class App {
         if (oneLoginPassportStrategy) {
             passport.use('oneLogin', oneLoginPassportStrategy);
         }
-        if (azureAdPassportStrategy) {
-            passport.use('azuread', azureAdPassportStrategy);
+        if (isAzureAdPassportStrategyAvailableToUse) {
+            passport.use('azuread', await createAzureAdPassportStrategy());
         }
+
         passport.serializeUser((user, done) => {
             // On login (user changes), user.userUuid is written to the session store in the `sess.passport.data` field
             done(null, {

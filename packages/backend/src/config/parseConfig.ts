@@ -182,6 +182,31 @@ export type AuthAzureADConfig = {
     oauth2TenantId: string | undefined;
     loginPath: string;
     callbackPath: string;
+
+    /**
+     * OpenID Connect metadata endpoint, available under the Azure application's
+     * Endpoints section.
+     */
+    openIdConnectMetadataEndpoint: string | undefined;
+
+    /**
+     * The SHA-1 thumbprint for the certificate to be used for client assertion
+     * with private_key_jwt. Can be found in the certificates section of the
+     * Azure portal.
+     */
+    certificateThumbprint: string | undefined;
+
+    /**
+     * JSON-encoded JWK representation of the private key to be used.
+     * Alternatively, see certificateKeyJwkPath to specify a json file
+     * instead.
+     */
+    certificateKeyJwkJson: string | undefined;
+
+    /**
+     * Path to a json file containing the private key JWK.
+     */
+    certificateKeyJwkPath: string | undefined;
 };
 
 export type AuthGoogleConfig = {
@@ -210,6 +235,15 @@ type AuthOneLoginConfig = {
     oauth2ClientSecret: string | undefined;
     callbackPath: string;
     loginPath: string;
+};
+
+type AuthOpenIdConfig = {
+    issuerUrl: string;
+    authorizationUrl: string;
+    callbackPath: string;
+    loginPath: string;
+    clientId: string;
+    clientSecret: string;
 };
 
 export type AuthConfig = {
@@ -359,6 +393,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 oauth2TenantId: process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID,
                 callbackPath: '/oauth/redirect/azuread',
                 loginPath: '/login/azuread',
+                certificateKeyJwkJson: process.env.AUTH_AZURE_AD_OAUTH_JWK_JSON,
+                certificateKeyJwkPath: process.env.AUTH_AZURE_AD_OAUTH_JWK_PATH,
+                certificateThumbprint:
+                    process.env.AUTH_AZURE_AD_OAUTH_JWK_THUMBPRINT,
+                openIdConnectMetadataEndpoint:
+                    process.env.AUTH_AZURE_AD_OIDC_METADATA_ENDPOINT,
             },
         },
         intercom: {

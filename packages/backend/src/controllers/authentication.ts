@@ -12,7 +12,15 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { Request, RequestHandler } from 'express';
-import { generators, Issuer, UserinfoResponse } from 'openid-client';
+import fs from 'fs/promises';
+import {
+    BaseClient,
+    generators,
+    Issuer,
+    Strategy as OpenIdClientStrategy,
+    StrategyVerifyCallback,
+    UserinfoResponse,
+} from 'openid-client';
 import type { Profile as PassportProfile } from 'passport';
 import passport from 'passport';
 import {
@@ -95,7 +103,15 @@ const createOpenIdUserFromUserInfo = (
     issuerType: OpenIdIdentityIssuerType,
     fail: OpenIDClientOktaStrategy['fail'],
 ) => {
-    if (!userInfo.email || !userInfo.sub) {
+    /**
+     * AzureAD may return a UPN, but not an email, depending on issuer configuration;
+     * this is not ideal, and likely points to a misconfiguration, but we can try it
+     * anyway:
+     * https://learn.microsoft.com/en-us/entra/identity/hybrid/connect/plan-connect-userprincipalname
+     */
+    const email = userInfo.email || (userInfo.upn as string);
+
+    if (!email || !userInfo.sub) {
         return fail(
             {
                 message: 'Could not parse authentication token',
@@ -111,8 +127,8 @@ const createOpenIdUserFromUserInfo = (
 
     const openIdUser: OpenIdUser = {
         openId: {
+            email,
             issuer: issuer || '',
-            email: userInfo.email,
             subject: userInfo.sub,
             firstName,
             lastName,
@@ -127,14 +143,27 @@ const createOpenIdUserFromUserInfo = (
     return openIdUser;
 };
 
+/**
+ * Not all possible values are reflected in the underlying PassportProfile type,
+ * at least for AzureAD + openid-client
+ */
+type PassportProfileLike = PassportProfile &
+    Partial<{
+        email: string;
+        sub: string;
+        family_name: string;
+        given_name: string;
+    }>;
+
 const createOpenIdUserFromProfile = (
-    profile: PassportProfile,
+    profile: PassportProfileLike,
     issuer: string,
     issuerType: OpenIdIdentityIssuerType,
     done: ArgumentsOf<VerifyFunctionWithRequest>['3'],
 ) => {
-    const email = profile.emails?.[0]?.value;
-    const subject = profile.id;
+    const email = profile.emails?.[0]?.value || profile.email;
+    const subject = profile.id || profile.sub;
+
     if (!(email && subject)) {
         return done(null, false, {
             message: 'Could not parse authentication token',
@@ -143,8 +172,10 @@ const createOpenIdUserFromProfile = (
 
     const displayName = profile.displayName || '';
     const [fallbackFirstName, fallbackLastName] = displayName.split(' ');
-    const firstName = profile.name?.givenName || fallbackFirstName;
-    const lastName = profile.name?.familyName || fallbackLastName;
+    const firstName =
+        profile.name?.givenName || profile.given_name || fallbackFirstName;
+    const lastName =
+        profile.name?.familyName || profile.family_name || fallbackLastName;
 
     const openIdUser: OpenIdUser = {
         openId: {
@@ -160,7 +191,7 @@ const createOpenIdUserFromProfile = (
     return openIdUser;
 };
 
-const setupClient = async () => {
+const setupOktaIssuerClient = async () => {
     const { okta } = lightdashConfig.auth;
 
     const oktaIssuerUri = new URL(
@@ -190,7 +221,7 @@ const setupClient = async () => {
 export class OpenIDClientOktaStrategy extends Strategy {
     async authenticate(req: Request) {
         try {
-            const client = await setupClient();
+            const client = await setupOktaIssuerClient();
 
             const redirectUri = new URL(
                 `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
@@ -250,7 +281,7 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
     next,
 ) => {
     try {
-        const client = await setupClient();
+        const client = await setupOktaIssuerClient();
 
         const redirectUri = new URL(
             `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
@@ -459,6 +490,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
 const genericOidcHandler =
     (
         issuerType: OpenIdUser['openId']['issuerType'],
+        issuerOverride?: string,
     ): VerifyFunctionWithRequest =>
     async (req, issuer, profile, done) => {
         try {
@@ -467,7 +499,7 @@ const genericOidcHandler =
 
             const openIdUser = createOpenIdUserFromProfile(
                 profile,
-                issuer,
+                issuerOverride || issuer,
                 issuerType,
                 done,
             );
@@ -499,28 +531,193 @@ export const isOktaPassportStrategyAvailableToUse = !!(
     lightdashConfig.auth.okta.oktaDomain
 );
 
-export const azureAdPassportStrategy = !(
-    lightdashConfig.auth.azuread.oauth2ClientId &&
-    lightdashConfig.auth.azuread.oauth2ClientSecret &&
-    lightdashConfig.auth.azuread.oauth2TenantId
-)
-    ? undefined
-    : new OpenIDConnectStrategy(
-          {
-              issuer: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/v2.0`,
-              authorizationURL: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/oauth2/v2.0/authorize`,
-              tokenURL: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/oauth2/v2.0/token`,
-              userInfoURL: 'https://graph.microsoft.com/oidc/userinfo',
-              clientID: lightdashConfig.auth.azuread.oauth2ClientId,
-              clientSecret: lightdashConfig.auth.azuread.oauth2ClientSecret,
-              callbackURL: new URL(
-                  `/api/v1${lightdashConfig.auth.azuread.callbackPath}`,
-                  lightdashConfig.siteUrl,
-              ).href,
-              passReqToCallback: true,
-          },
-          genericOidcHandler(OpenIdIdentityIssuerType.AZUREAD),
-      );
+/**
+ * Loads a JWK file from a given path
+ */
+const loadJWKFromPath = async (
+    filePath: string,
+): Promise<Record<string, unknown>> => {
+    try {
+        const file = await fs.readFile(filePath, 'utf-8');
+        return JSON.parse(file);
+    } catch (err) {
+        throw new Error(
+            `Failed to load JWK from file at '${filePath}' - may be missing or not valid JSON`,
+            err,
+        );
+    }
+};
+
+/**
+ * Loads a JWK from a JSON-encoded string, likely provided as an environment variable.
+ */
+const loadJWKFromConfig = (jwkConfigValue: string): Record<string, unknown> => {
+    try {
+        return JSON.parse(jwkConfigValue);
+    } catch (err) {
+        throw new Error(
+            `Failed to parse JWK from configuration - must be valid JSON`,
+            err,
+        );
+    }
+};
+
+/**
+ * Azure-specific (but also mostly generic) implementation of private_key_jks
+ * token authentication, using openid-client.
+ *
+ * Requires its own strategy since this method is not supported by OpenIdConnect.
+ */
+export const azureAdPrivateKeyJksStrategy = async (): Promise<
+    OpenIdClientStrategy<unknown, BaseClient>
+> => {
+    Logger.info('Using azureAdPrivateKeyJksStrategy');
+
+    const { azuread } = lightdashConfig.auth;
+
+    /**
+     * We get all the information we need via issuer discovery, which we can also
+     * use further down to create a client instance.
+     */
+    const issuer = await Issuer.discover(
+        azuread.openIdConnectMetadataEndpoint!,
+    );
+
+    /**
+     * Load the JWK from a file or directly from configuration:
+     */
+    const jwk =
+        (azuread.certificateKeyJwkJson &&
+            loadJWKFromConfig(azuread.certificateKeyJwkJson)) ||
+        (azuread.certificateKeyJwkPath &&
+            (await loadJWKFromPath(azuread.certificateKeyJwkPath)));
+
+    if (!jwk) {
+        throw new Error(
+            'invariant: Could not find a valid JWK when setting up private_key_jwt',
+        );
+    }
+
+    /**
+     * Azure expects the key's identifier (kid) to be the same value as the
+     * certificate SHA-1 thumbprint, base64-encoded, for purposes of key
+     * matching.
+     *
+     * Confusingly, it may also complain about the x5t and x5c claims, but we
+     * can ignore it here and simply override whatever value we have from the
+     * underlying private key, and node-openid-client will know to include it
+     * as part of the jwt header.
+     */
+    const certificateIdentifier = Buffer.from(
+        azuread.certificateThumbprint!,
+        'hex',
+    ).toString('base64url');
+
+    /**
+     * Build the JWKS out of the single private key:
+     */
+    const jwks = {
+        keys: [
+            {
+                ...jwk,
+                kid: certificateIdentifier,
+            },
+        ],
+    };
+
+    const client = new issuer.Client(
+        {
+            client_id: azuread.oauth2ClientId!,
+            token_endpoint_auth_signing_alg: 'RS256',
+            token_endpoint_auth_method: 'private_key_jwt',
+        },
+        jwks,
+    );
+
+    return new OpenIdClientStrategy(
+        {
+            client,
+            usePKCE: true,
+            passReqToCallback: true,
+            params: {
+                redirect_uri: new URL(
+                    `/api/v1${azuread.callbackPath}`,
+                    lightdashConfig.siteUrl,
+                ).href,
+            },
+            extras: {
+                clientAssertionPayload: {
+                    /**
+                     * AzureAD only expects a single audience value, but node-openid-client may
+                     * set more than one value here - we override this part of the payload to
+                     * make Azure happy:
+                     */
+                    aud: issuer.metadata.issuer,
+
+                    /** AzureAD complains if this is missing: */
+                    typ: 'JWT',
+                },
+            },
+        },
+
+        /**
+         * This is compatible, but types differ from what's otherwise expected.
+         */
+        genericOidcHandler(
+            OpenIdIdentityIssuerType.AZUREAD,
+            new URL(azuread.openIdConnectMetadataEndpoint!).origin,
+        ) as unknown as StrategyVerifyCallback<unknown>,
+    );
+};
+
+/**
+ * Creates the appropriate AzureAd passport strategy based on the available configuration.
+ */
+export const createAzureAdPassportStrategy = () => {
+    const { azuread } = lightdashConfig.auth;
+
+    /**
+     * Figure out which passport strategy we want to use, depending on if we're
+     * using the secret key flow, or a standard clientId/clientSecret pair.
+     */
+    if (
+        azuread.oauth2ClientId &&
+        azuread.oauth2ClientSecret &&
+        azuread.oauth2TenantId
+    ) {
+        return new OpenIDConnectStrategy(
+            {
+                issuer: `https://login.microsoftonline.com/${azuread.oauth2TenantId}/v2.0`,
+                authorizationURL: `https://login.microsoftonline.com/${azuread.oauth2TenantId}/oauth2/v2.0/authorize`,
+                tokenURL: `https://login.microsoftonline.com/${azuread.oauth2TenantId}/oauth2/v2.0/token`,
+                userInfoURL: 'https://graph.microsoft.com/oidc/userinfo',
+                clientID: azuread.oauth2ClientId,
+                clientSecret: azuread.oauth2ClientSecret,
+                callbackURL: new URL(
+                    `/api/v1${azuread.callbackPath}`,
+                    lightdashConfig.siteUrl,
+                ).href,
+                passReqToCallback: true,
+            },
+            genericOidcHandler(OpenIdIdentityIssuerType.AZUREAD),
+        );
+    }
+
+    if (
+        azuread.oauth2ClientId &&
+        /** We don't want to use this method if a secret is provided */
+        !azuread.oauth2ClientSecret &&
+        azuread.openIdConnectMetadataEndpoint &&
+        (azuread.certificateKeyJwkJson || azuread.certificateKeyJwkPath)
+    ) {
+        return azureAdPrivateKeyJksStrategy();
+    }
+
+    throw new Error('Could not configure AzureAd passport strategy');
+};
+
+export const isAzureAdPassportStrategyAvailableToUse =
+    !!lightdashConfig.auth.azuread.oauth2ClientId;
 
 export const oneLoginPassportStrategy = !(
     lightdashConfig.auth.oneLogin.oauth2ClientId &&
@@ -556,6 +753,7 @@ export const oneLoginPassportStrategy = !(
           },
           genericOidcHandler(OpenIdIdentityIssuerType.ONELOGIN),
       );
+
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.user?.userUuid) {
         next();
