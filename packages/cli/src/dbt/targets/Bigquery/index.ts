@@ -75,23 +75,18 @@ export const convertBigquerySchema = async (
 ): Promise<CreateBigqueryCredentials> => {
     const validate = ajv.compile<BigqueryTarget>(bigqueryTargetJsonSchema);
     if (validate(target)) {
-        let keyfileContents: Record<string, string>;
-        let { project } = target;
+        let getBigqueryCredentials;
         switch (target.method) {
             case 'oauth':
-                keyfileContents = await getBigqueryCredentialsFromOauth();
-                // fallback to project from oauth
-                if (!project && keyfileContents.project_id) {
-                    project = keyfileContents.project_id;
-                }
+                getBigqueryCredentials = getBigqueryCredentialsFromOauth;
                 break;
             case 'service-account':
-                keyfileContents =
-                    await getBigqueryCredentialsFromServiceAccount(target);
+                getBigqueryCredentials =
+                    getBigqueryCredentialsFromServiceAccount;
                 break;
             case 'service-account-json':
-                keyfileContents =
-                    await getBigqueryCredentialsFromServiceAccountJson(target);
+                getBigqueryCredentials =
+                    getBigqueryCredentialsFromServiceAccountJson;
                 break;
             default:
                 throw new ParseError(
@@ -99,19 +94,18 @@ export const convertBigquerySchema = async (
                 );
         }
 
-        if (project === undefined) {
+        if (target.project === undefined && target.method !== 'oauth')
             throw new ParseError(
                 `BigQuery project is required for ${target.method} authentication method`,
             );
-        }
 
         return {
             type: WarehouseTypes.BIGQUERY,
-            project,
+            project: target.project,
             dataset: target.dataset || target.schema,
             timeoutSeconds: target.timeout_seconds,
             priority: target.priority,
-            keyfileContents,
+            keyfileContents: await getBigqueryCredentials(target),
             retries: target.retries,
             maximumBytesBilled: target.maximum_bytes_billed,
             location: target.location,
