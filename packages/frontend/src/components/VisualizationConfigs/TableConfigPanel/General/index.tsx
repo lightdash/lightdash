@@ -227,7 +227,7 @@ export const General: FC = () => {
             </Config.Group>
 
             <Config.Group>
-                <Config.Label>Options</Config.Label>
+                <Config.Label>Display</Config.Label>
 
                 <Checkbox
                     label="Show table names"

@@ -55,7 +55,6 @@ type Props = {
         lineId: string,
     ) => void;
     removeReferenceLine: (lineId: string) => void;
-    isDefaultOpen: boolean;
 };
 
 type ReferenceLineValueProps = {
@@ -241,8 +240,7 @@ export const ReferenceLine: FC<Props> = ({
     >(selectedFieldDefault);
 
     const controlLabel = `Line ${index}`;
-
-    const accordionValue = referenceLine.data.value;
+    const accordionValue = `${index}`;
 
     const { ref, hovered } = useHover<HTMLButtonElement>();
 

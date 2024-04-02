@@ -105,8 +105,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const addReferenceLine = useCallback(() => {
         if (!isCartesianChart) return;
 
-        const { referenceLines, setReferenceLines } =
-            visualizationConfig.chartConfig;
+        const { setReferenceLines } = visualizationConfig.chartConfig;
 
         const newReferenceLine: ReferenceLineField = {
             data: {
@@ -114,8 +113,12 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                 value: uuidv4(),
             },
         };
-        setReferenceLines([...referenceLines, newReferenceLine]);
-        addNewItem(newReferenceLine.data.value);
+        setReferenceLines((prev) => {
+            const newReferenceLines = [...prev, newReferenceLine];
+            addNewItem(`${newReferenceLines.length}`);
+
+            return newReferenceLines;
+        });
     }, [addNewItem, isCartesianChart, visualizationConfig.chartConfig]);
 
     const removeReferenceLine = useCallback(
@@ -179,12 +182,11 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     >
                         {referenceLines.map((line, index) => (
                             <ReferenceLine
-                                isOpen={openItems.includes(line.data.value)}
+                                isOpen={openItems.includes(`${index}`)}
                                 addNewItem={addNewItem}
                                 removeItem={removeItem}
                                 key={line.data.value}
                                 index={index + 1}
-                                isDefaultOpen={referenceLines.length <= 1}
                                 items={items}
                                 startOfWeek={startOfWeek ?? undefined}
                                 referenceLine={line}
