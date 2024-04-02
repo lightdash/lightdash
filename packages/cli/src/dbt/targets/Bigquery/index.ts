@@ -29,6 +29,7 @@ export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
     properties: {
         project: {
             type: 'string',
+            nullable: true,
         },
         dataset: {
             type: 'string',
@@ -58,7 +59,7 @@ export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
             nullable: true,
         },
     },
-    required: ['project'],
+    required: [],
     oneOf: [
         {
             required: ['dataset'],
@@ -92,6 +93,11 @@ export const convertBigquerySchema = async (
                     `BigQuery method ${target.method} is not yet supported`,
                 );
         }
+
+        if (target.project === undefined && target.method !== 'oauth')
+            throw new ParseError(
+                `BigQuery project is required for ${target.method} authentication method`,
+            );
 
         return {
             type: WarehouseTypes.BIGQUERY,
