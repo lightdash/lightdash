@@ -1,3 +1,10 @@
+## [0.1046.2](https://github.com/lightdash/lightdash/compare/0.1046.1...0.1046.2) (2024-04-02)
+
+
+### Bug Fixes
+
+* custom metric long name ([#9592](https://github.com/lightdash/lightdash/issues/9592)) ([899cee9](https://github.com/lightdash/lightdash/commit/899cee985eea20aed0864c5fb2ba9d08777c2ef1))
+
 ## [0.1046.1](https://github.com/lightdash/lightdash/compare/0.1046.0...0.1046.1) (2024-04-01)
 
 
