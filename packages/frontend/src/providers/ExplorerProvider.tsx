@@ -26,6 +26,7 @@ import {
     type SavedChart,
     type SortField,
     type TableCalculation,
+    type TableCalculationMetadata,
     type TableChartConfig,
 } from '@lightdash/common';
 import produce from 'immer';
@@ -216,6 +217,10 @@ type Action =
 export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
+    metadata?: {
+        // Temporary state that tracks changes to `table calculations` - keeps track of new name and previous name to ensure these get updated correctly when making changes to the layout & config of a chart
+        tableCalculations?: TableCalculationMetadata[];
+    };
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
     modals: {
@@ -446,6 +451,59 @@ const calcColumnOrder = (
     } else {
         return [...cleanColumnOrder, ...missingColumns];
     }
+};
+
+const updateChartConfigWithTableCalc = (
+    prevChartConfig: ChartConfig,
+    oldTableCalculationName: string,
+    newTableCalculationName: string,
+) => {
+    const newConfig = cloneDeep(prevChartConfig);
+
+    if (newConfig.type !== ChartType.CARTESIAN || !newConfig.config) {
+        return newConfig;
+    }
+
+    if (newConfig.config.layout.xField === oldTableCalculationName) {
+        newConfig.config.layout.xField = newTableCalculationName;
+    }
+
+    if (newConfig.config.layout.yField) {
+        const index = newConfig.config.layout.yField.indexOf(
+            oldTableCalculationName,
+        );
+
+        if (index > -1)
+            newConfig.config.layout.yField[index] = newTableCalculationName;
+    }
+
+    return newConfig;
+};
+
+const getTableCalculationsMetadata = (
+    state: ExplorerReduceState,
+    oldTableCalculationName: string,
+    newTableCalculationName: string,
+) => {
+    const tcMetadataIndex =
+        state.metadata?.tableCalculations?.findIndex((tc) => {
+            return tc.name === oldTableCalculationName;
+        }) ?? -1;
+
+    if (tcMetadataIndex >= 0) {
+        return [
+            ...(state.metadata?.tableCalculations?.slice(0, tcMetadataIndex) ??
+                []),
+            { name: newTableCalculationName, oldName: oldTableCalculationName },
+            ...(state.metadata?.tableCalculations?.slice(tcMetadataIndex + 1) ??
+                []),
+        ];
+    }
+
+    return [
+        ...(state.metadata?.tableCalculations ?? []),
+        { name: newTableCalculationName, oldName: oldTableCalculationName },
+    ];
 };
 
 function reducer(
@@ -1080,6 +1138,14 @@ function reducer(
         case ActionType.UPDATE_TABLE_CALCULATION: {
             return {
                 ...state,
+                metadata: {
+                    ...state.metadata,
+                    tableCalculations: getTableCalculationsMetadata(
+                        state,
+                        action.payload.oldName,
+                        action.payload.tableCalculation.name,
+                    ),
+                },
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {
@@ -1104,6 +1170,11 @@ function reducer(
                                     : field,
                         ),
                     },
+                    chartConfig: updateChartConfigWithTableCalc(
+                        state.unsavedChartVersion.chartConfig,
+                        action.payload.oldName,
+                        action.payload.tableCalculation.name,
+                    ),
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
                         columnOrder:
@@ -1125,6 +1196,13 @@ function reducer(
                 );
             return {
                 ...state,
+                metadata: {
+                    ...state.metadata,
+                    tableCalculations:
+                        state.metadata?.tableCalculations?.filter(
+                            (tc) => tc.name !== action.payload,
+                        ),
+                },
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {
@@ -1637,11 +1715,12 @@ export const ExplorerProvider: FC<
     useEffect(() => {
         if (!state.shouldFetchResults) return;
 
-        mutateAsync().then(() => {
-            dispatch({
-                type: ActionType.SET_FETCH_RESULTS_FALSE,
-            });
-        });
+        async function fetchResults() {
+            await mutateAsync();
+            dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
+        }
+
+        void fetchResults();
     }, [mutateAsync, state.shouldFetchResults]);
 
     const clearExplore = useCallback(async () => {
@@ -1679,7 +1758,7 @@ export const ExplorerProvider: FC<
         if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
         } else {
-            mutateAsync();
+            return mutateAsync();
         }
     }, [defaultSort, mutateAsync, unsavedChartVersion, setSortFields]);
 

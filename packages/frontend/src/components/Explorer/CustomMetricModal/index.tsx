@@ -112,6 +112,7 @@ export const CustomMetricModal = () => {
                 if (!item) return null;
 
                 const metricName = getCustomMetricName(
+                    item.table,
                     label,
                     isEditing &&
                         isAdditionalMetric(item) &&

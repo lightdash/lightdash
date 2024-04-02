@@ -1,9 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    type Dashboard,
-    type SpaceSummary,
-    type UpdatedByUser,
-} from '@lightdash/common';
+import { type Dashboard, type SpaceSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -44,6 +40,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import { Can } from '../Authorization';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
@@ -60,14 +57,7 @@ import ShareLinkButton from './ShareLinkButton';
 
 type DashboardHeaderProps = {
     spaces?: SpaceSummary[];
-    dashboardDescription?: string;
-    dashboardName: string;
-    dashboardSpaceName?: string;
-    dashboardSpaceUuid?: string;
-    dashboardUpdatedAt: Date;
-    dashboardViews: number;
-    dashboardFirstViewedAt: Date | string | null;
-    dashboardUpdatedByUser?: UpdatedByUser;
+    dashboard: Dashboard;
     organizationUuid?: string;
     hasDashboardChanged: boolean;
     isEditMode: boolean;
@@ -86,14 +76,7 @@ type DashboardHeaderProps = {
 
 const DashboardHeader = ({
     spaces = [],
-    dashboardDescription,
-    dashboardName,
-    dashboardSpaceName,
-    dashboardSpaceUuid,
-    dashboardViews,
-    dashboardFirstViewedAt,
-    dashboardUpdatedAt,
-    dashboardUpdatedByUser,
+    dashboard,
     organizationUuid,
     hasDashboardChanged,
     isEditMode,
@@ -138,7 +121,7 @@ const DashboardHeader = ({
     const { user } = useApp();
     const userCanManageDashboard = user.data?.ability.can(
         'manage',
-        'Dashboard',
+        subject('Dashboard', dashboard),
     );
     const userCanCreateDeliveries = user.data?.ability?.can(
         'create',
@@ -154,11 +137,15 @@ const DashboardHeader = ({
     );
 
     return (
-        <PageHeader h="auto">
+        <PageHeader
+            cardProps={{
+                h: 'auto',
+            }}
+        >
             <PageTitleAndDetailsContainer>
                 <Group spacing="xs">
                     <Title order={4} fw={600}>
-                        {dashboardName}
+                        {dashboard.name}
                     </Title>
 
                     <Popover
@@ -177,27 +164,27 @@ const DashboardHeader = ({
 
                         <Popover.Dropdown maw={500}>
                             <Stack spacing="xs">
-                                {dashboardDescription && (
+                                {dashboard.description && (
                                     <Text fz="xs" color="gray.7" fw={500}>
-                                        {dashboardDescription}
+                                        {dashboard.description}
                                     </Text>
                                 )}
 
                                 <UpdatedInfo
-                                    updatedAt={dashboardUpdatedAt}
-                                    user={dashboardUpdatedByUser}
+                                    updatedAt={dashboard.updatedAt}
+                                    user={dashboard.updatedByUser}
                                 />
 
                                 <ViewInfo
-                                    views={dashboardViews}
-                                    firstViewedAt={dashboardFirstViewedAt}
+                                    views={dashboard.views}
+                                    firstViewedAt={dashboard.firstViewedAt}
                                 />
 
-                                {dashboardSpaceName && (
+                                {dashboard.spaceName && (
                                     <SpaceAndDashboardInfo
                                         space={{
-                                            link: `/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`,
-                                            name: dashboardSpaceName,
+                                            link: `/projects/${projectUuid}/spaces/${dashboard.spaceUuid}`,
+                                            name: dashboard.spaceName,
                                         }}
                                     />
                                 )}
@@ -386,10 +373,26 @@ const DashboardHeader = ({
                                                     </Flex>
                                                 </Menu.Target>
                                                 <Menu.Dropdown>
-                                                    {spaces?.map(
-                                                        (spaceToMove) => {
+                                                    {spaces
+                                                        ?.filter((space) => {
+                                                            return user.data?.ability.can(
+                                                                'create',
+                                                                subject(
+                                                                    'Dashboard',
+                                                                    {
+                                                                        ...space,
+                                                                        access: space.userAccess
+                                                                            ? [
+                                                                                  space.userAccess,
+                                                                              ]
+                                                                            : [],
+                                                                    },
+                                                                ),
+                                                            );
+                                                        })
+                                                        .map((spaceToMove) => {
                                                             const isDisabled =
-                                                                dashboardSpaceUuid ===
+                                                                dashboard.spaceUuid ===
                                                                 spaceToMove.uuid;
 
                                                             return (
@@ -414,7 +417,7 @@ const DashboardHeader = ({
                                                                         e.preventDefault();
                                                                         e.stopPropagation();
                                                                         if (
-                                                                            dashboardSpaceUuid !==
+                                                                            dashboard.spaceUuid !==
                                                                             spaceToMove.uuid
                                                                         ) {
                                                                             onMoveToSpace(
@@ -431,27 +434,37 @@ const DashboardHeader = ({
                                                                     }
                                                                 </Menu.Item>
                                                             );
-                                                        },
-                                                    )}
-
-                                                    <Menu.Divider />
-
-                                                    <Menu.Item
-                                                        icon={
-                                                            <MantineIcon
-                                                                icon={IconPlus}
-                                                            />
-                                                        }
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setIsCreatingNewSpace(
-                                                                true,
-                                                            );
-                                                        }}
+                                                        })}
+                                                    <Can
+                                                        I="create"
+                                                        this={subject('Space', {
+                                                            organizationUuid:
+                                                                user.data
+                                                                    ?.organizationUuid,
+                                                            projectUuid,
+                                                        })}
                                                     >
-                                                        Create new space
-                                                    </Menu.Item>
+                                                        <Menu.Divider />
+
+                                                        <Menu.Item
+                                                            icon={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconPlus
+                                                                    }
+                                                                />
+                                                            }
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setIsCreatingNewSpace(
+                                                                    true,
+                                                                );
+                                                            }}
+                                                        >
+                                                            Create new space
+                                                        </Menu.Item>
+                                                    </Can>
                                                 </Menu.Dropdown>
                                             </Menu>
                                         </Menu.Item>
@@ -518,7 +531,7 @@ const DashboardHeader = ({
                     {isScheduledDeliveriesModalOpen && dashboardUuid && (
                         <DashboardSchedulersModal
                             dashboardUuid={dashboardUuid}
-                            name={dashboardName}
+                            name={dashboard.name}
                             isOpen={isScheduledDeliveriesModalOpen}
                             onClose={() =>
                                 toggleScheduledDeliveriesModal(false)

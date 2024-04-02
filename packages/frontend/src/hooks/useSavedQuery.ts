@@ -399,6 +399,8 @@ export const useCreateMutation = () => {
 
 type DuplicateChartMutationOptions = {
     showRedirectButton?: boolean;
+    successMessage?: string;
+    autoRedirect?: boolean;
 };
 
 export const useDuplicateChartMutation = (
@@ -427,14 +429,19 @@ export const useDuplicateChartMutation = (
                     'most-popular-and-recently-updated',
                 ]);
 
-                if (!options?.showRedirectButton) {
+                if (
+                    !options?.showRedirectButton &&
+                    options?.autoRedirect !== false
+                ) {
                     history.push({
                         pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
                     });
                 }
 
                 showToastSuccess({
-                    title: `Chart successfully duplicated!`,
+                    title:
+                        options?.successMessage ||
+                        `Chart successfully duplicated!`,
                     action: options?.showRedirectButton
                         ? {
                               children: 'Open chart',

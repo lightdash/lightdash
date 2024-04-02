@@ -52,9 +52,9 @@ export const DashboardRefreshButton = () => {
 
     const isOneAtLeastFetching = isFetching > 0;
 
-    const invalidateAndSetRefreshTime = useCallback(() => {
+    const invalidateAndSetRefreshTime = useCallback(async () => {
         clearCacheAndFetch();
-        invalidateDashboardRelatedQueries();
+        await invalidateDashboardRelatedQueries();
         setLastRefreshTime(new Date());
     }, [clearCacheAndFetch, invalidateDashboardRelatedQueries]);
 
@@ -91,9 +91,7 @@ export const DashboardRefreshButton = () => {
                     variant="default"
                     loading={isOneAtLeastFetching}
                     loaderPosition="center"
-                    onClick={() => {
-                        invalidateAndSetRefreshTime();
-                    }}
+                    onClick={() => invalidateAndSetRefreshTime()}
                 >
                     {interval.active && refreshInterval ? (
                         <Text

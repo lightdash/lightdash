@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     LightdashMode,
     ResourceItemCategory,
@@ -10,6 +9,7 @@ import { Button } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
@@ -26,7 +26,7 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
 }) => {
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const history = useHistory();
-    const { user, health } = useApp();
+    const { health } = useApp();
 
     const mostPopularAndRecentlyUpdatedItems = useMemo(() => {
         const mostPopularItems =
@@ -58,14 +58,9 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
-    // test if user can managed charts for this project & org when given chart access
-    const userCanCreateCharts = user.data?.ability?.can(
-        'create',
-        subject('SavedChart', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-            isPrivate: false,
-        }),
+    const userCanCreateCharts = useCreateInAnySpaceAccess(
+        projectUuid,
+        'SavedChart',
     );
 
     return (

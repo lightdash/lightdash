@@ -1,3 +1,110 @@
+## [0.1047.1](https://github.com/lightdash/lightdash/compare/0.1047.0...0.1047.1) (2024-04-02)
+
+
+### Bug Fixes
+
+* reference line accordion item index ([#9607](https://github.com/lightdash/lightdash/issues/9607)) ([a6df7e3](https://github.com/lightdash/lightdash/commit/a6df7e3873f1ff69fcf284b098cabb7a65a9ae18))
+
+# [0.1047.0](https://github.com/lightdash/lightdash/compare/0.1046.2...0.1047.0) (2024-04-02)
+
+
+### Features
+
+* cartesian chart config UI/UX changes ([#9528](https://github.com/lightdash/lightdash/issues/9528)) ([f016f1b](https://github.com/lightdash/lightdash/commit/f016f1b44822bca2f2a1f01899ce9bf119aa2787))
+
+## [0.1046.2](https://github.com/lightdash/lightdash/compare/0.1046.1...0.1046.2) (2024-04-02)
+
+
+### Bug Fixes
+
+* custom metric long name ([#9592](https://github.com/lightdash/lightdash/issues/9592)) ([899cee9](https://github.com/lightdash/lightdash/commit/899cee985eea20aed0864c5fb2ba9d08777c2ef1))
+
+## [0.1046.1](https://github.com/lightdash/lightdash/compare/0.1046.0...0.1046.1) (2024-04-01)
+
+
+### Bug Fixes
+
+* pivot table cell overflow ([#9585](https://github.com/lightdash/lightdash/issues/9585)) ([aab1378](https://github.com/lightdash/lightdash/commit/aab13785e03fdb66477a931b2e9516dbe94c5ffd))
+
+# [0.1046.0](https://github.com/lightdash/lightdash/compare/0.1045.4...0.1046.0) (2024-04-01)
+
+
+### Features
+
+* table grouping and subtotals ([#9160](https://github.com/lightdash/lightdash/issues/9160)) ([88f0d83](https://github.com/lightdash/lightdash/commit/88f0d838f488aa65e6940d439f00cdfbfccba210))
+
+## [0.1045.4](https://github.com/lightdash/lightdash/compare/0.1045.3...0.1045.4) (2024-03-29)
+
+
+### Bug Fixes
+
+* add migration to add delete cascade ([#9580](https://github.com/lightdash/lightdash/issues/9580)) ([89c3998](https://github.com/lightdash/lightdash/commit/89c3998a7b848e4d55c8b74b0549a4ad49730156))
+
+## [0.1045.3](https://github.com/lightdash/lightdash/compare/0.1045.2...0.1045.3) (2024-03-29)
+
+
+### Bug Fixes
+
+* apply viewport child block display ([#9562](https://github.com/lightdash/lightdash/issues/9562)) ([710d80c](https://github.com/lightdash/lightdash/commit/710d80c0ff916acf099f83e4e6fcfd4244b6996e))
+
+## [0.1045.2](https://github.com/lightdash/lightdash/compare/0.1045.1...0.1045.2) (2024-03-28)
+
+
+### Bug Fixes
+
+* explore from here on charts created from dashboards ([#9473](https://github.com/lightdash/lightdash/issues/9473)) ([227ebe1](https://github.com/lightdash/lightdash/commit/227ebe1e7af30dd384fc8afcae4c5318db74de7a))
+
+## [0.1045.1](https://github.com/lightdash/lightdash/compare/0.1045.0...0.1045.1) (2024-03-28)
+
+
+### Bug Fixes
+
+* TS project configuration errors ([#9543](https://github.com/lightdash/lightdash/issues/9543)) ([1eb7970](https://github.com/lightdash/lightdash/commit/1eb797085bd95edfcc527129ce5a8e034017191c))
+
+# [0.1045.0](https://github.com/lightdash/lightdash/compare/0.1044.1...0.1045.0) (2024-03-28)
+
+
+### Features
+
+* make save charts header changes ([#9518](https://github.com/lightdash/lightdash/issues/9518)) ([fe55c90](https://github.com/lightdash/lightdash/commit/fe55c90d52c13263e0b623f66ee6bc491ec6c916))
+
+## [0.1044.1](https://github.com/lightdash/lightdash/compare/0.1044.0...0.1044.1) (2024-03-28)
+
+
+### Bug Fixes
+
+* can remove all users access from space ([#9561](https://github.com/lightdash/lightdash/issues/9561)) ([402883b](https://github.com/lightdash/lightdash/commit/402883bf295705cc8cb3c284eb29b744bc43e581))
+* show explore from here button to interactive viewers ([#9556](https://github.com/lightdash/lightdash/issues/9556)) ([59b6312](https://github.com/lightdash/lightdash/commit/59b6312280f954fa06e6f9dc8f49de4f3d0f8172))
+* space admins can update other space admins access ([#9558](https://github.com/lightdash/lightdash/issues/9558)) ([d4bd373](https://github.com/lightdash/lightdash/commit/d4bd373e71e925e8ce8cf4cf3cbcd40761f4f38e))
+
+# [0.1044.0](https://github.com/lightdash/lightdash/compare/0.1043.0...0.1044.0) (2024-03-27)
+
+
+### Features
+
+* duplicate chart dashboard ([#9512](https://github.com/lightdash/lightdash/issues/9512)) ([db33eb1](https://github.com/lightdash/lightdash/commit/db33eb17349dfb0bd6f38c584eb84154eb95d0ca))
+
+# [0.1043.0](https://github.com/lightdash/lightdash/compare/0.1042.5...0.1043.0) (2024-03-27)
+
+
+### Features
+
+* add admin space role + allow edit space role ([#9438](https://github.com/lightdash/lightdash/issues/9438)) ([a9cb962](https://github.com/lightdash/lightdash/commit/a9cb9629d1bf87504335ebbeda4923754629f410))
+
+## [0.1042.5](https://github.com/lightdash/lightdash/compare/0.1042.4...0.1042.5) (2024-03-27)
+
+
+### Bug Fixes
+
+* reset search on exit ([#9521](https://github.com/lightdash/lightdash/issues/9521)) ([ffcae07](https://github.com/lightdash/lightdash/commit/ffcae0753e2c8e6a100ac70b910a93bed620bbb1))
+
+## [0.1042.4](https://github.com/lightdash/lightdash/compare/0.1042.3...0.1042.4) (2024-03-26)
+
+
+### Bug Fixes
+
+* chart config resetting on table calculation update ([#9514](https://github.com/lightdash/lightdash/issues/9514)) ([673cdcf](https://github.com/lightdash/lightdash/commit/673cdcf9507e8f6bdf950deddced1b0e8f630769))
+
 ## [0.1042.3](https://github.com/lightdash/lightdash/compare/0.1042.2...0.1042.3) (2024-03-26)
 
 

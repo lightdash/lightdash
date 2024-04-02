@@ -105,10 +105,10 @@ import {
     SlackAuthTokensTable,
 } from '../database/entities/slackAuthentication';
 import {
-    SpaceShareTable,
-    SpaceShareTableName,
     SpaceTable,
     SpaceTableName,
+    SpaceUserAccessTable,
+    SpaceUserAccessTableName,
 } from '../database/entities/spaces';
 import { UserTable, UserTableName } from '../database/entities/users';
 import {
@@ -231,7 +231,7 @@ declare module 'knex/types/tables' {
         [ProjectGroupAccessTableName]: ProjectGroupAccessTable;
         [DbtCloudIntegrationsTableName]: DbtCloudIntegrationsTable;
         [ShareTableName]: ShareTable;
-        [SpaceShareTableName]: SpaceShareTable;
+        [SpaceUserAccessTableName]: SpaceUserAccessTable;
         [SlackAuthTokensTable]: DbSlackAuthTokens;
         [AnalyticsChartViewsTableName]: DbAnalyticsChartViews;
         [AnalyticsDashboardViewsTableName]: DbAnalyticsDashboardViews;

@@ -53,6 +53,9 @@ describe('Explore', () => {
         cy.findByTestId('Chart-card-expand').click();
 
         cy.findByText('Save chart').click();
+        cy.findByText('Select a space to save the chart directly to').should(
+            'exist',
+        );
         cy.findByTestId('ChartCreateModal/NameInput').type('My chart');
         cy.findByText('Save').click();
         cy.findByText('Success! Chart was saved.');
@@ -98,22 +101,32 @@ describe('Explore', () => {
 
         // open chart menu and change chart types
         cy.findByText('Configure').click();
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Bar chart').click();
 
         cy.get('[role="menuitem"]').contains('Bar chart').click();
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Bar chart').click();
 
         cy.get('[role="menuitem"]').contains('Horizontal bar chart').click();
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Horizontal bar chart').click();
 
         cy.get('[role="menuitem"]').contains('Line chart').click();
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Line chart').click();
 
         cy.get('[role="menuitem"]').contains('Area chart').click();
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Area chart').click();
 
         cy.get('[role="menuitem"]').contains('Scatter chart').click();
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
         cy.get('button').contains('Scatter chart').click();
+
+        cy.get('[role="menuitem"]').contains('Pie chart').click();
+        cy.wait(500); // wait for the select to fully update - this tries to ensure that state has finished mutating
+        cy.get('button').contains('Pie chart').click();
 
         cy.get('[role="menuitem"]').contains('Table').click();
         // Use a different selector cause there is another button with 'Table'
@@ -121,6 +134,58 @@ describe('Explore', () => {
 
         cy.get('[role="menuitem"]').contains('Big value').click();
         cy.get('button').contains('Big value');
+    });
+
+    it('Keeps chart config after updating table calculation', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
+
+        cy.findByTestId('page-spinner').should('not.exist');
+
+        // choose table and select fields
+        cy.findByText('Customers').click();
+        cy.findByText('First name').click();
+        cy.findByText('Unique order count').click();
+
+        // add table calculation
+        cy.get('button').contains('Table calculation').click();
+        cy.findByTestId('table-calculation-name-input').type('TC');
+        // eslint-disable-next-line no-template-curly-in-string
+        cy.get('div.ace_content').type('${{}orders.unique_order_count{}}'); // cypress way of escaping { and }
+        cy.findAllByTestId('table-calculation-save-button').click();
+
+        // run query
+        cy.get('button').contains('Run query').click();
+
+        // wait for the chart to finish loading
+        cy.contains('Loading chart').should('not.exist');
+
+        // open chart menu and change chart types
+        cy.findByText('Configure').click();
+
+        // change X-axis to table calculation
+        cy.findByTestId('x-axis-field-select').click();
+        cy.findByTestId('x-axis-field-select').clear();
+        cy.findByTestId('x-axis-field-select').type('TC');
+        cy.findByTestId('x-axis-field-select').type('{downArrow}{enter}');
+
+        // change y-axis to table calculation
+        cy.findByTestId('y-axis-field-select').click();
+        cy.findByTestId('y-axis-field-select').clear();
+        cy.findByTestId('y-axis-field-select').type('TC');
+        cy.findByTestId('y-axis-field-select').type('{downArrow}{enter}');
+
+        cy.get('th').contains('TC').closest('th').find('button').click();
+
+        const newTCName = 'TC2';
+
+        cy.get('button').contains('Edit calculation').click();
+        cy.findByTestId('table-calculation-name-input').type(
+            `{selectAll}${newTCName}`,
+        );
+        cy.findAllByTestId('table-calculation-save-button').click();
+
+        cy.findByTestId('x-axis-field-select').should('have.value', newTCName);
+        cy.findByTestId('y-axis-field-select').should('have.value', newTCName);
     });
 
     it('Should change chart config layout', () => {

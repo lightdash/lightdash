@@ -156,6 +156,7 @@ export const ExplorerResults = memo(() => {
                     idleState={IdleState}
                     pagination={pagination}
                     footer={footer}
+                    showSubtotals={false}
                 />
                 <JsonViewerModal
                     heading={`Field: ${expandData.name}`}

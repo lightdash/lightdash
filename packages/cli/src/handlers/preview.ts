@@ -181,7 +181,7 @@ export const previewHandler = async (
             ignoreErrors: true,
         });
 
-        setPreviewProject(project.projectUuid, name);
+        await setPreviewProject(project.projectUuid, name);
 
         process.on('SIGINT', async () => {
             await cleanupProject(executionId, project!.projectUuid);
@@ -259,7 +259,7 @@ export const previewHandler = async (
         spinner.fail('Error creating developer preview');
 
         await deletePreviewProject(project.projectUuid);
-        unsetPreviewProject();
+        await unsetPreviewProject();
 
         await LightdashAnalytics.track({
             event: 'preview.error',
@@ -343,7 +343,7 @@ export const startPreviewHandler = async (
             return;
         }
 
-        setPreviewProject(project.projectUuid, projectName);
+        await setPreviewProject(project.projectUuid, projectName);
 
         await LightdashAnalytics.track({
             event: 'start_preview.create',
@@ -390,7 +390,7 @@ export const stopPreviewHandler = async (
 
     const projectName = options.name;
 
-    unsetPreviewProject();
+    await unsetPreviewProject();
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {

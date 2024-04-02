@@ -28,6 +28,7 @@ export type SpaceSummary = Pick<
     | 'pinnedListUuid'
     | 'pinnedListOrder'
 > & {
+    userAccess: SpaceShare | undefined;
     access: string[];
     chartCount: number;
     dashboardCount: number;
@@ -36,7 +37,7 @@ export type SpaceSummary = Pick<
 export type CreateSpace = {
     name: string;
     isPrivate?: boolean;
-    access?: Pick<SpaceShare, 'userUuid'>[];
+    access?: Pick<SpaceShare, 'userUuid' | 'role'>[];
 };
 
 export type UpdateSpace = {
@@ -58,6 +59,7 @@ export type SpaceShare = {
 export enum SpaceMemberRole {
     VIEWER = 'viewer',
     EDITOR = 'editor',
+    ADMIN = 'admin',
 }
 
 export type ApiSpaceSummaryListResponse = {
@@ -70,6 +72,7 @@ export type ApiSpaceResponse = {
     results: Space;
 };
 
-export type AddSpaceShare = {
+export type AddSpaceUserAccess = {
     userUuid: string;
+    spaceRole: SpaceMemberRole;
 };

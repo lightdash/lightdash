@@ -57,15 +57,28 @@ copy spaces/charts/dashboards from the source project they have access to.
 
 ### Space Roles
 
-Space permissions are inherited from a user's project permissions. For example, if I'm a project viewer, I will get `viewer` access to a Space.
+There are three space roles: `Full Access`, `Can Edit`, `Can View`
 
-| Action                                                   | Spaces Admin | Spaces Editor | Spaces Viewer |
-| :------------------------------------------------------- | :----------: | :-----------: | :-----------: |
-| Edit a Space's access (from Full to Restricted)          |      ✅      |      ✅       |      ❌       |
-| Invite users to a Restricted Space they have access to   |      ✅      |      ✅       |      ❌       |
-| Remove users from a Restricted Space they have access to |      ✅      |      ✅       |      ❌       |
-| Add/Remove content from the Space                        |      ✅      |      ✅       |      ❌       |
-| Edit the Space details (name, description, etc.)         |      ✅      |      ✅       |      ❌       |
+Users with `Full Access` to a space can restrict and increase a user’s inherited project permissions in a space (e.g. you can make project editors into `can view` in a space). Space permissions determine which users can edit space contents (charts and dashboards), view the contents in a space, and change a space's settings:
+
+- A user needs to have at least the `Can view` access level to a space to see that the space exists and to see the charts and dashboards inside it.
+- A user needs to have the `Can edit` access level to a space to edit the content in the space (add/delete/rename charts and dashboards).
+- A user needs to have the `Full access` access level to a space to manage access to the space and to edit the space details (name, description, etc.).
+
+Space permissions don't otherwise control what users can do, or which data they can use to build their own content.
+
+This means:
+
+- a project viewer who has `Can edit` space permissions cannot get access to build or edit charts because Viewers don't have access to the Explore view
+- an interactive viewer who is given `Can edit` space permissions can save content in that space but not in any other space (unless given `edit` access to another space)
+- an editor who is given `Can view` space permissions cannot edit the content in that space, but they can create/edit content in other parts of the project (unless they're given `Can view` access).
+
+| Action               | Full Access | Can Edit | Can View |
+| :------------------- | :---------: | :------: | :------: |
+| View space content   |     ✅      |    ✅    |    ✅    |
+| Manage space content |     ✅      |    ✅    |    ❌    |
+| Manage space access  |     ✅      |    ❌    |    ❌    |
+| Manage space details |     ✅      |    ❌    |    ❌    |
 
 ## Allowed email domains to join organization automatically
 

@@ -69,6 +69,13 @@ export const getMantineThemeOverride = (overrides?: {
             defaultProps: {
                 withArrow: true,
             },
+            variants: {
+                xs: (theme) => ({
+                    tooltip: {
+                        fontSize: theme.fontSizes.xs,
+                    },
+                }),
+            },
         },
 
         Modal: {
@@ -112,6 +119,11 @@ export const getMantineThemeOverride = (overrides?: {
                                     0.1,
                                 ),
                             },
+                    },
+                    viewport: {
+                        '.only-vertical & > div': {
+                            display: 'block !important', // Only way to override the display value (from `table`) of the Viewport's child element
+                        },
                     },
                 }),
             },

@@ -15,6 +15,7 @@ import {
     type ResultRow,
     type ResultValue,
     type TableCalculation,
+    type TableCalculationMetadata,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
 import isEmpty from 'lodash/isEmpty';
@@ -88,6 +89,7 @@ export type PieChartConfigFn = (
     dimensions: Record<string, CustomDimension | Dimension>,
     numericMetrics: Record<string, Metric | TableCalculation>,
     colorPalette: string[],
+    tableCalculationsMetadata?: TableCalculationMetadata[],
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
@@ -97,6 +99,7 @@ const usePieChartConfig: PieChartConfigFn = (
     dimensions,
     numericMetrics,
     colorPalette,
+    tableCalculationsMetadata,
 ) => {
     const [groupFieldIds, setGroupFieldIds] = useState(
         pieChartConfig?.groupFieldIds ?? [],
@@ -192,8 +195,23 @@ const usePieChartConfig: PieChartConfigFn = (
         if (isLoading || allNumericMetricIds.length === 0) return;
         if (metricId && allNumericMetricIds.includes(metricId)) return;
 
+        /**
+         * When table calculations update, their name changes, so we need to update the selected fields
+         * If the selected field is a table calculation with the old name in the metadata, set it to the new name
+         */
+        if (tableCalculationsMetadata) {
+            const metricTcIndex = tableCalculationsMetadata.findIndex(
+                (tc) => tc.oldName === metricId,
+            );
+
+            if (metricTcIndex !== -1) {
+                setMetricId(tableCalculationsMetadata[metricTcIndex].name);
+                return;
+            }
+        }
+
         setMetricId(allNumericMetricIds[0] ?? null);
-    }, [isLoading, allNumericMetricIds, metricId, pieChartConfig?.metricId]);
+    }, [allNumericMetricIds, isLoading, metricId, tableCalculationsMetadata]);
 
     const isValueLabelOverriden = useMemo(() => {
         return Object.values(groupValueOptionOverrides).some(

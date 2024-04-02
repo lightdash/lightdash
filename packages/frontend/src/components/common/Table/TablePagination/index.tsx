@@ -79,7 +79,9 @@ const TablePagination: FC = () => {
                     </Button.Group>
                 </Group>
             ) : pagination?.showResultsTotal ? (
-                <ResultCount count={table.getRowModel().rows.length} />
+                <ResultCount
+                    count={table.getPreGroupedRowModel().rows.length}
+                />
             ) : null}
         </TableFooter>
     );

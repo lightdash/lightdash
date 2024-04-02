@@ -448,6 +448,9 @@
                     "description": {
                         "type": "string"
                     },
+                    "originalName": {
+                        "type": "string"
+                    },
                     "label": {
                         "type": "string"
                     },
@@ -3466,6 +3469,55 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "SpaceMemberRole": {
+                "enum": ["viewer", "editor", "admin"],
+                "type": "string"
+            },
+            "SpaceShare": {
+                "properties": {
+                    "inheritedFrom": {
+                        "type": "string",
+                        "enum": ["organization", "project", "group"]
+                    },
+                    "inheritedRole": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ]
+                    },
+                    "hasDirectAccess": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hasDirectAccess",
+                    "role",
+                    "email",
+                    "lastName",
+                    "firstName",
+                    "userUuid"
+                ],
+                "type": "object"
+            },
             "SpaceSummary": {
                 "allOf": [
                     {
@@ -3486,6 +3538,9 @@
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            "userAccess": {
+                                "$ref": "#/components/schemas/SpaceShare"
                             }
                         },
                         "required": ["dashboardCount", "chartCount", "access"],
@@ -4629,6 +4684,9 @@
                     "columns": {
                         "$ref": "#/components/schemas/Record_string.ColumnProperties_"
                     },
+                    "showSubtotals": {
+                        "type": "boolean"
+                    },
                     "showResultsTotal": {
                         "type": "boolean"
                     },
@@ -4677,55 +4735,6 @@
                         "$ref": "#/components/schemas/TableChartConfig"
                     }
                 ]
-            },
-            "SpaceMemberRole": {
-                "enum": ["viewer", "editor"],
-                "type": "string"
-            },
-            "SpaceShare": {
-                "properties": {
-                    "inheritedFrom": {
-                        "type": "string",
-                        "enum": ["organization", "project", "group"]
-                    },
-                    "inheritedRole": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/OrganizationMemberRole"
-                            },
-                            {
-                                "$ref": "#/components/schemas/ProjectMemberRole"
-                            }
-                        ]
-                    },
-                    "hasDirectAccess": {
-                        "type": "boolean"
-                    },
-                    "role": {
-                        "$ref": "#/components/schemas/SpaceMemberRole"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "hasDirectAccess",
-                    "role",
-                    "email",
-                    "lastName",
-                    "firstName",
-                    "userUuid"
-                ],
-                "type": "object"
             },
             "SavedChart": {
                 "properties": {
@@ -5126,6 +5135,9 @@
                     },
                     {
                         "properties": {
+                            "required": {
+                                "type": "boolean"
+                            },
                             "label": {
                                 "type": "string"
                             },
@@ -5788,13 +5800,16 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SpaceShare.userUuid_": {
+            "Pick_SpaceShare.userUuid-or-role_": {
                 "properties": {
                     "userUuid": {
                         "type": "string"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
                     }
                 },
-                "required": ["userUuid"],
+                "required": ["userUuid", "role"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -5802,7 +5817,7 @@
                 "properties": {
                     "access": {
                         "items": {
-                            "$ref": "#/components/schemas/Pick_SpaceShare.userUuid_"
+                            "$ref": "#/components/schemas/Pick_SpaceShare.userUuid-or-role_"
                         },
                         "type": "array"
                     },
@@ -5828,13 +5843,16 @@
                 "required": ["isPrivate", "name"],
                 "type": "object"
             },
-            "AddSpaceShare": {
+            "AddSpaceUserAccess": {
                 "properties": {
+                    "spaceRole": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
                     "userUuid": {
                         "type": "string"
                     }
                 },
-                "required": ["userUuid"],
+                "required": ["spaceRole", "userUuid"],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -6702,7 +6720,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1035.0",
+        "version": "0.1044.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7372,6 +7390,9 @@
                                     },
                                     {
                                         "properties": {
+                                            "chartName": {
+                                                "type": "string"
+                                            },
                                             "hiddenFields": {
                                                 "items": {
                                                     "type": "string"
@@ -10992,7 +11013,7 @@
         },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/share": {
             "post": {
-                "operationId": "AddSpaceShareToUser",
+                "operationId": "AddSpaceUserAccess",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -11042,7 +11063,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/AddSpaceShare"
+                                "$ref": "#/components/schemas/AddSpaceUserAccess"
                             }
                         }
                     }

@@ -3,11 +3,9 @@ import {
     getHiddenTableFields,
     NotFoundError,
 } from '@lightdash/common';
-import { memo, useCallback, useMemo, useState, type FC } from 'react';
-
 import { useDisclosure } from '@mantine/hooks';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { downloadCsv } from '../../../api/csv';
-import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -69,6 +67,9 @@ const VisualizationCard: FC<{
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
+    const tableCalculationsMetadata = useExplorerContext(
+        (context) => context.state.metadata?.tableCalculations,
+    );
 
     const isOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
@@ -86,8 +87,6 @@ const VisualizationCard: FC<{
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
-
-    const { getIsEditingDashboardChart } = useDashboardStorage();
 
     const [isSidebarOpen, { open: openSidebar, close: closeSidebar }] =
         useDisclosure();
@@ -172,6 +171,7 @@ const VisualizationCard: FC<{
             onChartTypeChange={setChartType}
             onPivotDimensionsChange={setPivotFields}
             colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
+            tableCalculationsMetadata={tableCalculationsMetadata}
         >
             <CollapsableCard
                 title="Chart"
@@ -187,7 +187,6 @@ const VisualizationCard: FC<{
                                         unsavedChartVersion.chartConfig.type
                                     }
                                     savedChart={savedChart}
-                                    isEditingDashboardChart={getIsEditingDashboardChart()}
                                     isProjectPreview={isProjectPreview}
                                     isOpen={isSidebarOpen}
                                     onOpen={openSidebar}
