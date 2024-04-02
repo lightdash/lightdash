@@ -134,7 +134,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             },
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
-        addNewItem(newReferenceLine.data.value);
+        addNewItem(`${referenceLines.length + 1}`);
     }, [addNewItem, isCartesianChart, visualizationConfig.chartConfig]);
 
     const removeReferenceLine = useCallback(
@@ -209,7 +209,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     >
                         {referenceLines.map((line, index) => (
                             <ReferenceLine
-                                isOpen={openItems.includes(line.data.value)}
+                                isOpen={openItems.includes(`${index + 1}`)}
                                 addNewItem={addNewItem}
                                 removeItem={removeItem}
                                 key={line.data.value}
