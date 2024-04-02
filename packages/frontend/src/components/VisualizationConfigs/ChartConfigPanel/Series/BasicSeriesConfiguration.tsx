@@ -46,7 +46,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
 
     return (
         <Config>
-            <Config.Group>
+            <Config.Section>
                 <Group noWrap spacing="two">
                     <GrabIcon dragHandleProps={dragHandleProps} />
 
@@ -61,9 +61,9 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                         }}
                     />
                     {isSingle ? (
-                        <Config.Label>
+                        <Config.Heading>
                             {getItemLabelWithoutTableName(item)}
-                        </Config.Label>
+                        </Config.Heading>
                     ) : (
                         <Box
                             style={{
@@ -96,7 +96,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     updateSingleSeries={updateSingleSeries}
                     getSingleSeries={getSingleSeries}
                 />
-            </Config.Group>
+            </Config.Section>
         </Config>
     );
 };

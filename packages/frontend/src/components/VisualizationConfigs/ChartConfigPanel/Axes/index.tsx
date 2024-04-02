@@ -76,10 +76,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
     return (
         <Stack>
             <Config>
-                <Config.Group>
-                    <Config.Label>{`${
+                <Config.Section>
+                    <Config.Heading>{`${
                         dirtyLayout?.flipAxes ? 'Y' : 'X'
-                    }-axis label`}</Config.Label>
+                    }-axis label`}</Config.Heading>
                     <TextInput
                         placeholder="Enter axis label"
                         defaultValue={
@@ -104,7 +104,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     )}
                     <Group spacing="xs">
                         <Group spacing="xs">
-                            <Config.SubLabel>Sort</Config.SubLabel>
+                            <Config.Label>Sort</Config.Label>
                             <SegmentedControl
                                 defaultValue={
                                     dirtyEchartsConfig?.xAxis?.[0]?.inverse
@@ -136,7 +136,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         </Group>
                         {!dirtyLayout?.flipAxes && (
                             <Group noWrap spacing="xs" align="baseline">
-                                <Config.SubLabel>Rotation</Config.SubLabel>
+                                <Config.Label>Rotation</Config.Label>
                                 <NumberInput
                                     type="number"
                                     defaultValue={
@@ -155,16 +155,16 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             </Group>
                         )}
                     </Group>
-                </Config.Group>
+                </Config.Section>
             </Config>
 
             <Config>
-                <Config.Group>
-                    <Config.Label>{`${
+                <Config.Section>
+                    <Config.Heading>{`${
                         dirtyLayout?.flipAxes ? 'X' : 'Y'
                     }-axis label (${
                         dirtyLayout?.flipAxes ? 'bottom' : 'left'
-                    })`}</Config.Label>
+                    })`}</Config.Heading>
 
                     <TextInput
                         placeholder="Enter axis label"
@@ -192,16 +192,16 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             setMax={(newValue) => setYMaxValue(0, newValue)}
                         />
                     )}
-                </Config.Group>
+                </Config.Section>
             </Config>
 
             <Config>
-                <Config.Group>
-                    <Config.Label>{`${
+                <Config.Section>
+                    <Config.Heading>{`${
                         dirtyLayout?.flipAxes ? 'X' : 'Y'
                     }-axis label (${
                         dirtyLayout?.flipAxes ? 'top' : 'right'
-                    })`}</Config.Label>
+                    })`}</Config.Heading>
 
                     <TextInput
                         placeholder="Enter axis label"
@@ -230,12 +230,12 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             setMax={(newValue) => setYMaxValue(1, newValue)}
                         />
                     )}
-                </Config.Group>
+                </Config.Section>
             </Config>
 
             <Config>
-                <Config.Group>
-                    <Config.Label>Show grid</Config.Label>
+                <Config.Section>
+                    <Config.Heading>Show grid</Config.Heading>
 
                     <Stack spacing="xs">
                         <Checkbox
@@ -262,7 +262,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             }}
                         />
                     </Stack>
-                </Config.Group>
+                </Config.Section>
             </Config>
         </Stack>
     );

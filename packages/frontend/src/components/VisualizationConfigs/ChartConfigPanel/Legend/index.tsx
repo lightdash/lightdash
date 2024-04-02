@@ -60,7 +60,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
 
     return (
         <Config>
-            <Config.Group>
+            <Config.Section>
                 <Switch
                     labelPosition="left"
                     label={`Custom position`}
@@ -83,7 +83,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                         defaultConfig={defaultConfig}
                     />
                 )}
-            </Config.Group>
+            </Config.Section>
         </Config>
     );
 };
@@ -116,9 +116,9 @@ export const Legend: FC<Props> = ({ items }) => {
     return (
         <Stack>
             <Config>
-                <Config.Group>
+                <Config.Section>
                     <Group spacing="xs" align="center">
-                        <Config.Label>Legend</Config.Label>
+                        <Config.Heading>Legend</Config.Heading>
                         <Switch
                             checked={legendConfig.show ?? showDefault}
                             onChange={(e) =>
@@ -130,9 +130,7 @@ export const Legend: FC<Props> = ({ items }) => {
                     <Collapse in={legendConfig.show ?? showDefault}>
                         <Stack spacing="xs">
                             <Group spacing="xs">
-                                <Config.SubLabel>
-                                    Scroll behavior
-                                </Config.SubLabel>
+                                <Config.Label>Scroll behavior</Config.Label>
                                 <SegmentedControl
                                     value={dirtyEchartsConfig?.legend?.type}
                                     data={[
@@ -145,7 +143,7 @@ export const Legend: FC<Props> = ({ items }) => {
                                 />
                             </Group>
                             <Group spacing="xs">
-                                <Config.SubLabel>Orientation</Config.SubLabel>
+                                <Config.Label>Orientation</Config.Label>
                                 <SegmentedControl
                                     name="orient"
                                     value={legendConfig.orient ?? 'horizontal'}
@@ -170,7 +168,7 @@ export const Legend: FC<Props> = ({ items }) => {
                             />
                         </Stack>
                     </Collapse>
-                </Config.Group>
+                </Config.Section>
             </Config>
             <ReferenceLines items={items} projectUuid={projectUuid} />
         </Stack>
