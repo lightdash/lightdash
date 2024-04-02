@@ -40,8 +40,23 @@ export const addFieldIdToMetricFilterRule = (
     },
 });
 
-export const getCustomMetricName = (label: string, dimensionName: string) =>
-    `${dimensionName}_${snakeCaseName(label)}`;
+export const getCustomMetricName = (
+    table: string,
+    label: string,
+    dimensionName: string,
+) => {
+    // Some warehouses don't support long names, so we need to truncate these custom metrics if the name is too long
+    if (table.length + dimensionName.length + label.length <= 62) {
+        return `${dimensionName}_${snakeCaseName(label)}`;
+    }
+
+    // 64 (max characters in postgres) - 3 (underscores) - 14 (timestamp length) = 47
+    const maxPartLength = Math.floor((47 - table.length) / 2);
+    // If the name is still too long, we truncate each part and add a timestamp to the end to make it unique
+    return `${dimensionName.slice(0, maxPartLength)}_${snakeCaseName(
+        label,
+    ).slice(0, maxPartLength)}_${new Date().getTime()}`;
+};
 
 const getCustomMetricDescription = (
     metricType: MetricType,
@@ -166,6 +181,7 @@ export const prepareCustomMetricData = ({
         filters: customMetricFilters.length > 0 ? customMetricFilters : [],
         label: customMetricLabel,
         name: getCustomMetricName(
+            item.table,
             customMetricLabel,
             isEditingCustomMetric &&
                 isAdditionalMetric(item) &&
