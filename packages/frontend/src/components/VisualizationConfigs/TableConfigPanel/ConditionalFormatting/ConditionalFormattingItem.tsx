@@ -239,8 +239,8 @@ export const ConditionalFormattingItem: FC<Props> = ({
     );
 
     const { ref, hovered } = useHover<HTMLButtonElement>();
-    const controlLabel = `Rule ${configIndex + 1}`;
-    const accordionValue = configIndex.toString();
+    const controlLabel = `Rule ${configIndex}`;
+    const accordionValue = `${configIndex}`;
 
     return (
         <Accordion.Item value={accordionValue}>

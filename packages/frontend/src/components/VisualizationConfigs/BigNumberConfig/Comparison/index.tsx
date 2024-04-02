@@ -1,5 +1,6 @@
 import { ComparisonFormatTypes, type CompactOrAlias } from '@lightdash/common';
 import {
+    Grid,
     Group,
     SegmentedControl,
     Select,
@@ -82,43 +83,53 @@ export const Comparison = () => {
                                 onChange={() => {
                                     setFlipColors(!flipColors);
                                 }}
+                                labelPosition="left"
+                                styles={{
+                                    label: {
+                                        paddingLeft: 0,
+                                    },
+                                }}
                             />
 
-                            <Group noWrap grow spacing="xs">
-                                <TextInput
-                                    label="Comparison label"
-                                    value={comparisonLabel ?? ''}
-                                    placeholder={'Add an optional label'}
-                                    onChange={(e) =>
-                                        setComparisonLabel(
-                                            e.currentTarget.value,
-                                        )
-                                    }
-                                />
-
-                                {showStyle &&
-                                    comparisonFormat ===
-                                        ComparisonFormatTypes.RAW && (
-                                        <Select
-                                            label="Format"
-                                            data={StyleOptions}
-                                            value={
-                                                bigNumberComparisonStyle ?? ''
-                                            }
-                                            onChange={(newValue) => {
-                                                if (!newValue) {
-                                                    setBigNumberComparisonStyle(
-                                                        undefined,
-                                                    );
-                                                } else {
-                                                    setBigNumberComparisonStyle(
-                                                        newValue as CompactOrAlias,
-                                                    );
+                            <Grid gutter="xs">
+                                <Grid.Col span={7}>
+                                    <TextInput
+                                        label="Comparison label"
+                                        value={comparisonLabel ?? ''}
+                                        placeholder={'Add an optional label'}
+                                        onChange={(e) =>
+                                            setComparisonLabel(
+                                                e.currentTarget.value,
+                                            )
+                                        }
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span="auto">
+                                    {showStyle &&
+                                        comparisonFormat ===
+                                            ComparisonFormatTypes.RAW && (
+                                            <Select
+                                                label="Format"
+                                                data={StyleOptions}
+                                                value={
+                                                    bigNumberComparisonStyle ??
+                                                    ''
                                                 }
-                                            }}
-                                        />
-                                    )}
-                            </Group>
+                                                onChange={(newValue) => {
+                                                    if (!newValue) {
+                                                        setBigNumberComparisonStyle(
+                                                            undefined,
+                                                        );
+                                                    } else {
+                                                        setBigNumberComparisonStyle(
+                                                            newValue as CompactOrAlias,
+                                                        );
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                </Grid.Col>
+                            </Grid>
                         </>
                     ) : null}
                 </Config.Group>
