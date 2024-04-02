@@ -73,9 +73,10 @@ export const ConditionalFormatting = ({}) => {
                         colorPalette[0],
                     ),
                 );
+                addNewItem(`${draft.length}`);
             }),
         );
-    }, [chartConfig, activeConfigs, colorPalette]);
+    }, [chartConfig, activeConfigs, colorPalette, addNewItem]);
 
     const handleRemove = useCallback(
         (index: number) => {
@@ -123,11 +124,11 @@ export const ConditionalFormatting = ({}) => {
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <ConditionalFormattingItem
                             key={index}
-                            isOpen={openItems.includes(String(index))}
+                            isOpen={openItems.includes(`${index}`)}
                             addNewItem={addNewItem}
                             removeItem={removeItem}
                             colorPalette={colorPalette}
-                            index={index}
+                            index={index + 1}
                             fields={visibleActiveNumericFields}
                             value={conditionalFormatting}
                             onChange={(newConfig) =>

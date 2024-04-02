@@ -182,12 +182,11 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     >
                         {referenceLines.map((line, index) => (
                             <ReferenceLine
-                                isOpen={openItems.includes(`${index + 1}`)}
+                                isOpen={openItems.includes(`${index}`)}
                                 addNewItem={addNewItem}
                                 removeItem={removeItem}
                                 key={line.data.value}
                                 index={index + 1}
-                                isDefaultOpen={referenceLines.length <= 1}
                                 items={items}
                                 startOfWeek={startOfWeek ?? undefined}
                                 referenceLine={line}

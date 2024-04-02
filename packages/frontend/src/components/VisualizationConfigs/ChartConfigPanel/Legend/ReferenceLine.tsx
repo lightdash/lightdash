@@ -55,7 +55,6 @@ type Props = {
         lineId: string,
     ) => void;
     removeReferenceLine: (lineId: string) => void;
-    isDefaultOpen: boolean;
 };
 
 type ReferenceLineValueProps = {
