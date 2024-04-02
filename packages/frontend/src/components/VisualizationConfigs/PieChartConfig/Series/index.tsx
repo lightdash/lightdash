@@ -95,6 +95,7 @@ export const Series: FC = () => {
                                                 : 'gray.0'
                                         }
                                         py="xs"
+                                        pr="xs"
                                     >
                                         {sortedGroupLabels.map(
                                             (groupLabel, index) => (

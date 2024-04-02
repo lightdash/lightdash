@@ -38,8 +38,10 @@ export const EditableText: FC<Props> = ({ lighter, ...props }) => {
                             overflow: 'visible',
                             background: theme.colors.gray[lighter ? '1' : '2'],
                         },
+                        '::placeholder': {
+                            color: theme.colors.gray['6'],
+                        },
                     },
-                    rightSection: {},
                 })}
             />
         </Box>

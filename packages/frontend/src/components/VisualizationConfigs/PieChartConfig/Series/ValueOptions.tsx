@@ -2,7 +2,7 @@ import {
     PieChartValueLabels,
     type PieChartValueLabel,
 } from '@lightdash/common';
-import { Box, Checkbox, Group, SegmentedControl, Tooltip } from '@mantine/core';
+import { Checkbox, Group, SegmentedControl } from '@mantine/core';
 import { type FC } from 'react';
 import { Config } from '../../common/Config';
 
@@ -52,47 +52,26 @@ export const ValueOptions: FC<ValueOptionsProps> = ({
             />
         </Group>
 
-        <Group spacing="xs">
-            <Tooltip
-                variant="xs"
-                position="top-start"
-                disabled={valueLabel !== 'hidden'}
-                label="Enable Value label to configure this option"
-                withinPortal
-            >
-                <Box>
-                    <Checkbox
-                        disabled={valueLabel === 'hidden'}
-                        indeterminate={isShowValueOverriden}
-                        checked={showValue}
-                        onChange={(newValue) =>
-                            onToggleShowValue(newValue.currentTarget.checked)
-                        }
-                        label="Show value"
-                    />
-                </Box>
-            </Tooltip>
+        {valueLabel !== 'hidden' && (
+            <Group spacing="xs">
+                <Checkbox
+                    indeterminate={isShowValueOverriden}
+                    checked={showValue}
+                    onChange={(newValue) =>
+                        onToggleShowValue(newValue.currentTarget.checked)
+                    }
+                    label="Show value"
+                />
 
-            <Tooltip
-                position="top-start"
-                disabled={valueLabel !== 'hidden'}
-                label="Enable Value label to configure this option"
-                withinPortal
-            >
-                <div>
-                    <Checkbox
-                        disabled={valueLabel === 'hidden'}
-                        indeterminate={isShowPercentageOverriden}
-                        checked={showPercentage}
-                        onChange={(newValue) =>
-                            onToggleShowPercentage(
-                                newValue.currentTarget.checked,
-                            )
-                        }
-                        label="Show percentage"
-                    />
-                </div>
-            </Tooltip>
-        </Group>
+                <Checkbox
+                    indeterminate={isShowPercentageOverriden}
+                    checked={showPercentage}
+                    onChange={(newValue) =>
+                        onToggleShowPercentage(newValue.currentTarget.checked)
+                    }
+                    label="Show percentage"
+                />
+            </Group>
+        )}
     </>
 );
