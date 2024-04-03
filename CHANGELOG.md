@@ -1,3 +1,10 @@
+## [0.1050.1](https://github.com/lightdash/lightdash/compare/0.1050.0...0.1050.1) (2024-04-03)
+
+
+### Bug Fixes
+
+* duplicate improvement bugfix and types ([#9616](https://github.com/lightdash/lightdash/issues/9616)) ([5de85dc](https://github.com/lightdash/lightdash/commit/5de85dc2d4d4c6ab7640ec767ec341b7ab4094ab))
+
 # [0.1050.0](https://github.com/lightdash/lightdash/compare/0.1049.0...0.1050.0) (2024-04-03)
 
 
