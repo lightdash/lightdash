@@ -12,7 +12,6 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { Request, RequestHandler } from 'express';
-import fs from 'fs/promises';
 import {
     BaseClient,
     generators,
@@ -136,20 +135,8 @@ const createOpenIdUserFromUserInfo = (
     return openIdUser;
 };
 
-/**
- * Not all possible values are reflected in the underlying PassportProfile type,
- * at least for AzureAD + openid-client
- */
-type PassportProfileLike = PassportProfile &
-    Partial<{
-        email: string;
-        sub: string;
-        family_name: string;
-        given_name: string;
-    }>;
-
 const createOpenIdUserFromProfile = (
-    profile: PassportProfileLike,
+    profile: PassportProfile,
     issuer: string,
     issuerType: OpenIdIdentityIssuerType,
     done: ArgumentsOf<VerifyFunctionWithRequest>['3'],
