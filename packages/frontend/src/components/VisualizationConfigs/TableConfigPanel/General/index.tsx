@@ -168,8 +168,8 @@ export const General: FC = () => {
                 onDragEnd={onDragEnd}
             >
                 <Config>
-                    <Config.Group>
-                        <Config.Label>Columns</Config.Label>
+                    <Config.Section>
+                        <Config.Heading>Columns</Config.Heading>
                         <DroppableItemsList
                             droppableId={DroppableIds.COLUMNS}
                             itemIds={columns}
@@ -180,7 +180,7 @@ export const General: FC = () => {
                             }
                         />
 
-                        <Config.Label>Rows</Config.Label>
+                        <Config.Heading>Rows</Config.Heading>
                         <DroppableItemsList
                             droppableId={DroppableIds.ROWS}
                             itemIds={rows}
@@ -190,13 +190,13 @@ export const General: FC = () => {
                                 'Drag dimensions into this area to group your data'
                             }
                         />
-                    </Config.Group>
+                    </Config.Section>
                 </Config>
             </DragDropContext>
 
-            <Config.Group>
-                <Config.LabelGroup>
-                    <Config.Label>Metrics</Config.Label>
+            <Config.Section>
+                <Config.Section>
+                    <Config.Heading>Metrics</Config.Heading>
                     <Tooltip
                         disabled={!!isPivotTableEnabled}
                         label={
@@ -217,17 +217,17 @@ export const General: FC = () => {
                             />
                         </Box>
                     </Tooltip>
-                </Config.LabelGroup>
-            </Config.Group>
+                </Config.Section>
+            </Config.Section>
 
-            <Config.Group>
+            <Config.Section>
                 {metrics.map((itemId) => (
                     <ColumnConfiguration key={itemId} fieldId={itemId} />
                 ))}
-            </Config.Group>
+            </Config.Section>
 
-            <Config.Group>
-                <Config.Label>Display</Config.Label>
+            <Config.Section>
+                <Config.Heading>Display</Config.Heading>
 
                 <Checkbox
                     label="Show table names"
@@ -243,10 +243,10 @@ export const General: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
-            </Config.Group>
+            </Config.Section>
 
-            <Config.Group>
-                <Config.Label>Results</Config.Label>
+            <Config.Section>
+                <Config.Heading>Results</Config.Heading>
                 {isPivotTableEnabled ? (
                     <Checkbox
                         label="Show row totals"
@@ -297,7 +297,7 @@ export const General: FC = () => {
                         />
                     </Box>
                 </Tooltip>
-            </Config.Group>
+            </Config.Section>
         </Stack>
     );
 };

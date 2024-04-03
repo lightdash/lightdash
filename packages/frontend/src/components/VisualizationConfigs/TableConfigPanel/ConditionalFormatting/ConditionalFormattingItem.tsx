@@ -287,7 +287,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         />
 
                         <Group spacing="xs">
-                            <Config.SubLabel>Color</Config.SubLabel>
+                            <Config.Label>Color</Config.Label>
 
                             <SegmentedControl
                                 data={[
@@ -373,9 +373,9 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             <Divider
                                                 mt="xs"
                                                 label={
-                                                    <Config.SubLabel>
+                                                    <Config.Label>
                                                         AND
-                                                    </Config.SubLabel>
+                                                    </Config.Label>
                                                 }
                                                 labelPosition="center"
                                             />
@@ -389,7 +389,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             <Group spacing="xs" noWrap grow>
                                 <Group>
                                     <Stack spacing="one">
-                                        <Config.SubLabel>Start</Config.SubLabel>
+                                        <Config.Label>Start</Config.Label>
                                         <ColorSelector
                                             color={config.color.start}
                                             swatches={colorPalette}
@@ -401,7 +401,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                         />
                                     </Stack>
                                     <Stack spacing="one">
-                                        <Config.SubLabel>End</Config.SubLabel>
+                                        <Config.Label>End</Config.Label>
                                         <ColorSelector
                                             color={config.color.end}
                                             swatches={colorPalette}

@@ -110,11 +110,11 @@ export const ConditionalFormatting = ({}) => {
 
     return (
         <Config>
-            <Config.Group>
-                <Config.LabelGroup>
-                    <Config.Label>Rules and Conditions</Config.Label>
+            <Config.Section>
+                <Config.Group>
+                    <Config.Heading>Rules and Conditions</Config.Heading>
                     <AddButton onClick={handleAdd} />
-                </Config.LabelGroup>
+                </Config.Group>
                 <Accordion
                     multiple
                     variant="contained"
@@ -138,7 +138,7 @@ export const ConditionalFormatting = ({}) => {
                         />
                     ))}
                 </Accordion>
-            </Config.Group>
+            </Config.Section>
         </Config>
     );
 };
